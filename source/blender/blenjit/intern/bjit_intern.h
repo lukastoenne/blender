@@ -32,6 +32,8 @@
 #ifndef __BJIT_INTERN_H__
 #define __BJIT_INTERN_H__
 
+#include <string>
+
 namespace llvm {
 class Function;
 class Module;

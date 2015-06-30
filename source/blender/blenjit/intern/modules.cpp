@@ -29,6 +29,9 @@
  *  \ingroup bjit
  */
 
+#include <map>
+#include <string>
+
 #include "llvm/Analysis/Passes.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
 #include "llvm/IR/Module.h"
@@ -39,6 +42,7 @@
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JIT.h"
@@ -64,6 +68,9 @@ extern "C" {
 using namespace llvm;
 
 static ExecutionEngine *theEngine = NULL;
+
+typedef std::map<std::string, Module*> ModuleMap;
+static ModuleMap theModules;
 
 static ExecutionEngine *create_execution_engine()
 {
@@ -150,6 +157,7 @@ void BJIT_load_module(const char *modfile, const char *modname)
 	}
 	
 	theEngine->addModule(mod);
+	theModules[mod->getModuleIdentifier()] = mod;
 }
 
 void BJIT_load_all_modules(const char *modpath, bool reload)
@@ -182,10 +190,17 @@ void BJIT_load_all_modules(const char *modpath, bool reload)
 void BJIT_unload_all_modules()
 {
 	// TODO
+	theModules.clear();
 }
 
 void bjit_add_module(Module *mod)
 {
+	for (ModuleMap::const_iterator it = theModules.begin(); it != theModules.end(); ++it) {
+		Module *lmod = it->second;
+		std::string error;
+		Linker::LinkModules(mod, lmod, Linker::LinkerMode::PreserveSource, &error);
+	}
+	
 	PassManager *pm = create_pass_manager();
 	pm->run(*mod);
 	delete pm;
