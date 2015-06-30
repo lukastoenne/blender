@@ -43,6 +43,11 @@ typedef struct EffectorEvalInput {
 	float vel[3];
 } EffectorEvalInput;
 
+typedef struct EffectorEvalResult {
+	float force[3];
+	float impulse[3];
+} EffectorEvalResult;
+
 void BJIT_build_effector_module(void);
 void BJIT_free_effector_module(void);
 
