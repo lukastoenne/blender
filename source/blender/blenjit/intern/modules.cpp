@@ -69,7 +69,6 @@ using namespace llvm;
 
 static ExecutionEngine *theEngine = NULL;
 
-typedef std::map<std::string, Module*> ModuleMap;
 static ModuleMap theModules;
 
 static ExecutionEngine *create_execution_engine()
@@ -152,6 +151,7 @@ void BJIT_load_module(const char *modfile, const char *modname)
 	
 	verifyModule(*mod, &outs());
 	
+	printf("Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
 	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
 		printf("    %s\n", it->getName().str().c_str());
 	}
@@ -201,6 +201,8 @@ void bjit_add_module(Module *mod)
 		Linker::LinkModules(mod, lmod, Linker::LinkerMode::PreserveSource, &error);
 	}
 	
+	verifyModule(*mod, &outs());
+	
 	PassManager *pm = create_pass_manager();
 	pm->run(*mod);
 	delete pm;
@@ -236,4 +238,18 @@ void *bjit_compile_function(Function *func)
 void bjit_free_function(Function *func)
 {
 	theEngine->freeMachineCodeForFunction(func);
+}
+
+ModuleMap &bjit_get_modules()
+{
+	return theModules;
+}
+
+Module *bjit_get_module(const std::string &name)
+{
+	ModuleMap::const_iterator it = theModules.find(name);
+	if (it != theModules.end())
+		return it->second;
+	else
+		return NULL;
 }

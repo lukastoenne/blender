@@ -118,7 +118,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
 	
-	Function *effector_force = Function::Create(functype, Function::ExternalLinkage, "effector_force");
+	Function *effector_force = Function::Create(functype, Function::ExternalLinkage, "effector_force", mod);
 	Value *par_input = func->arg_begin();
 	Value *args[] = { par_input };
 	CallInst::Create(effector_force, ArrayRef<Value*>(args, 1), "effector_force", entry);
