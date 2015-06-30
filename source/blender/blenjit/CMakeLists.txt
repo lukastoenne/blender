@@ -59,7 +59,6 @@ set(LLVM_SRC
 )
 
 set(LLVM_HEADERS
-	modules/mod_forcefield.h
 )
 
 if(WITH_LLVM)
@@ -89,8 +88,7 @@ if(WITH_LLVM)
 					-emit-llvm
 					-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
-#					-I${CMAKE_CURRENT_SOURCE_DIR}/../util
-#					-I${CMAKE_CURRENT_SOURCE_DIR}/svm
+					-I${CMAKE_CURRENT_SOURCE_DIR}
 			DEPENDS ${LLVM_SRC})
 
 		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)

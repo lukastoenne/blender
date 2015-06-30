@@ -1054,7 +1054,6 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
 		copy_v3_v3(input.vel, point->vel);
 		
 		res = effctx->eval(&input);
-//		printf("EVAL: %d\n", res);
 	}
 }
 
