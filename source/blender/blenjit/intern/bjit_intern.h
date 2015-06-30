@@ -39,6 +39,8 @@ class Function;
 class Module;
 }
 
+typedef std::map<std::string, llvm::Module*> ModuleMap;
+
 /* modules.cpp */
 //void *bjit_compile_module(llvm::Module *mod, const char *funcname);
 void bjit_add_module(llvm::Module *mod);
@@ -46,5 +48,8 @@ void bjit_remove_module(llvm::Module *mod);
 
 void *bjit_compile_function(llvm::Function *func);
 void bjit_free_function(llvm::Function *func);
+
+ModuleMap &bjit_get_modules();
+llvm::Module *bjit_get_module(const std::string &name);
 
 #endif
