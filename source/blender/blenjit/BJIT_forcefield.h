@@ -38,6 +38,11 @@ extern "C" {
 
 struct EffectorContext;
 
+typedef struct EffectorEvalInput {
+	float loc[3];
+	float vel[3];
+} EffectorEvalInput;
+
 void BJIT_build_effector_module(void);
 void BJIT_free_effector_module(void);
 

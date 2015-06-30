@@ -1,9 +1,6 @@
 #include "stdio.h"
 
-typedef struct EffectorEvalInput {
-	float loc[3];
-	float vel[3];
-} EffectorEvalInput;
+#include "BJIT_forcefield.h"
 
 int effector_force_eval(EffectorEvalInput *input)
 {
