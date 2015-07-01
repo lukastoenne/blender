@@ -125,11 +125,13 @@ public:
 	static StructType *get(LLVMContext &context) {
 		return StructType::get(
 		            TypeBuilder<mat4_t, cross>::get(context),
+		            TypeBuilder<mat4_t, cross>::get(context),
 		            NULL);
 	}
 	
 	enum Fields {
 		FIELD_TRANSFORM,
+		FIELD_ITRANSFORM,
 	};
 };
 
@@ -208,10 +210,15 @@ static Value *make_effector_settings(IRBuilder<> &builder, EffectorCache *eff)
 	LLVMContext &context = builder.getContext();
 	StructType *settings_t = TypeBuilder<EffectorEvalSettings, true>::get(context);
 	
-	ArrayRef<Constant*> fields = {
-	    make_const_mat4(context, eff->ob->obmat)
+	
+	float imat[4][4];
+	invert_m4_m4(imat, eff->ob->obmat);
+	
+	Constant* fields[] = {
+	    make_const_mat4(context, eff->ob->obmat),
+	    make_const_mat4(context, imat)
 	};
-	Constant *settings = ConstantStruct::get(settings_t, fields);
+	Constant *settings = ConstantStruct::get(settings_t, ArrayRef<Constant*>(fields, 2));
 	
 	AllocaInst *var = builder.CreateAlloca(settings_t);
 	builder.CreateStore(settings, var);
@@ -255,8 +262,6 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		std::string funcname = prefix + "_eval";
 		
-		EffectorEvalSettings settings;
-		copy_m4_m4(settings.transform, eff->ob->obmat);
 		Value *arg_settings = make_effector_settings(builder, eff);
 		
 		Function *evalfunc = theModule->getFunction(funcname);
