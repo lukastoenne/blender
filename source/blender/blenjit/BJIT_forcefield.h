@@ -49,7 +49,8 @@ typedef struct EffectorEvalResult {
 } EffectorEvalResult;
 
 typedef struct EffectorEvalSettings {
-	float transform[4][4];
+	float tfm[4][4];
+	float itfm[4][4];
 } EffectorEvalSettings;
 
 void BJIT_build_effector_module(void);
