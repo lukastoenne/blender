@@ -369,6 +369,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         mode = md.mode
 
         layout.prop(md, "mode")
+        layout.prop(md, "use_blenjit")
 
         layout.separator()
 

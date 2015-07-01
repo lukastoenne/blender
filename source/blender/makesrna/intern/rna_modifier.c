@@ -4745,6 +4745,11 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Mode", "Mode of generating force field information");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "use_blenjit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_BLENJIT);
+	RNA_def_property_ui_text(prop, "Use BlenJIT", "Enable the use of JIT compiled force fields");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "image_vec", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Vector Image", "Force vectors encoded as colors");
 	RNA_def_property_flag(prop, PROP_EDITABLE);

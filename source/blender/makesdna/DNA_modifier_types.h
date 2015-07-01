@@ -1572,7 +1572,7 @@ typedef struct ForceVizModifierData {
 
 /* ForceViz modifier flags */
 enum {
-	DUMMY = 0,
+	MOD_FORCEVIZ_USE_BLENJIT        = (1 << 0),
 };
 
 /* ForceViz modifier mode */

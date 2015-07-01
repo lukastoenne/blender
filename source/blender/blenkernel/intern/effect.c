@@ -1871,6 +1871,7 @@ typedef struct ForceVizEffectorData {
 	float imat[4][4];
 	EffectorContext *effectors;
 	EffectorWeights *weights;
+	bool use_blenjit;
 } ForceVizEffectorData;
 
 static void forceviz_get_field_vector(float R[3], float UNUSED(t), const float co[3], ForceVizEffectorData *data)
@@ -1888,7 +1889,10 @@ static void forceviz_get_field_vector(float R[3], float UNUSED(t), const float c
 	
 	zero_v3(force);
 	zero_v3(impulse);
-	pdDoJITEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
+	if (data->use_blenjit)
+		pdDoJITEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
+	else
+		pdDoEffectors(data->effectors, NULL, data->weights, &point, force, impulse);
 	
 	/* add gravity */
 	if (phys->flag & PHYS_GLOBAL_GRAVITY)
@@ -2004,6 +2008,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorCon
 	funcdata.effectors = effectors;
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
+	funcdata.use_blenjit = fmd->flag & MOD_FORCEVIZ_USE_BLENJIT;
 	
 	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
@@ -2105,8 +2110,12 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 {
 	BMesh *bm = NULL;
 	EffectorContext *effectors;
+	bool use_blenjit = fmd->flag & MOD_FORCEVIZ_USE_BLENJIT;
 	
-	effectors = pdInitJITEffectors(scene, ob, NULL, fmd->effector_weights, false);
+	if (use_blenjit)
+		effectors = pdInitJITEffectors(scene, ob, NULL, fmd->effector_weights, false);
+	else
+		effectors = pdInitEffectors(scene, ob, NULL, fmd->effector_weights, false);
 	
 	switch (fmd->mode) {
 		case MOD_FORCEVIZ_MODE_FIELDLINES: {
@@ -2126,7 +2135,10 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 		}
 	}
 	
-	pdEndJITEffectors(effectors);
+	if (use_blenjit)
+		pdEndJITEffectors(effectors);
+	else
+		pdEndEffectors(effectors);
 	
 	if (bm) {
 		DerivedMesh *result = CDDM_from_bmesh(bm, true);
