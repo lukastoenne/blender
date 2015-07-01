@@ -173,13 +173,17 @@ static std::string get_effector_prefix(short forcefield)
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	LLVMContext &context = getGlobalContext();
-	IRBuilder<> builder(getGlobalContext());
+	IRBuilder<> builder(context);
 	
-	FunctionType *functype = TypeBuilder<void(EffectorEvalInput* const, EffectorEvalResult*), true>::get(context);
+	FunctionType *functype = TypeBuilder<void(const EffectorEvalInput*, EffectorEvalResult*), true>::get(context);
+	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
-	Function::ArgumentListType::iterator it = func->arg_begin();
-	Value *arg_input = it++;
-	Value *arg_result = it++;
+	Value *arg_input, *arg_result;
+	{
+		Function::ArgumentListType::iterator it = func->arg_begin();
+		arg_input = it++;
+		arg_result = it++;
+	}
 	
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
@@ -204,24 +208,22 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		std::string funcname = prefix + "_eval";
 		
 		Function *evalfunc = theModule->getFunction(funcname);
-		printf("function %s has %d arguments\n", funcname.c_str(), (int)evalfunc->arg_size());
-//		Function *evalfunc = Function::Create(functype, Function::ExternalLinkage, funcname, theModule);
+		Value *evalarg1, *evalarg2;
+		{
+			Function::ArgumentListType::iterator it = evalfunc->arg_begin();
+			evalarg1 = it++;
+			evalarg2 = it++;
+		}
 		
 		std::vector<Value *> args;
-		args.push_back(arg_input);
-		args.push_back(arg_result);
-//		CallInst::Create(evalfunc, ArrayRef<Value*>(args, 2), "", entry);
+		args.push_back(builder.CreatePointerCast(arg_input, evalarg1->getType()));
+		args.push_back(builder.CreatePointerCast(arg_result, evalarg2->getType()));
 		builder.CreateCall(evalfunc, args);
-		builder.CreateP
 	}
 	
 	builder.CreateRetVoid();
 	
 	verifyFunction(*func, &outs());
-	printf("************************************\n");
-	func->dump();
-	printf("************************************\n");
-	
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 	effctx->eval_data = func;
 }
