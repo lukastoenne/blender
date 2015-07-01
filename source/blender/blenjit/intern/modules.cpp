@@ -158,6 +158,9 @@ void BJIT_load_module(const char *modfile, const char *modname)
 	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
 		const Function &func = *it;
 		printf("    %s\n", func.getName().str().c_str());
+		
+//		func.dump();
+//		printf("++++++++++++++++++++++++++++++++++\n");
 	}
 	
 	theEngine->addModule(mod);

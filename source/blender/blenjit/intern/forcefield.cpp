@@ -203,13 +203,19 @@ static Constant *make_const_mat4(LLVMContext &context, float mat[4][4])
 	return ConstantArray::get(TypeBuilder<mat4_t, true>::get(context), std::vector<Constant*>({col1, col2, col3, col4}));
 }
 
-static Constant *make_effector_settings(LLVMContext &context, EffectorCache *eff)
+static Value *make_effector_settings(IRBuilder<> &builder, EffectorCache *eff)
 {
+	LLVMContext &context = builder.getContext();
+	StructType *settings_t = TypeBuilder<EffectorEvalSettings, true>::get(context);
+	
 	ArrayRef<Constant*> fields = {
 	    make_const_mat4(context, eff->ob->obmat)
 	};
+	Constant *settings = ConstantStruct::get(settings_t, fields);
 	
-	return ConstantStruct::get(TypeBuilder<EffectorEvalSettings, true>::get(context), fields);
+	AllocaInst *var = builder.CreateAlloca(settings_t);
+	builder.CreateStore(settings, var);
+	return var;
 }
 
 void BJIT_build_effector_function(EffectorContext *effctx)
@@ -251,8 +257,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		EffectorEvalSettings settings;
 		copy_m4_m4(settings.transform, eff->ob->obmat);
-		Value *arg_settings = make_effector_settings(context, eff);
-//		Value *arg_settings = builder.CreateLoad(make_effector_settings(context, eff));
+		Value *arg_settings = make_effector_settings(builder, eff);
 		
 		Function *evalfunc = theModule->getFunction(funcname);
 		Value *evalarg_input, *evalarg_result, *evalarg_settings;
@@ -266,31 +271,16 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		std::vector<Value *> args;
 		args.push_back(builder.CreatePointerCast(arg_input, evalarg_input->getType()));
 		args.push_back(builder.CreatePointerCast(arg_result, evalarg_result->getType()));
-		builder.CreateStore(arg_settings, evalarg_settings);
-//		args.push_back();
-//		args.push_back(builder.CreatePointerCast(arg_settings, evalarg_settings->getType()));
-		//		Value *arg_settings = builder.CreateLoad(make_effector_settings(context, eff));
+		args.push_back(builder.CreatePointerCast(arg_settings, evalarg_settings->getType()));
 		
-		printf("--- Type of input (%d) ---------------\n", arg_settings->getType()->getStructNumElements());
-		arg_settings->getType()->dump();
-		for (int i; i < arg_settings->getType()->getStructNumElements(); ++i) {
-			printf("\n  "); arg_settings->getType()->getStructElementType(i)->dump(); printf("\n");
-		}
-		printf("\n--- Type of argument (%d) ---------------\n", evalarg_settings->getType()->getStructNumElements());
-		evalarg_settings->getType()->dump();
-		for (int i; i < evalarg_settings->getType()->getStructNumElements(); ++i) {
-			printf("\n  "); evalarg_settings->getType()->getStructElementType(i)->dump(); printf("\n");
-		}
-		printf("\n------------------\n");
-//		TypeBuilder<EffectorEvalSettings, true>::get(context);
-//		ArrayRef<Constant*>(&settings);
-//		ConstantStruct(TypeBuilder<EffectorEvalSettings>::get(context), ArrayRef<Constant*>(&settings));
-//		args.push_back(ConstantStruct(TypeBuilder<EffectorEvalSettings, true>::get(context), ArrayRef<Constant*>(settings)));
-//		args.push_back(arg_settings);
 		builder.CreateCall(evalfunc, args);
 	}
 	
 	builder.CreateRetVoid();
+	
+//	printf("=== The Module ===\n");
+//	theModule->dump();
+//	printf("==================\n");
 	
 	verifyFunction(*func, &outs());
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
