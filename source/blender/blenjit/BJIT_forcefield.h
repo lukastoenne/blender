@@ -48,6 +48,10 @@ typedef struct EffectorEvalResult {
 	float impulse[3];
 } EffectorEvalResult;
 
+typedef struct EffectorEvalSettings {
+	float transform[4][4];
+} EffectorEvalSettings;
+
 void BJIT_build_effector_module(void);
 void BJIT_free_effector_module(void);
 
