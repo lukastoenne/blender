@@ -1059,10 +1059,8 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
 		
 		copy_v3_v3(input.loc, point->loc);
 		copy_v3_v3(input.vel, point->vel);
-		printf("IN: (%.3f, %.3f, %.3f)\n", point->loc[0], point->loc[1], point->loc[2]);
 		
 		effctx->eval(&input, &result);
-		printf("OUT: (%.3f, %.3f, %.3f)\n", result.force[0], result.force[1], result.force[2]);
 		
 		copy_v3_v3(force, result.force);
 		copy_v3_v3(impulse, result.impulse);

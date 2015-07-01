@@ -119,6 +119,20 @@ public:
 	};
 };
 
+template<bool cross>
+class TypeBuilder<EffectorEvalSettings, cross> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<mat4_t, cross>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_TRANSFORM,
+	};
+};
+
 } /* namespace llvm */
 
 /* ------------------------------------------------------------------------- */
@@ -170,6 +184,34 @@ static std::string get_effector_prefix(short forcefield)
 	return "";
 }
 
+static Constant *make_const_vec3(LLVMContext &context, const float vec[3])
+{
+	return ConstantDataArray::get(context, ArrayRef<float>(vec, 3));
+}
+
+static Constant *make_const_vec4(LLVMContext &context, const float vec[4])
+{
+	return ConstantDataArray::get(context, ArrayRef<float>(vec, 4));
+}
+
+static Constant *make_const_mat4(LLVMContext &context, float mat[4][4])
+{
+	Constant *col1 = make_const_vec4(context, mat[0]);
+	Constant *col2 = make_const_vec4(context, mat[1]);
+	Constant *col3 = make_const_vec4(context, mat[2]);
+	Constant *col4 = make_const_vec4(context, mat[3]);
+	return ConstantArray::get(TypeBuilder<mat4_t, true>::get(context), std::vector<Constant*>({col1, col2, col3, col4}));
+}
+
+static Constant *make_effector_settings(LLVMContext &context, EffectorCache *eff)
+{
+	ArrayRef<Constant*> fields = {
+	    make_const_mat4(context, eff->ob->obmat)
+	};
+	
+	return ConstantStruct::get(TypeBuilder<EffectorEvalSettings, true>::get(context), fields);
+}
+
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	LLVMContext &context = getGlobalContext();
@@ -207,17 +249,44 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		std::string funcname = prefix + "_eval";
 		
+		EffectorEvalSettings settings;
+		copy_m4_m4(settings.transform, eff->ob->obmat);
+		Value *arg_settings = make_effector_settings(context, eff);
+//		Value *arg_settings = builder.CreateLoad(make_effector_settings(context, eff));
+		
 		Function *evalfunc = theModule->getFunction(funcname);
-		Value *evalarg1, *evalarg2;
+		Value *evalarg_input, *evalarg_result, *evalarg_settings;
 		{
 			Function::ArgumentListType::iterator it = evalfunc->arg_begin();
-			evalarg1 = it++;
-			evalarg2 = it++;
+			evalarg_input = it++;
+			evalarg_result = it++;
+			evalarg_settings = it++;
 		}
 		
 		std::vector<Value *> args;
-		args.push_back(builder.CreatePointerCast(arg_input, evalarg1->getType()));
-		args.push_back(builder.CreatePointerCast(arg_result, evalarg2->getType()));
+		args.push_back(builder.CreatePointerCast(arg_input, evalarg_input->getType()));
+		args.push_back(builder.CreatePointerCast(arg_result, evalarg_result->getType()));
+		builder.CreateStore(arg_settings, evalarg_settings);
+//		args.push_back();
+//		args.push_back(builder.CreatePointerCast(arg_settings, evalarg_settings->getType()));
+		//		Value *arg_settings = builder.CreateLoad(make_effector_settings(context, eff));
+		
+		printf("--- Type of input (%d) ---------------\n", arg_settings->getType()->getStructNumElements());
+		arg_settings->getType()->dump();
+		for (int i; i < arg_settings->getType()->getStructNumElements(); ++i) {
+			printf("\n  "); arg_settings->getType()->getStructElementType(i)->dump(); printf("\n");
+		}
+		printf("\n--- Type of argument (%d) ---------------\n", evalarg_settings->getType()->getStructNumElements());
+		evalarg_settings->getType()->dump();
+		for (int i; i < evalarg_settings->getType()->getStructNumElements(); ++i) {
+			printf("\n  "); evalarg_settings->getType()->getStructElementType(i)->dump(); printf("\n");
+		}
+		printf("\n------------------\n");
+//		TypeBuilder<EffectorEvalSettings, true>::get(context);
+//		ArrayRef<Constant*>(&settings);
+//		ConstantStruct(TypeBuilder<EffectorEvalSettings>::get(context), ArrayRef<Constant*>(&settings));
+//		args.push_back(ConstantStruct(TypeBuilder<EffectorEvalSettings, true>::get(context), ArrayRef<Constant*>(settings)));
+//		args.push_back(arg_settings);
 		builder.CreateCall(evalfunc, args);
 	}
 	
