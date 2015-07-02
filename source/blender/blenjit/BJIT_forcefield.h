@@ -57,10 +57,6 @@ typedef struct EffectorEvalSettings {
 	short falloff;		/* fall-off type */
 	short shape;		/* point, plane or surface */
 	
-	short tex_mode;		/* texture effector */
-	short kink, kink_axis; /* for curve guide */
-	short zdir;
-	
 	/* Main effector values */
 	float f_strength;	/* The strength of the force (+ or - ) */
 	float f_damp;		/* Damping ratio of the harmonic effector */
@@ -77,11 +73,27 @@ typedef struct EffectorEvalSettings {
 	float minrad;
 	
 	float absorption;	/* used for forces */
-	
-	/* texture effector */
-	float tex_nabla;	/* Used for calculating partial derivatives */
-	struct Tex *tex;	/* Texture of the texture effector */
 } EffectorEvalSettings;
+
+typedef enum EffectorEvalSettings_Flag {
+	EFF_FIELD_USE_MIN               = (1 << 0),
+	EFF_FIELD_USE_MAX               = (1 << 1),
+	EFF_FIELD_USE_MIN_RAD           = (1 << 2),
+	EFF_FIELD_USE_MAX_RAD           = (1 << 3),
+} EffectorEvalSettings_Flag;
+
+typedef enum EffectorEvalSettings_FalloffType {
+	EFF_FIELD_FALLOFF_SPHERE        = 0,
+	EFF_FIELD_FALLOFF_TUBE          = 1,
+	EFF_FIELD_FALLOFF_CONE          = 2,
+} EffectorEvalSettings_FalloffType;
+
+typedef enum EffectorEvalSettings_Shape{
+	EFF_FIELD_SHAPE_POINT           = 0,
+	EFF_FIELD_SHAPE_PLANE           = 1,
+	EFF_FIELD_SHAPE_SURFACE         = 2,
+	EFF_FIELD_SHAPE_POINTS          = 3,
+} EffectorEvalSettings_Shape;
 
 void BJIT_build_effector_module(void);
 void BJIT_free_effector_module(void);
