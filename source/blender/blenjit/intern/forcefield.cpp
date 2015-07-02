@@ -29,6 +29,8 @@
  *  \ingroup bjit
  */
 
+#include <cstdarg>
+
 #include "llvm/Analysis/Passes.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
 #include "llvm/IR/Module.h"
@@ -119,19 +121,48 @@ public:
 	};
 };
 
+template <bool cross, typename HeadT, typename... TailT>
+struct StructTypeBuilder {
+	static StructType *get(LLVMContext &context, SmallVector<Type*, 8> &struct_fields)
+	{
+		Type *head = TypeBuilder<HeadT, cross>::get(context);
+		struct_fields.push_back(head);
+		return StructTypeBuilder<cross, TailT...>::get(context, struct_fields);
+	}
+};
+
+/* terminator */
+template <bool cross, typename HeadT>
+struct StructTypeBuilder<cross, HeadT> {
+	static StructType *get(LLVMContext &context, SmallVector<Type*, 8> &struct_fields)
+	{
+		Type *head = TypeBuilder<HeadT, cross>::get(context);
+		struct_fields.push_back(head);
+		return StructType::get(context, struct_fields);
+	}
+};
+
+template <bool cross, typename... ArgsT>
+static StructType *build_struct_type(LLVMContext &context)
+{
+	SmallVector<Type*, 8> struct_fields;
+	return StructTypeBuilder<cross, ArgsT...>::get(context, struct_fields);
+}
+
 template<bool cross>
 class TypeBuilder<EffectorEvalSettings, cross> {
 public:
 	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            TypeBuilder<mat4_t, cross>::get(context),
-		            TypeBuilder<mat4_t, cross>::get(context),
-		            NULL);
+		return build_struct_type<cross,
+		        mat4_t, mat4_t, types::i<32>, types::ieee_float
+		        >(context);
 	}
 	
 	enum Fields {
 		FIELD_TRANSFORM,
 		FIELD_ITRANSFORM,
+		FIELD_FLAG,
+		FIELD_FALLOFF,
 	};
 };
 
