@@ -385,11 +385,13 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	
 	builder.CreateRetVoid();
 	
+	verifyFunction(*func, &outs());
+	bjit_finalize_function(theModule, func, 2);
+	
 //	printf("=== The Module ===\n");
 //	theModule->dump();
 //	printf("==================\n");
 	
-	verifyFunction(*func, &outs());
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 	effctx->eval_data = func;
 }

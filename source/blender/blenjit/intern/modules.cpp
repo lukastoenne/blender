@@ -50,6 +50,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 extern "C" {
 #include "MEM_guardedalloc.h"
@@ -135,6 +136,14 @@ static PassManager *create_pass_manager()
 //	pm->doInitialization();
 	
 	return pm;
+}
+
+static void init_function_pass_manager(FunctionPassManager *fpm, int opt_level)
+{
+	PassManagerBuilder builder;
+	builder.OptLevel = opt_level;
+	builder.populateFunctionPassManager(*fpm);
+//	builder.populateModulePassManager(MPM);
 }
 
 void BJIT_load_module(const char *modfile, const char *modname)
@@ -240,6 +249,18 @@ void *bjit_compile_module(Module *mod, const char *funcname)
 	return theEngine->getPointerToNamedFunction(funcname);
 }
 #endif
+
+void bjit_finalize_function(Module *mod, Function *func, int opt_level)
+{
+	FunctionPassManager fpm(mod);
+	init_function_pass_manager(&fpm, opt_level);
+	
+	fpm.run(*func);
+	
+//	printf("=== Optimized Function '%s'' ===\n", func->getName().str().c_str());
+//	func->dump();
+//	printf("================================\n");
+}
 
 void *bjit_compile_function(Function *func)
 {
