@@ -51,6 +51,36 @@ typedef struct EffectorEvalResult {
 typedef struct EffectorEvalSettings {
 	float tfm[4][4];
 	float itfm[4][4];
+
+	int flag;			/* general settings flag */
+
+	short falloff;		/* fall-off type */
+	short shape;		/* point, plane or surface */
+	
+	short tex_mode;		/* texture effector */
+	short kink, kink_axis; /* for curve guide */
+	short zdir;
+	
+	/* Main effector values */
+	float f_strength;	/* The strength of the force (+ or - ) */
+	float f_damp;		/* Damping ratio of the harmonic effector */
+	float f_flow;		/* How much force is converted into "air flow", i.e. force used as the velocity of surrounding medium. */
+	
+	float f_size;		/* Noise size for noise effector, restlength for harmonic effector */
+	
+	/* fall-off */
+	float f_power;		/* The power law - real gravitation is 2 (square) */
+	float maxdist;		/* if indicated, use this maximum */
+	float mindist;		/* if indicated, use this minimum */
+	float f_power_r;	/* radial fall-off power */
+	float maxrad;		/* radial versions of above */
+	float minrad;
+	
+	float absorption;	/* used for forces */
+	
+	/* texture effector */
+	float tex_nabla;	/* Used for calculating partial derivatives */
+	struct Tex *tex;	/* Texture of the texture effector */
 } EffectorEvalSettings;
 
 void BJIT_build_effector_module(void);
