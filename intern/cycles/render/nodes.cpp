@@ -4374,25 +4374,16 @@ OpenVDBNode::OpenVDBNode()
 	filename = "";
 	volume_manager = NULL;
 	sampling = OPENVDB_SAMPLE_POINT;
-	tfm = transform_identity();
-
-	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::POSITION);
 }
 
 void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	if(shader->has_volume)
-		attributes->add(ATTR_STD_GENERATED_TRANSFORM);
-
 	ShaderNode::attributes(shader, attributes);
 }
 
 void OpenVDBNode::compile(SVMCompiler& compiler)
 {
-	ShaderInput *vector_in = input("Vector");
 	volume_manager = compiler.volume_manager;
-
-	compiler.stack_assign(vector_in);
 
 	for(size_t i = 0; i < outputs.size(); ++i) {
 		ShaderOutput *out = outputs[i];
@@ -4418,16 +4409,7 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 		compiler.stack_assign(out);
 
 		compiler.add_node(NODE_OPENVDB,
-		                  grid_slot,
-		                  compiler.encode_uchar4(type,
-		                                         vector_in->stack_offset,
-		                                         out->stack_offset,
-		                                         sampling));
-
-		compiler.add_node(tfm.x);
-		compiler.add_node(tfm.y);
-		compiler.add_node(tfm.z);
-		compiler.add_node(tfm.w);
+		                  compiler.encode_uchar4(grid_slot, type, out->stack_offset, sampling));
 	}
 }
 

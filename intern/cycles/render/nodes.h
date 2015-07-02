@@ -747,8 +747,6 @@ public:
 	int grid_slot;
 	int sampling;
 	vector<ustring> output_names;
-
-	Transform tfm;
 };
 
 CCL_NAMESPACE_END
