@@ -40,6 +40,8 @@
 
 namespace internal {
 
+openvdb::Mat4R convertMatrix(const float mat[4][4]);
+
 template <typename GridType, typename T>
 GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
                               const std::string &name,
@@ -51,13 +53,7 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 	using namespace openvdb;
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
-
-	Mat4R mat = Mat4R(
-		  fluid_mat[0][0], fluid_mat[0][1], fluid_mat[0][2], fluid_mat[0][3],
-          fluid_mat[1][0], fluid_mat[1][1], fluid_mat[1][2], fluid_mat[1][3],
-          fluid_mat[2][0], fluid_mat[2][1], fluid_mat[2][2], fluid_mat[2][3],
-          fluid_mat[3][0], fluid_mat[3][1], fluid_mat[3][2], fluid_mat[3][3]);
-
+	Mat4R mat = convertMatrix(fluid_mat);
 	math::Transform::Ptr transform = math::Transform::createLinearTransform(mat);
 
 	typename GridType::Ptr grid = GridType::create(T(0));
@@ -123,10 +119,6 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
                                 const std::string &name,
                                 float **data_x, float **data_y, float **data_z,
                                 const int res[3]);
-
-void OpenVDB_update_fluid_transform(const char *filename,
-                                    float matrix[4][4],
-                                    float matrix_high[4][4]);
 
 }
 

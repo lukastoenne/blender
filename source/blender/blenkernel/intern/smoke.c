@@ -3444,45 +3444,6 @@ void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	}
 }
 
-void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd,
-                                            Scene *scene,
-                                            Object *ob,
-                                            update_cb update,
-                                            void *update_cb_data)
-{
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	int orig_frame, fr, cancel = 0;
-	float progress;
-	const char *relbase = modifier_path_relbase(ob);
-	char filename[FILE_MAX];
-
-	orig_frame = scene->r.cfra;
-
-	cache = BKE_openvdb_get_current_cache(sds);
-
-	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
-		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
-		 * so we can't use it here... */
-		scene->r.cfra = fr;
-
-		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
-		compute_fluid_matrices(sds);
-		OpenVDB_update_fluid_transform(filename, sds->fluidmat, sds->fluidmat_wt);
-
-		progress = (fr - cache->startframe) / (float)cache->endframe;
-
-		update(update_cb_data, progress, &cancel);
-
-		if (cancel) {
-			scene->r.cfra = orig_frame;
-			return;
-		}
-	}
-
-	scene->r.cfra = orig_frame;
-}
-
 #endif /* WITH_OPENVDB */
 
 #endif /* WITH_SMOKE */
@@ -3498,12 +3459,6 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	UNUSED_VARS(smd, scene, ob, cache);
-}
-
-void smokeModifier_OpenVDB_update_transform(SmokeModifierData *smd, Scene *scene,
-                                            Object *ob, update_cb update, void *update_cb_data)
-{
-	UNUSED_VARS(smd, scene, ob, update, update_cb_data);
 }
 
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)

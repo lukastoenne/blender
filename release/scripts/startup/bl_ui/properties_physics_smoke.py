@@ -372,7 +372,6 @@ class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
             row.prop(cache, "save_as_half")
 
         layout.operator("object.smoke_vdb_export")
-        layout.operator("object.smoke_vdb_transform_update")
 
         layout.label(text="Draw OpenVDB Data:")
         draw_data = domain.vdb_draw_data

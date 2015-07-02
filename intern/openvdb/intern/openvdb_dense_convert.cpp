@@ -35,6 +35,16 @@ using namespace openvdb;
 
 namespace internal {
 
+openvdb::Mat4R convertMatrix(const float mat[4][4])
+{
+    return openvdb::Mat4R(
+                mat[0][0], mat[0][1], mat[0][2], mat[0][3],
+                mat[1][0], mat[1][1], mat[1][2], mat[1][3],
+                mat[2][0], mat[2][1], mat[2][2], mat[2][3],
+                mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+}
+
+
 class MergeScalarGrids {
 	tree::ValueAccessor<const FloatTree> m_acc_x, m_acc_y, m_acc_z;
 
@@ -73,13 +83,7 @@ GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 {
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
-
-	Mat4R mat = Mat4R(
-	    fluid_mat[0][0], fluid_mat[0][1], fluid_mat[0][2], fluid_mat[0][3],
-	    fluid_mat[1][0], fluid_mat[1][1], fluid_mat[1][2], fluid_mat[1][3],
-	    fluid_mat[2][0], fluid_mat[2][1], fluid_mat[2][2], fluid_mat[2][3],
-	    fluid_mat[3][0], fluid_mat[3][1], fluid_mat[3][2], fluid_mat[3][3]);
-
+	Mat4R mat = convertMatrix(fluid_mat);
 	math::Transform::Ptr transform = math::Transform::createLinearTransform(mat);
 
 	FloatGrid::Ptr grid[3];
@@ -145,48 +149,6 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 			}
 		}
 	}
-}
-
-void OpenVDB_update_fluid_transform(const char *filename, float matrix[4][4], float matrix_high[4][4])
-{
-	/* TODO(kevin): deduplicate this call */
-	initialize();
-
-	Mat4R fluid_mat = Mat4R(
-	        matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
-	        matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
-	        matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3],
-	        matrix[3][0], matrix[3][1], matrix[3][2], matrix[3][3]);
-
-	Mat4R fluid_matBig = Mat4R(
-	        matrix_high[0][0], matrix_high[0][1], matrix_high[0][2], matrix_high[0][3],
-	        matrix_high[1][0], matrix_high[1][1], matrix_high[1][2], matrix_high[1][3],
-	        matrix_high[2][0], matrix_high[2][1], matrix_high[2][2], matrix_high[2][3],
-	        matrix_high[3][0], matrix_high[3][1], matrix_high[3][2], matrix_high[3][3]);
-
-	math::Transform::Ptr transform = math::Transform::createLinearTransform(fluid_mat);
-	math::Transform::Ptr transformBig = math::Transform::createLinearTransform(fluid_matBig);
-
-	io::File file(filename);
-	file.open();
-	GridPtrVecPtr grids = file.getGrids();
-	GridBase::Ptr grid;
-
-	for (size_t i = 0; i < grids->size(); ++i) {
-		grid = (*grids)[i];
-
-		const std::string name = grid->getName();
-		size_t found = name.find("High");
-
-		if (found != std::string::npos) {
-			grid->setTransform(transformBig);
-		}
-		else {
-			grid->setTransform(transform);
-		}
-	}
-
-	file.close();
 }
 
 } // namespace internal

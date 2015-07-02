@@ -69,20 +69,6 @@ void OpenVDB_get_grid_info(const char *filename, OpenVDBGridInfoCallback cb, voi
 	}
 }
 
-void OpenVDB_update_fluid_transform(const char *filename,
-                                    float matrix[4][4],
-                                    float matrix_high[4][4])
-{
-	int ret = OPENVDB_NO_ERROR;
-
-	try {
-		internal::OpenVDB_update_fluid_transform(filename, matrix, matrix_high);
-	}
-	catch (...) {
-		catch_exception(ret);
-	}
-}
-
 OpenVDBFloatGrid *OpenVDB_export_grid_fl(OpenVDBWriter *writer,
                                          const char *name, float *data,
                                          const int res[3], float matrix[4][4],

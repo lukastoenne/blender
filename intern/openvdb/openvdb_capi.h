@@ -65,10 +65,6 @@ enum {
 	VEC_CONTRAVARIANT_ABSOLUTE = 4,
 };
 
-void OpenVDB_update_fluid_transform(const char *filename,
-                                    float matrix[4][4],
-                                    float matrix_high[4][4]);
-
 struct OpenVDBFloatGrid *OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
                                                 const char *name, float *data,
                                                 const int res[3], float matrix[4][4],
