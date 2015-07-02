@@ -96,7 +96,8 @@ public:
 		/* only grids with uniform voxels can be used with VolumeRayIntersector */
 		if(grid->hasUniformVoxels()) {
 			uniform_voxels = true;
-			main_isector = new isector_t(*grid);
+			/* 1 = size of the largest sampling kernel radius (BoxSampler) */
+			main_isector = new isector_t(*grid, 1);
 		}
 		else {
 			uniform_voxels = false;
@@ -273,7 +274,8 @@ public:
 		/* only grids with uniform voxels can be used with VolumeRayIntersector */
 		if(grid->hasUniformVoxels()) {
 			uniform_voxels = true;
-			main_isector = new isector_t(*grid);
+			/* 1 = size of the largest sampling kernel radius (BoxSampler) */
+			main_isector = new isector_t(*grid, 1);
 		}
 		else {
 			uniform_voxels = false;
