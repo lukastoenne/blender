@@ -154,7 +154,11 @@ class TypeBuilder<EffectorEvalSettings, cross> {
 public:
 	static StructType *get(LLVMContext &context) {
 		return build_struct_type<cross,
-		        mat4_t, mat4_t, types::i<32>, types::ieee_float
+		        mat4_t, mat4_t, types::i<32>, types::i<16>, types::i<16>,
+		        types::ieee_float, types::ieee_float, types::ieee_float, types::ieee_float,
+		        types::ieee_float, types::ieee_float, types::ieee_float,
+		        types::ieee_float, types::ieee_float, types::ieee_float,
+		        types::ieee_float
 		        >(context);
 	}
 	
@@ -162,7 +166,20 @@ public:
 		FIELD_TRANSFORM,
 		FIELD_ITRANSFORM,
 		FIELD_FLAG,
-		FIELD_FALLOFF,
+		FIELD_FALLOFF_TYPE,
+		FIELD_SHAPE_TYPE,
+		FIELD_STRENGTH,
+		FIELD_DAMP,
+		FIELD_FLOW,
+		FIELD_SIZE,
+		FIELD_FALLOFF_POWER,
+		FIELD_FALLOFF_MIN,
+		FIELD_FALLOFF_MAX,
+		FIELD_FALLOFF_RAD_POWER,
+		FIELD_FALLOFF_RAD_MIN,
+		FIELD_FALLOFF_RAD_MAX,
+		FIELD_ABSORBTION,
+		NUM_FIELDS,
 	};
 };
 
@@ -192,11 +209,12 @@ static std::string get_effector_prefix(short forcefield)
 	switch (forcefield) {
 		case PFIELD_FORCE:
 			return "effector_force";
+		case PFIELD_WIND:
+			return "effector_wind";
 			
 		case PFIELD_NULL:
 		case PFIELD_VORTEX:
 		case PFIELD_MAGNET:
-		case PFIELD_WIND:
 		case PFIELD_GUIDE:
 		case PFIELD_TEXTURE:
 		case PFIELD_HARMONIC:
@@ -215,6 +233,21 @@ static std::string get_effector_prefix(short forcefield)
 		}
 	}
 	return "";
+}
+
+static Constant *make_const_int(LLVMContext &context, int value)
+{
+	return ConstantInt::get(context, APInt(32, value));
+}
+
+static Constant *make_const_short(LLVMContext &context, short value)
+{
+	return ConstantInt::get(context, APInt(16, value));
+}
+
+static Constant *make_const_float(LLVMContext &context, float value)
+{
+	return ConstantFP::get(context, APFloat(value));
 }
 
 static Constant *make_const_vec3(LLVMContext &context, const float vec[3])
@@ -239,17 +272,30 @@ static Constant *make_const_mat4(LLVMContext &context, float mat[4][4])
 static Value *make_effector_settings(IRBuilder<> &builder, EffectorCache *eff)
 {
 	LLVMContext &context = builder.getContext();
-	StructType *settings_t = TypeBuilder<EffectorEvalSettings, true>::get(context);
-	
+	typedef TypeBuilder<EffectorEvalSettings, true> TB;
+	StructType *settings_t = TB::get(context);
 	
 	float imat[4][4];
 	invert_m4_m4(imat, eff->ob->obmat);
 	
-	Constant* fields[] = {
-	    make_const_mat4(context, eff->ob->obmat),
-	    make_const_mat4(context, imat)
-	};
-	Constant *settings = ConstantStruct::get(settings_t, ArrayRef<Constant*>(fields, 2));
+	Constant* fields[TB::NUM_FIELDS];
+	fields[TB::FIELD_TRANSFORM] = make_const_mat4(context, eff->ob->obmat);
+	fields[TB::FIELD_ITRANSFORM] = make_const_mat4(context, imat);
+	fields[TB::FIELD_FLAG] = make_const_int(context, eff->pd->flag);
+	fields[TB::FIELD_FALLOFF_TYPE] = make_const_short(context, eff->pd->falloff);
+	fields[TB::FIELD_SHAPE_TYPE] = make_const_short(context, eff->pd->shape);
+	fields[TB::FIELD_STRENGTH] = make_const_float(context, eff->pd->f_strength);
+	fields[TB::FIELD_DAMP] = make_const_float(context, eff->pd->f_damp);
+	fields[TB::FIELD_FLOW] = make_const_float(context, eff->pd->f_flow);
+	fields[TB::FIELD_SIZE] = make_const_float(context, eff->pd->f_size);
+	fields[TB::FIELD_FALLOFF_POWER] = make_const_float(context, eff->pd->f_power);
+	fields[TB::FIELD_FALLOFF_MIN] = make_const_float(context, eff->pd->mindist);
+	fields[TB::FIELD_FALLOFF_MAX] = make_const_float(context, eff->pd->maxdist);
+	fields[TB::FIELD_FALLOFF_RAD_POWER] = make_const_float(context, eff->pd->f_power_r);
+	fields[TB::FIELD_FALLOFF_RAD_MIN] = make_const_float(context, eff->pd->minrad);
+	fields[TB::FIELD_FALLOFF_RAD_MAX] = make_const_float(context, eff->pd->maxrad);
+	fields[TB::FIELD_ABSORBTION] = make_const_float(context, eff->pd->absorption);
+	Constant *settings = ConstantStruct::get(settings_t, ArrayRef<Constant*>(fields, TB::NUM_FIELDS));
 	
 	AllocaInst *var = builder.CreateAlloca(settings_t);
 	builder.CreateStore(settings, var);
