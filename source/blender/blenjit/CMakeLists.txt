@@ -55,10 +55,14 @@ set(SRC
 )
 
 set(LLVM_SRC
+	modules/mod_common.c
 	modules/mod_forcefield.c
+	modules/mod_math.c
 )
 
 set(LLVM_HEADERS
+	modules/mod_common.h
+	modules/mod_math.h
 )
 
 if(WITH_LLVM)

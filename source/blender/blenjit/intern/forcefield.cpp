@@ -102,6 +102,7 @@ public:
 	enum Fields {
 		FIELD_LOC,
 		FIELD_VEL,
+		NUM_FIELDS
 	};
 };
 
@@ -118,6 +119,7 @@ public:
 	enum Fields {
 		FIELD_FORCE,
 		FIELD_IMPULSE,
+		NUM_FIELDS
 	};
 };
 
@@ -179,7 +181,7 @@ public:
 		FIELD_FALLOFF_RAD_MIN,
 		FIELD_FALLOFF_RAD_MAX,
 		FIELD_ABSORBTION,
-		NUM_FIELDS,
+		NUM_FIELDS
 	};
 };
 
@@ -301,6 +303,22 @@ static Value *make_effector_settings(IRBuilder<> &builder, EffectorCache *eff)
 	builder.CreateStore(settings, var);
 	return var;
 }
+static Value *make_effector_result(IRBuilder<> &builder)
+{
+	LLVMContext &context = builder.getContext();
+	typedef TypeBuilder<EffectorEvalResult, true> TB;
+	StructType *result_t = TB::get(context);
+	const static float ZERO[3] = {0.0f, 0.0f, 0.0f};
+	
+	Constant* fields[TB::NUM_FIELDS];
+	fields[TB::FIELD_FORCE] = make_const_vec3(context, ZERO);
+	fields[TB::FIELD_IMPULSE] = make_const_vec3(context, ZERO);
+	Constant *result = ConstantStruct::get(result_t, ArrayRef<Constant*>(fields, TB::NUM_FIELDS));
+	
+	AllocaInst *var = builder.CreateAlloca(result_t);
+	builder.CreateStore(result, var);
+	return var;
+}
 
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
@@ -340,22 +358,29 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		std::string funcname = prefix + "_eval";
 		
 		Value *arg_settings = make_effector_settings(builder, eff);
+		Value *arg_eff_result = make_effector_result(builder);
 		
-		Function *evalfunc = theModule->getFunction(funcname);
-		Value *evalarg_input, *evalarg_result, *evalarg_settings;
+		/* call function to evaluate force fields */
 		{
+			Function *evalfunc = theModule->getFunction(funcname);
 			Function::ArgumentListType::iterator it = evalfunc->arg_begin();
-			evalarg_input = it++;
-			evalarg_result = it++;
-			evalarg_settings = it++;
+			std::vector<Value *> args;
+			args.push_back(builder.CreatePointerCast(arg_input, (it++)->getType()));
+			args.push_back(builder.CreatePointerCast(arg_eff_result, (it++)->getType()));
+			args.push_back(builder.CreatePointerCast(arg_settings, (it++)->getType()));
+			builder.CreateCall(evalfunc, args);
 		}
 		
-		std::vector<Value *> args;
-		args.push_back(builder.CreatePointerCast(arg_input, evalarg_input->getType()));
-		args.push_back(builder.CreatePointerCast(arg_result, evalarg_result->getType()));
-		args.push_back(builder.CreatePointerCast(arg_settings, evalarg_settings->getType()));
-		
-		builder.CreateCall(evalfunc, args);
+		/* call function to combine results */
+		{
+			Function *combinefunc = theModule->getFunction("effector_result_combine");
+			Function::ArgumentListType::iterator it = combinefunc->arg_begin();
+			std::vector<Value *> args;
+			args.push_back(builder.CreatePointerCast(arg_result, (it++)->getType()));
+			args.push_back(builder.CreatePointerCast(arg_result, (it++)->getType()));
+			args.push_back(builder.CreatePointerCast(arg_eff_result, (it++)->getType()));
+			builder.CreateCall(combinefunc, args);
+		}
 	}
 	
 	builder.CreateRetVoid();
