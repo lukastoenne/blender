@@ -88,15 +88,9 @@ OpenVDBPrimitive *OpenVDB_import_grid(OpenVDBReader *reader,
 {
 	using namespace openvdb;
 
-	typename GridType::Ptr grid_tmp = gridPtrCast<GridType>(reader->getGrid(name));
-#if 0
-	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
+	typename GridType::Ptr grid = gridPtrCast<GridType>(reader->getGrid(name));
+	typename GridType::Accessor acc = grid->getAccessor();
 
-	tools::Dense<T, tools::LayoutXYZ> dense_grid(bbox);
-	tools::copyToDense(*grid_tmp, dense_grid);
-	memcpy(*data, dense_grid.data(), sizeof(T) * res[0] * res[1] * res[2]);
-#else
-	typename GridType::Accessor acc = grid_tmp->getAccessor();
 	math::Coord xyz;
 	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 
@@ -108,10 +102,9 @@ OpenVDBPrimitive *OpenVDB_import_grid(OpenVDBReader *reader,
 			}
 		}
 	}
-#endif
 
 	OpenVDBPrimitive *vdb_prim = new OpenVDBPrimitive();
-	vdb_prim->setGrid(grid_tmp);
+	vdb_prim->setGrid(grid);
 
 	return vdb_prim;
 }
