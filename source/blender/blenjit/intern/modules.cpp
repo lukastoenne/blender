@@ -352,6 +352,12 @@ struct LLVMModule *BJIT_get_loaded_module(const char *name)
 		return NULL;
 }
 
+const char *BJIT_module_name(LLVMModule *_mod)
+{
+	Module *mod = (Module *)_mod;
+	return mod->getModuleIdentifier().c_str();
+}
+
 int BJIT_num_registered_functions(LLVMModule *_mod)
 {
 	Module *mod = (Module *)_mod;
