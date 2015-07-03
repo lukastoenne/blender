@@ -23,6 +23,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "BLI_utildefines.h"
 
@@ -37,38 +38,81 @@
 
 #include "BKE_report.h"
 
-static void rna_blenjit_loaded_modules_begin(struct CollectionPropertyIterator *iter, struct PointerRNA *ptr)
+#include "BJIT_modules.h"
+
+static PointerRNA rna_blenjit_manager_get(void)
 {
-//	iter->
+	/* XXX actually BlenJITManager is a set of global functions,
+	 * we use a dummy value to create a non-NULL pointer.
+	 */
+	static const int dummy_value = 1;
+	PointerRNA r_ptr;
+	RNA_pointer_create(NULL, &RNA_BlenJITManager, (void *)(&dummy_value), &r_ptr);
+	return r_ptr;
+}
+
+static void rna_blenjit_loaded_modules_begin(struct CollectionPropertyIterator *iter, struct PointerRNA *UNUSED(ptr))
+{
+	int length = BJIT_num_loaded_modules();
+	/* we use the array iterator simply as a counter */
+	ArrayIterator *internal;
+	
+	internal = &iter->internal.array;
+	memset(internal, 0, sizeof(*internal));
+	internal->ptr = SET_INT_IN_POINTER(0);
+	internal->length = length;
+	
+	iter->valid = (length > 0);
 }
 
 static void rna_blenjit_loaded_modules_next(struct CollectionPropertyIterator *iter)
 {
+	ArrayIterator *internal = &iter->internal.array;
+	int index = GET_INT_FROM_POINTER(internal->ptr) + 1;
+
+	internal->ptr = SET_INT_IN_POINTER(index);
+	iter->valid = (index < internal->length);
 }
 
-static void rna_blenjit_loaded_modules_end(struct CollectionPropertyIterator *iter)
+static void rna_blenjit_loaded_modules_end(struct CollectionPropertyIterator *UNUSED(iter))
 {
 }
 
 static PointerRNA rna_blenjit_loaded_modules_get(struct CollectionPropertyIterator *iter)
 {
+	ArrayIterator *internal = &iter->internal.array;
+	int index = GET_INT_FROM_POINTER(internal->ptr);
+	struct LLVMModule *module = BJIT_get_loaded_module_n(index);
 	PointerRNA r_ptr;
+	
+	RNA_pointer_create(iter->ptr.id.data, &RNA_BlenJITModule, module, &r_ptr);
 	return r_ptr;
 }
 
-static int rna_blenjit_loaded_modules_length(struct PointerRNA *ptr)
+static int rna_blenjit_loaded_modules_length(struct PointerRNA *UNUSED(ptr))
 {
-	return 0;
+	return BJIT_num_loaded_modules();
 }
 
 static int rna_blenjit_loaded_modules_lookupint(struct PointerRNA *ptr, int key, struct PointerRNA *r_ptr)
 {
-	return 0;
+	int length = BJIT_num_loaded_modules();
+	if (key < length) {
+		struct LLVMModule *module = BJIT_get_loaded_module_n(key);
+		RNA_pointer_create(ptr->id.data, &RNA_BlenJITModule, module, r_ptr);
+		return (module != NULL);
+	}
+	return false;
 }
 
 static int rna_blenjit_loaded_modules_lookupstring(struct PointerRNA *ptr, const char *key, struct PointerRNA *r_ptr)
 {
-	return 0;
+	struct LLVMModule *module = BJIT_get_loaded_module(key);
+	if (module) {
+		RNA_pointer_create(ptr->id.data, &RNA_BlenJITModule, module, r_ptr);
+		return true;
+	}
+	return false;
 }
 
 #else
@@ -98,6 +142,14 @@ static void rna_def_blenjit_manager(BlenderRNA *brna)
 	                                  "rna_blenjit_loaded_modules_lookupint", "rna_blenjit_loaded_modules_lookupstring", NULL);
 	RNA_def_property_struct_type(prop, "BlenJITModule");
 	RNA_def_property_ui_text(prop, "Loaded Modules", "Loaded modules");
+	
+	func = RNA_def_function(srna, "get", "rna_blenjit_manager_get");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	RNA_def_property_ui_text(prop, "Loaded Modules", "Loaded modules");
+	parm = RNA_def_property(func, "result", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(parm, "BlenJITManager");
+	RNA_def_property_flag(parm, PROP_RNAPTR);
+	RNA_def_function_return(func, parm);
 }
 
 void RNA_def_blenjit(BlenderRNA *brna)
