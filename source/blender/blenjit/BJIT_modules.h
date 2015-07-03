@@ -36,6 +36,8 @@
 extern "C" {
 #endif
 
+struct LLVMModule;
+
 void BJIT_init(void);
 void BJIT_free(void);
 
@@ -48,6 +50,14 @@ void BJIT_unload_all_modules(void);
 
 /* load a single module from a file */
 void BJIT_load_module(const char *modfile, const char *modname);
+
+int BJIT_num_loaded_modules(void);
+struct LLVMModule *BJIT_get_loaded_module_n(int n);
+struct LLVMModule *BJIT_get_loaded_module(const char *name);
+
+int BJIT_num_registered_functions(struct LLVMModule *mod);
+struct LLVMFunction *BJIT_get_registered_function_n(struct LLVMModule *mod, int n);
+struct LLVMFunction *BJIT_get_registered_function(struct LLVMModule *mod, const char *name);
 
 #ifdef __cplusplus
 }
