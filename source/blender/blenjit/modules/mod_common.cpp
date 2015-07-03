@@ -30,6 +30,7 @@
 
 #include "BJIT_forcefield.h"
 
+__attribute__((annotate("effector_result_combine")))
 void effector_result_combine(EffectorEvalResult *R, const EffectorEvalResult *a, const EffectorEvalResult *b)
 {
 	add_v3_v3v3(R->force, a->force, b->force);
