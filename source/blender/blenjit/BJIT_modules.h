@@ -57,9 +57,9 @@ struct LLVMModule *BJIT_get_loaded_module(const char *name);
 
 const char *BJIT_module_name(struct LLVMModule *mod);
 
-int BJIT_num_registered_functions(struct LLVMModule *mod);
-struct LLVMFunction *BJIT_get_registered_function_n(struct LLVMModule *mod, int n);
-struct LLVMFunction *BJIT_get_registered_function(struct LLVMModule *mod, const char *name);
+int BJIT_module_num_functions(struct LLVMModule *mod);
+struct LLVMFunction *BJIT_module_get_function_n(struct LLVMModule *mod, int n);
+struct LLVMFunction *BJIT_module_get_function(struct LLVMModule *mod, const char *name);
 
 #ifdef __cplusplus
 }
