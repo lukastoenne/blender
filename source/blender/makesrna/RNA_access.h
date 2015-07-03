@@ -78,6 +78,7 @@ extern StructRNA RNA_BezierSplinePoint;
 extern StructRNA RNA_BlendData;
 extern StructRNA RNA_BlendTexture;
 extern StructRNA RNA_BlenderRNA;
+extern StructRNA RNA_BlenJITFunction;
 extern StructRNA RNA_BlenJITManager;
 extern StructRNA RNA_BlenJITModule;
 extern StructRNA RNA_BoidRule;

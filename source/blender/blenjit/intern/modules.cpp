@@ -358,13 +358,13 @@ const char *BJIT_module_name(LLVMModule *_mod)
 	return mod->getModuleIdentifier().c_str();
 }
 
-int BJIT_num_registered_functions(LLVMModule *_mod)
+int BJIT_module_num_functions(LLVMModule *_mod)
 {
 	Module *mod = (Module *)_mod;
 	return (int)mod->getFunctionList().size();
 }
 
-struct LLVMFunction *BJIT_get_registered_function_n(LLVMModule *_mod, int n)
+struct LLVMFunction *BJIT_module_get_function_n(LLVMModule *_mod, int n)
 {
 	Module *mod = (Module *)_mod;
 	Module::FunctionListType::const_iterator it = mod->getFunctionList().begin();
@@ -378,7 +378,7 @@ struct LLVMFunction *BJIT_get_registered_function_n(LLVMModule *_mod, int n)
 	return (LLVMFunction *)(&(*it));
 }
 
-struct LLVMFunction *BJIT_get_registered_function(LLVMModule *_mod, const char *name)
+struct LLVMFunction *BJIT_module_get_function(LLVMModule *_mod, const char *name)
 {
 	Module *mod = (Module *)_mod;
 	return (LLVMFunction *)bjit_find_function(mod, name);

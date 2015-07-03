@@ -129,7 +129,84 @@ static int rna_BlenJITModule_name_length(PointerRNA *ptr)
 	return strlen(BJIT_module_name(module));
 }
 
+static void rna_blenjit_functions_begin(struct CollectionPropertyIterator *iter, struct PointerRNA *ptr)
+{
+	struct LLVMModule *module = ptr->data;
+	int length = BJIT_module_num_functions(module);
+	/* we use the array iterator simply as a counter */
+	ArrayIterator *internal;
+	
+	internal = &iter->internal.array;
+	memset(internal, 0, sizeof(*internal));
+	internal->ptr = SET_INT_IN_POINTER(0);
+	internal->length = length;
+	
+	iter->valid = (length > 0);
+}
+
+static void rna_blenjit_functions_next(struct CollectionPropertyIterator *iter)
+{
+	ArrayIterator *internal = &iter->internal.array;
+	int index = GET_INT_FROM_POINTER(internal->ptr) + 1;
+
+	internal->ptr = SET_INT_IN_POINTER(index);
+	iter->valid = (index < internal->length);
+}
+
+static void rna_blenjit_functions_end(struct CollectionPropertyIterator *UNUSED(iter))
+{
+}
+
+static PointerRNA rna_blenjit_functions_get(struct CollectionPropertyIterator *iter)
+{
+	struct LLVMModule *module = iter->ptr.data;
+	ArrayIterator *internal = &iter->internal.array;
+	int index = GET_INT_FROM_POINTER(internal->ptr);
+	struct LLVMFunction *function = BJIT_module_get_function_n(module, index);
+	PointerRNA r_ptr;
+	
+	RNA_pointer_create(iter->ptr.id.data, &RNA_BlenJITFunction, function, &r_ptr);
+	return r_ptr;
+}
+
+static int rna_blenjit_functions_length(struct PointerRNA *ptr)
+{
+	struct LLVMModule *module = ptr->data;
+	return BJIT_module_num_functions(module);
+}
+
+static int rna_blenjit_functions_lookupint(struct PointerRNA *ptr, int key, struct PointerRNA *r_ptr)
+{
+	struct LLVMModule *module = ptr->data;
+	int length = BJIT_module_num_functions(module);
+	if (key < length) {
+		struct LLVMFunction *function = BJIT_module_get_function_n(module, key);
+		RNA_pointer_create(ptr->id.data, &RNA_BlenJITFunction, function, r_ptr);
+		return (function != NULL);
+	}
+	return false;
+}
+
+static int rna_blenjit_functions_lookupstring(struct PointerRNA *ptr, const char *key, struct PointerRNA *r_ptr)
+{
+	struct LLVMModule *module = ptr->data;
+	struct LLVMFunction *function = BJIT_module_get_function(module, key);
+	if (function) {
+		RNA_pointer_create(ptr->id.data, &RNA_BlenJITFunction, function, r_ptr);
+		return true;
+	}
+	return false;
+}
+
 #else
+
+static void rna_def_blenjit_function(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	
+	srna = RNA_def_struct(brna, "BlenJITFunction", NULL);
+	RNA_def_struct_ui_text(srna, "Function", "");
+}
 
 static void rna_def_blenjit_module(BlenderRNA *brna)
 {
@@ -143,6 +220,13 @@ static void rna_def_blenjit_module(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, "rna_BlenJITModule_name_get", "rna_BlenJITModule_name_length", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Name", "Name of the module");
+	
+	prop = RNA_def_property(srna, "functions", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_funcs(prop, "rna_blenjit_functions_begin", "rna_blenjit_functions_next", "rna_blenjit_functions_end",
+	                                  "rna_blenjit_functions_get", "rna_blenjit_functions_length",
+	                                  "rna_blenjit_functions_lookupint", "rna_blenjit_functions_lookupstring", NULL);
+	RNA_def_property_struct_type(prop, "BlenJITFunction");
+	RNA_def_property_ui_text(prop, "Functions", "Functions contained in the module");
 }
 
 static void rna_def_blenjit_manager(BlenderRNA *brna)
@@ -173,6 +257,7 @@ static void rna_def_blenjit_manager(BlenderRNA *brna)
 
 void RNA_def_blenjit(BlenderRNA *brna)
 {
+	rna_def_blenjit_function(brna);
 	rna_def_blenjit_module(brna);
 	rna_def_blenjit_manager(brna);
 }
