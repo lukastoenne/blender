@@ -159,6 +159,9 @@ Function *bjit_find_function(Module *mod, const std::string &name)
 	return NULL;
 }
 
+/* Based on
+ * http://homes.cs.washington.edu/~bholt/posts/llvm-quick-tricks.html
+ */
 static void bjit_parse_function_annotations(Module *mod)
 {
 	GlobalVariable *global_annos = mod->getNamedGlobal("llvm.global.annotations");
