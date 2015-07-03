@@ -310,6 +310,7 @@ blender_include_dirs(
 	../../bmesh
 	../../blenfont
 	../../depsgraph
+	../../blenjit
 	../../gpu
 	../../imbuf
 	../../ikplugin
