@@ -69,6 +69,9 @@ extern "C" {
 
 using namespace llvm;
 
+struct LLVMModule { int unused; };
+struct LLVMFunction { int unused; };
+
 static ExecutionEngine *theEngine = NULL;
 
 static ModuleMap theModules;
@@ -320,4 +323,57 @@ Module *bjit_get_module(const std::string &name)
 		return it->second;
 	else
 		return NULL;
+}
+
+int BJIT_num_loaded_modules(void)
+{
+	return (int)theModules.size();
+}
+
+struct LLVMModule *BJIT_get_loaded_module_n(int n)
+{
+	ModuleMap::const_iterator it = theModules.begin();
+	for (int i = 0; i < n; ++i) {
+		if (it == theModules.end())
+			return NULL;
+		++it;
+	}
+	if (it == theModules.end())
+		return NULL;
+	return (LLVMModule *)it->second;
+}
+
+struct LLVMModule *BJIT_get_loaded_module(const char *name)
+{
+	ModuleMap::const_iterator it = theModules.find(name);
+	if (it != theModules.end())
+		return (LLVMModule *)it->second;
+	else
+		return NULL;
+}
+
+int BJIT_num_registered_functions(LLVMModule *_mod)
+{
+	Module *mod = (Module *)_mod;
+	return (int)mod->getFunctionList().size();
+}
+
+struct LLVMFunction *BJIT_get_registered_function_n(LLVMModule *_mod, int n)
+{
+	Module *mod = (Module *)_mod;
+	Module::FunctionListType::const_iterator it = mod->getFunctionList().begin();
+	for (int i = 0; i < n; ++i) {
+		if (it == mod->getFunctionList().end())
+			return NULL;
+		++it;
+	}
+	if (it == mod->getFunctionList().end())
+		return NULL;
+	return (LLVMFunction *)(&(*it));
+}
+
+struct LLVMFunction *BJIT_get_registered_function(LLVMModule *_mod, const char *name)
+{
+	Module *mod = (Module *)_mod;
+	return (LLVMFunction *)bjit_find_function(mod, name);
 }
