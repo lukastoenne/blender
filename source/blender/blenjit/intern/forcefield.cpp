@@ -362,7 +362,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		/* call function to evaluate force fields */
 		{
-			Function *evalfunc = theModule->getFunction(funcname);
+			Function *evalfunc = bjit_find_function(theModule, funcname);
 			Function::ArgumentListType::iterator it = evalfunc->arg_begin();
 			std::vector<Value *> args;
 			args.push_back(builder.CreatePointerCast(arg_input, (it++)->getType()));
@@ -373,7 +373,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 		
 		/* call function to combine results */
 		{
-			Function *combinefunc = theModule->getFunction("effector_result_combine");
+			Function *combinefunc = bjit_find_function(theModule, "effector_result_combine");
 			Function::ArgumentListType::iterator it = combinefunc->arg_begin();
 			std::vector<Value *> args;
 			args.push_back(builder.CreatePointerCast(arg_result, (it++)->getType()));

@@ -55,9 +55,9 @@ set(SRC
 )
 
 set(LLVM_SRC
-	modules/mod_common.c
-	modules/mod_forcefield.c
-	modules/mod_math.c
+	modules/mod_common.cpp
+	modules/mod_forcefield.cpp
+	modules/mod_math.cpp
 )
 
 set(LLVM_HEADERS

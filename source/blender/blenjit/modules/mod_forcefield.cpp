@@ -134,6 +134,7 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 	return true;
 }
 
+__attribute__((annotate("effector_force_eval")))
 void effector_force_eval(const EffectorEvalInput *input, EffectorEvalResult *result, const EffectorEvalSettings *settings)
 {
 	EffectorPointRelation rel;
@@ -146,6 +147,7 @@ void effector_force_eval(const EffectorEvalInput *input, EffectorEvalResult *res
 	mul_v3_v3fl(result->force, dir, strength);
 }
 
+__attribute__((annotate("effector_wind_eval")))
 void effector_wind_eval(const EffectorEvalInput *input, EffectorEvalResult *result, const EffectorEvalSettings *settings)
 {
 	EffectorPointRelation rel;

@@ -146,6 +146,36 @@ static void init_function_pass_manager(FunctionPassManager *fpm, int opt_level)
 //	builder.populateModulePassManager(MPM);
 }
 
+Function *bjit_find_function(Module *mod, const std::string &name)
+{
+	for (Module::FunctionListType::iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
+		Function *func = &(*it);
+		if (func->hasFnAttribute("name")) {
+			std::string value = func->getFnAttribute("name").getValueAsString();
+			if (value == name)
+				return func;
+		}
+	}
+	return NULL;
+}
+
+static void bjit_parse_function_annotations(Module *mod)
+{
+	GlobalVariable *global_annos = mod->getNamedGlobal("llvm.global.annotations");
+	if (global_annos) {
+		ConstantArray *a = static_cast<ConstantArray*>(global_annos->getOperand(0));
+		for (int i = 0; i < a->getNumOperands(); i++) {
+			ConstantStruct *e = static_cast<ConstantStruct*>(a->getOperand(i));
+			StringRef anno = static_cast<ConstantDataArray*>(static_cast<GlobalVariable*>(e->getOperand(1)->getOperand(0))->getOperand(0))->getAsCString();
+			
+			Function *fn = dynamic_cast<Function*>(e->getOperand(0)->getOperand(0));
+			if (fn) {
+				fn->addFnAttr("name", anno); /* add function annotation */
+			}
+		}
+	}
+}
+
 void BJIT_load_module(const char *modfile, const char *modname)
 {
 	printf("Loading module '%s'\n", modfile);
@@ -159,10 +189,6 @@ void BJIT_load_module(const char *modfile, const char *modname)
 		return;
 	}
 	
-	mod->setModuleIdentifier(modname);
-	
-	verifyModule(*mod, &outs());
-	
 	printf("Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
 	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
 		const Function &func = *it;
@@ -171,6 +197,11 @@ void BJIT_load_module(const char *modfile, const char *modname)
 //		func.dump();
 //		printf("++++++++++++++++++++++++++++++++++\n");
 	}
+	
+	bjit_parse_function_annotations(mod);
+	mod->setModuleIdentifier(modname);
+	
+	verifyModule(*mod, &outs());
 	
 	theEngine->addModule(mod);
 	theModules[mod->getModuleIdentifier()] = mod;
