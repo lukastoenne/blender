@@ -115,6 +115,20 @@ static int rna_blenjit_loaded_modules_lookupstring(struct PointerRNA *ptr, const
 	return false;
 }
 
+/* ------------------------------------------------------------------------- */
+
+static void rna_BlenJITModule_name_get(PointerRNA *ptr, char *value)
+{
+	struct LLVMModule *module = ptr->data;
+	strcpy(value, BJIT_module_name(module));
+}
+
+static int rna_BlenJITModule_name_length(PointerRNA *ptr)
+{
+	struct LLVMModule *module = ptr->data;
+	return strlen(BJIT_module_name(module));
+}
+
 #else
 
 static void rna_def_blenjit_module(BlenderRNA *brna)
@@ -124,6 +138,11 @@ static void rna_def_blenjit_module(BlenderRNA *brna)
 	
 	srna = RNA_def_struct(brna, "BlenJITModule", NULL);
 	RNA_def_struct_ui_text(srna, "Module", "Collection of JIT-compiled functions");
+	
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_BlenJITModule_name_get", "rna_BlenJITModule_name_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Name", "Name of the module");
 }
 
 static void rna_def_blenjit_manager(BlenderRNA *brna)
