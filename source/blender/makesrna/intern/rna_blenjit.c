@@ -159,7 +159,7 @@ static void rna_blenjit_functions_end(struct CollectionPropertyIterator *UNUSED(
 
 static PointerRNA rna_blenjit_functions_get(struct CollectionPropertyIterator *iter)
 {
-	struct LLVMModule *module = iter->ptr.data;
+	struct LLVMModule *module = iter->parent.data;
 	ArrayIterator *internal = &iter->internal.array;
 	int index = GET_INT_FROM_POINTER(internal->ptr);
 	struct LLVMFunction *function = BJIT_module_get_function_n(module, index);
