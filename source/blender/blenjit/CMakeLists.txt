@@ -45,13 +45,18 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/codegen.cpp
 	intern/forcefield.cpp
 	intern/modules.cpp
+	intern/nodes.cpp
 
 	intern/bjit_intern.h
+	intern/bjit_llvm.h
 
 	BJIT_forcefield.h
 	BJIT_modules.h
+	BJIT_nodes.h
+	BJIT_types.h
 )
 
 set(LLVM_SRC
