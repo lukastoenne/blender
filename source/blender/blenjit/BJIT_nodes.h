@@ -36,6 +36,8 @@
 extern "C" {
 #endif
 
+void *BJIT_build_nodetree_function(struct bNodeTree *ntree);
+void BJIT_free_nodetree_function(void *func);
 
 #ifdef __cplusplus
 }
