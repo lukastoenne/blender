@@ -162,6 +162,14 @@ Function *bjit_find_function(Module *mod, const std::string &name)
 	return NULL;
 }
 
+const char *bjit_get_function_name(Function *func)
+{
+	if (func->hasFnAttribute("name"))
+		return func->getFnAttribute("name").getValueAsString().data();
+	else
+		return func->getName().data();
+}
+
 /* Based on
  * http://homes.cs.washington.edu/~bholt/posts/llvm-quick-tricks.html
  */
@@ -382,4 +390,10 @@ struct LLVMFunction *BJIT_module_get_function(LLVMModule *_mod, const char *name
 {
 	Module *mod = (Module *)_mod;
 	return (LLVMFunction *)bjit_find_function(mod, name);
+}
+
+const char *BJIT_function_name(struct LLVMFunction *_func)
+{
+	Function *func = (Function *)_func;
+	return bjit_get_function_name(func);
 }

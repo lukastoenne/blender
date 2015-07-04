@@ -198,14 +198,34 @@ static int rna_blenjit_functions_lookupstring(struct PointerRNA *ptr, const char
 	return false;
 }
 
+/* ------------------------------------------------------------------------- */
+
+static void rna_BlenJITFunction_name_get(PointerRNA *ptr, char *value)
+{
+	struct LLVMFunction *function = ptr->data;
+	strcpy(value, BJIT_function_name(function));
+}
+
+static int rna_BlenJITFunction_name_length(PointerRNA *ptr)
+{
+	struct LLVMFunction *function = ptr->data;
+	return strlen(BJIT_function_name(function));
+}
+
 #else
 
 static void rna_def_blenjit_function(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	PropertyRNA *prop;
 	
 	srna = RNA_def_struct(brna, "BlenJITFunction", NULL);
 	RNA_def_struct_ui_text(srna, "Function", "");
+	
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_BlenJITFunction_name_get", "rna_BlenJITFunction_name_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Name", "Name of the function");
 }
 
 static void rna_def_blenjit_module(BlenderRNA *brna)
