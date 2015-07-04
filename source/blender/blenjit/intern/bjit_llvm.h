@@ -25,36 +25,32 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenjit/intern/bjit_intern.h
+/** \file blender/blenjit/intern/bjit_llvm.h
  *  \ingroup bjit
  */
 
-#ifndef __BJIT_INTERN_H__
-#define __BJIT_INTERN_H__
+#ifndef __BJIT_LLVM_H__
+#define __BJIT_LLVM_H__
 
-#include <string>
-
-namespace llvm {
-class Function;
-class Module;
-class Value;
-class CallInst;
-}
-
-typedef std::map<std::string, llvm::Module*> ModuleMap;
-
-/* modules.cpp */
-//void *bjit_compile_module(llvm::Module *mod, const char *funcname);
-void bjit_link_module(llvm::Module *mod);
-void bjit_remove_module(llvm::Module *mod);
-
-const char *bjit_get_function_name(llvm::Function *func);
-llvm::Function *bjit_find_function(llvm::Module *mod, const std::string &name);
-void bjit_finalize_function(llvm::Module *mod, llvm::Function *func, int opt_level);
-void *bjit_compile_function(llvm::Function *func);
-void bjit_free_function(llvm::Function *func);
-
-ModuleMap &bjit_get_modules();
-llvm::Module *bjit_get_module(const std::string &name);
+#include "llvm/Analysis/Passes.h"
+#include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Function.h"
+#include "llvm/PassManager.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/TypeBuilder.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Linker/Linker.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #endif
