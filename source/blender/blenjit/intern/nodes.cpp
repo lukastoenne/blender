@@ -155,7 +155,7 @@ struct NodeInstance {
 	CallInst *call_inst;
 };
 
-struct NodeTree {
+struct NodeGraph {
 	typedef std::map<std::string, NodeType> NodeTypeMap;
 	typedef std::pair<std::string, NodeType> NodeTypeMapPair;
 	typedef std::map<std::string, NodeInstance> NodeInstanceMap;
@@ -169,9 +169,9 @@ struct NodeTree {
 		return (it != node_types.end())? &it->second : NULL;
 	}
 	
-	NodeTree()
+	NodeGraph()
 	{}
-	~NodeTree()
+	~NodeGraph()
 	{}
 	
 	NodeInstance *get_node(const std::string &name)
@@ -219,16 +219,16 @@ struct NodeTree {
 /* ========================================================================= */
 
 template <typename T>
-struct NodeTreeBuilder;
+struct NodeGraphBuilder;
 
 /* ------------------------------------------------------------------------- */
 /* bNodeTree */
 
 template <>
-struct NodeTreeBuilder<bNodeTree> {
-	NodeTree build(bNodeTree *btree)
+struct NodeGraphBuilder<bNodeTree> {
+	NodeGraph build(bNodeTree *btree)
 	{
-		NodeTree tree;
+		NodeGraph tree;
 		
 		for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 			BLI_assert(bnode->typeinfo != NULL);
@@ -286,10 +286,10 @@ static std::string get_effector_prefix(short forcefield)
 }
 
 template <>
-struct NodeTreeBuilder<EffectorContext> {
-	NodeTree build(EffectorContext *effctx)
+struct NodeGraphBuilder<EffectorContext> {
+	NodeGraph build(EffectorContext *effctx)
 	{
-		NodeTree tree;
+		NodeGraph graph;
 		NodeInstance *node_prev = NULL;
 		const NodeSocket *socket_prev = NULL;
 		
@@ -305,16 +305,16 @@ struct NodeTreeBuilder<EffectorContext> {
 			
 			std::string nodetype = "effector_" + prefix + "_eval";
 			std::string nodename = eff->ob->id.name;
-			NodeInstance *node = tree.add_node(nodetype, nodename);
+			NodeInstance *node = graph.add_node(nodetype, nodename);
 			const NodeSocket *socket = node->type->find_output(0);
 			
 			if (node_prev && socket_prev) {
 				std::string combinename = "combine_" + node_prev->name + "_" + node->name;
-				NodeInstance *combine = tree.add_node("effector_result_combine", combinename);
+				NodeInstance *combine = graph.add_node("effector_result_combine", combinename);
 				
-				tree.add_link(node_prev, socket_prev,
+				graph.add_link(node_prev, socket_prev,
 				              combine, combine->type->find_input(0));
-				tree.add_link(node, socket,
+				graph.add_link(node, socket,
 				              combine, combine->type->find_input(1));
 				
 				node_prev = combine;
@@ -326,7 +326,7 @@ struct NodeTreeBuilder<EffectorContext> {
 			}
 		}
 		
-		return tree;
+		return graph;
 	}
 };
 
@@ -364,9 +364,9 @@ using namespace bjit;
 
 void *BJIT_build_nodetree_function(bNodeTree *ntree)
 {
-	NodeTreeBuilder<bNodeTree> builder;
+	NodeGraphBuilder<bNodeTree> builder;
 	
-	NodeTree tree = builder.build(ntree);
+	NodeGraph graph = builder.build(ntree);
 	
 	return NULL;
 }
