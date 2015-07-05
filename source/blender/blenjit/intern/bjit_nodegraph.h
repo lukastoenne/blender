@@ -25,41 +25,27 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenjit/intern/codegen.cpp
+/** \file blender/blenjit/intern/bjit_nodegraph.h
  *  \ingroup bjit
  */
 
-#include <map>
+#ifndef __BJIT_NODEGRAPH_H__
+#define __BJIT_NODEGRAPH_H__
+
 #include <string>
-#include <vector>
 
-extern "C" {
-#include "BLI_utildefines.h"
-
-#include "DNA_node_types.h"
-#include "DNA_object_force.h"
-#include "DNA_object_types.h"
-
-#include "BKE_effect.h"
-#include "BKE_node.h"
-}
-
-#include "BJIT_nodes.h"
 #include "bjit_intern.h"
 
 namespace bjit {
 
-using namespace llvm;
+using llvm::Value;
+using llvm::CallInst;
 
 struct NodeType;
 
-
 struct NodeSocket {
-	NodeSocket(const std::string &name) :
-	    name(name)
-	{}
-	~NodeSocket()
-	{}
+	NodeSocket(const std::string &name);
+	~NodeSocket();
 	
 	std::string name;
 };
@@ -67,38 +53,16 @@ struct NodeSocket {
 struct NodeType {
 	typedef std::vector<NodeSocket> SocketList;
 	
-	NodeType(const std::string &name) :
-	    name(name)
-	{}
-	~NodeType()
-	{}
+	NodeType(const std::string &name);
+	~NodeType();
 	
-	const NodeSocket *find_input(int index) const { return &inputs[index]; }
-	const NodeSocket *find_output(int index) const { return &outputs[index]; }
-	
-	const NodeSocket *find_input(const std::string &name) const
-	{
-		for (SocketList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
-			const NodeSocket &socket = *it;
-			if (socket.name == name)
-				return &socket;
-		}
-		return NULL;
-	}
-	
-	const NodeSocket *find_output(const std::string &name) const
-	{
-		for (SocketList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-			const NodeSocket &socket = *it;
-			if (socket.name == name)
-				return &socket;
-		}
-		return NULL;
-	}
-	
+	const NodeSocket *find_input(int index) const;
+	const NodeSocket *find_output(int index) const;
+	const NodeSocket *find_input(const std::string &name) const;
+	const NodeSocket *find_output(const std::string &name) const;
 	/* stub implementation in case socket is passed directly */
-	const NodeSocket *find_input(const NodeSocket *socket) const { return socket; }
-	const NodeSocket *find_output(const NodeSocket *socket) const { return socket; }
+	const NodeSocket *find_input(const NodeSocket *socket) const;
+	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
 	std::string name;
 	SocketList inputs;
@@ -121,32 +85,11 @@ struct NodeInstance {
 	typedef std::map<std::string, OutputInstance> OutputMap;
 	typedef std::pair<std::string, OutputInstance> OutputPair;
 	
-	NodeInstance(const NodeType *type, const std::string &name) :
-	    type(type), name(name)
-	{}
-
-	~NodeInstance()
-	{}
+	NodeInstance(const NodeType *type, const std::string &name);
+	~NodeInstance();
 	
-	bool set_input_value(const std::string &name, Value *value)
-	{
-		InputInstance &input = inputs[name];
-		if (input.value)
-			return false;
-		input.value = value;
-		return true;
-	}
-	
-	bool set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket)
-	{
-		InputInstance &input = inputs[name];
-		if (input.link_node || input.link_socket)
-			return false;
-		
-		input.link_node = from_node;
-		input.link_socket = from_socket;
-		return true;
-	}
+	bool set_input_value(const std::string &name, Value *value);
+	bool set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket);
 	
 	const NodeType *type;
 	std::string name;
@@ -163,31 +106,13 @@ struct NodeGraph {
 	
 	static NodeTypeMap node_types;
 	
-	static const NodeType *find_node_type(const std::string &name)
-	{
-		NodeTypeMap::const_iterator it = node_types.find(name);
-		return (it != node_types.end())? &it->second : NULL;
-	}
+	static const NodeType *find_node_type(const std::string &name);
 	
-	NodeGraph()
-	{}
-	~NodeGraph()
-	{}
+	NodeGraph();
+	~NodeGraph();
 	
-	NodeInstance *get_node(const std::string &name)
-	{
-		NodeInstanceMap::iterator it = nodes.find(name);
-		return (it != nodes.end())? &it->second : NULL;
-	}
-	
-	NodeInstance *add_node(const std::string &type, const std::string &name)
-	{
-		const NodeType *nodetype = find_node_type(type);
-		std::pair<NodeInstanceMap::iterator, bool> result =
-		        nodes.insert(NodeInstanceMapPair(name, NodeInstance(nodetype, name)));
-		
-		return (result.second)? &result.first->second : NULL;
-	}
+	NodeInstance *get_node(const std::string &name);
+	NodeInstance *add_node(const std::string &type, const std::string &name);
 	
 	template <typename FromT, typename ToT>
 	bool add_link(NodeInstance *from_node, FromT from,
@@ -254,36 +179,7 @@ struct NodeGraphBuilder<bNodeTree> {
 /* ------------------------------------------------------------------------- */
 /* Effectors */
 
-static std::string get_effector_prefix(short forcefield)
-{
-	switch (forcefield) {
-		case PFIELD_FORCE:
-			return "force";
-		case PFIELD_WIND:
-			return "wind";
-			
-		case PFIELD_NULL:
-		case PFIELD_VORTEX:
-		case PFIELD_MAGNET:
-		case PFIELD_GUIDE:
-		case PFIELD_TEXTURE:
-		case PFIELD_HARMONIC:
-		case PFIELD_CHARGE:
-		case PFIELD_LENNARDJ:
-		case PFIELD_BOID:
-		case PFIELD_TURBULENCE:
-		case PFIELD_DRAG:
-		case PFIELD_SMOKEFLOW:
-			return "";
-		
-		default: {
-			/* unknown type, should not happen */
-			BLI_assert(false);
-			return "";
-		}
-	}
-	return "";
-}
+std::string get_effector_prefix(short forcefield);
 
 template <>
 struct NodeGraphBuilder<EffectorContext> {
@@ -330,48 +226,6 @@ struct NodeGraphBuilder<EffectorContext> {
 	}
 };
 
-
-template <typename T>
-struct ListBaseIterator {
-	ListBaseIterator() :
-	    link(NULL)
-	{}
-
-	ListBaseIterator(const ListBase &lb) :
-	    link((Link *)lb.first)
-	{}
-	
-	ListBaseIterator& operator++ (void)
-	{
-		link = link->next;
-		return *this;
-	}
-	
-	T* operator* (void)
-	{
-		return (T *)link;
-	}
-	
-private:
-	Link *link;
-};
-
 } /* namespace bjit */
 
-/* ------------------------------------------------------------------------- */
-
-using namespace bjit;
-
-void *BJIT_build_nodetree_function(bNodeTree *ntree)
-{
-	NodeGraphBuilder<bNodeTree> builder;
-	
-	NodeGraph graph = builder.build(ntree);
-	
-	return NULL;
-}
-
-void BJIT_free_nodetree_function(void *func)
-{
-	
-}
+#endif

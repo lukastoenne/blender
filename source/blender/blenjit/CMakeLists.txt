@@ -48,10 +48,11 @@ set(SRC
 	intern/codegen.cpp
 	intern/forcefield.cpp
 	intern/modules.cpp
-	intern/nodes.cpp
+	intern/nodegraph.cpp
 
 	intern/bjit_intern.h
 	intern/bjit_llvm.h
+	intern/bjit_nodegraph.h
 
 	BJIT_forcefield.h
 	BJIT_modules.h
