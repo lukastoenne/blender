@@ -95,9 +95,6 @@ typedef enum EffectorEvalSettings_Shape{
 	EFF_FIELD_SHAPE_POINTS          = 3,
 } EffectorEvalSettings_Shape;
 
-void BJIT_build_effector_module(void);
-void BJIT_free_effector_module(void);
-
 void BJIT_build_effector_function(struct EffectorContext *effctx);
 void BJIT_free_effector_function(struct EffectorContext *effctx);
 

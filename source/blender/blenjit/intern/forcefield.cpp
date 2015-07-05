@@ -68,6 +68,7 @@ extern "C" {
 
 #include "BJIT_forcefield.h"
 #include "bjit_intern.h"
+#include "bjit_nodegraph.h"
 
 using namespace llvm;
 
@@ -189,16 +190,117 @@ public:
 
 /* ------------------------------------------------------------------------- */
 
-void BJIT_build_effector_module(void)
+namespace bjit {
+
+static inline const char *get_effector_prefix(short forcefield)
+{
+	switch (forcefield) {
+		case PFIELD_FORCE:      return "force";
+		case PFIELD_WIND:       return "wind";
+			
+		case PFIELD_NULL:
+		case PFIELD_VORTEX:
+		case PFIELD_MAGNET:
+		case PFIELD_GUIDE:
+		case PFIELD_TEXTURE:
+		case PFIELD_HARMONIC:
+		case PFIELD_CHARGE:
+		case PFIELD_LENNARDJ:
+		case PFIELD_BOID:
+		case PFIELD_TURBULENCE:
+		case PFIELD_DRAG:
+		case PFIELD_SMOKEFLOW:
+			return "";
+	}
+	/* unknown type, should not happen */
+	BLI_assert(false);
+	return NULL;
+}
+
+static inline std::string get_effector_nodetype(short forcefield)
+{
+	const char *prefix = get_effector_prefix(forcefield);
+	if (prefix && prefix[0] != '\0')
+		return "effector_" + std::string(prefix) + "_eval";
+	else
+		return "";
+}
+
+template <>
+struct NodeGraphBuilder<EffectorContext> {
+	NodeGraph build(EffectorContext *effctx)
+	{
+		NodeGraph graph;
+		NodeInstance *node_prev = NULL;
+		const NodeSocket *socket_prev = NULL;
+		
+		for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
+			if (!eff->ob || !eff->pd)
+				continue;
+			
+			std::string nodetype = get_effector_nodetype(eff->pd->forcefield);
+			std::string nodename = eff->ob->id.name;
+			NodeInstance *node = graph.add_node(nodetype, nodename);
+			if (!node) {
+				continue;
+			}
+			
+			const NodeSocket *socket = node->type->find_output(0);
+			
+			if (node_prev && socket_prev) {
+				std::string combinename = "combine_" + node_prev->name + "_" + node->name;
+				NodeInstance *combine = graph.add_node("effector_result_combine", combinename);
+				
+				graph.add_link(node_prev, socket_prev,
+				              combine, combine->type->find_input(0));
+				graph.add_link(node, socket,
+				              combine, combine->type->find_input(1));
+				
+				node_prev = combine;
+				socket_prev = combine->type->find_output(0);
+			}
+			else {
+				node_prev = node;
+				socket_prev = socket;
+			}
+		}
+		
+		return graph;
+	}
+};
+
+/* ------------------------------------------------------------------------- */
+
+void build_effector_module(void)
 {
 	LLVMContext &context = getGlobalContext();
 	
 	theModule = new Module("effectors", context);
 	
 	bjit_link_module(theModule);
+	
+	/* node types */
+	for (int forcefield = 0; forcefield < NUM_PFIELD_TYPES; ++forcefield) {
+		std::string name = get_effector_nodetype(forcefield);
+		if (name.empty())
+			continue;
+		NodeType *type = NodeGraph::add_node_type(name);
+		BLI_assert(type);
+		type->add_input("input");
+		type->add_input("settings");
+		type->add_output("result");
+	}
+	
+	{
+		NodeType *type = NodeGraph::add_node_type("effector_result_combine");
+		BLI_assert(type);
+		type->add_input("a");
+		type->add_input("b");
+		type->add_output("R");
+	}
 }
 
-void BJIT_free_effector_module(void)
+void free_effector_module(void)
 {
 	bjit_remove_module(theModule);
 	
@@ -206,6 +308,10 @@ void BJIT_free_effector_module(void)
 	theModule = NULL;
 }
 
+} /* namespace bjit */
+
+
+#if 0
 static std::string get_effector_prefix(short forcefield)
 {
 	switch (forcefield) {
@@ -319,12 +425,21 @@ static Value *make_effector_result(IRBuilder<> &builder)
 	builder.CreateStore(result, var);
 	return var;
 }
+#endif
 
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
-	LLVMContext &context = getGlobalContext();
-	IRBuilder<> builder(context);
+	using namespace bjit;
 	
+//	LLVMContext &context = getGlobalContext();
+//	IRBuilder<> builder(context);
+	
+	NodeGraphBuilder<EffectorContext> builder;
+	
+	NodeGraph graph = builder.build(effctx);
+	graph.dump();
+	
+#if 0
 	FunctionType *functype = TypeBuilder<void(const EffectorEvalInput*, EffectorEvalResult*), true>::get(context);
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
@@ -394,13 +509,15 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 	effctx->eval_data = func;
+#endif
 }
 
 void BJIT_free_effector_function(EffectorContext *effctx)
 {
 	Function *func = (Function *)effctx->eval_data;
 	
-	bjit_free_function(func);
+	if (func)
+		bjit_free_function(func);
 	
 	effctx->eval = NULL;
 	effctx->eval_data = NULL;

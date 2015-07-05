@@ -33,17 +33,6 @@
 #include <string>
 #include <vector>
 
-extern "C" {
-#include "BLI_utildefines.h"
-
-#include "DNA_node_types.h"
-#include "DNA_object_force.h"
-#include "DNA_object_types.h"
-
-#include "BKE_effect.h"
-#include "BKE_node.h"
-}
-
 #include "bjit_nodegraph.h"
 #include "BJIT_nodes.h"
 
@@ -112,6 +101,18 @@ const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
 	return socket;
 }
 
+const NodeSocket *NodeType::add_input(const std::string &name)
+{
+	inputs.push_back(NodeSocket(name));
+	return &inputs.back();
+}
+
+const NodeSocket *NodeType::add_output(const std::string &name)
+{
+	outputs.push_back(NodeSocket(name));
+	return &outputs.back();
+}
+
 /* ------------------------------------------------------------------------- */
 
 NodeInstance::NodeInstance(const NodeType *type, const std::string &name) :
@@ -121,6 +122,54 @@ NodeInstance::NodeInstance(const NodeType *type, const std::string &name) :
 
 NodeInstance::~NodeInstance()
 {
+}
+
+NodeInstance *NodeInstance::find_input_link_node(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	return (it != inputs.end()) ? it->second.link_node : NULL;
+}
+
+NodeInstance *NodeInstance::find_input_link_node(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? find_input_link_node(socket->name) : NULL;
+}
+
+const NodeSocket *NodeInstance::find_input_link_socket(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	return (it != inputs.end()) ? it->second.link_socket : NULL;
+}
+
+const NodeSocket *NodeInstance::find_input_link_socket(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? find_input_link_socket(socket->name) : NULL;
+}
+
+Value *NodeInstance::find_input_value(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	return (it != inputs.end()) ? it->second.value : NULL;
+}
+
+Value *NodeInstance::find_input_value(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? find_input_value(socket->name) : NULL;
+}
+
+Value *NodeInstance::find_output_value(const std::string &name) const
+{
+	OutputMap::const_iterator it = outputs.find(name);
+	return (it != outputs.end()) ? it->second.value : NULL;
+}
+
+Value *NodeInstance::find_output_value(int index) const
+{
+	const NodeSocket *socket = type->find_output(index);
+	return socket ? find_output_value(socket->name) : NULL;
 }
 
 bool NodeInstance::set_input_value(const std::string &name, Value *value)
@@ -145,10 +194,30 @@ bool NodeInstance::set_input_link(const std::string &name, NodeInstance *from_no
 
 /* ------------------------------------------------------------------------- */
 
+NodeGraph::NodeTypeMap NodeGraph::node_types;
+
 const NodeType *NodeGraph::find_node_type(const std::string &name)
 {
 	NodeTypeMap::const_iterator it = node_types.find(name);
 	return (it != node_types.end())? &it->second : NULL;
+}
+
+NodeType *NodeGraph::add_node_type(const std::string &name)
+{
+	std::pair<NodeTypeMap::iterator, bool> result = node_types.insert(NodeTypeMapPair(name, NodeType(name)));
+	if (result.second) {
+		NodeType *type = &result.first->second;
+		return type;
+	}
+	else
+		return NULL;
+}
+
+void NodeGraph::remove_node_type(const std::string &name)
+{
+	NodeTypeMap::iterator it = node_types.find(name);
+	if (it != node_types.end())
+		node_types.erase(it);
 }
 
 NodeGraph::NodeGraph()
@@ -174,37 +243,49 @@ NodeInstance *NodeGraph::add_node(const std::string &type, const std::string &na
 	return (result.second)? &result.first->second : NULL;
 }
 
-/* ========================================================================= */
-
-std::string get_effector_prefix(short forcefield)
+void NodeGraph::dump(std::ostream &s)
 {
-	switch (forcefield) {
-		case PFIELD_FORCE:
-			return "force";
-		case PFIELD_WIND:
-			return "wind";
-			
-		case PFIELD_NULL:
-		case PFIELD_VORTEX:
-		case PFIELD_MAGNET:
-		case PFIELD_GUIDE:
-		case PFIELD_TEXTURE:
-		case PFIELD_HARMONIC:
-		case PFIELD_CHARGE:
-		case PFIELD_LENNARDJ:
-		case PFIELD_BOID:
-		case PFIELD_TURBULENCE:
-		case PFIELD_DRAG:
-		case PFIELD_SMOKEFLOW:
-			return "";
+	s << "NodeGraph\n";
+	
+	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance *node = &it->second;
+		const NodeType *type = node->type;
+		s << "  Node '" << node->name << "'\n";
 		
-		default: {
-			/* unknown type, should not happen */
-			BLI_assert(false);
-			return "";
+		for (int i = 0; i < type->inputs.size(); ++i) {
+			const NodeSocket *socket = &type->inputs[i];
+			
+			s << "    Input '" << socket->name << "'";
+			NodeInstance *link_node = node->find_input_link_node(i);
+			const NodeSocket *link_socket = node->find_input_link_socket(i);
+//			Value *value = node->find_input_value(i);
+			
+			BLI_assert((bool)link_node == (bool)link_socket);
+			
+			if (link_node && link_socket) {
+				s << " <== " << link_node->name << ":" << link_socket->name;
+				// TODO value print function
+//				s << " (" << value << ")\n";
+				s << "\n";
+			}
+			else {
+				// TODO value print function
+//				s << " " << value << "\n";
+				s << "\n";
+			}
+		}
+		
+		for (int i = 0; i < type->outputs.size(); ++i) {
+			const NodeSocket *socket = &type->outputs[i];
+			
+			s << "    Output '" << socket->name << "'";
+//			Value *value = node->find_output_value(i);
+			
+			// TODO value print function
+//			s << " " << value << "\n";
+			s << "\n";
 		}
 	}
-	return "";
 }
 
 } /* namespace bjit */
