@@ -57,6 +57,13 @@ void bjit_free_function(llvm::Function *func);
 ModuleMap &bjit_get_modules();
 llvm::Module *bjit_get_module(const std::string &name);
 
+namespace bjit {
+
+void build_effector_module(void);
+void free_effector_module(void);
+
+} /* namespace bjit */
+
 /* unused, but could be handy for treating ListBase like a standard container */
 #if 0
 template <typename T>

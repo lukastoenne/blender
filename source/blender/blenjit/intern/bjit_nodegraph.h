@@ -33,6 +33,15 @@
 #define __BJIT_NODEGRAPH_H__
 
 #include <string>
+#include <iostream>
+
+extern "C" {
+#include "BLI_utildefines.h"
+
+#include "DNA_node_types.h"
+
+#include "BKE_node.h"
+}
 
 #include "bjit_intern.h"
 
@@ -64,6 +73,9 @@ struct NodeType {
 	const NodeSocket *find_input(const NodeSocket *socket) const;
 	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
+	const NodeSocket *add_input(const std::string &name);
+	const NodeSocket *add_output(const std::string &name);
+	
 	std::string name;
 	SocketList inputs;
 	SocketList outputs;
@@ -88,6 +100,15 @@ struct NodeInstance {
 	NodeInstance(const NodeType *type, const std::string &name);
 	~NodeInstance();
 	
+	NodeInstance *find_input_link_node(const std::string &name) const;
+	NodeInstance *find_input_link_node(int index) const;
+	const NodeSocket *find_input_link_socket(const std::string &name) const;
+	const NodeSocket *find_input_link_socket(int index) const;
+	Value *find_input_value(const std::string &name) const;
+	Value *find_input_value(int index) const;
+	Value *find_output_value(const std::string &name) const;
+	Value *find_output_value(int index) const;
+	
 	bool set_input_value(const std::string &name, Value *value);
 	bool set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket);
 	
@@ -107,6 +128,8 @@ struct NodeGraph {
 	static NodeTypeMap node_types;
 	
 	static const NodeType *find_node_type(const std::string &name);
+	static NodeType *add_node_type(const std::string &name);
+	static void remove_node_type(const std::string &name);
 	
 	NodeGraph();
 	~NodeGraph();
@@ -137,6 +160,8 @@ struct NodeGraph {
 	{
 		return add_link(get_node(from_node), from, get_node(to_node), to);
 	}
+	
+	void dump(std::ostream &stream = std::cout);
 	
 	NodeInstanceMap nodes;
 };
@@ -173,56 +198,6 @@ struct NodeGraphBuilder<bNodeTree> {
 		}
 		
 		return tree;
-	}
-};
-
-/* ------------------------------------------------------------------------- */
-/* Effectors */
-
-std::string get_effector_prefix(short forcefield);
-
-template <>
-struct NodeGraphBuilder<EffectorContext> {
-	NodeGraph build(EffectorContext *effctx)
-	{
-		NodeGraph graph;
-		NodeInstance *node_prev = NULL;
-		const NodeSocket *socket_prev = NULL;
-		
-		for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
-			if (!eff->ob || !eff->pd)
-				continue;
-			
-			std::string prefix = get_effector_prefix(eff->pd->forcefield);
-			if (prefix.empty()) {
-				/* undefined force type */
-				continue;
-			}
-			
-			std::string nodetype = "effector_" + prefix + "_eval";
-			std::string nodename = eff->ob->id.name;
-			NodeInstance *node = graph.add_node(nodetype, nodename);
-			const NodeSocket *socket = node->type->find_output(0);
-			
-			if (node_prev && socket_prev) {
-				std::string combinename = "combine_" + node_prev->name + "_" + node->name;
-				NodeInstance *combine = graph.add_node("effector_result_combine", combinename);
-				
-				graph.add_link(node_prev, socket_prev,
-				              combine, combine->type->find_input(0));
-				graph.add_link(node, socket,
-				              combine, combine->type->find_input(1));
-				
-				node_prev = combine;
-				socket_prev = combine->type->find_output(0);
-			}
-			else {
-				node_prev = node;
-				socket_prev = socket;
-			}
-		}
-		
-		return graph;
 	}
 };
 

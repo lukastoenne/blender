@@ -32,26 +32,6 @@
 #include <map>
 #include <string>
 
-#include "llvm/Analysis/Passes.h"
-#include "llvm/IR/AssemblyAnnotationWriter.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Function.h"
-#include "llvm/PassManager.h"
-#include "llvm/IR/CallingConv.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IRPrintingPasses.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/Linker/Linker.h"
-#include "llvm/IRReader/IRReader.h"
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/JIT.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-
 extern "C" {
 #include "MEM_guardedalloc.h"
 
@@ -66,6 +46,7 @@ extern "C" {
 #include "BJIT_forcefield.h"
 #include "BJIT_modules.h"
 #include "bjit_intern.h"
+#include "bjit_llvm.h"
 
 using namespace llvm;
 
@@ -104,12 +85,12 @@ void BJIT_init(void)
 	
 	/* load modules */
 	BJIT_load_all_modules(NULL, false);
-	BJIT_build_effector_module();
+	bjit::build_effector_module();
 }
 
 void BJIT_free(void)
 {
-	BJIT_free_effector_module();
+	bjit::free_effector_module();
 	BJIT_unload_all_modules();
 	
 	if (theEngine) {
