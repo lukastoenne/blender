@@ -57,4 +57,32 @@ void bjit_free_function(llvm::Function *func);
 ModuleMap &bjit_get_modules();
 llvm::Module *bjit_get_module(const std::string &name);
 
+/* unused, but could be handy for treating ListBase like a standard container */
+#if 0
+template <typename T>
+struct ListBaseIterator {
+	ListBaseIterator() :
+	    link(NULL)
+	{}
+
+	ListBaseIterator(const ListBase &lb) :
+	    link((Link *)lb.first)
+	{}
+	
+	ListBaseIterator& operator++ (void)
+	{
+		link = link->next;
+		return *this;
+	}
+	
+	T* operator* (void)
+	{
+		return (T *)link;
+	}
+	
+private:
+	Link *link;
+};
+#endif
+
 #endif
