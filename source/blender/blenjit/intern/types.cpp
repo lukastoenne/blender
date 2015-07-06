@@ -25,25 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenjit/BJIT_types.h
+/** \file blender/blenjit/intern/types.cpp
  *  \ingroup bjit
  */
 
-#ifndef __BJIT_TYPES_H__
-#define __BJIT_TYPES_H__
+#include "BJIT_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace bjit {
 
-enum {
-	BJIT_TYPE_FLOAT,
-	BJIT_TYPE_INT,
-	BJIT_TYPE_VEC3,
-} BJITType;
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+} /* namespace bjit */

@@ -49,6 +49,7 @@ set(SRC
 	intern/forcefield.cpp
 	intern/modules.cpp
 	intern/nodegraph.cpp
+	intern/types.cpp
 
 	intern/bjit_intern.h
 	intern/bjit_llvm.h
