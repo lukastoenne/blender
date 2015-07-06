@@ -34,6 +34,7 @@
 
 #include <string>
 #include <iostream>
+#include <map>
 
 extern "C" {
 #include "BLI_utildefines.h"

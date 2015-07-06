@@ -439,6 +439,10 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	NodeGraph graph = builder.build(effctx);
 	graph.dump();
 	
+	Function *func = codegen(graph, theModule);
+	if (func)
+		func->dump();
+	
 #if 0
 	FunctionType *functype = TypeBuilder<void(const EffectorEvalInput*, EffectorEvalResult*), true>::get(context);
 	

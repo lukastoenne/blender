@@ -33,6 +33,7 @@
 #define __BJIT_INTERN_H__
 
 #include <string>
+#include <map>
 
 namespace llvm {
 class Function;
@@ -59,8 +60,16 @@ llvm::Module *bjit_get_module(const std::string &name);
 
 namespace bjit {
 
+struct NodeGraph;
+
 void build_effector_module(void);
 void free_effector_module(void);
+
+/* codegen */
+typedef struct std::map<std::string, llvm::Value*> InputMap;
+typedef struct std::map<std::string, llvm::Value*> OutputMap;
+
+llvm::Function *codegen(const NodeGraph &graph, const InputMap &inputs, OutputMap &outputs, llvm::Module *module);
 
 } /* namespace bjit */
 

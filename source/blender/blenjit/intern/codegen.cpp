@@ -34,11 +34,35 @@
 
 #include "bjit_intern.h"
 #include "bjit_llvm.h"
+#include "bjit_nodegraph.h"
 #include "BJIT_forcefield.h"
 
 namespace bjit {
 
 using namespace llvm;
+
+
+
+Function *codegen(const NodeGraph &graph, const InputMap &inputs, OutputMap &outputs, Module *module)
+{
+	LLVMContext &context = getGlobalContext();
+	IRBuilder<> builder(context);
+	
+	FunctionType *functype = TypeBuilder<void(const EffectorEvalInput*, EffectorEvalResult*), true>::get(context);
+	
+	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
+	Value *arg_input, *arg_result;
+	{
+		Function::ArgumentListType::iterator it = func->arg_begin();
+		arg_input = it++;
+		arg_result = it++;
+	}
+	
+	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
+	builder.SetInsertPoint(entry);
+	
+	return func;
+}
 
 #if 0
 typedef std::map<std::string, Value *> SocketValueMap;
