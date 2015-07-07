@@ -243,6 +243,52 @@ NodeInstance *NodeGraph::add_node(const std::string &type, const std::string &na
 	return (result.second)? &result.first->second : NULL;
 }
 
+const NodeGraph::Input *NodeGraph::get_input(int index) const
+{
+	return &inputs[index];
+}
+
+const NodeGraph::Output *NodeGraph::get_output(int index) const
+{
+	return &outputs[index];
+}
+
+const NodeGraph::Input *NodeGraph::get_input(const std::string &name) const
+{
+	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
+		if (it->name == name)
+			return &(*it);
+	}
+	return NULL;
+}
+
+const NodeGraph::Output *NodeGraph::get_output(const std::string &name) const
+{
+	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		if (it->name == name)
+			return &(*it);
+	}
+	return NULL;
+}
+
+const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketType type)
+{
+	const Input *input = get_input(name);
+	if (input)
+		return input;
+	inputs.push_back(Input(name, type));
+	return &inputs.back();
+}
+
+const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketType type)
+{
+	const Output *output = get_output(name);
+	if (output)
+		return output;
+	outputs.push_back(Output(name, type));
+	return &outputs.back();
+}
+
 void NodeGraph::dump(std::ostream &s)
 {
 	s << "NodeGraph\n";

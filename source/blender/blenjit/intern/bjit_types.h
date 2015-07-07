@@ -32,18 +32,45 @@
 #ifndef __BJIT_TYPES_H__
 #define __BJIT_TYPES_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "bjit_llvm.h"
 
-enum {
+namespace bjit {
+
+using namespace llvm;
+
+typedef enum {
 	BJIT_TYPE_FLOAT,
 	BJIT_TYPE_INT,
 	BJIT_TYPE_VEC3,
-} BJITType;
+	
+	BJIT_NUMTYPES
+} SocketType;
 
-#ifdef __cplusplus
-}
-#endif
+Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context);
+
+typedef types::ieee_float vec2_t[2];
+typedef types::ieee_float vec3_t[3];
+typedef types::ieee_float vec4_t[4];
+typedef types::ieee_float mat3_t[3][3];
+typedef types::ieee_float mat4_t[4][4];
+
+/* ------------------------------------------------------------------------- */
+
+template <SocketType T>
+struct SocketTypeImpl;
+
+template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
+	typedef typename types::ieee_float type;
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
+	typedef typename types::i<32> type;
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
+	typedef vec3_t type;
+};
+
+} /* namespace bjit */
 
 #endif
