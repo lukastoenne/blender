@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 
+#include "bjit_llvm.h"
 #include "bjit_nodegraph.h"
 #include "BJIT_nodes.h"
 
@@ -40,8 +41,35 @@ namespace bjit {
 
 using namespace llvm;
 
-NodeSocket::NodeSocket(const std::string &name) :
-    name(name)
+template <SocketType type>
+struct SocketTypeGetter {
+	static Type *get(SocketType t, LLVMContext &context)
+	{
+		if (t == type)
+			return TypeBuilder<typename SocketTypeImpl<type>::type, true>::get(context);
+		return SocketTypeGetter<(SocketType)((int)type + 1)>::get(t, context);
+	}
+};
+
+template <>
+struct SocketTypeGetter<BJIT_NUMTYPES> {
+	static Type *get(SocketType /*t*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
+};
+
+
+Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context)
+{
+	return SocketTypeGetter<(SocketType)0>::get(type, context);
+}
+
+/* ========================================================================= */
+
+NodeSocket::NodeSocket(const std::string &name, SocketType type, Constant *default_value) :
+    name(name),
+    type(type)
 {
 }
 
@@ -101,15 +129,15 @@ const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
 	return socket;
 }
 
-const NodeSocket *NodeType::add_input(const std::string &name)
+const NodeSocket *NodeType::add_input(const std::string &name, SocketType type)
 {
-	inputs.push_back(NodeSocket(name));
+	inputs.push_back(NodeSocket(name, type));
 	return &inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const std::string &name)
+const NodeSocket *NodeType::add_output(const std::string &name, SocketType type)
 {
-	outputs.push_back(NodeSocket(name));
+	outputs.push_back(NodeSocket(name, type));
 	return &outputs.back();
 }
 

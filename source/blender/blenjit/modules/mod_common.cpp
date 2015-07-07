@@ -28,7 +28,9 @@
 #include "mod_common.h"
 #include "mod_math.h"
 
-#include "BJIT_forcefield.h"
+#include "bjit_types.h"
+
+using namespace bjit;
 
 __attribute__((annotate("effector_result_combine")))
 void effector_result_combine(EffectorEvalResult *R, const EffectorEvalResult *a, const EffectorEvalResult *b)

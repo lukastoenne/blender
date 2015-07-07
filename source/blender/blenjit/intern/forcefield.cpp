@@ -85,6 +85,7 @@ typedef types::ieee_float mat4_t[4][4];
 
 namespace llvm {
 
+#if 0
 template<bool cross>
 class TypeBuilder<EffectorEvalInput, cross> {
 public:
@@ -185,6 +186,7 @@ public:
 		NUM_FIELDS
 	};
 };
+#endif
 
 } /* namespace llvm */
 
@@ -284,19 +286,31 @@ void build_effector_module(void)
 		std::string name = get_effector_nodetype(forcefield);
 		if (name.empty())
 			continue;
+		
 		NodeType *type = NodeGraph::add_node_type(name);
 		BLI_assert(type);
-		type->add_input("input");
-		type->add_input("settings");
-		type->add_output("result");
+		Function *func = bjit_find_function(theModule, name);
+		BLI_assert(func);
+		
+//		for (Function::ArgumentListType::iterator it = func->arg_begin(); it != func->arg_end(); ++it) {
+//			Argument *arg = *it;
+//			ValueName *argname = arg->getValueName();
+//			Type *argtype = arg->getType();
+			
+//			argname->g
+//		}
+		type->add_input("loc", BJIT_TYPE_VEC3);
+		type->add_input("vel", BJIT_TYPE_VEC3);
+//		type->add_input("settings");
+//		type->add_output("result");
 	}
 	
 	{
 		NodeType *type = NodeGraph::add_node_type("effector_result_combine");
 		BLI_assert(type);
-		type->add_input("a");
-		type->add_input("b");
-		type->add_output("R");
+//		type->add_input("a");
+//		type->add_input("b");
+//		type->add_output("R");
 	}
 }
 

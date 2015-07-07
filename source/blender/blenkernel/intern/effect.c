@@ -1040,20 +1040,11 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
                       EffectedPoint *point, float *force, float *impulse)
 {
 	if (effctx->eval) {
-		EffectorEvalInput input;
-		EffectorEvalResult result;
-		
 		// XXX will be used as function args
 		(void)point;
 		(void)weights;
 		
-		copy_v3_v3(input.loc, point->loc);
-		copy_v3_v3(input.vel, point->vel);
-		
-		effctx->eval(&input, &result);
-		
-		copy_v3_v3(force, result.force);
-		copy_v3_v3(impulse, result.impulse);
+		effctx->eval(point, force, impulse);
 	}
 }
 

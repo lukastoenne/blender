@@ -42,43 +42,38 @@ namespace bjit {
 
 using namespace llvm;
 
-typedef std::map<std::string, Value *> SocketValueMap;
-typedef std::map<std::string, CallInst *> NodeInstanceMap;
-
-static inline Value *find_value(const SocketValueMap &values, const std::string &key)
-{
-	SocketValueMap::const_iterator it = values.find(key);
-	if (it != values.end())
-		return it->second;
-	else
-		return NULL;
-}
-
 static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module, NodeInstance *node)
 {
 	/* call evaluation function */
-	Function *evalfunc = bjit_find_function(module, node->name);
-	assert(evalfunc != NULL);
+	const std::string &evalname = node->type->name;
+	Function *evalfunc = bjit_find_function(module, evalname);
+	if (!evalfunc) {
+		printf("Could not find node function '%s'\n", evalname.c_str());
+		return NULL;
+	}
 	
 	std::vector<Value *> args;
 	Function::ArgumentListType::iterator it = evalfunc->arg_begin();
 	for (int i = 0; it != evalfunc->arg_end(); ++it, ++i) {
-		Argument *arg = it;
+//		Argument *arg = it;
+		
+		Value *value = NULL;
 		
 		NodeInstance *link_node = node->find_input_link_node(i);
 		const NodeSocket *link_socket = node->find_input_link_socket(i);
-		if (link_node && link_socket)
-			Value *input_value
-			
-		Value *input_value = find_value(inputs, arg->getName());
-		Value *output_value = find_value(outputs, arg->getName());
-		/* exactly one must be defined (xor) */
-		assert(input_value != output_value);
+		if (link_node && link_socket) {
+			/* use linked input value */
+			value = node->find_output_value(link_socket->name);
+		}
+		else if ((value = node->find_input_value(i))) {
+			/* use input constant */
+		}
+		else {
+			/* last resort: socket default */
+			value = node->type->find_input(i)->default_value;
+		}
 		
-		if (input_value)
-			args.push_back(input_value);
-		else
-			args.push_back(output_value);
+		args.push_back(value);
 	}
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
@@ -86,25 +81,25 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	return call;
 }
 
-typedef std::vector<const NodeInstance *> NodeRefList;
-typedef std::set<const NodeInstance *> NodeRefSet;
-static void toposort_nodes_insert(NodeRefList &result, NodeRefSet &visited, const NodeInstance *node)
+typedef std::vector<NodeInstance *> NodeRefList;
+typedef std::set<NodeInstance *> NodeRefSet;
+static void toposort_nodes_insert(NodeRefList &result, NodeRefSet &visited, NodeInstance *node)
 {
 	if (visited.find(node) != visited.end())
 		return;
 	visited.insert(node);
 	
 	for (int i = 0; i < node->inputs.size(); ++i) {
-		const NodeInstance *link = node->find_input_link_node(i);
+		NodeInstance *link = node->find_input_link_node(i);
 		if (link)
 			toposort_nodes_insert(result, visited, link);
 	}
 	
 	result.push_back(node);
 }
-static NodeRefList toposort_nodes(const NodeGraph &graph)
+static NodeRefList toposort_nodes(NodeGraph &graph)
 {
-	NodeGraph::NodeInstanceMap::const_iterator it;
+	NodeGraph::NodeInstanceMap::iterator it;
 	
 	NodeRefList list;
 	NodeRefSet visited;
@@ -115,7 +110,7 @@ static NodeRefList toposort_nodes(const NodeGraph &graph)
 	return list;
 }
 
-static void codegen_nodegraph(const NodeGraph &graph, Module *module, Function *func)
+static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 {
 	LLVMContext &context = getGlobalContext();
 	IRBuilder<> builder(context);
@@ -131,32 +126,37 @@ static void codegen_nodegraph(const NodeGraph &graph, Module *module, Function *
 //	}
 	
 	NodeRefList sorted_nodes = toposort_nodes(graph);
-	for (NodeRefList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
-		const NodeInstance *node = *it;
+	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
+		NodeInstance *node = *it;
 		
 		CallInst *call = codegen_node_function_call(builder, module, node);
+		if (!call)
+			continue;
 	}
 }
 
-Function *codegen(const NodeGraph &graph, Module *module)
+Function *codegen(NodeGraph &graph, Module *module)
 {
 	LLVMContext &context = getGlobalContext();
 	
-	Type *return_type = TypeBuilder<void, true>::get(context);
-	std::vector<Type *> arg_types;
+//	Type *return_type = TypeBuilder<void, true>::get(context);
+	std::vector<Type *> input_types, output_types;
 	
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
-	arg_types.reserve(num_inputs + num_outputs);
+	input_types.reserve(num_inputs);
+	output_types.reserve(num_outputs);
 	for (int i = 0; i < num_inputs; ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		arg_types.push_back(bjit_get_socket_llvm_type(input.type, context));
+		input_types.push_back(bjit_get_socket_llvm_type(input.type, context));
 	}
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		arg_types.push_back(bjit_get_socket_llvm_type(output.type, context));
+		output_types.push_back(bjit_get_socket_llvm_type(output.type, context));
 	}
-	FunctionType *functype = FunctionType::get(return_type, arg_types, false);
+	
+	StructType *return_type = StructType::get(context, output_types);
+	FunctionType *functype = FunctionType::get(return_type, input_types, false);
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", module);
 	

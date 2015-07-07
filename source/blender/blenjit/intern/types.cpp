@@ -36,29 +36,4 @@ using namespace llvm;
 
 namespace bjit {
 
-template <SocketType type>
-struct SocketTypeGetter {
-	static Type *get(SocketType t, LLVMContext &context)
-	{
-		if (t == type)
-			return TypeBuilder<typename SocketTypeImpl<type>::type, true>::get(context);
-		return SocketTypeGetter<(SocketType)((int)type + 1)>::get(t, context);
-	}
-};
-
-template <>
-struct SocketTypeGetter<BJIT_NUMTYPES> {
-	static Type *get(SocketType /*t*/, LLVMContext &/*context*/)
-	{
-		return NULL;
-	}
-};
-
-
-Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context)
-{
-	return SocketTypeGetter<(SocketType)0>::get(type, context);
-//	return TypeBuilder<typename SocketTypeImpl<type>::type, true>::get(context);
-}
-
 } /* namespace bjit */

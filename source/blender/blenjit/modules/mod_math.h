@@ -30,6 +30,10 @@
 
 #include "math.h"
 
+#include "bjit_types.h"
+
+using namespace bjit;
+
 static inline void copy_v3_v3(float r[3], const float a[3])
 {
 	r[0] = a[0];
