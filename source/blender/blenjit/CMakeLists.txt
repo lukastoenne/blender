@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	intern
 	../blenfont
 	../blenlib
 	../blenkernel
@@ -54,11 +55,11 @@ set(SRC
 	intern/bjit_intern.h
 	intern/bjit_llvm.h
 	intern/bjit_nodegraph.h
+	intern/bjit_types.h
 
 	BJIT_forcefield.h
 	BJIT_modules.h
 	BJIT_nodes.h
-	BJIT_types.h
 )
 
 set(LLVM_SRC

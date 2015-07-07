@@ -35,6 +35,7 @@
 #include <string>
 #include <iostream>
 #include <map>
+#include <vector>
 
 extern "C" {
 #include "BLI_utildefines.h"
@@ -44,6 +45,7 @@ extern "C" {
 #include "BKE_node.h"
 }
 
+#include "bjit_types.h"
 #include "bjit_intern.h"
 
 namespace bjit {
@@ -121,10 +123,26 @@ struct NodeInstance {
 };
 
 struct NodeGraph {
+	struct Input {
+		Input(const std::string &name, SocketType type) : name(name), type(type)
+		{}
+		std::string name;
+		SocketType type;
+	};
+	struct Output {
+		Output(const std::string &name, SocketType type) : name(name), type(type)
+		{}
+		std::string name;
+		SocketType type;
+	};
+	typedef std::vector<Input> InputList;
+	typedef std::vector<Output> OutputList;
+	
 	typedef std::map<std::string, NodeType> NodeTypeMap;
 	typedef std::pair<std::string, NodeType> NodeTypeMapPair;
 	typedef std::map<std::string, NodeInstance> NodeInstanceMap;
 	typedef std::pair<std::string, NodeInstance> NodeInstanceMapPair;
+	
 	
 	static NodeTypeMap node_types;
 	
@@ -162,9 +180,18 @@ struct NodeGraph {
 		return add_link(get_node(from_node), from, get_node(to_node), to);
 	}
 	
+	const Input *get_input(int index) const;
+	const Output *get_output(int index) const;
+	const Input *get_input(const std::string &name) const;
+	const Output *get_output(const std::string &name) const;
+	const Input *add_input(const std::string &name, SocketType type);
+	const Output *add_output(const std::string &name, SocketType type);
+	
 	void dump(std::ostream &stream = std::cout);
 	
 	NodeInstanceMap nodes;
+	InputList inputs;
+	OutputList outputs;
 };
 
 /* ========================================================================= */

@@ -66,10 +66,10 @@ void build_effector_module(void);
 void free_effector_module(void);
 
 /* codegen */
-typedef struct std::map<std::string, llvm::Value*> InputMap;
-typedef struct std::map<std::string, llvm::Value*> OutputMap;
+typedef std::map<std::string, llvm::Value*> InputList;
+typedef std::map<std::string, llvm::Value*> OutputList;
 
-llvm::Function *codegen(const NodeGraph &graph, const InputMap &inputs, OutputMap &outputs, llvm::Module *module);
+llvm::Function *codegen(const NodeGraph &graph, llvm::Module *module);
 
 } /* namespace bjit */
 
