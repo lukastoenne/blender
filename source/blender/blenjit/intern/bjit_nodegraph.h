@@ -52,14 +52,90 @@ namespace bjit {
 
 using llvm::Value;
 using llvm::CallInst;
+using llvm::Constant;
+
+typedef enum {
+	BJIT_TYPE_FLOAT,
+	BJIT_TYPE_INT,
+	BJIT_TYPE_VEC3,
+	
+	BJIT_NUMTYPES
+} SocketType;
+
+Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context);
+
+template <typename T> T convert_to_socket_value(SocketType type, T value);
+
+/* ------------------------------------------------------------------------- */
+
+template <SocketType T>
+struct SocketTypeImpl;
+
+template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
+	typedef typename types::ieee_float type;
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
+	typedef typename types::i<32> type;
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
+	typedef vec3_t type;
+};
+
+/* ========================================================================= */
+/* inline functions */
+
+namespace internal {
+	
+	template <SocketType type>
+	struct SocketTypeConverter {
+		typedef typename SocketTypeImpl<type>::type result_t;
+		
+		template <typename T>
+		static result_t from_socket_type(SocketType t, T value)
+		{
+			if (t == type)
+				return result_t(value);
+			
+			return SocketTypeConverter<(SocketType)((int)type + 1)>::from_socket_type(t, value);
+		}
+	};
+	
+	template <>
+	struct SocketTypeConverter<BJIT_NUMTYPES> {
+		template <typename T>
+		static T from_socket_type(SocketType /*t*/, T /*value*/)
+		{
+			return T();
+		}
+	};
+	
+} /* namespace internal */
+
+template <typename T>
+T convert_to_socket_value(SocketType type, T value)
+{
+	return internal::SocketTypeConverter<(SocketType)0>::from_socket_type(type, value);
+}
+
+/* ========================================================================= */
 
 struct NodeType;
 
 struct NodeSocket {
-	NodeSocket(const std::string &name);
+	NodeSocket(const std::string &name, SocketType type, Constant *default_value = NULL);
 	~NodeSocket();
 	
+//	template <typename T>
+//	static NodeSocket get(const std::string &name, SocketType type, const T &default_value)
+//	{
+//		return NodeSocket(name, type, SocketTypeImpl<type>::type, );
+//	}
+	
 	std::string name;
+	SocketType type;
+	llvm::Constant *default_value;
 };
 
 struct NodeType {
@@ -76,8 +152,8 @@ struct NodeType {
 	const NodeSocket *find_input(const NodeSocket *socket) const;
 	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
-	const NodeSocket *add_input(const std::string &name);
-	const NodeSocket *add_output(const std::string &name);
+	const NodeSocket *add_input(const std::string &name, SocketType type);
+	const NodeSocket *add_output(const std::string &name, SocketType type);
 	
 	std::string name;
 	SocketList inputs;

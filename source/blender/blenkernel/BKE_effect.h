@@ -46,8 +46,6 @@ struct ParticleData;
 struct ParticleKey;
 struct DerivedMesh;
 struct ForceVizModifierData;
-struct EffectorEvalInput;
-struct EffectorEvalResult;
 
 struct EffectorWeights *BKE_add_effector_weights(struct Group *group);
 struct PartDeflect *object_add_collision_fields(int type);
@@ -113,7 +111,7 @@ typedef struct EffectorCache {
 	int flag;
 } EffectorCache;
 
-typedef void (*EffectorEvalFp)(const struct EffectorEvalInput *input, struct EffectorEvalResult *result);
+typedef void (*EffectorEvalFp)(const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 typedef struct EffectorContext {
 	ListBase effectors;

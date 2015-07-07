@@ -30,9 +30,11 @@
 
 #include <stdbool.h>
 
-#include "BJIT_forcefield.h"
+#include "bjit_types.h"
 
 #include "mod_math.h"
+
+using namespace bjit;
 
 /* maxdist: zero effect from this distance outwards (if usemax) */
 /* mindist: full effect up to this distance (if usemin) */
@@ -73,12 +75,12 @@ static float get_falloff_radial(const EffectorEvalSettings *settings, float dist
  */
 typedef struct EffectorPointRelation {
 	/* closest on the effector */
-	float closest_loc[3];
-	float closest_nor[3];
-	float closest_vel[3];
+	vec3_t closest_loc;
+	vec3_t closest_nor;
+	vec3_t closest_vel;
 	
 	/* relative coordinates of the point */
-	float loc_rel[3];
+	vec3_t loc_rel;
 	float dist_rel;
 } EffectorPointRelation;
 
@@ -135,6 +137,24 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 }
 
 __attribute__((annotate("effector_force_eval")))
+EffectorEvalResult effector_force_eval(vec3_t loc)
+{
+	EffectorEvalResult result;
+	
+//	EffectorPointRelation rel;
+//	float dir[3], strength;
+	
+//	get_point_relation(&rel, input, settings);
+//	strength = settings->f_strength * get_falloff(settings, rel.dist_rel);
+	
+//	normalize_v3_v3(dir, rel.loc_rel);
+//	mul_v3_v3fl(result->force, dir, strength);
+	copy_v3_v3(result.force, loc);
+	return result;
+}
+
+#if 0
+__attribute__((annotate("effector_force_eval")))
 void effector_force_eval(const EffectorEvalInput *input, EffectorEvalResult *result, const EffectorEvalSettings *settings)
 {
 	EffectorPointRelation rel;
@@ -158,3 +178,4 @@ void effector_wind_eval(const EffectorEvalInput *input, EffectorEvalResult *resu
 	
 	mul_v3_v3fl(result->force, rel.closest_nor, strength);
 }
+#endif

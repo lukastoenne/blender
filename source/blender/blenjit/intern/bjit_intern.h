@@ -69,7 +69,7 @@ void free_effector_module(void);
 typedef std::map<std::string, llvm::Value*> InputList;
 typedef std::map<std::string, llvm::Value*> OutputList;
 
-llvm::Function *codegen(const NodeGraph &graph, llvm::Module *module);
+llvm::Function *codegen(NodeGraph &graph, llvm::Module *module);
 
 } /* namespace bjit */
 
