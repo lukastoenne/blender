@@ -40,6 +40,9 @@ class Function;
 class Module;
 class Value;
 class CallInst;
+class Constant;
+class Type;
+class LLVMContext;
 }
 
 typedef std::map<std::string, llvm::Module*> ModuleMap;

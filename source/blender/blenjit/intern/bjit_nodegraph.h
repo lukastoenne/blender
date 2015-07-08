@@ -45,14 +45,13 @@ extern "C" {
 #include "BKE_node.h"
 }
 
+#include "bjit_llvm.h"
 #include "bjit_types.h"
 #include "bjit_intern.h"
 
 namespace bjit {
 
-using llvm::Value;
-using llvm::CallInst;
-using llvm::Constant;
+using namespace llvm;
 
 typedef enum {
 	BJIT_TYPE_FLOAT,
@@ -64,6 +63,7 @@ typedef enum {
 
 Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context);
 
+
 template <typename T> T convert_to_socket_value(SocketType type, T value);
 
 /* ------------------------------------------------------------------------- */
@@ -73,14 +73,32 @@ struct SocketTypeImpl;
 
 template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	typedef typename types::ieee_float type;
+	
+	template <typename T>
+	static Constant *create_constant(const T &value, LLVMContext &context)
+	{
+		return ConstantFP::get(context, APFloat(value));
+	}
 };
 
 template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef typename types::i<32> type;
+	
+	template <typename T>
+	static Constant *create_constant(const T &value, LLVMContext &context)
+	{
+		return ConstantInt::get(context, APInt(value));
+	}
 };
 
 template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
+	
+	template <typename T>
+	static Constant *create_constant(const T &value, LLVMContext &context)
+	{
+		return ConstantDataArray::get(context, ArrayRef<float>(value, 3));
+	}
 };
 
 /* ========================================================================= */
@@ -111,6 +129,27 @@ namespace internal {
 		}
 	};
 	
+	
+	template <SocketType type>
+	struct SocketConstantGetter {
+		template <typename T>
+		static Constant *get(SocketType t, const T &value, LLVMContext &context)
+		{
+			if (t == type)
+				return SocketTypeImpl<type>::create_constant(value, context);
+			return SocketConstantGetter<(SocketType)((int)type + 1)>::get(t, value, context);
+		}
+	};
+	
+	template <>
+	struct SocketConstantGetter<BJIT_NUMTYPES> {
+		template <typename T>
+		static Constant *get(SocketType /*t*/, const T &/*value*/, LLVMContext &/*context*/)
+		{
+			return NULL;
+		}
+	};
+	
 } /* namespace internal */
 
 template <typename T>
@@ -119,19 +158,19 @@ T convert_to_socket_value(SocketType type, T value)
 	return internal::SocketTypeConverter<(SocketType)0>::from_socket_type(type, value);
 }
 
+template <typename T>
+Constant *bjit_get_socket_llvm_constant(SocketType type, const T &value, LLVMContext &context)
+{
+	return internal::SocketConstantGetter<(SocketType)0>::get(type, value, context);
+}
+
 /* ========================================================================= */
 
 struct NodeType;
 
 struct NodeSocket {
-	NodeSocket(const std::string &name, SocketType type, Constant *default_value = NULL);
+	NodeSocket(const std::string &name, SocketType type, Constant *default_value);
 	~NodeSocket();
-	
-//	template <typename T>
-//	static NodeSocket get(const std::string &name, SocketType type, const T &default_value)
-//	{
-//		return NodeSocket(name, type, SocketTypeImpl<type>::type, );
-//	}
 	
 	std::string name;
 	SocketType type;
@@ -152,8 +191,20 @@ struct NodeType {
 	const NodeSocket *find_input(const NodeSocket *socket) const;
 	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
-	const NodeSocket *add_input(const std::string &name, SocketType type);
-	const NodeSocket *add_output(const std::string &name, SocketType type);
+	const NodeSocket *add_input(const std::string &name, SocketType type, Constant *default_value);
+	const NodeSocket *add_output(const std::string &name, SocketType type, Constant *default_value);
+	
+	template <typename T>
+	const NodeSocket *add_input(const std::string &name, SocketType type, const T &default_value, LLVMContext &context)
+	{
+		return add_input(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
+	}
+	
+	template <typename T>
+	const NodeSocket *add_output(const std::string &name, SocketType type, const T &default_value, LLVMContext &context)
+	{
+		return add_output(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
+	}
 	
 	std::string name;
 	SocketList inputs;

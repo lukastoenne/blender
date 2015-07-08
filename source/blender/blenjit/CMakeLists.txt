@@ -101,7 +101,9 @@ if(WITH_LLVM)
 					-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/intern
-					-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x
+					-DBJIT_RUNTIME
+					-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
+					-std=c++0x
 			DEPENDS ${LLVM_SRC})
 
 		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)

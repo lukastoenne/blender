@@ -59,7 +59,6 @@ struct SocketTypeGetter<BJIT_NUMTYPES> {
 	}
 };
 
-
 Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context)
 {
 	return SocketTypeGetter<(SocketType)0>::get(type, context);
@@ -69,7 +68,8 @@ Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context)
 
 NodeSocket::NodeSocket(const std::string &name, SocketType type, Constant *default_value) :
     name(name),
-    type(type)
+    type(type),
+    default_value(default_value)
 {
 }
 
@@ -90,11 +90,13 @@ NodeType::~NodeType()
 
 const NodeSocket *NodeType::find_input(int index) const
 {
+	BLI_assert(index >= 0 && index < inputs.size());
 	return &inputs[index];
 }
 
 const NodeSocket *NodeType::find_output(int index) const
 {
+	BLI_assert(index >= 0 && index < outputs.size());
 	return &outputs[index];
 }
 
@@ -129,15 +131,17 @@ const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
 	return socket;
 }
 
-const NodeSocket *NodeType::add_input(const std::string &name, SocketType type)
+const NodeSocket *NodeType::add_input(const std::string &name, SocketType type, Constant *default_value)
 {
-	inputs.push_back(NodeSocket(name, type));
+	BLI_assert(!find_input(name));
+	inputs.push_back(NodeSocket(name, type, default_value));
 	return &inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const std::string &name, SocketType type)
+const NodeSocket *NodeType::add_output(const std::string &name, SocketType type, Constant *default_value)
 {
-	outputs.push_back(NodeSocket(name, type));
+	BLI_assert(!find_output(name));
+	outputs.push_back(NodeSocket(name, type, default_value));
 	return &outputs.back();
 }
 
@@ -273,11 +277,13 @@ NodeInstance *NodeGraph::add_node(const std::string &type, const std::string &na
 
 const NodeGraph::Input *NodeGraph::get_input(int index) const
 {
+	BLI_assert(index >= 0 && index < inputs.size());
 	return &inputs[index];
 }
 
 const NodeGraph::Output *NodeGraph::get_output(int index) const
 {
+	BLI_assert(index >= 0 && index < outputs.size());
 	return &outputs[index];
 }
 
@@ -301,18 +307,14 @@ const NodeGraph::Output *NodeGraph::get_output(const std::string &name) const
 
 const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketType type)
 {
-	const Input *input = get_input(name);
-	if (input)
-		return input;
+	BLI_assert(!get_input(name));
 	inputs.push_back(Input(name, type));
 	return &inputs.back();
 }
 
 const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketType type)
 {
-	const Output *output = get_output(name);
-	if (output)
-		return output;
+	BLI_assert(!get_output(name));
 	outputs.push_back(Output(name, type));
 	return &outputs.back();
 }

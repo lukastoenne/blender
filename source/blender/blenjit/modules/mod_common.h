@@ -29,9 +29,11 @@
 #define __MOD_COMMON_H__
 
 namespace bjit {
+
 struct EffectorEvalResult;
-}
 
 void effector_result_combine(struct bjit::EffectorEvalResult *R, const struct bjit::EffectorEvalResult *a, const struct bjit::EffectorEvalResult *b);
+
+}
 
 #endif

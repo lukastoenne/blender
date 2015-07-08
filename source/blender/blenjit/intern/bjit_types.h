@@ -32,15 +32,23 @@
 #ifndef __BJIT_TYPES_H__
 #define __BJIT_TYPES_H__
 
+#ifndef BJIT_RUNTIME
 #include "bjit_llvm.h"
+#endif
 
 namespace bjit {
 
+#ifdef BJIT_RUNTIME
+typedef float FP;
+#else
 using namespace llvm;
 
-typedef types::ieee_float vec2_t[2];
-typedef types::ieee_float vec3_t[3];
-typedef types::ieee_float vec4_t[4];
+typedef types::ieee_float FP;
+#endif
+
+typedef FP vec2_t[2];
+typedef FP vec3_t[3];
+typedef FP vec4_t[4];
 
 typedef vec2_t mat2_t[2];
 typedef vec3_t mat3_t[3];
