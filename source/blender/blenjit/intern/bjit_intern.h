@@ -104,4 +104,9 @@ private:
 };
 #endif
 
+//template <typename T, typename U>
+//struct is_convertible {
+	
+//};
+
 #endif
