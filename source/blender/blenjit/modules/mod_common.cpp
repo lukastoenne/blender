@@ -30,7 +30,7 @@
 
 #include "bjit_types.h"
 
-using namespace bjit;
+namespace bjit {
 
 __attribute__((annotate("effector_result_combine")))
 void effector_result_combine(EffectorEvalResult *R, const EffectorEvalResult *a, const EffectorEvalResult *b)
@@ -38,3 +38,5 @@ void effector_result_combine(EffectorEvalResult *R, const EffectorEvalResult *a,
 	add_v3_v3v3(R->force, a->force, b->force);
 	add_v3_v3v3(R->impulse, a->impulse, b->impulse);
 }
+
+} /* namespace bjit */

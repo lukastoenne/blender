@@ -198,7 +198,7 @@ static inline const char *get_effector_prefix(short forcefield)
 {
 	switch (forcefield) {
 		case PFIELD_FORCE:      return "force";
-		case PFIELD_WIND:       return "wind";
+		case PFIELD_WIND:       /*return "wind";*/
 			
 		case PFIELD_NULL:
 		case PFIELD_VORTEX:
@@ -275,6 +275,8 @@ struct NodeGraphBuilder<EffectorContext> {
 
 void build_effector_module(void)
 {
+	static const float vec3_zero[3] = {0.0f, 0.0f, 0.0f};
+	
 	LLVMContext &context = getGlobalContext();
 	
 	theModule = new Module("effectors", context);
@@ -299,18 +301,18 @@ void build_effector_module(void)
 			
 //			argname->g
 //		}
-		type->add_input("loc", BJIT_TYPE_VEC3);
-		type->add_input("vel", BJIT_TYPE_VEC3);
-//		type->add_input("settings");
-//		type->add_output("result");
+		type->add_input("loc", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("vel", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_output("force", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_output("impulse", BJIT_TYPE_VEC3, vec3_zero, context);
 	}
 	
 	{
 		NodeType *type = NodeGraph::add_node_type("effector_result_combine");
 		BLI_assert(type);
-//		type->add_input("a");
-//		type->add_input("b");
-//		type->add_output("R");
+		type->add_input("a", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("b", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_output("R", BJIT_TYPE_VEC3, vec3_zero, context);
 	}
 }
 

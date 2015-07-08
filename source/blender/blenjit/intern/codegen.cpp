@@ -44,7 +44,7 @@ using namespace llvm;
 
 static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module, NodeInstance *node)
 {
-	/* call evaluation function */
+	/* get evaluation function */
 	const std::string &evalname = node->type->name;
 	Function *evalfunc = bjit_find_function(module, evalname);
 	if (!evalfunc) {
@@ -52,11 +52,11 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 		return NULL;
 	}
 	
+	/* set input arguments */
+	int num_inputs = node->type->inputs.size();
 	std::vector<Value *> args;
-	Function::ArgumentListType::iterator it = evalfunc->arg_begin();
-	for (int i = 0; it != evalfunc->arg_end(); ++it, ++i) {
-//		Argument *arg = it;
-		
+	args.reserve(num_inputs);
+	for (int i = 0; i < num_inputs; ++i) {
 		Value *value = NULL;
 		
 		NodeInstance *link_node = node->find_input_link_node(i);
@@ -72,9 +72,21 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 			/* last resort: socket default */
 			value = node->type->find_input(i)->default_value;
 		}
+		if (!value) {
+			const NodeSocket *socket = node->type->find_input(i);
+			printf("Error: no input value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
+		}
 		
 		args.push_back(value);
 	}
+#if 0
+	std::vector<Value *> args;
+	Function::ArgumentListType::iterator it = evalfunc->arg_begin();
+	for (int i = 0; it != evalfunc->arg_end(); ++it, ++i) {
+		Argument *arg = it;
+		printf("FUN %s(%s)\n", evalfunc->getName().str().c_str(), arg->getName().str().c_str());
+	}
+#endif
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
 	

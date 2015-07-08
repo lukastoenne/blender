@@ -137,10 +137,9 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 }
 
 __attribute__((annotate("effector_force_eval")))
-EffectorEvalResult effector_force_eval(vec3_t loc)
+EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel)
 {
-	EffectorEvalResult result;
-	
+	vec3_t force, impulse;
 //	EffectorPointRelation rel;
 //	float dir[3], strength;
 	
@@ -149,7 +148,11 @@ EffectorEvalResult effector_force_eval(vec3_t loc)
 	
 //	normalize_v3_v3(dir, rel.loc_rel);
 //	mul_v3_v3fl(result->force, dir, strength);
-	copy_v3_v3(result.force, loc);
+	copy_v3_v3(force, loc);
+	
+	EffectorEvalResult result;
+	copy_v3_v3(result.force, force);
+	copy_v3_v3(result.impulse, impulse);
 	return result;
 }
 
