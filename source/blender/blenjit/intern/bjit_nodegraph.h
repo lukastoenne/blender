@@ -36,6 +36,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <type_traits>
 
 extern "C" {
 #include "BLI_utildefines.h"
@@ -68,14 +69,13 @@ template <typename T> T convert_to_socket_value(SocketType type, T value);
 
 /* ------------------------------------------------------------------------- */
 
-template <SocketType T>
+template <SocketType type>
 struct SocketTypeImpl;
 
 template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	typedef typename types::ieee_float type;
 	
-	template <typename T>
-	static Constant *create_constant(const T &value, LLVMContext &context)
+	static Constant *create_constant(float value, LLVMContext &context)
 	{
 		return ConstantFP::get(context, APFloat(value));
 	}
@@ -84,22 +84,60 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef typename types::i<32> type;
 	
-	template <typename T>
-	static Constant *create_constant(const T &value, LLVMContext &context)
+	static Constant *create_constant(int value, LLVMContext &context)
 	{
-		return ConstantInt::get(context, APInt(value));
+		return ConstantInt::get(context, APInt(32, value));
 	}
 };
 
 template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
 	
-	template <typename T>
-	static Constant *create_constant(const T &value, LLVMContext &context)
+	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
 		return ConstantDataArray::get(context, ArrayRef<float>(value, 3));
 	}
 };
+
+#if 0
+template <SocketType type, typename ValueT>
+struct SocketConstantCreator {
+	typedef ValueT value_t;
+	static Constant *get(SocketType t, const value_t &value, LLVMContext &context)
+	{
+		if (t == type)
+			return NULL;
+		else
+			return SocketConstantCreator<(SocketType)((int)type + 1), ValueT>::get(t, value, context);
+	}
+};
+
+template <SocketType type>
+struct SocketConstantCreator<type, typename SocketTypeImpl<type>::type> {
+	typedef typename SocketTypeImpl<type>::type value_t;
+	static Constant *get(SocketType t, const value_t &value, LLVMContext &context)
+	{
+		if (t == type)
+			SocketTypeImpl<type>::create_constant(value, context);
+		else
+			return SocketConstantCreator<(SocketType)((int)type + 1), value_t>::get(t, value, context);
+	}
+};
+#elif 1
+template <SocketType type>
+struct SocketConstantCreator {
+	void get(SocketType t)
+	{
+		if (t == type)
+			return 
+	}
+};
+
+template <>
+struct SocketConstantCreator<BJIT_NUMTYPES> {
+	typedef void* type;
+};
+#endif
 
 /* ========================================================================= */
 /* inline functions */
@@ -129,27 +167,6 @@ namespace internal {
 		}
 	};
 	
-	
-	template <SocketType type>
-	struct SocketConstantGetter {
-		template <typename T>
-		static Constant *get(SocketType t, const T &value, LLVMContext &context)
-		{
-			if (t == type)
-				return SocketTypeImpl<type>::create_constant(value, context);
-			return SocketConstantGetter<(SocketType)((int)type + 1)>::get(t, value, context);
-		}
-	};
-	
-	template <>
-	struct SocketConstantGetter<BJIT_NUMTYPES> {
-		template <typename T>
-		static Constant *get(SocketType /*t*/, const T &/*value*/, LLVMContext &/*context*/)
-		{
-			return NULL;
-		}
-	};
-	
 } /* namespace internal */
 
 template <typename T>
@@ -161,7 +178,9 @@ T convert_to_socket_value(SocketType type, T value)
 template <typename T>
 Constant *bjit_get_socket_llvm_constant(SocketType type, const T &value, LLVMContext &context)
 {
-	return internal::SocketConstantGetter<(SocketType)0>::get(type, value, context);
+	typedef typename SocketConstantCreator<(SocketType)0>::type creator_t;
+//	return SocketConstantCreator<(SocketType)0, T>::get(type, value, context);
+	return NULL;
 }
 
 /* ========================================================================= */
@@ -323,7 +342,7 @@ struct NodeGraph {
 
 /* ========================================================================= */
 
-template <typename T>
+template <typename type>
 struct NodeGraphBuilder;
 
 /* ------------------------------------------------------------------------- */
