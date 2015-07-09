@@ -42,8 +42,35 @@ namespace bjit {
 
 using namespace llvm;
 
+static Value *codegen_get_node_input_value(NodeInstance *node, int index)
+{
+	Value *value = NULL;
+	
+	NodeInstance *link_node = node->find_input_link_node(index);
+	const NodeSocket *link_socket = node->find_input_link_socket(index);
+	if (link_node && link_socket) {
+		/* use linked input value */
+		value = node->find_output_value(link_socket->name);
+		BLI_assert(value);
+	}
+	
+	/* use input constant */
+	if (!value)
+		value = node->find_input_value(index);
+	
+	/* last resort: socket default */
+	if (!value)
+		value = node->type->find_input(index)->default_value;
+	
+	BLI_assert(value);
+	
+	return value;
+}
+
 static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module, NodeInstance *node)
 {
+	LLVMContext &context = getGlobalContext();
+	
 	/* get evaluation function */
 	const std::string &evalname = node->type->name;
 	Function *evalfunc = bjit_find_function(module, evalname);
@@ -57,21 +84,7 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	std::vector<Value *> args;
 	args.reserve(num_inputs);
 	for (int i = 0; i < num_inputs; ++i) {
-		Value *value = NULL;
-		
-		NodeInstance *link_node = node->find_input_link_node(i);
-		const NodeSocket *link_socket = node->find_input_link_socket(i);
-		if (link_node && link_socket) {
-			/* use linked input value */
-			value = node->find_output_value(link_socket->name);
-		}
-		else if ((value = node->find_input_value(i))) {
-			/* use input constant */
-		}
-		else {
-			/* last resort: socket default */
-			value = node->type->find_input(i)->default_value;
-		}
+		Value *value = codegen_get_node_input_value(node, i);
 		if (!value) {
 			const NodeSocket *socket = node->type->find_input(i);
 			printf("Error: no input value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
@@ -89,6 +102,23 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 #endif
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
+	
+	int num_outputs = node->type->outputs.size();
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeSocket *socket = node->type->find_output(i);
+		Value *value = builder.CreateStructGEP(call, i);
+		if (!value) {
+			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
+		}
+		
+		/* store on the stack */
+		AllocaInst *alloc = builder.CreateAlloca(bjit_get_socket_llvm_type(socket->type, context));
+		builder.CreateStore(value, alloc);
+		
+		/* use as node output values */
+		node->set_output_value(socket->name, value);
+		printf("SET %s:%s = %p\n", node->name.c_str(), socket->name.c_str(), value);
+	}
 	
 	return call;
 }
@@ -140,6 +170,7 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	NodeRefList sorted_nodes = toposort_nodes(graph);
 	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		NodeInstance *node = *it;
+		printf("Node '%s'\n", node->name.c_str());
 		
 		CallInst *call = codegen_node_function_call(builder, module, node);
 		if (!call)

@@ -60,16 +60,15 @@ typedef enum {
 	BJIT_TYPE_VEC3,
 	
 	BJIT_NUMTYPES
-} SocketType;
+} SocketTypeID;
 
-Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context);
+Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context);
 
-
-template <typename T> T convert_to_socket_value(SocketType type, T value);
+template <typename T> Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context);
 
 /* ------------------------------------------------------------------------- */
 
-template <SocketType type>
+template <SocketTypeID type>
 struct SocketTypeImpl;
 
 template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
@@ -78,6 +77,12 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	static Constant *create_constant(float value, LLVMContext &context)
 	{
 		return ConstantFP::get(context, APFloat(value));
+	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
 	}
 };
 
@@ -88,6 +93,12 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	{
 		return ConstantInt::get(context, APInt(32, value));
 	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
 };
 
 template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
@@ -97,89 +108,33 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	{
 		return ConstantDataArray::get(context, ArrayRef<float>(value, 3));
 	}
-};
-
-#if 0
-template <SocketType type, typename ValueT>
-struct SocketConstantCreator {
-	typedef ValueT value_t;
-	static Constant *get(SocketType t, const value_t &value, LLVMContext &context)
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
 	{
-		if (t == type)
-			return NULL;
-		else
-			return SocketConstantCreator<(SocketType)((int)type + 1), ValueT>::get(t, value, context);
+		return NULL;
 	}
 };
-
-template <SocketType type>
-struct SocketConstantCreator<type, typename SocketTypeImpl<type>::type> {
-	typedef typename SocketTypeImpl<type>::type value_t;
-	static Constant *get(SocketType t, const value_t &value, LLVMContext &context)
-	{
-		if (t == type)
-			SocketTypeImpl<type>::create_constant(value, context);
-		else
-			return SocketConstantCreator<(SocketType)((int)type + 1), value_t>::get(t, value, context);
-	}
-};
-#elif 1
-template <SocketType type>
-struct SocketConstantCreator {
-	void get(SocketType t)
-	{
-		if (t == type)
-			return 
-	}
-};
-
-template <>
-struct SocketConstantCreator<BJIT_NUMTYPES> {
-	typedef void* type;
-};
-#endif
 
 /* ========================================================================= */
 /* inline functions */
 
 namespace internal {
-	
-	template <SocketType type>
-	struct SocketTypeConverter {
-		typedef typename SocketTypeImpl<type>::type result_t;
-		
-		template <typename T>
-		static result_t from_socket_type(SocketType t, T value)
-		{
-			if (t == type)
-				return result_t(value);
-			
-			return SocketTypeConverter<(SocketType)((int)type + 1)>::from_socket_type(t, value);
-		}
-	};
-	
-	template <>
-	struct SocketTypeConverter<BJIT_NUMTYPES> {
-		template <typename T>
-		static T from_socket_type(SocketType /*t*/, T /*value*/)
-		{
-			return T();
-		}
-	};
-	
 } /* namespace internal */
 
 template <typename T>
-T convert_to_socket_value(SocketType type, T value)
+Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context)
 {
-	return internal::SocketTypeConverter<(SocketType)0>::from_socket_type(type, value);
-}
-
-template <typename T>
-Constant *bjit_get_socket_llvm_constant(SocketType type, const T &value, LLVMContext &context)
-{
-	typedef typename SocketConstantCreator<(SocketType)0>::type creator_t;
-//	return SocketConstantCreator<(SocketType)0, T>::get(type, value, context);
+	switch (type) {
+		case BJIT_TYPE_FLOAT:
+			return SocketTypeImpl<BJIT_TYPE_FLOAT>::create_constant(value, context);
+		case BJIT_TYPE_INT:
+			return SocketTypeImpl<BJIT_TYPE_INT>::create_constant(value, context);
+		case BJIT_TYPE_VEC3:
+			return SocketTypeImpl<BJIT_TYPE_VEC3>::create_constant(value, context);
+		default:
+			return NULL;
+	}
 	return NULL;
 }
 
@@ -188,11 +143,11 @@ Constant *bjit_get_socket_llvm_constant(SocketType type, const T &value, LLVMCon
 struct NodeType;
 
 struct NodeSocket {
-	NodeSocket(const std::string &name, SocketType type, Constant *default_value);
+	NodeSocket(const std::string &name, SocketTypeID type, Constant *default_value);
 	~NodeSocket();
 	
 	std::string name;
-	SocketType type;
+	SocketTypeID type;
 	llvm::Constant *default_value;
 };
 
@@ -210,17 +165,17 @@ struct NodeType {
 	const NodeSocket *find_input(const NodeSocket *socket) const;
 	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
-	const NodeSocket *add_input(const std::string &name, SocketType type, Constant *default_value);
-	const NodeSocket *add_output(const std::string &name, SocketType type, Constant *default_value);
+	const NodeSocket *add_input(const std::string &name, SocketTypeID type, Constant *default_value);
+	const NodeSocket *add_output(const std::string &name, SocketTypeID type, Constant *default_value);
 	
 	template <typename T>
-	const NodeSocket *add_input(const std::string &name, SocketType type, const T &default_value, LLVMContext &context)
+	const NodeSocket *add_input(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
 	{
 		return add_input(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
 	}
 	
 	template <typename T>
-	const NodeSocket *add_output(const std::string &name, SocketType type, const T &default_value, LLVMContext &context)
+	const NodeSocket *add_output(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
 	{
 		return add_output(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
 	}
@@ -260,6 +215,7 @@ struct NodeInstance {
 	
 	bool set_input_value(const std::string &name, Value *value);
 	bool set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket);
+	bool set_output_value(const std::string &name, Value *value);
 	
 	const NodeType *type;
 	std::string name;
@@ -270,16 +226,16 @@ struct NodeInstance {
 
 struct NodeGraph {
 	struct Input {
-		Input(const std::string &name, SocketType type) : name(name), type(type)
+		Input(const std::string &name, SocketTypeID type) : name(name), type(type)
 		{}
 		std::string name;
-		SocketType type;
+		SocketTypeID type;
 	};
 	struct Output {
-		Output(const std::string &name, SocketType type) : name(name), type(type)
+		Output(const std::string &name, SocketTypeID type) : name(name), type(type)
 		{}
 		std::string name;
-		SocketType type;
+		SocketTypeID type;
 	};
 	typedef std::vector<Input> InputList;
 	typedef std::vector<Output> OutputList;
@@ -330,8 +286,8 @@ struct NodeGraph {
 	const Output *get_output(int index) const;
 	const Input *get_input(const std::string &name) const;
 	const Output *get_output(const std::string &name) const;
-	const Input *add_input(const std::string &name, SocketType type);
-	const Output *add_output(const std::string &name, SocketType type);
+	const Input *add_input(const std::string &name, SocketTypeID type);
+	const Output *add_output(const std::string &name, SocketTypeID type);
 	
 	void dump(std::ostream &stream = std::cout);
 	
