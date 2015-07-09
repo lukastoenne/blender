@@ -32,6 +32,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <iostream>
 
 #include "bjit_intern.h"
 #include "bjit_llvm.h"
@@ -50,7 +51,7 @@ static Value *codegen_get_node_input_value(NodeInstance *node, int index)
 	const NodeSocket *link_socket = node->find_input_link_socket(index);
 	if (link_node && link_socket) {
 		/* use linked input value */
-		value = node->find_output_value(link_socket->name);
+		value = link_node->find_output_value(link_socket->name);
 		BLI_assert(value);
 	}
 	
@@ -69,7 +70,7 @@ static Value *codegen_get_node_input_value(NodeInstance *node, int index)
 
 static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module, NodeInstance *node)
 {
-	LLVMContext &context = getGlobalContext();
+//	LLVMContext &context = getGlobalContext();
 	
 	/* get evaluation function */
 	const std::string &evalname = node->type->name;
@@ -79,10 +80,19 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 		return NULL;
 	}
 	
+	/* function call arguments (including possible return struct if MRV is used) */
+	std::vector<Value *> args;
+	
+	Value *retval = NULL;
+	if (evalfunc->hasStructRetAttr()) {
+		Argument *retarg = &(*evalfunc->getArgumentList().begin());
+		AllocaInst *alloc = builder.CreateAlloca(retarg->getType()->getPointerElementType());
+		retval = alloc;
+		args.push_back(retval);
+	}
+	
 	/* set input arguments */
 	int num_inputs = node->type->inputs.size();
-	std::vector<Value *> args;
-	args.reserve(num_inputs);
 	for (int i = 0; i < num_inputs; ++i) {
 		Value *value = codegen_get_node_input_value(node, i);
 		if (!value) {
@@ -92,32 +102,21 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 		
 		args.push_back(value);
 	}
-#if 0
-	std::vector<Value *> args;
-	Function::ArgumentListType::iterator it = evalfunc->arg_begin();
-	for (int i = 0; it != evalfunc->arg_end(); ++it, ++i) {
-		Argument *arg = it;
-		printf("FUN %s(%s)\n", evalfunc->getName().str().c_str(), arg->getName().str().c_str());
-	}
-#endif
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
+	if (!retval)
+		retval = call;
 	
 	int num_outputs = node->type->outputs.size();
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeSocket *socket = node->type->find_output(i);
-		Value *value = builder.CreateStructGEP(call, i);
+		Value *value = builder.CreateStructGEP(retval, i);
 		if (!value) {
 			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
 		}
 		
-		/* store on the stack */
-		AllocaInst *alloc = builder.CreateAlloca(bjit_get_socket_llvm_type(socket->type, context));
-		builder.CreateStore(value, alloc);
-		
 		/* use as node output values */
 		node->set_output_value(socket->name, value);
-		printf("SET %s:%s = %p\n", node->name.c_str(), socket->name.c_str(), value);
 	}
 	
 	return call;
