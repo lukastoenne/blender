@@ -466,9 +466,6 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	using namespace bjit;
 	
-//	LLVMContext &context = getGlobalContext();
-//	IRBuilder<> builder(context);
-	
 	NodeGraphBuilder<EffectorContext> builder;
 	
 	NodeGraph graph = builder.build(effctx);
@@ -477,67 +474,6 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	Function *func = codegen(graph, theModule);
 	if (func)
 		func->dump();
-	
-#if 0
-	FunctionType *functype = TypeBuilder<void(const EffectorEvalInput*, EffectorEvalResult*), true>::get(context);
-	
-	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", theModule);
-	Value *arg_input, *arg_result;
-	{
-		Function::ArgumentListType::iterator it = func->arg_begin();
-		arg_input = it++;
-		arg_result = it++;
-	}
-	
-	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
-	builder.SetInsertPoint(entry);
-	
-	/* initialize result */
-	Value *res_force = builder.CreateStructGEP(arg_result, 0);
-	Value *res_impulse = builder.CreateStructGEP(arg_result, 1);
-	Value *vec3_zero = ConstantDataArray::get(context, std::vector<float>({0.0f, 0.0f, 0.0f}));
-	builder.CreateStore(vec3_zero, res_force);
-	builder.CreateStore(vec3_zero, res_impulse);
-	
-	for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
-		if (!eff->ob || !eff->pd)
-			continue;
-		
-		std::string prefix = get_effector_prefix(eff->pd->forcefield);
-		if (prefix.empty()) {
-			/* undefined force type */
-			continue;
-		}
-		
-		std::string funcname = prefix + "_eval";
-		
-		Value *arg_settings = make_effector_settings(builder, eff);
-		Value *arg_eff_result = make_effector_result(builder);
-		
-		/* call function to evaluate force fields */
-		{
-			Function *evalfunc = bjit_find_function(theModule, funcname);
-			Function::ArgumentListType::iterator it = evalfunc->arg_begin();
-			std::vector<Value *> args;
-			args.push_back(builder.CreatePointerCast(arg_input, (it++)->getType()));
-			args.push_back(builder.CreatePointerCast(arg_eff_result, (it++)->getType()));
-			args.push_back(builder.CreatePointerCast(arg_settings, (it++)->getType()));
-			builder.CreateCall(evalfunc, args);
-		}
-		
-		/* call function to combine results */
-		{
-			Function *combinefunc = bjit_find_function(theModule, "effector_result_combine");
-			Function::ArgumentListType::iterator it = combinefunc->arg_begin();
-			std::vector<Value *> args;
-			args.push_back(builder.CreatePointerCast(arg_result, (it++)->getType()));
-			args.push_back(builder.CreatePointerCast(arg_result, (it++)->getType()));
-			args.push_back(builder.CreatePointerCast(arg_eff_result, (it++)->getType()));
-			builder.CreateCall(combinefunc, args);
-		}
-	}
-	
-	builder.CreateRetVoid();
 	
 	verifyFunction(*func, &outs());
 	bjit_finalize_function(theModule, func, 2);
@@ -548,7 +484,6 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	
 	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
 	effctx->eval_data = func;
-#endif
 }
 
 void BJIT_free_effector_function(EffectorContext *effctx)

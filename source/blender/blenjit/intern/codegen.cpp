@@ -43,7 +43,17 @@ namespace bjit {
 
 using namespace llvm;
 
-static Value *codegen_get_node_input_value(NodeInstance *node, int index)
+static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
+{
+	AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
+	StoreInst *store = builder.CreateStore(valconst, alloc);
+	return builder.CreateLoad(store);
+//	AllocaInst *alloc2 = builder.CreateAlloca(valconst->getType()->getPointerTo());
+//	builder.CreateStore(alloc, alloc2);
+//	return alloc2;
+}
+
+static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *node, int index)
 {
 	Value *value = NULL;
 	
@@ -56,12 +66,20 @@ static Value *codegen_get_node_input_value(NodeInstance *node, int index)
 	}
 	
 	/* use input constant */
-	if (!value)
-		value = node->find_input_value(index);
+	if (!value) {
+		Value *valconst = node->find_input_value(index);
+		if (valconst) {
+			value = codegen_const_to_value(builder, valconst);
+		}
+	}
 	
 	/* last resort: socket default */
-	if (!value)
-		value = node->type->find_input(index)->default_value;
+	if (!value) {
+		Value *valconst = node->type->find_input(index)->default_value;
+		if (valconst) {
+			value = codegen_const_to_value(builder, valconst);
+		}
+	}
 	
 	BLI_assert(value);
 	
@@ -94,7 +112,7 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	/* set input arguments */
 	int num_inputs = node->type->inputs.size();
 	for (int i = 0; i < num_inputs; ++i) {
-		Value *value = codegen_get_node_input_value(node, i);
+		Value *value = codegen_get_node_input_value(builder, node, i);
 		if (!value) {
 			const NodeSocket *socket = node->type->find_input(i);
 			printf("Error: no input value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
