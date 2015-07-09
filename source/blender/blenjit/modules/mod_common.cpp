@@ -33,10 +33,12 @@
 namespace bjit {
 
 __attribute__((annotate("effector_result_combine")))
-void effector_result_combine(EffectorEvalResult *R, const EffectorEvalResult *a, const EffectorEvalResult *b)
+EffectorEvalResult effector_result_combine(const EffectorEvalResult *a, const EffectorEvalResult *b)
 {
-	add_v3_v3v3(R->force, a->force, b->force);
-	add_v3_v3v3(R->impulse, a->impulse, b->impulse);
+	EffectorEvalResult result;
+	add_v3_v3v3(result.force, a->force, b->force);
+	add_v3_v3v3(result.impulse, a->impulse, b->impulse);
+	return result;
 }
 
 } /* namespace bjit */
