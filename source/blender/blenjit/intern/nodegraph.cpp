@@ -321,11 +321,23 @@ const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketType
 	return &inputs.back();
 }
 
-const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketTypeID type)
+const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketTypeID type, Constant *default_value)
 {
 	BLI_assert(!get_output(name));
-	outputs.push_back(Output(name, type));
+	outputs.push_back(Output(name, type, default_value));
 	return &outputs.back();
+}
+
+void NodeGraph::set_output_link(const std::string &name, NodeInstance *link_node, const std::string &link_socket)
+{
+	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		if (it->name == name) {
+			Output *output = &(*it);
+			output->link_node = link_node;
+			output->link_socket = link_node->type->find_output(link_socket);
+			BLI_assert(output->link_node && output->link_socket);
+		}
+	}
 }
 
 void NodeGraph::dump(std::ostream &s)

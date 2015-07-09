@@ -77,12 +77,6 @@ static Module *theModule = NULL;
 /* ------------------------------------------------------------------------- */
 /* specialization of TypeBuilder for external struct types */
 
-typedef types::ieee_float vec2_t[2];
-typedef types::ieee_float vec3_t[3];
-typedef types::ieee_float vec4_t[4];
-typedef types::ieee_float mat3_t[3][3];
-typedef types::ieee_float mat4_t[4][4];
-
 namespace llvm {
 
 #if 0
@@ -232,9 +226,19 @@ template <>
 struct NodeGraphBuilder<EffectorContext> {
 	NodeGraph build(EffectorContext *effctx)
 	{
+		static const float default_force[3] = {0.0f, 0.0f, 0.0f};
+		static const float default_impulse[3] = {0.0f, 0.0f, 0.0f};
+		
+		LLVMContext &context = getGlobalContext();
 		NodeGraph graph;
 		NodeInstance *node_prev = NULL;
-		const NodeSocket *socket_prev = NULL;
+		const NodeSocket *force_prev = NULL;
+		const NodeSocket *impulse_prev = NULL;
+		
+		graph.add_input("loc", BJIT_TYPE_VEC3);
+		graph.add_input("vel", BJIT_TYPE_VEC3);
+		graph.add_output("force", BJIT_TYPE_VEC3, default_force, context);
+		graph.add_output("impulse", BJIT_TYPE_VEC3, default_impulse, context);
 		
 		for (EffectorCache *eff = (EffectorCache *)effctx->effectors.first; eff; eff = eff->next) {
 			if (!eff->ob || !eff->pd)
@@ -247,24 +251,36 @@ struct NodeGraphBuilder<EffectorContext> {
 				continue;
 			}
 			
-			const NodeSocket *socket = node->type->find_output(0);
+			const NodeSocket *force = node->type->find_output("force");
+			const NodeSocket *impulse = node->type->find_output("impulse");
 			
-			if (node_prev && socket_prev) {
+			if (node_prev) {
 				std::string combinename = "combine_" + node_prev->name + "_" + node->name;
 				NodeInstance *combine = graph.add_node("effector_result_combine", combinename);
 				
-				graph.add_link(node_prev, socket_prev,
-				              combine, combine->type->find_input(0));
-				graph.add_link(node, socket,
-				              combine, combine->type->find_input(1));
+				graph.add_link(node_prev, force_prev,
+				              combine, combine->type->find_input("force1"));
+				graph.add_link(node_prev, force,
+				              combine, combine->type->find_input("force2"));
+				graph.add_link(node_prev, impulse_prev,
+				              combine, combine->type->find_input("impulse1"));
+				graph.add_link(node_prev, impulse,
+				              combine, combine->type->find_input("impulse2"));
 				
 				node_prev = combine;
-				socket_prev = combine->type->find_output(0);
+				force_prev = combine->type->find_output("force");
+				impulse_prev = combine->type->find_output("impulse");
 			}
 			else {
 				node_prev = node;
-				socket_prev = socket;
+				force_prev = force;
+				impulse_prev = impulse;
 			}
+		}
+		
+		if (node_prev) {
+			graph.set_output_link("force", node_prev, force_prev->name);
+			graph.set_output_link("impulse", node_prev, impulse_prev->name);
 		}
 		
 		return graph;
@@ -310,9 +326,12 @@ void build_effector_module(void)
 	{
 		NodeType *type = NodeGraph::add_node_type("effector_result_combine");
 		BLI_assert(type);
-		type->add_input("a", BJIT_TYPE_VEC3, vec3_zero, context);
-		type->add_input("b", BJIT_TYPE_VEC3, vec3_zero, context);
-		type->add_output("R", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("force1", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("impulse1", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("force2", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("impulse2", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_output("force", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_output("impulse", BJIT_TYPE_VEC3, vec3_zero, context);
 	}
 }
 

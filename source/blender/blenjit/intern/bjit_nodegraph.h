@@ -232,10 +232,15 @@ struct NodeGraph {
 		SocketTypeID type;
 	};
 	struct Output {
-		Output(const std::string &name, SocketTypeID type) : name(name), type(type)
+		Output(const std::string &name, SocketTypeID type, Constant *default_value) :
+		    name(name), type(type), default_value(default_value), link_node(NULL), link_socket(NULL)
 		{}
 		std::string name;
 		SocketTypeID type;
+		Constant *default_value;
+		
+		NodeInstance *link_node;
+		const NodeSocket *link_socket;
 	};
 	typedef std::vector<Input> InputList;
 	typedef std::vector<Output> OutputList;
@@ -287,7 +292,14 @@ struct NodeGraph {
 	const Input *get_input(const std::string &name) const;
 	const Output *get_output(const std::string &name) const;
 	const Input *add_input(const std::string &name, SocketTypeID type);
-	const Output *add_output(const std::string &name, SocketTypeID type);
+	const Output *add_output(const std::string &name, SocketTypeID type, Constant *default_value);
+	void set_output_link(const std::string &name, NodeInstance *link_node, const std::string &link_socket);
+	
+	template <typename T>
+	const Output *add_output(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
+	{
+		return add_output(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
+	}
 	
 	void dump(std::ostream &stream = std::cout);
 	
