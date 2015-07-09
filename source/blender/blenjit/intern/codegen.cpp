@@ -169,12 +169,40 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	NodeRefList sorted_nodes = toposort_nodes(graph);
 	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		NodeInstance *node = *it;
-		printf("Node '%s'\n", node->name.c_str());
 		
 		CallInst *call = codegen_node_function_call(builder, module, node);
 		if (!call)
 			continue;
 	}
+	
+	int num_outputs = graph.outputs.size();
+#if 0
+	/* return struct type */
+	std::vector<Type*> result_elem_types;
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeGraph::Output *output = graph.get_output(i);
+		result_elem_types.push_back(bjit_get_socket_llvm_type(output->type, context));
+	}
+	StructType *result_type = StructType::get(context, ArrayRef<Type>(result_elem_types));
+#endif
+	
+	/* return variable */
+	std::vector<Value *> result_values;
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeGraph::Output *output = graph.get_output(i);
+		Value *value = NULL;
+		if (output->link_node && output->link_socket) {
+			value = output->link_node->find_output_value(output->link_socket->name);
+		}
+		else {
+			value = output->default_value;
+		}
+		BLI_assert(value);
+		
+		result_values.push_back(value);
+	}
+	
+	builder.CreateAggregateRet(result_values.data(), result_values.size());
 }
 
 Function *codegen(NodeGraph &graph, Module *module)
