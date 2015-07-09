@@ -41,32 +41,32 @@ namespace bjit {
 
 using namespace llvm;
 
-template <SocketType type>
+template <SocketTypeID type>
 struct SocketTypeGetter {
-	static Type *get(SocketType t, LLVMContext &context)
+	static Type *get(SocketTypeID t, LLVMContext &context)
 	{
 		if (t == type)
 			return TypeBuilder<typename SocketTypeImpl<type>::type, true>::get(context);
-		return SocketTypeGetter<(SocketType)((int)type + 1)>::get(t, context);
+		return SocketTypeGetter<(SocketTypeID)((int)type + 1)>::get(t, context);
 	}
 };
 
 template <>
 struct SocketTypeGetter<BJIT_NUMTYPES> {
-	static Type *get(SocketType /*t*/, LLVMContext &/*context*/)
+	static Type *get(SocketTypeID /*t*/, LLVMContext &/*context*/)
 	{
 		return NULL;
 	}
 };
 
-Type *bjit_get_socket_llvm_type(SocketType type, LLVMContext &context)
+Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context)
 {
-	return SocketTypeGetter<(SocketType)0>::get(type, context);
+	return SocketTypeGetter<(SocketTypeID)0>::get(type, context);
 }
 
 /* ========================================================================= */
 
-NodeSocket::NodeSocket(const std::string &name, SocketType type, Constant *default_value) :
+NodeSocket::NodeSocket(const std::string &name, SocketTypeID type, Constant *default_value) :
     name(name),
     type(type),
     default_value(default_value)
@@ -131,14 +131,14 @@ const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
 	return socket;
 }
 
-const NodeSocket *NodeType::add_input(const std::string &name, SocketType type, Constant *default_value)
+const NodeSocket *NodeType::add_input(const std::string &name, SocketTypeID type, Constant *default_value)
 {
 	BLI_assert(!find_input(name));
 	inputs.push_back(NodeSocket(name, type, default_value));
 	return &inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const std::string &name, SocketType type, Constant *default_value)
+const NodeSocket *NodeType::add_output(const std::string &name, SocketTypeID type, Constant *default_value)
 {
 	BLI_assert(!find_output(name));
 	outputs.push_back(NodeSocket(name, type, default_value));
@@ -224,6 +224,15 @@ bool NodeInstance::set_input_link(const std::string &name, NodeInstance *from_no
 	return true;
 }
 
+bool NodeInstance::set_output_value(const std::string &name, Value *value)
+{
+	OutputInstance &output = outputs[name];
+	if (output.value)
+		return false;
+	output.value = value;
+	return true;
+}
+
 /* ------------------------------------------------------------------------- */
 
 NodeGraph::NodeTypeMap NodeGraph::node_types;
@@ -305,14 +314,14 @@ const NodeGraph::Output *NodeGraph::get_output(const std::string &name) const
 	return NULL;
 }
 
-const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketType type)
+const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketTypeID type)
 {
 	BLI_assert(!get_input(name));
 	inputs.push_back(Input(name, type));
 	return &inputs.back();
 }
 
-const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketType type)
+const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketTypeID type)
 {
 	BLI_assert(!get_output(name));
 	outputs.push_back(Output(name, type));
