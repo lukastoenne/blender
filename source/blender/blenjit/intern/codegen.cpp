@@ -50,6 +50,11 @@ static Value *codegen_array_to_pointer(IRBuilder<> &builder, Value *array)
 	return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
 }
 
+static Value *codegen_struct_to_pointer(IRBuilder<> &builder, Value *s)
+{
+	return builder.CreateStructGEP(s, 0);
+}
+
 static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 {
 //	if (dyn_cast<ConstantDataArray>(valconst)) {
@@ -198,6 +203,7 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	
 	int num_outputs = graph.outputs.size();
 	
+#if 0
 	/* return variable */
 	std::vector<Value *> result_values;
 	for (int i = 0; i < num_outputs; ++i) {
@@ -217,8 +223,68 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 		
 		result_values.push_back(value);
 	}
+#endif
 	
-	builder.CreateAggregateRet(result_values.data(), result_values.size());
+#if 0
+	/* DEBUG */
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeGraph::Output *output = graph.get_output(i);
+		Value *value = NULL;
+		if (output->link_node && output->link_socket) {
+			value = output->link_node->find_output_value(output->link_socket->name);
+		}
+		else {
+			value = output->default_value;
+		}
+		BLI_assert(value);
+		
+//		Function *f = bjit_find_function(module, "print_vec3");
+//		std::vector<Value *> args;
+//		args.push_back(value);
+//		builder.CreateCall(f, args);
+	}
+	
+	{
+		Type *rtype = builder.getCurrentFunctionReturnType();
+		rtype->dump();
+		int N = result_values.size();
+		Value *V = UndefValue::get(rtype);
+		for (unsigned i = 0; i != N; ++i)
+			V = builder.CreateInsertValue(V, result_values[i], i, "mrv");
+		
+		Value *alloc = builder.CreateAlloca(builder.getCurrentFunctionReturnType());
+		builder.CreateStore(V, alloc);
+		V = alloc;
+		V = builder.CreatePointerCast(V, PointerType::get(builder.getCurrentFunctionReturnType(), 0));
+		
+		Function *f = bjit_find_function(module, "print_result");
+		std::vector<Value *> args;
+//		codegen_struct_to_pointer(builder, V);
+		args.push_back(V);
+		builder.CreateCall(f, args);
+	}
+#endif
+	
+	Argument *retarg = func->getArgumentList().begin();
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeGraph::Output *output = graph.get_output(i);
+		Value *value = NULL;
+		if (output->link_node && output->link_socket) {
+			value = output->link_node->find_output_value(output->link_socket->name);
+		}
+		else {
+			value = output->default_value;
+		}
+		BLI_assert(value);
+		
+//		Value *retvalptr = builder.CreateStructGEP(retarg, i);
+//		Constant *indexval = ConstantInt::get(TypeBuilder<types::i<8>, true>::get(context), APInt(8, 0));
+//		Value *retval = builder.CreateInBoundsGEP(retvalptr, indexval);
+		builder.CreateStore(value, retarg);
+	}
+	
+//	builder.CreateAggregateRet(result_values.data(), result_values.size());
+	builder.CreateRetVoid();
 }
 
 Function *codegen(NodeGraph &graph, Module *module)
@@ -230,21 +296,26 @@ Function *codegen(NodeGraph &graph, Module *module)
 	
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
-	input_types.reserve(num_inputs);
 	output_types.reserve(num_outputs);
-	for (int i = 0; i < num_inputs; ++i) {
-		const NodeGraph::Input &input = graph.inputs[i];
-		input_types.push_back(bjit_get_socket_llvm_type(input.type, context));
-	}
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
 		output_types.push_back(bjit_get_socket_llvm_type(output.type, context));
 	}
-	
 	StructType *return_type = StructType::get(context, output_types);
-	FunctionType *functype = FunctionType::get(return_type, input_types, false);
+	
+	input_types.reserve(num_inputs + 1);
+	input_types.push_back(PointerType::get(return_type, 0));
+	for (int i = 0; i < num_inputs; ++i) {
+		const NodeGraph::Input &input = graph.inputs[i];
+		input_types.push_back(bjit_get_socket_llvm_type(input.type, context));
+	}
+	
+//	FunctionType *functype = FunctionType::get(return_type, input_types, false);
+	FunctionType *functype = FunctionType::get(TypeBuilder<void, true>::get(context), input_types, false);
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", module);
+	Argument *retarg = func->getArgumentList().begin();
+	retarg->addAttr(AttributeSet::get(context, AttributeSet::ReturnIndex, Attribute::StructRet));
 	
 	codegen_nodegraph(graph, module, func);
 	
