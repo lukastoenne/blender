@@ -34,7 +34,6 @@
  */
 
 struct OpenVDBCache;
-struct OpenVDBDrawData;
 
 typedef float (*bresenham_callback)(float *result, float *input, int res[3], int *pixel, float *tRay, float correct);
 
@@ -64,6 +63,5 @@ bool smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *s
 
 struct OpenVDBCache *BKE_openvdb_get_current_cache(struct SmokeDomainSettings *sds);
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame);
-struct OpenVDBDrawData *BKE_openvdb_draw_data_create(void);
 
 #endif /* __BKE_SMOKE_H__ */

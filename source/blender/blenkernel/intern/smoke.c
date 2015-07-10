@@ -351,9 +351,6 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		if (!sds->shadow)
 			sds->shadow = MEM_callocN(sizeof(float) * sds->res[0] * sds->res[1] * sds->res[2], "SmokeDomainShadow");
 
-		sds->density = NULL;
-		sds->density_high = NULL;
-
 		return 1;
 	}
 	else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow)
@@ -412,8 +409,6 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 #endif
 			MEM_freeN(cache);
 		}
-
-		MEM_freeN(smd->domain->vdb_draw_data);
 
 		MEM_freeN(smd->domain);
 		smd->domain = NULL;
@@ -585,7 +580,6 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 
 			smd->domain->use_openvdb = false;
-			smd->domain->vdb_draw_data = BKE_openvdb_draw_data_create();
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -3277,7 +3271,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);
 
 		if (for_low_display) {
-			sds->density = OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
+			OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 		}
 
 		if (fluid_fields & SM_ACTIVE_HEAT && (!for_low_display)) {
@@ -3311,7 +3305,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
 		if (for_wt_display) {
-			sds->density_high = OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE && for_wt_display) {
@@ -3473,19 +3467,4 @@ OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 	}
 
 	return cache;
-}
-
-OpenVDBDrawData *BKE_openvdb_draw_data_create(void)
-{
-	OpenVDBDrawData *data;
-
-	data = MEM_callocN(sizeof(OpenVDBDrawData), "OpenVDBDrawData");
-
-	data->lod = 50;
-	data->point_size = 1.0f;
-	data->tolerance = 0.001f;
-	data->voxel_drawing = DRAW_VOXELS_POINT;
-	data->flags |= DRAW_VOXELS;
-
-	return data;
 }

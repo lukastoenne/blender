@@ -32,7 +32,6 @@
 #include <openvdb/tools/Dense.h>
 #include <openvdb/tools/Clip.h>
 
-#include "openvdb_primitive.h"
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
 
@@ -77,10 +76,10 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 }
 
 template <typename GridType, typename T>
-OpenVDBPrimitive *OpenVDB_import_grid(OpenVDBReader *reader,
-                                      const std::string &name,
-                                      T **data,
-                                      const int res[3])
+void OpenVDB_import_grid(OpenVDBReader *reader,
+                         const std::string &name,
+                         T **data,
+                         const int res[3])
 {
 	using namespace openvdb;
 
@@ -98,11 +97,6 @@ OpenVDBPrimitive *OpenVDB_import_grid(OpenVDBReader *reader,
 			}
 		}
 	}
-
-	OpenVDBPrimitive *vdb_prim = new OpenVDBPrimitive();
-	vdb_prim->setGrid(grid);
-
-	return vdb_prim;
 }
 
 openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,

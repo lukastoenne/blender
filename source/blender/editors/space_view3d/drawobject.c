@@ -8036,7 +8036,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
 			float viewnormal[3];
-			bool render_volume = !sds->use_openvdb;
 
 			glLoadMatrixf(rv3d->viewmat);
 			glMultMatrixf(ob->obmat);
@@ -8069,52 +8068,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				BKE_boundbox_init_from_minmax(&bb, p0, p1);
 				draw_box(bb.vec, false);
-
-#ifdef WITH_OPENVDB
-				{
-					OpenVDBDrawData *draw_data = sds->vdb_draw_data;
-					struct OpenVDBPrimitive *prim = NULL;
-					bool draw_root, draw_level_1, draw_level_2;
-					bool draw_leaves, draw_voxels;
-
-					/* some sort of versioning for development */
-					if (!draw_data) {
-						draw_data = sds->vdb_draw_data = BKE_openvdb_draw_data_create();
-					}
-
-					draw_root    = (draw_data->flags & DRAW_ROOT);
-					draw_level_1 = (draw_data->flags & DRAW_LEVEL_1);
-					draw_level_2 = (draw_data->flags & DRAW_LEVEL_2);
-					draw_leaves  = (draw_data->flags & DRAW_LEAVES);
-					draw_voxels  = (draw_data->flags & DRAW_VOXELS);
-
-					if (sds->density)
-						prim = sds->density;
-					else if (sds->density_high)
-						prim = sds->density_high;
-
-					glLoadMatrixf(rv3d->viewmat);
-					if (prim) {
-						OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
-
-						if (draw_voxels && ELEM(draw_data->voxel_drawing, DRAW_VOXELS_POINT, DRAW_VOXELS_BOX)) {
-							const bool draw_as_box = (draw_data->voxel_drawing == DRAW_VOXELS_BOX);
-
-							OpenVDB_draw_primitive_values(prim, draw_data->tolerance,
-							                              draw_data->point_size,
-							                              draw_as_box, draw_data->lod);
-						}
-
-						if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
-							render_volume = true;
-					}
-					glMultMatrixf(sds->fluidmat);
-				}
-#endif
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
-			if (/*render_volume && */smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 				float p0[3], p1[3];
 
 				glLoadMatrixf(rv3d->viewmat);

@@ -29,7 +29,6 @@ set(INC
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -50,9 +49,7 @@ if(WITH_OPENVDB)
 
 	list(APPEND SRC
 		intern/openvdb_dense_convert.cpp
-		intern/openvdb_primitive.cpp
 		intern/openvdb_reader.cpp
-		intern/openvdb_render.cpp
 		intern/openvdb_writer.cpp
 		openvdb_capi.cpp
 		openvdb_util.cpp

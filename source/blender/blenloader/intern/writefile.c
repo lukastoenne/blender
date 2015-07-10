@@ -1567,9 +1567,6 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 				for (; cache; cache = cache->next) {
 					writestruct(wd, DATA, "OpenVDBCache", 1, cache);
 				}
-
-				writestruct(wd, DATA, "OpenVDBDrawData", 1, smd->domain->vdb_draw_data);
-
 			}
 			else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);
