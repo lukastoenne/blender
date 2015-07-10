@@ -2726,20 +2726,17 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 
-#if 1
 		/* try to read from openvdb cache */
 		vdb_cache = BKE_openvdb_get_current_cache(sds);
 		if (sds->use_openvdb && vdb_cache) {
-			//if (vdb_cache->flags & VDB_CACHE_SMOKE_EXPORTED) {
-				smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache);
+			if (smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache)) {
 				smd->time = framenr;
 				return;
-			//}
+			}
 		}
-#endif
 
 		/* try to read from cache */
-		if (/*!sds->use_openvdb && */(BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
+		if ((BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
 			return;
@@ -3219,7 +3216,7 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 		}
 
 		OpenVDB_export_grid_vec(writer, "Velocity", vx, vy, vz, sds->res, sds->fluidmat, VEC_CONTRAVARIANT_RELATIVE, false, clip_grid);
-		//OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat, NULL);
+		OpenVDB_export_grid_ch(writer, "Obstacles", obstacles, sds->res, sds->fluidmat, NULL);
 	}
 }
 
@@ -3283,7 +3280,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 			sds->density = OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 		}
 
-		if (fluid_fields & SM_ACTIVE_HEAT && !for_low_display) {
+		if (fluid_fields & SM_ACTIVE_HEAT && (!for_low_display)) {
 			OpenVDB_import_grid_fl(reader, "Heat", &heat, sds->res);
 			OpenVDB_import_grid_fl(reader, "Heat Old", &heatold, sds->res);
 		}
@@ -3301,9 +3298,9 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 			OpenVDB_import_grid_vec(reader, "Color", &r, &g, &b, sds->res);
 		}
 
-		if (!for_low_display) {
+		if (!for_low_display) { // should be "for_sim_cont" or so
 			OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
-			//OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
+			OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 		}
 	}
 
@@ -3330,7 +3327,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 			OpenVDB_import_grid_vec(reader, "Color High", &r, &g, &b, sds->res_wt);
 		}
 
-		if (!for_wt_display) {
+		if (!for_wt_display) { // should be "for_sim_cont" or so
 			OpenVDB_import_grid_vec(reader, "Texture Coordinates", &tcu, &tcv, &tcw, sds->res);
 		}
 	}
@@ -3358,6 +3355,11 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	save_as_half = ((cache->flags & VDB_CACHE_SAVE_AS_HALF) != 0);
 
 	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
+
+	/* Unset exported flag if overwriting a cache, the operator should have
+	 * received confirmation from the user */
+	if (cache->flags & VDB_CACHE_SMOKE_EXPORTED)
+		cache->flags &= ~VDB_CACHE_SMOKE_EXPORTED;
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
@@ -3401,47 +3403,38 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	scene->r.cfra = orig_frame;
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
+bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	int startframe, endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
-	int ret = OPENVDB_NO_ERROR;
-	bool for_display = false;
 
 	cache = BKE_openvdb_get_current_cache(sds);
-	startframe = cache->startframe;
-	endframe = cache->endframe;
 
-	if (CFRA < startframe || CFRA > endframe) {
-		return;
+	if (!(cache->flags & VDB_CACHE_SMOKE_EXPORTED)) {
+		return false;
+	}
+
+	if (CFRA < cache->startframe || CFRA > cache->endframe) {
+		return false;
 	}
 
 	if (cache->reader == NULL) {
 		cache->reader = OpenVDBReader_create();
 	}
 
-	for_display = true;
-
 	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, CFRA);
+
+	/* Unlikely to happen at this point. */
+	if (!BLI_exists(filename)) {
+		return false;
+	}
+
 	OpenVDBReader_open(cache->reader, filename);
 	OpenVDB_read_fluid_settings(sds, cache->reader);
-	OpenVDB_import_smoke(sds, cache->reader, for_display);
+	OpenVDB_import_smoke(sds, cache->reader, /* for_display = */ true);
 
-	if (ret == OPENVDB_IO_ERROR) {
-		/* TODO(kevin): report error "OpenVDB import error, see console for details" */
-		return;
-	}
-
-	if (ret == OPENVDB_KEY_ERROR) {
-		/* It may happen that some grids are missing on the first frame if the
-		 * simulation hasn't started yet, so it's safe to ignore it. */
-		if (CFRA > startframe) {
-			/* TODO(kevin): report error "OpenVDB import error, see console for details" */
-			return;
-		}
-	}
+	return true;
 }
 
 #endif /* WITH_OPENVDB */
@@ -3456,7 +3449,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	UNUSED_VARS(smd, scene, ob, dm, update, update_cb_data);
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
+bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	UNUSED_VARS(smd, scene, ob, cache);
 }

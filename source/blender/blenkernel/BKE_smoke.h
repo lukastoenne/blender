@@ -60,7 +60,7 @@ void smokeModifier_OpenVDB_export(struct SmokeModifierData *smd, struct Scene *s
                                   update_cb update,
                                   void *update_cb_data);
 
-void smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct OpenVDBCache *cache);
+bool smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct OpenVDBCache *cache);
 
 struct OpenVDBCache *BKE_openvdb_get_current_cache(struct SmokeDomainSettings *sds);
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame);

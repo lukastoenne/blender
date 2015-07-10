@@ -160,8 +160,10 @@ typedef struct OpenVDBCache {
 	struct OpenVDBCache *next, *prev;
 	struct OpenVDBReader *reader;
 	struct OpenVDBWriter *writer;
+
 	char path[1024];
 	char name[64];
+
 	int startframe, endframe;
 	short flags, compression, pad[2];
 } OpenVDBCache;

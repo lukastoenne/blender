@@ -123,4 +123,3 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 }
 
 #endif /* __OPENVDB_DENSE_CONVERT_H__ */
-

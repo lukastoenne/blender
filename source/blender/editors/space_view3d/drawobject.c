@@ -8114,7 +8114,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			}
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
-			if (render_volume && smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+			if (/*render_volume && */smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
 				float p0[3], p1[3];
 
 				glLoadMatrixf(rv3d->viewmat);
