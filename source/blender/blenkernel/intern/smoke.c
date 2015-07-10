@@ -3103,7 +3103,6 @@ static void OpenVDB_read_fluid_settings(SmokeDomainSettings *sds, struct OpenVDB
 	OpenVDBReader_get_meta_v3_int(reader, "min_resolution", sds->res_min);
 	OpenVDBReader_get_meta_v3_int(reader, "max_resolution", sds->res_max);
 	OpenVDBReader_get_meta_v3_int(reader, "base_resolution", sds->base_res);
-	OpenVDBReader_get_meta_fl(reader, "delta_x", &sds->dx);
 	OpenVDBReader_get_meta_v3(reader, "min_bbox", sds->p0);
 	OpenVDBReader_get_meta_v3(reader, "max_bbox", sds->p1);
 	OpenVDBReader_get_meta_v3(reader, "dp0", sds->dp0);
@@ -3120,7 +3119,6 @@ static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVD
 	OpenVDBWriter_add_meta_v3_int(writer, "min_resolution", sds->res_min);
 	OpenVDBWriter_add_meta_v3_int(writer, "max_resolution", sds->res_max);
 	OpenVDBWriter_add_meta_v3_int(writer, "base_resolution", sds->base_res);
-	OpenVDBWriter_add_meta_fl(writer, "delta_x", sds->dx);
 	OpenVDBWriter_add_meta_v3(writer, "min_bbox", sds->p0);
 	OpenVDBWriter_add_meta_v3(writer, "max_bbox", sds->p1);
 	OpenVDBWriter_add_meta_v3(writer, "dp0", sds->dp0);
