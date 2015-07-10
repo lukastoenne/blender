@@ -43,14 +43,21 @@ namespace bjit {
 
 using namespace llvm;
 
+static Value *codegen_array_to_pointer(IRBuilder<> &builder, Value *array)
+{
+	Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+	Value *indices[2] = { index, index };
+	return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
+}
+
 static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 {
-	AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
-	StoreInst *store = builder.CreateStore(valconst, alloc);
-	return builder.CreateLoad(store);
-//	AllocaInst *alloc2 = builder.CreateAlloca(valconst->getType()->getPointerTo());
-//	builder.CreateStore(alloc, alloc2);
-//	return alloc2;
+//	if (dyn_cast<ConstantDataArray>(valconst)) {
+		AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
+		return codegen_array_to_pointer(builder, alloc);
+//	}
+//	else
+//		return valconst;
 }
 
 static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *node, int index)
@@ -129,6 +136,9 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeSocket *socket = node->type->find_output(i);
 		Value *value = builder.CreateStructGEP(retval, i);
+//		if (dyn_cast<ArrayType>(value)) {
+			value = codegen_array_to_pointer(builder, value);
+//		}
 		if (!value) {
 			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
 		}
@@ -177,13 +187,6 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
 	
-//	Value *arg_input, *arg_result;
-//	{
-//		Function::ArgumentListType::iterator it = func->arg_begin();
-//		arg_input = it++;
-//		arg_result = it++;
-//	}
-	
 	NodeRefList sorted_nodes = toposort_nodes(graph);
 	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		NodeInstance *node = *it;
@@ -194,15 +197,6 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	}
 	
 	int num_outputs = graph.outputs.size();
-#if 0
-	/* return struct type */
-	std::vector<Type*> result_elem_types;
-	for (int i = 0; i < num_outputs; ++i) {
-		const NodeGraph::Output *output = graph.get_output(i);
-		result_elem_types.push_back(bjit_get_socket_llvm_type(output->type, context));
-	}
-	StructType *result_type = StructType::get(context, ArrayRef<Type>(result_elem_types));
-#endif
 	
 	/* return variable */
 	std::vector<Value *> result_values;
@@ -216,6 +210,10 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 			value = output->default_value;
 		}
 		BLI_assert(value);
+		
+		Type *value_type = bjit_get_socket_llvm_type(output->type, context);
+		value = builder.CreatePointerCast(value, PointerType::get(value_type, 0));
+		value = builder.CreateLoad(value);
 		
 		result_values.push_back(value);
 	}
