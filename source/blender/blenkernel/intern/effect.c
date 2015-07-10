@@ -1039,6 +1039,9 @@ void pdEndJITEffectors(EffectorContext *effctx)
 void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders), EffectorWeights *weights,
                       EffectedPoint *point, float *force, float *impulse)
 {
+	zero_v3(force);
+	zero_v3(impulse);
+	
 	if (effctx->eval) {
 		// XXX will be used as function args
 		(void)point;

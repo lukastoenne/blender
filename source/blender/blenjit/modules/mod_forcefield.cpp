@@ -148,10 +148,15 @@ EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel)
 	
 //	normalize_v3_v3(dir, rel.loc_rel);
 //	mul_v3_v3fl(result->force, dir, strength);
-	copy_v3_v3(force, loc);
+//	copy_v3_v3(force, loc);
+	zero_v3(force);
+	zero_v3(impulse);
 	
 	EffectorEvalResult result;
 	copy_v3_v3(result.force, force);
+	result.force[0] = 0.10101f;
+	result.force[1] = 12345.0f;
+	result.force[2] = 98765.0f;
 	copy_v3_v3(result.impulse, impulse);
 	return result;
 }

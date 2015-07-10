@@ -28,6 +28,8 @@
 #include "mod_common.h"
 #include "mod_math.h"
 
+#include <stdio.h>
+
 #include "bjit_types.h"
 
 namespace bjit {
@@ -40,6 +42,34 @@ EffectorEvalResult effector_result_combine(const vec3_t force1, const vec3_t imp
 	add_v3_v3v3(result.force, force1, force2);
 	add_v3_v3v3(result.impulse, impulse1, impulse2);
 	return result;
+}
+
+__attribute__((annotate("print_vec3")))
+void print_vec3(const vec3_t v)
+{
+	printf("(%.5f, %.5f, %.5f)\n", v[0], v[1], v[2]);
+}
+
+__attribute__((annotate("print_result")))
+void print_result(const EffectorEvalResult *v)
+{
+	print_vec3(v->force);
+	print_vec3(v->impulse);
+}
+
+typedef struct TEST {
+	vec3_t a, b;
+} TEST;
+
+TEST testest(const vec3_t v)
+{
+	TEST t;
+	zero_v3(t.a);
+	zero_v3(t.b);
+	t.a[0] = 1;
+	t.a[1] = 2;
+	t.a[2] = 3;
+	return t;
 }
 
 } /* namespace bjit */
