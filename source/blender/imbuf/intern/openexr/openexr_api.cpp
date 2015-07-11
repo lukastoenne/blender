@@ -302,7 +302,7 @@ extern "C"
  * Test presence of OpenEXR file.
  * \param mem pointer to loaded OpenEXR bitstream
  */
-int imb_is_a_openexr(unsigned char *mem)
+int imb_is_a_openexr(const unsigned char *mem)
 {
 	return Imf::isImfMagic((const char *)mem);
 }
@@ -763,12 +763,15 @@ static void imb_exr_get_views(MultiPartInputFile& file, StringVector& views)
 }
 
 /* Multilayer Blender files have the view name in all the passes (even the default view one) */
-static const char *imb_exr_insert_view_name(const char *passname, const char *viewname)
+static void imb_exr_insert_view_name(char *name_full, const char *passname, const char *viewname)
 {
-	if (viewname == NULL || viewname[0] == '\0')
-		return passname;
+	BLI_assert(!ELEM(name_full, passname, viewname));
 
-	static char retstr[EXR_PASS_MAXNAME];
+	if (viewname == NULL || viewname[0] == '\0') {
+		BLI_strncpy(name_full, passname, sizeof(((ExrChannel *)NULL)->name));
+		return;
+	}
+
 	const char delims[] = {'.', '\0'};
 	const char *sep;
 	const char *token;
@@ -777,13 +780,11 @@ static const char *imb_exr_insert_view_name(const char *passname, const char *vi
 	len = BLI_str_rpartition(passname, delims, &sep, &token);
 
 	if (sep) {
-		BLI_snprintf(retstr, sizeof(retstr), "%.*s.%s.%s", (int)len, passname, viewname, token);
+		BLI_snprintf(name_full, EXR_PASS_MAXNAME, "%.*s.%s.%s", (int)len, passname, viewname, token);
 	}
 	else {
-		BLI_snprintf(retstr, sizeof(retstr), "%s.%s", passname, viewname);
+		BLI_snprintf(name_full, EXR_PASS_MAXNAME, "%s.%s", passname, viewname);
 	}
-
-	return retstr;
 }
 
 /* adds flattened ExrChannels */
@@ -818,8 +819,7 @@ void IMB_exr_add_channel(void *handle,
 
 	/* name has to be unique, thus it's a combination of layer, pass, view, and channel */
 	if (layname && layname[0] != '\0') {
-		std::string raw_name = imb_exr_insert_view_name(echan->m->name.c_str(), echan->m->view.c_str());
-		BLI_strncpy(echan->name, raw_name.c_str(), sizeof(echan->name));
+		imb_exr_insert_view_name(echan->name, echan->m->name.c_str(), echan->m->view.c_str());
 	}
 	else if (data->multiView->size() > 1) {
 		std::string raw_name = insertViewName(echan->m->name, *data->multiView, echan->view_id);
@@ -1045,8 +1045,9 @@ float  *IMB_exr_channel_rect(void *handle, const char *layname, const char *pass
 
 	/* name has to be unique, thus it's a combination of layer, pass, view, and channel */
 	if (layname && layname[0] != '\0') {
-		std::string raw_name = imb_exr_insert_view_name(name, viewname);
-		BLI_strncpy(name, raw_name.c_str(), sizeof(name));
+		char temp_buf[EXR_PASS_MAXNAME];
+		imb_exr_insert_view_name(temp_buf, name, viewname);
+		BLI_strncpy(name, temp_buf, sizeof(name));
 	}
 	else if (data->multiView->size() > 1) {
 		size_t view_id = std::max(0, imb_exr_get_multiView_id(*data->multiView, viewname));
@@ -1900,7 +1901,7 @@ static bool imb_exr_is_multi(MultiPartInputFile& file)
 	return false;
 }
 
-struct ImBuf *imb_load_openexr(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+struct ImBuf *imb_load_openexr(const unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
 	struct ImBuf *ibuf = NULL;
 	Mem_IStream *membuf = NULL;
@@ -1914,7 +1915,7 @@ struct ImBuf *imb_load_openexr(unsigned char *mem, size_t size, int flags, char 
 	{
 		bool is_multi;
 
-		membuf = new Mem_IStream(mem, size);
+		membuf = new Mem_IStream((unsigned char *)mem, size);
 		file = new MultiPartInputFile(*membuf);
 
 		Box2i dw = file->header(0).dataWindow();

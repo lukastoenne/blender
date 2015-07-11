@@ -53,7 +53,7 @@
 #include "IMB_colormanagement_intern.h"
 
 typedef struct PNGReadStruct {
-	unsigned char *data;
+	const unsigned char *data;
 	unsigned int size;
 	unsigned int seek;
 } PNGReadStruct;
@@ -67,11 +67,18 @@ BLI_INLINE unsigned short UPSAMPLE_8_TO_16(const unsigned char _val)
 	return (_val << 8) + _val;
 }
 
-int imb_is_a_png(unsigned char *mem)
+int imb_is_a_png(const unsigned char *mem)
 {
 	int ret_val = 0;
 
-	if (mem) ret_val = !png_sig_cmp(mem, 0, 8);
+	if (mem) {
+#if (PNG_LIBPNG_VER_MAJOR == 1) && (PNG_LIBPNG_VER_MINOR == 2)
+		/* Older version of libpng doesn't use const pointer to memory. */
+		ret_val = !png_sig_cmp((png_bytep)mem, 0, 8);
+#else
+		ret_val = !png_sig_cmp(mem, 0, 8);
+#endif
+	}
 	return(ret_val);
 }
 
@@ -504,7 +511,7 @@ static void imb_png_error(png_structp UNUSED(png_ptr), png_const_charp message)
 	fprintf(stderr, "libpng error: %s\n", message);
 }
 
-ImBuf *imb_loadpng(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_loadpng(const unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
 	struct ImBuf *ibuf = NULL;
 	png_structp png_ptr;

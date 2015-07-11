@@ -40,8 +40,8 @@
 
 // #define JP2_FILEHEADER_SIZE 14  /* UNUSED */
 
-static char JP2_HEAD[] = {0x0, 0x0, 0x0, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, 0x87, 0x0A};
-static char J2K_HEAD[] = {0xFF, 0x4F, 0xFF, 0x51, 0x00};
+static const char JP2_HEAD[] = {0x0, 0x0, 0x0, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, 0x87, 0x0A};
+static const char J2K_HEAD[] = {0xFF, 0x4F, 0xFF, 0x51, 0x00};
 
 /* We only need this because of how the presets are set */
 /* this typedef is copied from 'openjpeg-1.5.0/applications/codec/image_to_j2k.c' */
@@ -58,17 +58,17 @@ typedef struct img_folder {
 	float *rates;
 } img_fol_t;
 
-static int check_jp2(unsigned char *mem) /* J2K_CFMT */
+static int check_jp2(const unsigned char *mem) /* J2K_CFMT */
 {
 	return memcmp(JP2_HEAD, mem, sizeof(JP2_HEAD)) ? 0 : 1;
 }
 
-static int check_j2k(unsigned char *mem) /* J2K_CFMT */
+static int check_j2k(const unsigned char *mem) /* J2K_CFMT */
 {
 	return memcmp(J2K_HEAD, mem, sizeof(J2K_HEAD)) ? 0 : 1;
 }
 
-int imb_is_a_jp2(unsigned char *buf)
+int imb_is_a_jp2(const unsigned char *buf)
 {
 	return check_jp2(buf);
 }
@@ -116,7 +116,7 @@ static void info_callback(const char *msg, void *client_data)
 	} \
 	} (void)0 \
 
-struct ImBuf *imb_jp2_decode(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+struct ImBuf *imb_jp2_decode(const unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
 	struct ImBuf *ibuf = NULL;
 	bool use_float = false; /* for precision higher then 8 use float */
@@ -170,7 +170,8 @@ struct ImBuf *imb_jp2_decode(unsigned char *mem, size_t size, int flags, char co
 	opj_setup_decoder(dinfo, &parameters);
 
 	/* open a byte stream */
-	cio = opj_cio_open((opj_common_ptr)dinfo, mem, size);
+	/* note, we can't avoid removing 'const' cast here */
+	cio = opj_cio_open((opj_common_ptr)dinfo, (unsigned char *)mem, size);
 
 	/* decode the stream and fill the image structure */
 	image = opj_decode(dinfo, cio);
