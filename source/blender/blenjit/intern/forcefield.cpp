@@ -189,13 +189,14 @@ public:
 namespace bjit {
 
 typedef typename SocketTypeImpl<BJIT_TYPE_VEC3>::extern_type vec3_extern_t;
+typedef typename SocketTypeImpl<BJIT_TYPE_VEC3>::extern_type_arg vec3_extern_arg_t;
 
 struct EffectorEvalReturn {
 	vec3_extern_t force;
 	vec3_extern_t impulse;
 };
 
-typedef EffectorEvalReturn (*EffectorEvalFunction)(const vec3_extern_t &loc, const vec3_extern_t &vel);
+typedef EffectorEvalReturn (*EffectorEvalFunction)(vec3_extern_arg_t loc, vec3_extern_arg_t vel);
 
 static inline const char *get_effector_prefix(short forcefield)
 {
@@ -259,6 +260,9 @@ struct NodeGraphBuilder<EffectorContext> {
 			if (!node) {
 				continue;
 			}
+			
+			node->set_input_extern("loc", graph.get_input(0));
+			node->set_input_extern("vel", graph.get_input(1));
 			
 			const NodeSocket *force = node->type->find_output("force");
 			const NodeSocket *impulse = node->type->find_output("impulse");
@@ -478,11 +482,11 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 	NodeGraphBuilder<EffectorContext> builder;
 	
 	NodeGraph graph = builder.build(effctx);
-	graph.dump();
+//	graph.dump();
 	
 	Function *func = codegen(graph, theModule);
-	if (func)
-		func->dump();
+//	if (func)
+//		func->dump();
 	
 	verifyFunction(*func, &outs());
 	bjit_finalize_function(theModule, func, 2);
@@ -520,8 +524,12 @@ void BJIT_effector_eval(EffectorContext *effctx, const EffectorWeights *weights,
 		// XXX will be used as function args
 		(void)weights;
 		
-		EffectorEvalReturn result = fn((const vec3_extern_t &)point->loc, (const vec3_extern_t &)point->vel);
+//		printf(" ================ EVAL ================\n");
+//		printf(" == loc = (%.3f, %.3f, %.3f) ==\n", point->loc[0], point->loc[1], point->loc[2]);
+//		printf(" == vel = (%.3f, %.3f, %.3f) ==\n", point->vel[0], point->vel[1], point->vel[2]);
+		EffectorEvalReturn result = fn(point->loc, point->vel);
 		copy_v3_v3(force, result.force);
 		copy_v3_v3(impulse, result.impulse);
+//		printf(" ======================================\n");
 	}
 }

@@ -32,6 +32,7 @@
 
 #include "bjit_types.h"
 
+#include "mod_common.h"
 #include "mod_math.h"
 
 using namespace bjit;
@@ -139,7 +140,7 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 __attribute__((annotate("effector_force_eval")))
 EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel)
 {
-	vec3_t force, impulse;
+//	vec3_t force, impulse;
 //	EffectorPointRelation rel;
 //	float dir[3], strength;
 	
@@ -149,15 +150,16 @@ EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel)
 //	normalize_v3_v3(dir, rel.loc_rel);
 //	mul_v3_v3fl(result->force, dir, strength);
 //	copy_v3_v3(force, loc);
-	zero_v3(force);
-	zero_v3(impulse);
+//	zero_v3(force);
+//	zero_v3(impulse);
 	
+//	print_vec3(loc);
 	EffectorEvalResult result;
-	copy_v3_v3(result.force, force);
-	result.force[0] = 0.10101f;
-	result.force[1] = 12345.0f;
-	result.force[2] = 98765.0f;
-	copy_v3_v3(result.impulse, impulse);
+	copy_v3_v3(result.force, loc);
+//	result.force[0] = 0.10101f;
+//	result.force[1] = 12345.0f;
+//	result.force[2] = 98765.0f;
+	zero_v3(result.impulse);
 	return result;
 }
 

@@ -45,9 +45,16 @@ using namespace llvm;
 
 static Value *codegen_array_to_pointer(IRBuilder<> &builder, Value *array)
 {
-	Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
-	Value *indices[2] = { index, index };
-	return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
+	// XXX how to test this? put explicitly into type template?
+//	bool is_array = dyn_cast<ArrayType>(array);
+	bool is_array = true;
+	if (is_array) {
+		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+		Value *indices[2] = { index, index };
+		return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
+	}
+	else
+		return array;
 }
 
 static Value *codegen_struct_to_pointer(IRBuilder<> &builder, Value *s)
@@ -57,47 +64,55 @@ static Value *codegen_struct_to_pointer(IRBuilder<> &builder, Value *s)
 
 static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 {
-//	if (dyn_cast<ConstantDataArray>(valconst)) {
-		AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
-//		return builder.CreateStore(valconst, alloc);
-		return alloc;
-//	}
-//	else
-//		return valconst;
+	if (valconst) {
+//		if (dyn_cast<ConstantDataArray>(valconst)) {
+			AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
+			builder.CreateStore(valconst, alloc);
+			return alloc;
+//		}
+//		else
+//			return valconst;
+	}
+	else
+		return NULL;
 }
 
 static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *node, int index)
 {
 	Value *value = NULL;
 	
-	NodeInstance *link_node = node->find_input_link_node(index);
-	const NodeSocket *link_socket = node->find_input_link_socket(index);
-	if (link_node && link_socket) {
+	if (node->has_input_extern(index)) {
+		const NodeGraphInput *input = node->find_input_extern(index);
+		
+		value = input->value;
+//		AllocaInst *alloc = builder.CreateAlloca(value->getType());
+//		builder.CreateStore(value, alloc);
+//		value = alloc;
+		BLI_assert(value);
+	}
+	else if (node->has_input_link(index)) {
 		/* use linked input value */
+		NodeInstance *link_node = node->find_input_link_node(index);
+		const NodeSocket *link_socket = node->find_input_link_socket(index);
+		
 		value = link_node->find_output_value(link_socket->name);
 		BLI_assert(value);
 	}
-	
-	/* use input constant */
-	if (!value) {
+	else if (node->has_input_value(index)) {
+		/* use input constant */
 		Value *valconst = node->find_input_value(index);
-		if (valconst) {
-			value = codegen_const_to_value(builder, valconst);
-		}
+		
+		value = codegen_const_to_value(builder, valconst);
+		BLI_assert(value);
 	}
-	
-	/* last resort: socket default */
-	if (!value) {
+	else {
+		/* last resort: socket default */
 		Value *valconst = node->type->find_input(index)->default_value;
-		if (valconst) {
-			value = codegen_const_to_value(builder, valconst);
-		}
+		
+		value = codegen_const_to_value(builder, valconst);
+		BLI_assert(value);
 	}
 	
-	BLI_assert(value);
-	
-	// XXX how to test this? put explicitly into type template?
-//	if (dyn_cast<ArrayType>(value))
 	{
 		value = codegen_array_to_pointer(builder, value);
 	}
@@ -193,8 +208,47 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	LLVMContext &context = getGlobalContext();
 	IRBuilder<> builder(context);
 	
+	int num_inputs = graph.inputs.size();
+	int num_outputs = graph.outputs.size();
+	
 	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
 	builder.SetInsertPoint(entry);
+	
+	if (func->getArgumentList().size() != num_inputs + 1) {
+		printf("Error: Function has wrong number of arguments for node tree\n");
+		return;
+	}
+	
+	Function::ArgumentListType::iterator it = func->getArgumentList().begin();
+	++it; /* skip return arg */
+	for (int i = 0; i < num_inputs; ++i) {
+		Argument *arg = &(*it);
+		const NodeGraphInput *input = graph.get_input(i);
+		
+		
+#if 0 /* DEBUG */
+		{
+			Function *f = bjit_find_function(module, "print_vec3");
+			Value *value = arg;
+			
+//			Value *alloc = builder.CreateAlloca(arg->getType());
+//			builder.CreateStore(arg, alloc);
+			Value *index = ConstantInt::get(TypeBuilder<types::i<32>, true>::get(context), APInt(32, 0));
+			Value *indices[] = {index, index};
+			value = builder.CreateGEP(value, ArrayRef<Value*>(indices, 2));
+			
+//			printf("GRAPH INPUT %s: ", arg->getName().str().c_str());
+//			std::cout.flush();
+//			value->dump();
+//			printf("\n");
+//			std::cout.flush();
+			builder.CreateCall(f, value);
+		}
+#endif
+		graph.set_input_argument(input->name, arg);
+		
+		++it;
+	}
 	
 	NodeRefList sorted_nodes = toposort_nodes(graph);
 	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
@@ -205,13 +259,11 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 			continue;
 	}
 	
-	int num_outputs = graph.outputs.size();
-	
 	Argument *retarg = func->getArgumentList().begin();
 	for (int i = 0; i < num_outputs; ++i) {
 		Value *retptr = builder.CreateStructGEP(retarg, i);
 		
-		const NodeGraph::Output *output = graph.get_output(i);
+		const NodeGraphOutput *output = graph.get_output(i);
 		Value *value = NULL;
 		if (output->link_node && output->link_socket) {
 			value = output->link_node->find_output_value(output->link_socket->name);
@@ -248,16 +300,19 @@ Function *codegen(NodeGraph &graph, Module *module)
 	int num_outputs = graph.outputs.size();
 	output_types.reserve(num_outputs);
 	for (int i = 0; i < num_outputs; ++i) {
-		const NodeGraph::Output &output = graph.outputs[i];
-		output_types.push_back(bjit_get_socket_llvm_type(output.type, context));
+		const NodeGraphOutput &output = graph.outputs[i];
+		Type *type = bjit_get_socket_llvm_type(output.type, context);
+		output_types.push_back(type);
 	}
 	StructType *return_type = StructType::get(context, output_types);
 	
 	input_types.reserve(num_inputs + 1);
 	input_types.push_back(PointerType::get(return_type, 0));
 	for (int i = 0; i < num_inputs; ++i) {
-		const NodeGraph::Input &input = graph.inputs[i];
-		input_types.push_back(bjit_get_socket_llvm_type(input.type, context));
+		const NodeGraphInput &input = graph.inputs[i];
+		Type *type = bjit_get_socket_llvm_type(input.type, context);
+		type = PointerType::get(type, 0);
+		input_types.push_back(type);
 	}
 	
 	FunctionType *functype = FunctionType::get(TypeBuilder<void, true>::get(context), input_types, false);

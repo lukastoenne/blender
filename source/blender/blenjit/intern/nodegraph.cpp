@@ -180,6 +180,18 @@ const NodeSocket *NodeInstance::find_input_link_socket(int index) const
 	return socket ? find_input_link_socket(socket->name) : NULL;
 }
 
+const NodeGraphInput *NodeInstance::find_input_extern(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	return (it != inputs.end()) ? it->second.graph_input : NULL;
+}
+
+const NodeGraphInput *NodeInstance::find_input_extern(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? find_input_extern(socket->name) : NULL;
+}
+
 Value *NodeInstance::find_input_value(const std::string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
@@ -216,12 +228,73 @@ bool NodeInstance::set_input_value(const std::string &name, Value *value)
 bool NodeInstance::set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket)
 {
 	InputInstance &input = inputs[name];
-	if (input.link_node || input.link_socket)
+	if (input.link_node && input.link_socket)
 		return false;
 	
 	input.link_node = from_node;
 	input.link_socket = from_socket;
 	return true;
+}
+
+bool NodeInstance::set_input_extern(const std::string &name, const NodeGraphInput *graph_input)
+{
+	InputInstance &input = inputs[name];
+	if (input.graph_input)
+		return false;
+	
+	input.graph_input = graph_input;
+	return true;
+}
+
+bool NodeInstance::has_input_link(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	if (it != inputs.end()) {
+		const InputInstance &input = it->second;
+		return (input.link_node && input.link_socket);
+	}
+	else
+		return false;
+}
+
+bool NodeInstance::has_input_link(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? has_input_link(socket->name) : false;
+}
+
+bool NodeInstance::has_input_extern(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	if (it != inputs.end()) {
+		const InputInstance &input = it->second;
+		return (input.graph_input);
+	}
+	else
+		return false;
+}
+
+bool NodeInstance::has_input_extern(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? has_input_extern(socket->name) : false;
+}
+
+bool NodeInstance::has_input_value(const std::string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	if (it != inputs.end()) {
+		const InputInstance &input = it->second;
+		return (input.value);
+	}
+	else
+		return false;
+}
+
+bool NodeInstance::has_input_value(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? has_input_value(socket->name) : false;
 }
 
 bool NodeInstance::set_output_value(const std::string &name, Value *value)
@@ -284,19 +357,19 @@ NodeInstance *NodeGraph::add_node(const std::string &type, const std::string &na
 	return (result.second)? &result.first->second : NULL;
 }
 
-const NodeGraph::Input *NodeGraph::get_input(int index) const
+const NodeGraphInput *NodeGraph::get_input(int index) const
 {
 	BLI_assert(index >= 0 && index < inputs.size());
 	return &inputs[index];
 }
 
-const NodeGraph::Output *NodeGraph::get_output(int index) const
+const NodeGraphOutput *NodeGraph::get_output(int index) const
 {
 	BLI_assert(index >= 0 && index < outputs.size());
 	return &outputs[index];
 }
 
-const NodeGraph::Input *NodeGraph::get_input(const std::string &name) const
+const NodeGraphInput *NodeGraph::get_input(const std::string &name) const
 {
 	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		if (it->name == name)
@@ -305,7 +378,7 @@ const NodeGraph::Input *NodeGraph::get_input(const std::string &name) const
 	return NULL;
 }
 
-const NodeGraph::Output *NodeGraph::get_output(const std::string &name) const
+const NodeGraphOutput *NodeGraph::get_output(const std::string &name) const
 {
 	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		if (it->name == name)
@@ -314,28 +387,38 @@ const NodeGraph::Output *NodeGraph::get_output(const std::string &name) const
 	return NULL;
 }
 
-const NodeGraph::Input *NodeGraph::add_input(const std::string &name, SocketTypeID type)
+const NodeGraphInput *NodeGraph::add_input(const std::string &name, SocketTypeID type)
 {
 	BLI_assert(!get_input(name));
-	inputs.push_back(Input(name, type));
+	inputs.push_back(NodeGraphInput(name, type));
 	return &inputs.back();
 }
 
-const NodeGraph::Output *NodeGraph::add_output(const std::string &name, SocketTypeID type, Constant *default_value)
+const NodeGraphOutput *NodeGraph::add_output(const std::string &name, SocketTypeID type, Constant *default_value)
 {
 	BLI_assert(!get_output(name));
-	outputs.push_back(Output(name, type, default_value));
+	outputs.push_back(NodeGraphOutput(name, type, default_value));
 	return &outputs.back();
+}
+
+void NodeGraph::set_input_argument(const std::string &name, Argument *value)
+{
+	for (InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
+		NodeGraphInput &input = *it;
+		if (input.name == name) {
+			input.value = value;
+		}
+	}
 }
 
 void NodeGraph::set_output_link(const std::string &name, NodeInstance *link_node, const std::string &link_socket)
 {
 	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		if (it->name == name) {
-			Output *output = &(*it);
-			output->link_node = link_node;
-			output->link_socket = link_node->type->find_output(link_socket);
-			BLI_assert(output->link_node && output->link_socket);
+		NodeGraphOutput &output = *it;
+		if (output.name == name) {
+			output.link_node = link_node;
+			output.link_socket = link_node->type->find_output(link_socket);
+			BLI_assert(output.link_node && output.link_socket);
 		}
 	}
 }
