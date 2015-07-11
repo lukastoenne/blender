@@ -74,6 +74,7 @@ struct SocketTypeImpl;
 template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	typedef FP type;
 	typedef float extern_type;
+	typedef float extern_type_arg;
 	
 	static Constant *create_constant(float value, LLVMContext &context)
 	{
@@ -90,6 +91,7 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef typename types::i<32> type;
 	typedef int32_t extern_type;
+	typedef int32_t extern_type_arg;
 	
 	static Constant *create_constant(int value, LLVMContext &context)
 	{
@@ -106,6 +108,7 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
 	typedef float extern_type[3];
+	typedef const float extern_type_arg[3];
 	
 	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
@@ -143,6 +146,8 @@ Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext 
 
 /* ========================================================================= */
 
+struct NodeGraph;
+struct NodeGraphInput;
 struct NodeType;
 
 struct NodeSocket {
@@ -190,6 +195,7 @@ struct NodeType {
 
 struct NodeInstance {
 	struct InputInstance {
+		const NodeGraphInput *graph_input;
 		NodeInstance *link_node;
 		const NodeSocket *link_socket;
 		Value *value;
@@ -211,6 +217,8 @@ struct NodeInstance {
 	NodeInstance *find_input_link_node(int index) const;
 	const NodeSocket *find_input_link_socket(const std::string &name) const;
 	const NodeSocket *find_input_link_socket(int index) const;
+	const NodeGraphInput *find_input_extern(const std::string &name) const;
+	const NodeGraphInput *find_input_extern(int index) const;
 	Value *find_input_value(const std::string &name) const;
 	Value *find_input_value(int index) const;
 	Value *find_output_value(const std::string &name) const;
@@ -218,7 +226,15 @@ struct NodeInstance {
 	
 	bool set_input_value(const std::string &name, Value *value);
 	bool set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket);
+	bool set_input_extern(const std::string &name, const NodeGraphInput *graph_input);
 	bool set_output_value(const std::string &name, Value *value);
+	
+	bool has_input_link(const std::string &name) const;
+	bool has_input_link(int index) const;
+	bool has_input_extern(const std::string &name) const;
+	bool has_input_extern(int index) const;
+	bool has_input_value(const std::string &name) const;
+	bool has_input_value(int index) const;
 	
 	const NodeType *type;
 	std::string name;
@@ -227,26 +243,30 @@ struct NodeInstance {
 	CallInst *call_inst;
 };
 
+struct NodeGraphInput {
+	NodeGraphInput(const std::string &name, SocketTypeID type) : name(name), type(type), value(NULL)
+	{}
+	std::string name;
+	SocketTypeID type;
+	
+	Argument *value;
+};
+
+struct NodeGraphOutput {
+	NodeGraphOutput(const std::string &name, SocketTypeID type, Constant *default_value) :
+	    name(name), type(type), default_value(default_value), link_node(NULL), link_socket(NULL)
+	{}
+	std::string name;
+	SocketTypeID type;
+	Constant *default_value;
+	
+	NodeInstance *link_node;
+	const NodeSocket *link_socket;
+};
+
 struct NodeGraph {
-	struct Input {
-		Input(const std::string &name, SocketTypeID type) : name(name), type(type)
-		{}
-		std::string name;
-		SocketTypeID type;
-	};
-	struct Output {
-		Output(const std::string &name, SocketTypeID type, Constant *default_value) :
-		    name(name), type(type), default_value(default_value), link_node(NULL), link_socket(NULL)
-		{}
-		std::string name;
-		SocketTypeID type;
-		Constant *default_value;
-		
-		NodeInstance *link_node;
-		const NodeSocket *link_socket;
-	};
-	typedef std::vector<Input> InputList;
-	typedef std::vector<Output> OutputList;
+	typedef std::vector<NodeGraphInput> InputList;
+	typedef std::vector<NodeGraphOutput> OutputList;
 	
 	typedef std::map<std::string, NodeType> NodeTypeMap;
 	typedef std::pair<std::string, NodeType> NodeTypeMapPair;
@@ -290,16 +310,17 @@ struct NodeGraph {
 		return add_link(get_node(from_node), from, get_node(to_node), to);
 	}
 	
-	const Input *get_input(int index) const;
-	const Output *get_output(int index) const;
-	const Input *get_input(const std::string &name) const;
-	const Output *get_output(const std::string &name) const;
-	const Input *add_input(const std::string &name, SocketTypeID type);
-	const Output *add_output(const std::string &name, SocketTypeID type, Constant *default_value);
+	const NodeGraphInput *get_input(int index) const;
+	const NodeGraphOutput *get_output(int index) const;
+	const NodeGraphInput *get_input(const std::string &name) const;
+	const NodeGraphOutput *get_output(const std::string &name) const;
+	const NodeGraphInput *add_input(const std::string &name, SocketTypeID type);
+	const NodeGraphOutput *add_output(const std::string &name, SocketTypeID type, Constant *default_value);
+	void set_input_argument(const std::string &name, Argument *value);
 	void set_output_link(const std::string &name, NodeInstance *link_node, const std::string &link_socket);
 	
 	template <typename T>
-	const Output *add_output(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
+	const NodeGraphOutput *add_output(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
 	{
 		return add_output(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
 	}

@@ -28,11 +28,14 @@
 #ifndef __MOD_COMMON_H__
 #define __MOD_COMMON_H__
 
+#include "bjit_types.h"
+
 namespace bjit {
 
 struct EffectorEvalResult;
 
 void effector_result_combine(struct bjit::EffectorEvalResult *R, const struct bjit::EffectorEvalResult *a, const struct bjit::EffectorEvalResult *b);
+void print_vec3(const vec3_t v);
 
 }
 
