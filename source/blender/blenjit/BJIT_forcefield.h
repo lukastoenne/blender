@@ -37,9 +37,14 @@ extern "C" {
 #endif
 
 struct EffectorContext;
+struct EffectorWeights;
+struct EffectedPoint;
 
 void BJIT_build_effector_function(struct EffectorContext *effctx);
 void BJIT_free_effector_function(struct EffectorContext *effctx);
+
+void BJIT_effector_eval(struct EffectorContext *effctx, const struct EffectorWeights *weights,
+                        const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 #ifdef __cplusplus
 }

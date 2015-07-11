@@ -72,7 +72,8 @@ template <SocketTypeID type>
 struct SocketTypeImpl;
 
 template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
-	typedef typename types::ieee_float type;
+	typedef FP type;
+	typedef float extern_type;
 	
 	static Constant *create_constant(float value, LLVMContext &context)
 	{
@@ -88,6 +89,7 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 
 template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef typename types::i<32> type;
+	typedef int32_t extern_type;
 	
 	static Constant *create_constant(int value, LLVMContext &context)
 	{
@@ -103,6 +105,7 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 
 template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
+	typedef float extern_type[3];
 	
 	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
