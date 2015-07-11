@@ -188,6 +188,15 @@ public:
 
 namespace bjit {
 
+typedef typename SocketTypeImpl<BJIT_TYPE_VEC3>::extern_type vec3_extern_t;
+
+struct EffectorEvalReturn {
+	vec3_extern_t force;
+	vec3_extern_t impulse;
+};
+
+typedef EffectorEvalReturn (*EffectorEvalFunction)(const vec3_extern_t &loc, const vec3_extern_t &vel);
+
 static inline const char *get_effector_prefix(short forcefield)
 {
 	switch (forcefield) {
@@ -482,7 +491,7 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 //	theModule->dump();
 //	printf("==================\n");
 	
-	effctx->eval = (EffectorEvalFp)bjit_compile_function(func);
+	effctx->eval_func = bjit_compile_function(func);
 	effctx->eval_data = func;
 }
 
@@ -493,6 +502,26 @@ void BJIT_free_effector_function(EffectorContext *effctx)
 	if (func)
 		bjit_free_function(func);
 	
-	effctx->eval = NULL;
+	effctx->eval_func = NULL;
 	effctx->eval_data = NULL;
+}
+
+void BJIT_effector_eval(EffectorContext *effctx, const EffectorWeights *weights,
+                        const EffectedPoint *point, float force[3], float impulse[3])
+{
+	using namespace bjit;
+	
+	zero_v3(force);
+	zero_v3(impulse);
+	
+	if (effctx->eval_func) {
+		EffectorEvalFunction fn = (EffectorEvalFunction)effctx->eval_func;
+		
+		// XXX will be used as function args
+		(void)weights;
+		
+		EffectorEvalReturn result = fn((const vec3_extern_t &)point->loc, (const vec3_extern_t &)point->vel);
+		copy_v3_v3(force, result.force);
+		copy_v3_v3(impulse, result.impulse);
+	}
 }

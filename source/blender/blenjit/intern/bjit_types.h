@@ -64,7 +64,6 @@ typedef struct EffectorEvalInput {
 typedef struct EffectorEvalResult {
 	vec3_t force;
 	vec3_t impulse;
-	int dummy;
 } EffectorEvalResult;
 
 typedef struct EffectorEvalSettings {

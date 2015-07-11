@@ -109,12 +109,10 @@ typedef struct EffectorCache {
 	int flag;
 } EffectorCache;
 
-typedef void (*EffectorEvalFp)(const struct EffectedPoint *point, float force[3], float impulse[3]);
-
 typedef struct EffectorContext {
 	ListBase effectors;
 	
-	EffectorEvalFp eval;
+	void *eval_func;
 	void *eval_data;
 } EffectorContext;
 

@@ -59,7 +59,8 @@ static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 {
 //	if (dyn_cast<ConstantDataArray>(valconst)) {
 		AllocaInst *alloc = builder.CreateAlloca(valconst->getType());
-		return codegen_array_to_pointer(builder, alloc);
+//		return builder.CreateStore(valconst, alloc);
+		return alloc;
 //	}
 //	else
 //		return valconst;
@@ -94,6 +95,12 @@ static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *n
 	}
 	
 	BLI_assert(value);
+	
+	// XXX how to test this? put explicitly into type template?
+//	if (dyn_cast<ArrayType>(value))
+	{
+		value = codegen_array_to_pointer(builder, value);
+	}
 	
 	return value;
 }
@@ -141,9 +148,6 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeSocket *socket = node->type->find_output(i);
 		Value *value = builder.CreateStructGEP(retval, i);
-//		if (dyn_cast<ArrayType>(value)) {
-			value = codegen_array_to_pointer(builder, value);
-//		}
 		if (!value) {
 			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), socket->name.c_str());
 		}
@@ -203,10 +207,10 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 	
 	int num_outputs = graph.outputs.size();
 	
-#if 0
-	/* return variable */
-	std::vector<Value *> result_values;
+	Argument *retarg = func->getArgumentList().begin();
 	for (int i = 0; i < num_outputs; ++i) {
+		Value *retptr = builder.CreateStructGEP(retarg, i);
+		
 		const NodeGraph::Output *output = graph.get_output(i);
 		Value *value = NULL;
 		if (output->link_node && output->link_socket) {
@@ -217,73 +221,20 @@ static void codegen_nodegraph(NodeGraph &graph, Module *module, Function *func)
 		}
 		BLI_assert(value);
 		
-		Type *value_type = bjit_get_socket_llvm_type(output->type, context);
-		value = builder.CreatePointerCast(value, PointerType::get(value_type, 0));
-		value = builder.CreateLoad(value);
-		
-		result_values.push_back(value);
+		Value *retval = builder.CreateLoad(value);
+		builder.CreateStore(retval, retptr);
 	}
-#endif
 	
 #if 0
 	/* DEBUG */
-	for (int i = 0; i < num_outputs; ++i) {
-		const NodeGraph::Output *output = graph.get_output(i);
-		Value *value = NULL;
-		if (output->link_node && output->link_socket) {
-			value = output->link_node->find_output_value(output->link_socket->name);
-		}
-		else {
-			value = output->default_value;
-		}
-		BLI_assert(value);
-		
-//		Function *f = bjit_find_function(module, "print_vec3");
-//		std::vector<Value *> args;
-//		args.push_back(value);
-//		builder.CreateCall(f, args);
-	}
-	
 	{
-		Type *rtype = builder.getCurrentFunctionReturnType();
-		rtype->dump();
-		int N = result_values.size();
-		Value *V = UndefValue::get(rtype);
-		for (unsigned i = 0; i != N; ++i)
-			V = builder.CreateInsertValue(V, result_values[i], i, "mrv");
-		
-		Value *alloc = builder.CreateAlloca(builder.getCurrentFunctionReturnType());
-		builder.CreateStore(V, alloc);
-		V = alloc;
-		V = builder.CreatePointerCast(V, PointerType::get(builder.getCurrentFunctionReturnType(), 0));
-		
 		Function *f = bjit_find_function(module, "print_result");
 		std::vector<Value *> args;
-//		codegen_struct_to_pointer(builder, V);
-		args.push_back(V);
+		args.push_back(retarg);
 		builder.CreateCall(f, args);
 	}
 #endif
 	
-	Argument *retarg = func->getArgumentList().begin();
-	for (int i = 0; i < num_outputs; ++i) {
-		const NodeGraph::Output *output = graph.get_output(i);
-		Value *value = NULL;
-		if (output->link_node && output->link_socket) {
-			value = output->link_node->find_output_value(output->link_socket->name);
-		}
-		else {
-			value = output->default_value;
-		}
-		BLI_assert(value);
-		
-//		Value *retvalptr = builder.CreateStructGEP(retarg, i);
-//		Constant *indexval = ConstantInt::get(TypeBuilder<types::i<8>, true>::get(context), APInt(8, 0));
-//		Value *retval = builder.CreateInBoundsGEP(retvalptr, indexval);
-		builder.CreateStore(value, retarg);
-	}
-	
-//	builder.CreateAggregateRet(result_values.data(), result_values.size());
 	builder.CreateRetVoid();
 }
 
@@ -291,7 +242,6 @@ Function *codegen(NodeGraph &graph, Module *module)
 {
 	LLVMContext &context = getGlobalContext();
 	
-//	Type *return_type = TypeBuilder<void, true>::get(context);
 	std::vector<Type *> input_types, output_types;
 	
 	int num_inputs = graph.inputs.size();
@@ -310,7 +260,6 @@ Function *codegen(NodeGraph &graph, Module *module)
 		input_types.push_back(bjit_get_socket_llvm_type(input.type, context));
 	}
 	
-//	FunctionType *functype = FunctionType::get(return_type, input_types, false);
 	FunctionType *functype = FunctionType::get(TypeBuilder<void, true>::get(context), input_types, false);
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, "effector", module);
