@@ -29,7 +29,6 @@
  *  \ingroup bjit
  */
 
-#include "bjit_llvm.h"
 #include "bjit_types.h"
 
 using namespace llvm;
