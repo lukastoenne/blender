@@ -43,24 +43,19 @@ namespace bjit {
 
 using namespace llvm;
 
+#if 0
 static Value *codegen_array_to_pointer(IRBuilder<> &builder, Value *array)
 {
-	// XXX how to test this? put explicitly into type template?
-//	bool is_array = dyn_cast<ArrayType>(array);
-	bool is_array = true;
-	if (is_array) {
-		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
-		Value *indices[2] = { index, index };
-		return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
-	}
-	else
-		return array;
+	Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+	Value *indices[2] = { index, index };
+	return builder.CreateInBoundsGEP(array, ArrayRef<Value*>(indices));
 }
 
 static Value *codegen_struct_to_pointer(IRBuilder<> &builder, Value *s)
 {
 	return builder.CreateStructGEP(s, 0);
 }
+#endif
 
 static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 {
@@ -79,6 +74,7 @@ static Value *codegen_const_to_value(IRBuilder<> &builder, Value *valconst)
 
 static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *node, int index)
 {
+	const NodeSocket *socket = node->type->find_input(index);
 	Value *value = NULL;
 	
 	if (node->has_input_extern(index)) {
@@ -113,9 +109,8 @@ static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *n
 		BLI_assert(value);
 	}
 	
-	{
-		value = codegen_array_to_pointer(builder, value);
-	}
+	builder.GetInsertBlock()->dump();
+	value = bjit_get_socket_llvm_argument(socket->type, value, builder);
 	
 	return value;
 }
