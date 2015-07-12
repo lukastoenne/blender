@@ -55,6 +55,12 @@ static float get_falloff_old(float fac, bool usemin, float mindist, bool usemax,
 	return pow((double)(1.0f+fac-mindist), (double)(-power));
 }
 
+static float get_falloff(float distance, bool usemin, float mindist, bool usemax, float maxdist, float power)
+{
+	return get_falloff_old(distance, usemin, mindist, usemax, maxdist, power);
+}
+
+#if 0
 static float get_falloff(const EffectorEvalSettings *settings, float distance)
 {
 	const bool use_min = settings->flag & EFF_FIELD_USE_MIN;
@@ -68,6 +74,7 @@ static float get_falloff_radial(const EffectorEvalSettings *settings, float dist
 	const bool use_max = settings->flag & EFF_FIELD_USE_MAX_RAD;
 	return get_falloff_old(distance, use_min, settings->minrad, use_max, settings->maxrad, settings->f_power_r);
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -85,15 +92,16 @@ typedef struct EffectorPointRelation {
 	float dist_rel;
 } EffectorPointRelation;
 
-bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *input, const EffectorEvalSettings *settings)
+bool get_point_relation(EffectorPointRelation *rel, vec3_t loc, vec3_t /*vel*/,
+                        mat4_t transform, int shape)
 {
-	switch (settings->shape) {
+	switch (shape) {
 		case EFF_FIELD_SHAPE_POINT: {
 			/* use center of object for distance calculus */
-			copy_v3_v3(rel->closest_loc, settings->tfm[3]);
+			copy_v3_v3(rel->closest_loc, transform[3]);
 			
 			/* use z-axis as normal*/
-			normalize_v3_v3(rel->closest_nor, settings->tfm[2]);
+			normalize_v3_v3(rel->closest_nor, transform[2]);
 			
 			// TODO
 			zero_v3(rel->closest_vel);
@@ -104,12 +112,12 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 			float center[3], locrel[3], offset[3];
 			
 			/* use z-axis as normal*/
-			normalize_v3_v3(rel->closest_nor, settings->tfm[2]);
+			normalize_v3_v3(rel->closest_nor, transform[2]);
 			
 			/* use center of object for distance calculus */
-			copy_v3_v3(center, settings->tfm[3]);
+			copy_v3_v3(center, transform[3]);
 			/* radial offset */
-			sub_v3_v3v3(locrel, input->loc, center);
+			sub_v3_v3v3(locrel, loc, center);
 			project_plane_v3_v3v3(offset, locrel, rel->closest_nor);
 			add_v3_v3v3(rel->closest_loc, center, offset);
 			
@@ -131,35 +139,29 @@ bool get_point_relation(EffectorPointRelation *rel, const EffectorEvalInput *inp
 			return false;
 	}
 	
-	sub_v3_v3v3(rel->loc_rel, input->loc, rel->closest_loc);
+	sub_v3_v3v3(rel->loc_rel, loc, rel->closest_loc);
 	rel->dist_rel = len_v3(rel->loc_rel);
 	
 	return true;
 }
 
 __attribute__((annotate("effector_force_eval")))
-EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel)
+EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel,
+                                       mat4_t transform, int shape,
+                                       float strength, float power)
 {
-//	vec3_t force, impulse;
-//	EffectorPointRelation rel;
-//	float dir[3], strength;
-	
-//	get_point_relation(&rel, input, settings);
-//	strength = settings->f_strength * get_falloff(settings, rel.dist_rel);
-	
-//	normalize_v3_v3(dir, rel.loc_rel);
-//	mul_v3_v3fl(result->force, dir, strength);
-//	copy_v3_v3(force, loc);
-//	zero_v3(force);
-//	zero_v3(impulse);
-	
-//	print_vec3(loc);
 	EffectorEvalResult result;
-	copy_v3_v3(result.force, loc);
-//	result.force[0] = 0.10101f;
-//	result.force[1] = 12345.0f;
-//	result.force[2] = 98765.0f;
+	
+	EffectorPointRelation rel;
+	get_point_relation(&rel, loc, vel, transform, shape);
+	float factor = get_falloff(rel.dist_rel, false, 0.0f, false, 1.0f, power);
+	
+	vec3_t dir;
+	normalize_v3_v3(dir, rel.loc_rel);
+	mul_v3_v3fl(result.force, dir, strength * factor);
+	
 	zero_v3(result.impulse);
+	
 	return result;
 }
 

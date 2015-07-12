@@ -87,13 +87,17 @@ struct NodeType {
 	template <typename T>
 	const NodeSocket *add_input(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
 	{
-		return add_input(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
+		Constant *c = bjit_get_socket_llvm_constant(type, default_value, context);
+		BLI_assert(c != NULL);
+		return add_input(name, type, c);
 	}
 	
 	template <typename T>
 	const NodeSocket *add_output(const std::string &name, SocketTypeID type, const T &default_value, LLVMContext &context)
 	{
-		return add_output(name, type, bjit_get_socket_llvm_constant(type, default_value, context));
+		Constant *c = bjit_get_socket_llvm_constant(type, default_value, context);
+		BLI_assert(c != NULL);
+		return add_output(name, type, c);
 	}
 	
 	std::string name;

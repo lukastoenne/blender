@@ -305,6 +305,10 @@ struct NodeGraphBuilder<EffectorContext> {
 void build_effector_module(void)
 {
 	static const float vec3_zero[3] = {0.0f, 0.0f, 0.0f};
+	static const float mat4_unit[4][4] = {{1.0f, 0.0f, 0.0f, 0.0f},
+	                                      {0.0f, 1.0f, 0.0f, 0.0f},
+	                                      {0.0f, 0.0f, 1.0f, 0.0f},
+	                                      {0.0f, 0.0f, 0.0f, 1.0f}};
 	
 	LLVMContext &context = getGlobalContext();
 	
@@ -332,6 +336,10 @@ void build_effector_module(void)
 //		}
 		type->add_input("loc", BJIT_TYPE_VEC3, vec3_zero, context);
 		type->add_input("vel", BJIT_TYPE_VEC3, vec3_zero, context);
+		type->add_input("transform", BJIT_TYPE_MAT4, mat4_unit, context);
+		type->add_input("shape", BJIT_TYPE_INT, (int)EFF_FIELD_SHAPE_POINT, context);
+		type->add_input("strength", BJIT_TYPE_FLOAT, 0.0f, context);
+		type->add_input("power", BJIT_TYPE_FLOAT, 0.0f, context);
 		type->add_output("force", BJIT_TYPE_VEC3, vec3_zero, context);
 		type->add_output("impulse", BJIT_TYPE_VEC3, vec3_zero, context);
 	}

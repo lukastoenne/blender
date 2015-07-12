@@ -32,10 +32,10 @@
 #ifndef __BJIT_TYPES_H__
 #define __BJIT_TYPES_H__
 
-#ifndef BJIT_RUNTIME
-#include "bjit_llvm.h"
-#else
+#ifdef BJIT_RUNTIME
 #include "bjit_intern.h"
+#else
+#include "bjit_llvm.h"
 #endif
 
 namespace bjit {
@@ -64,12 +64,14 @@ typedef enum {
 	BJIT_TYPE_FLOAT,
 	BJIT_TYPE_INT,
 	BJIT_TYPE_VEC3,
+	BJIT_TYPE_MAT4,
 	
 	BJIT_NUMTYPES
 } SocketTypeID;
 
 inline Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context);
 template <typename T> Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context);
+inline Value *bjit_get_socket_llvm_argument(SocketTypeID type, Value *value, IRBuilder<> &builder);
 
 /* ------------------------------------------------------------------------- */
 
@@ -96,6 +98,11 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	{
 		return NULL;
 	}
+	
+	static Value *as_argument(IRBuilder<> &builder, Value *value)
+	{
+		return builder.CreateLoad(value);
+	}
 };
 
 template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
@@ -117,6 +124,11 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
 	{
 		return NULL;
+	}
+	
+	static Value *as_argument(IRBuilder<> &builder, Value *value)
+	{
+		return builder.CreateLoad(value);
 	}
 };
 
@@ -140,6 +152,55 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	{
 		return NULL;
 	}
+	
+	static Value *as_argument(IRBuilder<> &builder, Value *value)
+	{
+		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+		Value *indices[2] = { index, index };
+		return builder.CreateInBoundsGEP(value, ArrayRef<Value*>(indices));
+	}
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_MAT4> {
+	typedef mat4_t type;
+	typedef float extern_type[4][4];
+	typedef const float extern_type_arg[4][4];
+	
+	static Type *get_llvm_type(LLVMContext &context)
+	{
+		return TypeBuilder<mat4_t, true>::get(context);
+	}
+	
+	static Constant *create_constant(const float *value, LLVMContext &context)
+	{
+		return ConstantDataArray::get(context, ArrayRef<float>(value, 16));
+	}
+	
+	static Constant *create_constant(const float (*value)[4], LLVMContext &context)
+	{
+		return ConstantDataArray::get(context, ArrayRef<float>((float *)value, 16));
+	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
+	
+	static Value *as_argument(IRBuilder<> &builder, Value *value)
+	{
+		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+		Value *indices[2] = { index, index };
+		value = builder.CreateInBoundsGEP(value, ArrayRef<Value*>(indices));
+		Value *alloc = builder.CreateAlloca(value->getType());
+		builder.CreateStore(value, alloc);
+		value = alloc;
+		
+		Type *type = TypeBuilder<types::ieee_float (*)[4], true>::get(builder.getContext());
+		value = builder.CreatePointerCast(value, type);
+		
+		return value;
+	}
 };
 
 /* ========================================================================= */
@@ -153,6 +214,7 @@ namespace internal {
 		case BJIT_TYPE_FLOAT:   result = SocketTypeImpl<BJIT_TYPE_FLOAT>::eval; break; \
 		case BJIT_TYPE_INT:     result = SocketTypeImpl<BJIT_TYPE_INT>::eval; break; \
 		case BJIT_TYPE_VEC3:    result = SocketTypeImpl<BJIT_TYPE_VEC3>::eval; break; \
+		case BJIT_TYPE_MAT4:    result = SocketTypeImpl<BJIT_TYPE_MAT4>::eval; break; \
 		case BJIT_NUMTYPES: break; \
 		default: assert(false); break; \
 	}
@@ -169,6 +231,13 @@ Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext 
 {
 	Constant *result = NULL;
 	FOREACH_SOCKET_TYPE(type, create_constant(value, context), result);
+	return result;
+}
+
+Value *bjit_get_socket_llvm_argument(SocketTypeID type, Value *value, IRBuilder<> &builder)
+{
+	Value *result = NULL;
+	FOREACH_SOCKET_TYPE(type, as_argument(builder, value), result);
 	return result;
 }
 
