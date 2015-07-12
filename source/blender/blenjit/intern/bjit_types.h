@@ -56,6 +56,98 @@ typedef vec4_t mat4_t[4];
 
 /* ------------------------------------------------------------------------- */
 
+typedef enum {
+	BJIT_TYPE_FLOAT,
+	BJIT_TYPE_INT,
+	BJIT_TYPE_VEC3,
+	
+	BJIT_NUMTYPES
+} SocketTypeID;
+
+Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context);
+
+template <typename T> Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context);
+
+/* ------------------------------------------------------------------------- */
+
+template <SocketTypeID type>
+struct SocketTypeImpl;
+
+template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
+	typedef FP type;
+	typedef float extern_type;
+	typedef float extern_type_arg;
+	
+	static Constant *create_constant(float value, LLVMContext &context)
+	{
+		return ConstantFP::get(context, APFloat(value));
+	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
+	typedef typename types::i<32> type;
+	typedef int32_t extern_type;
+	typedef int32_t extern_type_arg;
+	
+	static Constant *create_constant(int value, LLVMContext &context)
+	{
+		return ConstantInt::get(context, APInt(32, value));
+	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
+};
+
+template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
+	typedef vec3_t type;
+	typedef float extern_type[3];
+	typedef const float extern_type_arg[3];
+	
+	static Constant *create_constant(const float *value, LLVMContext &context)
+	{
+		return ConstantDataArray::get(context, ArrayRef<float>(value, 3));
+	}
+	
+	template <typename T>
+	static Constant *create_constant(T /*value*/, LLVMContext &/*context*/)
+	{
+		return NULL;
+	}
+};
+
+/* ========================================================================= */
+/* inline functions */
+
+namespace internal {
+} /* namespace internal */
+
+template <typename T>
+Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context)
+{
+	switch (type) {
+		case BJIT_TYPE_FLOAT:
+			return SocketTypeImpl<BJIT_TYPE_FLOAT>::create_constant(value, context);
+		case BJIT_TYPE_INT:
+			return SocketTypeImpl<BJIT_TYPE_INT>::create_constant(value, context);
+		case BJIT_TYPE_VEC3:
+			return SocketTypeImpl<BJIT_TYPE_VEC3>::create_constant(value, context);
+		default:
+			return NULL;
+	}
+	return NULL;
+}
+
+/* ========================================================================= */
+
 typedef struct EffectorEvalInput {
 	vec3_t loc;
 	vec3_t vel;
