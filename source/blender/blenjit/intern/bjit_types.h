@@ -34,15 +34,17 @@
 
 #ifndef BJIT_RUNTIME
 #include "bjit_llvm.h"
+#else
+#include "bjit_intern.h"
 #endif
 
 namespace bjit {
 
+using namespace llvm;
+
 #ifdef BJIT_RUNTIME
 typedef float FP;
 #else
-using namespace llvm;
-
 typedef types::ieee_float FP;
 #endif
 
@@ -53,6 +55,8 @@ typedef FP vec4_t[4];
 typedef vec2_t mat2_t[2];
 typedef vec3_t mat3_t[3];
 typedef vec4_t mat4_t[4];
+
+#ifndef BJIT_RUNTIME
 
 /* ------------------------------------------------------------------------- */
 
@@ -169,6 +173,8 @@ Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext 
 }
 
 #undef FOREACH_SOCKET_TYPE
+
+#endif /* BJIT_RUNTIME */
 
 /* ========================================================================= */
 
