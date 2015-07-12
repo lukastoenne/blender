@@ -64,8 +64,7 @@ typedef enum {
 	BJIT_NUMTYPES
 } SocketTypeID;
 
-Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context);
-
+inline Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context);
 template <typename T> Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context);
 
 /* ------------------------------------------------------------------------- */
@@ -77,6 +76,11 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	typedef FP type;
 	typedef float extern_type;
 	typedef float extern_type_arg;
+	
+	static Type *get_llvm_type(LLVMContext &context)
+	{
+		return TypeBuilder<types::ieee_float, true>::get(context);
+	}
 	
 	static Constant *create_constant(float value, LLVMContext &context)
 	{
@@ -95,6 +99,11 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef int32_t extern_type;
 	typedef int32_t extern_type_arg;
 	
+	static Type *get_llvm_type(LLVMContext &context)
+	{
+		return TypeBuilder<types::i<32>, true>::get(context);
+	}
+	
 	static Constant *create_constant(int value, LLVMContext &context)
 	{
 		return ConstantInt::get(context, APInt(32, value));
@@ -111,6 +120,11 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
 	typedef float extern_type[3];
 	typedef const float extern_type_arg[3];
+	
+	static Type *get_llvm_type(LLVMContext &context)
+	{
+		return TypeBuilder<vec3_t, true>::get(context);
+	}
 	
 	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
@@ -130,21 +144,31 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 namespace internal {
 } /* namespace internal */
 
+#define FOREACH_SOCKET_TYPE(type, eval, result) \
+	switch (type) { \
+		case BJIT_TYPE_FLOAT:   result = SocketTypeImpl<BJIT_TYPE_FLOAT>::eval; break; \
+		case BJIT_TYPE_INT:     result = SocketTypeImpl<BJIT_TYPE_INT>::eval; break; \
+		case BJIT_TYPE_VEC3:    result = SocketTypeImpl<BJIT_TYPE_VEC3>::eval; break; \
+		case BJIT_NUMTYPES: break; \
+		default: assert(false); break; \
+	}
+
+Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context)
+{
+	Type *result = NULL;
+	FOREACH_SOCKET_TYPE(type, get_llvm_type(context), result);
+	return result;
+}
+
 template <typename T>
 Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context)
 {
-	switch (type) {
-		case BJIT_TYPE_FLOAT:
-			return SocketTypeImpl<BJIT_TYPE_FLOAT>::create_constant(value, context);
-		case BJIT_TYPE_INT:
-			return SocketTypeImpl<BJIT_TYPE_INT>::create_constant(value, context);
-		case BJIT_TYPE_VEC3:
-			return SocketTypeImpl<BJIT_TYPE_VEC3>::create_constant(value, context);
-		default:
-			return NULL;
-	}
-	return NULL;
+	Constant *result = NULL;
+	FOREACH_SOCKET_TYPE(type, create_constant(value, context), result);
+	return result;
 }
+
+#undef FOREACH_SOCKET_TYPE
 
 /* ========================================================================= */
 
