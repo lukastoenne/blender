@@ -1075,14 +1075,16 @@ static PointerRNA rna_ForceVizFieldLineSettings_material_get(PointerRNA *ptr)
 	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
+	Material *matptr = NULL;
+	PointerRNA result;
+	
 	if (*mats) {
 		const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
-		PointerRNA result;
-		RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
-		return result;
+		matptr = (*mats)[mat];
 	}
-	else
-		return PointerRNA_NULL;
+	
+	RNA_pointer_create((ID*)ob, &RNA_Material, matptr, &result);
+	return result;
 }
 
 static void rna_ForceVizFieldLineSettings_material_set(PointerRNA *ptr, const PointerRNA value)

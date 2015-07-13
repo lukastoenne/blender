@@ -395,7 +395,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
                 col.prop(fieldlines, "drawsize")
                 col.prop(fieldlines, "radial_res")
 
-        ### Image ###
+        ### Vectex Attribute ###
         if mode == 'VERTEX_ATTRIBUTE':
             vattr = md.vertex_attribute
             col = layout.column()
