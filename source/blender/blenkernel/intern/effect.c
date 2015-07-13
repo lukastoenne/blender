@@ -1040,6 +1040,8 @@ void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *we
 
 /* ======== Force Field Visualization ======== */
 
+typedef void (*ForceVizFieldEvalFunc)(float R[3], float t, const float co[3], void *calldata);
+
 typedef struct ForceVizInput {
 	float co[3];
 	float nor[3];
@@ -1372,9 +1374,7 @@ static void forceviz_tube_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizTube
 	copy_v3_v3(tube->strength_prev, strength);
 }
 
-typedef void (*ForceVizVectorFp)(float R[3], float t, const float co[3], void *calldata);
-
-static void forceviz_integrate_rk4(float res[3], const float co1[3], float t1, float h, ForceVizVectorFp func, void *calldata)
+static void forceviz_integrate_rk4(float res[3], const float co1[3], float t1, float h, ForceVizFieldEvalFunc func, void *calldata)
 {
 	float k1[3], k2[3], k3[3], k4[3];
 	float t2, t3, t4;
@@ -1502,7 +1502,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 		/* integrate to the next vertex location */
 		copy_v3_v3(nloc, loc);
 		for (step = 0; step < substeps; ++step) {
-			forceviz_integrate_rk4(nloc, nloc, t, stepsize, (ForceVizVectorFp)forceviz_get_field_direction, funcdata);
+			forceviz_integrate_rk4(nloc, nloc, t, stepsize, (ForceVizFieldEvalFunc)forceviz_get_field_direction, funcdata);
 			t += stepsize;
 		}
 		
@@ -1609,6 +1609,36 @@ static void forceviz_set_vertex_attribute_float(ForceVizModifierData *fmd, Objec
 	}
 }
 
+static void forceviz_set_vertex_attribute_float3(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors,
+                                                 const char *name, ForceVizVectorFunc fn)
+{
+	const int numverts = dm->getNumVerts(dm);
+	MVert *mverts = dm->getVertArray(dm);
+	CustomData *vdata = dm->getVertDataLayout(dm);
+	float (*data)[3] = CustomData_get_layer_named(vdata, CD_PROP_FLT3, name);
+	int i;
+	
+	if (!data) {
+		/* create new layer */
+		data = CustomData_add_layer_named(vdata, CD_PROP_FLT3, CD_CALLOC, NULL, numverts, name);
+	}
+	
+	for (i = 0; i < numverts; ++i) {
+		ForceVizInput input;
+		float wco[3], wnor[3];
+		float value[3] = {0.0f, 0.0f, 0.0f};
+		
+		mul_v3_m4v3(wco, ob->obmat, mverts[i].co);
+		normal_short_to_float_v3(wnor, mverts[i].no);
+		mul_mat3_m4_v3(ob->obmat, wnor);
+		
+		forceviz_eval_field_loc_nor(fmd, effectors, wco, wnor, &input);
+		fn(value, fmd, &input);
+		
+		copy_v3_v3(data[i], value);
+	}
+}
+
 static void forceviz_vertex_attribute_force(float res[3], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
 {
 	copy_v3_v3(res, input->force);
@@ -1629,7 +1659,7 @@ static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob,
 	
 	switch (vattr->type) {
 		case MOD_FORCEVIZ_ATTR_FORCE:
-			// TODO
+			forceviz_set_vertex_attribute_float3(fmd, ob, dm, effectors, name, forceviz_vertex_attribute_force);
 			break;
 		case MOD_FORCEVIZ_ATTR_FLUX:
 			forceviz_set_vertex_attribute_float(fmd, ob, dm, effectors, name, forceviz_vertex_attribute_flux);
