@@ -1205,7 +1205,7 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
-	BMVert *verts[2];
+	BMVert *verts[2] = {0};
 	int index = ribbon->index;
 	
 	if (index > 0) {
