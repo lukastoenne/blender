@@ -396,21 +396,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
                 col.prop(fieldlines, "radial_res")
 
         ### Image ###
-        if mode == 'IMAGE':
-            sub = row.row()
-            sub.enabled = md.use_image_vec
-            sub.template_ID(md, "image_vec", new="image.new")
-
-            col = layout.column()
-            col.label(text="Texture Coordinates:")
-            col.prop(md, "texture_coords", text="")
-
-            if md.texture_coords == 'OBJECT':
-                layout.prop(md, "texture_coords_object", text="Object")
-            elif md.texture_coords == 'UV' and ob.type == 'MESH':
-                layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
-
-        ### Image ###
         if mode == 'VERTEX_ATTRIBUTE':
             vattr = md.vertex_attribute
             col = layout.column()

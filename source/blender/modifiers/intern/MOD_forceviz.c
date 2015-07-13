@@ -242,10 +242,6 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 	
 	if (fmd->effector_weights)
 		walk(userData, ob, (ID **)&fmd->effector_weights->group);
-	
-	walk(userData, ob, (ID **)&fmd->image_vec);
-	walk(userData, ob, (ID **)&fmd->image_div);
-	walk(userData, ob, (ID **)&fmd->image_curl);
 }
 
 static void foreachObjectLink(ModifierData *md, Object *ob,

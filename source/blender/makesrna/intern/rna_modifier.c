@@ -4722,8 +4722,6 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	static EnumPropertyItem mode_items[] = {
 		{MOD_FORCEVIZ_MODE_FIELDLINES, "FIELDLINES", 0, "Field Lines",
 	     "Generate field lines to indicate direction and strength of the field"},
-	    {MOD_FORCEVIZ_MODE_IMAGE, "IMAGE", 0, "Image",
-	     ""},
 	    {MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE, "VERTEX_ATTRIBUTE", 0, "Vertex Attribute",
 	     ""},
 		{0, NULL, 0, NULL, NULL}
@@ -4747,11 +4745,6 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Mode of generating force field information");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "image_vec", PROP_POINTER, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Vector Image", "Force vectors encoded as colors");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "fieldlines", PROP_POINTER, PROP_NONE);
