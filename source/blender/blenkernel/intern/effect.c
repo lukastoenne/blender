@@ -1512,6 +1512,10 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	forceviz_tube_clear(&tube);
 }
 
+/* XXX first variant gives fieldline density proportional to flux density,
+ * but then the field lines pop in and out when fields change, which is undesirable.
+ */
+#if 0
 static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert, unsigned int UNUSED(index), void *userdata)
 {
 	ForceVizEffectorData *data = userdata;
@@ -1524,6 +1528,12 @@ static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert,
 	weight = max_ff(dot_v3v3(R, nor), 0.0f);
 	return weight;
 }
+#else
+static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *UNUSED(mvert), unsigned int UNUSED(index), void *UNUSED(userdata))
+{
+	return 1.0f;
+}
+#endif
 
 static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
 {
