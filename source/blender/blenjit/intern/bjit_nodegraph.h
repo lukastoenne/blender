@@ -141,6 +141,20 @@ struct NodeInstance {
 	bool set_input_extern(const std::string &name, const NodeGraphInput *graph_input);
 	bool set_output_value(const std::string &name, Value *value);
 	
+	template <typename T>
+	bool set_input_value(const std::string &name, const T &value, LLVMContext &context)
+	{
+		const NodeSocket *socket = type->find_input(name);
+		return socket ? set_input_value(name, bjit_get_socket_llvm_constant(socket->type, value, context)) : false;
+	}
+	
+	template <typename T>
+	bool set_output_value(const std::string &name, const T &value, LLVMContext &context)
+	{
+		const NodeSocket *socket = type->find_output(name);
+		return socket ? set_output_value(name, bjit_get_socket_llvm_constant(socket->type, value, context)) : false;
+	}
+	
 	bool has_input_link(const std::string &name) const;
 	bool has_input_link(int index) const;
 	bool has_input_extern(const std::string &name) const;
