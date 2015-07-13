@@ -59,8 +59,9 @@ typedef void (*BKE_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float *
 /* Building */
 
 PBVH *BKE_pbvh_new(void);
-void BKE_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-                         int totface, int totvert, struct CustomData *vdata);
+void BKE_pbvh_build_mesh(
+        PBVH *bvh, const struct MFace *faces, struct MVert *verts,
+        int totface, int totvert, struct CustomData *vdata);
 void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
                           int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
@@ -173,13 +174,16 @@ void BKE_pbvh_node_mark_normals_update(PBVHNode *node);
 void BKE_pbvh_node_mark_topology_update(PBVHNode *node);
 void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
 
-void BKE_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
-                             int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
-                             struct CCGElem ***grid_elems);
-void BKE_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
-                             int *uniquevert, int *totvert);
-void BKE_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
-                             int **vert_indices, struct MVert **verts);
+void BKE_pbvh_node_get_grids(
+        PBVH *bvh, PBVHNode *node,
+        int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
+        struct CCGElem ***grid_elems);
+void BKE_pbvh_node_num_verts(
+        PBVH *bvh, PBVHNode *node,
+        int *r_uniquevert, int *r_totvert);
+void BKE_pbvh_node_get_verts(
+        PBVH *bvh, PBVHNode *node,
+        const int **r_vert_indices, struct MVert **r_verts);
 
 void BKE_pbvh_node_get_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
 void BKE_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
@@ -251,7 +255,7 @@ typedef struct PBVHVertexIter {
 	/* mesh */
 	struct MVert *mverts;
 	int totvert;
-	int *vert_indices;
+	const int *vert_indices;
 	float *vmask;
 
 	/* bmesh */

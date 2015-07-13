@@ -2763,7 +2763,8 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	
 	ntree->progress = NULL;
 	ntree->execdata = NULL;
-	
+	ntree->duplilock = NULL;
+
 	ntree->adt = newdataadr(fd, ntree->adt);
 	direct_link_animdata(fd, ntree->adt);
 	
@@ -3449,7 +3450,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 		ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
 	}
 
-	ima->anims.first = ima->anims.last = NULL;
+	BLI_listbase_clear(&ima->anims);
 	ima->preview = direct_link_preview_image(fd, ima->preview);
 	ima->stereo3d_format = newdataadr(fd, ima->stereo3d_format);
 	ima->ok = 1;
@@ -5415,7 +5416,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 						seq->scene_sound = BKE_sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
-				seq->anims.first = seq->anims.last = NULL;
+				BLI_listbase_clear(&seq->anims);
 
 				lib_link_sequence_modifiers(fd, sce, &seq->modifiers);
 			}
@@ -7377,6 +7378,30 @@ static void direct_link_linestyle_color_modifier(FileData *fd, LineStyleModifier
 			m->color_ramp = newdataadr(fd, m->color_ramp);
 		}
 		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleColorModifier_Tangent *m = (LineStyleColorModifier_Tangent *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_NOISE:
+		{
+			LineStyleColorModifier_Noise *m = (LineStyleColorModifier_Noise *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleColorModifier_CreaseAngle *m = (LineStyleColorModifier_CreaseAngle *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleColorModifier_Curvature_3D *m = (LineStyleColorModifier_Curvature_3D *)modifier;
+			m->color_ramp = newdataadr(fd, m->color_ramp);
+		}
+		break;
 	}
 }
 
@@ -7411,6 +7436,34 @@ static void direct_link_linestyle_alpha_modifier(FileData *fd, LineStyleModifier
 			direct_link_curvemapping(fd, m->curve);
 		}
 		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleAlphaModifier_Tangent *m = (LineStyleAlphaModifier_Tangent *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_NOISE:
+		{
+			LineStyleAlphaModifier_Noise *m = (LineStyleAlphaModifier_Noise *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleAlphaModifier_CreaseAngle *m = (LineStyleAlphaModifier_CreaseAngle *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleAlphaModifier_Curvature_3D *m = (LineStyleAlphaModifier_Curvature_3D *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
 	}
 }
 
@@ -7441,6 +7494,27 @@ static void direct_link_linestyle_thickness_modifier(FileData *fd, LineStyleModi
 	case LS_MODIFIER_MATERIAL:
 		{
 			LineStyleThicknessModifier_Material *m = (LineStyleThicknessModifier_Material *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_TANGENT:
+		{
+			LineStyleThicknessModifier_Tangent *m = (LineStyleThicknessModifier_Tangent *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CREASE_ANGLE:
+		{
+			LineStyleThicknessModifier_CreaseAngle *m = (LineStyleThicknessModifier_CreaseAngle *)modifier;
+			m->curve = newdataadr(fd, m->curve);
+			direct_link_curvemapping(fd, m->curve);
+		}
+		break;
+	case LS_MODIFIER_CURVATURE_3D:
+		{
+			LineStyleThicknessModifier_Curvature_3D *m = (LineStyleThicknessModifier_Curvature_3D *)modifier;
 			m->curve = newdataadr(fd, m->curve);
 			direct_link_curvemapping(fd, m->curve);
 		}

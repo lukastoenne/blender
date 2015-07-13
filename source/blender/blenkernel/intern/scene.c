@@ -2428,11 +2428,11 @@ const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, const s
 	}
 }
 
-void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *rprefix, char **rext)
+void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *rprefix, const char **rext)
 {
 	SceneRenderView *srv;
 	size_t index_act;
-	char *suf_act;
+	const char *suf_act;
 	const char delims[] = {'.', '\0'};
 
 	rprefix[0] = '\0';
@@ -2440,6 +2440,7 @@ void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *r
 	/* begin of extension */
 	index_act = BLI_str_rpartition(name, delims, rext, &suf_act);
 	BLI_assert(index_act > 0);
+	UNUSED_VARS_NDEBUG(index_act);
 
 	for (srv = scene->r.views.first; srv; srv = srv->next) {
 		if (BKE_scene_multiview_is_render_view_active(&scene->r, srv)) {

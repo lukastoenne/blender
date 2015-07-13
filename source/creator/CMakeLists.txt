@@ -909,9 +909,10 @@ elseif(APPLE)
 
 		add_custom_command(
 			OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
-			COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
-			COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/python/
-			COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${CMAKE_CURRENT_BINARY_DIR}/python/
+			COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_CURRENT_BINARY_DIR}/python/"
+			        ${CMAKE_COMMAND} -E tar xzfv "${LIBDIR}/release/${PYTHON_ZIP}"
 			DEPENDS ${LIBDIR}/release/${PYTHON_ZIP})
 
 		add_dependencies(blender extractpyzip)
@@ -968,9 +969,10 @@ elseif(APPLE)
 		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
 			add_custom_command(
 				OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
-				COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
-				COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/python/
-				COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${CMAKE_CURRENT_BINARY_DIR}/python/
+				COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_CURRENT_BINARY_DIR}/python/"
+				        ${CMAKE_COMMAND} -E tar xzfv "${LIBDIR}/release/${PYTHON_ZIP}"
 				DEPENDS ${LIBDIR}/release/${PYTHON_ZIP})
 
 			# copy extracted python files
