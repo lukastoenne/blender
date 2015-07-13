@@ -44,7 +44,7 @@
 #include "KX_BlenderMaterial.h"
 #include "KX_FontObject.h"
 #include "RAS_IPolygonMaterial.h"
-#include "ListValue.h"
+#include "EXP_ListValue.h"
 #include "SCA_LogicManager.h"
 #include "SCA_TimeEventManager.h"
 //#include "SCA_AlwaysEventManager.h"
@@ -68,7 +68,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_BucketManager.h"
 
-#include "FloatValue.h"
+#include "EXP_FloatValue.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
 #include "SG_Node.h"
@@ -100,7 +100,7 @@
 #endif
 
 #ifdef WITH_PYTHON
-#  include "KX_PythonCallBack.h"
+#  include "EXP_PythonCallBack.h"
 #endif
 
 #include "KX_Light.h"
@@ -1756,6 +1756,10 @@ void KX_Scene::RenderFonts()
 void KX_Scene::UpdateObjectLods(void)
 {
 	KX_GameObject* gameobj;
+
+	if (!this->m_active_camera)
+		return;
+
 	MT_Vector3 cam_pos = this->m_active_camera->NodeGetWorldPosition();
 
 	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
@@ -1993,6 +1997,10 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
 		to->AddCamera((KX_Camera*)gameobj);
+
+	// All armatures should be in the animated object list to be umpdated.
+	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
+		to->AddAnimatedObject(gameobj);
 
 	/* Add the object to the scene's logic manager */
 	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);

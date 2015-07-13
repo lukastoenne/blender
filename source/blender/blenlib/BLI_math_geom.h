@@ -102,6 +102,12 @@ float        dist_squared_to_plane_v3(const float p[3], const float plane[4]);
 float dist_signed_to_plane_v3(const float p[3], const float plane[4]);
 float        dist_to_plane_v3(const float p[3], const float plane[4]);
 
+/* plane3 versions */
+float dist_signed_squared_to_plane3_v3(const float p[3], const float plane[4]);
+float        dist_squared_to_plane3_v3(const float p[3], const float plane[4]);
+float dist_signed_to_plane3_v3(const float p[3], const float plane[4]);
+float        dist_to_plane3_v3(const float p[3], const float plane[4]);
+
 float dist_squared_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
 float         dist_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
 float dist_squared_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
@@ -142,7 +148,7 @@ int isect_line_line_v2(const float a1[2], const float a2[2], const float b1[2], 
 int isect_line_line_v2_int(const int a1[2], const int a2[2], const int b1[2], const int b2[2]);
 int isect_line_sphere_v3(const float l1[3], const float l2[3], const float sp[3], const float r, float r_p1[3], float r_p2[3]);
 int isect_line_sphere_v2(const float l1[2], const float l2[2], const float sp[2], const float r, float r_p1[2], float r_p2[2]);
-int isect_seg_seg_v2_point(const float v1[2], const float v2[2], const float v3[2], const float v4[2], float vi[2]);
+int isect_seg_seg_v2_point(const float v0[2], const float v1[2], const float v2[2], const float v3[2], float vi[2]);
 bool isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
 
 int isect_line_line_epsilon_v3(

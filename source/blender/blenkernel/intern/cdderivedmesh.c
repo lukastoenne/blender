@@ -356,20 +356,15 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 
 	if (mf) {
 		int prevstart = 0;
-		int prevdraw = 1;
-		int draw = 1;
+		bool prevdraw = true;
 		int curpos = 0;
 		
 		GPU_uvedge_setup(dm);
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
-			if (!(mf->flag & ME_HIDE)) {
-				draw = 1;
-			}
-			else {
-				draw = 0;
-			}
+			const bool draw = (mf->flag & ME_HIDE) == 0;
+
 			if (prevdraw != draw) {
-				if (prevdraw > 0 && (curpos - prevstart) > 0) {
+				if (prevdraw && (curpos != prevstart)) {
 					glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 				}
 				prevstart = curpos;
@@ -382,7 +377,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			}
 			prevdraw = draw;
 		}
-		if (prevdraw > 0 && (curpos - prevstart) > 0) {
+		if (prevdraw && (curpos != prevstart)) {
 			glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 		}
 		GPU_buffer_unbind();
@@ -392,7 +387,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
-	
+	GPUDrawObject *gdo;
 	if (cddm->pbvh && cddm->pbvh_draw &&
 	    BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
 	{
@@ -402,23 +397,36 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 	}
 	
 	GPU_edge_setup(dm);
-	if (drawAllEdges && drawLooseEdges) {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->totedge * 2);
-	}
-	else if (drawAllEdges) {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->loose_edge_offset * 2);
-	}
-	else {
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, 0, dm->drawObject->tot_edge_drawn * 2);
-		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, dm->drawObject->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
+	gdo = dm->drawObject;
+	if (gdo->edges && gdo->points) {
+		if (drawAllEdges && drawLooseEdges) {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->totedge * 2);
+		}
+		else if (drawAllEdges) {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->loose_edge_offset * 2);
+		}
+		else {
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, 0, gdo->tot_edge_drawn * 2);
+			GPU_buffer_draw_elements(gdo->edges, GL_LINES, gdo->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
+		}
 	}
 	GPU_buffer_unbind();
 }
 
 static void cdDM_drawLooseEdges(DerivedMesh *dm)
 {
+	int start;
+	int count;
+
 	GPU_edge_setup(dm);
-	GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, dm->drawObject->loose_edge_offset * 2, (dm->drawObject->totedge - dm->drawObject->loose_edge_offset) * 2);
+
+	start = (dm->drawObject->loose_edge_offset * 2);
+	count = (dm->drawObject->totedge - dm->drawObject->loose_edge_offset) * 2;
+
+	if (count) {
+		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, start, count);
+	}
+
 	GPU_buffer_unbind();
 }
 
@@ -615,8 +623,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 		index_mp_to_orig = NULL;
 	}
 
-
-	colType = CD_ID_MCOL;
+	colType = CD_TEXTURE_MCOL;
 	mcol = DM_get_tessface_data_layer(dm, colType);
 	if (!mcol) {
 		colType = CD_PREVIEW_MCOL;

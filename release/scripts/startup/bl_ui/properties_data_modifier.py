@@ -133,6 +133,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.prop(md, "use_only_vertices")
         col.prop(md, "use_clamp_overlap")
+        col.prop(md, "loop_slide")
 
         layout.label(text="Limit Method:")
         layout.row().prop(md, "limit_method", expand=True)
