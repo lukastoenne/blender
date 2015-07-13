@@ -109,7 +109,6 @@ static Value *codegen_get_node_input_value(IRBuilder<> &builder, NodeInstance *n
 		BLI_assert(value);
 	}
 	
-	builder.GetInsertBlock()->dump();
 	value = bjit_get_socket_llvm_argument(socket->type, value, builder);
 	
 	return value;
