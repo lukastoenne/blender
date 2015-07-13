@@ -52,7 +52,9 @@ struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random_ex(struc
                                                                            MeshSampleVertexWeightFp vertex_weight_cb, void *userdata, bool use_facearea);
 
 struct MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(struct DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata);
+
 void BKE_mesh_sample_free_generator(struct MSurfaceSampleGenerator *gen);
+
 bool BKE_mesh_sample_generate(struct MSurfaceSampleGenerator *gen, struct MSurfaceSample *sample);
 
 

@@ -1555,9 +1555,11 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
-	
 	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+	if (!gen)
+		return;
+	
+	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	for (i = 0; i < totlines; ++i) {
 		MSurfaceSample sample;

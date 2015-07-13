@@ -322,11 +322,16 @@ BLI_INLINE void face_weight(DerivedMesh *dm, MFace *face, MeshSampleVertexWeight
 MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_random_ex(DerivedMesh *dm, unsigned int seed,
                                                                     MeshSampleVertexWeightFp vertex_weight_cb, void *userdata, bool use_facearea)
 {
-	MSurfaceSampleGenerator_Random *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_Random), "MSurfaceSampleGenerator_Random");
-	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_random_free, (GeneratorMakeSampleFp)generator_random_make_sample);
+	MSurfaceSampleGenerator_Random *gen;
 	
 	DM_ensure_normals(dm);
 	DM_ensure_tessface(dm);
+	
+	if (dm->getNumTessFaces(dm) == 0)
+		return NULL;
+	
+	gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_Random), "MSurfaceSampleGenerator_Random");
+	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_random_free, (GeneratorMakeSampleFp)generator_random_make_sample);
 	
 	gen->dm = dm;
 	gen->rng = BLI_rng_new(seed);
@@ -405,9 +410,6 @@ static bool generator_raycast_make_sample(MSurfaceSampleGenerator_RayCast *gen, 
 	float ray_start[3], ray_end[3], ray_dir[3], dist;
 	BVHTreeRayHit hit;
 	
-	if (!gen->bvhdata.tree)
-		return false;
-	
 	if (!gen->ray_cb(gen->userdata, ray_start, ray_end))
 		return false;
 	
@@ -430,14 +432,24 @@ static bool generator_raycast_make_sample(MSurfaceSampleGenerator_RayCast *gen, 
 
 MSurfaceSampleGenerator *BKE_mesh_sample_create_generator_raycast(DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata)
 {
-	MSurfaceSampleGenerator_RayCast *gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_RayCast), "MSurfaceSampleGenerator_RayCast");
-	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_raycast_free, (GeneratorMakeSampleFp)generator_raycast_make_sample);
+	MSurfaceSampleGenerator_RayCast *gen;
+	BVHTreeFromMesh bvhdata;
+	
+	if (dm->getNumTessFaces(dm) == 0)
+		return NULL;
 	
 	DM_ensure_tessface(dm);
 	
+	memset(&bvhdata, 0, sizeof(BVHTreeFromMesh));
+	bvhtree_from_mesh_faces(&bvhdata, dm, 0.0f, 4, 6);
+	if (!bvhdata.tree)
+		return NULL;
+	
+	gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_RayCast), "MSurfaceSampleGenerator_RayCast");
+	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_raycast_free, (GeneratorMakeSampleFp)generator_raycast_make_sample);
+	
 	gen->dm = dm;
-	memset(&gen->bvhdata, 0, sizeof(BVHTreeFromMesh));
-	bvhtree_from_mesh_faces(&gen->bvhdata, dm, 0.0f, 4, 6);
+	memcpy(&gen->bvhdata, &bvhdata, sizeof(gen->bvhdata));
 	gen->ray_cb = ray_cb;
 	gen->userdata = userdata;
 	
