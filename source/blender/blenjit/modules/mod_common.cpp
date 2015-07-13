@@ -50,6 +50,33 @@ void print_vec3(const vec3_t v)
 	printf("(%.5f, %.5f, %.5f)\n", v[0], v[1], v[2]);
 }
 
+__attribute__((annotate("print_mat4")))
+void print_mat4(const char *str, const mat4_t m)
+{
+	printf("%s:\n", str);
+	printf("(%.5f, %.5f, %.5f, %.5f)\n", m[0][0], m[1][0], m[2][0], m[3][0]);
+	printf("(%.5f, %.5f, %.5f, %.5f)\n", m[0][1], m[1][1], m[2][1], m[3][1]);
+	printf("(%.5f, %.5f, %.5f, %.5f)\n", m[0][2], m[1][2], m[2][2], m[3][2]);
+	printf("(%.5f, %.5f, %.5f, %.5f)\n", m[0][3], m[1][3], m[2][3], m[3][3]);
+	printf("\n");
+}
+
+void print_array(const char *str, const float *data, int num, int cols)
+{
+	int i, row = 0;
+	printf("%s:\n", str);
+	for (i = 0; i < num; ++i) {
+		printf("%.4f ", data[i]);
+		
+		++row;
+		if (row == cols) {
+			printf("\n");
+			row = 0;
+		}
+	}
+	printf("\n\n");
+}
+
 __attribute__((annotate("print_result")))
 void print_result(const EffectorEvalResult *v)
 {
