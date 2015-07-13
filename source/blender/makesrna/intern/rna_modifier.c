@@ -1075,10 +1075,14 @@ static PointerRNA rna_ForceVizFieldLineSettings_material_get(PointerRNA *ptr)
 	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
-	PointerRNA result;
-	RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
-	return result;
+	if (*mats) {
+		const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
+		PointerRNA result;
+		RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
+		return result;
+	}
+	else
+		return PointerRNA_NULL;
 }
 
 static void rna_ForceVizFieldLineSettings_material_set(PointerRNA *ptr, const PointerRNA value)
@@ -1086,14 +1090,16 @@ static void rna_ForceVizFieldLineSettings_material_set(PointerRNA *ptr, const Po
 	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	Material *mat = value.data;
-	int i;
-	
-	fls->material = -1;
-	for (i = 0; i < ob->totcol; ++i) {
-		if ((*mats)[i] == mat) {
-			fls->material = i;
-			break;
+	if (*mats) {
+		Material *mat = value.data;
+		int i;
+		
+		fls->material = -1;
+		for (i = 0; i < ob->totcol; ++i) {
+			if ((*mats)[i] == mat) {
+				fls->material = i;
+				break;
+			}
 		}
 	}
 }
@@ -1102,12 +1108,14 @@ static int rna_ForceVizFieldLineSettings_material_poll(PointerRNA *ptr, const Po
 {
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	Material *mat = value.data;
-	int i;
-	
-	for (i = 0; i < ob->totcol; ++i) {
-		if ((*mats)[i] == mat) {
-			return true;
+	if (*mats) {
+		Material *mat = value.data;
+		int i;
+		
+		for (i = 0; i < ob->totcol; ++i) {
+			if ((*mats)[i] == mat) {
+				return true;
+			}
 		}
 	}
 	return false;
