@@ -391,7 +391,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
                 col.template_ID(fieldlines, "material")
                 col.prop(fieldlines, "drawsize")
             elif fieldlines.drawtype == 'TUBE':
-                col.template_ID(md, "material")
+                col.template_ID(fieldlines, "material")
                 col.prop(fieldlines, "drawsize")
                 col.prop(fieldlines, "radial_res")
 
