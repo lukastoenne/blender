@@ -35,6 +35,11 @@
 #ifdef BJIT_RUNTIME
 #include "bjit_intern.h"
 #else
+#include <iostream>
+
+extern "C" {
+#include "BLI_math.h"
+}
 #include "bjit_llvm.h"
 #endif
 
@@ -173,12 +178,18 @@ template <> struct SocketTypeImpl<BJIT_TYPE_MAT4> {
 	
 	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
-		return ConstantDataArray::get(context, ArrayRef<float>(value, 16));
+		Constant *data[4];
+		for (int i = 0; i < 4; ++i)
+			data[i] = ConstantDataArray::get(context, ArrayRef<float>(value + i*4, 4));
+		return ConstantArray::get(ArrayType::get(data[0]->getType(), 4), ArrayRef<Constant*>(data, 4));
 	}
 	
 	static Constant *create_constant(const float (*value)[4], LLVMContext &context)
 	{
-		return ConstantDataArray::get(context, ArrayRef<float>((float *)value, 16));
+		Constant *data[4];
+		for (int i = 0; i < 4; ++i)
+			data[i] = ConstantDataArray::get(context, ArrayRef<float>(value[i], 4));;
+		return ConstantArray::get(ArrayType::get(data[0]->getType(), 4), ArrayRef<Constant*>(data, 4));
 	}
 	
 	template <typename T>
@@ -189,16 +200,8 @@ template <> struct SocketTypeImpl<BJIT_TYPE_MAT4> {
 	
 	static Value *as_argument(IRBuilder<> &builder, Value *value)
 	{
-		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
-		Value *indices[2] = { index, index };
-		value = builder.CreateInBoundsGEP(value, ArrayRef<Value*>(indices));
-		Value *alloc = builder.CreateAlloca(value->getType());
-		builder.CreateStore(value, alloc);
-		value = alloc;
-		
 		Type *type = TypeBuilder<types::ieee_float (*)[4], true>::get(builder.getContext());
 		value = builder.CreatePointerCast(value, type);
-		
 		return value;
 	}
 };

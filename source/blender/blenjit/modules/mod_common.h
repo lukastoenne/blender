@@ -36,6 +36,8 @@ struct EffectorEvalResult;
 
 void effector_result_combine(struct bjit::EffectorEvalResult *R, const struct bjit::EffectorEvalResult *a, const struct bjit::EffectorEvalResult *b);
 void print_vec3(const vec3_t v);
+void print_mat4(const char *str, const mat4_t m);
+void print_array(const char *str, const float *data, int num, int cols);
 
 }
 

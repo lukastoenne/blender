@@ -264,7 +264,9 @@ struct NodeGraphBuilder<EffectorContext> {
 			node->set_input_extern("loc", graph.get_input(0));
 			node->set_input_extern("vel", graph.get_input(1));
 			node->set_input_value("transform", eff->ob->obmat, context);
+			node->set_input_value("shape", eff->pd->shape, context);
 			node->set_input_value("strength", eff->pd->f_strength, context);
+			node->set_input_value("power", eff->pd->f_power, context);
 			
 			const NodeSocket *force = node->type->find_output("force");
 			const NodeSocket *impulse = node->type->find_output("impulse");

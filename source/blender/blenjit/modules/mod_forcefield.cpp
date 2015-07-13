@@ -99,9 +99,6 @@ bool get_point_relation(EffectorPointRelation *rel, vec3_t loc, vec3_t /*vel*/,
 		case EFF_FIELD_SHAPE_POINT: {
 			/* use center of object for distance calculus */
 			copy_v3_v3(rel->closest_loc, transform[3]);
-//			rel->closest_loc[0] = transform[0][3];
-//			rel->closest_loc[1] = transform[1][3];
-//			rel->closest_loc[2] = transform[2][3];
 						
 			/* use z-axis as normal*/
 			normalize_v3_v3(rel->closest_nor, transform[2]);
