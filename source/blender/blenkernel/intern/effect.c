@@ -1055,6 +1055,8 @@ void pdDoJITEffectors(struct EffectorContext *effctx, ListBase *UNUSED(colliders
 
 /* ======== Force Field Visualization ======== */
 
+typedef void (*ForceVizFieldEvalFunc)(float R[3], float t, const float co[3], void *calldata);
+
 typedef struct ForceVizInput {
 	float co[3];
 	float nor[3];
@@ -1064,8 +1066,6 @@ typedef struct ForceVizInput {
 	float dforce[3][3];
 	float impulse[3];
 } ForceVizInput;
-
-typedef void (*ForceVizImageGenerator)(float col[4], ForceVizModifierData *fmd, const ForceVizInput *input);
 
 typedef float (*ForceVizScalarFunc)(ForceVizModifierData *fmd, const ForceVizInput *input);
 typedef void (*ForceVizVectorFunc)(float res[3], ForceVizModifierData *fmd, const ForceVizInput *input);
@@ -1103,434 +1103,6 @@ BLI_INLINE void forceviz_eval_field_loc_nor(ForceVizModifierData *fmd, EffectorC
 {
 	static const float vel[3] = {0.0f, 0.0f, 0.0f};
 	forceviz_eval_field(fmd, effectors, loc, nor, vel, result);
-}
-
-#if 0
-/* rasterize triangle with uv2[1] == uv3[1] and uv1[1] != uv2[1] */
-static void forceviz_rasterize_halftri(ForceVizModifierData *fmd, EffectorContext *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
-                                       const float co1[3], const float co2[3], const float co3[3],
-                                       const float uv1[2], const float uv2[2], const float uv3[2])
-{
-	const bool is_upper = uv1[1] > uv2[1];
-	
-	const bool use_float_buffer = (ibuf->rect_float != NULL);
-	const int channels = ibuf->channels;
-	const int xstride = channels, ystride = channels * ibuf->x;
-	float *buf_float;
-	unsigned char *buf_char;
-	
-	float vmin, vmax;
-	float umin, umax;
-	float H, Hinv;
-	int y0, y1;
-	float u0, du0, u1, du1;
-	int i, j;
-	
-	if (is_upper) {
-		vmin = uv2[1];
-		vmax = uv1[1];
-	}
-	else {
-		vmin = uv1[1];
-		vmax = uv2[1];
-	}
-	y0 = max_ii((int)vmin, rect->ymin);
-	y1 = min_ii((int)vmax, rect->ymax-1);
-	H = vmax - vmin;
-	Hinv = H != 0.0f ? 1.0f/H : 0.0f;
-	
-	if (uv2[0] < uv3[0]) {
-		umin = uv2[0];
-		umax = uv3[0];
-	}
-	else {
-		umin = uv3[0];
-		umax = uv2[0];
-	}
-	
-	if (H != 0.0f) {
-		du0 = (umin - uv1[0]) * Hinv;
-		du1 = (umax - uv1[0]) * Hinv;
-	}
-	else {
-		du0 = 0.0f;
-		du1 = 0.0f;
-	}
-	
-	{
-		float v0 = roundf(vmax);
-		u0 = umin + (v0 - vmin) * du0;
-		u1 = uv1[0] + (v0 - vmin) * du1;
-	}
-	
-	if (use_float_buffer)
-		buf_float = ibuf->rect_float + ystride * y0;
-	else
-		buf_char = (unsigned char *)ibuf->rect + ystride * y0;
-	
-	for (j = y0; j <= y1; ++j) {
-		float v = (float)j + 0.5f;
-		int x0 = max_ii((int)u0, rect->xmin);
-		int x1 = min_ii((int)u1, rect->xmax-1);
-		float L = u1 - u0;
-		float Linv = L != 0.0f ? 1.0f/L : 0.0f;
-		
-		float *row_float = NULL;
-		unsigned char *row_char = NULL;
-		if (use_float_buffer)
-			row_float = buf_float + xstride * x0;
-		else
-			row_char = buf_char + xstride * x0;
-		
-		for (i = x0; i <= x1; ++i) {
-			float u = (float)i + 0.5f;
-			float facx = u * Linv;
-			float facy = v * Hinv;
-			float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-			
-			{
-				EffectedPoint point;
-				ForceVizInput input;
-				float co23[3];
-				
-				interp_v3_v3v3(co23, co2, co3, facx);
-				interp_v3_v3v3(input.co, co1, co23, facy);
-				zero_v3(input.vel);
-				
-				pd_point_from_loc(fmd->modifier.scene, input.co, input.vel, 0, &point);
-				zero_v3(input.force);
-				zero_v3(input.impulse);
-				zero_m3(input.dforce); // TODO
-				pdDoEffectors(effectors, NULL, fmd->effector_weights, &point, input.force, input.impulse);
-				
-				cb(col, fmd, &input);
-			}
-			
-			if (use_float_buffer) {
-				if (channels == 3)
-					copy_v3_v3(row_float, col);
-				else
-					copy_v4_v4(row_float, col);
-			}
-			else {
-				if (channels == 3)
-					rgb_float_to_uchar(row_char, col);
-				else
-					rgba_float_to_uchar(row_char, col);
-			}
-			
-			if (use_float_buffer)
-				row_float += xstride;
-			else
-				row_char += xstride;
-		}
-		
-		if (use_float_buffer)
-			buf_float += ystride;
-		else
-			buf_char += ystride;
-		u0 += du0;
-		u1 += du1;
-	}
-}
-#endif
-
-/* rasterize triangle with uv2[1] == uv3[1] and uv1[1] >= uv2[1] */
-static void forceviz_rasterize_halftri_lower(ForceVizModifierData *fmd, EffectorContext *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
-                                             const float co1[3], const float co2[3], const float co3[3],
-                                             const float uv1[2], const float uv2[2], const float uv3[2])
-{
-	const bool use_float_buffer = (ibuf->rect_float != NULL);
-	const int channels = ibuf->channels;
-	const int xstride = channels, ystride = channels * ibuf->x;
-	float *buf_float;
-	unsigned char *buf_char;
-	
-	float H, Hinv;
-	int y0, y1;
-	float u0, du0, u1, du1;
-	int i, j;
-	
-	y0 = max_ii((int)uv1[1], rect->ymin);
-	y1 = min_ii((int)uv2[1], rect->ymax-1);
-	
-	if (use_float_buffer)
-		buf_float = ibuf->rect_float + ystride * y0;
-	else
-		buf_char = (unsigned char *)ibuf->rect + ystride * y0;
-	
-	{
-		float umin, umax;
-		if (uv2[0] < uv3[0]) {
-			umin = uv2[0];
-			umax = uv3[0];
-		}
-		else {
-			umin = uv3[0];
-			umax = uv2[0];
-		}
-		
-		H = uv2[1] - uv1[1];
-		Hinv = H > 0.0f ? 1.0f/H : 0.0f;
-		if (H > 0.0f) {
-			du0 = (umin - uv1[0]) / H;
-			du1 = (umax - uv1[0]) / H;
-		}
-		else {
-			du0 = 0.0f;
-			du1 = 0.0f;
-		}
-	}
-	
-	{
-		float v0 = ceilf(uv1[1]);
-		u0 = uv1[0] + (v0 - uv1[1]) * du0;
-		u1 = uv1[0] + (v0 - uv1[1]) * du1;
-	}
-	for (j = y0; j <= y1; ++j) {
-		float v = (float)j + 0.5f;
-		int x0 = max_ii((int)u0, rect->xmin);
-		int x1 = min_ii((int)u1, rect->xmax-1);
-		float L = u1 - u0;
-		float Linv = L > 0.0f ? 1.0f/L : 0.0f;
-		
-		float *row_float = NULL;
-		unsigned char *row_char = NULL;
-		if (use_float_buffer)
-			row_float = buf_float + xstride * x0;
-		else
-			row_char = buf_char + xstride * x0;
-		
-		for (i = x0; i <= x1; ++i) {
-			float u = (float)i + 0.5f;
-			float facx = u * Linv;
-			float facy = v * Hinv;
-			float col[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-			
-			{
-				ForceVizInput input;
-				float co23[3], co[3];
-				
-				interp_v3_v3v3(co23, co2, co3, facx);
-				interp_v3_v3v3(co, co1, co23, facy);
-				
-				forceviz_eval_field_loc(fmd, effectors, co, &input);
-				cb(col, fmd, &input);
-			}
-			
-			if (use_float_buffer) {
-				if (channels == 3)
-					copy_v3_v3(row_float, col);
-				else
-					copy_v4_v4(row_float, col);
-			}
-			else {
-				if (channels == 3)
-					rgb_float_to_uchar(row_char, col);
-				else
-					rgba_float_to_uchar(row_char, col);
-			}
-			
-			if (use_float_buffer)
-				row_float += xstride;
-			else
-				row_char += xstride;
-		}
-		
-		if (use_float_buffer)
-			buf_float += ystride;
-		else
-			buf_char += ystride;
-		u0 += du0;
-		u1 += du1;
-	}
-}
-
-BLI_INLINE void forceviz_reorder_tri(const float *uv[3], const float *co[3], int i1, int i2, int i3)
-{
-	const float *nuv[3];
-	const float *nco[3];
-	
-	nuv[0] = uv[i1]; nuv[1] = uv[i2]; nuv[2] = uv[i3];
-	uv[0] = nuv[0]; uv[1] = nuv[1]; uv[2] = nuv[2];
-	
-	nco[0] = co[i1]; nco[1] = co[i2]; nco[2] = co[i3];
-	co[0] = nco[0]; co[1] = nco[1]; co[2] = nco[2];
-}
-
-static void forceviz_sort_tri(const float *uv[3], const float *co[3])
-{
-	float v1 = uv[0][1], v2 = uv[1][1], v3 = uv[2][1];
-	
-	if (v1 < v2) {
-		// ABC, CAB, ACB
-		if (v1 < v3) {
-			// ABC, ACB
-			if (v2 < v3) {
-				// ABC
-				forceviz_reorder_tri(uv, co, 0, 1, 2);
-			}
-			else {
-				// ACB
-				forceviz_reorder_tri(uv, co, 0, 2, 1);
-			}
-		}
-		else {
-			// CAB
-			forceviz_reorder_tri(uv, co, 2, 0, 1);
-		}
-	}
-	else if (v1 > v2) {
-		// BCA, CBA, BAC
-		if (v1 > v3) {
-			// BCA, CBA
-			if (v2 > v3) {
-				// CBA
-				forceviz_reorder_tri(uv, co, 2, 1, 0);
-			}
-			else {
-				// BCA
-				forceviz_reorder_tri(uv, co, 1, 2, 0);
-			}
-		}
-		else {
-			// BAC
-			forceviz_reorder_tri(uv, co, 1, 0, 2);
-		}
-	}
-	else {
-		// v1 == v2
-		if (v1 < v3) {
-			// ABC, BAC (equivalent)
-			forceviz_reorder_tri(uv, co, 0, 1, 2);
-		}
-		else if (v1 > v3) {
-			// CAB, CBA (equivalent)
-			forceviz_reorder_tri(uv, co, 2, 0, 1);
-		}
-		else {
-			// trivial case, v1==v2==v3
-			//forceviz_reorder_tri(uv, co, 0, 1, 2);
-		}
-	}
-}
-
-static void forceviz_rasterize_tri(ForceVizModifierData *fmd, EffectorContext *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
-                                   const float co1[3], const float co2[3], const float co3[3],
-                                   const float uv1[2], const float uv2[2], const float uv3[2])
-{
-	const float *uv_sort[3] = {uv1, uv2, uv3};
-	const float *co_sort[3] = {co1, co2, co3};
-	forceviz_sort_tri(uv_sort, co_sort);
-	
-	{
-		float t = (uv_sort[2][1] > uv_sort[0][1])? (uv_sort[1][1] - uv_sort[0][1]) / (uv_sort[2][1] - uv_sort[0][1]): 0.0f;
-		float co_mid[3];
-		float uv_mid[2];
-		interp_v3_v3v3(co_mid, co_sort[0], co_sort[2], t);
-		uv_mid[0] = interpf(uv_sort[2][1], uv_sort[0][1], t);
-		uv_mid[1] = uv2[1];
-//		forceviz_rasterize_halftri(fmd, effectors, ibuf, cb, rect, co_sort[0], co_sort[1], co_mid, uv_sort[0], uv_sort[1], uv_mid);
-//		forceviz_rasterize_halftri(fmd, effectors, ibuf, cb, rect, co_sort[2], co_mid, co_sort[1], uv_sort[2], uv_mid, uv_sort[1]);
-		forceviz_rasterize_halftri_lower(fmd, effectors, ibuf, cb, rect, co_sort[0], co_sort[1], co_mid, uv_sort[0], uv_sort[1], uv_mid);
-	}
-}
-
-static void forceviz_rasterize_face(ForceVizModifierData *fmd, EffectorContext *effectors, ImBuf *ibuf, ForceVizImageGenerator cb, const rcti *rect,
-                                    MVert *verts, MFace *mf, float (*tex_co)[3], float obmat[4][4])
-{
-	float co1[3], co2[3], co3[3];
-	float uv1[2], uv2[2], uv3[2];
-	mul_v3_m4v3(co1, obmat, verts[mf->v1].co);
-	mul_v3_m4v3(co2, obmat, verts[mf->v2].co);
-	mul_v3_m4v3(co3, obmat, verts[mf->v3].co);
-	copy_v2_v2(uv1, tex_co[mf->v1]);
-	copy_v2_v2(uv2, tex_co[mf->v2]);
-	copy_v2_v2(uv3, tex_co[mf->v3]);
-	/* scale to pixel coordinates */
-	uv1[0] = (uv1[0] + 1.0f) * 0.5f * ibuf->x;
-	uv1[1] = (uv1[1] + 1.0f) * 0.5f * ibuf->y;
-	uv2[0] = (uv2[0] + 1.0f) * 0.5f * ibuf->x;
-	uv2[1] = (uv2[1] + 1.0f) * 0.5f * ibuf->y;
-	uv3[0] = (uv3[0] + 1.0f) * 0.5f * ibuf->x;
-	uv3[1] = (uv3[1] + 1.0f) * 0.5f * ibuf->y;
-	
-	forceviz_rasterize_tri(fmd, effectors, ibuf, cb, rect, co1, co2, co3, uv1, uv2, uv3);
-	
-	if (mf->v4) {
-		float co4[3];
-		float uv4[2];
-		mul_v3_m4v3(co4, obmat, verts[mf->v4].co);
-		copy_v2_v2(uv4, tex_co[mf->v4]);
-		uv4[0] = (uv4[0] + 1.0f) * 0.5f * ibuf->x;
-		uv4[1] = (uv4[1] + 1.0f) * 0.5f * ibuf->y;
-		
-		forceviz_rasterize_tri(fmd, effectors, ibuf, cb, rect, co1, co3, co4, uv1, uv3, uv4);
-	}
-}
-
-static void forceviz_rasterize_mesh(ForceVizModifierData *fmd, EffectorContext *effectors, ImBuf *ibuf, ForceVizImageGenerator cb,
-                                    DerivedMesh *dm, float (*tex_co)[3], float obmat[4][4])
-{
-	int numfaces = dm->getNumTessFaces(dm);
-	MFace *faces = dm->getTessFaceArray(dm);
-	MVert *verts = dm->getVertArray(dm);
-	int i;
-	rcti rect;
-	
-	if (!faces || !verts)
-		return;
-	
-	rect.xmin = 0;
-	rect.ymin = 0;
-	rect.xmax = ibuf->x;
-	rect.ymax = ibuf->y;
-	
-	for (i = 0; i < numfaces; ++i) {
-		forceviz_rasterize_face(fmd, effectors, ibuf, cb, &rect, verts, &faces[i], tex_co, obmat);
-	}
-	
-	ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID | IB_BITMAPDIRTY;
-}
-
-static void forceviz_generate_image(ForceVizModifierData *fmd, EffectorContext *effectors, Image *image, ForceVizImageGenerator cb, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
-{
-	void *lock;
-	ImBuf *ibuf;
-	
-	if (!image)
-		return;
-	
-	ibuf = BKE_image_acquire_ibuf(image, &fmd->iuser, &lock);
-	if (!ibuf || !ELEM(ibuf->channels, 3, 4)) {
-		BKE_image_release_ibuf(image, ibuf, lock);
-		return;
-	}
-	
-	if (ibuf->rect_float)
-		memset(ibuf->rect_float, 0, sizeof(float) * ibuf->channels * ibuf->x * ibuf->y);
-	
-	forceviz_rasterize_mesh(fmd, effectors, ibuf, cb, dm, tex_co, ob->obmat);
-	
-	/* force OpenGL reload and mipmap recalc */
-	/* some of the images could have been changed during bake,
-	 * so recreate mipmaps regardless bake result status
-	 */
-	if (image->ok == IMA_OK_LOADED) {
-		if (ibuf) {
-			if (ibuf->userflags & IB_BITMAPDIRTY) {
-				GPU_free_image(image);
-				imb_freemipmapImBuf(ibuf);
-			}
-			
-			/* invalidate display buffers for changed images */
-			if (ibuf->userflags & IB_BITMAPDIRTY)
-				ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-			
-			BKE_image_release_ibuf(image, ibuf, lock);
-			DAG_id_tag_update(&image->id, 0);
-		}
-	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1650,7 +1222,7 @@ static void forceviz_ribbon_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizRi
 	const int cd_strength_layer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	BMVert **verts_prev = ribbon->verts_prev;
 	const float *loc_prev = ribbon->loc_prev;
-	BMVert *verts[2];
+	BMVert *verts[2] = {0};
 	int index = ribbon->index;
 	
 	if (index > 0) {
@@ -1817,9 +1389,7 @@ static void forceviz_tube_add(ForceVizModifierData *fmd, BMesh *bm, ForceVizTube
 	copy_v3_v3(tube->strength_prev, strength);
 }
 
-typedef void (*ForceVizVectorFp)(float R[3], float t, const float co[3], void *calldata);
-
-static void forceviz_integrate_rk4(float res[3], const float co1[3], float t1, float h, ForceVizVectorFp func, void *calldata)
+static void forceviz_integrate_rk4(float res[3], const float co1[3], float t1, float h, ForceVizFieldEvalFunc func, void *calldata)
 {
 	float k1[3], k2[3], k3[3], k4[3];
 	float t2, t3, t4;
@@ -1951,7 +1521,7 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 		/* integrate to the next vertex location */
 		copy_v3_v3(nloc, loc);
 		for (step = 0; step < substeps; ++step) {
-			forceviz_integrate_rk4(nloc, nloc, t, stepsize, (ForceVizVectorFp)forceviz_get_field_direction, funcdata);
+			forceviz_integrate_rk4(nloc, nloc, t, stepsize, (ForceVizFieldEvalFunc)forceviz_get_field_direction, funcdata);
 			t += stepsize;
 		}
 		
@@ -1961,6 +1531,10 @@ static void forceviz_integrate_field_line(ForceVizModifierData *fmd, BMesh *bm, 
 	forceviz_tube_clear(&tube);
 }
 
+/* XXX first variant gives fieldline density proportional to flux density,
+ * but then the field lines pop in and out when fields change, which is undesirable.
+ */
+#if 0
 static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert, unsigned int UNUSED(index), void *userdata)
 {
 	ForceVizEffectorData *data = userdata;
@@ -1973,6 +1547,12 @@ static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *mvert,
 	weight = max_ff(dot_v3v3(R, nor), 0.0f);
 	return weight;
 }
+#else
+static float forceviz_field_vertex_weight(DerivedMesh *UNUSED(dm), MVert *UNUSED(mvert), unsigned int UNUSED(index), void *UNUSED(userdata))
+{
+	return 1.0f;
+}
+#endif
 
 static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorContext *effectors, Object *ob, DerivedMesh *dm, BMesh *bm)
 {
@@ -1995,9 +1575,11 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorCon
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	funcdata.use_blenjit = fmd->flag & MOD_FORCEVIZ_USE_BLENJIT;
 	
-	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
-	
 	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+	if (!gen)
+		return;
+	
+	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	for (i = 0; i < totlines; ++i) {
 		MSurfaceSample sample;
@@ -2047,6 +1629,36 @@ static void forceviz_set_vertex_attribute_float(ForceVizModifierData *fmd, Objec
 	}
 }
 
+static void forceviz_set_vertex_attribute_float3(ForceVizModifierData *fmd, Object *ob, DerivedMesh *dm, ListBase *effectors,
+                                                 const char *name, ForceVizVectorFunc fn)
+{
+	const int numverts = dm->getNumVerts(dm);
+	MVert *mverts = dm->getVertArray(dm);
+	CustomData *vdata = dm->getVertDataLayout(dm);
+	float (*data)[3] = CustomData_get_layer_named(vdata, CD_PROP_FLT3, name);
+	int i;
+	
+	if (!data) {
+		/* create new layer */
+		data = CustomData_add_layer_named(vdata, CD_PROP_FLT3, CD_CALLOC, NULL, numverts, name);
+	}
+	
+	for (i = 0; i < numverts; ++i) {
+		ForceVizInput input;
+		float wco[3], wnor[3];
+		float value[3] = {0.0f, 0.0f, 0.0f};
+		
+		mul_v3_m4v3(wco, ob->obmat, mverts[i].co);
+		normal_short_to_float_v3(wnor, mverts[i].no);
+		mul_mat3_m4_v3(ob->obmat, wnor);
+		
+		forceviz_eval_field_loc_nor(fmd, effectors, wco, wnor, &input);
+		fn(value, fmd, &input);
+		
+		copy_v3_v3(data[i], value);
+	}
+}
+
 static void forceviz_vertex_attribute_force(float res[3], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
 {
 	copy_v3_v3(res, input->force);
@@ -2067,7 +1679,7 @@ static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob,
 	
 	switch (vattr->type) {
 		case MOD_FORCEVIZ_ATTR_FORCE:
-			// TODO
+			forceviz_set_vertex_attribute_float3(fmd, ob, dm, effectors, name, forceviz_vertex_attribute_force);
 			break;
 		case MOD_FORCEVIZ_ATTR_FLUX:
 			forceviz_set_vertex_attribute_float(fmd, ob, dm, effectors, name, forceviz_vertex_attribute_flux);
@@ -2077,25 +1689,13 @@ static void forceviz_set_vertex_attribute(ForceVizModifierData *fmd, Object *ob,
 
 /* ------------------------------------------------------------------------- */
 
-static void forceviz_image_test(float col[4], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
-{
-	copy_v3_v3(col, input->co);
-}
-
-static void forceviz_image_vectors(float col[4], ForceVizModifierData *UNUSED(fmd), const ForceVizInput *input)
-{
-	copy_v3_v3(col, input->force);
-	mul_v3_fl(col, 0.5f * 0.01f); // TODO add custom scaling factor or max force
-	add_v3_fl(col, 0.5f);
-	CLAMP3(col, 0.0f, 1.0f);
-}
-
 /* Modifier call. Processes dynamic paint modifier step. */
 DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*tex_co)[3])
 {
 	BMesh *bm = NULL;
 	EffectorContext *effectors;
 	bool use_blenjit = fmd->flag & MOD_FORCEVIZ_USE_BLENJIT;
+	UNUSED_VARS(tex_co);
 	
 	if (use_blenjit)
 		effectors = pdInitJITEffectors(scene, ob, NULL, fmd->effector_weights, false);
@@ -2106,12 +1706,7 @@ DerivedMesh *BKE_forceviz_do(ForceVizModifierData *fmd, Scene *scene, Object *ob
 		case MOD_FORCEVIZ_MODE_FIELDLINES: {
 			/* allocate output dm */
 			bm = DM_to_bmesh(dm, true);
-//			bm = BM_mesh_create(&bm_mesh_allocsize_default);
 			forceviz_generate_field_lines(fmd, effectors, ob, dm, bm);
-			break;
-		}
-		case MOD_FORCEVIZ_MODE_IMAGE: {
-			forceviz_generate_image(fmd, effectors, fmd->image_vec, forceviz_image_vectors, ob, dm, tex_co);
 			break;
 		}
 		case MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE: {

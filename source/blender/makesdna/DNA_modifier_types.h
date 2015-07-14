@@ -1551,14 +1551,8 @@ typedef struct ForceVizModifierData {
 	int flag, mode;
 	
 	ImageUser iuser;
-	float color_scale;
-	int pad2;
 	
 	struct EffectorWeights *effector_weights;
-	
-	struct Image *image_vec;
-	struct Image *image_div;
-	struct Image *image_curl;
 	
 	ForceVizFieldLineSettings fieldlines;
 	ForceVizVertexAttributeSettings vertex_attribute;
@@ -1574,15 +1568,14 @@ enum {
 
 /* ForceViz modifier mode */
 enum {
-	MOD_FORCEVIZ_MODE_FIELDLINES          = 0,
-	MOD_FORCEVIZ_MODE_IMAGE                = 1,
-	MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE     = 2,
+	MOD_FORCEVIZ_MODE_FIELDLINES            = 0,
+	MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE      = 1,
 };
 
 /* ForceViz attribute type */
 enum {
-	MOD_FORCEVIZ_ATTR_FORCE                = 0,
-	MOD_FORCEVIZ_ATTR_FLUX                 = 1,
+	MOD_FORCEVIZ_ATTR_FORCE                 = 0,
+	MOD_FORCEVIZ_ATTR_FLUX                  = 1,
 };
 
 /* ForceViz modifier fieldline draw types */

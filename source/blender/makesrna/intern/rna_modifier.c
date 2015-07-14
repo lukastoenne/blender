@@ -1075,9 +1075,15 @@ static PointerRNA rna_ForceVizFieldLineSettings_material_get(PointerRNA *ptr)
 	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
+	Material *matptr = NULL;
 	PointerRNA result;
-	RNA_pointer_create((ID*)ob, &RNA_Material, (*mats)[mat], &result);
+	
+	if (*mats) {
+		const int mat = CLAMPIS(fls->material, 0, ob->totcol - 1);
+		matptr = (*mats)[mat];
+	}
+	
+	RNA_pointer_create((ID*)ob, &RNA_Material, matptr, &result);
 	return result;
 }
 
@@ -1086,14 +1092,16 @@ static void rna_ForceVizFieldLineSettings_material_set(PointerRNA *ptr, const Po
 	ForceVizFieldLineSettings *fls = ptr->data;
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	Material *mat = value.data;
-	int i;
-	
-	fls->material = -1;
-	for (i = 0; i < ob->totcol; ++i) {
-		if ((*mats)[i] == mat) {
-			fls->material = i;
-			break;
+	if (*mats) {
+		Material *mat = value.data;
+		int i;
+		
+		fls->material = -1;
+		for (i = 0; i < ob->totcol; ++i) {
+			if ((*mats)[i] == mat) {
+				fls->material = i;
+				break;
+			}
 		}
 	}
 }
@@ -1102,12 +1110,14 @@ static int rna_ForceVizFieldLineSettings_material_poll(PointerRNA *ptr, const Po
 {
 	Object *ob = ptr->id.data;
 	Material ***mats = give_matarar(ob);
-	Material *mat = value.data;
-	int i;
-	
-	for (i = 0; i < ob->totcol; ++i) {
-		if ((*mats)[i] == mat) {
-			return true;
+	if (*mats) {
+		Material *mat = value.data;
+		int i;
+		
+		for (i = 0; i < ob->totcol; ++i) {
+			if ((*mats)[i] == mat) {
+				return true;
+			}
 		}
 	}
 	return false;
@@ -4722,8 +4732,6 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	static EnumPropertyItem mode_items[] = {
 		{MOD_FORCEVIZ_MODE_FIELDLINES, "FIELDLINES", 0, "Field Lines",
 	     "Generate field lines to indicate direction and strength of the field"},
-	    {MOD_FORCEVIZ_MODE_IMAGE, "IMAGE", 0, "Image",
-	     ""},
 	    {MOD_FORCEVIZ_MODE_VERTEX_ATTRIBUTE, "VERTEX_ATTRIBUTE", 0, "Vertex Attribute",
 	     ""},
 		{0, NULL, 0, NULL, NULL}
@@ -4752,11 +4760,6 @@ static void rna_def_modifier_forceviz(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_blenjit", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_FORCEVIZ_USE_BLENJIT);
 	RNA_def_property_ui_text(prop, "Use BlenJIT", "Enable the use of JIT compiled force fields");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "image_vec", PROP_POINTER, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Vector Image", "Force vectors encoded as colors");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "fieldlines", PROP_POINTER, PROP_NONE);
