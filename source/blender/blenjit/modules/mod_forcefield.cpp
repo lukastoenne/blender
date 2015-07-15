@@ -30,10 +30,10 @@
 
 #include <stdbool.h>
 
-#include "bjit_types.h"
-
 #include "mod_common.h"
-#include "mod_math.h"
+
+#include "bjit_util_dualmath.h"
+#include "bjit_util_math.h"
 
 using namespace bjit;
 
@@ -59,22 +59,6 @@ static float get_falloff(float distance, bool usemin, float mindist, bool usemax
 {
 	return get_falloff_old(distance, usemin, mindist, usemax, maxdist, power);
 }
-
-#if 0
-static float get_falloff(const EffectorEvalSettings *settings, float distance)
-{
-	const bool use_min = settings->flag & EFF_FIELD_USE_MIN;
-	const bool use_max = settings->flag & EFF_FIELD_USE_MAX;
-	return get_falloff_old(distance, use_min, settings->mindist, use_max, settings->maxdist, settings->f_power);
-}
-
-static float get_falloff_radial(const EffectorEvalSettings *settings, float distance)
-{
-	const bool use_min = settings->flag & EFF_FIELD_USE_MIN_RAD;
-	const bool use_max = settings->flag & EFF_FIELD_USE_MAX_RAD;
-	return get_falloff_old(distance, use_min, settings->minrad, use_max, settings->maxrad, settings->f_power_r);
-}
-#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -146,7 +130,7 @@ bool get_point_relation(EffectorPointRelation *rel, vec3_t loc, vec3_t /*vel*/,
 }
 
 __attribute__((annotate("effector_force_eval")))
-EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel,
+EffectorEvalResult effector_force_eval(const vec3_t &loc, const vec3_t &vel,
                                        mat4_t transform, int shape,
                                        float strength, float power)
 {
@@ -162,32 +146,10 @@ EffectorEvalResult effector_force_eval(vec3_t loc, vec3_t vel,
 	
 	zero_v3(result.impulse);
 	
+	dual_f test(0.2);
+	dual_f test2(4,5,6,6);
+	test += test2;
+	printf("test %f\n", (float)test);
+	
 	return result;
 }
-
-#if 0
-__attribute__((annotate("effector_force_eval")))
-void effector_force_eval(const EffectorEvalInput *input, EffectorEvalResult *result, const EffectorEvalSettings *settings)
-{
-	EffectorPointRelation rel;
-	float dir[3], strength;
-	
-	get_point_relation(&rel, input, settings);
-	strength = settings->f_strength * get_falloff(settings, rel.dist_rel);
-	
-	normalize_v3_v3(dir, rel.loc_rel);
-	mul_v3_v3fl(result->force, dir, strength);
-}
-
-__attribute__((annotate("effector_wind_eval")))
-void effector_wind_eval(const EffectorEvalInput *input, EffectorEvalResult *result, const EffectorEvalSettings *settings)
-{
-	EffectorPointRelation rel;
-	float strength;
-	
-	get_point_relation(&rel, input, settings);
-	strength = settings->f_strength * get_falloff(settings, rel.dist_rel);
-	
-	mul_v3_v3fl(result->force, rel.closest_nor, strength);
-}
-#endif

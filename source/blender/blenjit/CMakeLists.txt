@@ -26,6 +26,7 @@
 set(INC
 	.
 	intern
+	util
 	../blenfont
 	../blenlib
 	../blenkernel
@@ -57,6 +58,9 @@ set(SRC
 	intern/bjit_nodegraph.h
 	intern/bjit_types.h
 
+	util/bjit_util_dualmath.h
+	util/bjit_util_math.h
+
 	BJIT_forcefield.h
 	BJIT_modules.h
 	BJIT_nodes.h
@@ -65,12 +69,10 @@ set(SRC
 set(LLVM_SRC
 	modules/mod_common.cpp
 	modules/mod_forcefield.cpp
-	modules/mod_math.cpp
 )
 
 set(LLVM_HEADERS
 	modules/mod_common.h
-	modules/mod_math.h
 )
 
 if(WITH_LLVM)
@@ -101,6 +103,7 @@ if(WITH_LLVM)
 					-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
 					-I${CMAKE_CURRENT_SOURCE_DIR}/intern
+					-I${CMAKE_CURRENT_SOURCE_DIR}/util
 					-DBJIT_RUNTIME
 					-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
 					-std=c++0x

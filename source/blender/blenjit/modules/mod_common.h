@@ -28,16 +28,40 @@
 #ifndef __MOD_COMMON_H__
 #define __MOD_COMMON_H__
 
-#include "bjit_types.h"
+#include "bjit_util_math.h"
 
 namespace bjit {
 
-struct EffectorEvalResult;
+typedef struct EffectorEvalResult {
+	vec3_t force;
+	vec3_t impulse;
+} EffectorEvalResult;
 
 void effector_result_combine(struct bjit::EffectorEvalResult *R, const struct bjit::EffectorEvalResult *a, const struct bjit::EffectorEvalResult *b);
 void print_vec3(const vec3_t v);
 void print_mat4(const char *str, const mat4_t m);
 void print_array(const char *str, const float *data, int num, int cols);
+
+#ifndef BJIT_RUNTIME
+
+template<bool cross>
+class TypeBuilder<EffectorEvalResult, cross> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            TypeBuilder<vec3_t, cross>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_FORCE,
+		FIELD_IMPULSE,
+		NUM_FIELDS
+	};
+};
+
+#endif
 
 }
 

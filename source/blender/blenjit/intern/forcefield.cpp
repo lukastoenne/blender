@@ -59,7 +59,6 @@ extern "C" {
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
@@ -73,118 +72,6 @@ extern "C" {
 using namespace llvm;
 
 static Module *theModule = NULL;
-
-/* ------------------------------------------------------------------------- */
-/* specialization of TypeBuilder for external struct types */
-
-namespace llvm {
-
-#if 0
-template<bool cross>
-class TypeBuilder<EffectorEvalInput, cross> {
-public:
-	static StructType *get(LLVMContext &context) {
-		// If you cache this result, be sure to cache it separately
-		// for each LLVMContext.
-		return StructType::get(
-		            TypeBuilder<vec3_t, cross>::get(context),
-		            TypeBuilder<vec3_t, cross>::get(context),
-		            NULL);
-	}
-	
-	// You may find this a convenient place to put some constants
-	// to help with getelementptr.  They don't have any effect on
-	// the operation of TypeBuilder.
-	enum Fields {
-		FIELD_LOC,
-		FIELD_VEL,
-		NUM_FIELDS
-	};
-};
-
-template<bool cross>
-class TypeBuilder<EffectorEvalResult, cross> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            TypeBuilder<vec3_t, cross>::get(context),
-		            TypeBuilder<vec3_t, cross>::get(context),
-		            NULL);
-	}
-	
-	enum Fields {
-		FIELD_FORCE,
-		FIELD_IMPULSE,
-		NUM_FIELDS
-	};
-};
-
-template <bool cross, typename HeadT, typename... TailT>
-struct StructTypeBuilder {
-	static StructType *get(LLVMContext &context, SmallVector<Type*, 8> &struct_fields)
-	{
-		Type *head = TypeBuilder<HeadT, cross>::get(context);
-		struct_fields.push_back(head);
-		return StructTypeBuilder<cross, TailT...>::get(context, struct_fields);
-	}
-};
-
-/* terminator */
-template <bool cross, typename HeadT>
-struct StructTypeBuilder<cross, HeadT> {
-	static StructType *get(LLVMContext &context, SmallVector<Type*, 8> &struct_fields)
-	{
-		Type *head = TypeBuilder<HeadT, cross>::get(context);
-		struct_fields.push_back(head);
-		return StructType::get(context, struct_fields);
-	}
-};
-
-template <bool cross, typename... ArgsT>
-static StructType *build_struct_type(LLVMContext &context)
-{
-	SmallVector<Type*, 8> struct_fields;
-	return StructTypeBuilder<cross, ArgsT...>::get(context, struct_fields);
-}
-
-template<bool cross>
-class TypeBuilder<EffectorEvalSettings, cross> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return build_struct_type<cross,
-		        mat4_t, mat4_t, types::i<32>, types::i<16>, types::i<16>,
-		        types::ieee_float, types::ieee_float, types::ieee_float, types::ieee_float,
-		        types::ieee_float, types::ieee_float, types::ieee_float,
-		        types::ieee_float, types::ieee_float, types::ieee_float,
-		        types::ieee_float
-		        >(context);
-	}
-	
-	enum Fields {
-		FIELD_TRANSFORM,
-		FIELD_ITRANSFORM,
-		FIELD_FLAG,
-		FIELD_FALLOFF_TYPE,
-		FIELD_SHAPE_TYPE,
-		FIELD_STRENGTH,
-		FIELD_DAMP,
-		FIELD_FLOW,
-		FIELD_SIZE,
-		FIELD_FALLOFF_POWER,
-		FIELD_FALLOFF_MIN,
-		FIELD_FALLOFF_MAX,
-		FIELD_FALLOFF_RAD_POWER,
-		FIELD_FALLOFF_RAD_MIN,
-		FIELD_FALLOFF_RAD_MAX,
-		FIELD_ABSORBTION,
-		NUM_FIELDS
-	};
-};
-#endif
-
-} /* namespace llvm */
-
-/* ------------------------------------------------------------------------- */
 
 namespace bjit {
 
@@ -331,13 +218,6 @@ void build_effector_module(void)
 		Function *func = bjit_find_function(theModule, name);
 		BLI_assert(func);
 		
-//		for (Function::ArgumentListType::iterator it = func->arg_begin(); it != func->arg_end(); ++it) {
-//			Argument *arg = *it;
-//			ValueName *argname = arg->getValueName();
-//			Type *argtype = arg->getType();
-			
-//			argname->g
-//		}
 		type->add_input("loc", BJIT_TYPE_VEC3, vec3_zero, context);
 		type->add_input("vel", BJIT_TYPE_VEC3, vec3_zero, context);
 		type->add_input("transform", BJIT_TYPE_MAT4, mat4_unit, context);
@@ -370,123 +250,6 @@ void free_effector_module(void)
 
 } /* namespace bjit */
 
-
-#if 0
-static std::string get_effector_prefix(short forcefield)
-{
-	switch (forcefield) {
-		case PFIELD_FORCE:
-			return "effector_force";
-		case PFIELD_WIND:
-			return "effector_wind";
-			
-		case PFIELD_NULL:
-		case PFIELD_VORTEX:
-		case PFIELD_MAGNET:
-		case PFIELD_GUIDE:
-		case PFIELD_TEXTURE:
-		case PFIELD_HARMONIC:
-		case PFIELD_CHARGE:
-		case PFIELD_LENNARDJ:
-		case PFIELD_BOID:
-		case PFIELD_TURBULENCE:
-		case PFIELD_DRAG:
-		case PFIELD_SMOKEFLOW:
-			return "";
-		
-		default: {
-			/* unknown type, should not happen */
-			BLI_assert(false);
-			return "";
-		}
-	}
-	return "";
-}
-
-static Constant *make_const_int(LLVMContext &context, int value)
-{
-	return ConstantInt::get(context, APInt(32, value));
-}
-
-static Constant *make_const_short(LLVMContext &context, short value)
-{
-	return ConstantInt::get(context, APInt(16, value));
-}
-
-static Constant *make_const_float(LLVMContext &context, float value)
-{
-	return ConstantFP::get(context, APFloat(value));
-}
-
-static Constant *make_const_vec3(LLVMContext &context, const float vec[3])
-{
-	return ConstantDataArray::get(context, ArrayRef<float>(vec, 3));
-}
-
-static Constant *make_const_vec4(LLVMContext &context, const float vec[4])
-{
-	return ConstantDataArray::get(context, ArrayRef<float>(vec, 4));
-}
-
-static Constant *make_const_mat4(LLVMContext &context, float mat[4][4])
-{
-	Constant *col1 = make_const_vec4(context, mat[0]);
-	Constant *col2 = make_const_vec4(context, mat[1]);
-	Constant *col3 = make_const_vec4(context, mat[2]);
-	Constant *col4 = make_const_vec4(context, mat[3]);
-	return ConstantArray::get(TypeBuilder<mat4_t, true>::get(context), std::vector<Constant*>({col1, col2, col3, col4}));
-}
-
-static Value *make_effector_settings(IRBuilder<> &builder, EffectorCache *eff)
-{
-	LLVMContext &context = builder.getContext();
-	typedef TypeBuilder<EffectorEvalSettings, true> TB;
-	StructType *settings_t = TB::get(context);
-	
-	float imat[4][4];
-	invert_m4_m4(imat, eff->ob->obmat);
-	
-	Constant* fields[TB::NUM_FIELDS];
-	fields[TB::FIELD_TRANSFORM] = make_const_mat4(context, eff->ob->obmat);
-	fields[TB::FIELD_ITRANSFORM] = make_const_mat4(context, imat);
-	fields[TB::FIELD_FLAG] = make_const_int(context, eff->pd->flag);
-	fields[TB::FIELD_FALLOFF_TYPE] = make_const_short(context, eff->pd->falloff);
-	fields[TB::FIELD_SHAPE_TYPE] = make_const_short(context, eff->pd->shape);
-	fields[TB::FIELD_STRENGTH] = make_const_float(context, eff->pd->f_strength);
-	fields[TB::FIELD_DAMP] = make_const_float(context, eff->pd->f_damp);
-	fields[TB::FIELD_FLOW] = make_const_float(context, eff->pd->f_flow);
-	fields[TB::FIELD_SIZE] = make_const_float(context, eff->pd->f_size);
-	fields[TB::FIELD_FALLOFF_POWER] = make_const_float(context, eff->pd->f_power);
-	fields[TB::FIELD_FALLOFF_MIN] = make_const_float(context, eff->pd->mindist);
-	fields[TB::FIELD_FALLOFF_MAX] = make_const_float(context, eff->pd->maxdist);
-	fields[TB::FIELD_FALLOFF_RAD_POWER] = make_const_float(context, eff->pd->f_power_r);
-	fields[TB::FIELD_FALLOFF_RAD_MIN] = make_const_float(context, eff->pd->minrad);
-	fields[TB::FIELD_FALLOFF_RAD_MAX] = make_const_float(context, eff->pd->maxrad);
-	fields[TB::FIELD_ABSORBTION] = make_const_float(context, eff->pd->absorption);
-	Constant *settings = ConstantStruct::get(settings_t, ArrayRef<Constant*>(fields, TB::NUM_FIELDS));
-	
-	AllocaInst *var = builder.CreateAlloca(settings_t);
-	builder.CreateStore(settings, var);
-	return var;
-}
-static Value *make_effector_result(IRBuilder<> &builder)
-{
-	LLVMContext &context = builder.getContext();
-	typedef TypeBuilder<EffectorEvalResult, true> TB;
-	StructType *result_t = TB::get(context);
-	const static float ZERO[3] = {0.0f, 0.0f, 0.0f};
-	
-	Constant* fields[TB::NUM_FIELDS];
-	fields[TB::FIELD_FORCE] = make_const_vec3(context, ZERO);
-	fields[TB::FIELD_IMPULSE] = make_const_vec3(context, ZERO);
-	Constant *result = ConstantStruct::get(result_t, ArrayRef<Constant*>(fields, TB::NUM_FIELDS));
-	
-	AllocaInst *var = builder.CreateAlloca(result_t);
-	builder.CreateStore(result, var);
-	return var;
-}
-#endif
-
 void BJIT_build_effector_function(EffectorContext *effctx)
 {
 	using namespace bjit;
@@ -497,8 +260,8 @@ void BJIT_build_effector_function(EffectorContext *effctx)
 //	graph.dump();
 	
 	Function *func = codegen(graph, theModule);
-//	if (func)
-//		func->dump();
+	if (func)
+		func->dump();
 	
 	verifyFunction(*func, &outs());
 	bjit_finalize_function(theModule, func, 2);

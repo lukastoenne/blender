@@ -25,12 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "mod_common.h"
-#include "mod_math.h"
-
 #include <stdio.h>
 
-#include "bjit_types.h"
+#include "mod_common.h"
+
+#include "bjit_util_math.h"
 
 namespace bjit {
 
