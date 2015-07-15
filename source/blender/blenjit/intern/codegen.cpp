@@ -295,7 +295,7 @@ Function *codegen(NodeGraph &graph, Module *module)
 	output_types.reserve(num_outputs);
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraphOutput &output = graph.outputs[i];
-		Type *type = bjit_get_socket_llvm_type(output.type, context);
+		Type *type = bjit_get_socket_llvm_type(output.type, context, module);
 		output_types.push_back(type);
 	}
 	StructType *return_type = StructType::get(context, output_types);
@@ -304,7 +304,7 @@ Function *codegen(NodeGraph &graph, Module *module)
 	input_types.push_back(PointerType::get(return_type, 0));
 	for (int i = 0; i < num_inputs; ++i) {
 		const NodeGraphInput &input = graph.inputs[i];
-		Type *type = bjit_get_socket_llvm_type(input.type, context);
+		Type *type = bjit_get_socket_llvm_type(input.type, context, module);
 		type = PointerType::get(type, 0);
 		input_types.push_back(type);
 	}
