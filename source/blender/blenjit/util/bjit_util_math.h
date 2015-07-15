@@ -51,15 +51,8 @@ struct Vec3Type {
 	Vec3Type(const Vec3Type &v) : x(v.x), y(v.y), z(v.z) {}
 	Vec3Type(float x, float y, float z) : x(x), y(y), z(z) {}
 	
-	operator float* ()
-	{
-		return &x;
-	}
-	
-	operator float const * () const
-	{
-		return &x;
-	}
+	operator float* () { return &x; }
+	operator float const * () const { return &x; }
 	
 	float x, y, z;
 };
@@ -189,8 +182,15 @@ namespace llvm {
 template<bool cross>
 class TypeBuilder<bjit::Vec3Type, cross> {
 public:
-	static VectorType *get(LLVMContext &context) {
-		return VectorType::get(TypeBuilder<types::ieee_float, cross>::get(context), 3);
+//	static VectorType *get(LLVMContext &context) {
+//		return VectorType::get(TypeBuilder<types::ieee_float, cross>::get(context), 3);
+//	}
+	/* XXX for now don't use vector types,
+	 * not sure how to map that to C structs
+	 */
+	static StructType *get(LLVMContext &context) {
+		Type *t = TypeBuilder<types::ieee_float, cross>::get(context);
+		return StructType::get(t, t, t, NULL);
 	}
 };
 
