@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
@@ -25,14 +22,57 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __MOD_MATH_H__
-#define __MOD_MATH_H__
+#ifndef __BJIT_UTIL_MATH_H__
+#define __BJIT_UTIL_MATH_H__
 
 #include "math.h"
 
+#include "bjit_intern.h"
 #include "bjit_types.h"
 
-using namespace bjit;
+#ifndef BJIT_RUNTIME
+#include "bjit_llvm.h"
+#endif
+
+namespace bjit {
+
+#ifdef BJIT_RUNTIME
+typedef float FP;
+#else
+using namespace llvm;
+
+typedef types::ieee_float FP;
+#endif
+
+struct Vec3Type {
+	typedef float Scalar;
+	
+	Vec3Type() {}
+	Vec3Type(const Vec3Type &v) : x(v.x), y(v.y), z(v.z) {}
+	Vec3Type(float x, float y, float z) : x(x), y(y), z(z) {}
+	
+	operator float* ()
+	{
+		return &x;
+	}
+	
+	operator float const * () const
+	{
+		return &x;
+	}
+	
+	float x, y, z;
+};
+
+/* ------------------------------------------------------------------------- */
+
+typedef FP vec2_t[2];
+typedef Vec3Type vec3_t;
+typedef FP vec4_t[4];
+
+typedef vec2_t mat2_t[2];
+typedef vec3_t mat3_t[3];
+typedef vec4_t mat4_t[4];
 
 static inline void copy_v3_v3(float r[3], const float a[3])
 {
@@ -136,5 +176,26 @@ static inline void project_plane_v3_v3v3(float c[3], const float v[3], const flo
 	project_v3_v3v3(delta, v, v_plane);
 	sub_v3_v3v3(c, v, delta);
 }
+
+} /* namespace bjit */
+
+/* ========================================================================= */
+/* specialization of TypeBuilder for external struct types */
+
+#ifndef BJIT_RUNTIME
+
+namespace llvm {
+
+template<bool cross>
+class TypeBuilder<bjit::Vec3Type, cross> {
+public:
+	static VectorType *get(LLVMContext &context) {
+		return VectorType::get(TypeBuilder<types::ieee_float, cross>::get(context), 3);
+	}
+};
+
+} /* namespace llvm */
+
+#endif
 
 #endif

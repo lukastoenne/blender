@@ -37,33 +37,16 @@
 #else
 #include <iostream>
 
-extern "C" {
-#include "BLI_math.h"
-}
 #include "bjit_llvm.h"
 #endif
+
+#include "bjit_util_math.h"
 
 namespace bjit {
 
 using namespace llvm;
 
-#ifdef BJIT_RUNTIME
-typedef float FP;
-#else
-typedef types::ieee_float FP;
-#endif
-
-typedef FP vec2_t[2];
-typedef FP vec3_t[3];
-typedef FP vec4_t[4];
-
-typedef vec2_t mat2_t[2];
-typedef vec3_t mat3_t[3];
-typedef vec4_t mat4_t[4];
-
 #ifndef BJIT_RUNTIME
-
-/* ------------------------------------------------------------------------- */
 
 typedef enum {
 	BJIT_TYPE_FLOAT,
@@ -149,7 +132,7 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	
 	static Constant *create_constant(const float *value, LLVMContext &context)
 	{
-		return ConstantDataArray::get(context, ArrayRef<float>(value, 3));
+		return ConstantDataVector::get(context, ArrayRef<float>(value, 3));
 	}
 	
 	template <typename T>
@@ -160,9 +143,16 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	
 	static Value *as_argument(IRBuilder<> &builder, Value *value)
 	{
-		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
-		Value *indices[2] = { index, index };
-		return builder.CreateInBoundsGEP(value, ArrayRef<Value*>(indices));
+//		Constant *index = ConstantInt::get(builder.getContext(), APInt(32, 0));
+//		Value *indices[2] = { index, index };
+//		return builder.CreateInBoundsGEP(value, ArrayRef<Value*>(indices));
+//		return value;
+//		Value *alloc = builder.CreateAlloca(value->getType());
+//		builder.CreateStore(value, alloc);
+//		return alloc;
+		Type *type = TypeBuilder<vec3_t*, true>::get(builder.getContext());
+		value = builder.CreatePointerCast(value, type);
+		return value;
 	}
 };
 
@@ -249,43 +239,6 @@ Value *bjit_get_socket_llvm_argument(SocketTypeID type, Value *value, IRBuilder<
 #endif /* BJIT_RUNTIME */
 
 /* ========================================================================= */
-
-typedef struct EffectorEvalInput {
-	vec3_t loc;
-	vec3_t vel;
-} EffectorEvalInput;
-
-typedef struct EffectorEvalResult {
-	vec3_t force;
-	vec3_t impulse;
-} EffectorEvalResult;
-
-typedef struct EffectorEvalSettings {
-	mat4_t tfm;
-	mat4_t itfm;
-
-	int flag;			/* general settings flag */
-
-	short falloff;		/* fall-off type */
-	short shape;		/* point, plane or surface */
-	
-	/* Main effector values */
-	float f_strength;	/* The strength of the force (+ or - ) */
-	float f_damp;		/* Damping ratio of the harmonic effector */
-	float f_flow;		/* How much force is converted into "air flow", i.e. force used as the velocity of surrounding medium. */
-	
-	float f_size;		/* Noise size for noise effector, restlength for harmonic effector */
-	
-	/* fall-off */
-	float f_power;		/* The power law - real gravitation is 2 (square) */
-	float maxdist;		/* if indicated, use this maximum */
-	float mindist;		/* if indicated, use this minimum */
-	float f_power_r;	/* radial fall-off power */
-	float maxrad;		/* radial versions of above */
-	float minrad;
-	
-	float absorption;	/* used for forces */
-} EffectorEvalSettings;
 
 typedef enum EffectorEvalSettings_Flag {
 	EFF_FIELD_USE_MIN               = (1 << 0),
