@@ -58,7 +58,11 @@ typedef struct GPUBuffer {
 typedef struct GPUBufferMaterial {
 	/* range of points used for this material */
 	int start;
-	int totpoint;
+	int totelements;
+	int totloops;
+	int *polys; /* array of polygons for this material */
+	int totpolys; /* total polygons in polys */
+	int counter; /* general purpose counter, initialize first! */
 
 	/* original material index */
 	short mat_nr;
@@ -88,9 +92,7 @@ typedef struct GPUDrawObject {
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
-
-	/* for each triangle, the original MFace index */
-	int *triangle_to_mface;
+	GPUBuffer *triangles; /* triangle index buffer */
 
 	/* for each original vertex, the list of related points */
 	struct GPUVertPointLink *vert_points;
@@ -103,12 +105,15 @@ typedef struct GPUDrawObject {
 #endif
 	
 	int colType;
+	int index_setup; /* how indices are setup, starting from start of buffer or start of material */
 
 	GPUBufferMaterial *materials;
 	int totmaterial;
 	
 	int tot_triangle_point;
 	int tot_loose_point;
+	/* different than total loops since ngons get tesselated still */
+	int tot_loop_verts;
 	
 	/* caches of the original DerivedMesh values */
 	int totvert;
@@ -118,6 +123,19 @@ typedef struct GPUDrawObject {
 	int tot_loose_edge_drawn;
 	int tot_edge_drawn;
 } GPUDrawObject;
+
+/* currently unused */
+// #define USE_GPU_POINT_LINK
+
+typedef struct GPUVertPointLink {
+#ifdef USE_GPU_POINT_LINK
+	struct GPUVertPointLink *next;
+#endif
+	/* -1 means uninitialized */
+	int point_index;
+} GPUVertPointLink;
+
+
 
 /* used for GLSL materials */
 typedef struct GPUAttrib {
@@ -129,11 +147,23 @@ typedef struct GPUAttrib {
 void GPU_global_buffer_pool_free(void);
 void GPU_global_buffer_pool_free_unused(void);
 
-GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
+GPUBuffer *GPU_buffer_alloc(size_t size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
-GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
 void GPU_drawobject_free(struct DerivedMesh *dm);
+
+/* flag that controls data type to fill buffer with, a modifier will prepare. */
+typedef enum {
+	GPU_BUFFER_VERTEX = 0,
+	GPU_BUFFER_NORMAL,
+	GPU_BUFFER_COLOR,
+	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
+	GPU_BUFFER_EDGE,
+	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_TRIANGLES
+} GPUBufferType;
+
 
 /* called before drawing */
 void GPU_vertex_setup(struct DerivedMesh *dm);
@@ -142,10 +172,14 @@ void GPU_uv_setup(struct DerivedMesh *dm);
 void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
 /* colType is the cddata MCol type to use! */
 void GPU_color_setup(struct DerivedMesh *dm, int colType);
+void GPU_buffer_bind_as_color(GPUBuffer *buffer);
 void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
 void GPU_uvedge_setup(struct DerivedMesh *dm);
+
+void GPU_triangle_setup(struct DerivedMesh *dm);
+
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
 
 /* can't lock more than one buffer at once */
 void *GPU_buffer_lock(GPUBuffer *buffer);
@@ -160,6 +194,9 @@ void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start,
 
 /* called after drawing */
 void GPU_buffer_unbind(void);
+
+/* only unbind interleaved data */
+void GPU_interleaved_attrib_unbind(void);
 
 /* Buffers for non-DerivedMesh drawing */
 typedef struct GPU_PBVH_Buffers GPU_PBVH_Buffers;
@@ -196,7 +233,7 @@ void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, struct CCGElem **gr
 
 /* draw */
 void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
-                           bool wireframe);
+                           bool wireframe, bool fast);
 
 /* debug PBVH draw*/
 void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf);
