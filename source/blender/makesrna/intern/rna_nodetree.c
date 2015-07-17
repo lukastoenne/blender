@@ -1323,7 +1323,7 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	PointerRNA dummyptr;
 	FunctionRNA *func;
 	PropertyRNA *parm;
-	int have_function[9];
+	int have_function[64]; /* must be large enough for max. number of funcs */
 
 	/* setup dummy node & node type to store static properties in */
 	memset(&dummynt, 0, sizeof(bNodeType));
@@ -1472,6 +1472,31 @@ static int rna_ObjectNode_id_editable(PointerRNA *ptr)
 {
 	bNode *node = ptr->data;
 	return (node->typeinfo->id_property_type) ? PROP_EDITABLE : 0;
+}
+
+static int rna_ObjectNode_id_poll(PointerRNA *ptr, const PointerRNA value)
+{
+	bNode *node = (bNode *)ptr->data;
+	ID *id = (ID *)value.data;
+	ParameterList list;
+	FunctionRNA *func;
+	void *ret;
+	int valid;
+	
+	func = RNA_struct_find_function(ptr->type, "bl_id_property_poll");
+	if (!func)
+		return true;
+	
+	RNA_parameter_list_create(&list, ptr, func);
+	RNA_parameter_set_lookup(&list, "id", &id);
+	node->typeinfo->ext.call(NULL, ptr, func, &list);
+	
+	RNA_parameter_get_lookup(&list, "result", &ret);
+	valid = *(int *)ret;
+	
+	RNA_parameter_list_free(&list);
+	
+	return valid;
 }
 
 static StructRNA *rna_ObjectNode_register(
@@ -6506,6 +6531,8 @@ static void rna_def_object_node(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 	
 	srna = RNA_def_struct(brna, "ObjectNode", "NodeInternal");
 	RNA_def_struct_ui_text(srna, "Object Node", "Object component node");
@@ -6519,12 +6546,20 @@ static void rna_def_object_node(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "ID Property Type", "Type of ID-block that is used as the id property");
 
+	/* poll */
+	func = RNA_def_function(srna, "bl_id_property_poll", NULL);
+	RNA_def_function_ui_description(func, "If non-null output is returned, the id pointer can be used in the node");
+	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
+	RNA_def_function_return(func, RNA_def_boolean(func, "result", false, "", ""));
+	parm = RNA_def_pointer(func, "id", "ID", "ID", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
 	/* ID */
 	prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ID");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_editable_func(prop, "rna_ObjectNode_id_editable");
-	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_ObjectNode_id_typef", NULL);
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_ObjectNode_id_typef", "rna_ObjectNode_id_poll");
 	RNA_def_property_ui_text(prop, "ID", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
