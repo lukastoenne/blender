@@ -25,13 +25,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <openvdb/tools/ValueTransformer.h>
+#include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
 
-#include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
-#include "openvdb_writer.h"
-
-using namespace openvdb;
 
 namespace internal {
 
@@ -46,10 +42,12 @@ openvdb::Mat4R convertMatrix(const float mat[4][4])
 
 
 class MergeScalarGrids {
-	tree::ValueAccessor<const FloatTree> m_acc_x, m_acc_y, m_acc_z;
+	typedef openvdb::FloatTree ScalarTree;
+
+	openvdb::tree::ValueAccessor<const ScalarTree> m_acc_x, m_acc_y, m_acc_z;
 
 public:
-	MergeScalarGrids(const FloatTree *x_tree, const FloatTree *y_tree, const FloatTree *z_tree)
+	MergeScalarGrids(const ScalarTree *x_tree, const ScalarTree *y_tree, const ScalarTree *z_tree)
 	    : m_acc_x(*x_tree)
 	    , m_acc_y(*y_tree)
 	    , m_acc_z(*z_tree)
@@ -61,26 +59,29 @@ public:
 	    , m_acc_z(other.m_acc_z)
 	{}
 
-	void operator()(const Vec3STree::ValueOnIter &it) const
+	void operator()(const openvdb::Vec3STree::ValueOnIter &it) const
 	{
+		using namespace openvdb;
+
 		const math::Coord xyz = it.getCoord();
 		float x = m_acc_x.getValue(xyz);
 		float y = m_acc_y.getValue(xyz);
 		float z = m_acc_z.getValue(xyz);
 
-		it.setValue(Vec3s(x, y, z));
+		it.setValue(math::Vec3s(x, y, z));
 	}
 };
 
-GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                     const std::string &name,
-                                     const float *data_x, const float *data_y, const float *data_z,
-                                     const int res[3],
-                                     float fluid_mat[4][4],
-                                     VecType vec_type,
-                                     const bool is_color,
-                                     const FloatGrid *mask)
+openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
+                                              const std::string &name,
+                                              const float *data_x, const float *data_y, const float *data_z,
+                                              const int res[3],
+                                              float fluid_mat[4][4],
+                                              openvdb::VecType vec_type,
+                                              const bool is_color,
+                                              const openvdb::FloatGrid *mask)
 {
+	using namespace openvdb;
 
 	math::CoordBBox bbox(Coord(0), Coord(res[0] - 1, res[1] - 1, res[2] - 1));
 	Mat4R mat = convertMatrix(fluid_mat);
@@ -133,12 +134,14 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
                                 float **data_x, float **data_y, float **data_z,
                                 const int res[3])
 {
+	using namespace openvdb;
+
 	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(reader->getGrid(name));
 	Vec3SGrid::Accessor acc = vgrid->getAccessor();
 	math::Coord xyz;
 	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 
-	int index = 0;
+	size_t index = 0;
 	for (z = 0; z < res[2]; ++z) {
 		for (y = 0; y < res[1]; ++y) {
 			for (x = 0; x < res[0]; ++x, ++index) {
@@ -151,4 +154,4 @@ void OpenVDB_import_grid_vector(OpenVDBReader *reader,
 	}
 }
 
-} // namespace internal
+}  /* namespace internal */
