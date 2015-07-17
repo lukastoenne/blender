@@ -46,6 +46,6 @@ if env['WITH_BF_OPENVDB']:
     incs += ' ' + env['BF_OPENEXR_INC']
     incs += ' ' + env['BF_OPENVDB_INC']
 
-    sources = env.Glob('*.cpp') + env.Glob('intern/*.cpp')
+    sources = env.Glob('*.cc') + env.Glob('intern/*.cc')
 
 env.BlenderLib ( libname = 'bf_intern_openvdb', sources = sources, includes = Split(incs), defines = defs, libtype=['core'], priority = [364] )
