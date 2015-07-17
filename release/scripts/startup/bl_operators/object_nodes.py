@@ -39,7 +39,12 @@ node_categories = [
 
 ###############################################################################
 
-class ObjectNodeTreeBase():
+class ObjectNodeTree(NodeTree):
+    '''Object component nodes'''
+    bl_idname = 'ObjectNodeTree'
+    bl_label = 'Object Nodes'
+    bl_icon = 'OBJECT_DATA'
+
     @classmethod
     def get_from_context(cls, context):
         ob = context.object
@@ -47,13 +52,6 @@ class ObjectNodeTreeBase():
             return ob.node_tree, ob.node_tree, ob
         else:
             return None, None, None
-
-
-class ObjectNodeTree(ObjectNodeTreeBase, NodeTree):
-    '''Object component nodes'''
-    bl_idname = 'ObjectNodeTree'
-    bl_label = 'Object Nodes'
-    bl_icon = 'OBJECT_DATA'
 
     @classmethod
     def register(cls):
@@ -83,15 +81,21 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
         return ntree.bl_idname == 'ForceFieldNodeTree'
 
     def draw_buttons(self, context, layout):
-        layout.template_ID(self, "id")
+        layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")
+        layout.operator("object_nodes.node_edit")
 
 ###############################################################################
 
-class ForceFieldNodeTree(ObjectNodeTreeBase, NodeTree):
+class ForceFieldNodeTree(NodeTree):
     '''Force field nodes'''
     bl_idname = 'ForceFieldNodeTree'
     bl_label = 'Force Field Nodes'
     bl_icon = 'FORCE_FORCE'
+
+    # does not show up in the editor header
+    @classmethod
+    def poll(cls, context):
+        return False
 
 
 class ForceNodeBase():
@@ -111,40 +115,9 @@ class ForceForceNode(ForceNodeBase, ObjectNode):
 
 ###############################################################################
 
-#class TestNode(ObjectNode):
-class TestNode():
-    '''A custom node'''
-    bl_idname = 'TestNode'
-    bl_label = 'Test Node'
-    bl_icon = 'SOUND'
-
-    bl_id_property_type = 'OBJECT'
-
-    myStringProperty = bpy.props.StringProperty()
-    myFloatProperty = bpy.props.FloatProperty(default=3.1415926)
-
-    @classmethod
-    def poll(cls, ntree):
-        return ntree.bl_idname == 'ObjectNodeTree'
-
-    def init(self, context):
-        self.inputs.new('NodeSocketFloat', "Hello")
-        self.inputs.new('NodeSocketFloat', "World")
-        self.inputs.new('NodeSocketVector', "!")
-
-        self.outputs.new('NodeSocketColor', "How")
-        self.outputs.new('NodeSocketColor', "are")
-        self.outputs.new('NodeSocketFloat', "you")
-
-    def draw_buttons(self, context, layout):
-        layout.label("Node settings")
-        layout.prop(self, "myFloatProperty")
-        layout.template_ID(self, "id")
-
-
 class ObjectNodesNew(Operator):
     """Create new object node tree"""
-    bl_idname = "object_nodes.new"
+    bl_idname = "object_nodes.object_nodes_new"
     bl_label = "New"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -153,4 +126,55 @@ class ObjectNodesNew(Operator):
             )
 
     def execute(self, context):
-    	return bpy.ops.node.new_node_tree(type='ObjectNodeTree', name="NodeTree")
+    	return bpy.ops.node.new_node_tree(type='ObjectNodeTree', name="ObjectNodes")
+
+
+class ObjectNodeEdit(Operator):
+    """Open a node for editing"""
+    bl_idname = "object_nodes.node_edit"
+    bl_label = "Edit"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    exit = BoolProperty(name="Exit", description="Exit current node tree", default=False)
+
+    @staticmethod
+    def get_node(context):
+        if hasattr(context, "node"):
+            return context.node
+        else:
+            return context.active_node
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        if space.type != 'NODE_EDITOR':
+            return False
+        
+        return cls.get_node(context) is not None
+
+    def execute(self, context):
+        space = context.space_data
+        node = self.get_node(context)
+        has_tree = hasattr(node, "id") and node.id and isinstance(node.id, bpy.types.NodeTree)
+        exit = self.exit or not has_tree
+
+        if exit:
+            space.path.pop()
+        else:
+            space.path.append(node.id, node)
+
+        return {'FINISHED'}
+
+
+class ForceFieldNodesNew(Operator):
+    """Create new force field node tree"""
+    bl_idname = "object_nodes.force_field_nodes_new"
+    bl_label = "New"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name = StringProperty(
+            name="Name",
+            )
+
+    def execute(self, context):
+        return bpy.ops.node.new_node_tree(type='ForceFieldNodeTree', name="ForceFieldNodes")

@@ -37,7 +37,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         ob = context.object
 
-        layout.template_ID(ob, "node_tree", new="object_nodes.new")
+        layout.template_ID(ob, "node_tree", new="object_nodes.object_nodes_new")
 
         layout.separator()
 
