@@ -4650,6 +4650,9 @@ static void lib_link_object(FileData *fd, Main *main)
 			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
 			lib_link_modifiers(fd, ob);
 
+			if (ob->nodetree)
+				ob->nodetree = newlibadr(fd, ob->id.lib, ob->nodetree);
+
 			if (ob->rigidbody_constraint) {
 				ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
 				ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
@@ -8816,6 +8819,9 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		
 		modifiers_foreachIDLink(ob, expand_object_expandModifiers, (void *)&data);
 	}
+	
+	if (ob->nodetree)
+		expand_nodetree(fd, mainvar, ob->nodetree);
 	
 	expand_pose(fd, mainvar, ob->pose);
 	expand_doit(fd, mainvar, ob->poselib);

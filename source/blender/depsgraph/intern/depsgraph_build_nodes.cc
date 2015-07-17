@@ -446,6 +446,9 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	 */
 	build_animdata(&ob->id);
 
+	/* component nodes */
+	build_nodetree(NULL, ob->nodetree);
+
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		build_particles(ob);

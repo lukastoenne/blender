@@ -34,6 +34,7 @@ _modules = [
     "node",
     "object_align",
     "object",
+    "object_nodes",
     "object_randomize_transform",
     "object_quick_effects",
     "presets",
