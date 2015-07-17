@@ -157,6 +157,7 @@ typedef struct bNodeType {
 	bNodeSocketTemplate *inputs, *outputs;
 	
 	char storagename[64];			/* struct name for DNA */
+	int id_property_type;			/* static type of the ID property, if used */
 	
 	/* Main draw function for the node */
 	void (*draw_nodetype)(const struct bContext *C, struct ARegion *ar, struct SpaceNode *snode,
