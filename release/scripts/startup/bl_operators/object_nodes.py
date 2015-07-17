@@ -29,6 +29,13 @@ class ObjectNodeTree(NodeTree):
     bl_label = 'Object Nodes'
     bl_icon = 'OBJECT_DATA'
 
+    @classmethod
+    def get_from_context(cls, context):
+    	ob = context.object
+    	if ob:
+    		return ob.node_tree, ob.node_tree, ob
+    	else:
+    		return None, None, None
 
 class ObjectNodesNew(Operator):
     """Create new object node tree"""
@@ -42,4 +49,3 @@ class ObjectNodesNew(Operator):
 
     def execute(self, context):
     	return bpy.ops.node.new_node_tree(type='ObjectNodeTree', name="NodeTree")
-    	#return {'FINISHED'}
