@@ -37,18 +37,12 @@ OpenVDBReader::OpenVDBReader()
 
 OpenVDBReader::~OpenVDBReader()
 {
-	if (m_file) {
-		m_file->close();
-		delete m_file;
-	}
+	cleanup_file();
 }
 
 void OpenVDBReader::open(const std::string &filename)
 {
-	if (m_file) {
-		m_file->close();
-		delete m_file;
-	}
+	cleanup_file();
 
 	m_file = new openvdb::io::File(filename);
 	m_file->setCopyMaxBytes(COPY_MAX_BYTES);
@@ -104,4 +98,12 @@ openvdb::GridBase::Ptr OpenVDBReader::getGrid(const std::string &name)
 size_t OpenVDBReader::numGrids() const
 {
 	return m_file->getGrids()->size();
+}
+
+void OpenVDBReader::cleanup_file()
+{
+	if (m_file) {
+		m_file->close();
+		delete m_file;
+	}
 }

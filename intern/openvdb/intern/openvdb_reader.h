@@ -32,6 +32,8 @@ class OpenVDBReader {
 	openvdb::MetaMap::Ptr m_meta_map;
 	openvdb::io::File *m_file;
 
+	void cleanup_file();
+
 public:
 	OpenVDBReader();
 	~OpenVDBReader();
