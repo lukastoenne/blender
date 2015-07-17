@@ -53,15 +53,6 @@ class ObjectNodeTree(NodeTree):
         else:
             return None, None, None
 
-    @classmethod
-    def register(cls):
-        global node_categories
-        nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
-
-    @classmethod
-    def unregister(cls):
-        nodeitems_utils.unregister_node_categories("OBJECT_NODES")
-
 
 class ObjectNodeBase():
     @classmethod
@@ -82,7 +73,6 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
 
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")
-        layout.operator("object_nodes.node_edit")
 
 ###############################################################################
 
@@ -149,13 +139,12 @@ class ObjectNodeEdit(Operator):
         space = context.space_data
         if space.type != 'NODE_EDITOR':
             return False
-        
-        return cls.get_node(context) is not None
+        return True
 
     def execute(self, context):
         space = context.space_data
         node = self.get_node(context)
-        has_tree = hasattr(node, "id") and node.id and isinstance(node.id, bpy.types.NodeTree)
+        has_tree = node and hasattr(node, "id") and node.id and isinstance(node.id, bpy.types.NodeTree)
         exit = self.exit or not has_tree
 
         if exit:
@@ -178,3 +167,36 @@ class ForceFieldNodesNew(Operator):
 
     def execute(self, context):
         return bpy.ops.node.new_node_tree(type='ForceFieldNodeTree', name="ForceFieldNodes")
+
+
+###############################################################################
+
+keymaps = []
+
+def register():
+    # XXX HACK, needed to have access to the operator, registration needs cleanup once moved out of operators
+    bpy.utils.register_class(ObjectNodeEdit)
+
+    nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
+
+    # create keymap
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.default.keymaps.new(name="Node Generic", space_type='NODE_EDITOR')
+    
+    kmi = km.keymap_items.new(bpy.types.OBJECT_NODES_OT_node_edit.bl_idname, 'TAB', 'PRESS')
+    
+    kmi = km.keymap_items.new(bpy.types.OBJECT_NODES_OT_node_edit.bl_idname, 'TAB', 'PRESS', ctrl=True)
+    kmi.properties.exit = True
+    
+    keymaps.append(km)
+
+def unregister():
+    nodeitems_utils.unregister_node_categories("OBJECT_NODES")
+
+    # remove keymap
+    wm = bpy.context.window_manager
+    for km in keymaps:
+        wm.keyconfigs.default.keymaps.remove(km)
+    keymaps.clear()
+
+register()
