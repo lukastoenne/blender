@@ -6543,7 +6543,7 @@ static void rna_def_object_node(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "typeinfo->id_property_type");
 	RNA_def_property_enum_items(prop, id_type_items);
 	RNA_def_property_enum_default(prop, ID_OB);
-	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 	RNA_def_property_ui_text(prop, "ID Property Type", "Type of ID-block that is used as the id property");
 
 	/* poll */
