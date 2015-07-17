@@ -6927,7 +6927,8 @@ static int rna_function_arg_count(FunctionRNA *func, int *min_count)
 	return count;
 }
 
-static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, void *py_data, int *have_function)
+static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, void *py_data,
+                                        int *have_function, int *have_function_offset)
 {
 	const ListBase *lb;
 	Link *link;
@@ -6938,12 +6939,12 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 	PyObject *py_class = (PyObject *)py_data;
 	PyObject *base_class = RNA_struct_py_type_get(srna);
 	PyObject *item;
-	int i, flag, arg_count, func_arg_count, func_arg_min_count = 0;
+	int flag, arg_count, func_arg_count, func_arg_min_count = 0;
 	bool is_staticmethod;
 	const char *py_class_name = ((PyTypeObject *)py_class)->tp_name;  /* __name__ */
 
 	if (srna_base) {
-		if (bpy_class_validate_recursive(dummyptr, srna_base, py_data, have_function) != 0)
+		if (bpy_class_validate_recursive(dummyptr, srna_base, py_data, have_function, have_function_offset) != 0)
 			return -1;
 	}
 
@@ -6958,7 +6959,6 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 
 	/* verify callback functions */
 	lb = RNA_struct_type_functions(srna);
-	i = 0;
 	for (link = lb->first; link; link = link->next) {
 		func = (FunctionRNA *)link;
 		flag = RNA_function_flag(func);
@@ -6969,8 +6969,8 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 
 		item = PyObject_GetAttrString(py_class, RNA_function_identifier(func));
 
-		have_function[i] = (item != NULL);
-		i++;
+		have_function[*have_function_offset] = (item != NULL);
+		++(*have_function_offset);
 
 		if (item == NULL) {
 			if ((flag & (FUNC_REGISTER_OPTIONAL & ~FUNC_REGISTER)) == 0) {
@@ -7096,7 +7096,8 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 
 static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_function)
 {
-	return bpy_class_validate_recursive(dummyptr, dummyptr->type, py_data, have_function);
+	int have_function_offset = 0;
+	return bpy_class_validate_recursive(dummyptr, dummyptr->type, py_data, have_function, &have_function_offset);
 }
 
 /* TODO - multiple return values like with rna functions */
