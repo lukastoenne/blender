@@ -1465,6 +1465,35 @@ static StructRNA *rna_TextureNode_register(
 	return nt->ext.srna;
 }
 
+static StructRNA *rna_ObjectNode_id_typef(PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	return ID_code_to_RNA_type(node->typeinfo->id_property_type);
+}
+
+static int rna_ObjectNode_id_editable(PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	return (node->typeinfo->id_property_type) ? PROP_EDITABLE : 0;
+}
+
+static StructRNA *rna_ObjectNode_register(
+        Main *bmain, ReportList *reports,
+        void *data, const char *identifier,
+        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+{
+	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_ObjectNode, data, identifier, validate, call, free);
+	if (!nt)
+		return NULL;
+	
+	nodeRegisterType(nt);
+	
+	/* update while blender is running */
+	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
+	
+	return nt->ext.srna;
+}
+
 static IDProperty *rna_Node_idprops(PointerRNA *ptr, bool create)
 {
 	bNode *node = ptr->data;
@@ -6668,6 +6697,33 @@ static void rna_def_texture_node(BlenderRNA *brna)
 	RNA_def_struct_register_funcs(srna, "rna_TextureNode_register", "rna_Node_unregister", NULL);
 }
 
+static void rna_def_object_node(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "ObjectNode", "NodeInternal");
+	RNA_def_struct_ui_text(srna, "Object Node", "Object component node");
+	RNA_def_struct_sdna(srna, "bNode");
+	RNA_def_struct_register_funcs(srna, "rna_ObjectNode_register", "rna_Node_unregister", NULL);
+
+	prop = RNA_def_property(srna, "bl_id_property_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "typeinfo->id_property_type");
+	RNA_def_property_enum_items(prop, id_type_items);
+	RNA_def_property_enum_default(prop, ID_OB);
+	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_ui_text(prop, "ID Property Type", "Type of ID-block that is used as the id property");
+
+	/* ID */
+	prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ID");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_editable_func(prop, "rna_ObjectNode_id_editable");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_ObjectNode_id_typef", NULL);
+	RNA_def_property_ui_text(prop, "ID", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 /* -------------------------------------------------------------------------- */
 
 static void rna_def_node_socket(BlenderRNA *brna)
@@ -8161,6 +8217,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	rna_def_shader_node(brna);
 	rna_def_compositor_node(brna);
 	rna_def_texture_node(brna);
+	rna_def_object_node(brna);
 	
 	rna_def_nodetree(brna);
 	
