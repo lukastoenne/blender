@@ -32,6 +32,7 @@
 #include "DNA_lamp_types.h"
 #include "DNA_node_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_texture_types.h"
@@ -100,6 +101,8 @@ static bNodeTree *node_tree_from_ID(ID *id)
 		switch (idtype) {
 			case ID_NT:
 				return (bNodeTree *)id;
+			case ID_OB:
+				return ((Object *)id)->nodetree;
 			case ID_MA:
 				return ((Material *)id)->nodetree;
 			case ID_LA:

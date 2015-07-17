@@ -434,6 +434,8 @@ void DepsgraphRelationBuilder::build_object(Main *bmain, Scene *scene, Object *o
 		}
 	}
 
+	build_nodetree((ID *)ob, ob->nodetree);
+
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		build_particles(scene, ob);

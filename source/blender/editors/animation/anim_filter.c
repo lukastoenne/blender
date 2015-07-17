@@ -2393,6 +2393,10 @@ static size_t animdata_filter_dopesheet_ob(bAnimContext *ac, ListBase *anim_data
 			tmp_items += animdata_filter_ds_modifiers(ac, &tmp_data, ads, ob, filter_mode);
 		}
 		
+		if ((ob->nodetree) && !(ads->filterflag & ADS_FILTER_NONTREE)) {
+			tmp_items += animdata_filter_ds_nodetree(ac, &tmp_data, ads, (ID *)ob, ob->nodetree, filter_mode);
+		}
+		
 		/* materials */
 		if ((ob->totcol) && !(ads->filterflag & ADS_FILTER_NOMAT)) {
 			tmp_items += animdata_filter_ds_materials(ac, &tmp_data, ads, ob, filter_mode);

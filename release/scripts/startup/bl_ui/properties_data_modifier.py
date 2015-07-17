@@ -37,6 +37,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         ob = context.object
 
+        layout.template_ID(ob, "node_tree", new="object_nodes.new")
+
+        layout.separator()
+
         layout.operator_menu_enum("object.modifier_add", "type")
 
         for md in ob.modifiers:
