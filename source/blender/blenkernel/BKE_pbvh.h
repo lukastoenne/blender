@@ -34,7 +34,9 @@ struct CCGElem;
 struct CCGKey;
 struct CustomData;
 struct DMFlagMat;
-struct MFace;
+struct MPoly;
+struct MLoop;
+struct MLoopTri;
 struct MVert;
 struct PBVH;
 struct PBVHNode;
@@ -60,8 +62,10 @@ typedef void (*BKE_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float *
 
 PBVH *BKE_pbvh_new(void);
 void BKE_pbvh_build_mesh(
-        PBVH *bvh, const struct MFace *faces, struct MVert *verts,
-        int totface, int totvert, struct CustomData *vdata);
+        PBVH *bvh,
+        const struct MPoly *mpoly, const struct MLoop *mloop,
+        struct MVert *verts, int totvert, struct CustomData *vdata,
+        const struct MLoopTri *looptri, int looptri_num);
 void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
                           int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
@@ -93,14 +97,15 @@ void BKE_pbvh_raycast(
         const float ray_start[3], const float ray_normal[3],
         bool original);
 
-bool BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
-                          const float ray_start[3], const float ray_normal[3],
-                          float *dist);
+bool BKE_pbvh_node_raycast(
+        PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
+        const float ray_start[3], const float ray_normal[3],
+        float *dist);
 
 bool BKE_pbvh_bmesh_node_raycast_detail(
         PBVHNode *node,
         const float ray_start[3], const float ray_normal[3],
-        float *detail, float *dist);
+        float *dist, float *r_detail);
 
 /* for orthographic cameras, project the far away ray segment points to the root node so
  * we can have better precision. */
@@ -112,7 +117,7 @@ void BKE_pbvh_raycast_project_ray_root(
 
 void BKE_pbvh_node_draw(PBVHNode *node, void *data);
 void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
-                   int (*setMaterial)(int matnr, void *attribs), bool wireframe);
+                   int (*setMaterial)(int matnr, void *attribs), bool wireframe, bool fast);
 
 /* PBVH Access */
 typedef enum {
