@@ -40,6 +40,8 @@ int OpenVDB_getVersionHex()
 
 void OpenVDB_get_grid_info(const char *filename, OpenVDBGridInfoCallback cb, void *userdata)
 {
+	Timer(__func__);
+
 	int ret = OPENVDB_NO_ERROR;
 	initialize();
 	
@@ -72,6 +74,8 @@ OpenVDBFloatGrid *OpenVDB_export_grid_fl(OpenVDBWriter *writer,
                                          const int res[3], float matrix[4][4],
                                          OpenVDBFloatGrid *mask)
 {
+	Timer(__func__);
+
 	OpenVDBFloatGrid *grid =
 	        (OpenVDBFloatGrid *)internal::OpenVDB_export_grid<FloatGrid>(writer, name, data, res, matrix, (FloatGrid *)mask);
 	return grid;
@@ -82,6 +86,8 @@ OpenVDBIntGrid *OpenVDB_export_grid_ch(OpenVDBWriter *writer,
                                        const int res[3], float matrix[4][4],
                                        OpenVDBFloatGrid *mask)
 {
+	Timer(__func__);
+
 	OpenVDBIntGrid *grid =
 	        (OpenVDBIntGrid *)internal::OpenVDB_export_grid<Int32Grid>(writer, name, data, res, matrix, (FloatGrid *)mask);
 	return grid;
@@ -93,6 +99,8 @@ OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
                                            const int res[3], float matrix[4][4], short vec_type,
                                            const bool is_color, OpenVDBFloatGrid *mask)
 {
+	Timer(__func__);
+
 	OpenVDBVectorGrid *grid =
 	(OpenVDBVectorGrid *)internal::OpenVDB_export_vector_grid(writer, name,
 	                                     data_x, data_y, data_z, res, matrix,
@@ -105,6 +113,8 @@ void OpenVDB_import_grid_fl(OpenVDBReader *reader,
                             const char *name, float **data,
                             const int res[3])
 {
+	Timer(__func__);
+
 	internal::OpenVDB_import_grid<FloatGrid>(reader, name, data, res);
 }
 
@@ -120,6 +130,8 @@ void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
                              float **data_x, float **data_y, float **data_z,
                              const int res[3])
 {
+	Timer(__func__);
+
 	internal::OpenVDB_import_grid_vector(reader, name, data_x, data_y, data_z, res);
 }
 

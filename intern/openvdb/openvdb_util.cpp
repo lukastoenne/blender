@@ -78,3 +78,31 @@ void catch_exception(int &ret)
 		ret = OPENVDB_UNKNOWN_ERROR;
 	}
 }
+
+#ifdef _WIN32
+
+#include <windows.h>
+
+double time_dt()
+{
+	__int64 frequency, counter;
+
+	QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
+	QueryPerformanceCounter((LARGE_INTEGER*)&counter);
+
+	return (double)counter/(double)frequency;
+}
+
+#else
+
+#include <sys/time.h>
+
+double time_dt()
+{
+	struct timeval now;
+	gettimeofday(&now, NULL);
+
+	return now.tv_sec + now.tv_usec*1e-6;
+}
+
+#endif
