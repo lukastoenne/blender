@@ -29,11 +29,21 @@ from nodeitems_utils import NodeCategory, NodeItem
 class ObjectNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
-        return context.space_data.tree_type == 'ObjectNodeTree'
+        tree = context.space_data.edit_tree
+        return tree and tree.bl_idname == 'ObjectNodeTree'
+
+class ForceFieldNodeCategory(NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        tree = context.space_data.edit_tree
+        return tree and tree.bl_idname == 'ForceFieldNodeTree'
 
 node_categories = [
     ObjectNodeCategory("COMPONENTS", "Components", items=[
         NodeItem("ForceFieldNode"),
+        ]),
+    ForceFieldNodeCategory("FORCE_FIELD", "Force Field", items=[
+        NodeItem("ForceForceNode"),
         ]),
     ]
 
