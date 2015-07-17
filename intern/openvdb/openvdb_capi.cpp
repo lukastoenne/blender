@@ -27,20 +27,20 @@
 #include "openvdb_dense_convert.h"
 #include "openvdb_util.h"
 
-using namespace openvdb;
-
 struct OpenVDBFloatGrid { int unused; };
 struct OpenVDBIntGrid { int unused; };
 struct OpenVDBVectorGrid { int unused; };
 
 int OpenVDB_getVersionHex()
 {
-    return OPENVDB_LIBRARY_VERSION;
+    return openvdb::OPENVDB_LIBRARY_VERSION;
 }
 
 void OpenVDB_get_grid_info(const char *filename, OpenVDBGridInfoCallback cb, void *userdata)
 {
 	Timer(__func__);
+
+	using namespace openvdb;
 
 	int ret = OPENVDB_NO_ERROR;
 	initialize();
@@ -76,6 +76,8 @@ OpenVDBFloatGrid *OpenVDB_export_grid_fl(OpenVDBWriter *writer,
 {
 	Timer(__func__);
 
+	using namespace openvdb;
+
 	OpenVDBFloatGrid *grid =
 	        (OpenVDBFloatGrid *)internal::OpenVDB_export_grid<FloatGrid>(writer, name, data, res, matrix, (FloatGrid *)mask);
 	return grid;
@@ -87,6 +89,8 @@ OpenVDBIntGrid *OpenVDB_export_grid_ch(OpenVDBWriter *writer,
                                        OpenVDBFloatGrid *mask)
 {
 	Timer(__func__);
+
+	using namespace openvdb;
 
 	OpenVDBIntGrid *grid =
 	        (OpenVDBIntGrid *)internal::OpenVDB_export_grid<Int32Grid>(writer, name, data, res, matrix, (FloatGrid *)mask);
@@ -101,10 +105,12 @@ OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
 {
 	Timer(__func__);
 
+	using namespace openvdb;
+
 	OpenVDBVectorGrid *grid =
 	(OpenVDBVectorGrid *)internal::OpenVDB_export_vector_grid(writer, name,
 	                                     data_x, data_y, data_z, res, matrix,
-	                                     static_cast<openvdb::VecType>(vec_type),
+	                                     static_cast<VecType>(vec_type),
 	                                     is_color, (FloatGrid *)mask);
 	return grid;
 }
@@ -115,14 +121,14 @@ void OpenVDB_import_grid_fl(OpenVDBReader *reader,
 {
 	Timer(__func__);
 
-	internal::OpenVDB_import_grid<FloatGrid>(reader, name, data, res);
+	internal::OpenVDB_import_grid<openvdb::FloatGrid>(reader, name, data, res);
 }
 
 void OpenVDB_import_grid_ch(OpenVDBReader *reader,
                             const char *name, unsigned char **data,
                             const int res[3])
 {
-	internal::OpenVDB_import_grid<Int32Grid>(reader, name, data, res);
+	internal::OpenVDB_import_grid<openvdb::Int32Grid>(reader, name, data, res);
 }
 
 void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
@@ -148,6 +154,8 @@ void OpenVDBWriter_free(OpenVDBWriter *writer)
 
 void OpenVDBWriter_set_flags(OpenVDBWriter *writer, const int flag, const bool half)
 {
+	using namespace openvdb;
+
 	int compression_flags = io::COMPRESS_ACTIVE_MASK;
 
 	if (flag == 0) {
