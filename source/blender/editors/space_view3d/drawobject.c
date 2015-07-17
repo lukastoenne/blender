@@ -3578,7 +3578,12 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 				bool is_first = true;
 
 				BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-					if (is_face_sel || (do_moving && BM_elem_flag_test(loop->v, BM_ELEM_SELECT))) {
+					if (is_face_sel ||
+					    (do_moving &&
+					     (BM_elem_flag_test(loop->v, BM_ELEM_SELECT) ||
+					      BM_elem_flag_test(loop->prev->v, BM_ELEM_SELECT) ||
+					      BM_elem_flag_test(loop->next->v, BM_ELEM_SELECT))))
+					{
 						float angle;
 						float v2_local[3];
 
@@ -8526,7 +8531,7 @@ static void bbs_mesh_solid_faces(Scene *scene, Object *ob)
 	DM_update_materials(dm, ob);
 
 	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL))
-		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, NULL, NULL, me, 0);
+		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, NULL, NULL, me, DM_DRAW_SKIP_HIDDEN);
 	else
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, NULL, NULL, me, 0);
 

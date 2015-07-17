@@ -302,6 +302,11 @@ void map_to_sphere(float *r_u, float *r_v, const float x, const float y, const f
 
 /********************************** Normals **********************************/
 
+void accumulate_vertex_normals_tri(
+        float n1[3], float n2[3], float n3[3],
+        const float f_no[3],
+        const float co1[3], const float co2[3], const float co3[3]);
+
 void accumulate_vertex_normals(
         float n1[3], float n2[3], float n3[3], float n4[3],
         const float f_no[3],
@@ -353,6 +358,7 @@ bool form_factor_visible_quad(const float p[3], const float n[3],
 float form_factor_hemi_poly(float p[3], float n[3],
                             float v1[3], float v2[3], float v3[3], float v4[3]);
 
+void axis_dominant_v3_to_m3_negate(float r_mat[3][3], const float normal[3]);
 void  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
 
 MINLINE void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);

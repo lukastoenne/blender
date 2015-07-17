@@ -142,13 +142,14 @@ typedef int (*DMCompareDrawOptions)(void *userData, int cur_index, int next_inde
 typedef void (*DMSetDrawInterpOptions)(void *userData, int index, float t);
 typedef DMDrawOption (*DMSetDrawOptions)(void *userData, int index);
 typedef DMDrawOption (*DMSetDrawOptionsMappedTex)(void *userData, int origindex, int mat_nr);
-typedef DMDrawOption (*DMSetDrawOptionsTex)(struct MTFace *tface, const bool has_vcol, int matnr);
+typedef DMDrawOption (*DMSetDrawOptionsTex)(struct MTexPoly *mtexpoly, const bool has_vcol, int matnr);
 
 typedef enum DMDrawFlag {
 	DM_DRAW_USE_COLORS          = (1 << 0),
 	DM_DRAW_ALWAYS_SMOOTH       = (1 << 1),
 	DM_DRAW_USE_ACTIVE_UV       = (1 << 2),
 	DM_DRAW_USE_TEXPAINT_UV     = (1 << 3),
+	DM_DRAW_SKIP_HIDDEN         = (1 << 4),
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {
@@ -184,6 +185,15 @@ struct DerivedMesh {
 	int totmat; /* total materials. Will be valid only before object drawing. */
 	struct Material **mat; /* material array. Will be valid only before object drawing */
 
+	/**
+	 * \warning Typical access is done via #getLoopTriArray, #getNumLoopTri.
+	 */
+	struct {
+		struct MLoopTri *array;
+		int num;
+		int num_alloc;
+	} looptris;
+
 	/* use for converting to BMesh which doesn't store bevel weight and edge crease by default */
 	char cd_flag;
 
@@ -199,6 +209,12 @@ struct DerivedMesh {
 
 	/** Recalculates mesh tessellation */
 	void (*recalcTessellation)(DerivedMesh *dm);
+
+	/** Loop tessellation cache */
+	void (*recalcLoopTri)(DerivedMesh *dm);
+	/** accessor functions */
+	const struct MLoopTri *(*getLoopTriArray)(DerivedMesh * dm);
+	int (*getNumLoopTri)(DerivedMesh *dm);
 
 	/* Misc. Queries */
 
@@ -463,6 +479,10 @@ struct DerivedMesh {
 	                           void (*setMaterial)(void *userData, int matnr, void *attribs),
 	                           bool (*setFace)(void *userData, int index), void *userData);
 
+	struct GPUDrawObject *(*gpuObjectNew)(DerivedMesh *dm);
+	void (*copy_gpu_data)(DerivedMesh *dm, int type, void *varray_p,
+	                      const int *mat_orig_to_new, const void *user_data);
+
 	/** Release reference to the DerivedMesh. This function decides internally
 	 * if the DerivedMesh will be freed, or cached for later use. */
 	void (*release)(DerivedMesh *dm);
@@ -589,10 +609,13 @@ void DM_DupPolys(DerivedMesh *source, DerivedMesh *target);
 void DM_ensure_normals(DerivedMesh *dm);
 void DM_ensure_tessface(DerivedMesh *dm);
 
+void DM_ensure_looptri_data(DerivedMesh *dm);
+void DM_ensure_looptri(DerivedMesh *dm);
+
 void DM_update_tessface_data(DerivedMesh *dm);
 
 void DM_update_materials(DerivedMesh *dm, struct Object *ob);
-struct MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
+struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
 
 void DM_interp_vert_data(
         struct DerivedMesh *source, struct DerivedMesh *dest,
@@ -716,12 +739,12 @@ void DM_update_weight_mcol(
  * the DerivedMesh, with both a pointer for arrays and an offset for editmesh */
 typedef struct DMVertexAttribs {
 	struct {
-		struct MTFace *array;
+		struct MLoopUV *array;
 		int em_offset, gl_index, gl_texco;
 	} tface[MAX_MTFACE];
 
 	struct {
-		struct MCol *array;
+		struct MLoopCol *array;
 		int em_offset, gl_index;
 	} mcol[MAX_MCOL];
 
@@ -742,7 +765,7 @@ void DM_vertex_attributes_from_gpu(
         DerivedMesh *dm,
         struct GPUVertexAttribs *gattribs, DMVertexAttribs *attribs);
 
-void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert);
+void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert, int loop);
 
 void DM_add_tangent_layer(DerivedMesh *dm);
 void DM_calc_auto_bump_scale(DerivedMesh *dm);
