@@ -215,7 +215,7 @@ void build_effector_module(void)
 		
 		NodeType *type = NodeGraph::add_node_type(name);
 		BLI_assert(type);
-		Function *func = bjit_find_function(theModule, name);
+		Function *func = bjit_find_external_function(theModule, name);
 		BLI_assert(func);
 		
 		type->add_input("loc", BJIT_TYPE_VEC3, vec3_zero, context);

@@ -458,7 +458,7 @@ void *BJIT_build_nodetree_function(bNodeTree *ntree)
 	return NULL;
 }
 
-void BJIT_free_nodetree_function(void *func)
+void BJIT_free_nodetree_function(void */*func*/)
 {
 	
 }
