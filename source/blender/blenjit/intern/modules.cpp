@@ -130,7 +130,12 @@ static void init_function_pass_manager(FunctionPassManager *fpm, int opt_level)
 //	builder.populateModulePassManager(MPM);
 }
 
-Function *bjit_find_function(Module *mod, const std::string &name)
+bool bjit_function_is_external(const Function *func)
+{
+	return func->hasFnAttribute("name");
+}
+
+Function *bjit_find_external_function(Module *mod, const std::string &name)
 {
 	for (Module::FunctionListType::iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
 		Function *func = &(*it);
@@ -143,7 +148,7 @@ Function *bjit_find_function(Module *mod, const std::string &name)
 	return NULL;
 }
 
-const char *bjit_get_function_name(Function *func)
+const char *bjit_get_external_function_name(Function *func)
 {
 	if (func->hasFnAttribute("name"))
 		return func->getFnAttribute("name").getValueAsString().data();
@@ -350,31 +355,41 @@ const char *BJIT_module_name(LLVMModule *_mod)
 int BJIT_module_num_functions(LLVMModule *_mod)
 {
 	Module *mod = (Module *)_mod;
-	return (int)mod->getFunctionList().size();
+	int num = 0;
+	Module::FunctionListType::const_iterator it;
+	for (it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
+		const Function *fn = &(*it);
+		if (!bjit_function_is_external(fn))
+			continue;
+		++num;
+	}
+	return num;
 }
 
 struct LLVMFunction *BJIT_module_get_function_n(LLVMModule *_mod, int n)
 {
 	Module *mod = (Module *)_mod;
-	Module::FunctionListType::const_iterator it = mod->getFunctionList().begin();
-	for (int i = 0; i < n; ++i) {
-		if (it == mod->getFunctionList().end())
-			return NULL;
-		++it;
+	Module::FunctionListType::iterator it;
+	int index = 0;
+	for (it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
+		Function *fn = &(*it);
+		if (!bjit_function_is_external(fn))
+			continue;
+		if (index == n)
+			return (LLVMFunction *)fn;
+		++index;
 	}
-	if (it == mod->getFunctionList().end())
-		return NULL;
-	return (LLVMFunction *)(&(*it));
+	return NULL;
 }
 
 struct LLVMFunction *BJIT_module_get_function(LLVMModule *_mod, const char *name)
 {
 	Module *mod = (Module *)_mod;
-	return (LLVMFunction *)bjit_find_function(mod, name);
+	return (LLVMFunction *)bjit_find_external_function(mod, name);
 }
 
 const char *BJIT_function_name(struct LLVMFunction *_func)
 {
 	Function *func = (Function *)_func;
-	return bjit_get_function_name(func);
+	return bjit_get_external_function_name(func);
 }

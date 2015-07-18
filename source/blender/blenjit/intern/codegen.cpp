@@ -120,7 +120,7 @@ static CallInst *codegen_node_function_call(IRBuilder<> &builder, Module *module
 	
 	/* get evaluation function */
 	const std::string &evalname = node->type->name;
-	Function *evalfunc = bjit_find_function(module, evalname);
+	Function *evalfunc = bjit_find_external_function(module, evalname);
 	if (!evalfunc) {
 		printf("Could not find node function '%s'\n", evalname.c_str());
 		return NULL;
