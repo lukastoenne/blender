@@ -49,7 +49,8 @@ using namespace llvm;
 #ifndef BJIT_RUNTIME
 
 typedef enum {
-	BJIT_TYPE_FLOAT,
+	BJIT_TYPE_UNKNOWN   = -1,
+	BJIT_TYPE_FLOAT     = 0,
 	BJIT_TYPE_INT,
 	BJIT_TYPE_VEC3,
 	BJIT_TYPE_MAT4,
@@ -57,7 +58,9 @@ typedef enum {
 	BJIT_NUMTYPES
 } SocketTypeID;
 
+inline const char *bjit_get_socket_type_name(SocketTypeID type);
 inline Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context, Module *module);
+inline SocketTypeID bjit_find_llvm_typeid(Type *type, LLVMContext &context, Module *module);
 template <typename T> Constant *bjit_get_socket_llvm_constant(SocketTypeID type, T value, LLVMContext &context);
 inline Value *bjit_get_socket_llvm_argument(SocketTypeID type, Value *value, IRBuilder<> &builder);
 
@@ -70,6 +73,8 @@ template <> struct SocketTypeImpl<BJIT_TYPE_FLOAT> {
 	typedef FP type;
 	typedef float extern_type;
 	typedef float extern_type_arg;
+	
+	static const char *get_name() { return "FLOAT"; }
 	
 	static Type *get_llvm_type(LLVMContext &context, Module */*module*/)
 	{
@@ -98,6 +103,8 @@ template <> struct SocketTypeImpl<BJIT_TYPE_INT> {
 	typedef int32_t extern_type;
 	typedef int32_t extern_type_arg;
 	
+	static const char *get_name() { return "INT"; }
+	
 	static Type *get_llvm_type(LLVMContext &context, Module */*module*/)
 	{
 		return TypeBuilder<types::i<32>, true>::get(context);
@@ -124,6 +131,8 @@ template <> struct SocketTypeImpl<BJIT_TYPE_VEC3> {
 	typedef vec3_t type;
 	typedef float extern_type[3];
 	typedef const float extern_type_arg[3];
+	
+	static const char *get_name() { return "VEC3"; }
 	
 	static Type *get_llvm_type(LLVMContext &/*context*/, Module *module)
 	{
@@ -159,6 +168,8 @@ template <> struct SocketTypeImpl<BJIT_TYPE_MAT4> {
 	typedef mat4_t type;
 	typedef float extern_type[4][4];
 	typedef const float extern_type_arg[4][4];
+	
+	static const char *get_name() { return "MAT4"; }
 	
 	static Type *get_llvm_type(LLVMContext &context, Module */*module*/)
 	{
@@ -211,11 +222,28 @@ namespace internal {
 		default: assert(false); break; \
 	}
 
+const char *bjit_get_socket_type_name(SocketTypeID type)
+{
+	const char *name = "";
+	FOREACH_SOCKET_TYPE(type, get_name(), name);
+	return name;
+}
+
 Type *bjit_get_socket_llvm_type(SocketTypeID type, LLVMContext &context, Module *module)
 {
 	Type *result = NULL;
 	FOREACH_SOCKET_TYPE(type, get_llvm_type(context, module), result);
 	return result;
+}
+
+SocketTypeID bjit_find_llvm_typeid(Type *type, LLVMContext &context, Module *module)
+{
+	for (int i = 0; i < BJIT_NUMTYPES; ++i) {
+		Type *itype = bjit_get_socket_llvm_type((SocketTypeID)i, context, module);
+		if (itype == type)
+			return (SocketTypeID)i;
+	}
+	return BJIT_TYPE_UNKNOWN;
 }
 
 template <typename T>

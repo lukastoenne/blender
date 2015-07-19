@@ -106,6 +106,80 @@ const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
 	return socket;
 }
 
+bool NodeType::verify_argument_socket(NodeSocket &socket, Type *type, int /*index*/,
+                                      Module *module, LLVMContext &context, raw_ostream &err)
+{
+	SocketTypeID tid = bjit_find_llvm_typeid(type, context, module);
+	if (tid == BJIT_TYPE_UNKNOWN) {
+		err << "Unknown output type: ";
+		type->print(err);
+		err << "\n";
+		return false;
+	}
+	
+	if (tid != socket.type) {
+		err << "Output type %d mismatch: ";
+		err << "argument type '" << bjit_get_socket_type_name(tid) << "' expected, ";
+		err << "got '" << bjit_get_socket_type_name(socket.type) << "'\n";
+		return false;
+	}
+	
+	return true;
+}
+
+bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostream &err)
+{
+	Function *fn = bjit_find_external_function(module, name);
+	if (!fn)
+		return false;
+	
+	int num_args = fn->arg_size();
+	int num_inputs = num_args;
+	int num_outputs = 1;
+	Type *rstruct = NULL;
+	
+	Function::arg_iterator it = fn->arg_begin();
+	if (it != fn->arg_end()) {
+		Argument &arg = *it;
+		if (arg.hasStructRetAttr()) {
+			rstruct = arg.getType();
+			num_inputs = num_args - 1;
+			num_outputs = rstruct->getStructNumElements();
+			
+			++it;
+		}
+	}
+	
+	/* add return fields as outputs */
+	if (num_inputs != inputs.size()) {
+		err << "Inputs number " << inputs.size() << " does not match arguments (" << num_inputs <<  ")\n";
+		return false;
+	}
+	if (num_outputs != outputs.size()) {
+		err << "Outputs number " << outputs.size() << " does not match return arguments (" << num_outputs <<  ")\n";
+		return false;
+	}
+	
+	for (int i = 0; it != fn->arg_end(); ++it, ++i) {
+//		Argument &arg = *it;
+		
+		/* TODO fuzzy name check could help here? */
+//		if (arg.getName() != inputs[i].name) ...
+		
+		Type *type = rstruct->getStructElementType(i);
+		if (!verify_argument_socket(inputs[i], type, i, module, context, err))
+			return false;
+	}
+	
+	for (int i = 0; i < num_outputs; ++i) {
+		Type *type = rstruct->getStructElementType(i);
+		if (!verify_argument_socket(outputs[i], type, i, module, context, err))
+			return false;
+	}
+	
+	return true;
+}
+
 const NodeSocket *NodeType::add_input(const std::string &name, SocketTypeID type, Constant *default_value)
 {
 	BLI_assert(!find_input(name));

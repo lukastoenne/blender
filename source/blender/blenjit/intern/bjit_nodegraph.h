@@ -81,6 +81,10 @@ struct NodeType {
 	const NodeSocket *find_input(const NodeSocket *socket) const;
 	const NodeSocket *find_output(const NodeSocket *socket) const;
 	
+	bool verify_argument_socket(NodeSocket &socket, Type *type, int index,
+	                            Module *module, LLVMContext &context, raw_ostream &err);
+	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
+	
 	const NodeSocket *add_input(const std::string &name, SocketTypeID type, Constant *default_value);
 	const NodeSocket *add_output(const std::string &name, SocketTypeID type, Constant *default_value);
 	
