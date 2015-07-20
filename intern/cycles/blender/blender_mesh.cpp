@@ -440,7 +440,7 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
 				*data = d->value();
-				data += 1;
+				data++;
 			}
 		}
 	}
@@ -459,10 +459,8 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			size_t i = 0;
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
-				data->x = d->value()[0];
-				data->y = d->value()[1];
-				data->z = d->value()[2];
-				data += 1;
+				*data = get_float3(d->value());
+				data++;
 			}
 		}
 	}
@@ -481,8 +479,8 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			size_t i = 0;
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
-				d->value((float *)data);
-				data += 1;
+				*data = get_float4(d->value());
+				data++;
 			}
 		}
 	}
@@ -502,7 +500,7 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
 				*data = (float)d->value();
-				data += 1;
+				data++;
 			}
 		}
 	}
