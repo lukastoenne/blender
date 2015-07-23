@@ -915,6 +915,31 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 			force[2] = -1.0f + 2.0f * BLI_gTurbulence(pd->f_size, temp[2], temp[0], temp[1], 2, 0, 2);
 			mul_v3_fl(force, strength * efd->falloff);
 			break;
+		case PFIELD_TURBFLOW: {
+			/*float noise[3];*/
+			float dnoise[3][4]; /* derivatives, 4th component unused */
+			
+			if (pd->flag & PFIELD_GLOBAL_CO) {
+				copy_v3_v3(temp, point->loc);
+			}
+			else {
+				add_v3_v3v3(temp, efd->vec_to_point2, efd->nor2);
+			}
+			
+			/*noise[0] = -1.0f + 2.0f **/ BLI_simplexnoise4D_ex(pd->f_size, temp[0], temp[1], temp[2], pd->f_noisetime, 2, pd->seed, dnoise[0], pd->f_noiseadvect);
+			/*noise[1] = -1.0f + 2.0f **/ BLI_simplexnoise4D_ex(pd->f_size, temp[1], temp[2], temp[0], pd->f_noisetime, 2, pd->seed, dnoise[1], pd->f_noiseadvect);
+			/*noise[2] = -1.0f + 2.0f **/ BLI_simplexnoise4D_ex(pd->f_size, temp[2], temp[0], temp[1], pd->f_noisetime, 2, pd->seed, dnoise[2], pd->f_noiseadvect);
+			
+			force[0] = dnoise[2][1] - dnoise[1][2];
+			force[1] = dnoise[0][2] - dnoise[2][0];
+			force[2] = dnoise[1][0] - dnoise[0][1];
+			
+			/* compensate effect of scaling on the derivatives */
+			mul_v3_fl(force, 2.0f);
+			
+			mul_v3_fl(force, strength * efd->falloff);
+			break;
+		}
 		case PFIELD_DRAG:
 			copy_v3_v3(force, point->vel);
 			fac = normalize_v3(force) * point->vel_to_sec;

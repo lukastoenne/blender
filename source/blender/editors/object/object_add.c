@@ -138,6 +138,7 @@ static EnumPropertyItem field_type_items[] = {
 	{PFIELD_GUIDE, "GUIDE", ICON_FORCE_CURVE, "Curve Guide", ""},
 	{PFIELD_BOID, "BOID", ICON_FORCE_BOID, "Boid", ""},
 	{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", ""},
+	{PFIELD_TURBFLOW, "TURBFLOW", ICON_FORCE_TURBULENCE, "Turbulent Flow", "Turbulent flow without sources or sinks (divergence-free)"},
 	{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", ""},
 	{PFIELD_SMOKEFLOW, "SMOKE", ICON_FORCE_SMOKEFLOW, "Smoke Flow", ""},
 	{0, NULL, 0, NULL, NULL}

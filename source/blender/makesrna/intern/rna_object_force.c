@@ -1108,6 +1108,13 @@ static void rna_def_effector_weight(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Smoke Flow", "Smoke Flow effector weight");
 	RNA_def_property_update(prop, 0, "rna_EffectorWeight_update");
+
+	prop = RNA_def_property(srna, "turbflow", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "weight[14]");
+	RNA_def_property_range(prop, -200.0f, 200.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Turbulent Flow", "Turbulent flow field without sources or sinks (divergence-free)");
+	RNA_def_property_update(prop, 0, "rna_EffectorWeight_update");
 }
 
 static void rna_def_field(BlenderRNA *brna)
@@ -1133,6 +1140,7 @@ static void rna_def_field(BlenderRNA *brna)
 		{PFIELD_GUIDE, "GUIDE", ICON_FORCE_CURVE, "Curve Guide", "Create a force along a curve object"},
 		{PFIELD_BOID, "BOID", ICON_FORCE_BOID, "Boid", ""},
 		{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", "Create turbulence with a noise field"},
+		{PFIELD_TURBFLOW, "TURBFLOW", ICON_FORCE_TURBULENCE, "Turbulent Flow", "Turbulent flow without sources or sinks (divergence-free)"},
 		{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", "Create a force that dampens motion"},
 		{PFIELD_SMOKEFLOW, "SMOKE_FLOW", ICON_FORCE_SMOKEFLOW, "Smoke Flow", "Create a force based on smoke simulation air flow"},
 		{0, NULL, 0, NULL, NULL}
@@ -1261,8 +1269,23 @@ static void rna_def_field(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "size", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "f_size");
-	RNA_def_property_range(prop, 0.0f, 10.0f);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 100.0f, 0.1f, 3);
 	RNA_def_property_ui_text(prop, "Size", "Size of the turbulence");
+	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
+
+	prop = RNA_def_property(srna, "noise_time", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "f_noisetime");
+	RNA_def_property_range(prop, -10000.0f, 10000.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 100.0f, 0.01f, 5);
+	RNA_def_property_ui_text(prop, "Noise Time Value", "Time component of 4D turbulence");
+	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
+
+	prop = RNA_def_property(srna, "noise_advect", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "f_noiseadvect");
+	RNA_def_property_range(prop, -10000.0f, 10000.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 4);
+	RNA_def_property_ui_text(prop, "Noise Advection", "Pseudo-advection for noise vectors");
 	RNA_def_property_update(prop, 0, "rna_FieldSettings_update");
 
 	prop = RNA_def_property(srna, "rest_length", PROP_FLOAT, PROP_NONE);

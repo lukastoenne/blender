@@ -55,6 +55,7 @@ typedef enum PFieldType {
 	PFIELD_TURBULENCE = 11,	/* Force defined by BLI_gTurbulence										*/
 	PFIELD_DRAG       = 12,	/* Linear & quadratic drag												*/
 	PFIELD_SMOKEFLOW  = 13,	/* Force based on smoke simulation air flow								*/
+	PFIELD_TURBFLOW  = 14,	/* Turbulent flow without sources or sinks (divergence-free)			*/
 	NUM_PFIELD_TYPES
 } PFieldType;
 	
@@ -75,6 +76,8 @@ typedef struct PartDeflect {
 						/* force used as the velocity of surrounding medium.	*/
 
 	float f_size;		/* Noise size for noise effector, restlength for harmonic effector */
+	float f_noisetime;	/* time value used as 4th coordinate in 4D noise */
+	float f_noiseadvect; /* Pseudo-advection for turbulence */
 
 	/* fall-off */
 	float f_power;		/* The power law - real gravitation is 2 (square)	*/
@@ -118,10 +121,9 @@ typedef struct PartDeflect {
 typedef struct EffectorWeights {
 	struct Group *group;		/* only use effectors from this group of objects */
 	
-	float weight[14];			/* effector type specific weights */
+	float weight[15];			/* effector type specific weights */
 	float global_gravity;
 	short flag, rt[3];
-	int pad;
 } EffectorWeights;
 
 /* EffectorWeights->flag */
@@ -350,26 +352,28 @@ typedef struct SoftBody {
 
 
 /* pd->flag: various settings */
-#define PFIELD_USEMAX			1
-/*#define PDEFLE_DEFORM			2*/			/*UNUSED*/
-#define PFIELD_GUIDE_PATH_ADD	4			/* TODO: do_versions for below */
-#define PFIELD_PLANAR			8			/* used for do_versions */
-#define PDEFLE_KILL_PART		16
-#define PFIELD_POSZ				32			/* used for do_versions */
-#define PFIELD_TEX_OBJECT		64
-#define PFIELD_GLOBAL_CO		64			/* used for turbulence */
-#define PFIELD_TEX_2D			128
-#define PFIELD_MULTIPLE_SPRINGS	128			/* used for harmonic force */
-#define PFIELD_USEMIN			256
-#define PFIELD_USEMAXR			512
-#define PFIELD_USEMINR			1024
-#define PFIELD_TEX_ROOTCO		2048
-#define PFIELD_SURFACE			(1<<12)		/* used for do_versions */
-#define PFIELD_VISIBILITY		(1<<13)
-#define PFIELD_DO_LOCATION		(1<<14)
-#define PFIELD_DO_ROTATION		(1<<15)
-#define PFIELD_GUIDE_PATH_WEIGHT (1<<16)	/* apply curve weights */
-#define PFIELD_SMOKE_DENSITY    (1<<17)		/* multiply smoke force by density */
+typedef enum PFieldFlag {
+	PFIELD_USEMAX               = (1 << 0),
+/*	PDEFLE_DEFORM               = (1 << 1),*/	/*UNUSED*/
+	PFIELD_GUIDE_PATH_ADD       = (1 << 2),		/* TODO: do_versions for below */
+	PFIELD_PLANAR               = (1 << 3),		/* used for do_versions */
+	PDEFLE_KILL_PART            = (1 << 4),
+	PFIELD_POSZ                 = (1 << 5),		/* used for do_versions */
+	PFIELD_TEX_OBJECT           = (1 << 6),
+	PFIELD_GLOBAL_CO            = (1 << 6),		/* used for turbulence */
+	PFIELD_TEX_2D               = (1 << 7),
+	PFIELD_MULTIPLE_SPRINGS     = (1 << 7),		/* used for harmonic force */
+	PFIELD_USEMIN               = (1 << 8),
+	PFIELD_USEMAXR              = (1 << 9),
+	PFIELD_USEMINR              = (1 << 10),
+	PFIELD_TEX_ROOTCO           = (1 << 11),
+	PFIELD_SURFACE              = (1 << 12),	/* used for do_versions */
+	PFIELD_VISIBILITY           = (1 << 13),
+	PFIELD_DO_LOCATION          = (1 << 14),
+	PFIELD_DO_ROTATION          = (1 << 15),
+	PFIELD_GUIDE_PATH_WEIGHT    = (1 << 16),	/* apply curve weights */
+	PFIELD_SMOKE_DENSITY        = (1 << 17),	/* multiply smoke force by density */
+} PFieldFlag;
 
 /* pd->falloff */
 #define PFIELD_FALL_SPHERE		0

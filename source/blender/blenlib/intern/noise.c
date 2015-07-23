@@ -30,9 +30,19 @@
  *  \ingroup bli
  */
 
+#ifdef __SSE2__
+#define SIMPLEXNOISE_USE_SSE2
+#endif
+
 #include <math.h>
 
+#ifdef SIMPLEXNOISE_USE_SSE2
+#  include <emmintrin.h>
+#endif
+
+#include "BLI_math.h"
 #include "BLI_noise.h"
+#include "BLI_utildefines.h"
 
 /* local */
 static float noise3_perlin(float vec[3]);
@@ -449,6 +459,1045 @@ float BLI_turbulence1(float noisesize, float x, float y, float z, int nr)
 	}
 	return s / div;
 }
+
+// Gradient table for 2D. These could be programmed the Ken Perlin way with
+// some clever bit-twiddling, but this is more clear, and not really slower.
+static float grad2lut[8][2] = {
+    { -1.0f, -1.0f }, { 1.0f,  0.0f }, { -1.0f, 0.0f }, { 1.0f,  1.0f },
+    { -1.0f,  1.0f }, { 0.0f, -1.0f }, {  0.0f, 1.0f }, { 1.0f, -1.0f }
+};
+
+// Gradient directions for 3D.
+// These vectors are based on the midpoints of the 12 edges of a cube.
+// A larger array of random unit length vectors would also do the job,
+// but these 12 (including 4 repeats to make the array length a power
+// of two) work better. They are not random, they are carefully chosen
+// to represent a small, isotropic set of directions.
+static float grad3lut[16][3] = {
+    {  1.0f,  0.0f,  1.0f }, {  0.0f,  1.0f,  1.0f }, // 12 cube edges
+    { -1.0f,  0.0f,  1.0f }, {  0.0f, -1.0f,  1.0f },
+    {  1.0f,  0.0f, -1.0f }, {  0.0f,  1.0f, -1.0f },
+    { -1.0f,  0.0f, -1.0f }, {  0.0f, -1.0f, -1.0f },
+    {  1.0f, -1.0f,  0.0f }, {  1.0f,  1.0f,  0.0f },
+    { -1.0f,  1.0f,  0.0f }, { -1.0f, -1.0f,  0.0f },
+    {  1.0f,  0.0f,  1.0f }, { -1.0f,  0.0f,  1.0f }, // 4 repeats to make 16
+    {  0.0f,  1.0f, -1.0f }, {  0.0f, -1.0f, -1.0f }
+};
+
+// Gradient directions for 4D
+static float grad4lut[32][4] = {
+  { 0.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f, 1.0f, -1.0f }, { 0.0f, 1.0f, -1.0f, 1.0f }, { 0.0f, 1.0f, -1.0f, -1.0f }, // 32 tesseract edges
+  { 0.0f, -1.0f, 1.0f, 1.0f }, { 0.0f, -1.0f, 1.0f, -1.0f }, { 0.0f, -1.0f, -1.0f, 1.0f }, { 0.0f, -1.0f, -1.0f, -1.0f },
+  { 1.0f, 0.0f, 1.0f, 1.0f }, { 1.0f, 0.0f, 1.0f, -1.0f }, { 1.0f, 0.0f, -1.0f, 1.0f }, { 1.0f, 0.0f, -1.0f, -1.0f },
+  { -1.0f, 0.0f, 1.0f, 1.0f }, { -1.0f, 0.0f, 1.0f, -1.0f }, { -1.0f, 0.0f, -1.0f, 1.0f }, { -1.0f, 0.0f, -1.0f, -1.0f },
+  { 1.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f, -1.0f }, { 1.0f, -1.0f, 0.0f, 1.0f }, { 1.0f, -1.0f, 0.0f, -1.0f },
+  { -1.0f, 1.0f, 0.0f, 1.0f }, { -1.0f, 1.0f, 0.0f, -1.0f }, { -1.0f, -1.0f, 0.0f, 1.0f }, { -1.0f, -1.0f, 0.0f, -1.0f },
+  { 1.0f, 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 1.0f, 0.0f }, { 1.0f, -1.0f, -1.0f, 0.0f },
+  { -1.0f, 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, -1.0f, 0.0f }, { -1.0f, -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, -1.0f, 0.0f }
+};
+
+/* Bitwise circular rotation left by k bits. */
+BLI_INLINE unsigned int rotl32(unsigned int x, int k)
+{
+	return (x<<k) | (x>>(32-k));
+}
+
+// Mix up and combine the bits of a, b, and c (doesn't change them, but
+// returns a hash of those three original values).  21 ops
+BLI_INLINE unsigned int bjfinal3(unsigned int a, unsigned int b, unsigned int c)
+{
+	c ^= b; c -= rotl32(b,14);
+	a ^= c; a -= rotl32(c,11);
+	b ^= a; b -= rotl32(a,25);
+	c ^= b; c -= rotl32(b,16);
+	a ^= c; a -= rotl32(c,4);
+	b ^= a; b -= rotl32(a,14);
+	c ^= b; c -= rotl32(b,24);
+	return c;
+}
+
+BLI_INLINE unsigned int bjfinal2(unsigned int a, unsigned int b)
+{
+	return bjfinal3(a, b, 0xdeadbeef);
+}
+
+BLI_INLINE unsigned int scramble3(unsigned int v0, unsigned int v1, unsigned int v2)
+{
+	return bjfinal3(v0, v1, v2^0xdeadbeef);
+}
+
+BLI_INLINE unsigned int scramble2(unsigned int v0, unsigned int v1)
+{
+	return scramble3(v0, v1, 0);
+}
+
+BLI_INLINE unsigned int scramble1(unsigned int v0)
+{
+	return scramble3(v0, 0, 0);
+}
+
+/*
+ * Helper functions to compute gradients in 1D to 4D
+ * and gradients-dot-residualvectors in 2D to 4D.
+ */
+
+BLI_INLINE float grad1(int i, int seed)
+{
+	int h = scramble2(i, seed);
+	float g = 1.0f + (h & 7);   // Gradient value is one of 1.0, 2.0, ..., 8.0
+	if (h & 8)
+		g = -g;   // Make half of the gradients negative
+	return g;
+}
+
+BLI_INLINE const float *grad2 (int i, int j, int seed)
+{
+	int h = scramble3(i, j, seed);
+	return grad2lut[h & 7];
+}
+
+BLI_INLINE const float *grad3(int i, int j, int k, int seed)
+{
+	int h = scramble3(i, j, scramble2(k, seed));
+	return grad3lut[h & 15];
+}
+
+BLI_INLINE const float *grad4(int i, int j, int k, int l, int seed)
+{
+	int h = scramble3(i, j, scramble3(k, l, seed));
+	return grad4lut[h & 31];
+}
+
+BLI_INLINE int quick_floor(float x)
+{
+	return (int)x - ((x < 0) ? 1 : 0);
+}
+
+BLI_INLINE int order_components4(float x, float y, float z, float w)
+{
+	int c1 = (x > y) ? 32 : 0;
+	int c2 = (x > z) ? 16 : 0;
+	int c3 = (y > z) ? 8 : 0;
+	int c4 = (x > w) ? 4 : 0;
+	int c5 = (y > w) ? 2 : 0;
+	int c6 = (z > w) ? 1 : 0;
+	return c1 | c2 | c3 | c4 | c5 | c6; // '|' is mostly faster than '+'
+}
+
+#if 0
+#ifdef SIMPLEXNOISE_USE_SSE2
+BLI_INLINE float get_elemf_sse(const __m128 a, int index)
+{
+	return ((const float *)(&a))[3-index];
+}
+
+BLI_INLINE int get_elemi_sse(const __m128i a, int index)
+{
+	return ((const int *)(&a))[3-index];
+}
+
+/* XXX horizontal-add intrinsics replacement for SSE2 (hadd needs SSE3) */
+BLI_INLINE __m128 _mm_hadd4_ps(const __m128 i)
+{
+	__m128 s;
+	s = _mm_add_ps(i, _mm_movehl_ps(i, i));
+	s = _mm_add_ps(s, _mm_shuffle_ps(s, s, 1));
+	return s;
+}
+
+/* XXX horizontal-add intrinsics replacement for SSE2 (hadd needs SSE3) */
+BLI_INLINE __m128i _mm_hadd4_epi32(const __m128i i)
+{
+	// XXX how to do this with intrinsics?
+	const int32_t *pi = (const int32_t *)(&i);
+	return _mm_set_epi32(pi[0], pi[1], pi[2], pi[3]);
+}
+
+BLI_INLINE const __m128 cast_to_float_sse(const __m128i a)
+{
+	return _mm_castsi128_ps(a);
+}
+
+BLI_INLINE const __m128i cast_to_int_sse(const __m128 a)
+{
+	return _mm_castps_si128(a);
+}
+
+BLI_INLINE __m128i truncatei_sse(const __m128 a) {
+	return _mm_cvttps_epi32(a);
+}
+
+BLI_INLINE __m128i quick_floor_sse(const __m128 x)
+{
+//	__m128i b = truncatei_sse(x);
+//	__m128i isneg = cast_to_int_sse(_mm_cmplt_ps(x, _mm_set1_ps(0.0f)));
+//	return _mm_add_epi32(b, isneg); // unsaturated add 0xffffffff is the same as subtract -1
+	const float *pf = (const float *)(&x);
+	return _mm_set_epi32(quick_floor(pf[3]), quick_floor(pf[2]), quick_floor(pf[1]), quick_floor(pf[0]));
+}
+#endif
+
+// 3D simplex noise with derivatives.
+// If the last tthree arguments are not null, the analytic derivative
+// (the 3D gradient of the scalar noise field) is also calculated.
+BLI_INLINE float simplexnoise3(float x, float y, float z, int seed)
+{
+	// Skewing factors for 3D simplex grid:
+	const float F3 = 0.333333333f;   // = 1/3
+	const float G3 = 0.166666667f;   // = 1/6
+	
+	// Skew the input space to determine which simplex cell we're in
+	float s = (x + y + z) * F3; // Very nice and simple skew factor for 3D
+#ifdef SIMPLEXNOISE_USE_SSE2
+	__m128 xyz = _mm_set_ps(x, y, z, 0.0f);
+	__m128i ijk = quick_floor_sse(_mm_add_ps(xyz, _mm_set_ps(s, s, s, 0.0f)));
+	int i = get_elemi_sse(ijk, 0);
+	int j = get_elemi_sse(ijk, 1);
+	int k = get_elemi_sse(ijk, 2);
+	
+	float t = (float)get_elemi_sse(_mm_hadd4_epi32(ijk), 0) * G3;
+	__m128 XYZ0 = cast_to_float_sse(ijk) - _mm_set_ps(t, t, t, 0.0f);  // Unskew the cell origin back to (x,y,z) space
+	__m128 xyz0 = _mm_sub_ps(xyz, XYZ0);  // The x,y,z distances from the cell origin
+#else
+	int i = quick_floor(x + s);
+	int j = quick_floor(y + s);
+	int k = quick_floor(z + s);
+	
+	float t = (float)(i + j + k) * G3;
+	float XYZ0[3] = { (float)i - t, (float)j - t, (float)k - t };  // Unskew the cell origin back to (x,y,z) space
+	float xyz0[3] = { x - XYZ0[0], y - XYZ0[1], z - XYZ0[2] };  // The x,y,z distances from the cell origin
+#endif
+	
+	// For the 3D case, the simplex shape is a slightly irregular tetrahedron.
+	// Determine which simplex we are in.
+	int i1, j1, k1; // Offsets for second corner of simplex in (i,j,k) coords
+	int i2, j2, k2; // Offsets for third corner of simplex in (i,j,k) coords
+	
+	/* COMPAT */
+#ifdef SIMPLEXNOISE_USE_SSE2
+	float x0 = get_elemf_sse(xyz0, 0), y0 = get_elemf_sse(xyz0, 1), z0 = get_elemf_sse(xyz0, 2);
+#else
+	float x0 = xyz0[0], y0 = xyz0[1], z0 = xyz0[2];
+#endif
+	float x1, x2, x3, y1, y2, y3, z1, z2, z3;
+	
+#if 1
+    // TODO: This code would benefit from a backport from the GLSL version!
+    // (no it can't... see note below)
+    if (x0>=y0) {
+        if (y0>=z0) {
+            i1=1; j1=0; k1=0; i2=1; j2=1; k2=0;  /* X Y Z order */
+        } else if (x0>=z0) {
+            i1=1; j1=0; k1=0; i2=1; j2=0; k2=1;  /* X Z Y order */
+        } else {
+            i1=0; j1=0; k1=1; i2=1; j2=0; k2=1;  /* Z X Y order */
+        }
+    } else { // x0<y0
+        if (y0<z0) {
+            i1=0; j1=0; k1=1; i2=0; j2=1; k2=1;  /* Z Y X order */
+        } else if (x0<z0) {
+            i1=0; j1=1; k1=0; i2=0; j2=1; k2=1;  /* Y Z X order */
+        } else {
+            i1=0; j1=1; k1=0; i2=1; j2=1; k2=0;  /* Y X Z order */
+        }
+    }
+#else
+    // Here's the logic "from the GLSL version", near as I (LG) could
+    // translate it from GLSL to non-SIMD C++.  It was slower.  I'm
+    // keeping this code here for reference anyway.
+    {
+        // vec3 g = step(x0.yzx, x0.xyz);
+        // vec3 l = 1.0 - g;
+        bool g0 = (x0 >= y0), l0 = !g0;
+        bool g1 = (y0 >= z0), l1 = !g1;
+        bool g2 = (z0 >= x0), l2 = !g2;
+        // vec3 i1 = min (g.xyz, l.zxy);  // min of bools is &
+        // vec3 i2 = max (g.xyz, l.zxy);  // max of bools is |
+        i1 = g0 & l2;
+        j1 = g1 & l0;
+        k1 = g2 & l1;
+        i2 = g0 | l2;
+        j2 = g1 | l0;
+        k2 = g2 | l1;
+    }
+#endif
+	
+	{
+#ifdef SIMPLEXNOISE_USE_SSE2
+		__m128i ijk1 = _mm_set_epi32(i1, j1, k1, 0);
+		__m128i ijk2 = _mm_set_epi32(i2, j2, k2, 0);
+		
+		// A step of (1,0,0) in (i,j,k) means a step of (1-c,-c,-c) in (x,y,z),
+		// a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
+		// a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z),
+		// where c = 1/6.
+		__m128 xyz1 = _mm_add_ps(_mm_sub_ps(xyz0, cast_to_float_sse(ijk1)), _mm_set1_ps(G3));  // Offsets for second corner in (x,y,z) coords
+		__m128 xyz2 = _mm_add_ps(_mm_sub_ps(xyz0, cast_to_float_sse(ijk2)), _mm_set1_ps(2.0f * G3));  // Offsets for third corner in (x,y,z) coords
+		__m128 xyz3 =            _mm_sub_ps(xyz0, _mm_set1_ps(1.0f - 3.0f * G3));  // Offsets for last corner in (x,y,z) coords
+		
+		/* Compat */
+		x1 = get_elemf_sse(xyz1, 0); y1 = get_elemf_sse(xyz1, 1); z1 = get_elemf_sse(xyz1, 2);
+		x2 = get_elemf_sse(xyz2, 0); y2 = get_elemf_sse(xyz2, 1); z2 = get_elemf_sse(xyz2, 2);
+		x3 = get_elemf_sse(xyz3, 0); y3 = get_elemf_sse(xyz3, 1); z3 = get_elemf_sse(xyz3, 2);
+		
+		return (float)get_elemi_sse(ijk1, 0) * 0.1f;
+#else
+		// A step of (1,0,0) in (i,j,k) means a step of (1-c,-c,-c) in (x,y,z),
+		// a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
+		// a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z),
+		// where c = 1/6.
+		
+		float xyz1[3] = { xyz0[0] - (float)i1 + G3,
+		                  xyz0[1] - (float)j1 + G3,
+		                  xyz0[2] - (float)k1 + G3 };  // Offsets for second corner in (x,y,z) coords
+		float xyz2[3] = { xyz0[0] - (float)i2 + 2.0f * G3,
+		                  xyz0[1] - (float)j2 + 2.0f * G3,
+		                  xyz0[2] - (float)k2 + 2.0f * G3 };  // Offsets for third corner in (x,y,z) coords
+		float xyz3[3] = { xyz0[0] - 1.0f + 3.0f * G3,
+		                  xyz0[1] - 1.0f + 3.0f * G3,
+		                  xyz0[2] - 1.0f + 3.0f * G3 };  // Offsets for last corner in (x,y,z) coords
+		
+		/* Compat */
+		x1 = xyz1[0]; y1 = xyz1[1]; z1 = xyz1[2];
+		x2 = xyz2[0]; y2 = xyz2[1]; z2 = xyz2[2];
+		x3 = xyz3[0]; y3 = xyz3[1]; z3 = xyz3[2];
+#endif
+	}
+	
+	
+	{
+		float t20 = 0.0f, t40 = 0.0f;
+		float t21 = 0.0f, t41 = 0.0f;
+		float t22 = 0.0f, t42 = 0.0f;
+		float t23 = 0.0f, t43 = 0.0f;
+		float n0=0.0f, n1=0.0f, n2=0.0f, n3=0.0f; // Noise contributions from the four simplex corners
+		float t0, t1, t2, t3;
+		
+		// The scale is empirical, to make it cover [-1,1],
+		// and to make it approximately match the range of our
+		// Perlin noise implementation.
+		const float scale = 68.0f;
+		
+		// Calculate the contribution from the four corners
+		t0 = 0.5f - x0*x0 - y0*y0 - z0*z0;
+		if (t0 >= 0.0f) {
+			const float *g0 = grad3 (i, j, k, seed);
+			t20 = t0 * t0;
+			t40 = t20 * t20;
+			n0 = t40 * (g0[0] * x0 + g0[1] * y0 + g0[2] * z0);
+		}
+		
+		t1 = 0.5f - x1*x1 - y1*y1 - z1*z1;
+		if (t1 >= 0.0f) {
+			const float *g1 = grad3 (i+i1, j+j1, k+k1, seed);
+			t21 = t1 * t1;
+			t41 = t21 * t21;
+			n1 = t41 * (g1[0] * x1 + g1[1] * y1 + g1[2] * z1);
+		}
+		
+		t2 = 0.5f - x2*x2 - y2*y2 - z2*z2;
+		if (t2 >= 0.0f) {
+			const float *g2 = grad3 (i+i2, j+j2, k+k2, seed);
+			t22 = t2 * t2;
+			t42 = t22 * t22;
+			n2 = t42 * (g2[0] * x2 + g2[1] * y2 + g2[2] * z2);
+		}
+		
+		t3 = 0.5f - x3*x3 - y3*y3 - z3*z3;
+		if (t3 >= 0.0f) {
+			const float *g3 = grad3 (i+1, j+1, k+1, seed);
+			t23 = t3 * t3;
+			t43 = t23 * t23;
+			n3 = t43 * (g3[0] * x3 + g3[1] * y3 + g3[2] * z3);
+		}
+		
+		// Sum up and scale the result (0..1 range)
+		return 0.5f * scale * (n0 + n1 + n2 + n3) + 0.5f;
+	}
+}
+#endif
+
+#if 0
+// A lookup table to traverse the simplex around a given point in 4D.
+// Details can be found where this table is used, in the 4D noise method.
+/* TODO: This should not be required, backport it from Bill's GLSL code! */
+static unsigned char simplex[64][4] = {
+  {0,1,2,3},{0,1,3,2},{0,0,0,0},{0,2,3,1},{0,0,0,0},{0,0,0,0},{0,0,0,0},{1,2,3,0},
+  {0,2,1,3},{0,0,0,0},{0,3,1,2},{0,3,2,1},{0,0,0,0},{0,0,0,0},{0,0,0,0},{1,3,2,0},
+  {0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},
+  {1,2,0,3},{0,0,0,0},{1,3,0,2},{0,0,0,0},{0,0,0,0},{0,0,0,0},{2,3,0,1},{2,3,1,0},
+  {1,0,2,3},{1,0,3,2},{0,0,0,0},{0,0,0,0},{0,0,0,0},{2,0,3,1},{0,0,0,0},{2,1,3,0},
+  {0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0},
+  {2,0,1,3},{0,0,0,0},{0,0,0,0},{0,0,0,0},{3,0,1,2},{3,0,2,1},{0,0,0,0},{3,1,2,0},
+  {2,1,0,3},{0,0,0,0},{0,0,0,0},{0,0,0,0},{3,1,0,2},{0,0,0,0},{3,2,0,1},{3,2,1,0}};
+#endif
+
+// 4D simplex noise with derivatives.
+// If the last four arguments are not null, the analytic derivative
+// (the 4D gradient of the scalar noise field) is also calculated.
+BLI_INLINE float simplexnoise4(float x, float y, float z, float w, int seed,
+                               float *dnoise_dx, float *dnoise_dy, float *dnoise_dz, float *dnoise_dw)
+{
+	// The skewing and unskewing factors are hairy again for the 4D case
+	const float F4 = 0.309016994; // F4 = (sqrt(5.0)-1.0)/4.0
+	const float G4 = 0.138196601; // G4 = (5.0-sqrt(5.0))/20.0
+	static const float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	
+	// Gradients at simplex corners
+	const float *g0 = zero, *g1 = zero, *g2 = zero, *g3 = zero, *g4 = zero;
+	
+	// Noise contributions from the four simplex corners
+	float n0=0.0f, n1=0.0f, n2=0.0f, n3=0.0f, n4=0.0f;
+	float t20 = 0.0f, t21 = 0.0f, t22 = 0.0f, t23 = 0.0f, t24 = 0.0f;
+	float t40 = 0.0f, t41 = 0.0f, t42 = 0.0f, t43 = 0.0f, t44 = 0.0f;
+	
+	// Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
+	float s = (x + y + z + w) * F4; // Factor for 4D skewing
+	float xs = x + s;
+	float ys = y + s;
+	float zs = z + s;
+	float ws = w + s;
+	int i = quick_floor(xs);
+	int j = quick_floor(ys);
+	int k = quick_floor(zs);
+	int l = quick_floor(ws);
+	
+	float t = (i + j + k + l) * G4; // Factor for 4D unskewing
+	float X0 = i - t; // Unskew the cell origin back to (x,y,z,w) space
+	float Y0 = j - t;
+	float Z0 = k - t;
+	float W0 = l - t;
+	
+	float x0 = x - X0;  // The x,y,z,w distances from the cell origin
+	float y0 = y - Y0;
+	float z0 = z - Z0;
+	float w0 = w - W0;
+	
+	/* Simplex subdivision according to get the Schlaefli orthoscheme */
+	bool gt0 = (x0 >= y0), lt0 = !gt0;
+	bool gt1 = (y0 >= z0), lt1 = !gt1;
+	bool gt2 = (z0 >= w0), lt2 = !gt2;
+	bool gt3 = (w0 >= x0), lt3 = !gt3;
+	bool gt4 = (x0 >= z0), lt4 = !gt4;
+	bool gt5 = (y0 >= w0), lt5 = !gt5;
+	
+	int i1 = (lt3 & gt0 & gt4);
+	int j1 = (lt0 & gt1 & gt5);
+	int k1 = (lt1 & gt2 & lt4);
+	int l1 = (lt2 & gt3 & lt5);
+	int i2 = (lt3 & gt0) | (gt0 & gt4) | (gt4 & lt3);
+	int j2 = (lt0 & gt1) | (gt1 & gt5) | (gt5 & lt0);
+	int k2 = (lt1 & gt2) | (gt2 & lt4) | (lt4 & lt1);
+	int l2 = (lt2 & gt3) | (gt3 & lt5) | (lt5 & lt2);
+	int i3 = lt3 | gt0 | gt4;
+	int j3 = lt0 | gt1 | gt5;
+	int k3 = lt1 | gt2 | lt4;
+	int l3 = lt2 | gt3 | lt5;
+	// The fifth corner has all coordinate offsets = 1, so no need to look that up.
+	
+	float x1 = x0 - i1 + G4; // Offsets for second corner in (x,y,z,w) coords
+	float y1 = y0 - j1 + G4;
+	float z1 = z0 - k1 + G4;
+	float w1 = w0 - l1 + G4;
+	float x2 = x0 - i2 + 2.0f * G4; // Offsets for third corner in (x,y,z,w) coords
+	float y2 = y0 - j2 + 2.0f * G4;
+	float z2 = z0 - k2 + 2.0f * G4;
+	float w2 = w0 - l2 + 2.0f * G4;
+	float x3 = x0 - i3 + 3.0f * G4; // Offsets for fourth corner in (x,y,z,w) coords
+	float y3 = y0 - j3 + 3.0f * G4;
+	float z3 = z0 - k3 + 3.0f * G4;
+	float w3 = w0 - l3 + 3.0f * G4;
+	float x4 = x0 - 1.0f + 4.0f * G4; // Offsets for last corner in (x,y,z,w) coords
+	float y4 = y0 - 1.0f + 4.0f * G4;
+	float z4 = z0 - 1.0f + 4.0f * G4;
+	float w4 = w0 - 1.0f + 4.0f * G4;
+	
+	float t0, t1, t2, t3, t4;
+	
+	// The scale is empirical, to make it
+	// cover [-1,1], and to make it approximately match the range of our
+	// Perlin noise implementation.
+	const float scale = 54.0f;
+	float noise;
+	
+	// Calculate the contribution from the five corners
+	t0 = 0.5f - x0*x0 - y0*y0 - z0*z0 - w0*w0;
+	if (t0 >= 0.0f) {
+		t20 = t0 * t0;
+		t40 = t20 * t20;
+		g0 = grad4 (i, j, k, l, seed);
+		n0 = t40 * (g0[0] * x0 + g0[1] * y0 + g0[2] * z0 + g0[3] * w0);
+	}
+	
+	t1 = 0.5f - x1*x1 - y1*y1 - z1*z1 - w1*w1;
+	if (t1 >= 0.0f) {
+		t21 = t1 * t1;
+		t41 = t21 * t21;
+		g1 = grad4 (i+i1, j+j1, k+k1, l+l1, seed);
+		n1 = t41 * (g1[0] * x1 + g1[1] * y1 + g1[2] * z1 + g1[3] * w1);
+	}
+	
+	t2 = 0.5f - x2*x2 - y2*y2 - z2*z2 - w2*w2;
+	if (t2 >= 0.0f) {
+		t22 = t2 * t2;
+		t42 = t22 * t22;
+		g2 = grad4 (i+i2, j+j2, k+k2, l+l2, seed);
+		n2 = t42 * (g2[0] * x2 + g2[1] * y2 + g2[2] * z2 + g2[3] * w2);
+	}
+	
+	t3 = 0.5f - x3*x3 - y3*y3 - z3*z3 - w3*w3;
+	if (t3 >= 0.0f) {
+		t23 = t3 * t3;
+		t43 = t23 * t23;
+		g3 = grad4 (i+i3, j+j3, k+k3, l+l3, seed);
+		n3 = t43 * (g3[0] * x3 + g3[1] * y3 + g3[2] * z3 + g3[3] * w3);
+	}
+	
+	t4 = 0.5f - x4*x4 - y4*y4 - z4*z4 - w4*w4;
+	if (t4 >= 0.0f) {
+		t24 = t4 * t4;
+		t44 = t24 * t24;
+		g4 = grad4 (i+1, j+1, k+1, l+1, seed);
+		n4 = t44 * (g4[0] * x4 + g4[1] * y4 + g4[2] * z4 + g4[3] * w4);
+	}
+	
+	// Sum up and scale the result.
+	noise = 0.5f * scale * (n0 + n1 + n2 + n3 + n4) + 0.5f;
+	
+	// Compute derivative, if requested by supplying non-null pointers
+	// for the last four arguments
+	if (dnoise_dx) {
+		float temp0, temp1, temp2, temp3, temp4;
+		BLI_assert(dnoise_dy && dnoise_dz && dnoise_dw);
+		/*  A straight, unoptimised calculation would be like:
+		 *     *dnoise_dx = -8.0f * t20 * t0 * x0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[0];
+		 *    *dnoise_dy = -8.0f * t20 * t0 * y0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[1];
+		 *    *dnoise_dz = -8.0f * t20 * t0 * z0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[2];
+		 *    *dnoise_dw = -8.0f * t20 * t0 * w0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[3];
+		 *    *dnoise_dx += -8.0f * t21 * t1 * x1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[0];
+		 *    *dnoise_dy += -8.0f * t21 * t1 * y1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[1];
+		 *    *dnoise_dz += -8.0f * t21 * t1 * z1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[2];
+		 *    *dnoise_dw = -8.0f * t21 * t1 * w1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[3];
+		 *    *dnoise_dx += -8.0f * t22 * t2 * x2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[0];
+		 *    *dnoise_dy += -8.0f * t22 * t2 * y2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[1];
+		 *    *dnoise_dz += -8.0f * t22 * t2 * z2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[2];
+		 *    *dnoise_dw += -8.0f * t22 * t2 * w2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[3];
+		 *    *dnoise_dx += -8.0f * t23 * t3 * x3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[0];
+		 *    *dnoise_dy += -8.0f * t23 * t3 * y3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[1];
+		 *    *dnoise_dz += -8.0f * t23 * t3 * z3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[2];
+		 *    *dnoise_dw += -8.0f * t23 * t3 * w3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[3];
+		 *    *dnoise_dx += -8.0f * t24 * t4 * x4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[0];
+		 *    *dnoise_dy += -8.0f * t24 * t4 * y4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[1];
+		 *    *dnoise_dz += -8.0f * t24 * t4 * z4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[2];
+		 *    *dnoise_dw += -8.0f * t24 * t4 * w4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[3];
+		 */
+		temp0 = t20 * t0 * (g0[0] * x0 + g0[1] * y0 + g0[2] * z0 + g0[3] * w0);
+		*dnoise_dx = temp0 * x0;
+		*dnoise_dy = temp0 * y0;
+		*dnoise_dz = temp0 * z0;
+		*dnoise_dw = temp0 * w0;
+		temp1 = t21 * t1 * (g1[0] * x1 + g1[1] * y1 + g1[2] * z1 + g1[3] * w1);
+		*dnoise_dx += temp1 * x1;
+		*dnoise_dy += temp1 * y1;
+		*dnoise_dz += temp1 * z1;
+		*dnoise_dw += temp1 * w1;
+		temp2 = t22 * t2 * (g2[0] * x2 + g2[1] * y2 + g2[2] * z2 + g2[3] * w2);
+		*dnoise_dx += temp2 * x2;
+		*dnoise_dy += temp2 * y2;
+		*dnoise_dz += temp2 * z2;
+		*dnoise_dw += temp2 * w2;
+		temp3 = t23 * t3 * (g3[0] * x3 + g3[1] * y3 + g3[2] * z3 + g3[3] * w3);
+		*dnoise_dx += temp3 * x3;
+		*dnoise_dy += temp3 * y3;
+		*dnoise_dz += temp3 * z3;
+		*dnoise_dw += temp3 * w3;
+		temp4 = t24 * t4 * (g4[0] * x4 + g4[1] * y4 + g4[2] * z4 + g4[3] * w4);
+		*dnoise_dx += temp4 * x4;
+		*dnoise_dy += temp4 * y4;
+		*dnoise_dz += temp4 * z4;
+		*dnoise_dw += temp4 * w4;
+		*dnoise_dx *= -8.0f;
+		*dnoise_dy *= -8.0f;
+		*dnoise_dz *= -8.0f;
+		*dnoise_dw *= -8.0f;
+		*dnoise_dx += t40 * g0[0] + t41 * g1[0] + t42 * g2[0] + t43 * g3[0] + t44 * g4[0];
+		*dnoise_dy += t40 * g0[1] + t41 * g1[1] + t42 * g2[1] + t43 * g3[1] + t44 * g4[1];
+		*dnoise_dz += t40 * g0[2] + t41 * g1[2] + t42 * g2[2] + t43 * g3[2] + t44 * g4[2];
+		*dnoise_dw += t40 * g0[3] + t41 * g1[3] + t42 * g2[3] + t43 * g3[3] + t44 * g4[3];
+		// Scale derivative to match the noise scaling
+		*dnoise_dx *= 0.5f * scale;
+		*dnoise_dy *= 0.5f * scale;
+		*dnoise_dz *= 0.5f * scale;
+		*dnoise_dw *= 0.5f * scale;
+	}
+	
+	return noise;
+}
+
+#ifdef SIMPLEXNOISE_USE_SSE2
+
+#define SHUFFLE_MASK(a, b, c, d) ((b) << 6) | ((a) << 4) | ((d) << 2) | (c)
+//#define SHUFFLE_MASK(a, b, c, d) ((a) << 6) | ((b) << 4) | ((c) << 2) | (d)
+//#define SHUFFLE_MASK(a, b, c, d) ((d) << 6) | ((c) << 4) | ((b) << 2) | (a)
+
+BLI_INLINE void fuzzy_assert(float a, float b)
+{
+	static const float eps = 1e-6f;
+	BLI_assert(fabs(a - b) < eps);
+}
+
+BLI_INLINE __m128 sse_invert(const __m128 v, bool a, bool b, bool c, bool d)
+{
+	return _mm_xor_ps(v, _mm_castsi128_ps(_mm_set_epi32(a? 0xffffffff: 0, b? 0xffffffff: 0, c? 0xffffffff: 0, d? 0xffffffff: 0)));
+}
+
+BLI_INLINE void sse_assert_f1(const __m128 f, float x)
+{
+	const float *p = (const float *)(&f);
+	fuzzy_assert(p[3], x);
+}
+
+BLI_INLINE void sse_assert_f4(const __m128 f, float x, float y, float z, float w)
+{
+	const float *p = (const float *)(&f);
+	fuzzy_assert(p[3], x);
+	fuzzy_assert(p[2], y);
+	fuzzy_assert(p[1], z);
+	fuzzy_assert(p[0], w);
+}
+
+BLI_INLINE void sse_assert_cmp(const __m128 f, bool x, bool y, bool z, bool w)
+{
+	const float *p = (const float *)(&f);
+	bool a = isnan(p[3]);
+	bool b = isnan(p[2]);
+	bool c = isnan(p[1]);
+	bool d = isnan(p[0]);
+	fuzzy_assert(a, x);
+	fuzzy_assert(b, y);
+	fuzzy_assert(c, z);
+	fuzzy_assert(d, w);
+}
+
+BLI_INLINE void sse_assert_i4(const __m128i f, int x, int y, int z, int w)
+{
+	const int *p = (const int *)(&f);
+	fuzzy_assert(p[3], x);
+	fuzzy_assert(p[2], y);
+	fuzzy_assert(p[1], z);
+	fuzzy_assert(p[0], w);
+}
+
+/* XXX SSE2 does not have a native horizontal add (hadd) function, this is a replacement
+ */
+BLI_INLINE __m128 sse_hadd(const __m128 a)
+{
+	__m128 a1 = _mm_movehl_ps(a, a); /* (a2, a3, a2, a3) */
+	__m128 s1 = _mm_add_ps(a, a1); /* (a0+a2, a1+a3, ---, ---) */
+	__m128 a2 = _mm_shuffle_ps(s1, s1, SHUFFLE_MASK(0,0,1,0)); /* (a1+a3, ---, ---, ---) */
+	__m128 s2 = _mm_add_ps(a1, a2); /* (a0+a1+a2+a3, ---, ---, ---) */
+	return _mm_shuffle_ps(s2, s2, SHUFFLE_MASK(0,0,0,0));
+}
+
+BLI_INLINE __m128i sse_quick_floor(const __m128 x)
+{
+	__m128i b = _mm_cvttps_epi32(x);
+	
+	__m128 cmp = _mm_cmplt_ps(x, _mm_set1_ps(0.0f));
+	__m128i isneg = _mm_castps_si128(cmp);
+	__m128i result = _mm_add_epi32(b, isneg); // unsaturated add 0xffffffff is the same as subtract -1
+	return result;
+}
+
+BLI_INLINE __m128i sse_bool_to_int(const __m128 b)
+{
+	return _mm_sub_epi32(_mm_set1_epi32(0), _mm_castps_si128(b));
+}
+
+// 4D simplex noise with derivatives.
+// If the last four arguments are not null, the analytic derivative
+// (the 4D gradient of the scalar noise field) is also calculated.
+static float simplexnoise4_sse(float x, float y, float z, float w, int seed,
+                               float *dnoise_dx, float *dnoise_dy, float *dnoise_dz, float *dnoise_dw)
+{
+	// The skewing and unskewing factors are hairy again for the 4D case
+	const float F4 = 0.309016994; // F4 = (sqrt(5.0)-1.0)/4.0
+	const float G4 = 0.138196601; // G4 = (5.0-sqrt(5.0))/20.0
+	static const float zero[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	
+	// Gradients at simplex corners
+	const float *g0 = zero, *g1 = zero, *g2 = zero, *g3 = zero, *g4 = zero;
+	
+	// Noise contributions from the four simplex corners
+	float n0=0.0f, n1=0.0f, n2=0.0f, n3=0.0f, n4=0.0f;
+	float t20 = 0.0f, t21 = 0.0f, t22 = 0.0f, t23 = 0.0f, t24 = 0.0f;
+	float t40 = 0.0f, t41 = 0.0f, t42 = 0.0f, t43 = 0.0f, t44 = 0.0f;
+	
+	// Skew the (x,y,z,w) space to determine which cell of 24 simplices we're in
+	float s = (x + y + z + w) * F4; // Factor for 4D skewing
+	float xs = x + s;
+	float ys = y + s;
+	float zs = z + s;
+	float ws = w + s;
+	int i = quick_floor(xs);
+	int j = quick_floor(ys);
+	int k = quick_floor(zs);
+	int l = quick_floor(ws);
+	
+	float t = (i + j + k + l) * G4; // Factor for 4D unskewing
+	float X0 = i - t; // Unskew the cell origin back to (x,y,z,w) space
+	float Y0 = j - t;
+	float Z0 = k - t;
+	float W0 = l - t;
+	
+	float x0 = x - X0;  // The x,y,z,w distances from the cell origin
+	float y0 = y - Y0;
+	float z0 = z - Z0;
+	float w0 = w - W0;
+	
+	/* Simplex subdivision according to get the Schlaefli orthoscheme */
+	bool gt0 = (x0 >= y0), lt0 = !gt0;
+	bool gt1 = (y0 >= z0), lt1 = !gt1;
+	bool gt2 = (z0 >= w0), lt2 = !gt2;
+	bool gt3 = (w0 >= x0), lt3 = !gt3;
+	bool gt4 = (x0 >= z0), lt4 = !gt4;
+	bool gt5 = (y0 >= w0), lt5 = !gt5;
+	
+	int i1 = (lt3 & gt0 & gt4);
+	int j1 = (lt0 & gt1 & gt5);
+	int k1 = (lt1 & gt2 & lt4);
+	int l1 = (lt2 & gt3 & lt5);
+	int i2 = (lt3 & gt0) | (gt0 & gt4) | (gt4 & lt3);
+	int j2 = (lt0 & gt1) | (gt1 & gt5) | (gt5 & lt0);
+	int k2 = (lt1 & gt2) | (gt2 & lt4) | (lt4 & lt1);
+	int l2 = (lt2 & gt3) | (gt3 & lt5) | (lt5 & lt2);
+	int i3 = lt3 | gt0 | gt4;
+	int j3 = lt0 | gt1 | gt5;
+	int k3 = lt1 | gt2 | lt4;
+	int l3 = lt2 | gt3 | lt5;
+	// The fifth corner has all coordinate offsets = 1, so no need to look that up.
+
+	float x1 = x0 - i1 + G4; // Offsets for second corner in (x,y,z,w) coords
+	float y1 = y0 - j1 + G4;
+	float z1 = z0 - k1 + G4;
+	float w1 = w0 - l1 + G4;
+	float x2 = x0 - i2 + 2.0f * G4; // Offsets for third corner in (x,y,z,w) coords
+	float y2 = y0 - j2 + 2.0f * G4;
+	float z2 = z0 - k2 + 2.0f * G4;
+	float w2 = w0 - l2 + 2.0f * G4;
+	float x3 = x0 - i3 + 3.0f * G4; // Offsets for fourth corner in (x,y,z,w) coords
+	float y3 = y0 - j3 + 3.0f * G4;
+	float z3 = z0 - k3 + 3.0f * G4;
+	float w3 = w0 - l3 + 3.0f * G4;
+	float x4 = x0 - 1.0f + 4.0f * G4; // Offsets for last corner in (x,y,z,w) coords
+	float y4 = y0 - 1.0f + 4.0f * G4;
+	float z4 = z0 - 1.0f + 4.0f * G4;
+	float w4 = w0 - 1.0f + 4.0f * G4;
+	
+	float t0, t1, t2, t3, t4;
+	
+	// The scale is empirical, to make it
+	// cover [-1,1], and to make it approximately match the range of our
+	// Perlin noise implementation.
+	const float scale = 54.0f;
+	float noise;
+	
+	// (((((((((((((((((((((((((((((((((((((((((((((((((
+	// (((((((((((((((((((((((((((((((((((((((((((((((((
+	__m128 xyzw = _mm_set_ps(x, y, z, w);
+	__m128 ssss = _mm_mul_ps(sse_hadd(xyzw), _mm_set1_ps(F4));
+	__m128 xyzws = _mm_add_ps(xyzw, ssss);
+	__m128i ijkl = sse_quick_floor(xyzws);
+	__m128 XYZW0 = _mm_sub_ps(_mm_cvtepi32_ps(ijkl), _mm_set1_ps(t));
+	__m128 xyzw0 = _mm_sub_ps(xyzw, XYZW0);
+	
+	/* temporary shifts for horizontal comparisons:
+	 * tmp1 = { x>=w, y>=x, z>=y, w>=z }
+	 * tmp2 = { y<x, z<y, w<z, x<w }
+	 * tmp3 = { z<x, w<y, z>=x, w>=y }
+	 */
+	__m128 xyxy0 = _mm_movehl_ps(xyzw0, xyzw0);
+	__m128 wxyz0 = _mm_shuffle_ps(xyzw0, xyzw0, SHUFFLE_MASK(3,0,1,2));
+	__m128 cmp1 = _mm_cmplt_ps(xyzw0, wxyz0);
+	__m128 cmp2 = _mm_cmplt_ps(xyzw0, xyxy0);
+	
+	__m128 tmp1 = sse_invert(cmp1, true, true, true, true);
+	__m128 tmp2 = _mm_shuffle_ps(cmp1, cmp1, SHUFFLE_MASK(1,2,3,0));
+	__m128 tmp3 = sse_invert(_mm_movelh_ps(cmp2, cmp2), 0, 0, 1, 1);
+	
+	/* tmp1 & tmp2 & tmp3 */
+	__m128i ijkl1 = sse_bool_to_int(_mm_and_ps(tmp1, _mm_and_ps(tmp2, tmp3)));
+	/* (tmp1 & tmp2) | (tmp2 | tmp3) | (tmp3 & tmp1) */
+	__m128i ijkl2 = sse_bool_to_int(_mm_or_ps(_mm_and_ps(tmp1, tmp2), _mm_or_ps(_mm_and_ps(tmp2, tmp3), _mm_and_ps(tmp3, tmp1))));
+	/* tmp1 | tmp2 | tmp3 */
+	__m128i ijkl3 = sse_bool_to_int(_mm_or_ps(tmp1, _mm_or_ps(tmp2, tmp3)));
+	
+	__m128 xyzw1 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(G4), _mm_cvtepi32_ps(ijkl1)));
+	__m128 xyzw2 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(2.0f*G4), _mm_cvtepi32_ps(ijkl2)));
+	__m128 xyzw3 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(3.0f*G4), _mm_cvtepi32_ps(ijkl3)));
+	__m128 xyzw4 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(4.0f*G4), _mm_set1_ps(1.0f)));
+	
+	__m128 xyzw0_sq = sse_hadd(_mm_mul_ps(xyzw0, xyzw0));
+	__m128 xyzw1_sq = sse_hadd(_mm_mul_ps(xyzw1, xyzw1));
+	__m128 xyzw2_sq = sse_hadd(_mm_mul_ps(xyzw2, xyzw2));
+	__m128 xyzw3_sq = sse_hadd(_mm_mul_ps(xyzw3, xyzw3));
+	__m128 xyzw4_sq = sse_hadd(_mm_mul_ps(xyzw4, xyzw4));
+	
+	__m128 t0123 = _mm_sub_ps(_mm_set1_ps(0.5f),
+	                           _mm_shuffle_ps(
+	                               _mm_movehl_ps(xyzw0_sq,
+	                                             xyzw1_sq),
+	                               _mm_movehl_ps(xyzw2_sq,
+	                                             xyzw3_sq),
+	                               SHUFFLE_MASK(0,2,0,2))
+	                           );
+	__m128 t4444 = xyzw4_sq;
+	
+	
+	// Calculate the contribution from the five corners
+	t0 = 0.5f - x0*x0 - y0*y0 - z0*z0 - w0*w0;
+	if (t0 >= 0.0f) {
+		t20 = t0 * t0;
+		t40 = t20 * t20;
+		g0 = grad4 (i, j, k, l, seed);
+		n0 = t40 * (g0[0] * x0 + g0[1] * y0 + g0[2] * z0 + g0[3] * w0);
+	}
+	
+	t1 = 0.5f - x1*x1 - y1*y1 - z1*z1 - w1*w1;
+	if (t1 >= 0.0f) {
+		t21 = t1 * t1;
+		t41 = t21 * t21;
+		g1 = grad4 (i+i1, j+j1, k+k1, l+l1, seed);
+		n1 = t41 * (g1[0] * x1 + g1[1] * y1 + g1[2] * z1 + g1[3] * w1);
+	}
+	
+	t2 = 0.5f - x2*x2 - y2*y2 - z2*z2 - w2*w2;
+	if (t2 >= 0.0f) {
+		t22 = t2 * t2;
+		t42 = t22 * t22;
+		g2 = grad4 (i+i2, j+j2, k+k2, l+l2, seed);
+		n2 = t42 * (g2[0] * x2 + g2[1] * y2 + g2[2] * z2 + g2[3] * w2);
+	}
+	
+	t3 = 0.5f - x3*x3 - y3*y3 - z3*z3 - w3*w3;
+	if (t3 >= 0.0f) {
+		t23 = t3 * t3;
+		t43 = t23 * t23;
+		g3 = grad4 (i+i3, j+j3, k+k3, l+l3, seed);
+		n3 = t43 * (g3[0] * x3 + g3[1] * y3 + g3[2] * z3 + g3[3] * w3);
+	}
+	
+	t4 = 0.5f - x4*x4 - y4*y4 - z4*z4 - w4*w4;
+	if (t4 >= 0.0f) {
+		t24 = t4 * t4;
+		t44 = t24 * t24;
+		g4 = grad4 (i+1, j+1, k+1, l+1, seed);
+		n4 = t44 * (g4[0] * x4 + g4[1] * y4 + g4[2] * z4 + g4[3] * w4);
+	}
+	
+	// Sum up and scale the result.
+	noise = 0.5f * scale * (n0 + n1 + n2 + n3 + n4) + 0.5f;
+	
+	// Compute derivative, if requested by supplying non-null pointers
+	// for the last four arguments
+	if (dnoise_dx) {
+		float temp0, temp1, temp2, temp3, temp4;
+		BLI_assert(dnoise_dy && dnoise_dz && dnoise_dw);
+		/*  A straight, unoptimised calculation would be like:
+		 *     *dnoise_dx = -8.0f * t20 * t0 * x0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[0];
+		 *    *dnoise_dy = -8.0f * t20 * t0 * y0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[1];
+		 *    *dnoise_dz = -8.0f * t20 * t0 * z0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[2];
+		 *    *dnoise_dw = -8.0f * t20 * t0 * w0 * dot(g0[0], g0[1], g0[2], g0[3], x0, y0, z0, w0) + t40 * g0[3];
+		 *    *dnoise_dx += -8.0f * t21 * t1 * x1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[0];
+		 *    *dnoise_dy += -8.0f * t21 * t1 * y1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[1];
+		 *    *dnoise_dz += -8.0f * t21 * t1 * z1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[2];
+		 *    *dnoise_dw = -8.0f * t21 * t1 * w1 * dot(g1[0], g1[1], g1[2], g1[3], x1, y1, z1, w1) + t41 * g1[3];
+		 *    *dnoise_dx += -8.0f * t22 * t2 * x2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[0];
+		 *    *dnoise_dy += -8.0f * t22 * t2 * y2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[1];
+		 *    *dnoise_dz += -8.0f * t22 * t2 * z2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[2];
+		 *    *dnoise_dw += -8.0f * t22 * t2 * w2 * dot(g2[0], g2[1], g2[2], g2[3], x2, y2, z2, w2) + t42 * g2[3];
+		 *    *dnoise_dx += -8.0f * t23 * t3 * x3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[0];
+		 *    *dnoise_dy += -8.0f * t23 * t3 * y3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[1];
+		 *    *dnoise_dz += -8.0f * t23 * t3 * z3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[2];
+		 *    *dnoise_dw += -8.0f * t23 * t3 * w3 * dot(g3[0], g3[1], g3[2], g3[3], x3, y3, z3, w3) + t43 * g3[3];
+		 *    *dnoise_dx += -8.0f * t24 * t4 * x4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[0];
+		 *    *dnoise_dy += -8.0f * t24 * t4 * y4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[1];
+		 *    *dnoise_dz += -8.0f * t24 * t4 * z4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[2];
+		 *    *dnoise_dw += -8.0f * t24 * t4 * w4 * dot(g4[0], g4[1], g4[2], g4[3], x4, y4, z4, w4) + t44 * g4[3];
+		 */
+		temp0 = t20 * t0 * (g0[0] * x0 + g0[1] * y0 + g0[2] * z0 + g0[3] * w0);
+		*dnoise_dx = temp0 * x0;
+		*dnoise_dy = temp0 * y0;
+		*dnoise_dz = temp0 * z0;
+		*dnoise_dw = temp0 * w0;
+		temp1 = t21 * t1 * (g1[0] * x1 + g1[1] * y1 + g1[2] * z1 + g1[3] * w1);
+		*dnoise_dx += temp1 * x1;
+		*dnoise_dy += temp1 * y1;
+		*dnoise_dz += temp1 * z1;
+		*dnoise_dw += temp1 * w1;
+		temp2 = t22 * t2 * (g2[0] * x2 + g2[1] * y2 + g2[2] * z2 + g2[3] * w2);
+		*dnoise_dx += temp2 * x2;
+		*dnoise_dy += temp2 * y2;
+		*dnoise_dz += temp2 * z2;
+		*dnoise_dw += temp2 * w2;
+		temp3 = t23 * t3 * (g3[0] * x3 + g3[1] * y3 + g3[2] * z3 + g3[3] * w3);
+		*dnoise_dx += temp3 * x3;
+		*dnoise_dy += temp3 * y3;
+		*dnoise_dz += temp3 * z3;
+		*dnoise_dw += temp3 * w3;
+		temp4 = t24 * t4 * (g4[0] * x4 + g4[1] * y4 + g4[2] * z4 + g4[3] * w4);
+		*dnoise_dx += temp4 * x4;
+		*dnoise_dy += temp4 * y4;
+		*dnoise_dz += temp4 * z4;
+		*dnoise_dw += temp4 * w4;
+		*dnoise_dx *= -8.0f;
+		*dnoise_dy *= -8.0f;
+		*dnoise_dz *= -8.0f;
+		*dnoise_dw *= -8.0f;
+		*dnoise_dx += t40 * g0[0] + t41 * g1[0] + t42 * g2[0] + t43 * g3[0] + t44 * g4[0];
+		*dnoise_dy += t40 * g0[1] + t41 * g1[1] + t42 * g2[1] + t43 * g3[1] + t44 * g4[1];
+		*dnoise_dz += t40 * g0[2] + t41 * g1[2] + t42 * g2[2] + t43 * g3[2] + t44 * g4[2];
+		*dnoise_dw += t40 * g0[3] + t41 * g1[3] + t42 * g2[3] + t43 * g3[3] + t44 * g4[3];
+		// Scale derivative to match the noise scaling
+		*dnoise_dx *= 0.5f * scale;
+		*dnoise_dy *= 0.5f * scale;
+		*dnoise_dz *= 0.5f * scale;
+		*dnoise_dw *= 0.5f * scale;
+	}
+	
+	sse_assert_f4(ssss, s, s, s, s);
+	sse_assert_f4(xyzws, xs, ys, zs, ws);
+	sse_assert_i4(ijkl, i, j, k, l);
+	sse_assert_f4(XYZW0, X0, Y0, Z0, W0);
+	sse_assert_f4(xyzw0, x0, y0, z0, w0);
+	sse_assert_f4(xyxy0, x0, y0, x0, y0);
+	sse_assert_f4(wxyz0, w0, x0, y0, z0);
+	sse_assert_cmp(cmp1, x0 < w0, y0 < x0, z0 < y0, w0 < z0);
+	sse_assert_cmp(cmp2, x0 < x0, y0 < y0, z0 < x0, w0 < y0);
+	sse_assert_cmp(tmp1, x0 >= w0, y0 >= x0, z0 >= y0, w0 >= z0);
+	sse_assert_cmp(tmp2, y0 < x0, z0 < y0, w0 < z0, x0 < w0);
+	sse_assert_cmp(tmp3, z0 < x0, w0 < y0, z0 >= x0, w0 >= y0);
+	sse_assert_i4(ijkl1, i1, j1, k1, l1);
+	sse_assert_i4(ijkl2, i2, j2, k2, l2);
+	sse_assert_i4(ijkl3, i3, j3, k3, l3);
+	sse_assert_f4(xyzw1, x1, y1, z1, w1);
+	sse_assert_f4(xyzw2, x2, y2, z2, w2);
+	sse_assert_f4(xyzw3, x3, y3, z3, w3);
+	sse_assert_f4(t0123, t0, t1, t2, t3);
+	sse_assert_f1(t4444, t4);
+	
+	return noise;
+}
+
+#undef SHUFFLE_MASK
+
+#endif
+
+float BLI_simplexnoise3D(float noisesize, float x, float y, float z, int octaves, int seed)
+{
+	bool hard = false;
+	float sum, t, amp = 1, fscale = 1;
+	int i;
+	
+	if (noisesize != 0.0f) {
+		noisesize = 1.0f / noisesize;
+		x *= noisesize;
+		y *= noisesize;
+		z *= noisesize;
+	}
+
+	sum = 0;
+	for (i = 0; i <= octaves; i++, amp *= 0.5f, fscale *= 2.0f) {
+//		t = simplexnoise3(fscale * x, fscale * y, fscale * z, seed);
+		t = 0.0f;
+		if (hard)
+			t = fabsf(2.0f * t - 1.0f);
+		sum += t * amp;
+	}
+	
+	sum *= ((float)(1 << octaves) / (float)((1 << (octaves + 1)) - 1));
+
+	return sum;
+}
+
+float BLI_simplexnoise4D_ex(float noisesize, float x, float y, float z, float w, int octaves, int seed, float dnoise[4], float advect)
+{
+	const float oscale = ((float)(1 << octaves) / (float)((1 << (octaves + 1)) - 1));
+	bool hard = false;
+	float sum, dsum[3], t, amp = 1.0f;
+	int i;
+	
+	if (noisesize != 0.0f) {
+		noisesize = 1.0f / noisesize;
+		x *= noisesize;
+		y *= noisesize;
+		z *= noisesize;
+	}
+	
+	sum = 0;
+	zero_v3(dsum);
+	
+	if (dnoise) {
+		for (i = 0; i <= octaves; i++, amp *= 0.5f) {
+#ifdef SIMPLEXNOISE_USE_SSE2
+			t = simplexnoise4_sse(x, y, z, w, seed, &dnoise[0], &dnoise[1], &dnoise[2], &dnoise[3]);
+#else
+			t = simplexnoise4(x, y, z, w, seed, &dnoise[0], &dnoise[1], &dnoise[2], &dnoise[3]);
+#endif
+			if (hard) {
+				t = fabsf(2.0f * t - 1.0f);
+				mul_v3_fl(dsum, 2.0f);
+			}
+			
+			sum += t * amp;
+			madd_v3_v3fl(dsum, dnoise, amp);
+			
+			if (advect != 0.0f) {
+				x += advect * dnoise[0];
+				y += advect * dnoise[1];
+				z += advect * dnoise[2];
+				w += advect * dnoise[3];
+			}
+			
+			x *= 2.0f;
+			y *= 2.0f;
+			z *= 2.0f;
+			w *= 2.0f;
+		}
+		
+		
+		sum *= oscale;
+		mul_v3_fl(dsum, oscale);
+	}
+	else {
+		for (i = 0; i <= octaves; i++, amp *= 0.5f) {
+#ifdef SIMPLEXNOISE_USE_SSE2
+			t = simplexnoise4_sse(x, y, z, w, seed, NULL, NULL, NULL, NULL);
+#else
+			t = simplexnoise4(x, y, z, w, seed, NULL, NULL, NULL, NULL);
+#endif
+			if (hard)
+				t = fabsf(2.0f * t - 1.0f);
+			sum += t * amp;
+			
+			x *= 2.0f;
+			y *= 2.0f;
+			z *= 2.0f;
+			w *= 2.0f;
+		}
+		
+		sum *= oscale;
+	}
+
+	return sum;
+}
+
+float BLI_simplexnoise4D(float noisesize, float x, float y, float z, float w, int octaves, int seed)
+{
+	return BLI_simplexnoise4D_ex(noisesize, x, y, z, w, octaves, seed, NULL, 0.0f);
+}
+
+#undef SIMPLEXNOISE_USE_SSE2
 
 /* ********************* FROM PERLIN HIMSELF: ******************** */
 

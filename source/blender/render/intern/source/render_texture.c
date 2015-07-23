@@ -242,7 +242,8 @@ static int clouds(Tex *tex, const float texvec[3], TexResult *texres)
 {
 	int rv = TEX_INT;
 	
-	texres->tin = BLI_gTurbulence(tex->noisesize, texvec[0], texvec[1], texvec[2], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
+	texres->tin = BLI_simplexnoise3D(tex->noisesize, texvec[0], texvec[1], texvec[2], tex->noisedepth, 342);
+//	texres->tin = BLI_gTurbulence(tex->noisesize, texvec[0], texvec[1], texvec[2], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
 
 	if (texres->nor!=NULL) {
 		/* calculate bumpnormal */
@@ -258,8 +259,10 @@ static int clouds(Tex *tex, const float texvec[3], TexResult *texres)
 		/* in this case, int. value should really be computed from color,
 		 * and bumpnormal from that, would be too slow, looks ok as is */
 		texres->tr = texres->tin;
-		texres->tg = BLI_gTurbulence(tex->noisesize, texvec[1], texvec[0], texvec[2], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
-		texres->tb = BLI_gTurbulence(tex->noisesize, texvec[1], texvec[2], texvec[0], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
+		texres->tg = BLI_simplexnoise3D(tex->noisesize, texvec[1], texvec[2], texvec[0], tex->noisedepth, 342);
+		texres->tb = BLI_simplexnoise3D(tex->noisesize, texvec[2], texvec[0], texvec[1], tex->noisedepth, 342);
+//		texres->tg = BLI_gTurbulence(tex->noisesize, texvec[1], texvec[0], texvec[2], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
+//		texres->tb = BLI_gTurbulence(tex->noisesize, texvec[1], texvec[2], texvec[0], tex->noisedepth, (tex->noisetype!=TEX_NOISESOFT), tex->noisebasis);
 		BRICONTRGB;
 		texres->ta = 1.0;
 		return (rv | TEX_RGB);

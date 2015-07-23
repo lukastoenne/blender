@@ -235,6 +235,7 @@ def effector_weights_ui(self, context, weights, weight_type):
     col.prop(weights, "turbulence", slider=True)
     col.prop(weights, "drag", slider=True)
     col.prop(weights, "boid", slider=True)
+    col.prop(weights, "turbflow", slider=True)
 
 
 def basic_force_field_settings_ui(self, context, field):
@@ -255,6 +256,11 @@ def basic_force_field_settings_ui(self, context, field):
     if field.type == 'TURBULENCE':
         col.prop(field, "size")
         col.prop(field, "flow")
+    elif field.type == 'TURBFLOW':
+        col.prop(field, "size")
+        col.prop(field, "flow")
+        col.prop(field, "noise_time")
+        col.prop(field, "noise_advect")
     elif field.type == 'HARMONIC':
         col.prop(field, "harmonic_damping", text="Damping")
         col.prop(field, "rest_length")
