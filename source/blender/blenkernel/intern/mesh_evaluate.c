@@ -2046,25 +2046,24 @@ bool BKE_mesh_center_centroid(const Mesh *me, float r_cent[3])
  * \{ */
 
 static bool mesh_calc_center_centroid_ex(
-        const MVert *mverts, int UNUSED(numVerts),
-        const MFace *mfaces, int numFaces,
-        float r_center[3])
+        const MVert *mverts, int UNUSED(mverts_num),
+        const MLoopTri *looptri, int looptri_num,
+        const MLoop *mloop, float r_center[3])
 {
+	const MLoopTri *lt;
 	float totweight;
-	int f;
+	int i;
 	
 	zero_v3(r_center);
 	
-	if (numFaces == 0)
+	if (looptri_num == 0)
 		return false;
 	
 	totweight = 0.0f;
-	for (f = 0; f < numFaces; ++f) {
-		const MFace *face = &mfaces[f];
-		const MVert *v1 = &mverts[face->v1];
-		const MVert *v2 = &mverts[face->v2];
-		const MVert *v3 = &mverts[face->v3];
-		const MVert *v4 = &mverts[face->v4];
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		const MVert *v1 = &mverts[mloop[lt->tri[0]].v];
+		const MVert *v2 = &mverts[mloop[lt->tri[1]].v];
+		const MVert *v3 = &mverts[mloop[lt->tri[2]].v];
 		float area;
 		
 		area = area_tri_v3(v1->co, v2->co, v3->co);
@@ -2072,14 +2071,6 @@ static bool mesh_calc_center_centroid_ex(
 		madd_v3_v3fl(r_center, v2->co, area);
 		madd_v3_v3fl(r_center, v3->co, area);
 		totweight += area;
-		
-		if (face->v4) {
-			area = area_tri_v3(v3->co, v4->co, v1->co);
-			madd_v3_v3fl(r_center, v3->co, area);
-			madd_v3_v3fl(r_center, v4->co, area);
-			madd_v3_v3fl(r_center, v1->co, area);
-			totweight += area;
-		}
 	}
 	if (totweight == 0.0f)
 		return false;
@@ -2089,58 +2080,52 @@ static bool mesh_calc_center_centroid_ex(
 	return true;
 }
 
+/**
+ * Calculate the volume and center.
+ *
+ * \param r_volume: Volume (unsigned).
+ * \param r_center: Center of mass.
+ */
 void BKE_mesh_calc_volume(
-        const MVert *mverts, const int numVerts,
-        const MFace *mfaces, const int numFaces,
-        float *r_vol, float *r_com)
+        const MVert *mverts, const int mverts_num,
+        const MLoopTri *looptri, const int looptri_num,
+        const MLoop *mloop,
+        float *r_volume, float r_center[3])
 {
+	const MLoopTri *lt;
 	float center[3];
 	float totvol;
-	int f;
+	int i;
 	
-	if (r_vol) *r_vol = 0.0f;
-	if (r_com) zero_v3(r_com);
+	if (r_volume)
+		*r_volume = 0.0f;
+	if (r_center)
+		zero_v3(r_center);
 	
-	if (numFaces == 0)
+	if (looptri_num == 0)
 		return;
 	
-	if (!mesh_calc_center_centroid_ex(mverts, numVerts, mfaces, numFaces, center))
+	if (!mesh_calc_center_centroid_ex(mverts, mverts_num, looptri, looptri_num, mloop, center))
 		return;
 	
 	totvol = 0.0f;
-	for (f = 0; f < numFaces; ++f) {
-		const MFace *face = &mfaces[f];
-		const MVert *v1 = &mverts[face->v1];
-		const MVert *v2 = &mverts[face->v2];
-		const MVert *v3 = &mverts[face->v3];
-		const MVert *v4 = &mverts[face->v4];
+
+	for (i = 0, lt = looptri; i < looptri_num; i++, lt++) {
+		const MVert *v1 = &mverts[mloop[lt->tri[0]].v];
+		const MVert *v2 = &mverts[mloop[lt->tri[1]].v];
+		const MVert *v3 = &mverts[mloop[lt->tri[2]].v];
 		float vol;
 		
 		vol = volume_tetrahedron_signed_v3(center, v1->co, v2->co, v3->co);
-		if (r_vol) {
+		if (r_volume) {
 			totvol += vol;
 		}
-		if (r_com) {
+		if (r_center) {
 			/* averaging factor 1/4 is applied in the end */
-			madd_v3_v3fl(r_com, center, vol); // XXX could extract this
-			madd_v3_v3fl(r_com, v1->co, vol);
-			madd_v3_v3fl(r_com, v2->co, vol);
-			madd_v3_v3fl(r_com, v3->co, vol);
-		}
-		
-		if (face->v4) {
-			vol = volume_tetrahedron_signed_v3(center, v3->co, v4->co, v1->co);
-			
-			if (r_vol) {
-				totvol += vol;
-			}
-			if (r_com) {
-				/* averaging factor 1/4 is applied in the end */
-				madd_v3_v3fl(r_com, center, vol); // XXX could extract this
-				madd_v3_v3fl(r_com, v3->co, vol);
-				madd_v3_v3fl(r_com, v4->co, vol);
-				madd_v3_v3fl(r_com, v1->co, vol);
-			}
+			madd_v3_v3fl(r_center, center, vol);  /* XXX could extract this */
+			madd_v3_v3fl(r_center, v1->co, vol);
+			madd_v3_v3fl(r_center, v2->co, vol);
+			madd_v3_v3fl(r_center, v3->co, vol);
 		}
 	}
 	
@@ -2148,15 +2133,15 @@ void BKE_mesh_calc_volume(
 	 * totvol can become negative even for a valid mesh.
 	 * The true value is always the positive value.
 	 */
-	if (r_vol) {
-		*r_vol = fabsf(totvol);
+	if (r_volume) {
+		*r_volume = fabsf(totvol);
 	}
-	if (r_com) {
+	if (r_center) {
 		/* Note: Factor 1/4 is applied once for all vertices here.
 		 * This also automatically negates the vector if totvol is negative.
 		 */
 		if (totvol != 0.0f)
-			mul_v3_fl(r_com, 0.25f / totvol);
+			mul_v3_fl(r_center, 0.25f / totvol);
 	}
 }
 
@@ -2346,7 +2331,7 @@ int BKE_mesh_recalc_tessellation(
 /* We abuse MFace->edcode to tag quad faces. See below for details. */
 #define TESSFACE_IS_QUAD 1
 
-	const int looptris_tot = poly_to_tri_count(totpoly, totloop);
+	const int looptri_num = poly_to_tri_count(totpoly, totloop);
 
 	MPoly *mp, *mpoly;
 	MLoop *ml, *mloop;
@@ -2363,9 +2348,9 @@ int BKE_mesh_recalc_tessellation(
 	/* allocate the length of totfaces, avoid many small reallocs,
 	 * if all faces are tri's it will be correct, quads == 2x allocs */
 	/* take care. we are _not_ calloc'ing so be sure to initialize each field */
-	mface_to_poly_map = MEM_mallocN(sizeof(*mface_to_poly_map) * (size_t)looptris_tot, __func__);
-	mface             = MEM_mallocN(sizeof(*mface) *             (size_t)looptris_tot, __func__);
-	lindices          = MEM_mallocN(sizeof(*lindices) *          (size_t)looptris_tot, __func__);
+	mface_to_poly_map = MEM_mallocN(sizeof(*mface_to_poly_map) * (size_t)looptri_num, __func__);
+	mface             = MEM_mallocN(sizeof(*mface) *             (size_t)looptri_num, __func__);
+	lindices          = MEM_mallocN(sizeof(*lindices) *          (size_t)looptri_num, __func__);
 
 	mface_index = 0;
 	mp = mpoly;
@@ -2525,10 +2510,10 @@ int BKE_mesh_recalc_tessellation(
 	CustomData_free(fdata, totface);
 	totface = mface_index;
 
-	BLI_assert(totface <= looptris_tot);
+	BLI_assert(totface <= looptri_num);
 
 	/* not essential but without this we store over-alloc'd memory in the CustomData layers */
-	if (LIKELY(looptris_tot != totface)) {
+	if (LIKELY(looptri_num != totface)) {
 		mface = MEM_reallocN(mface, sizeof(*mface) * (size_t)totface);
 		mface_to_poly_map = MEM_reallocN(mface_to_poly_map, sizeof(*mface_to_poly_map) * (size_t)totface);
 	}

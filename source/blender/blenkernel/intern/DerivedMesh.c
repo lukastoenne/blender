@@ -1621,6 +1621,7 @@ static void mesh_calc_modifiers(
         const bool useRenderParams, int useDeform,
         const bool need_mapping, CustomDataMask dataMask,
         const int index, const bool useCache, const bool build_shapekey_layers,
+        const bool allow_gpu,
         /* return args */
         DerivedMesh **r_deform, DerivedMesh **r_final)
 {
@@ -1663,6 +1664,8 @@ static void mesh_calc_modifiers(
 
 	if (useCache)
 		app_flags |= MOD_APPLY_USECACHE;
+	if (allow_gpu)
+		app_flags |= MOD_APPLY_ALLOW_GPU;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
 
@@ -2183,8 +2186,12 @@ static void editbmesh_calc_modifiers(
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
 	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
 #endif
+#ifndef WITH_OPENSUBDIV
 	const bool do_final_wmcol = false;
 	const bool do_init_wmcol = ((((Mesh *)ob->data)->drawflag & ME_DRAWEIGHT) && !do_final_wmcol);
+#else
+	const bool do_init_wmcol = false;
+#endif
 	const bool do_init_statvis = ((((Mesh *)ob->data)->drawflag & ME_DRAW_STATVIS) && !do_init_wmcol);
 	const bool do_mod_wmcol = do_init_wmcol;
 	VirtualModifierData virtualModifierData;
@@ -2327,9 +2334,9 @@ static void editbmesh_calc_modifiers(
 			}
 
 			if (mti->applyModifierEM)
-				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			else
-				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
@@ -2449,6 +2456,23 @@ static void editbmesh_calc_modifiers(
 		MEM_freeN(deformedVerts);
 }
 
+#ifdef WITH_OPENSUBDIV
+/* The idea is to skip CPU-side ORCO calculation when
+ * we'll be using GPU backend of OpenSubdiv. This is so
+ * playback performance is kept as high as posssible.
+ */
+static bool calc_modifiers_skip_orco(const Object *ob)
+{
+	const ModifierData *last_md = ob->modifiers.last;
+	if (last_md != NULL &&
+	    last_md->type == eModifierType_Subsurf)
+	{
+		return true;
+	}
+	return false;
+}
+#endif
+
 static void mesh_build_data(
         Scene *scene, Object *ob, CustomDataMask dataMask,
         const bool build_shapekey_layers, const bool need_mapping)
@@ -2458,8 +2482,15 @@ static void mesh_build_data(
 	BKE_object_free_derived_caches(ob);
 	BKE_object_sculpt_modifiers_changed(ob);
 
+#ifdef WITH_OPENSUBDIV
+	if (calc_modifiers_skip_orco(ob)) {
+		dataMask &= ~(CD_MASK_ORCO | CD_MASK_PREVIEW_MCOL);
+	}
+#endif
+
 	mesh_calc_modifiers(
 	        scene, ob, NULL, false, 1, need_mapping, dataMask, -1, true, build_shapekey_layers,
+	        true,
 	        &ob->derivedDeform, &ob->derivedFinal);
 
 	DM_set_object_boundbox(ob, ob->derivedFinal);
@@ -2485,6 +2516,12 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 	BKE_object_sculpt_modifiers_changed(obedit);
 
 	BKE_editmesh_free_derivedmesh(em);
+
+#ifdef WITH_OPENSUBDIV
+	if (calc_modifiers_skip_orco(obedit)) {
+		dataMask &= ~(CD_MASK_ORCO | CD_MASK_PREVIEW_MCOL);
+	}
+#endif
 
 	editbmesh_calc_modifiers(
 	        scene, obedit, em, dataMask,
@@ -2597,7 +2634,7 @@ DerivedMesh *mesh_create_derived_render(Scene *scene, Object *ob, CustomDataMask
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, -1, false, false,
+	        scene, ob, NULL, true, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2608,7 +2645,7 @@ DerivedMesh *mesh_create_derived_index_render(Scene *scene, Object *ob, CustomDa
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, true, 1, false, dataMask, index, false, false,
+	        scene, ob, NULL, true, 1, false, dataMask, index, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2627,7 +2664,7 @@ DerivedMesh *mesh_create_derived_view(
 	ob->transflag |= OB_NO_PSYS_UPDATE;
 
 	mesh_calc_modifiers(
-	        scene, ob, NULL, false, 1, false, dataMask, -1, false, false,
+	        scene, ob, NULL, false, 1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	ob->transflag &= ~OB_NO_PSYS_UPDATE;
@@ -2642,7 +2679,7 @@ DerivedMesh *mesh_create_derived_no_deform(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, 0, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2655,7 +2692,7 @@ DerivedMesh *mesh_create_derived_no_virtual(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, -1, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2668,7 +2705,7 @@ DerivedMesh *mesh_create_derived_physics(
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, false, -1, true, dataMask, -1, false, false,
+	        scene, ob, vertCos, false, -1, true, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -2682,7 +2719,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(
 	DerivedMesh *final;
 
 	mesh_calc_modifiers(
-	        scene, ob, vertCos, true, 0, false, dataMask, -1, false, false,
+	        scene, ob, vertCos, true, 0, false, dataMask, -1, false, false, false,
 	        NULL, &final);
 
 	return final;
@@ -3185,10 +3222,14 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 		DM_calc_auto_bump_scale(dm);
 
 	/* add a tangent layer if necessary */
-	for (b = 0; b < gattribs->totlayer; b++)
-		if (gattribs->layer[b].type == CD_TANGENT)
-			if (CustomData_get_layer_index(fdata, CD_TANGENT) == -1)
+	for (b = 0; b < gattribs->totlayer; b++) {
+		if (gattribs->layer[b].type == CD_TANGENT) {
+			if (CustomData_get_layer_index(fdata, CD_TANGENT) == -1) {
 				DM_add_tangent_layer(dm);
+				break;
+			}
+		}
+	}
 
 	for (b = 0; b < gattribs->totlayer; b++) {
 		if (gattribs->layer[b].type == CD_MTFACE) {
@@ -3400,9 +3441,18 @@ void DM_set_object_boundbox(Object *ob, DerivedMesh *dm)
 {
 	float min[3], max[3];
 
-	INIT_MINMAX(min, max);
-
-	dm->getMinMax(dm, min, max);
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): Currently no way to access bounding box from hi-res mesh. */
+	if (dm->type == DM_TYPE_CCGDM) {
+		copy_v3_fl3(min, -1.0f, -1.0f, -1.0f);
+		copy_v3_fl3(max, 1.0f, 1.0f, 1.0f);
+	}
+	else
+#endif
+	{
+		INIT_MINMAX(min, max);
+		dm->getMinMax(dm, min, max);
+	}
 
 	if (!ob->bb)
 		ob->bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");
@@ -3490,24 +3540,21 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	glEnable(GL_LIGHTING);
 }
 
-static void navmesh_DM_drawFacesTex(DerivedMesh *dm,
-                                    DMSetDrawOptionsTex setDrawOptions,
-                                    DMCompareDrawOptions compareDrawOptions,
-                                    void *userData, DMDrawFlag UNUSED(flag))
+static void navmesh_DM_drawFacesTex(
+        DerivedMesh *dm,
+        DMSetDrawOptionsTex UNUSED(setDrawOptions),
+        DMCompareDrawOptions UNUSED(compareDrawOptions),
+        void *UNUSED(userData), DMDrawFlag UNUSED(flag))
 {
-	(void) setDrawOptions;
-	(void) compareDrawOptions;
-	(void) userData;
-
 	navmesh_drawColored(dm);
 }
 
-static void navmesh_DM_drawFacesSolid(DerivedMesh *dm,
-                                      float (*partial_redraw_planes)[4],
-                                      bool UNUSED(fast), DMSetMaterial setMaterial)
+static void navmesh_DM_drawFacesSolid(
+        DerivedMesh *dm,
+        float (*partial_redraw_planes)[4],
+        bool UNUSED(fast), DMSetMaterial UNUSED(setMaterial))
 {
-	(void) partial_redraw_planes;
-	(void) setMaterial;
+	UNUSED_VARS(partial_redraw_planes);
 
 	//drawFacesSolid_original(dm, partial_redraw_planes, fast, setMaterial);
 	navmesh_drawColored(dm);
@@ -3791,41 +3838,41 @@ MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
 	return medge;
 }
 
-MLoop *DM_get_loop_array(DerivedMesh *dm, bool *allocated)
+MLoop *DM_get_loop_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *loop_data = dm->getEdgeDataLayout(dm);
 	MLoop *mloop = CustomData_get_layer(loop_data, CD_MLOOP);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mloop == NULL) {
 		mloop = MEM_mallocN(sizeof(MLoop) * dm->getNumLoops(dm), "dm loop data array");
 		dm->copyLoopArray(dm, mloop);
-		*allocated = true;
+		*r_allocated = true;
 	}
 
 	return mloop;
 }
 
-MPoly *DM_get_poly_array(DerivedMesh *dm, bool *allocated)
+MPoly *DM_get_poly_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *poly_data = dm->getPolyDataLayout(dm);
 	MPoly *mpoly = CustomData_get_layer(poly_data, CD_MPOLY);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mpoly == NULL) {
 		mpoly = MEM_mallocN(sizeof(MPoly) * dm->getNumPolys(dm), "dm poly data array");
 		dm->copyPolyArray(dm, mpoly);
-		*allocated = true;
+		*r_allocated = true;
 	}
 
 	return mpoly;
 }
 
-MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
+MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 {
 	CustomData *tessface_data = dm->getTessFaceDataLayout(dm);
 	MFace *mface = CustomData_get_layer(tessface_data, CD_MFACE);
-	*allocated = false;
+	*r_allocated = false;
 
 	if (mface == NULL) {
 		int numTessFaces = dm->getNumTessFaces(dm);
@@ -3833,9 +3880,41 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
 		if (numTessFaces > 0) {
 			mface = MEM_mallocN(sizeof(MFace) * numTessFaces, "bvh mface data array");
 			dm->copyTessFaceArray(dm, mface);
-			*allocated = true;
+			*r_allocated = true;
 		}
 	}
 
 	return mface;
+}
+
+const MLoopTri *DM_get_looptri_array(
+        DerivedMesh *dm,
+        const MVert *mvert,
+        const MPoly *mpoly, int mpoly_len,
+        const MLoop *mloop, int mloop_len,
+        bool *r_allocated)
+{
+	const MLoopTri *looptri = dm->getLoopTriArray(dm);
+	*r_allocated = false;
+
+	if (looptri == NULL) {
+		if (mpoly_len > 0) {
+			const int looptris_num = poly_to_tri_count(mpoly_len, mloop_len);
+			MLoopTri *looptri_data;
+
+			looptri_data = MEM_mallocN(sizeof(MLoopTri) * looptris_num, __func__);
+
+			BKE_mesh_recalc_looptri(
+			        mloop, mpoly,
+			        mvert,
+			        mloop_len, mpoly_len,
+			        looptri_data);
+
+			looptri = looptri_data;
+
+			*r_allocated = true;
+		}
+	}
+
+	return looptri;
 }

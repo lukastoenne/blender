@@ -1418,10 +1418,11 @@ void CustomData_update_typemap(CustomData *data)
 	}
 
 	for (i = 0; i < data->totlayer; i++) {
-		if (data->layers[i].type != lasttype) {
-			data->typemap[data->layers[i].type] = i;
+		const int type = data->layers[i].type;
+		if (type != lasttype) {
+			data->typemap[type] = i;
+			lasttype = type;
 		}
-		lasttype = data->layers[i].type;
 	}
 }
 
@@ -1441,7 +1442,7 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 	/*const LayerTypeInfo *typeInfo;*/
 	CustomDataLayer *layer, *newlayer;
 	void *data;
-	int i, type, lasttype = -1, lastactive = 0, lastrender = 0, lastclone = 0, lastmask = 0, lastflag = 0;
+	int i, type, lasttype = -1, lastactive = 0, lastrender = 0, lastclone = 0, lastmask = 0, flag = 0;
 	int number = 0, maxnumber = -1;
 	bool changed = false;
 
@@ -1450,6 +1451,7 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 		/*typeInfo = layerType_getInfo(layer->type);*/ /*UNUSED*/
 
 		type = layer->type;
+		flag = layer->flag;
 
 		if (type != lasttype) {
 			number = 0;
@@ -1459,12 +1461,11 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 			lastclone = layer->active_clone;
 			lastmask = layer->active_mask;
 			lasttype = type;
-			lastflag = layer->flag;
 		}
 		else
 			number++;
 
-		if (lastflag & CD_FLAG_NOCOPY) continue;
+		if (flag & CD_FLAG_NOCOPY) continue;
 		else if (!(mask & CD_TYPE_AS_MASK(type))) continue;
 		else if ((maxnumber != -1) && (number >= maxnumber)) continue;
 		else if (CustomData_get_layer_named(dest, type, layer->name)) continue;
@@ -1480,12 +1481,12 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 				break;
 		}
 
-		if ((alloctype == CD_ASSIGN) && (lastflag & CD_FLAG_NOFREE))
-			newlayer = customData_add_layer__internal(dest, type, CD_REFERENCE,
-			                                          data, totelem, layer->name);
-		else
-			newlayer = customData_add_layer__internal(dest, type, alloctype,
-			                                          data, totelem, layer->name);
+		if ((alloctype == CD_ASSIGN) && (flag & CD_FLAG_NOFREE)) {
+			newlayer = customData_add_layer__internal(dest, type, CD_REFERENCE, data, totelem, layer->name);
+		}
+		else {
+			newlayer = customData_add_layer__internal(dest, type, alloctype, data, totelem, layer->name);
+		}
 		
 		if (newlayer) {
 			newlayer->uid = layer->uid;
@@ -1494,7 +1495,7 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 			newlayer->active_rnd = lastrender;
 			newlayer->active_clone = lastclone;
 			newlayer->active_mask = lastmask;
-			newlayer->flag |= lastflag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
+			newlayer->flag |= flag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
 			changed = true;
 		}
 	}
@@ -3201,6 +3202,57 @@ void CustomData_file_write_info(int type, const char **structname, int *structnu
 
 	*structname = typeInfo->structname;
 	*structnum = typeInfo->structnum;
+}
+
+/**
+ * Prepare given custom data for file writing.
+ *
+ * \param data the customdata to tweak for .blend file writing (modified in place).
+ * \param r_write_layers contains a reduced set of layers to be written to file, use it with writestruct_at_address()
+ *                       (caller must free it if != \a write_layers_buff).
+ * \param write_layers_buff an optional buffer for r_write_layers (to avoid allocating it).
+ * \param write_layers_size the size of pre-allocated \a write_layer_buff.
+ *
+ * \warning After this func has ran, given custom data is no more valid from Blender PoV (its totlayer is invalid).
+ *          This func shall always be called with localized data (as it is in write_meshes()).
+ * \note data->typemap is not updated here, since it is always rebuilt on file read anyway. This means written
+ *       typemap does not match written layers (as returned by \a r_write_layers). Trivial to fix is ever needed.
+ */
+void CustomData_file_write_prepare(
+        CustomData *data,
+        CustomDataLayer **r_write_layers, CustomDataLayer *write_layers_buff, size_t write_layers_size)
+{
+	CustomDataLayer *write_layers = write_layers_buff;
+	const size_t chunk_size = (write_layers_size > 0) ? write_layers_size : CD_TEMP_CHUNK_SIZE;
+
+	const int totlayer = data->totlayer;
+	int i, j;
+
+	for (i = 0, j = 0; i < totlayer; i++) {
+		CustomDataLayer *layer = &data->layers[i];
+		if (layer->flag & CD_FLAG_NOCOPY) {  /* Layers with this flag set are not written to file. */
+			data->totlayer--;
+			/* printf("%s: skipping layer %p (%s)\n", __func__, layer, layer->name); */
+		}
+		else {
+			if (UNLIKELY((size_t)j >= write_layers_size)) {
+				if (write_layers == write_layers_buff) {
+					write_layers = MEM_mallocN(sizeof(*write_layers) * (write_layers_size + chunk_size), __func__);
+					if (write_layers_buff) {
+						memcpy(write_layers, write_layers_buff, sizeof(*write_layers) * write_layers_size);
+					}
+				}
+				else {
+					write_layers = MEM_reallocN(write_layers, sizeof(*write_layers) * (write_layers_size + chunk_size));
+				}
+				write_layers_size += chunk_size;
+			}
+			write_layers[j++] = *layer;
+		}
+	}
+	BLI_assert(j == data->totlayer);
+	data->maxlayer = data->totlayer;  /* We only write that much of data! */
+	*r_write_layers = write_layers;
 }
 
 int CustomData_sizeof(int type)

@@ -130,7 +130,7 @@ template<typename T> struct texture_image  {
 		return x - (float)i;
 	}
 
-	ccl_always_inline float4 interp(float x, float y, bool periodic = true)
+	ccl_always_inline float4 interp(float x, float y)
 	{
 		if(UNLIKELY(!data))
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -235,14 +235,13 @@ template<typename T> struct texture_image  {
 		}
 	}
 
-	ccl_always_inline float4 interp_3d(float x, float y, float z, bool periodic = false)
+	ccl_always_inline float4 interp_3d(float x, float y, float z)
 	{
-		return interp_3d_ex(x, y, z, interpolation, periodic);
+		return interp_3d_ex(x, y, z, interpolation);
 	}
 
 	ccl_always_inline float4 interp_3d_ex(float x, float y, float z,
-	                                      int interpolation = INTERPOLATION_LINEAR,
-	                                      bool periodic = false)
+	                                      int interpolation = INTERPOLATION_LINEAR)
 	{
 		if(UNLIKELY(!data))
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -395,6 +394,7 @@ template<typename T> struct texture_image  {
 
 	T *data;
 	int interpolation;
+	bool periodic;
 	int width, height, depth;
 #undef SET_CUBIC_SPLINE_WEIGHTS
 };

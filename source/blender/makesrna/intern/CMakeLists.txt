@@ -300,6 +300,13 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_OPENSUBDIV)
+	list(APPEND INC
+		../../../../intern/opensubdiv
+	)
+	add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
 if(WITH_OPENVDB_BLOSC)
 	add_definitions(-DWITH_OPENVDB_BLOSC)
 endif()
