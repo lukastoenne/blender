@@ -1036,13 +1036,11 @@ BLI_INLINE float simplexnoise4(float x, float y, float z, float w, int seed,
 
 #ifdef SIMPLEXNOISE_USE_SSE2
 
-#define SHUFFLE_MASK(a, b, c, d) ((b) << 6) | ((a) << 4) | ((d) << 2) | (c)
-//#define SHUFFLE_MASK(a, b, c, d) ((a) << 6) | ((b) << 4) | ((c) << 2) | (d)
-//#define SHUFFLE_MASK(a, b, c, d) ((d) << 6) | ((c) << 4) | ((b) << 2) | (a)
+#define SHUFFLE_MASK(a, b, c, d) ((3-(a)) << 6) | ((3-(b)) << 4) | ((3-(c)) << 2) | (3-(d))
 
 BLI_INLINE void fuzzy_assert(float a, float b)
 {
-	static const float eps = 1e-6f;
+	static const float eps = 1e-4f;
 	BLI_assert(fabs(a - b) < eps);
 }
 
@@ -1088,15 +1086,24 @@ BLI_INLINE void sse_assert_i4(const __m128i f, int x, int y, int z, int w)
 	fuzzy_assert(p[0], w);
 }
 
+BLI_INLINE void sse_hadd_check(const __m128 a, __m128 result)
+{
+	const float *f = (const float *)(&a);
+	float sum = f[0] + f[1] + f[2] + f[3];
+	fuzzy_assert(((const float *)(&result))[3], sum);
+}
+
 /* XXX SSE2 does not have a native horizontal add (hadd) function, this is a replacement
  */
 BLI_INLINE __m128 sse_hadd(const __m128 a)
 {
-	__m128 a1 = _mm_movehl_ps(a, a); /* (a2, a3, a2, a3) */
+	__m128 a1 = _mm_movelh_ps(a, a); /* (a2, a3, a2, a3) */
 	__m128 s1 = _mm_add_ps(a, a1); /* (a0+a2, a1+a3, ---, ---) */
-	__m128 a2 = _mm_shuffle_ps(s1, s1, SHUFFLE_MASK(0,0,1,0)); /* (a1+a3, ---, ---, ---) */
-	__m128 s2 = _mm_add_ps(a1, a2); /* (a0+a1+a2+a3, ---, ---, ---) */
-	return _mm_shuffle_ps(s2, s2, SHUFFLE_MASK(0,0,0,0));
+	__m128 a2 = _mm_shuffle_ps(s1, s1, SHUFFLE_MASK(1,0,0,0)); /* (a1+a3, ---, ---, ---) */
+	__m128 s2 = _mm_add_ps(s1, a2); /* (a0+a1+a2+a3, ---, ---, ---) */
+	__m128 result = _mm_shuffle_ps(s2, s2, SHUFFLE_MASK(0,0,0,0));
+	sse_hadd_check(a, result);
+	return result;
 }
 
 BLI_INLINE __m128i sse_quick_floor(const __m128 x)
@@ -1112,6 +1119,88 @@ BLI_INLINE __m128i sse_quick_floor(const __m128 x)
 BLI_INLINE __m128i sse_bool_to_int(const __m128 b)
 {
 	return _mm_sub_epi32(_mm_set1_epi32(0), _mm_castps_si128(b));
+}
+/* Bitwise circular rotation left by k bits. */
+//#define sse_rotl32(x, k) \
+//	_mm_or_si128(_mm_slli_epi32(x, k), _mm_srli_epi32(x, 32-k));
+
+BLI_INLINE __m128i sse_rotl32(const __m128i x, )
+
+// Mix up and combine the bits of a, b, and c (doesn't change them, but
+// returns a hash of those three original values).  21 ops
+BLI_INLINE __m128i sse_bjfinal3(const __m128i abc)
+{
+	
+	__m128i s0 = _mm_srli_epi32(abc, 32);
+	__m128i t0 = _mm_sub_epi32(_mm_xor_si128(abc, s0), sse_rotl32(s0, 14));
+	__m128i s1 = _mm_slli_epi32(t0, 64);
+	__m128i t1 = _mm_sub_epi32(_mm_xor_si128(abc, s1), sse_rotl32(s1, 11));
+	__m128i s2 = _mm_srli_epi32(t1, 32);
+	__m128i t2 = _mm_sub_epi32(_mm_xor_si128(abc, s2), sse_rotl32(s2, 25));
+//	c = c ^ b - rotl32(b,14);
+//	a = a ^ c - rotl32(c,11);
+//	b = b ^ a - rotl32(a,25);
+	
+	__m128i s3 = _mm_srli_epi32(t2, 32);
+	__m128i t3 = _mm_sub_epi32(_mm_xor_si128(t0, s3), sse_rotl32(s3, 16));
+	__m128i s4 = _mm_slli_epi32(t3, 64);
+	__m128i t4 = _mm_sub_epi32(_mm_xor_si128(t1, s4), sse_rotl32(s4, 4));
+	__m128i s5 = _mm_srli_epi32(t4, 32);
+	__m128i t5 = _mm_sub_epi32(_mm_xor_si128(t2, s5), sse_rotl32(s5, 14));
+//	c = c ^ b - rotl32(b,16);
+//	a = a ^ c - rotl32(c,4);
+//	b = b ^ a - rotl32(a,14);
+	
+	__m128i s6 = _mm_srli_epi32(t5, 32);
+	__m128i t6 = _mm_sub_epi32(_mm_xor_si128(t3, s6), sse_rotl32(s6, 24));
+//	c = c ^ b - rotl32(b,24);
+	
+	return t6;
+}
+
+BLI_INLINE __m128i sse_bjfinal2(const __m128i a, const __m128i b)
+{
+	return sse_bjfinal3(a, b, _mm_set1_epi32(0xdeadbeef));
+}
+
+BLI_INLINE __m128i sse_scramble3(const __m128i v0, const __m128i v1, const __m128i v2)
+{
+	return sse_bjfinal3(v0, v1, _mm_xor_si128(v2, _mm_set1_epi32(0xdeadbeef)));
+}
+
+BLI_INLINE __m128i sse_scramble2(const __m128i v0, const __m128i v1)
+{
+	return sse_scramble3(v0, v1, _mm_set1_epi32(0));
+}
+
+BLI_INLINE __m128i sse_scramble1(const __m128i v0)
+{
+	return sse_scramble3(v0, _mm_set1_epi32(0), _mm_set1_epi32(0));
+}
+
+BLI_INLINE __m128i sse_scramble4(const __m128i v)
+{
+	
+}
+
+/*
+ * Helper functions to compute gradients in 1D to 4D
+ * and gradients-dot-residualvectors in 2D to 4D.
+ */
+
+/* TODO this could be optimized i guess */
+BLI_INLINE void sse_grad4(__m128 *rx, __m128 *ry, __m128 *rz, const __m128i ijkl, int seed)
+{
+	__m128i h = sse_scramble3(i, j, scramble3(k, l, _mm_set1_epi32(seed)));
+	const float *ph = (const float *)(&h);
+	const float *f0 = grad4lut[ph[0] & 31];
+	const float *f1 = grad4lut[ph[1] & 31];
+	const float *f2 = grad4lut[ph[2] & 31];
+	const float *f3 = grad4lut[ph[3] & 31];
+	
+	*rx = _mm_set_ps(f0[0], f1[0], f2[0], f3[0]);
+	*ry = _mm_set_ps(f0[1], f1[1], f2[1], f3[1]);
+	*rz = _mm_set_ps(f0[2], f1[2], f2[2], f3[2]);
 }
 
 // 4D simplex noise with derivatives.
@@ -1237,22 +1326,33 @@ static float simplexnoise4_sse(float x, float y, float z, float w, int seed,
 	__m128 xyzw3 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(3.0f*G4), _mm_cvtepi32_ps(ijkl3)));
 	__m128 xyzw4 = _mm_add_ps(xyzw0, _mm_sub_ps(_mm_set1_ps(4.0f*G4), _mm_set1_ps(1.0f)));
 	
-	__m128 xyzw0_sq = sse_hadd(_mm_mul_ps(xyzw0, xyzw0));
-	__m128 xyzw1_sq = sse_hadd(_mm_mul_ps(xyzw1, xyzw1));
-	__m128 xyzw2_sq = sse_hadd(_mm_mul_ps(xyzw2, xyzw2));
-	__m128 xyzw3_sq = sse_hadd(_mm_mul_ps(xyzw3, xyzw3));
-	__m128 xyzw4_sq = sse_hadd(_mm_mul_ps(xyzw4, xyzw4));
+	__m128 xxyyzzww0 = _mm_mul_ps(xyzw0, xyzw0);
+	__m128 xxyyzzww1 = _mm_mul_ps(xyzw1, xyzw1);
+	__m128 xxyyzzww2 = _mm_mul_ps(xyzw2, xyzw2);
+	__m128 xxyyzzww3 = _mm_mul_ps(xyzw3, xyzw3);
+	__m128 xxyyzzww4 = _mm_mul_ps(xyzw4, xyzw4);
+	__m128 xyzw0_sq = sse_hadd(xxyyzzww0);
+	__m128 xyzw1_sq = sse_hadd(xxyyzzww1);
+	__m128 xyzw2_sq = sse_hadd(xxyyzzww2);
+	__m128 xyzw3_sq = sse_hadd(xxyyzzww3);
+	__m128 xyzw4_sq = sse_hadd(xxyyzzww4);
 	
-	__m128 t0123 = _mm_sub_ps(_mm_set1_ps(0.5f),
-	                           _mm_shuffle_ps(
-	                               _mm_movehl_ps(xyzw0_sq,
-	                                             xyzw1_sq),
-	                               _mm_movehl_ps(xyzw2_sq,
-	                                             xyzw3_sq),
-	                               SHUFFLE_MASK(0,2,0,2))
-	                           );
-	__m128 t4444 = xyzw4_sq;
+	__m128 dist0011 = _mm_movehl_ps(xyzw0_sq, xyzw1_sq);
+	__m128 dist2233 = _mm_movehl_ps(xyzw2_sq, xyzw3_sq);
+	__m128 dist = _mm_shuffle_ps(dist2233, dist0011, SHUFFLE_MASK(0,2,0,2));
+	__m128 t0123 = _mm_sub_ps(_mm_set1_ps(0.5f), dist);
+	__m128 t4444 = _mm_sub_ps(_mm_set1_ps(0.5f), xyzw4_sq);
+//	float t4 = 0.5f - *(const float *)(&xyzw4_sq);
 	
+	__m128 t0123_sq = _mm_mul_ps(t0123, t0123);
+	__m128 t0123_qd = _mm_mul_ps(t0123_sq, t0123_sq);
+	__m128 t4444_sq = _mm_mul_ps(t4444, t4444);
+	__m128 t4444_qd = _mm_mul_ps(t4444_sq, t4444_sq);
+//	float t4_sq = t4*t4;
+//	float t4_qd = t4_sq*t4_sq;
+	
+	__m128 g0123x, g0123y, g0123z;
+	sse_grad4(&g0123x, &g0123y, &g0123z, ijkl)
 	
 	// Calculate the contribution from the five corners
 	t0 = 0.5f - x0*x0 - y0*y0 - z0*z0 - w0*w0;
@@ -1372,19 +1472,48 @@ static float simplexnoise4_sse(float x, float y, float z, float w, int seed,
 	sse_assert_f4(xyzw0, x0, y0, z0, w0);
 	sse_assert_f4(xyxy0, x0, y0, x0, y0);
 	sse_assert_f4(wxyz0, w0, x0, y0, z0);
-	sse_assert_cmp(cmp1, x0 < w0, y0 < x0, z0 < y0, w0 < z0);
-	sse_assert_cmp(cmp2, x0 < x0, y0 < y0, z0 < x0, w0 < y0);
-	sse_assert_cmp(tmp1, x0 >= w0, y0 >= x0, z0 >= y0, w0 >= z0);
-	sse_assert_cmp(tmp2, y0 < x0, z0 < y0, w0 < z0, x0 < w0);
-	sse_assert_cmp(tmp3, z0 < x0, w0 < y0, z0 >= x0, w0 >= y0);
+	sse_assert_cmp(cmp1, gt3, gt0, gt1, gt2);
+	sse_assert_cmp(cmp2, false, false, gt4, gt5);
+	sse_assert_cmp(tmp1, lt3, lt0, lt1, lt2);
+	sse_assert_cmp(tmp2, gt0, gt1, gt2, gt3);
+	sse_assert_cmp(tmp3, gt4, gt5, lt4, lt5);
 	sse_assert_i4(ijkl1, i1, j1, k1, l1);
 	sse_assert_i4(ijkl2, i2, j2, k2, l2);
 	sse_assert_i4(ijkl3, i3, j3, k3, l3);
 	sse_assert_f4(xyzw1, x1, y1, z1, w1);
 	sse_assert_f4(xyzw2, x2, y2, z2, w2);
 	sse_assert_f4(xyzw3, x3, y3, z3, w3);
+	sse_assert_f4(xxyyzzww0, x0*x0, y0*y0, z0*z0, w0*w0);
+	sse_assert_f4(xxyyzzww1, x1*x1, y1*y1, z1*z1, w1*w1);
+	sse_assert_f4(xxyyzzww2, x2*x2, y2*y2, z2*z2, w2*w2);
+	sse_assert_f4(xxyyzzww3, x3*x3, y3*y3, z3*z3, w3*w3);
+	sse_assert_f4(xxyyzzww4, x4*x4, y4*y4, z4*z4, w4*w4);
+	sse_assert_f1(xyzw0_sq, x0*x0 + y0*y0 + z0*z0 + w0*w0);
+	sse_assert_f1(xyzw1_sq, x1*x1 + y1*y1 + z1*z1 + w1*w1);
+	sse_assert_f1(xyzw2_sq, x2*x2 + y2*y2 + z2*z2 + w2*w2);
+	sse_assert_f1(xyzw3_sq, x3*x3 + y3*y3 + z3*z3 + w3*w3);
+	sse_assert_f1(xyzw4_sq, x4*x4 + y4*y4 + z4*z4 + w4*w4);
+	sse_assert_f4(dist0011,
+	              x0*x0 + y0*y0 + z0*z0 + w0*w0,
+	              x0*x0 + y0*y0 + z0*z0 + w0*w0,
+	              x1*x1 + y1*y1 + z1*z1 + w1*w1,
+	              x1*x1 + y1*y1 + z1*z1 + w1*w1);
+	sse_assert_f4(dist2233,
+	              x2*x2 + y2*y2 + z2*z2 + w2*w2,
+	              x2*x2 + y2*y2 + z2*z2 + w2*w2,
+	              x3*x3 + y3*y3 + z3*z3 + w3*w3,
+	              x3*x3 + y3*y3 + z3*z3 + w3*w3);
+	sse_assert_f4(dist,
+	              x0*x0 + y0*y0 + z0*z0 + w0*w0,
+	              x1*x1 + y1*y1 + z1*z1 + w1*w1,
+	              x2*x2 + y2*y2 + z2*z2 + w2*w2,
+	              x3*x3 + y3*y3 + z3*z3 + w3*w3);
 	sse_assert_f4(t0123, t0, t1, t2, t3);
 	sse_assert_f1(t4444, t4);
+	sse_assert_f4(t0123_sq, t0*t0, t1*t1, t2*t2, t3*t3);
+	sse_assert_f4(t0123_qd, t0*t0*t0*t0, t1*t1*t1*t1, t2*t2*t2*t2, t3*t3*t3*t3);
+	sse_assert_f1(t4444_sq, t4*t4);
+	sse_assert_f1(t4444_qd, t4*t4*t4*t4);
 	
 	return noise;
 }
