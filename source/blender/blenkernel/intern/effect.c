@@ -1541,7 +1541,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	const int res = fmd->fieldlines.res;
 	const int substeps = fmd->fieldlines.substeps;
 	
-	MSurfaceSampleGenerator *gen;
+	MeshSampleGenerator *gen;
 	ForceVizEffectorData funcdata;
 	int i;
 	
@@ -1555,14 +1555,15 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, ListBase *e
 	copy_m4_m4(funcdata.mat, ob->obmat);
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	
-	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+//	gen = BKE_mesh_sample_gen_surface_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+	gen = BKE_mesh_sample_gen_volume_random_bbray(dm, fmd->seed, 10.0f);
 	if (!gen)
 		return;
 	
 	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	for (i = 0; i < totlines; ++i) {
-		MSurfaceSample sample;
+		MeshSample sample;
 		float loc[3], nor[3], tang[3];
 		
 		/* generate a starting point on the mesh surface */
