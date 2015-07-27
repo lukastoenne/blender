@@ -8117,6 +8117,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #endif
 			}
 		}
+		
+		if (smd->domain_vdb) {
+			draw_smoke_vdb(scene, ob, rv3d, smd->domain_vdb);
+		}
 	}
 
 	if (!render_override) {

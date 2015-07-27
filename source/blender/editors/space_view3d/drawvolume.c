@@ -545,9 +545,10 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 }
 #endif
 
-bool draw_openvdb_data(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *rv3d, struct OpenVDBPrimitive *prim)
+bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
 {
-//#ifdef WITH_OPENVDB
+#ifdef WITH_OPENVDB
+
 #if 0
 	bool render_volume = false;
 	bool draw_root, draw_level_1, draw_level_2, draw_leaves, draw_voxels;
@@ -579,8 +580,10 @@ bool draw_openvdb_data(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), R
 	}
 	
 	return render_volume;
+#endif
+
 #else
-	UNUSED_VARS(rv3d, prim);
+	UNUSED_VARS(rv3d, sds);
 	return false;
 #endif
 }

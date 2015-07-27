@@ -109,10 +109,10 @@ openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
                                               const openvdb::FloatGrid *mask);
 
 
-OpenVDBPrimitive *OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                             const std::string &name,
-                                             float **data_x, float **data_y, float **data_z,
-                                             const int res[3]);
+void OpenVDB_import_grid_vector(OpenVDBReader *reader,
+                                const std::string &name,
+                                float **data_x, float **data_y, float **data_z,
+                                const int res[3]);
 
 }  /* namespace internal */
 

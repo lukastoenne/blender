@@ -3204,6 +3204,27 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 #ifdef WITH_OPENVDB
 
+/* OpenVDB domain data */
+
+typedef struct OpenVDBDomainData {
+	struct OpenVDBFloatGrid *density;
+} OpenVDBDomainData;
+
+void smoke_vdb_init_data(SmokeDomainVDBSettings *sds)
+{
+	sds->data = MEM_callocN(sizeof(OpenVDBDomainData), "OpenVDB domain data");
+}
+
+void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
+{
+	if (sds->data) {
+		MEM_freeN(sds->data);
+	}
+}
+
+
+/* OpenVDB smoke export/import */
+
 /* Construct matrices which represent the fluid object, for low and high res:
  * vs 0  0  0
  * 0  vs 0  0
@@ -3780,6 +3801,16 @@ static void smoke_domain_vdb_import(SmokeDomainVDBSettings *domain, Scene *scene
 #endif /* WITH_SMOKE */
 
 #if !defined(WITH_SMOKE) || !defined(WITH_OPENVDB)
+
+void smoke_vdb_init_data(struct SmokeDomainVDBSettings *sds)
+{
+	UNUSED_VARS(sds);
+}
+
+void smoke_vdb_free_data(struct SmokeDomainVDBSettings *sds)
+{
+	UNUSED_VARS(sds);
+}
 
 void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob,
                                   DerivedMesh *dm, update_cb update, void *update_cb_data)
