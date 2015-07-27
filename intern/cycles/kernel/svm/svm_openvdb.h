@@ -18,20 +18,11 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __OPENVDB__
 
-ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_openvdb(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
-	uint slot = node.y;
-	uint type, out_offset, sampling, co_offset;
-	decode_node_uchar4(node.z, &type, &co_offset, &out_offset, &sampling);
-
-	float3 co = stack_load_float3(stack, co_offset);
-
-	Transform tfm;
-	tfm.x = read_node_float(kg, offset);
-	tfm.y = read_node_float(kg, offset);
-	tfm.z = read_node_float(kg, offset);
-	tfm.w = read_node_float(kg, offset);
-	co = transform_point(&tfm, co);
+	float3 co = ccl_fetch(sd, P);
+	uint type, out_offset, sampling, slot;
+	decode_node_uchar4(node.y, &slot, &type, &out_offset, &sampling);
 
 	if(type == NODE_VDB_FLOAT) {
 		float out = kernel_tex_voxel_float(slot, co.x, co.y, co.z, sampling);

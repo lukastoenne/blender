@@ -145,7 +145,7 @@ BF_OPENCOLLADA_LIBPATH = '${BF_OPENCOLLADA}/lib/opencollada'
 WITH_BF_CYCLES = True
 WITH_BF_CYCLES_CUDA_BINARIES = False
 BF_CYCLES_CUDA_NVCC = "" # Path to the NVIDIA CUDA compiler
-BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35', 'sm_50']
+BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35', 'sm_50', 'sm_52']
 
 WITH_BF_OIIO = True
 BF_OIIO = LIBDIR + '/openimageio'
@@ -165,6 +165,12 @@ BF_BOOST_INC = '${BF_BOOST}/include'
 BF_BOOST_LIB = 'boost_date_time-mgw46-mt-s-1_49 boost_filesystem-mgw46-mt-s-1_49 boost_regex-mgw46-mt-s-1_49 boost_system-mgw46-mt-s-1_49 boost_thread-mgw46-mt-s-1_49'
 BF_BOOST_LIB_INTERNATIONAL = 'boost_locale-mgw46-mt-s-1_49'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
+
+WITH_BF_OPENSUBDIV = False
+BF_OPENSUBDIV = LIBDIR + '/opensubdiv'
+BF_OPENSUBDIV_INC = '${BF_OPENSUBDIV}/include'
+BF_OPENSUBDIV_LIB = 'osdCPU osdGPU'
+BF_OPENSUBDIV_LIBPATH = '${BF_OPENSUBDIV}/lib'
 
 WITH_BF_OPENVDB = True
 BF_OPENVDB = LIBDIR + '/openvdb'

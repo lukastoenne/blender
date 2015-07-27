@@ -32,7 +32,8 @@ class OpenVDBWriter {
 	openvdb::GridPtrVecPtr m_grids;
 	openvdb::MetaMap::Ptr m_meta_map;
 
-	int m_flags;
+	int m_compression_flags;
+	bool m_save_as_half;
 
 public:
 	OpenVDBWriter();
@@ -47,7 +48,7 @@ public:
 	void insertVec3IMeta(const std::string &name, const openvdb::Vec3I value);
 	void insertMat4sMeta(const std::string &name, const float value[4][4]);
 
-	void setFileCompression(const int flags);
+	void setFlags(const int compression, const bool save_as_half);
 
 	void write(const std::string &filename) const;
 };

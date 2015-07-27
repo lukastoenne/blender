@@ -168,6 +168,11 @@ if env['WITH_BF_INTERNATIONAL']:
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
 
+if env['WITH_BF_OPENSUBDIV']:
+    defs.append('WITH_OPENSUBDIV')
+    incs += ' #intern/opensubdiv'
+    incs += ' ' + env['BF_OPENSUBDIV_INC']
+
 if env['WITH_BF_OPENVDB']:
     defs.append('WITH_OPENVDB')
     defs.append('OPENVDB_USE_BLOSC')

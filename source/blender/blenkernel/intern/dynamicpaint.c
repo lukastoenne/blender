@@ -2785,10 +2785,13 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface, char *filenam
 	}
 
 	/* Set output format, png in case exr isn't supported */
-	ibuf->ftype = PNG | 95;
+	ibuf->ftype = IMB_FTYPE_PNG;
+	ibuf->foptions.quality = 15;
+
 #ifdef WITH_OPENEXR
 	if (format == R_IMF_IMTYPE_OPENEXR) {   /* OpenEXR 32-bit float */
-		ibuf->ftype = OPENEXR | OPENEXR_COMPRESS;
+		ibuf->ftype = IMB_FTYPE_OPENEXR;
+		ibuf->foptions.flag |= OPENEXR_COMPRESS;
 	}
 #endif
 
@@ -2891,8 +2894,8 @@ static void dynamicPaint_doMaterialTex(BrushMaterials *bMats, float color[3], fl
 static void mesh_faces_spherecast_dp(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
 {
 	const BVHTreeFromMesh *data = (BVHTreeFromMesh *) userdata;
-	MVert *vert = data->vert;
-	MFace *face = data->face + index;
+	const MVert *vert = data->vert;
+	const MFace *face = data->face + index;
 	short quad = 0;
 
 	const float *t0, *t1, *t2, *t3;
@@ -2927,8 +2930,8 @@ static void mesh_faces_spherecast_dp(void *userdata, int index, const BVHTreeRay
 static void mesh_faces_nearest_point_dp(void *userdata, int index, const float co[3], BVHTreeNearest *nearest)
 {
 	const BVHTreeFromMesh *data = (BVHTreeFromMesh *) userdata;
-	MVert *vert = data->vert;
-	MFace *face = data->face + index;
+	const MVert *vert = data->vert;
+	const MFace *face = data->face + index;
 	short quad = 0;
 
 	const float *t0, *t1, *t2, *t3;

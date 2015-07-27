@@ -126,6 +126,7 @@ typedef enum NodeType {
 	NODE_NORMAL_MAP,
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
+	NODE_TEX_VOXEL,
 	NODE_OPENVDB,
 } NodeType;
 
@@ -349,6 +350,11 @@ typedef enum NodeBumpOffset {
 	NODE_BUMP_OFFSET_DX,
 	NODE_BUMP_OFFSET_DY,
 } NodeBumpOffset;
+
+typedef enum NodeTexVoxelSpace {
+	NODE_TEX_VOXEL_SPACE_OBJECT = 0,
+	NODE_TEX_VOXEL_SPACE_WORLD  = 1,
+} NodeTexVoxelSpace;
 
 typedef enum NodeOpenVDBType {
 	NODE_VDB_FLOAT  = 0,

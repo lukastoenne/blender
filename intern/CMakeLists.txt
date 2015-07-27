@@ -77,6 +77,10 @@ if(WITH_OPENNL)
 	add_subdirectory(opennl)
 endif()
 
+if(WITH_OPENSUBDIV)
+	add_subdirectory(opensubdiv)
+endif()
+
 # only windows needs utf16 converter
 if(WIN32)
 	add_subdirectory(utfconv)
@@ -85,4 +89,3 @@ endif()
 if(WITH_OPENVDB)
 	add_subdirectory(openvdb)
 endif()
-

@@ -48,7 +48,7 @@ macro(list_insert_before
 	unset(_index)
 endmacro()
 
-function (list_assert_duplicates
+function(list_assert_duplicates
 	list_id
 	)
 	
@@ -373,6 +373,16 @@ function(setup_liblinks
 	if(WITH_OPENCOLORIO)
 		target_link_libraries(${target} ${OPENCOLORIO_LIBRARIES})
 	endif()
+	if(WITH_OPENSUBDIV)
+		if(WIN32 AND NOT UNIX)
+			file_list_suffix(OPENSUBDIV_LIBRARIES_DEBUG "${OPENSUBDIV_LIBRARIES}" "_d")
+			target_link_libraries_debug(${target} "${OPENSUBDIV_LIBRARIES_DEBUG}")
+			target_link_libraries_optimized(${target} "${OPENSUBDIV_LIBRARIES}")
+			unset(OPENSUBDIV_LIBRARIES_DEBUG)
+		else()
+			target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
+		endif()
+	endif()
 	if(WITH_OPENVDB)
 		target_link_libraries(${target} ${OPENVDB_LIBRARIES})
 	endif()
@@ -601,6 +611,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_libmv
 		extern_glog
 		extern_sdlew
+		extern_eigen3
 
 		bf_intern_glew_mx
 	)
@@ -677,6 +688,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
 		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
+	endif()
+
+	if(WITH_OPENSUBDIV)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
 	endif()
 
 	if(WITH_OPENVDB)
@@ -928,19 +943,22 @@ endmacro()
 
 # utility macro
 macro(remove_cc_flag
-	flag)
+	_flag)
 
-	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
-	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+	foreach(flag ${ARGV})
+		string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+		string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+		string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+		string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
+		string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 
-	string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-	string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-	string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-	string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
-	string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+		string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+		string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+		string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+		string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+		string(REGEX REPLACE ${flag} "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+	endforeach()
+	unset(flag)
 
 endmacro()
 
@@ -954,28 +972,34 @@ endmacro()
 macro(remove_strict_flags)
 
 	if(CMAKE_COMPILER_IS_GNUCC)
-		remove_cc_flag("-Wstrict-prototypes")
-		remove_cc_flag("-Wmissing-prototypes")
-		remove_cc_flag("-Wunused-parameter")
-		remove_cc_flag("-Wunused-macros")
-		remove_cc_flag("-Wwrite-strings")
-		remove_cc_flag("-Wredundant-decls")
-		remove_cc_flag("-Wundef")
-		remove_cc_flag("-Wshadow")
-		remove_cc_flag("-Wdouble-promotion")
-		remove_cc_flag("-Wold-style-definition")
-		remove_cc_flag("-Werror=[^ ]+")
-		remove_cc_flag("-Werror")
+		remove_cc_flag(
+			"-Wstrict-prototypes"
+			"-Wmissing-prototypes"
+			"-Wmissing-format-attribute"
+			"-Wunused-local-typedefs"
+			"-Wunused-macros"
+			"-Wunused-parameter"
+			"-Wwrite-strings"
+			"-Wredundant-decls"
+			"-Wundef"
+			"-Wshadow"
+			"-Wdouble-promotion"
+			"-Wold-style-definition"
+			"-Werror=[^ ]+"
+			"-Werror"
+		)
 
 		# negate flags implied by '-Wall'
 		add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
 	endif()
 
 	if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-		remove_cc_flag("-Wunused-parameter")
-		remove_cc_flag("-Wunused-variable")
-		remove_cc_flag("-Werror=[^ ]+")
-		remove_cc_flag("-Werror")
+		remove_cc_flag(
+			"-Wunused-parameter"
+			"-Wunused-variable"
+			"-Werror=[^ ]+"
+			"-Werror"
+		)
 
 		# negate flags implied by '-Wall'
 		add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
@@ -989,11 +1013,15 @@ endmacro()
 
 macro(remove_extra_strict_flags)
 	if(CMAKE_COMPILER_IS_GNUCC)
-		remove_cc_flag("-Wunused-parameter")
+		remove_cc_flag(
+			"-Wunused-parameter"
+		)
 	endif()
 
 	if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-		remove_cc_flag("-Wunused-parameter")
+		remove_cc_flag(
+			"-Wunused-parameter"
+		)
 	endif()
 
 	if(MSVC)

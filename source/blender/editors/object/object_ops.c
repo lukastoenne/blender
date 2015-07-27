@@ -189,7 +189,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_fix);
 	WM_operatortype_append(OBJECT_OT_vertex_group_invert);
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
-	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
+	WM_operatortype_append(OBJECT_OT_vertex_group_smooth);
 	WM_operatortype_append(OBJECT_OT_vertex_group_clean);
 	WM_operatortype_append(OBJECT_OT_vertex_group_quantize);
 	WM_operatortype_append(OBJECT_OT_vertex_group_limit_total);
@@ -249,7 +249,6 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_unlink_data);
 	WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
 	WM_operatortype_append(OBJECT_OT_smoke_vdb_export);
-	WM_operatortype_append(OBJECT_OT_smoke_vdb_transform_update);
 
 	WM_operatortype_append(OBJECT_OT_lod_add);
 	WM_operatortype_append(OBJECT_OT_lod_remove);

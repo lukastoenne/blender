@@ -51,7 +51,6 @@ struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
 struct wmKeyConfig;
-struct OpenVDBDrawData;
 struct OpenVDBPrimitive;
 
 /* drawing flags: */
@@ -280,7 +279,7 @@ void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        const int res[3], float dx, float base_scale, const float viewnormal[3],
                        struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
 
-bool draw_openvdb_data(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct OpenVDBDrawData *draw_data, struct OpenVDBPrimitive *prim);
+bool draw_openvdb_data(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct OpenVDBPrimitive *prim);
 
 //#define SMOKE_DEBUG_VELOCITY
 //#define SMOKE_DEBUG_HEAT
