@@ -25,6 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <stdio.h>
+
 #include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
 
 #include "openvdb_smoke.h"
@@ -34,7 +36,8 @@ namespace internal {
 using namespace openvdb;
 using namespace openvdb::math;
 
-OpenVDBSmokeData::OpenVDBSmokeData()
+OpenVDBSmokeData::OpenVDBSmokeData(const Transform::Ptr &cell_transform) :
+    cell_transform(*cell_transform)
 {
 }
 
@@ -42,13 +45,36 @@ OpenVDBSmokeData::~OpenVDBSmokeData()
 {
 }
 
-void OpenVDBSmokeData::add_obstacle(Transform::Ptr &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec4I> &triangles)
+void OpenVDBSmokeData::add_obstacle(const Mat4R &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
-	tools::MeshToVolume<FloatGrid> converter(tfm);
+//	Transform::Ptr t = cell_transform.copy();
+//	t->postMult(tfm);
+//	Transform::Ptr t = Transform::createLinearTransform(1.0f/4096.0f);
+	Transform::Ptr t = Transform::createLinearTransform(1.0f/64.0f);
+//	tools::MeshToVolume<FloatGrid> converter(t);
 	
-	converter.convertToLevelSet(vertices, triangles);
+//	converter.convertToLevelSet(vertices, triangles);
+//	density = converter.distGridPtr();
+	density = tools::meshToLevelSet<FloatGrid>(*t, vertices, triangles,
+	                                           std::vector<Vec4I>(), 1.0f);
+//	density->pruneGrid();
+	density->transform().print();
 	
-	density = converter.distGridPtr();
+	printf("Made Grid: %d voxels\n", (int)density->activeVoxelCount());
+#if 0
+	typename FloatTree::NodeCIter node_iter;
+	int i;
+	for (node_iter = density->tree().cbeginNode(), i = 0; node_iter; ++node_iter, ++i) {
+//		const int level = node_iter.getLevel();
+		CoordBBox bbox;
+		node_iter.getBoundingBox(bbox);
+		float a = 9;
+//		if (i % 100 == 0) {
+//			printf("BBOX: (%.4f, %.4f, %.4f) <-> (%.4f, %.4f, %.4f)\n",
+//			       );
+//		}
+	}
+#endif
 }
 
 void OpenVDBSmokeData::clear_obstacles()

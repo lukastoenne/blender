@@ -55,7 +55,7 @@ float smoke_get_velocity_at(struct Object *ob, float position[3], float velocity
 int smoke_get_data_flags(struct SmokeDomainSettings *sds);
 
 /* OpenVDB domain data */
-void smoke_vdb_init_data(struct SmokeDomainVDBSettings *sds);
+void smoke_vdb_init_data(struct Object *ob, struct SmokeDomainVDBSettings *sds);
 void smoke_vdb_free_data(struct SmokeDomainVDBSettings *sds);
 
 /* OpenVDB smoke export/import */

@@ -359,7 +359,7 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 	{
 		SmokeDomainVDBSettings *sds = smd->domain_vdb;
 		
-		smoke_vdb_init_data(sds);
+		smoke_vdb_init_data(ob, sds);
 		
 		smd->time = scene->r.cfra;
 		
@@ -2678,7 +2678,7 @@ static void openvdb_dm_iter_init(OpenVDBDerivedMeshIterator *it, DerivedMesh *dm
 	it->loop = dm->getLoopArray(dm);
 }
 
-static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float dt, bool for_render)
+static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float UNUSED(dt), bool UNUSED(for_render))
 {
 	Object **flowobjs = NULL;
 	unsigned int numflowobj = 0;
@@ -3321,9 +3321,21 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 /* OpenVDB domain data */
 
-void smoke_vdb_init_data(SmokeDomainVDBSettings *sds)
+static void compute_fluid_matrix(float mat[4][4], float cell_size, float obmat[4][4])
 {
-	sds->data = OpenVDB_create_smoke_data();
+	unit_m4(mat);
+	mul_m4_fl(mat, cell_size);
+	mul_m4_m4m4(mat, obmat, mat);
+}
+
+void smoke_vdb_init_data(Object *ob, SmokeDomainVDBSettings *sds)
+{
+	float cell_mat[4][4];
+	const float cell_size = 1.0f; // XXX TODO
+	
+	compute_fluid_matrix(cell_mat, 1.0f, ob->obmat);
+	
+	sds->data = OpenVDB_create_smoke_data(cell_mat);
 }
 
 void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)

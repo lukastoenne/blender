@@ -174,6 +174,16 @@ static void OpenVDB_get_draw_buffers_grid_levels(openvdb::Grid<TreeType> *grid, 
 	using namespace openvdb;
 	using namespace openvdb::math;
 	
+	/* The following colors are meant to be the same as in the example images of
+	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology", K. Museth, 2013
+	 */
+	static const Vec3f node_color[4] = {
+	    Vec3f(0.0450f, 0.0450f, 0.0450f),      // root node
+	    Vec3f(0.0432f, 0.33f, 0.0411023f),     // first internal node level
+	    Vec3f(0.871f, 0.394f, 0.01916f),       // intermediate internal node levels
+	    Vec3f(0.00608299f, 0.279541f, 0.625f)  // leaf nodes
+	};
+	
 	if (!grid)
 		return;
 	
@@ -193,8 +203,7 @@ static void OpenVDB_get_draw_buffers_grid_levels(openvdb::Grid<TreeType> *grid, 
 		Vec3f wmin = grid->indexToWorld(min);
 		Vec3f wmax = grid->indexToWorld(max);
 		
-//		Vec3f color = node_color[std::max(3 - level, 0)];
-		Vec3f color(0,0,1);
+		Vec3f color = node_color[std::max(3 - level, 0)];
 		
 		add_box(verts, colors, NULL, &verts_ofs, wmin, wmax, color);
 	}

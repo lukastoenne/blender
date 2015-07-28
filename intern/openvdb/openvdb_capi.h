@@ -116,7 +116,7 @@ void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name,
 
 /* Simulation */
 
-struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void);
+struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4]);
 void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data);
 
 /* generic iterator for reading mesh data from unknown sources */

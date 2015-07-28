@@ -248,9 +248,11 @@ void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float 
 /* ------------------------------------------------------------------------- */
 /* Simulation */
 
-struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void)
+struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4])
 {
-	return (OpenVDBSmokeData *)(new internal::OpenVDBSmokeData());
+	using openvdb::math::Transform;
+	Transform::Ptr cell_transform = Transform::createLinearTransform(internal::convertMatrix(cell_mat));
+	return (OpenVDBSmokeData *)(new internal::OpenVDBSmokeData(cell_transform));
 }
 
 void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
@@ -260,12 +262,11 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 
 void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
 {
-	using openvdb::math::Transform;
 	using openvdb::math::Vec3s;
-	using openvdb::Vec4I;
+	using openvdb::Vec3I;
 	
 	std::vector<Vec3s> vertices;
-	std::vector<Vec4I> triangles;
+	std::vector<Vec3I> triangles;
 	
 	for (; it->has_vertices(it); it->next_vertex(it)) {
 		float co[3];
@@ -277,12 +278,10 @@ void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDB
 		int a, b, c;
 		it->get_triangle(it, &a, &b, &c);
 		assert(a < vertices.size() && b < vertices.size() && c < vertices.size());
-		triangles.push_back(Vec4I(a, b, c, 0));
+		triangles.push_back(Vec3I(a, b, c));
 	}
 	
-	Transform::Ptr transform = Transform::createLinearTransform(internal::convertMatrix(mat));
-	
-	((internal::OpenVDBSmokeData *)data)->add_obstacle(transform, vertices, triangles);
+	((internal::OpenVDBSmokeData *)data)->add_obstacle(internal::convertMatrix(mat), vertices, triangles);
 }
 
 void OpenVDB_smoke_clear_obstacles(OpenVDBSmokeData *data)
