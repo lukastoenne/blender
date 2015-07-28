@@ -549,42 +549,31 @@ bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), Regi
 {
 #ifdef WITH_OPENVDB
 	struct OpenVDBSmokeData *data = sds->data;
+	float (*verts)[3], (*colors)[3];
+	int numverts;
 	
-	return false;
-
-#if 0
-	bool render_volume = false;
-	bool draw_root, draw_level_1, draw_level_2, draw_leaves, draw_voxels;
+	OpenVDB_smoke_get_draw_buffers(data, 0, 3, &verts, &colors, &numverts);
 	
-	if (!draw_data)
-		return render_volume;
+	glDisable(GL_CULL_FACE);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glEnable(GL_BLEND);
 	
-	draw_root    = (draw_data->flags & DRAW_ROOT);
-	draw_level_1 = (draw_data->flags & DRAW_LEVEL_1);
-	draw_level_2 = (draw_data->flags & DRAW_LEVEL_2);
-	draw_leaves  = (draw_data->flags & DRAW_LEAVES);
-	draw_voxels  = (draw_data->flags & DRAW_VOXELS);
+	glVertexPointer(3, GL_FLOAT, 0, verts);
+	glColorPointer(3, GL_FLOAT, 0, colors);
+	glDrawArrays(GL_QUADS, 0, numverts);
 	
-	glLoadMatrixf(rv3d->viewmat);
-//	glMultMatrixf(sds->fluidmat); // XXX
-	if (prim) {
-		OpenVDB_draw_primitive(prim, draw_root, draw_level_1, draw_level_2, draw_leaves);
-		
-		if (draw_voxels && ELEM(draw_data->voxel_drawing, DRAW_VOXELS_POINT, DRAW_VOXELS_BOX)) {
-			const bool draw_as_box = (draw_data->voxel_drawing == DRAW_VOXELS_BOX);
-			
-			OpenVDB_draw_primitive_values(prim, draw_data->tolerance,
-			                              draw_data->point_size,
-			                              draw_as_box, draw_data->lod);
-		}
-		
-		if (draw_voxels && draw_data->voxel_drawing == DRAW_VOXELS_VOLUME)
-			render_volume = true;
-	}
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	
-	return render_volume;
-#endif
-
+	if (verts)
+		MEM_freeN(verts);
+	if (colors)
+		MEM_freeN(colors);
+	
+	return true;
 #else
 	UNUSED_VARS(rv3d, sds);
 	return false;

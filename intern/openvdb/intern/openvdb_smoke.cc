@@ -32,7 +32,7 @@
 namespace internal {
 
 OpenVDBSmokeData::OpenVDBSmokeData() :
-    density(0.2f)
+    density(0.0f)
 {
 	
 }

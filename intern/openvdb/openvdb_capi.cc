@@ -23,6 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
 #include "openvdb_smoke.h"
@@ -244,6 +246,7 @@ void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float 
 }
 
 /* ------------------------------------------------------------------------- */
+/* Simulation */
 
 struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void)
 {
@@ -259,3 +262,21 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substep
 {
 	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);
 }
+
+/* ------------------------------------------------------------------------- */
+/* Drawing */
+
+void OpenVDB_smoke_get_draw_buffers(OpenVDBSmokeData *pdata, int min_level, int max_level,
+                                    float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	
+	internal::OpenVDB_get_draw_buffer_size_grid_levels(&data->density, min_level, max_level, r_numverts);
+	
+	/* reserve data */
+	*r_verts = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB vertex buffer");
+	*r_colors = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
+	
+	internal::OpenVDB_get_draw_buffers_grid_levels(&data->density, min_level, max_level, *r_numverts, *r_verts, *r_colors);
+}
+

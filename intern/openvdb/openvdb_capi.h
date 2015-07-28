@@ -121,6 +121,12 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data);
 
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
 
+/* Drawing */
+
+void OpenVDB_smoke_get_draw_buffers(struct OpenVDBSmokeData *pdata, int min_level, int max_level,
+                                    float (**r_verts)[3], float (**r_colors)[3], int *r_numverts);
+
+
 #ifdef __cplusplus
 }
 #endif
