@@ -425,7 +425,7 @@ static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 	}
 	
 	DM_ensure_looptri(dm);
-	return bvhtree_from_mesh_looptri(&data->shape_bvh, dm, 0.0f, 4, 8);
+	return (bvhtree_from_mesh_looptri(&data->shape_bvh, dm, 0.0f, 4, 8) != NULL);
 }
 
 static void PE_free_shape_tree(PEData *data)
@@ -3485,7 +3485,7 @@ static int brush_add(PEData *data, short number)
 	if (psmd->dm->deformedOnly || psys->part->use_modifier_stack)
 		dm = psmd->dm;
 	else {
-		dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
+		dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH | CD_MASK_MFACE);
 		release_dm = true;
 	}
 

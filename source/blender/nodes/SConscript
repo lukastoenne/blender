@@ -75,6 +75,9 @@ if env['WITH_BF_COMPOSITOR']:
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
 
+if env['WITH_BF_CYCLES'] and env['WITH_BF_CYCLES_DEBUG']:
+    defs.append('WITH_CYCLES_DEBUG')
+
 if env['WITH_BF_OPENVDB']:
     defs.append('WITH_OPENVDB')
     incs += ' #/intern/openvdb'
