@@ -2639,6 +2639,7 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 
 static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool for_render)
 {
+#ifdef WITH_OPENVDB
 	SmokeDomainVDBSettings *sds = smd->domain_vdb;
 
 	float dt;
@@ -2666,6 +2667,7 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 
 	/* Disable substeps for now, since it results in numerical instability */
 	OpenVDB_smoke_step(sds->data, dt, 1);
+#endif /* WITH_OPENVDB */
 }
 
 static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
