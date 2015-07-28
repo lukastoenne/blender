@@ -274,7 +274,7 @@ class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
     def poll(cls, context):
         md = context.smoke
         rd = context.scene.render
-        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
+        return md and (md.smoke_type in {'DOMAIN', 'DOMAIN_VDB'}) and (not rd.use_game_engine)
 
     def draw(self, context):
         layout = self.layout

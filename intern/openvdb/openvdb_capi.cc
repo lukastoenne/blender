@@ -258,6 +258,38 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 	delete ((internal::OpenVDBSmokeData *)data);
 }
 
+void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
+{
+	using openvdb::math::Transform;
+	using openvdb::math::Vec3s;
+	using openvdb::Vec4I;
+	
+	std::vector<Vec3s> vertices;
+	std::vector<Vec4I> triangles;
+	
+	for (; it->has_vertices(it); it->next_vertex(it)) {
+		float co[3];
+		it->get_vertex(it, co);
+		vertices.push_back(Vec3s(co[0], co[1], co[2]));
+	}
+	
+	for (; it->has_triangles(it); it->next_triangle(it)) {
+		int a, b, c;
+		it->get_triangle(it, &a, &b, &c);
+		assert(a < vertices.size() && b < vertices.size() && c < vertices.size());
+		triangles.push_back(Vec4I(a, b, c, 0));
+	}
+	
+	Transform::Ptr transform = Transform::createLinearTransform(internal::convertMatrix(mat));
+	
+	((internal::OpenVDBSmokeData *)data)->add_obstacle(transform, vertices, triangles);
+}
+
+void OpenVDB_smoke_clear_obstacles(OpenVDBSmokeData *data)
+{
+	((internal::OpenVDBSmokeData *)data)->clear_obstacles();
+}
+
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substeps)
 {
 	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);
@@ -271,12 +303,11 @@ void OpenVDB_smoke_get_draw_buffers(OpenVDBSmokeData *pdata, int min_level, int 
 {
 	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
 	
-	internal::OpenVDB_get_draw_buffer_size_grid_levels(&data->density, min_level, max_level, r_numverts);
+	internal::OpenVDB_get_draw_buffer_size_grid_levels(data->density.get(), min_level, max_level, r_numverts);
 	
 	/* reserve data */
 	*r_verts = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB vertex buffer");
 	*r_colors = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
 	
-	internal::OpenVDB_get_draw_buffers_grid_levels(&data->density, min_level, max_level, *r_numverts, *r_verts, *r_colors);
+	internal::OpenVDB_get_draw_buffers_grid_levels(data->density.get(), min_level, max_level, *r_numverts, *r_verts, *r_colors);
 }
-

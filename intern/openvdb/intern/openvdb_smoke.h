@@ -34,15 +34,21 @@
 
 namespace internal {
 
-using namespace openvdb;
+using openvdb::FloatGrid;
+using openvdb::math::Transform;
+using openvdb::math::Vec3s;
+using openvdb::Vec4I;
 
 struct OpenVDBSmokeData {
 	OpenVDBSmokeData();
 	~OpenVDBSmokeData();
 	
+	void add_obstacle(Transform::Ptr &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec4I> &triangles);
+	void clear_obstacles();
+	
 	bool step(float dt, int num_substeps);
 	
-	FloatGrid density;
+	FloatGrid::Ptr density;
 };
 
 }  /* namespace internal */

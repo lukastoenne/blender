@@ -31,15 +31,30 @@
 
 namespace internal {
 
-OpenVDBSmokeData::OpenVDBSmokeData() :
-    density(0.0f)
+using namespace openvdb;
+using namespace openvdb::math;
+
+OpenVDBSmokeData::OpenVDBSmokeData()
 {
-	
 }
 
 OpenVDBSmokeData::~OpenVDBSmokeData()
 {
+}
+
+void OpenVDBSmokeData::add_obstacle(Transform::Ptr &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec4I> &triangles)
+{
+	tools::MeshToVolume<FloatGrid> converter(tfm);
 	
+	converter.convertToLevelSet(vertices, triangles);
+	
+	density = converter.distGridPtr();
+}
+
+void OpenVDBSmokeData::clear_obstacles()
+{
+	if (density)
+		density->clear();
 }
 
 bool OpenVDBSmokeData::step(float dt, int num_substeps)

@@ -746,6 +746,20 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "SmokeDomainVDBSettings");
 	RNA_def_struct_path_func(srna, "rna_SmokeDomainVDBSettings_path");
 
+	prop = RNA_def_property(srna, "collision_group", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "coll_group");
+	RNA_def_property_struct_type(prop, "Group");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Collision Group", "Limit collisions to this group");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset_dependency");
+
+	prop = RNA_def_property(srna, "fluid_group", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "fluid_group");
+	RNA_def_property_struct_type(prop, "Group");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Fluid Group", "Limit fluid objects to this group");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset_dependency");
+
 	prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "EffectorWeights");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

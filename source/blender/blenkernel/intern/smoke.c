@@ -650,6 +650,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			domain = smd->domain_vdb = MEM_callocN(sizeof(SmokeDomainSettings), "SmokeDomain");
 			domain->smd = smd;
 			
+			domain->fluid_group = NULL;
+			domain->coll_group = NULL;
 			domain->effector_weights = BKE_add_effector_weights(NULL);
 			
 			domain->cache = openvdb_cache_new(NULL);
@@ -750,6 +752,8 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 		SmokeDomainVDBSettings *domain = smd->domain_vdb;
 		SmokeDomainVDBSettings *tdomain = tsmd->domain_vdb;
 		
+		tdomain->fluid_group = domain->fluid_group;
+		tdomain->coll_group = domain->coll_group;
 		tdomain->effector_weights = MEM_dupallocN(domain->effector_weights);
 		
 		tdomain->data = NULL;
@@ -2637,6 +2641,72 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 	}
 }
 
+#ifdef WITH_OPENVDB
+
+typedef struct OpenVDBDerivedMeshIterator {
+	OpenVDBMeshIterator base;
+	struct MVert *vert, *vert_end;
+	const struct MLoopTri *looptri, *looptri_end;
+	struct MLoop *loop;
+} OpenVDBDerivedMeshIterator;
+
+static bool openvdb_dm_has_vertices(OpenVDBDerivedMeshIterator *it) { return it->vert < it->vert_end; }
+static bool openvdb_dm_has_triangles(OpenVDBDerivedMeshIterator *it) { return it->looptri < it->looptri_end; }
+static void openvdb_dm_next_vertex(OpenVDBDerivedMeshIterator *it) { ++it->vert; }
+static void openvdb_dm_next_triangle(OpenVDBDerivedMeshIterator *it) { ++it->looptri; }
+static void openvdb_dm_get_vertex(OpenVDBDerivedMeshIterator *it, float co[3]) { copy_v3_v3(co, it->vert->co); }
+static void openvdb_dm_get_triangle(OpenVDBDerivedMeshIterator *it, int *a, int *b, int *c)
+{
+	*a = it->loop[it->looptri->tri[0]].v;
+	*b = it->loop[it->looptri->tri[1]].v;
+	*c = it->loop[it->looptri->tri[2]].v;
+}
+
+static void openvdb_dm_iter_init(OpenVDBDerivedMeshIterator *it, DerivedMesh *dm)
+{
+	it->base.has_vertices = (OpenVDBMeshHasVerticesFn)openvdb_dm_has_vertices;
+	it->base.has_triangles = (OpenVDBMeshHasTrianglesFn)openvdb_dm_has_triangles;
+	it->base.next_vertex = (OpenVDBMeshNextVertexFn)openvdb_dm_next_vertex;
+	it->base.next_triangle = (OpenVDBMeshNextTriangleFn)openvdb_dm_next_triangle;
+	it->base.get_vertex = (OpenVDBMeshGetVertexFn)openvdb_dm_get_vertex;
+	it->base.get_triangle = (OpenVDBMeshGetTriangleFn)openvdb_dm_get_triangle;
+	
+	it->vert = dm->getVertArray(dm);
+	it->vert_end = it->vert + dm->getNumVerts(dm);
+	it->looptri = dm->getLoopTriArray(dm);
+	it->looptri_end = it->looptri + dm->getNumLoopTri(dm);
+	it->loop = dm->getLoopArray(dm);
+}
+
+static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float dt, bool for_render)
+{
+	Object **flowobjs = NULL;
+	unsigned int numflowobj = 0;
+	unsigned int flowIndex;
+	
+	OpenVDB_smoke_clear_obstacles(sds->data);
+	
+	flowobjs = get_collisionobjects(scene, ob, sds->fluid_group, &numflowobj, eModifierType_Smoke);
+	for (flowIndex = 0; flowIndex < numflowobj; flowIndex++)
+	{
+		Object *collob = flowobjs[flowIndex];
+		SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(collob, eModifierType_Smoke);
+		
+		// check for initialized smoke object
+		if ((smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow)
+		{
+			SmokeFlowSettings *sfs = smd2->flow;
+			OpenVDBDerivedMeshIterator iter;
+			
+			openvdb_dm_iter_init(&iter, sfs->dm);
+			OpenVDB_smoke_add_obstacle(sds->data, collob->obmat, &iter.base);
+		}
+	}
+	if (flowobjs)
+		MEM_freeN(flowobjs);
+}
+#endif
+
 static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool for_render)
 {
 #ifdef WITH_OPENVDB
@@ -2664,6 +2734,8 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 
 	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
 	dt = DT_DEFAULT * (25.0f / fps);
+
+	update_flowsfluids_vdb(scene, ob, sds, dt, for_render);
 
 	/* Disable substeps for now, since it results in numerical instability */
 	OpenVDB_smoke_step(sds->data, dt, 1);

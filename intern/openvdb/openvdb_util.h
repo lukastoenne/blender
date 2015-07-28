@@ -148,6 +148,11 @@ static void OpenVDB_get_draw_buffer_size_grid_levels(openvdb::Grid<TreeType> *gr
 	using namespace openvdb;
 	using namespace openvdb::math;
 	
+	if (!grid) {
+		*r_numverts = 0;
+		return;
+	}
+	
 	/* count */
 	int numverts = 0;
 	for (typename TreeType::NodeCIter node_iter = grid->tree().cbeginNode(); node_iter; ++node_iter) {
@@ -168,6 +173,9 @@ static void OpenVDB_get_draw_buffers_grid_levels(openvdb::Grid<TreeType> *grid, 
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
+	
+	if (!grid)
+		return;
 	
 	int verts_ofs = 0;
 	for (typename TreeType::NodeCIter node_iter = grid->tree().cbeginNode(); node_iter; ++node_iter) {

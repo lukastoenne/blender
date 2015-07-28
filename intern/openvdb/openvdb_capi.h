@@ -119,6 +119,28 @@ void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name,
 struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void);
 void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data);
 
+/* generic iterator for reading mesh data from unknown sources */
+struct OpenVDBMeshIterator;
+typedef bool (*OpenVDBMeshHasVerticesFn)(struct OpenVDBMeshIterator *it);
+typedef bool (*OpenVDBMeshHasTrianglesFn)(struct OpenVDBMeshIterator *it);
+typedef void (*OpenVDBMeshNextVertexFn)(struct OpenVDBMeshIterator *it);
+typedef void (*OpenVDBMeshNextTriangleFn)(struct OpenVDBMeshIterator *it);
+typedef void (*OpenVDBMeshGetVertexFn)(struct OpenVDBMeshIterator *it, float co[3]);
+typedef void (*OpenVDBMeshGetTriangleFn)(struct OpenVDBMeshIterator *it, int *a, int *b, int *c);
+typedef struct OpenVDBMeshIterator {
+	OpenVDBMeshHasVerticesFn has_vertices;
+	OpenVDBMeshHasTrianglesFn has_triangles;
+	
+	OpenVDBMeshNextVertexFn next_vertex;
+	OpenVDBMeshNextTriangleFn next_triangle;
+	
+	OpenVDBMeshGetVertexFn get_vertex;
+	OpenVDBMeshGetTriangleFn get_triangle;
+} OpenVDBMeshIterator;
+
+void OpenVDB_smoke_add_obstacle(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it);
+void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
+
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
 
 /* Drawing */
