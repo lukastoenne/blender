@@ -25,6 +25,7 @@
 
 #include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
+#include "openvdb_smoke.h"
 #include "openvdb_util.h"
 
 struct OpenVDBFloatGrid { int unused; };
@@ -240,4 +241,21 @@ void OpenVDBReader_get_meta_v3_int(OpenVDBReader *reader, const char *name, int 
 void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float value[4][4])
 {
 	reader->mat4sMeta(name, value);
+}
+
+/* ------------------------------------------------------------------------- */
+
+struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void)
+{
+	return (OpenVDBSmokeData *)(new internal::OpenVDBSmokeData());
+}
+
+void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
+{
+	delete ((internal::OpenVDBSmokeData *)data);
+}
+
+bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substeps)
+{
+	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);
 }

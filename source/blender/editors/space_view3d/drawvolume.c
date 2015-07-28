@@ -548,6 +548,9 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
 {
 #ifdef WITH_OPENVDB
+	struct OpenVDBSmokeData *data = sds->data;
+	
+	return false;
 
 #if 0
 	bool render_volume = false;

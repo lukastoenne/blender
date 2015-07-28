@@ -355,9 +355,15 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 
 		return 1;
 	}
-	else if ((smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) && smd->domain_vdb)
+	else if ((smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) && smd->domain_vdb && !smd->domain_vdb->data)
 	{
-		printf("TODO smokeModifier_init for MOD_SMOKE_TYPE_DOMAIN_VDB\n");
+		SmokeDomainVDBSettings *sds = smd->domain_vdb;
+		
+		smoke_vdb_init_data(sds);
+		
+		smd->time = scene->r.cfra;
+		
+		return 1;
 	}
 	else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow)
 	{
@@ -437,6 +443,8 @@ static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
 #endif
 			MEM_freeN(domain->cache);
 		}
+		
+		smoke_vdb_free_data(domain);
 		
 		MEM_freeN(domain);
 		smd->domain_vdb = NULL;
@@ -645,6 +653,8 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			domain->effector_weights = BKE_add_effector_weights(NULL);
 			
 			domain->cache = openvdb_cache_new(NULL);
+			
+			domain->data = NULL;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -741,6 +751,8 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 		SmokeDomainVDBSettings *tdomain = tsmd->domain_vdb;
 		
 		tdomain->effector_weights = MEM_dupallocN(domain->effector_weights);
+		
+		tdomain->data = NULL;
 	}
 	else if (tsmd->flow) {
 		tsmd->flow->psys = smd->flow->psys;
@@ -2625,6 +2637,37 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 	}
 }
 
+static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool for_render)
+{
+	SmokeDomainVDBSettings *sds = smd->domain_vdb;
+
+	float dt;
+	float obmat[4][4], imat[4][4];
+	float gravity[3] = {0.0f, 0.0f, 0.0f};
+	float gravity_mag;
+
+	/* update object state */
+	invert_m4_m4(imat, ob->obmat);
+	copy_m4_m4(obmat, ob->obmat);
+//	smoke_set_domain_from_derivedmesh(sds, ob, domain_dm, (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) != 0);
+
+	/* use global gravity if enabled */
+	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+		copy_v3_v3(gravity, scene->physics_settings.gravity);
+	}
+	/* convert gravity to domain space */
+	gravity_mag = len_v3(gravity);
+	mul_mat3_m4_v3(imat, gravity);
+	normalize_v3(gravity);
+	mul_v3_fl(gravity, gravity_mag);
+
+	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
+	dt = DT_DEFAULT * (25.0f / fps);
+
+	/* Disable substeps for now, since it results in numerical instability */
+	OpenVDB_smoke_step(sds->data, dt, 1);
+}
+
 static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
 {
 	DerivedMesh *result;
@@ -2894,11 +2937,11 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		}
 
 		/* try to read from openvdb cache */
-		if (cache) {
-			smoke_domain_vdb_import(domain, scene, ob, cache);
-			smd->time = framenr;
-			return;
-		}
+//		if (cache) {
+//			smoke_domain_vdb_import(domain, scene, ob, cache);
+//			smd->time = framenr;
+//			return;
+//		}
 
 		/* only calculate something when we advanced a single frame */
 		if (framenr != (int)smd->time + 1)
@@ -2913,11 +2956,9 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		/* do simulation */
 
-#if 0
-		// simulate the actual smoke (c++ code in intern/smoke)
-		// DG: interesting commenting this line + deactivating loading of noise files
-		if (framenr != startframe)
+		// simulate the actual smoke
 		{
+#if 0
 			if (sds->flags & MOD_SMOKE_DISSOLVE) {
 				/* low res dissolve */
 				smoke_dissolve(sds->fluid, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
@@ -2927,10 +2968,10 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 				}
 
 			}
-
-			step(scene, ob, smd, dm, scene->r.frs_sec / scene->r.frs_sec_base, for_render);
-		}
 #endif
+
+			step_vdb(scene, ob, smd, dm, scene->r.frs_sec / scene->r.frs_sec_base, for_render);
+		}
 
 		// create shadows before writing cache so they get stored
 //		smoke_calc_transparency(sds, scene);
@@ -3206,19 +3247,16 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 /* OpenVDB domain data */
 
-typedef struct OpenVDBDomainData {
-	struct OpenVDBFloatGrid *density;
-} OpenVDBDomainData;
-
 void smoke_vdb_init_data(SmokeDomainVDBSettings *sds)
 {
-	sds->data = MEM_callocN(sizeof(OpenVDBDomainData), "OpenVDB domain data");
+	sds->data = OpenVDB_create_smoke_data();
 }
 
 void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 {
 	if (sds->data) {
-		MEM_freeN(sds->data);
+		OpenVDB_free_smoke_data(sds->data);
+		sds->data = NULL;
 	}
 }
 
@@ -3639,7 +3677,7 @@ static void smoke_domain_vdb_read_grids(SmokeDomainVDBSettings *sds, struct Open
 	bool for_wt_display = for_display && false;
 
 	if (for_low_display) {
-		sds->density = OpenVDB_import_grid_fl(reader, "Density", NULL, NULL);
+//		sds->density = OpenVDB_import_grid_fl(reader, "Density", NULL, NULL);
 	}
 
 #if 0
@@ -3802,12 +3840,12 @@ static void smoke_domain_vdb_import(SmokeDomainVDBSettings *domain, Scene *scene
 
 #if !defined(WITH_SMOKE) || !defined(WITH_OPENVDB)
 
-void smoke_vdb_init_data(struct SmokeDomainVDBSettings *sds)
+void smoke_vdb_init_data(SmokeDomainVDBSettings *sds)
 {
 	UNUSED_VARS(sds);
 }
 
-void smoke_vdb_free_data(struct SmokeDomainVDBSettings *sds)
+void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 {
 	UNUSED_VARS(sds);
 }
@@ -3826,7 +3864,7 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 static void smoke_domain_vdb_import(SmokeDomainVDBSettings *domain, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
-	UNUSED_VARS(domain, scene, ob);
+	UNUSED_VARS(domain, scene, ob, cache);
 }
 
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)

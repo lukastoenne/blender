@@ -4846,6 +4846,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					domain->cache->reader = NULL;
 					domain->cache->writer = NULL;
 				}
+				
+				domain->data = NULL;
 			}
 
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {

@@ -165,7 +165,7 @@ typedef struct SmokeDomainVDBSettings {
 	
 	struct OpenVDBCache *cache;
 	
-	struct OpenVDBDomainData *data;
+	struct OpenVDBSmokeData *data;
 } SmokeDomainVDBSettings;
 
 typedef struct OpenVDBCache {

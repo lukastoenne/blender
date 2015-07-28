@@ -35,6 +35,7 @@ struct OpenVDBWriter;
 struct OpenVDBFloatGrid;
 struct OpenVDBIntGrid;
 struct OpenVDBVectorGrid;
+struct OpenVDBSmokeData;
 
 int OpenVDB_getVersionHex(void);
 
@@ -112,6 +113,13 @@ void OpenVDBReader_get_meta_int(struct OpenVDBReader *reader, const char *name, 
 void OpenVDBReader_get_meta_v3(struct OpenVDBReader *reader, const char *name, float value[3]);
 void OpenVDBReader_get_meta_v3_int(struct OpenVDBReader *reader, const char *name, int value[3]);
 void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name, float value[4][4]);
+
+/* Simulation */
+
+struct OpenVDBSmokeData *OpenVDB_create_smoke_data(void);
+void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data);
+
+bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
 
 #ifdef __cplusplus
 }

@@ -49,6 +49,7 @@ if(WITH_OPENVDB)
 
 	list(APPEND SRC
 		intern/openvdb_dense_convert.cc
+		intern/openvdb_smoke.cc
 		intern/openvdb_reader.cc
 		intern/openvdb_writer.cc
 		openvdb_capi.cc

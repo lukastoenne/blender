@@ -38,7 +38,6 @@ struct SmokeDomainSettings;
 struct SmokeDomainVDBSettings;
 
 struct OpenVDBCache;
-struct OpenVDBDomainData;
 
 typedef float (*bresenham_callback)(float *result, float *input, int res[3], int *pixel, float *tRay, float correct);
 
