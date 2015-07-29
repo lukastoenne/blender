@@ -545,12 +545,16 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 }
 #endif
 
-bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
+bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *UNUSED(rv3d), SmokeDomainVDBSettings *sds)
 {
 #ifdef WITH_OPENVDB
 	struct OpenVDBSmokeData *data = sds->data;
 	float (*verts)[3], (*colors)[3];
 	int numverts;
+	
+//	glPushMatrix();
+//	glLoadMatrixf(rv3d->viewmat);
+//	glMultMatrixf(ob->obmat);
 	
 	OpenVDB_smoke_get_draw_buffers(data, 0, 3, &verts, &colors, &numverts);
 	
@@ -572,6 +576,8 @@ bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), Regi
 		MEM_freeN(verts);
 	if (colors)
 		MEM_freeN(colors);
+	
+//	glPopMatrix();
 	
 	return true;
 #else

@@ -36,8 +36,8 @@ namespace internal {
 using namespace openvdb;
 using namespace openvdb::math;
 
-OpenVDBSmokeData::OpenVDBSmokeData(const Transform::Ptr &cell_transform) :
-    cell_transform(*cell_transform)
+OpenVDBSmokeData::OpenVDBSmokeData(const Mat4R &cell_transform) :
+    cell_transform(cell_transform)
 {
 }
 
@@ -45,12 +45,16 @@ OpenVDBSmokeData::~OpenVDBSmokeData()
 {
 }
 
-void OpenVDBSmokeData::add_obstacle(const Mat4R &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
+void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
 //	Transform::Ptr t = cell_transform.copy();
-//	t->postMult(tfm);
+//	Mat4R m = (tfm * cell_transform).inverse();
+//	Mat4R m = tfm * cell_transform;
+	Mat4R m = cell_transform;
+	Transform::Ptr t = Transform::createLinearTransform(m);
+//	t->preMult(tfm);
 //	Transform::Ptr t = Transform::createLinearTransform(1.0f/4096.0f);
-	Transform::Ptr t = Transform::createLinearTransform(1.0f/64.0f);
+//	Transform::Ptr t = Transform::createLinearTransform(1.0f/64.0f);
 //	tools::MeshToVolume<FloatGrid> converter(t);
 	
 //	converter.convertToLevelSet(vertices, triangles);
@@ -83,7 +87,7 @@ void OpenVDBSmokeData::clear_obstacles()
 		density->clear();
 }
 
-bool OpenVDBSmokeData::step(float dt, int num_substeps)
+bool OpenVDBSmokeData::step(float /*dt*/, int /*num_substeps*/)
 {
 	return true;
 }

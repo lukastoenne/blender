@@ -31,6 +31,9 @@
 
 namespace internal {
 
+/* convert a column-major matrix from Blender
+ * to a row-major matrix for OpenVDB
+ */
 openvdb::Mat4R convertMatrix(const float mat[4][4])
 {
     return openvdb::Mat4R(

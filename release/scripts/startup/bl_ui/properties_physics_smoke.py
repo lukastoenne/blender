@@ -78,6 +78,10 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
         elif md.smoke_type == 'DOMAIN_VDB':
             domain = md.domain_vdb_settings
 
+            row = layout.row(align=True)
+            row.prop(domain, "resolution")
+            row.prop(domain, "resolution_axis", text="")
+
         elif md.smoke_type == 'FLOW':
 
             flow = md.flow_settings

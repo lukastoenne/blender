@@ -174,8 +174,6 @@ void flame_get_spectrum(unsigned char *UNUSED(spec), int UNUSED(width), float UN
 
 #ifdef WITH_SMOKE
 
-static void smoke_domain_vdb_import(SmokeDomainVDBSettings *domain, Scene *scene, Object *ob, OpenVDBCache *cache);
-
 void smoke_reallocate_fluid(SmokeDomainSettings *sds, float dx, int res[3], int free_old)
 {
 	int use_heat = (sds->active_fields & SM_ACTIVE_HEAT);
@@ -313,6 +311,38 @@ static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *
 	sds->cell_size[2] /= (float)sds->base_res[2];
 }
 
+/* set domain transformations and base resolution from object derivedmesh */
+static void smoke_set_domain_vdb_from_derivedmesh(SmokeDomainVDBSettings *sds, Object *ob, DerivedMesh *dm, bool init_resolution)
+{
+	const int axis = sds->res_axis;
+	const int res = sds->res;
+	const int numverts = dm->getNumVerts(dm);
+	MVert *verts = dm->getVertArray(dm);
+	float bbmin[3], bbmax[3], bbsize[3];
+	int i;
+	
+	BLI_assert(axis >= 0 && axis < 3);
+	BLI_assert(res > 0);
+	
+	/* get bounding box of the mesh */
+	INIT_MINMAX(bbmin, bbmax);
+	for (i = 0; i < numverts; ++i) {
+		minmax_v3v3_v3(bbmin, bbmax, verts[i].co);
+	}
+	sub_v3_v3v3(bbsize, bbmax, bbmin);
+
+	/* set domain bounds */
+	copy_v3_v3(sds->bbox_min, bbmin);
+	copy_v3_v3(sds->bbox_max, bbmax);
+
+	if (init_resolution) {
+		sds->cell_size = bbsize[axis] / res;
+	}
+
+	copy_m4_m4(sds->obmat, ob->obmat);
+	invert_m4_m4(sds->imat, sds->obmat);
+}
+
 static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, DerivedMesh *dm)
 {
 	if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain && !smd->domain->fluid)
@@ -359,8 +389,8 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 	{
 		SmokeDomainVDBSettings *sds = smd->domain_vdb;
 		
+		smoke_set_domain_vdb_from_derivedmesh(sds, ob, dm, true);
 		smoke_vdb_init_data(ob, sds);
-		
 		smd->time = scene->r.cfra;
 		
 		return 1;
@@ -525,7 +555,9 @@ static void smokeModifier_reset_ex(struct SmokeModifierData *smd, bool need_lock
 		}
 		else if (smd->domain_vdb)
 		{
-			printf("TODO: smokeModifier_reset_ex for VDB domain\n");
+			smoke_vdb_free_data(smd->domain_vdb);
+			
+			smd->time = -1;
 		}
 		else if (smd->flow)
 		{
@@ -655,6 +687,10 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			domain->effector_weights = BKE_add_effector_weights(NULL);
 			
 			domain->cache = openvdb_cache_new(NULL);
+			
+			domain->flag = 0;
+			domain->res_axis = 2;
+			domain->res = 32;
 			
 			domain->data = NULL;
 		}
@@ -2697,9 +2733,11 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 		{
 			SmokeFlowSettings *sfs = smd2->flow;
 			OpenVDBDerivedMeshIterator iter;
+			float mat[4][4];
+			mul_m4_m4m4(mat, sds->imat, collob->obmat);
 			
 			openvdb_dm_iter_init(&iter, sfs->dm);
-			OpenVDB_smoke_add_obstacle(sds->data, collob->obmat, &iter.base);
+			OpenVDB_smoke_add_obstacle(sds->data, mat, &iter.base);
 		}
 	}
 	if (flowobjs)
@@ -2720,7 +2758,7 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	/* update object state */
 	invert_m4_m4(imat, ob->obmat);
 	copy_m4_m4(obmat, ob->obmat);
-//	smoke_set_domain_from_derivedmesh(sds, ob, domain_dm, (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) != 0);
+	smoke_set_domain_vdb_from_derivedmesh(sds, ob, domain_dm, false);
 
 	/* use global gravity if enabled */
 	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
@@ -2981,8 +3019,8 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 	}
 	else if (smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB)
 	{
-		SmokeDomainVDBSettings *domain = smd->domain_vdb;
-		OpenVDBCache *cache = domain->cache;
+//		SmokeDomainVDBSettings *domain = smd->domain_vdb;
+//		OpenVDBCache *cache = domain->cache;
 		int framenr;
 
 		framenr = scene->r.cfra;
@@ -3317,23 +3355,17 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 	return flags;
 }
 
-#ifdef WITH_OPENVDB
-
 /* OpenVDB domain data */
 
-static void compute_fluid_matrix(float mat[4][4], float cell_size, float obmat[4][4])
-{
-	unit_m4(mat);
-	mul_m4_fl(mat, cell_size);
-	mul_m4_m4m4(mat, obmat, mat);
-}
+#ifdef WITH_OPENVDB
 
 void smoke_vdb_init_data(Object *ob, SmokeDomainVDBSettings *sds)
 {
 	float cell_mat[4][4];
-	const float cell_size = 1.0f; // XXX TODO
 	
-	compute_fluid_matrix(cell_mat, 1.0f, ob->obmat);
+	unit_m4(cell_mat);
+	mul_mat3_m4_fl(cell_mat, sds->cell_size);
+	add_v3_v3(cell_mat[3], sds->bbox_min);
 	
 	sds->data = OpenVDB_create_smoke_data(cell_mat);
 }
@@ -3346,8 +3378,12 @@ void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 	}
 }
 
+#endif /* WITH_OPENVDB */
+
 
 /* OpenVDB smoke export/import */
+
+#ifdef WITH_OPENVDB
 
 /* Construct matrices which represent the fluid object, for low and high res:
  * vs 0  0  0
@@ -3727,6 +3763,7 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 static void smoke_domain_vdb_read_metadata(SmokeDomainVDBSettings *domain, struct OpenVDBReader *reader)
 {
+	UNUSED_VARS(domain, reader);
 //	OpenVDBReader_get_meta_v3_int(reader, "min_resolution", sds->res_min);
 //	OpenVDBReader_get_meta_v3_int(reader, "max_resolution", sds->res_max);
 //	OpenVDBReader_get_meta_v3_int(reader, "base_resolution", sds->base_res);
@@ -3740,8 +3777,9 @@ static void smoke_domain_vdb_read_metadata(SmokeDomainVDBSettings *domain, struc
 //	OpenVDBReader_get_meta_mat4(reader, "obmat", sds->obmat);
 }
 
-static void smoke_domain_vdb_write_metadata(SmokeDomainVDBSettings *domain, struct OpenVDBWriter *writer)
+static void UNUSED_FUNCTION(smoke_domain_vdb_write_metadata)(SmokeDomainVDBSettings *domain, struct OpenVDBWriter *writer)
 {
+	UNUSED_VARS(domain, writer);
 //	OpenVDBWriter_add_meta_int(writer, "active_fields", sds->active_fields);
 //	OpenVDBWriter_add_meta_v3_int(writer, "resolution", sds->res);
 //	OpenVDBWriter_add_meta_v3_int(writer, "min_resolution", sds->res_min);
@@ -3760,7 +3798,8 @@ static void smoke_domain_vdb_write_metadata(SmokeDomainVDBSettings *domain, stru
 static void smoke_domain_vdb_read_grids(SmokeDomainVDBSettings *sds, struct OpenVDBReader *reader, bool for_display)
 {
 	bool for_low_display = for_display && true;
-	bool for_wt_display = for_display && false;
+//	bool for_wt_display = for_display && false;
+	UNUSED_VARS(sds, reader);
 
 	if (for_low_display) {
 //		sds->density = OpenVDB_import_grid_fl(reader, "Density", NULL, NULL);
@@ -3879,7 +3918,7 @@ static void smoke_domain_vdb_read_grids(SmokeDomainVDBSettings *sds, struct Open
 #endif
 }
 
-static void smoke_domain_vdb_import(SmokeDomainVDBSettings *domain, Scene *scene, Object *ob, OpenVDBCache *cache)
+static void UNUSED_FUNCTION(smoke_domain_vdb_import)(SmokeDomainVDBSettings *domain, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	int startframe, endframe;
 	char filename[FILE_MAX];

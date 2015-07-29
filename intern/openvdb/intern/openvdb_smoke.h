@@ -41,15 +41,15 @@ using openvdb::math::Vec3s;
 using openvdb::Vec3I;
 
 struct OpenVDBSmokeData {
-	OpenVDBSmokeData(const Transform::Ptr &cell_transform);
+	OpenVDBSmokeData(const Mat4R &cell_transform);
 	~OpenVDBSmokeData();
 	
-	void add_obstacle(const Mat4R &tfm, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
+	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
 	
 	bool step(float dt, int num_substeps);
 	
-	Transform cell_transform;
+	Mat4R cell_transform;
 	FloatGrid::Ptr density;
 };
 

@@ -741,6 +741,13 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem res_axis_items[] = {
+		{0, "X", 0, "X", "Use X axis for cell size"},
+	    {1, "Y", 0, "Y", "Use Y axis for cell size"},
+	    {2, "Z", 0, "Z", "Use Z axis for cell size"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SmokeDomainVDBSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Domain VDB Settings", "Smoke VDB domain settings");
 	RNA_def_struct_sdna(srna, "SmokeDomainVDBSettings");
@@ -768,6 +775,20 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "OpenVDBCache");
 	RNA_def_property_ui_text(prop, "OpenVDB cache", "");
+
+	prop = RNA_def_property(srna, "resolution_axis", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "res_axis");
+	RNA_def_property_enum_items(prop, res_axis_items);
+	RNA_def_property_enum_default(prop, 2);
+
+	prop = RNA_def_property(srna, "resolution", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "res");
+	RNA_def_property_range(prop, 1, 1 << 16);
+	RNA_def_property_int_default(prop, 32);
+	RNA_def_property_ui_range(prop, 16, 512, 2, -1);
+	RNA_def_property_ui_text(prop, "Resolution", "Resolution of the domain");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
