@@ -450,6 +450,8 @@ static void cdDM_drawFacesSolid(
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
 			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
+			cdDM_update_normals_from_pbvh(dm);
+
 			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
 			              setMaterial, false, false);
 			glShadeModel(GL_FLAT);
@@ -505,6 +507,7 @@ static void cdDM_drawFacesTex_common(
 	 */
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			GPU_set_tpage(NULL, false, false);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
@@ -523,8 +526,6 @@ static void cdDM_drawFacesTex_common(
 		mloopcol = dm->getLoopDataArray(dm, colType);
 	}
 
-	cdDM_update_normals_from_pbvh(dm);
-	
 	GPU_vertex_setup(dm);
 	GPU_normal_setup(dm);
 	GPU_triangle_setup(dm);
@@ -652,36 +653,54 @@ static void cdDM_drawMappedFaces(
 	totpoly = dm->getNumPolys(dm);
 
 	/* if we do selection, fill the selection buffer color */
-	if ((G.f & G_BACKBUFSEL) && !(flag & DM_DRAW_SKIP_SELECT)) {
-		Mesh *me = userData;
-		unsigned int *fi_map;
+	if (G.f & G_BACKBUFSEL) {
+		if (!(flag & DM_DRAW_SKIP_SELECT)) {
+			Mesh *me = NULL;
+			BMesh *bm = NULL;
+			unsigned int *fi_map;
 
-		findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
-		fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
+			if (flag & DM_DRAW_SELECT_USE_EDITMODE)
+				bm = userData;
+			else
+				me = userData;
 
-		if (fi_map) {
-			for (i = 0; i < totpoly; i++, mpoly++) {
-				int selcol = 0xFFFFFFFF;
-				const int orig = (index_mp_to_orig) ? index_mp_to_orig[i] : i;
+			findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
+			fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
 
-				if ((orig != ORIGINDEX_NONE) && (!useHide || !(me->mpoly[orig].flag & ME_HIDE))) {
-					WM_framebuffer_index_get(orig + 1, &selcol);
+			if (fi_map) {
+				for (i = 0; i < totpoly; i++, mpoly++) {
+					int selcol = 0xFFFFFFFF;
+					const int orig = (index_mp_to_orig) ? index_mp_to_orig[i] : i;
+					bool is_hidden;
+
+					if (useHide) {
+						if (flag & DM_DRAW_SELECT_USE_EDITMODE) {
+							BMFace *efa = BM_face_at_index(bm, orig);
+							is_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN) != 0;
+						}
+						else {
+							is_hidden = (me->mpoly[orig].flag & ME_HIDE) != 0;
+						}
+
+						if ((orig != ORIGINDEX_NONE) && !is_hidden)
+							WM_framebuffer_index_get(orig + 1, &selcol);
+					}
+					else if (orig != ORIGINDEX_NONE)
+						WM_framebuffer_index_get(orig + 1, &selcol);
+
+					for (j = 0; j < mpoly->totloop; j++)
+						fi_map[start_element++] = selcol;
 				}
 
-				for (j = 0; j < mpoly->totloop; j++)
-					fi_map[start_element++] = selcol;
+				start_element = 0;
+				mpoly = cddm->mpoly;
+
+				GPU_buffer_unlock(findex_buffer, GPU_BINDING_ARRAY);
+				GPU_buffer_bind_as_color(findex_buffer);
 			}
-
-			start_element = 0;
-			mpoly = cddm->mpoly;
-
-			GPU_buffer_unlock(findex_buffer, GPU_BINDING_ARRAY);
-			GPU_buffer_bind_as_color(findex_buffer);
 		}
 	}
 	else {
-		cdDM_update_normals_from_pbvh(dm);
-
 		GPU_normal_setup(dm);
 
 		if (useColors) {
@@ -792,7 +811,7 @@ static void cdDM_drawMappedFaces(
 
 	GPU_buffers_unbind();
 
-	if (G.f & G_BACKBUFSEL)
+	if (findex_buffer)
 		GPU_buffer_free(findex_buffer);
 
 }
@@ -860,14 +879,13 @@ static void cdDM_drawMappedFacesGLSL(
 	 */
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			setMaterial(1, &gattribs);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
 	}
-
-	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
 	do_draw = false;
@@ -1056,15 +1074,13 @@ static void cdDM_drawMappedFacesGLSL(
 							offset += sizeof(unsigned char) * 4;
 						}
 					}
-					/* TODO, handle tangents */
 					if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
-						const float *tang = matconv[i].attribs.tang.array[i * 4 + 0];
-						copy_v4_v4((float *)&varray[offset], tang);
-						tang = matconv[i].attribs.tang.array[i * 4 + 1];
-						copy_v4_v4((float *)&varray[offset + max_element_size], tang);
-						tang = matconv[i].attribs.tang.array[i * 4 + 2];
-						copy_v4_v4((float *)&varray[offset + max_element_size * 2], tang);
-						offset += sizeof(float) * 4;
+						if (matconv[i].attribs.tface[b].array) {
+							const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang.array;
+							for (j = 0; j < mpoly->totloop; j++)
+								copy_v4_v4((float *)&varray[offset + j * max_element_size], looptang[mpoly->loopstart + j]);
+							offset += sizeof(float) * 4;
+						}
 					}
 				}
 
@@ -1131,10 +1147,9 @@ static void cdDM_drawMappedFacesMat(
 	 *       works fine for matcap
 	 */
 
-	cdDM_update_normals_from_pbvh(dm);
-
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			setMaterial(userData, 1, &gattribs);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
@@ -2016,7 +2031,7 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 
 	/* this does a referenced copy, with an exception for fluidsim */
 
-	DM_init(dm, DM_TYPE_CDDM, mesh->totvert, mesh->totedge, mesh->totface,
+	DM_init(dm, DM_TYPE_CDDM, mesh->totvert, mesh->totedge, 0 /* mesh->totface */,
 	        mesh->totloop, mesh->totpoly);
 
 	dm->deformedOnly = 1;
@@ -2029,7 +2044,7 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 	CustomData_merge(&mesh->edata, &dm->edgeData, mask, alloctype,
 	                 mesh->totedge);
 	CustomData_merge(&mesh->fdata, &dm->faceData, mask | CD_MASK_ORIGINDEX, alloctype,
-	                 mesh->totface);
+	                 0 /* mesh->totface */);
 	CustomData_merge(&mesh->ldata, &dm->loopData, mask, alloctype,
 	                 mesh->totloop);
 	CustomData_merge(&mesh->pdata, &dm->polyData, mask, alloctype,
@@ -2039,7 +2054,11 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 	cddm->medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
 	cddm->mloop = CustomData_get_layer(&dm->loopData, CD_MLOOP);
 	cddm->mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
+#if 0
 	cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
+#else
+	cddm->mface = NULL;
+#endif
 
 	/* commented since even when CD_ORIGINDEX was first added this line fails
 	 * on the default cube, (after editmode toggle too) - campbell */

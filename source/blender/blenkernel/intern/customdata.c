@@ -2155,8 +2155,8 @@ static void CustomData_copy_data_layer(
 	src_offset = src_index * typeInfo->size;
 	dst_offset = dst_index * typeInfo->size;
 
-	if (!src_data || !dst_data) {
-		if (!(src_data == NULL && dst_data == NULL)) {
+	if (!count || !src_data || !dst_data) {
+		if (count && !(src_data == NULL && dst_data == NULL)) {
 			printf("%s: warning null data for %s type (%p --> %p), skipping\n",
 				   __func__, layerType_getName(source->layers[src_i].type),
 				   (void *)src_data, (void *)dst_data);
@@ -2488,6 +2488,9 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData 
 		}
 		else if (ldata->layers[i].type == CD_NORMAL) {
 			CustomData_add_layer_named(fdata, CD_TESSLOOPNORMAL, CD_CALLOC, NULL, total, ldata->layers[i].name);
+		}
+		else if (ldata->layers[i].type == CD_TANGENT) {
+			CustomData_add_layer_named(fdata, CD_TANGENT, CD_CALLOC, NULL, total, ldata->layers[i].name);
 		}
 	}
 
