@@ -291,6 +291,15 @@ class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
         col.prop(domain, "collision_group", text="")
 
 
+class DATA_UL_openvdb_caches(UIList):
+    def draw_items(self, context, layout, item, icon, active_data, active_propname, index):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignement = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Cache"
     bl_options = {'DEFAULT_CLOSED'}
@@ -304,74 +313,47 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        md = context.smoke.domain_settings
-        cache = md.point_cache
-
-        layout.label(text="Compression:")
-        layout.prop(md, "point_cache_compress_type", expand=True)
-
-        point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
-
-
-class DATA_UL_openvdb_caches(UIList):
-    def draw_items(self, context, layout, item, icon, active_data, active_propname, index):
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
-        elif self.layout_type in {'GRID'}:
-            layout.alignement = 'CENTER'
-            layout.label(text="", icon_value=icon)
-
-
-class PHYSICS_PT_smoke_openvdb(PhysicButtonsPanel, Panel):
-    bl_label = "OpenVDB export"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        md = context.smoke
-        rd = context.scene.render
-        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
-
-    def draw_header(self, context):
-        layout = self.layout
         domain = context.smoke.domain_settings
-        layout.prop(domain, "use_openvdb", text="")
+        cache_type = domain.cache_type
 
-    def draw(self, context):
-        layout = self.layout
+        layout.prop(domain, "cache_type")
 
-        if not bpy.app.build_options.openvdb:
-            layout.label("Build without OpenVDB support.")
-            return
+        if cache_type in {'POINTCACHE'}:
+            cache = domain.point_cache
 
-        domain = context.smoke.domain_settings
-        layout.active = domain.use_openvdb
+            layout.label(text="Compression:")
+            layout.prop(domain, "point_cache_compress_type", expand=True)
 
-        row = layout.row()
-        row.template_list("DATA_UL_openvdb_caches", "", domain, "cache", domain, "active_openvdb_cache_index", rows=3)
+            point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
+        elif cache_type in {'OPENVDB'}:
+            if not bpy.app.build_options.openvdb:
+                layout.label("Build without OpenVDB support.")
+                return
 
-        col = row.column()
-        sub = col.row()
-        subsub = sub.column(align=True)
-        subsub.operator("object.openvdb_cache_add", icon='ZOOMIN', text="")
-        subsub.operator("object.openvdb_cache_remove", icon='ZOOMOUT', text="")
-        sub = col.row()
-        subsub = sub.column(align=True)
-        subsub.operator("object.openvdb_cache_move", icon='MOVE_UP_VEC', text="").direction = 'UP'
-        subsub.operator("object.openvdb_cache_move", icon='MOVE_DOWN_VEC', text="").direction = 'DOWN'
-
-        cache = domain.active_openvdb_cache
-
-        if cache:
-            layout.prop(cache, "filepath")
-            layout.prop(cache, "compression")
-            row = layout.row(align=True)
-            row.prop(cache, "frame_start")
-            row.prop(cache, "frame_end")
             row = layout.row()
-            row.prop(cache, "save_as_half")
+            row.template_list("DATA_UL_openvdb_caches", "", domain, "cache", domain, "active_openvdb_cache_index", rows=3)
 
-        layout.operator("object.smoke_vdb_export")
+            col = row.column()
+            sub = col.row()
+            subsub = sub.column(align=True)
+            subsub.operator("object.openvdb_cache_add", icon='ZOOMIN', text="")
+            subsub.operator("object.openvdb_cache_remove", icon='ZOOMOUT', text="")
+            sub = col.row()
+            subsub = sub.column(align=True)
+            subsub.operator("object.openvdb_cache_move", icon='MOVE_UP_VEC', text="").direction = 'UP'
+            subsub.operator("object.openvdb_cache_move", icon='MOVE_DOWN_VEC', text="").direction = 'DOWN'
+
+            cache = domain.active_openvdb_cache
+
+            if cache:
+                layout.prop(cache, "filepath")
+                layout.prop(cache, "compression")
+                row = layout.row(align=True)
+                row.prop(cache, "frame_start")
+                row.prop(cache, "frame_end")
+                row = layout.row()
+                row.prop(cache, "save_as_half")
+                layout.operator("object.smoke_vdb_export", text="Bake")
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

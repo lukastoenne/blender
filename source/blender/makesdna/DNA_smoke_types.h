@@ -77,6 +77,11 @@ enum {
 #define SM_ACTIVE_COLORS	(1<<2)
 #define SM_ACTIVE_COLOR_SET	(1<<3)
 
+enum {
+	SMOKE_CACHE_POINTCACHE = 0,
+	SMOKE_CACHE_OPENVDB    = 1,
+};
+
 typedef struct SmokeDomainSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct FLUID_3D *fluid;
@@ -151,7 +156,7 @@ typedef struct SmokeDomainSettings {
 	float flame_smoke_color[3];
 
 	struct ListBase vdb_caches;
-	short use_openvdb, pad[3];
+	short cache_type, pad[3];
 } SmokeDomainSettings;
 
 typedef struct OpenVDBCache {

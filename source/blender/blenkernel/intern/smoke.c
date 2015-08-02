@@ -579,7 +579,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->viewsettings = MOD_SMOKE_VIEW_SHOWBIG;
 			smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 
-			smd->domain->use_openvdb = false;
+			smd->domain->cache_type = SMOKE_CACHE_POINTCACHE;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 		{
@@ -2657,6 +2657,168 @@ static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
 	return result;
 }
 
+/* simulate the actual smoke (c++ code in intern/smoke) */
+static void smokeModifier_step_simulation(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, bool for_render, const int framenr, const int startframe)
+{
+	SmokeDomainSettings *sds = smd->domain;
+
+	/* DG: interesting commenting this + deactivating loading of noise files */
+	if (framenr != startframe){
+		if (sds->flags & MOD_SMOKE_DISSOLVE) {
+			/* low res dissolve */
+			smoke_dissolve(sds->fluid, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
+			/* high res dissolve */
+			if (sds->wt) {
+				smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
+			}
+		}
+
+		step(scene, ob, smd, dm, scene->r.frs_sec / scene->r.frs_sec_base, for_render);
+	}
+
+	/* create shadows before writing cache so they get stored */
+	smoke_calc_transparency(sds, scene);
+
+	if (sds->wt) {
+		smoke_turbulence_step(sds->wt, sds->fluid);
+	}
+}
+
+static void smokeModifier_process_pointcache(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, bool for_render)
+{
+	SmokeDomainSettings *sds = smd->domain;
+	PointCache *cache = NULL;
+	PTCacheID pid;
+	int startframe, endframe, framenr;
+	float timescale;
+
+	framenr = scene->r.cfra;
+
+	//printf("time: %d\n", scene->r.cfra);
+
+	cache = sds->point_cache[0];
+	BKE_ptcache_id_from_smoke(&pid, ob, smd);
+	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
+
+	if (!smd->domain->fluid || framenr == startframe)
+	{
+		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
+		smokeModifier_reset_ex(smd, false);
+		BKE_ptcache_validate(cache, framenr);
+		cache->flag &= ~PTCACHE_REDO_NEEDED;
+	}
+
+	if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->flag & PTCACHE_BAKED) == 0)
+		return;
+
+	smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
+	CLAMP(framenr, startframe, endframe);
+
+	/* If already viewing a pre/after frame, no need to reload */
+	if ((smd->time == framenr) && (framenr != scene->r.cfra))
+		return;
+
+	if (smokeModifier_init(smd, ob, scene, dm) == 0)
+	{
+		printf("bad smokeModifier_init\n");
+		return;
+	}
+
+	/* try to read from cache */
+	if ((BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
+		BKE_ptcache_validate(cache, framenr);
+		smd->time = framenr;
+		return;
+	}
+
+	/* only calculate something when we advanced a single frame */
+	if (framenr != (int)smd->time + 1)
+		return;
+
+	/* don't simulate if viewing start frame, but scene frame is not real start frame */
+	if (framenr != scene->r.cfra)
+		return;
+
+	tstart();
+
+	/* if on second frame, write cache for first frame */
+	if ((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
+		BKE_ptcache_write(&pid, startframe);
+	}
+
+	// set new time
+	smd->time = scene->r.cfra;
+
+	/* do simulation */
+	smokeModifier_step_simulation(smd, scene, ob, dm, for_render, framenr, startframe);
+
+	BKE_ptcache_validate(cache, framenr);
+	if (framenr != startframe)
+		BKE_ptcache_write(&pid, framenr);
+
+	tend();
+	// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, (float) tval() );
+}
+
+static void smokeModifier_process_openvdb(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, bool for_render)
+{
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = cache = BKE_openvdb_get_current_cache(sds);
+	int startframe, endframe, framenr;
+
+	framenr = scene->r.cfra;
+
+	if (cache) {
+		startframe = cache->startframe;
+		endframe = cache->endframe;
+	}
+	else {
+		startframe = scene->r.sfra;
+		endframe = scene->r.efra;
+	}
+
+	if (!smd->domain->fluid || framenr == startframe) {
+		smokeModifier_reset_ex(smd, false);
+	}
+
+	if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0)
+		return;
+
+	smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
+	CLAMP(framenr, startframe, endframe);
+
+	/* If already viewing a pre/after frame, no need to reload */
+	if ((smd->time == framenr) && (framenr != scene->r.cfra))
+		return;
+
+	if (smokeModifier_init(smd, ob, scene, dm) == 0) {
+		printf("bad smokeModifier_init\n");
+		return;
+	}
+
+	/* try to read from cache */
+	if (cache != NULL) {
+		if (smokeModifier_OpenVDB_import(smd, scene, ob, cache)) {
+			smd->time = framenr;
+			return;
+		}
+	}
+
+	/* only calculate something when we advanced a single frame */
+	if (framenr != (int)smd->time + 1)
+		return;
+
+	/* don't simulate if viewing start frame, but scene frame is not real start frame */
+	if (framenr != scene->r.cfra)
+		return;
+
+	// set new time
+	smd->time = scene->r.cfra;
+
+	/* do simulation */
+	smokeModifier_step_simulation(smd, scene, ob, dm, for_render, framenr, startframe);
+}
+
 static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, bool for_render)
 {
 	if ((smd->type & MOD_SMOKE_TYPE_FLOW))
@@ -2701,111 +2863,13 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 	else if (smd->type & MOD_SMOKE_TYPE_DOMAIN)
 	{
 		SmokeDomainSettings *sds = smd->domain;
-		PointCache *cache = NULL;
-		OpenVDBCache *vdb_cache = NULL;
-		PTCacheID pid;
-		int startframe, endframe, framenr;
-		float timescale;
 
-		framenr = scene->r.cfra;
-
-		//printf("time: %d\n", scene->r.cfra);
-
-		cache = sds->point_cache[0];
-		BKE_ptcache_id_from_smoke(&pid, ob, smd);
-		BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
-
-		if (!smd->domain->fluid || framenr == startframe)
-		{
-			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-			smokeModifier_reset_ex(smd, false);
-			BKE_ptcache_validate(cache, framenr);
-			cache->flag &= ~PTCACHE_REDO_NEEDED;
+		if (sds->cache_type == SMOKE_CACHE_POINTCACHE) {
+			smokeModifier_process_pointcache(smd, scene, ob, dm, for_render);
 		}
-
-		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->flag & PTCACHE_BAKED) == 0)
-			return;
-
-		smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
-		CLAMP(framenr, startframe, endframe);
-
-		/* If already viewing a pre/after frame, no need to reload */
-		if ((smd->time == framenr) && (framenr != scene->r.cfra))
-			return;
-
-		if (smokeModifier_init(smd, ob, scene, dm) == 0)
-		{
-			printf("bad smokeModifier_init\n");
-			return;
+		else {
+			smokeModifier_process_openvdb(smd, scene, ob, dm, for_render);
 		}
-
-		/* try to read from openvdb cache */
-		vdb_cache = BKE_openvdb_get_current_cache(sds);
-		if (sds->use_openvdb && vdb_cache) {
-			if (smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache)) {
-				smd->time = framenr;
-				return;
-			}
-		}
-
-		/* try to read from cache */
-		if ((BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
-			BKE_ptcache_validate(cache, framenr);
-			smd->time = framenr;
-			return;
-		}
-
-		/* only calculate something when we advanced a single frame */
-		if (framenr != (int)smd->time + 1)
-			return;
-
-		/* don't simulate if viewing start frame, but scene frame is not real start frame */
-		if (framenr != scene->r.cfra)
-			return;
-
-		tstart();
-
-		/* if on second frame, write cache for first frame */
-		if ((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
-			BKE_ptcache_write(&pid, startframe);
-		}
-
-		// set new time
-		smd->time = scene->r.cfra;
-
-		/* do simulation */
-
-		// simulate the actual smoke (c++ code in intern/smoke)
-		// DG: interesting commenting this line + deactivating loading of noise files
-		if (framenr != startframe)
-		{
-			if (sds->flags & MOD_SMOKE_DISSOLVE) {
-				/* low res dissolve */
-				smoke_dissolve(sds->fluid, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
-				/* high res dissolve */
-				if (sds->wt) {
-					smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
-				}
-
-			}
-
-			step(scene, ob, smd, dm, scene->r.frs_sec / scene->r.frs_sec_base, for_render);
-		}
-
-		// create shadows before writing cache so they get stored
-		smoke_calc_transparency(sds, scene);
-
-		if (sds->wt)
-		{
-			smoke_turbulence_step(sds->wt, sds->fluid);
-		}
-
-		BKE_ptcache_validate(cache, framenr);
-		if (framenr != startframe)
-			BKE_ptcache_write(&pid, framenr);
-
-		tend();
-		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, (float) tval() );
 	}
 }
 

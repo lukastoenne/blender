@@ -453,6 +453,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_cache_items[] = {
+	    {SMOKE_CACHE_POINTCACHE, "POINTCACHE", 0, "Point Cache", "Use Point Cache for caching on disk"},
+	    {SMOKE_CACHE_OPENVDB, "OPENVDB", 0, "OpenVDB", "Use OpenVDB for caching on disk"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SmokeDomainSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Domain Settings", "Smoke domain settings");
 	RNA_def_struct_sdna(srna, "SmokeDomainSettings");
@@ -702,10 +708,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	                         "Maximum amount of fluid cell can contain before it is considered empty");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
 
-	prop = RNA_def_property(srna, "use_openvdb", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_openvdb", 1);
-	RNA_def_property_ui_text(prop, "Use OpenVDB", "Use OpenVDB to cache the simulation");
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	prop = RNA_def_property(srna, "cache_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "cache_type");
+	RNA_def_property_ui_text(prop, "", "Use OpenVDB to cache the simulation");
+	RNA_def_property_enum_items(prop, prop_cache_items);
+	RNA_def_property_ui_text(prop, "Cache Type",
+	                         "Select the type of the caching system to use");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
 
 	prop = RNA_def_property(srna, "cache", PROP_COLLECTION, PROP_NONE);
