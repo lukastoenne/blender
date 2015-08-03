@@ -210,8 +210,9 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
 
     def draw_header(self, context):
         md = context.smoke.domain_settings
-
-        self.layout.prop(md, "use_adaptive_domain", text="")
+        layout = self.layout
+        layout.active = enable_panel(md)
+        layout.prop(md, "use_adaptive_domain", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -244,8 +245,9 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
 
     def draw_header(self, context):
         md = context.smoke.domain_settings
-
-        self.layout.prop(md, "use_high_resolution", text="")
+        layout = self.layout
+        layout.active = enable_panel(md)
+        layout.prop(md, "use_high_resolution", text="")
 
     def draw(self, context):
         layout = self.layout
