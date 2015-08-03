@@ -73,7 +73,7 @@ public:
 };
 
 openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                              const std::string &name,
+                                              const openvdb::Name &name,
                                               const float *data_x, const float *data_y, const float *data_z,
                                               const int res[3],
                                               float fluid_mat[4][4],
@@ -130,7 +130,7 @@ openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 }
 
 void OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                const std::string &name,
+                                const openvdb::Name &name,
                                 float **data_x, float **data_y, float **data_z,
                                 const int res[3])
 {

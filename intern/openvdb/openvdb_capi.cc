@@ -53,8 +53,8 @@ void OpenVDB_get_grid_info(const char *filename, OpenVDBGridInfoCallback cb, voi
 	for (size_t i = 0; i < grid_num; ++i) {
 		GridBase::ConstPtr grid = (*grids)[i];
 
-		std::string name = grid->getName();
-		std::string value_type = grid->valueType();
+		Name name = grid->getName();
+		Name value_type = grid->valueType();
 		bool is_color = false;
 		if (grid->getMetadata< TypedMetadata<bool> >("is_color"))
 			is_color = grid->metaValue<bool>("is_color");
