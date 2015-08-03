@@ -184,7 +184,7 @@ void OBJECT_OT_skin_loose_mark_clear(struct wmOperatorType *ot);
 void OBJECT_OT_skin_radii_equalize(struct wmOperatorType *ot);
 void OBJECT_OT_skin_armature_create(struct wmOperatorType *ot);
 void OBJECT_OT_laplaciandeform_bind(struct wmOperatorType *ot);
-void OBJECT_OT_smoke_vdb_export(struct wmOperatorType *ot);
+void OBJECT_OT_openvdb_cache_bake(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_add(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_remove(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_move(struct wmOperatorType *ot);

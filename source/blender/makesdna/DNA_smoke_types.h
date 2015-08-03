@@ -172,9 +172,9 @@ typedef struct OpenVDBCache {
 } OpenVDBCache;
 
 enum {
-	VDB_CACHE_CURRENT        = (1 << 0),
-	VDB_CACHE_SMOKE_EXPORTED = (1 << 1),
-	VDB_CACHE_SAVE_AS_HALF   = (1 << 2),
+	OPENVDB_CACHE_CURRENT        = (1 << 0),
+	OPENVDB_CACHE_BAKED          = (1 << 1),
+	OPENVDB_CACHE_SAVE_AS_HALF   = (1 << 2),
 };
 
 enum {

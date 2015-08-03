@@ -363,8 +363,9 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
                 row.prop(cache, "frame_end")
                 row = layout.row()
                 row.prop(cache, "save_as_half")
-                layout.operator("object.smoke_vdb_export", text="Bake")
-                layout.operator("object.openvdb_cache_free")
+                row = layout.row()
+                row.operator("object.openvdb_cache_bake")
+                row.operator("object.openvdb_cache_free")
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

@@ -3427,14 +3427,14 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		cache->writer = OpenVDBWriter_create();
 	}
 
-	save_as_half = ((cache->flags & VDB_CACHE_SAVE_AS_HALF) != 0);
+	save_as_half = ((cache->flags & OPENVDB_CACHE_SAVE_AS_HALF) != 0);
 
 	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
 
 	/* Unset exported flag if overwriting a cache, the operator should have
 	 * received confirmation from the user */
-	if (cache->flags & VDB_CACHE_SMOKE_EXPORTED)
-		cache->flags &= ~VDB_CACHE_SMOKE_EXPORTED;
+	if (cache->flags & OPENVDB_CACHE_BAKED)
+		cache->flags &= ~OPENVDB_CACHE_BAKED;
 
 	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
@@ -3473,7 +3473,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		}
 	}
 
-	cache->flags |= VDB_CACHE_SMOKE_EXPORTED;
+	cache->flags |= OPENVDB_CACHE_BAKED;
 
 	scene->r.cfra = orig_frame;
 }
@@ -3486,7 +3486,7 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	cache = BKE_openvdb_get_current_cache(sds);
 
-	if (!(cache->flags & VDB_CACHE_SMOKE_EXPORTED)) {
+	if (!(cache->flags & OPENVDB_CACHE_BAKED)) {
 		return false;
 	}
 
@@ -3543,7 +3543,7 @@ OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 	OpenVDBCache *cache = sds->vdb_caches.first;
 
 	for (; cache; cache = cache->next) {
-		if (cache->flags & VDB_CACHE_CURRENT) {
+		if (cache->flags & OPENVDB_CACHE_CURRENT) {
 			break;
 		}
 	}
