@@ -8027,6 +8027,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		/* only draw domains */
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
+			BoundBox bb;
+			float p0[3], p1[3];
 			float viewnormal[3];
 
 			glLoadMatrixf(rv3d->viewmat);
@@ -8034,8 +8036,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* draw adaptive domain bounds */
 			if ((sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) && !render_override) {
-				float p0[3], p1[3];
-				BoundBox bb;
 				/* draw domain max bounds */
 				VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
 				VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
@@ -8047,8 +8047,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				BKE_boundbox_init_from_minmax(&bb, sds->p0, sds->p1);
 				draw_box(bb.vec);
 #endif
+			}
 
-				/* draw a single voxel to hint the user about the resolution of the fluid */
+			/* draw a single voxel to hint the user about the resolution of the fluid */
+			{
 				copy_v3_v3(p0, sds->p0);
 
 				if (sds->flags & MOD_SMOKE_HIGHRES) {
@@ -8064,8 +8066,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
-				float p0[3], p1[3];
-
 				glLoadMatrixf(rv3d->viewmat);
 				glMultMatrixf(ob->obmat);
 
