@@ -273,7 +273,6 @@ static int getFaceIndex(CCGSubSurf *ss, CCGFace *f, int S, int x, int y, int edg
 	}
 }
 
-#ifndef WITH_OPENSUBDIV
 static void get_face_uv_map_vert(UvVertMap *vmap, struct MPoly *mpoly, struct MLoop *ml, int fi, CCGVertHDL *fverts)
 {
 	UvMapVert *v, *nv;
@@ -415,13 +414,12 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 
 	return 1;
 }
-#endif  /* WITH_OPENSUBDIV */
 
 #ifdef WITH_OPENSUBDIV
-static void set_subsurf_ccg_uv(CCGSubSurf *ss,
-                               DerivedMesh *dm,
-                               DerivedMesh *result,
-                               int layer_index)
+static void UNUSED_FUNCTION(set_subsurf_osd_ccg_uv)(CCGSubSurf *ss,
+                                                    DerivedMesh *dm,
+                                                    DerivedMesh *result,
+                                                    int layer_index)
 {
 	CCGFace **faceMap;
 	MTFace *tf;
@@ -498,22 +496,9 @@ static void set_subsurf_ccg_uv(CCGSubSurf *ss,
 	}
 	MEM_freeN(faceMap);
 }
+#endif  /* WITH_OPENSUBDIV */
 
-static void set_subsurf_uv(CCGSubSurf *ss,
-                           DerivedMesh *dm,
-                           DerivedMesh *result,
-                           int layer_index)
-{
-	if (!ccgSubSurf_needGrids(ss)) {
-		/* GPU backend is used, no need to evaluate UVs on CPU. */
-		/* TODO(sergey): Think of how to support edit mode of UVs. */
-	}
-	else {
-		set_subsurf_ccg_uv(ss, dm, result, layer_index);
-	}
-}
-#else  /* WITH_OPENSUBDIV */
-static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result, int n)
+static void set_subsurf_legacy_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result, int n)
 {
 	CCGSubSurf *uvss;
 	CCGFace **faceMap;
@@ -593,7 +578,23 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 	ccgSubSurf_free(uvss);
 	MEM_freeN(faceMap);
 }
-#endif  /* WITH_OPENSUBDIV */
+
+static void set_subsurf_uv(CCGSubSurf *ss,
+                           DerivedMesh *dm,
+                           DerivedMesh *result,
+                           int layer_index)
+{
+#ifdef WITH_OPENSUBDIV
+	if (!ccgSubSurf_needGrids(ss)) {
+		/* GPU backend is used, no need to evaluate UVs on CPU. */
+		/* TODO(sergey): Think of how to support edit mode of UVs. */
+	}
+	else
+#endif
+	{
+		set_subsurf_legacy_uv(ss, dm, result, layer_index);
+	}
+}
 
 /* face weighting */
 typedef struct FaceVertWeightEntry {
@@ -797,9 +798,9 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss,
 	/* Reset all related descriptors if actual mesh topology changed or if
 	 * other evlauation-related settings changed.
 	 */
-	ccgSubSurf_checkTopologyChanged(ss, dm);
 	if (!ccgSubSurf_needGrids(ss)) {
 		/* TODO(sergey): Use vertex coordinates and flat subdiv flag. */
+		ccgSubSurf_checkTopologyChanged(ss, dm);
 		ss_sync_osd_from_derivedmesh(ss, dm);
 	}
 	else
@@ -4527,11 +4528,9 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
 }
 
 /* Fill in only geometry arrays needed for the GPU tessellation. */
-static void set_ccgdm_gpu_geometry(CCGDerivedMesh *ccgdm,
-                                   CCGSubSurf *ss,
-                                   DerivedMesh *dm)
+static void set_ccgdm_gpu_geometry(CCGDerivedMesh *ccgdm, DerivedMesh *dm)
 {
-	const int totface = ccgSubSurf_getNumFaces(ss);
+	const int totface = dm->getNumPolys(dm);
 	MPoly *mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
 	int index;
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
@@ -4551,13 +4550,20 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                                          DerivedMesh *dm,
                                          bool use_gpu_backend)
 {
+#ifdef WITH_OPENSUBDIV
+	const int totedge = dm->getNumEdges(dm);
+	const int totface = dm->getNumPolys(dm);
+#else
 	const int totedge = ccgSubSurf_getNumEdges(ss);
 	const int totface = ccgSubSurf_getNumFaces(ss);
+#endif
 	CCGDerivedMesh *ccgdm = MEM_callocN(sizeof(*ccgdm), "ccgdm");
 	int numTex, numCol;
 	int hasPCol, hasOrigSpace;
 
 	if (use_gpu_backend == false) {
+		BLI_assert(totedge == ccgSubSurf_getNumEdges(ss));
+		BLI_assert(totface == ccgSubSurf_getNumFaces(ss));
 		DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
 		                 ccgSubSurf_getNumFinalVerts(ss),
 		                 ccgSubSurf_getNumFinalEdges(ss),
@@ -4622,7 +4628,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 		set_ccgdm_all_geometry(ccgdm, ss, dm, useSubsurfUv != 0);
 	}
 	else {
-		set_ccgdm_gpu_geometry(ccgdm, ss, dm);
+		set_ccgdm_gpu_geometry(ccgdm, dm);
 	}
 
 	ccgdm->dm.numVertData = ccgSubSurf_getNumFinalVerts(ss);
