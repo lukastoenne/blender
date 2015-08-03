@@ -25,6 +25,11 @@ from bl_ui.properties_physics_common import (
         effector_weights_ui,
         )
 
+def enable_panel(domain):
+    if domain.cache_type in {'POINTCACHE'}:
+        return not domain.point_cache.is_baked
+    else:
+        return not domain.active_openvdb_cache.is_baked
 
 class PhysicButtonsPanel:
     bl_space_type = 'PROPERTIES'
@@ -54,7 +59,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             split = layout.split()
 
-            split.enabled = not domain.point_cache.is_baked
+            split.enabled = enable_panel(domain)
 
             col = split.column()
             col.label(text="Resolution:")
@@ -176,7 +181,7 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
         domain = context.smoke.domain_settings
 
         split = layout.split()
-        split.enabled = not domain.point_cache.is_baked
+        split.enabled = enable_panel(domain)
 
         col = split.column(align=True)
         col.label(text="Reaction:")
@@ -212,7 +217,7 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
         layout.active = domain.use_adaptive_domain
 
         split = layout.split()
-        split.enabled = (not domain.point_cache.is_baked)
+        split.enabled = enable_panel(domain)
 
         col = split.column(align=True)
         col.label(text="Resolution:")
@@ -247,7 +252,7 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
         layout.active = md.use_high_resolution
 
         split = layout.split()
-        split.enabled = not md.point_cache.is_baked
+        split.enabled = enable_panel(md)
 
         col = split.column()
         col.label(text="Resolution:")

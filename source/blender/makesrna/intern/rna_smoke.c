@@ -402,6 +402,10 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Cache name");
 	RNA_def_struct_name_property(srna, prop);
 
+	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", VDB_CACHE_SMOKE_EXPORTED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	prop = RNA_def_property(srna, "compression", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "compression");
 	RNA_def_property_enum_items(prop, prop_compression_items);
