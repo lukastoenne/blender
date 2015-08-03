@@ -25,11 +25,14 @@ from bl_ui.properties_physics_common import (
         effector_weights_ui,
         )
 
+
 def enable_panel(domain):
     if domain.cache_type in {'POINTCACHE'}:
         return not domain.point_cache.is_baked
     else:
-        return not domain.active_openvdb_cache.is_baked
+        cache = domain.active_openvdb_cache
+        return (not cache.is_baked if cache else True)
+
 
 class PhysicButtonsPanel:
     bl_space_type = 'PROPERTIES'
