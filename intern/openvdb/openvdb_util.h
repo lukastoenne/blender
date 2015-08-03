@@ -29,8 +29,6 @@
 #include <cstdio>
 #include <string>
 
-void catch_exception(int &ret);
-
 double time_dt();
 
 /* A utility class which prints the time elapsed during its lifetime, useful for
