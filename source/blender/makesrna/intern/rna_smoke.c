@@ -396,7 +396,6 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "path");
 	RNA_def_property_ui_text(prop, "File Path", "Cache file path");
-//	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
