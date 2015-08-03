@@ -2647,3 +2647,51 @@ void OBJECT_OT_openvdb_cache_move(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	ot->prop = RNA_def_enum(ot->srna, "direction", cache_move, VDB_CACHE_MOVE_UP, "Direction", "");
 }
+
+static int openvdb_cache_free_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache;
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+	int fr;
+
+	if (!smd) {
+		return OPERATOR_CANCELLED;
+	}
+
+	cache = BKE_openvdb_get_current_cache(sds);
+
+	if ((cache->flags & VDB_CACHE_SMOKE_EXPORTED) != 0) {
+		for (fr = cache->startframe; fr <= cache->endframe; fr++) {
+			BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
+
+			if (BLI_exists(filename)) {
+				BLI_delete(filename, false, false);
+			}
+		}
+
+		cache->flags &= ~VDB_CACHE_SMOKE_EXPORTED;
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+
+	UNUSED_VARS(op);
+}
+
+void OBJECT_OT_openvdb_cache_free(wmOperatorType *ot)
+{
+	ot->name = "Free Cache";
+	ot->description = "Mark cache as not baked and delete cached files to further edit the smoke simulation";
+	ot->idname = "OBJECT_OT_openvdb_cache_free";
+
+	ot->poll = openvdb_cache_poll;
+	ot->exec = openvdb_cache_free_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

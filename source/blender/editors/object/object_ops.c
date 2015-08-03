@@ -146,6 +146,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_openvdb_cache_add);
 	WM_operatortype_append(OBJECT_OT_openvdb_cache_remove);
 	WM_operatortype_append(OBJECT_OT_openvdb_cache_move);
+	WM_operatortype_append(OBJECT_OT_openvdb_cache_free);
 
 	WM_operatortype_append(OBJECT_OT_correctivesmooth_bind);
 	WM_operatortype_append(OBJECT_OT_meshdeform_bind);

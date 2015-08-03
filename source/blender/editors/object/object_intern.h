@@ -188,6 +188,7 @@ void OBJECT_OT_smoke_vdb_export(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_add(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_remove(struct wmOperatorType *ot);
 void OBJECT_OT_openvdb_cache_move(struct wmOperatorType *ot);
+void OBJECT_OT_openvdb_cache_free(struct wmOperatorType *ot);
 
 /* object_constraint.c */
 void OBJECT_OT_constraint_add(struct wmOperatorType *ot);
