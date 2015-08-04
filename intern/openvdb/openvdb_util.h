@@ -272,6 +272,23 @@ static void OpenVDB_get_draw_buffer_size_boxes(openvdb::Grid<TreeType> *grid,
 	*r_numverts = numverts;
 }
 
+static inline void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b)
+{
+	float nr, ng, nb;
+
+	nr =        fabs(h * 6.0f - 3.0f) - 1.0f;
+	ng = 2.0f - fabs(h * 6.0f - 2.0f);
+	nb = 2.0f - fabs(h * 6.0f - 4.0f);
+
+	nr = std::max(0.0f, std::min(nr, 1.0f));
+	ng = std::max(0.0f, std::min(ng, 1.0f));
+	nb = std::max(0.0f, std::min(nb, 1.0f));
+
+	*r = ((nr - 1.0f) * s + 1.0f) * v;
+	*g = ((ng - 1.0f) * s + 1.0f) * v;
+	*b = ((nb - 1.0f) * s + 1.0f) * v;
+}
+
 template <typename TreeType>
 static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
                                            float (*verts)[3], float (*colors)[3], float (*normals)[3])
@@ -294,13 +311,16 @@ static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
 			const Coord ijk = value_iter.getCoord();
 			
 			float fac = FloatConverter<ValueType>::get(value_iter.getValue());
+			fac = std::max(0.0f, std::min(-fac, 1.0f));
 			
 			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
 			Vec3f max(ijk.x() + 0.5f*fac, ijk.y() + 0.5f*fac, ijk.z() + 0.5f*fac);
 			Vec3f wmin = grid->indexToWorld(min);
 			Vec3f wmax = grid->indexToWorld(max);
 			
-			Vec3f color = Vec3f(1,1,0);
+			float r, g, b;
+			hsv_to_rgb((fac + 2.0f) / 3.0f, 1.0f, 1.0f, &r, &g, &b);
+			Vec3f color = Vec3f(r, g, b);
 			
 			add_box(verts, colors, normals, &verts_ofs, wmin, wmax, color);
 		}
