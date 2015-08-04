@@ -8119,7 +8119,35 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 		
 		if (smd->domain_vdb) {
-			draw_smoke_vdb(scene, ob, rv3d, smd->domain_vdb);
+			SmokeDomainVDBSettings *sds = smd->domain_vdb;
+			float bbsize[3], dx, basescale;
+			float color[3] = {0.8, 0.0, 0.8};
+			float viewnormal[3];
+			
+			sub_v3_v3v3(bbsize, sds->bbox_max, sds->bbox_min);
+			/* XXX what's the purpose of these?
+			 * they seem to have the undesirable effect of
+			 * decreasing alpha with higher res
+			 */
+//			dx = 1.0f / sds->res;
+//			basescale = bbsize[sds->res_axis] * (float)sds->res;
+			dx = 1.0f;
+			basescale = 1.0f;
+			
+			draw_smoke_vdb(scene, ob, rv3d, sds);
+			
+			glLoadMatrixf(rv3d->viewmat);
+			glMultMatrixf(ob->obmat);
+			
+			/* get view vector */
+			invert_m4_m4(ob->imat, ob->obmat);
+			mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);
+			normalize_v3(viewnormal);
+			
+			GPU_create_smoke(smd, 0);
+			draw_smoke_volume_ex(ob, bbsize, 0, color, sds->tex, sds->tex_bbmin, sds->tex_bbmax,
+			                     sds->tex_res, dx, basescale, viewnormal, NULL, NULL);
+			GPU_free_smoke(smd);
 		}
 	}
 

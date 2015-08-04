@@ -262,6 +262,7 @@ void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDB
 {
 	using openvdb::math::Vec3s;
 	using openvdb::Vec3I;
+	using openvdb::Vec4I;
 	using openvdb::Mat4R;
 	
 	Mat4R M = internal::convertMatrix(mat);
@@ -311,4 +312,17 @@ void OpenVDB_smoke_get_draw_buffers(OpenVDBSmokeData *pdata, int min_level, int 
 	*r_colors = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
 	
 	internal::OpenVDB_get_draw_buffers_grid_levels(data->density.get(), min_level, max_level, *r_numverts, *r_verts, *r_colors);
+}
+
+float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, int res[3], float bbmin[3], float bbmax[3])
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	
+	if (!data->get_dense_texture_res(res, bbmin, bbmax))
+		return NULL;
+	
+	int numcells = res[0] * res[1] * res[2];
+	float *buffer = (float *)MEM_mallocN(numcells * sizeof(float), "smoke VDB domain texture buffer");
+	data->create_dense_texture(buffer);
+	return buffer;
 }

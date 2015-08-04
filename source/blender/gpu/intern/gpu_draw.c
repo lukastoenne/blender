@@ -71,6 +71,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
+#include "BKE_smoke.h"
 #include "BKE_subsurf.h"
 #include "BKE_DerivedMesh.h"
 
@@ -1227,6 +1228,14 @@ void GPU_free_smoke(SmokeModifierData *smd)
 			GPU_texture_free(smd->domain->tex_flame);
 		smd->domain->tex_flame = NULL;
 	}
+	else if (smd->type & MOD_SMOKE_TYPE_DOMAIN && smd->domain) {
+		if (smd->domain_vdb->tex) {
+			GPU_texture_free(smd->domain_vdb->tex);
+			smd->domain_vdb->tex = NULL;
+			
+			zero_v3_int(smd->domain_vdb->tex_res);
+		}
+	}
 }
 
 void GPU_create_smoke(SmokeModifierData *smd, int highres)
@@ -1265,11 +1274,23 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 
 		sds->tex_shadow = GPU_texture_create_3D(sds->res[0], sds->res[1], sds->res[2], 1, sds->shadow);
 	}
+	else if (smd->type & MOD_SMOKE_TYPE_DOMAIN_VDB) {
+		SmokeDomainVDBSettings *sds = smd->domain_vdb;
+		if (!sds->tex) {
+			float *buffer = smoke_vdb_create_dense_texture(sds, sds->tex_res, sds->tex_bbmin, sds->tex_bbmax);
+			if (buffer) {
+				sds->tex = GPU_texture_create_3D(sds->tex_res[0], sds->tex_res[1], sds->tex_res[2], 1, buffer);
+				MEM_freeN(buffer);
+			}
+		}
+	}
 #else // WITH_SMOKE
 	(void)highres;
 	smd->domain->tex = NULL;
 	smd->domain->tex_flame = NULL;
 	smd->domain->tex_shadow = NULL;
+	smd->domain_vdb->tex = NULL;
+	zero_v3_int(smd->domain_vdb->tex_res;
 #endif // WITH_SMOKE
 }
 

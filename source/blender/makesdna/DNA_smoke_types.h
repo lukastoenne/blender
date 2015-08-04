@@ -178,6 +178,11 @@ typedef struct SmokeDomainVDBSettings {
 	int pad2;
 	float obmat[4][4], imat[4][4];
 	struct OpenVDBSmokeData *data;
+	
+	struct GPUTexture *tex;
+	int tex_res[3];
+	float tex_bbmin[3], tex_bbmax[3];
+	int pad3;
 } SmokeDomainVDBSettings;
 
 typedef struct OpenVDBCache {

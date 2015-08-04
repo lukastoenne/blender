@@ -3359,7 +3359,7 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 #ifdef WITH_OPENVDB
 
-void smoke_vdb_init_data(Object *ob, SmokeDomainVDBSettings *sds)
+void smoke_vdb_init_data(Object *UNUSED(ob), SmokeDomainVDBSettings *sds)
 {
 	float cell_mat[4][4];
 	
@@ -3376,6 +3376,15 @@ void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 		OpenVDB_free_smoke_data(sds->data);
 		sds->data = NULL;
 	}
+}
+
+float *smoke_vdb_create_dense_texture(SmokeDomainVDBSettings *sds, int res[3], float bbmin[3], float bbmax[3])
+{
+	if (sds->data) {
+		return OpenVDB_smoke_get_texture_buffer(sds->data, res, bbmin, bbmax);
+	}
+	else
+		return NULL;
 }
 
 #endif /* WITH_OPENVDB */

@@ -39,6 +39,7 @@ using openvdb::Mat4R;
 using openvdb::math::Transform;
 using openvdb::math::Vec3s;
 using openvdb::Vec3I;
+using openvdb::Vec4I;
 
 struct OpenVDBSmokeData {
 	OpenVDBSmokeData(const Mat4R &cell_transform);
@@ -48,6 +49,9 @@ struct OpenVDBSmokeData {
 	void clear_obstacles();
 	
 	bool step(float dt, int num_substeps);
+	
+	bool get_dense_texture_res(int res[3], float bbmin[3], float bbmax[3]) const;
+	void create_dense_texture(float *buffer) const;
 	
 	Mat4R cell_transform;
 	FloatGrid::Ptr density;

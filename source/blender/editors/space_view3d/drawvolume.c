@@ -92,10 +92,10 @@ static bool convex(const float p0[3], const float up[3], const float a[3], const
 	return dot_v3v3(up, tmp) >= 0;
 }
 
-void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
-                       GPUTexture *tex, const float min[3], const float max[3],
-                       const int res[3], float dx, float UNUSED(base_scale), const float viewnormal[3],
-                       GPUTexture *tex_shadow, GPUTexture *tex_flame)
+void draw_smoke_volume_ex(Object *ob, const float global_size[3], int active_fields, const float active_color[3],
+                          GPUTexture *tex, const float min[3], const float max[3],
+                          const int res[3], float dx, float UNUSED(base_scale), const float viewnormal[3],
+                          GPUTexture *tex_shadow, GPUTexture *tex_flame)
 {
 	const float ob_sizei[3] = {
 	    1.0f / fabsf(ob->size[0]),
@@ -109,7 +109,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	float cor[3] = {1.0f, 1.0f, 1.0f};
 	int gl_depth = 0, gl_blend = 0;
 
-	const bool use_fire = (sds->active_fields & SM_ACTIVE_FIRE) != 0;
+	const bool use_fire = (active_fields & SM_ACTIVE_FIRE) != 0;
 
 	/* draw slices of smoke is adapted from c++ code authored
 	 * by: Johannes Schmid and Ingemar Rask, 2006, johnny@grob.org */
@@ -140,7 +140,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	float *spec_pixels;
 	GPUTexture *tex_spec;
 	GPUProgram *smoke_program;
-	int progtype = (sds->active_fields & SM_ACTIVE_COLORS) ? GPU_PROGRAM_SMOKE_COLORED : GPU_PROGRAM_SMOKE;
+	int progtype = (active_fields & SM_ACTIVE_COLORS) ? GPU_PROGRAM_SMOKE_COLORED : GPU_PROGRAM_SMOKE;
 	float size[3];
 
 	if (!tex) {
@@ -291,10 +291,10 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 		/* cell spacing */
 		GPU_program_parameter_4f(smoke_program, 0, dx, dx, dx, 1.0);
 		/* custom parameter for smoke style (higher = thicker) */
-		if (sds->active_fields & SM_ACTIVE_COLORS)
+		if (active_fields & SM_ACTIVE_COLORS)
 			GPU_program_parameter_4f(smoke_program, 1, 1.0, 1.0, 1.0, 10.0);
 		else
-			GPU_program_parameter_4f(smoke_program, 1, sds->active_color[0], sds->active_color[1], sds->active_color[2], 10.0);
+			GPU_program_parameter_4f(smoke_program, 1, active_color[0], active_color[1], active_color[2], 10.0);
 	}
 	else
 		printf("Your gfx card does not support 3D View smoke drawing.\n");
@@ -327,7 +327,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 
 	/* d0 = (viewnormal[0]*cv[i][0] + viewnormal[1]*cv[i][1] + viewnormal[2]*cv[i][2]); */ /* UNUSED */
 	ds = (fabsf(viewnormal[0]) * size[0] + fabsf(viewnormal[1]) * size[1] + fabsf(viewnormal[2]) * size[2]);
-	dd = max_fff(sds->global_size[0], sds->global_size[1], sds->global_size[2]) / 128.f;
+	dd = max_fff(global_size[0], global_size[1], global_size[2]) / 128.f;
 	n = 0;
 	good_index = i;
 
@@ -440,6 +440,17 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	if (gl_depth) {
 		glEnable(GL_DEPTH_TEST);
 	}
+}
+
+void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
+                       GPUTexture *tex, const float min[3], const float max[3],
+                       const int res[3], float dx, float base_scale, const float viewnormal[3],
+                       GPUTexture *tex_shadow, GPUTexture *tex_flame)
+{
+	draw_smoke_volume_ex(ob, sds->global_size, sds->active_fields, sds->active_color,
+	                     tex, min, max,
+	                     res, dx, base_scale, viewnormal,
+	                     tex_shadow, tex_flame);
 }
 
 #ifdef SMOKE_DEBUG_VELOCITY

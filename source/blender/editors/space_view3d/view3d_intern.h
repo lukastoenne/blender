@@ -277,6 +277,10 @@ void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        struct GPUTexture *tex, const float min[3], const float max[3],
                        const int res[3], float dx, float base_scale, const float viewnormal[3],
                        struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
+void draw_smoke_volume_ex(struct Object *ob, const float global_size[3], int active_fields, const float active_color[3],
+                          struct GPUTexture *tex, const float min[3], const float max[3],
+                          const int res[3], float dx, float base_scale, const float viewnormal[3],
+                          struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
 
 bool draw_smoke_vdb(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
 

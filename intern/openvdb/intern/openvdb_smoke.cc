@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
+#include <openvdb/tools/LevelSetUtil.h>
 
 #include "openvdb_smoke.h"
 
@@ -47,38 +48,14 @@ OpenVDBSmokeData::~OpenVDBSmokeData()
 
 void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
-//	Transform::Ptr t = cell_transform.copy();
-//	Mat4R m = (tfm * cell_transform).inverse();
-//	Mat4R m = tfm * cell_transform;
 	Mat4R m = cell_transform;
 	Transform::Ptr t = Transform::createLinearTransform(m);
-//	t->preMult(tfm);
-//	Transform::Ptr t = Transform::createLinearTransform(1.0f/4096.0f);
-//	Transform::Ptr t = Transform::createLinearTransform(1.0f/64.0f);
-//	tools::MeshToVolume<FloatGrid> converter(t);
 	
-//	converter.convertToLevelSet(vertices, triangles);
-//	density = converter.distGridPtr();
-	density = tools::meshToLevelSet<FloatGrid>(*t, vertices, triangles,
-	                                           std::vector<Vec4I>(), 1.0f);
-//	density->pruneGrid();
-	density->transform().print();
-	
-	printf("Made Grid: %d voxels\n", (int)density->activeVoxelCount());
-#if 0
-	typename FloatTree::NodeCIter node_iter;
-	int i;
-	for (node_iter = density->tree().cbeginNode(), i = 0; node_iter; ++node_iter, ++i) {
-//		const int level = node_iter.getLevel();
-		CoordBBox bbox;
-		node_iter.getBoundingBox(bbox);
-		float a = 9;
-//		if (i % 100 == 0) {
-//			printf("BBOX: (%.4f, %.4f, %.4f) <-> (%.4f, %.4f, %.4f)\n",
-//			       );
-//		}
-	}
-#endif
+	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
+	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
+	density = tools::meshToSignedDistanceField<FloatGrid>(*t, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
+	BoolGrid::Ptr mask = tools::sdfInteriorMask<FloatGrid>(*density, 0.0f);
+	density->topologyIntersection(*mask);
 }
 
 void OpenVDBSmokeData::clear_obstacles()
@@ -90,6 +67,45 @@ void OpenVDBSmokeData::clear_obstacles()
 bool OpenVDBSmokeData::step(float /*dt*/, int /*num_substeps*/)
 {
 	return true;
+}
+
+bool OpenVDBSmokeData::get_dense_texture_res(int res[3], float bbmin[3], float bbmax[3]) const
+{
+	if (!density)
+		return false;
+	
+	CoordBBox bbox = density->evalActiveVoxelBoundingBox();
+	res[0] = bbox.dim().x();
+	res[1] = bbox.dim().y();
+	res[2] = bbox.dim().z();
+	
+	BBoxd vbox = density->transform().indexToWorld(bbox);
+	vbox.min().toV(bbmin);
+	vbox.max().toV(bbmax);
+	
+	return res[0] > 0 && res[1] > 0 && res[2] > 0;
+}
+
+void OpenVDBSmokeData::create_dense_texture(float *buffer) const
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	FloatGrid::ConstAccessor acc = density->getConstAccessor();
+	
+	CoordBBox bbox = density->evalActiveVoxelBoundingBox();
+	
+	Coord bbmin = bbox.min(), bbmax = bbox.max();
+	size_t index = 0;
+	Coord ijk;
+	int &i = ijk[0], &j = ijk[1], &k = ijk[2];
+	for (k = bbmin[2]; k <= bbmax[2]; ++k) {
+		for (j = bbmin[1]; j <= bbmax[1]; ++j) {
+			for (i = bbmin[0]; i <= bbmax[0]; ++i, ++index) {
+				buffer[index] = acc.isValueOn(ijk) ? 1.0f : 0.0f;
+			}
+		}
+	}
 }
 
 }  /* namespace internal */

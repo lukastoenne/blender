@@ -4848,6 +4848,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				}
 				
 				domain->data = NULL;
+				
+				domain->tex = NULL;
+				zero_v3_int(domain->tex_res);
 			}
 
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
