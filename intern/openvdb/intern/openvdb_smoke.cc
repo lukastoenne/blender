@@ -29,6 +29,7 @@
 
 #include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
 #include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/Composite.h>
 
 #include "openvdb_smoke.h"
 
@@ -38,8 +39,12 @@ using namespace openvdb;
 using namespace openvdb::math;
 
 OpenVDBSmokeData::OpenVDBSmokeData(const Mat4R &cell_transform) :
-    cell_transform(cell_transform)
+    cell_transform(Transform::createLinearTransform(cell_transform))
 {
+	density = ScalarGrid::create(0.0f);
+	density->setTransform(this->cell_transform);
+	velocity = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+	velocity->setTransform(this->cell_transform);
 }
 
 OpenVDBSmokeData::~OpenVDBSmokeData()
@@ -48,20 +53,20 @@ OpenVDBSmokeData::~OpenVDBSmokeData()
 
 void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
-	Mat4R m = cell_transform;
-	Transform::Ptr t = Transform::createLinearTransform(m);
-	
 	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
 	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
-	density = tools::meshToSignedDistanceField<FloatGrid>(*t, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
-	BoolGrid::Ptr mask = tools::sdfInteriorMask<FloatGrid>(*density, 0.0f);
-	density->topologyIntersection(*mask);
+	FloatGrid::Ptr sdf = tools::meshToSignedDistanceField<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
+	
+	tools::compSum(*density, *sdf);
+	
+//	BoolGrid::Ptr mask = tools::sdfInteriorMask(*sdf, 0.0f);
+//	density->topologyIntersection(*mask);
 }
 
 void OpenVDBSmokeData::clear_obstacles()
 {
-	if (density)
-		density->clear();
+//	if (density)
+//		density->clear();
 }
 
 bool OpenVDBSmokeData::step(float /*dt*/, int /*num_substeps*/)
@@ -105,7 +110,7 @@ void OpenVDBSmokeData::create_dense_texture(float *buffer) const
 	using namespace openvdb;
 	using namespace openvdb::math;
 	
-	FloatGrid::ConstAccessor acc = density->getConstAccessor();
+	ScalarGrid::ConstAccessor acc = density->getConstAccessor();
 	
 	CoordBBox bbox = density->evalActiveVoxelBoundingBox();
 	

@@ -34,7 +34,8 @@
 
 namespace internal {
 
-using openvdb::FloatGrid;
+using openvdb::ScalarGrid;
+using openvdb::VectorGrid;
 using openvdb::Mat4R;
 using openvdb::math::Transform;
 using openvdb::math::Vec3s;
@@ -54,8 +55,9 @@ struct OpenVDBSmokeData {
 	bool get_dense_texture_res(int res[3], float bbmin[3], float bbmax[3]) const;
 	void create_dense_texture(float *buffer) const;
 	
-	Mat4R cell_transform;
-	FloatGrid::Ptr density;
+	Transform::Ptr cell_transform;
+	ScalarGrid::Ptr density;
+	VectorGrid::Ptr velocity;
 };
 
 }  /* namespace internal */
