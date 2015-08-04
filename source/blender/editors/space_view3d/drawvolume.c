@@ -629,7 +629,7 @@ bool draw_smoke_vdb_boxes(struct Scene *UNUSED(scene), struct Object *ob, Region
 {
 #ifdef WITH_OPENVDB
 	struct OpenVDBSmokeData *data = sds->data;
-	float (*verts)[3], (*colors)[3], (*normals)[3];
+	float (*verts)[3] = NULL, (*colors)[3] = NULL, (*normals)[3] = NULL;
 	int numverts;
 	
 	glLoadMatrixf(rv3d->viewmat);
