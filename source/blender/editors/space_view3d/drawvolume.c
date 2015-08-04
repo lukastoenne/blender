@@ -671,7 +671,6 @@ bool draw_smoke_vdb_boxes(struct Scene *UNUSED(scene), struct Object *ob, Region
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisable(GL_COLOR_MATERIAL);
 		glDisable(GL_LIGHTING);
-		glDisable(GL_DEPTH_TEST);
 		
 		glDisableClientState(GL_NORMAL_ARRAY);
 	}

@@ -311,7 +311,7 @@ static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
 			const Coord ijk = value_iter.getCoord();
 			
 			float fac = FloatConverter<ValueType>::get(value_iter.getValue());
-			fac = std::max(0.0f, std::min(-fac, 1.0f));
+			fac = std::max(0.0f, std::min(fac, 1.0f));
 			
 			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
 			Vec3f max(ijk.x() + 0.5f*fac, ijk.y() + 0.5f*fac, ijk.z() + 0.5f*fac);
