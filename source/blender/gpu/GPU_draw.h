@@ -44,7 +44,8 @@ struct Object;
 struct Scene;
 struct View3D;
 struct RegionView3D;
-struct SmokeModifierData;
+struct SmokeDomainSettings;
+struct SmokeDomainVDBSettings;
 struct DupliObject;
 
 /* OpenGL drawing functions related to shading. These are also
@@ -142,8 +143,10 @@ void GPU_free_images_anim(void);
 void GPU_free_images_old(void);
 
 /* smoke drawing functions */
-void GPU_free_smoke(struct SmokeModifierData *smd);
-void GPU_create_smoke(struct SmokeModifierData *smd, int highres);
+void GPU_free_smoke_domain(struct SmokeDomainSettings *sds);
+void GPU_free_smoke_domain_vdb(struct SmokeDomainVDBSettings *sds);
+void GPU_create_smoke_domain(struct SmokeDomainSettings *sds, int highres);
+void GPU_create_smoke_domain_vdb(struct SmokeDomainVDBSettings *sds);
 
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);

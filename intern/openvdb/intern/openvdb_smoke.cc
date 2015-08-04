@@ -69,6 +69,20 @@ bool OpenVDBSmokeData::step(float /*dt*/, int /*num_substeps*/)
 	return true;
 }
 
+void OpenVDBSmokeData::get_bounds(float bbmin[3], float bbmax[3]) const
+{
+	if (!density) {
+		bbmin[0] = bbmin[1] = bbmin[2] = 0.0f;
+		bbmax[0] = bbmax[1] = bbmax[2] = 0.0f;
+		return;
+	}
+	
+	CoordBBox bbox = density->evalActiveVoxelBoundingBox();
+	BBoxd vbox = density->transform().indexToWorld(bbox);
+	vbox.min().toV(bbmin);
+	vbox.max().toV(bbmax);
+}
+
 bool OpenVDBSmokeData::get_dense_texture_res(int res[3], float bbmin[3], float bbmax[3]) const
 {
 	if (!density)

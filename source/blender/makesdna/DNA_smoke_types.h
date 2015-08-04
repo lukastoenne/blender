@@ -163,6 +163,19 @@ typedef struct SmokeDomainSettings {
 	short cache_type, pad[3];
 } SmokeDomainSettings;
 
+enum {
+	MOD_SMOKE_VDB_FIELD_DENSITY     = 0,
+	MOD_SMOKE_VDB_FIELD_VELOCITY    = 1,
+	MOD_SMOKE_VDB_FIELD_PRESSURE    = 2,
+};
+
+enum {
+	MOD_SMOKE_VDB_DISPLAY_BOUNDS    = 0,
+	MOD_SMOKE_VDB_DISPLAY_BLEND     = 1,
+	MOD_SMOKE_VDB_DISPLAY_CELLS     = 2,
+	MOD_SMOKE_VDB_DISPLAY_BOXES     = 3,
+};
+
 typedef struct SmokeDomainVDBSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	
@@ -184,10 +197,11 @@ typedef struct SmokeDomainVDBSettings {
 	float obmat[4][4], imat[4][4];
 	struct OpenVDBSmokeData *data;
 	
-	struct GPUTexture *tex;
+	short display_mode;
+	short display_field;
 	int tex_res[3];
 	float tex_bbmin[3], tex_bbmax[3];
-	int pad3;
+	struct GPUTexture *tex;
 } SmokeDomainVDBSettings;
 
 typedef struct OpenVDBCache {

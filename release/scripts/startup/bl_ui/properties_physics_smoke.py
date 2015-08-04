@@ -308,6 +308,27 @@ class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
         col.prop(domain, "collision_group", text="")
 
 
+class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Display"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        return md and md.smoke_type in {'DOMAIN_VDB'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        domain = context.smoke.domain_vdb_settings
+
+        row = layout.row(align=True)
+        row.prop(domain, "display_mode", expand=True)
+
+        col = layout.column(align=True)
+        col.prop(domain, "display_field", text="Field")
+
+
 class DATA_UL_openvdb_caches(UIList):
     def draw_items(self, context, layout, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:

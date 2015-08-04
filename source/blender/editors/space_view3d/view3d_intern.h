@@ -282,7 +282,11 @@ void draw_smoke_volume_ex(struct Object *ob, const float global_size[3], int act
                           const int res[3], float dx, float base_scale, const float viewnormal[3],
                           struct GPUTexture *tex_shadow, struct GPUTexture *tex_flame);
 
-bool draw_smoke_vdb(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
+void draw_smoke_vdb_bounds(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
+void draw_smoke_vdb_blend(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
+bool draw_smoke_vdb_cells(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
+bool draw_smoke_vdb_boxes(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds,
+                          bool draw_wire);
 
 //#define SMOKE_DEBUG_VELOCITY
 //#define SMOKE_DEBUG_HEAT

@@ -3458,6 +3458,16 @@ void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 	}
 }
 
+void smoke_vdb_get_bounds(struct SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3])
+{
+	if (sds->data)
+		OpenVDB_smoke_get_bounds(sds->data, bbmin, bbmax);
+	else {
+		zero_v3(bbmin);
+		zero_v3(bbmax);
+	}
+}
+
 float *smoke_vdb_create_dense_texture(SmokeDomainVDBSettings *sds, int res[3], float bbmin[3], float bbmax[3])
 {
 	if (sds->data) {
@@ -3864,6 +3874,13 @@ void smoke_vdb_init_data(SmokeDomainVDBSettings *sds)
 void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 {
 	UNUSED_VARS(sds);
+}
+
+void smoke_vdb_get_bounds(SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3])
+{
+	UNUSED_VARS(sds);
+	zero_v3(bbmin);
+	zero_v3(bbmax);
 }
 
 void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob,

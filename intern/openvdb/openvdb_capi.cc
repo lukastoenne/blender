@@ -294,18 +294,42 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substep
 /* ------------------------------------------------------------------------- */
 /* Drawing */
 
-void OpenVDB_smoke_get_draw_buffers(OpenVDBSmokeData *pdata, int min_level, int max_level,
-                                    float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
+void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata,
+                                          float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
 {
+	const int min_level = 0;
+	const int max_level = 3;
+	
 	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
 	
-	internal::OpenVDB_get_draw_buffer_size_grid_levels(data->density.get(), min_level, max_level, r_numverts);
+	internal::OpenVDB_get_draw_buffer_size_cells(data->density.get(), min_level, max_level, true, r_numverts);
 	
 	/* reserve data */
 	*r_verts = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB vertex buffer");
 	*r_colors = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
 	
-	internal::OpenVDB_get_draw_buffers_grid_levels(data->density.get(), min_level, max_level, *r_numverts, *r_verts, *r_colors);
+	internal::OpenVDB_get_draw_buffers_cells(data->density.get(), min_level, max_level, true, *r_verts, *r_colors);
+}
+
+void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata,
+                                          float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	
+	internal::OpenVDB_get_draw_buffer_size_boxes(data->density.get(), r_numverts);
+	
+	/* reserve data */
+	*r_verts = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB vertex buffer");
+	*r_colors = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
+	*r_normals = (float (*)[3])MEM_mallocN((*r_numverts) * sizeof(float) * 3, "OpenVDB color buffer");
+	
+	internal::OpenVDB_get_draw_buffers_boxes(data->density.get(), *r_verts, *r_colors, *r_normals);
+}
+
+void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, float bbmin[3], float bbmax[3])
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	data->get_bounds(bbmin, bbmax);
 }
 
 float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, int res[3], float bbmin[3], float bbmax[3])

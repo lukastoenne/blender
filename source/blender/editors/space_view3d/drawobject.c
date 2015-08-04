@@ -8086,21 +8086,21 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				if (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					smd->domain->tex = NULL;
-					GPU_create_smoke(smd, 0);
+					GPU_create_smoke_domain(sds, 0);
 					draw_smoke_volume(sds, ob, sds->tex,
 					                  p0, p1,
 					                  sds->res, sds->dx, sds->scale * sds->maxres,
 					                  viewnormal, sds->tex_shadow, sds->tex_flame);
-					GPU_free_smoke(smd);
+					GPU_free_smoke_domain(sds);
 				}
 				else if (sds->wt && (sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					sds->tex = NULL;
-					GPU_create_smoke(smd, 1);
+					GPU_create_smoke_domain(sds, 1);
 					draw_smoke_volume(sds, ob, sds->tex,
 					                  p0, p1,
 					                  sds->res_wt, sds->dx, sds->scale * sds->maxres,
 					                  viewnormal, sds->tex_shadow, sds->tex_flame);
-					GPU_free_smoke(smd);
+					GPU_free_smoke_domain(sds);
 				}
 
 				/* smoke debug render */
@@ -8115,34 +8115,28 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		
 		if (smd->domain_vdb) {
 			SmokeDomainVDBSettings *sds = smd->domain_vdb;
-			float bbsize[3], dx, basescale;
-			float color[3] = {0.8, 0.0, 0.8};
-			float viewnormal[3];
-			
-			sub_v3_v3v3(bbsize, sds->bbox_max, sds->bbox_min);
-			/* XXX what's the purpose of these?
-			 * they seem to have the undesirable effect of
-			 * decreasing alpha with higher res
+			/* XXX We deliberately ignore per-object max. draw type here,
+			 * so the object can have wire drawing but we still see content
+			 * of the domain in solid shading.
+			 * That's a design problem of the viewport and has to be solved
+			 * on a higher level ...
 			 */
-//			dx = 1.0f / sds->res;
-//			basescale = bbsize[sds->res_axis] * (float)sds->res;
-			dx = 1.0f;
-			basescale = 1.0f;
+			bool draw_wire = (v3d->drawtype < OB_WIRE);
 			
-			draw_smoke_vdb(scene, ob, rv3d, sds);
-			
-			glLoadMatrixf(rv3d->viewmat);
-			glMultMatrixf(ob->obmat);
-			
-			/* get view vector */
-			invert_m4_m4(ob->imat, ob->obmat);
-			mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);
-			normalize_v3(viewnormal);
-			
-			GPU_create_smoke(smd, 0);
-			draw_smoke_volume_ex(ob, bbsize, 0, color, sds->tex, sds->tex_bbmin, sds->tex_bbmax,
-			                     sds->tex_res, dx, basescale, viewnormal, NULL, NULL);
-			GPU_free_smoke(smd);
+			switch (sds->display_mode) {
+				case MOD_SMOKE_VDB_DISPLAY_BLEND:
+					draw_smoke_vdb_blend(scene, ob, rv3d, sds);
+					break;
+				case MOD_SMOKE_VDB_DISPLAY_CELLS:
+					draw_smoke_vdb_cells(scene, ob, rv3d, sds);
+					break;
+				case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
+					draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
+					break;
+				case MOD_SMOKE_VDB_DISPLAY_BOXES:
+					draw_smoke_vdb_boxes(scene, ob, rv3d, sds, draw_wire);
+					break;
+			}
 		}
 	}
 

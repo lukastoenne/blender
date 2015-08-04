@@ -40,12 +40,15 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
+#include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_smoke.h"
 
 #include "smoke_API.h"
 
 #include "BIF_gl.h"
 
+#include "GPU_draw.h"
 #include "GPU_extensions.h"
 
 #include "view3d_intern.h"  // own include
@@ -556,24 +559,50 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 }
 #endif
 
-bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), RegionView3D *UNUSED(rv3d), SmokeDomainVDBSettings *sds)
+static void draw_box(float vec[8][3], bool solid)
+{
+	if (!solid) {
+		glBegin(GL_LINE_STRIP);
+		glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
+		glVertex3fv(vec[0]); glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[6]);
+		glVertex3fv(vec[7]); glVertex3fv(vec[4]);
+		glEnd();
+
+		glBegin(GL_LINES);
+		glVertex3fv(vec[1]); glVertex3fv(vec[5]);
+		glVertex3fv(vec[2]); glVertex3fv(vec[6]);
+		glVertex3fv(vec[3]); glVertex3fv(vec[7]);
+		glEnd();
+	}
+	else {
+		glBegin(GL_QUADS);
+		glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
+		glVertex3fv(vec[7]); glVertex3fv(vec[6]); glVertex3fv(vec[5]); glVertex3fv(vec[4]);
+		glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[1]); glVertex3fv(vec[0]);
+		glVertex3fv(vec[3]); glVertex3fv(vec[2]); glVertex3fv(vec[6]); glVertex3fv(vec[7]);
+		glVertex3fv(vec[3]); glVertex3fv(vec[7]); glVertex3fv(vec[4]); glVertex3fv(vec[0]);
+		glVertex3fv(vec[1]); glVertex3fv(vec[5]); glVertex3fv(vec[6]); glVertex3fv(vec[2]);
+		glEnd();
+	}
+}
+
+bool draw_smoke_vdb_cells(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
 {
 #ifdef WITH_OPENVDB
 	struct OpenVDBSmokeData *data = sds->data;
 	float (*verts)[3], (*colors)[3];
 	int numverts;
 	
-//	glPushMatrix();
-//	glLoadMatrixf(rv3d->viewmat);
-//	glMultMatrixf(ob->obmat);
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
 	
-	OpenVDB_smoke_get_draw_buffers(data, 0, 3, &verts, &colors, &numverts);
+	OpenVDB_smoke_get_draw_buffers_cells(data, &verts, &colors, &numverts);
 	
 	glDisable(GL_CULL_FACE);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glEnable(GL_BLEND);
+	glDisable(GL_BLEND);
 	
 	glVertexPointer(3, GL_FLOAT, 0, verts);
 	glColorPointer(3, GL_FLOAT, 0, colors);
@@ -588,11 +617,118 @@ bool draw_smoke_vdb(struct Scene *UNUSED(scene), struct Object *UNUSED(ob), Regi
 	if (colors)
 		MEM_freeN(colors);
 	
-//	glPopMatrix();
+	return true;
+#else
+	UNUSED_VARS(rv3d, sds);
+	return false;
+#endif
+}
+
+bool draw_smoke_vdb_boxes(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds,
+                          bool draw_wire)
+{
+#ifdef WITH_OPENVDB
+	struct OpenVDBSmokeData *data = sds->data;
+	float (*verts)[3], (*colors)[3], (*normals)[3];
+	int numverts;
+	
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
+	
+	OpenVDB_smoke_get_draw_buffers_boxes(data, &verts, &colors, &normals, &numverts);
+	
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glDisable(GL_BLEND);
+	
+	glVertexPointer(3, GL_FLOAT, 0, verts);
+	glColorPointer(3, GL_FLOAT, 0, colors);
+	
+	if (draw_wire) {
+		glDisable(GL_CULL_FACE);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	else {
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_DEPTH_TEST);
+		
+		glNormalPointer(GL_FLOAT, 0, normals);
+	}
+	
+	glDrawArrays(GL_QUADS, 0, numverts);
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	
+	if (draw_wire) {
+		glEnable(GL_CULL_FACE);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	else {
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisable(GL_COLOR_MATERIAL);
+		glDisable(GL_LIGHTING);
+		glDisable(GL_DEPTH_TEST);
+		
+		glDisableClientState(GL_NORMAL_ARRAY);
+	}
+	
+	if (verts)
+		MEM_freeN(verts);
+	if (colors)
+		MEM_freeN(colors);
+	if (normals)
+		MEM_freeN(normals);
 	
 	return true;
 #else
 	UNUSED_VARS(rv3d, sds);
 	return false;
 #endif
+}
+
+void draw_smoke_vdb_blend(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
+{
+	float bbsize[3], dx, basescale;
+	float color[3] = {0.8, 0.0, 0.8};
+	float viewnormal[3];
+	
+	sub_v3_v3v3(bbsize, sds->bbox_max, sds->bbox_min);
+	/* XXX what's the purpose of these?
+	 * they seem to have the undesirable effect of
+	 * decreasing alpha with higher res
+	 */
+//	dx = 1.0f / sds->res;
+//	basescale = bbsize[sds->res_axis] * (float)sds->res;
+	dx = 1.0f;
+	basescale = 1.0f;
+	
+	/* get view vector */
+	invert_m4_m4(ob->imat, ob->obmat);
+	mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);
+	normalize_v3(viewnormal);
+	
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
+	
+	GPU_create_smoke_domain_vdb(sds);
+	draw_smoke_volume_ex(ob, bbsize, 0, color, sds->tex, sds->tex_bbmin, sds->tex_bbmax,
+	                     sds->tex_res, dx, basescale, viewnormal, NULL, NULL);
+	GPU_free_smoke_domain_vdb(sds);
+}
+
+void draw_smoke_vdb_bounds(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
+{
+	float bbmin[3], bbmax[3];
+	BoundBox bb;
+	
+	smoke_vdb_get_bounds(sds, bbmin, bbmax);
+	BKE_boundbox_init_from_minmax(&bb, bbmin, bbmax);
+	
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
+	draw_box(bb.vec, false);
 }

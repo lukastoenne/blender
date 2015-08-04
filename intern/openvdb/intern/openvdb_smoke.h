@@ -50,6 +50,7 @@ struct OpenVDBSmokeData {
 	
 	bool step(float dt, int num_substeps);
 	
+	void get_bounds(float bbmin[3], float bbmax[3]) const;
 	bool get_dense_texture_res(int res[3], float bbmin[3], float bbmax[3]) const;
 	void create_dense_texture(float *buffer) const;
 	

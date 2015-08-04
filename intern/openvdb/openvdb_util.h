@@ -140,11 +140,13 @@ static void add_box(float (*verts)[3], float (*colors)[3], float (*normals)[3], 
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffer_size_grid_levels(openvdb::Grid<TreeType> *grid, int min_level, int max_level,
-                                                     int *r_numverts)
+static void OpenVDB_get_draw_buffer_size_cells(openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
+                                               int *r_numverts)
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
+	
+	typedef typename TreeType::LeafNodeType LeafNodeType;
 	
 	if (!grid) {
 		*r_numverts = 0;
@@ -162,25 +164,36 @@ static void OpenVDB_get_draw_buffer_size_grid_levels(openvdb::Grid<TreeType> *gr
 		numverts += 6 * 4;
 	}
 	
+	if (voxels) {
+		for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+			const LeafNodeType *leaf = leaf_iter.getLeaf();
+			
+			numverts += 6 * 4 * leaf->onVoxelCount();
+		}
+	}
+	
 	*r_numverts = numverts;
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_grid_levels(openvdb::Grid<TreeType> *grid, int min_level, int max_level,
-                                                 int /*numverts*/, float (*verts)[3], float (*colors)[3])
+static void OpenVDB_get_draw_buffers_cells(openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
+                                           float (*verts)[3], float (*colors)[3])
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
+	
+	typedef typename TreeType::LeafNodeType LeafNodeType;
 	
 	/* The following colors are meant to be the same as in the example images of
 	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology", K. Museth, 2013
 	 */
 	static const Vec3f node_color[4] = {
-	    Vec3f(0.0450f, 0.0450f, 0.0450f),      // root node
-	    Vec3f(0.0432f, 0.33f, 0.0411023f),     // first internal node level
-	    Vec3f(0.871f, 0.394f, 0.01916f),       // intermediate internal node levels
-	    Vec3f(0.00608299f, 0.279541f, 0.625f)  // leaf nodes
+	    Vec3f(0.045f, 0.045f, 0.045f), // root node (black)
+	    Vec3f(0.043f, 0.330f, 0.041f), // first internal node level (green)
+	    Vec3f(0.871f, 0.394f, 0.019f), // intermediate internal node levels (orange)
+	    Vec3f(0.006f, 0.280f, 0.625f)  // leaf nodes (blue)
 	};
+	static const Vec3f voxel_color = Vec3f(1.000f, 0.000f, 0.000f); // active voxel (red)
 	
 	if (!grid)
 		return;
@@ -204,6 +217,93 @@ static void OpenVDB_get_draw_buffers_grid_levels(openvdb::Grid<TreeType> *grid, 
 		Vec3f color = node_color[std::max(3 - level, 0)];
 		
 		add_box(verts, colors, NULL, &verts_ofs, wmin, wmax, color);
+	}
+	
+	if (voxels) {
+		for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+			const LeafNodeType *leaf = leaf_iter.getLeaf();
+			
+			for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
+				const Coord ijk = value_iter.getCoord();
+				
+				Vec3f min(ijk.x() - 0.5f, ijk.y() - 0.5f, ijk.z() - 0.5f);
+				Vec3f max(ijk.x() + 0.5f, ijk.y() + 0.5f, ijk.z() + 0.5f);
+				Vec3f wmin = grid->indexToWorld(min);
+				Vec3f wmax = grid->indexToWorld(max);
+				
+				Vec3f color = voxel_color;
+				
+				add_box(verts, colors, NULL, &verts_ofs, wmin, wmax, color);
+			}
+		}
+	}
+}
+
+template <typename T>
+struct FloatConverter {
+	static float get(T value)
+	{
+		return value;
+	}
+};
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffer_size_boxes(openvdb::Grid<TreeType> *grid,
+                                               int *r_numverts)
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid) {
+		*r_numverts = 0;
+		return;
+	}
+	
+	/* count */
+	int numverts = 0;
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		numverts += 6 * 4 * leaf->onVoxelCount();
+	}
+	
+	*r_numverts = numverts;
+}
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
+                                           float (*verts)[3], float (*colors)[3], float (*normals)[3])
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef typename TreeType::ValueType ValueType;
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid)
+		return;
+	
+	int verts_ofs = 0;
+	
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
+			const Coord ijk = value_iter.getCoord();
+			
+			float fac = FloatConverter<ValueType>::get(value_iter.getValue());
+			
+			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
+			Vec3f max(ijk.x() + 0.5f*fac, ijk.y() + 0.5f*fac, ijk.z() + 0.5f*fac);
+			Vec3f wmin = grid->indexToWorld(min);
+			Vec3f wmax = grid->indexToWorld(max);
+			
+			Vec3f color = Vec3f(1,1,0);
+			
+			add_box(verts, colors, normals, &verts_ofs, wmin, wmax, color);
+		}
 	}
 }
 

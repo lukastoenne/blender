@@ -753,10 +753,25 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem res_axis_items[] = {
-		{0, "X", 0, "X", "Use X axis for cell size"},
+	    {0, "X", 0, "X", "Use X axis for cell size"},
 	    {1, "Y", 0, "Y", "Use Y axis for cell size"},
 	    {2, "Z", 0, "Z", "Use Z axis for cell size"},
-		{0, NULL, 0, NULL, NULL}
+	    {0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem display_mode_items[] = {
+	    {MOD_SMOKE_VDB_DISPLAY_BOUNDS, "BOUNDS", 0, "Bounds", "Show bounding box of active cells"},
+	    {MOD_SMOKE_VDB_DISPLAY_BLEND, "BLEND", 0, "Blend", "Use smooth alpha-blended display"},
+	    {MOD_SMOKE_VDB_DISPLAY_CELLS, "CELLS", 0, "Cells", "Show active grid cells"},
+	    {MOD_SMOKE_VDB_DISPLAY_BOXES, "BOXES", 0, "Boxes", "Indicate field strength with boxes"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem display_field_items[] = {
+	    {MOD_SMOKE_VDB_FIELD_DENSITY, "DENSITY", 0, "Density", "Show density field"},
+	    {MOD_SMOKE_VDB_FIELD_VELOCITY, "VELOCITY", 0, "Velocity", "Show velocity field"},
+	    {MOD_SMOKE_VDB_FIELD_PRESSURE, "PRESSURE", 0, "Pressure", "Show pressure field"},
+	    {0, NULL, 0, NULL, NULL}
 	};
 
 	srna = RNA_def_struct(brna, "SmokeDomainVDBSettings", NULL);
@@ -800,6 +815,18 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Resolution", "Resolution of the domain");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, display_mode_items);
+	RNA_def_property_enum_default(prop, MOD_SMOKE_VDB_DISPLAY_BOUNDS);
+	RNA_def_property_ui_text(prop, "Display Mode", "Mode of display for the smoke sim");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "display_field", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, display_field_items);
+	RNA_def_property_enum_default(prop, MOD_SMOKE_VDB_FIELD_DENSITY);
+	RNA_def_property_ui_text(prop, "Display Field", "Primary field type to display");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
