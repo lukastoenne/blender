@@ -47,27 +47,27 @@ void OpenVDBWriter::insert(const openvdb::GridBase &grid)
 	m_grids->push_back(grid.copyGrid());
 }
 
-void OpenVDBWriter::insertFloatMeta(const std::string &name, const float value)
+void OpenVDBWriter::insertFloatMeta(const openvdb::Name &name, const float value)
 {
 	m_meta_map->insertMeta(name, openvdb::FloatMetadata(value));
 }
 
-void OpenVDBWriter::insertIntMeta(const std::string &name, const int value)
+void OpenVDBWriter::insertIntMeta(const openvdb::Name &name, const int value)
 {
 	m_meta_map->insertMeta(name, openvdb::Int32Metadata(value));
 }
 
-void OpenVDBWriter::insertVec3sMeta(const std::string &name, const openvdb::Vec3s value)
+void OpenVDBWriter::insertVec3sMeta(const openvdb::Name &name, const openvdb::Vec3s value)
 {
 	m_meta_map->insertMeta(name, openvdb::Vec3SMetadata(value));
 }
 
-void OpenVDBWriter::insertVec3IMeta(const std::string &name, const openvdb::Vec3I value)
+void OpenVDBWriter::insertVec3IMeta(const openvdb::Name &name, const openvdb::Vec3I value)
 {
 	m_meta_map->insertMeta(name, openvdb::Vec3IMetadata(value));
 }
 
-void OpenVDBWriter::insertMat4sMeta(const std::string &name, const float value[4][4])
+void OpenVDBWriter::insertMat4sMeta(const openvdb::Name &name, const float value[4][4])
 {
 	openvdb::Mat4s mat = openvdb::Mat4s(
 	    value[0][0], value[0][1], value[0][2], value[0][3],
@@ -84,7 +84,7 @@ void OpenVDBWriter::setFlags(const int compression, const bool save_as_half)
 	m_save_as_half = save_as_half;
 }
 
-void OpenVDBWriter::write(const std::string &filename) const
+void OpenVDBWriter::write(const openvdb::Name &filename) const
 {
 	openvdb::io::File file(filename);
 	file.setCompression(m_compression_flags);

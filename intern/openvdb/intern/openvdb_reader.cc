@@ -40,7 +40,7 @@ OpenVDBReader::~OpenVDBReader()
 	cleanup_file();
 }
 
-void OpenVDBReader::open(const std::string &filename)
+void OpenVDBReader::open(const openvdb::Name &filename)
 {
 	cleanup_file();
 
@@ -51,17 +51,17 @@ void OpenVDBReader::open(const std::string &filename)
 	m_meta_map = m_file->getMetadata();
 }
 
-void OpenVDBReader::floatMeta(const std::string &name, float &value)
+void OpenVDBReader::floatMeta(const openvdb::Name &name, float &value)
 {
 	value = m_meta_map->metaValue<float>(name);
 }
 
-void OpenVDBReader::intMeta(const std::string &name, int &value)
+void OpenVDBReader::intMeta(const openvdb::Name &name, int &value)
 {
 	value = m_meta_map->metaValue<int>(name);
 }
 
-void OpenVDBReader::vec3sMeta(const std::string &name, float value[3])
+void OpenVDBReader::vec3sMeta(const openvdb::Name &name, float value[3])
 {
 	openvdb::Vec3s meta_val = m_meta_map->metaValue<openvdb::Vec3s>(name);
 
@@ -70,7 +70,7 @@ void OpenVDBReader::vec3sMeta(const std::string &name, float value[3])
 	value[2] = meta_val.z();
 }
 
-void OpenVDBReader::vec3IMeta(const std::string &name, int value[3])
+void OpenVDBReader::vec3IMeta(const openvdb::Name &name, int value[3])
 {
 	openvdb::Vec3i meta_val = m_meta_map->metaValue<openvdb::Vec3i>(name);
 
@@ -79,7 +79,7 @@ void OpenVDBReader::vec3IMeta(const std::string &name, int value[3])
 	value[2] = meta_val.z();
 }
 
-void OpenVDBReader::mat4sMeta(const std::string &name, float value[4][4])
+void OpenVDBReader::mat4sMeta(const openvdb::Name &name, float value[4][4])
 {
 	openvdb::Mat4s meta_val = m_meta_map->metaValue<openvdb::Mat4s>(name);
 
@@ -90,7 +90,7 @@ void OpenVDBReader::mat4sMeta(const std::string &name, float value[4][4])
 	}
 }
 
-openvdb::GridBase::Ptr OpenVDBReader::getGrid(const std::string &name)
+openvdb::GridBase::Ptr OpenVDBReader::getGrid(const openvdb::Name &name)
 {
 	return m_file->readGrid(name);
 }

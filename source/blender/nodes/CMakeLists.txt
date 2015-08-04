@@ -289,6 +289,10 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_CYCLES AND WITH_CYCLES_DEBUG)
+	add_definitions(-DWITH_CYCLES_DEBUG)
+endif()
+
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DOPENVDB_USE_BLOSC)

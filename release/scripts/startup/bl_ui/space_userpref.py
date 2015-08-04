@@ -313,6 +313,8 @@ class USERPREF_PT_edit(Panel):
         col.separator()
         col.separator()
         col.separator()
+        col.label(text="Node Editor:")
+        col.prop(edit, "node_margin")
         col.label(text="Animation Editors:")
         col.prop(edit, "fcurve_unselected_alpha", text="F-Curve Visibility")
 
@@ -411,9 +413,9 @@ class USERPREF_PT_system(Panel):
         col.separator()
 
         col.label(text="Sound:")
-        col.row().prop(system, "audio_device", expand=True)
+        col.row().prop(system, "audio_device", expand=False)
         sub = col.column()
-        sub.active = system.audio_device != 'NONE'
+        sub.active = system.audio_device != 'NONE' and system.audio_device != 'Null'
         #sub.prop(system, "use_preview_images")
         sub.prop(system, "audio_channels", text="Channels")
         sub.prop(system, "audio_mixing_buffer", text="Mixing Buffer")

@@ -194,7 +194,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm, bool d
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		/* dull unselected faces so as not to get in the way of seeing color */
 		glColor4ub(96, 96, 96, 64);
-		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, (void *)me, 0);
+		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, (void *)me, DM_DRAW_SKIP_HIDDEN);
 		glDisable(GL_BLEND);
 	}
 	
@@ -662,7 +662,7 @@ static void update_tface_color_layer(DerivedMesh *dm, bool use_mcol)
 			copy_mode = COPY_PREV;
 		}
 		else if (ma && (ma->shade_flag & MA_OBCOLOR)) {
-			int loop_index = mp->loopstart;;
+			int loop_index = mp->loopstart;
 			for (j = 0; j < mp->totloop; j++, loop_index++) {
 				copy_v3_v3_char(&finalCol[loop_index].r, (char *)Gtexdraw.obcol);
 			}
@@ -959,7 +959,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 	else if (draw_flags & DRAW_FACE_SELECT) {
 		if (ob->mode & OB_MODE_WEIGHT_PAINT)
 			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions_facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
+			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH | DM_DRAW_SKIP_HIDDEN);
 		else {
 			drawTFace_userData userData;
 

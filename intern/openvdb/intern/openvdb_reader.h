@@ -38,15 +38,15 @@ public:
 	OpenVDBReader();
 	~OpenVDBReader();
 
-	void open(const std::string &filename);
+	void open(const openvdb::Name &filename);
 
-	void floatMeta(const std::string &name, float &value);
-	void intMeta(const std::string &name, int &value);
-	void vec3sMeta(const std::string &name, float value[3]);
-	void vec3IMeta(const std::string &name, int value[3]);
-	void mat4sMeta(const std::string &name, float value[4][4]);
+	void floatMeta(const openvdb::Name &name, float &value);
+	void intMeta(const openvdb::Name &name, int &value);
+	void vec3sMeta(const openvdb::Name &name, float value[3]);
+	void vec3IMeta(const openvdb::Name &name, int value[3]);
+	void mat4sMeta(const openvdb::Name &name, float value[4][4]);
 
-	openvdb::GridBase::Ptr getGrid(const std::string &name);
+	openvdb::GridBase::Ptr getGrid(const openvdb::Name &name);
 	size_t numGrids() const;
 };
 

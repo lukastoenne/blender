@@ -191,6 +191,8 @@ typedef struct bNode {
 	float width, height;	/* node custom width and height */
 	float miniwidth;		/* node width if hidden */
 	float offsetx, offsety;	/* additional offset from loc */
+	float anim_init_locx;	/* initial locx for insert offset animation */
+	float anim_ofsx;		/* offset that will be added to locx for insert offset animation */
 	
 	int update;				/* update flags */
 	
@@ -793,6 +795,7 @@ typedef struct NodeShaderVectTransform {
 } NodeShaderVectTransform;
 
 typedef struct NodeShaderTexPointDensity {
+	NodeTexBase base;
 	short point_source, pad;
 	int particle_system;
 	float radius;
@@ -1016,7 +1019,8 @@ typedef struct NodeSunBeams {
 #define SHD_PROJ_MIRROR_BALL		1
 
 #define SHD_IMAGE_EXTENSION_REPEAT	0
-#define SHD_IMAGE_EXTENSION_CLIP	1
+#define SHD_IMAGE_EXTENSION_EXTEND	1
+#define SHD_IMAGE_EXTENSION_CLIP	2
 
 /* image texture */
 #define SHD_PROJ_FLAT				0

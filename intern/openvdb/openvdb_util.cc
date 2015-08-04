@@ -23,61 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <openvdb/Exceptions.h>
-
-#include "openvdb_capi.h"
 #include "openvdb_util.h"
-
-void catch_exception(int &ret)
-{
-	try {
-		throw;
-	}
-	catch (const openvdb::ArithmeticError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_ARITHM_ERROR;
-	}
-	catch (const openvdb::IllegalValueException &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_ILLEGAL_ERROR;
-	}
-	catch (const openvdb::IndexError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_INDEX_ERROR;
-	}
-	catch (const openvdb::IoError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_IO_ERROR;
-	}
-	catch (const openvdb::KeyError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_KEY_ERROR;
-	}
-	catch (const openvdb::LookupError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_LOOKUP_ERROR;
-	}
-	catch (const openvdb::NotImplementedError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_IMPL_ERROR;
-	}
-	catch (const openvdb::ReferenceError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_REF_ERROR;
-	}
-	catch (const openvdb::TypeError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_TYPE_ERROR;
-	}
-	catch (const openvdb::ValueError &e) {
-		std::cerr << e.what() << std::endl;
-		ret = OPENVDB_VALUE_ERROR;
-	}
-	catch (...) {
-		std::cerr << "Unknown error in OpenVDB library..." << std::endl;
-		ret = OPENVDB_UNKNOWN_ERROR;
-	}
-}
 
 #ifdef _WIN32
 
