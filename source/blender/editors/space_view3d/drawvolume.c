@@ -53,10 +53,6 @@
 
 #include "view3d_intern.h"  // own include
 
-#ifdef WITH_OPENVDB
-#  include "openvdb_capi.h"
-#endif
-
 struct GPUTexture;
 
 // #define DEBUG_DRAW_TIME
@@ -586,93 +582,58 @@ static void draw_box(float vec[8][3], bool solid)
 	}
 }
 
-bool draw_smoke_vdb_cells(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
+bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds,
+                             bool draw_wire)
 {
-#ifdef WITH_OPENVDB
-	struct OpenVDBSmokeData *data = sds->data;
-	float (*verts)[3], (*colors)[3];
-	int numverts;
-	
-	glLoadMatrixf(rv3d->viewmat);
-	glMultMatrixf(ob->obmat);
-	
-	OpenVDB_smoke_get_draw_buffers_cells(data, &verts, &colors, &numverts);
-	
-	glDisable(GL_CULL_FACE);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glDisable(GL_BLEND);
-	
-	glVertexPointer(3, GL_FLOAT, 0, verts);
-	glColorPointer(3, GL_FLOAT, 0, colors);
-	glDrawArrays(GL_QUADS, 0, numverts);
-	
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	
-	if (verts)
-		MEM_freeN(verts);
-	if (colors)
-		MEM_freeN(colors);
-	
-	return true;
-#else
-	UNUSED_VARS(rv3d, sds);
-	return false;
-#endif
-}
-
-bool draw_smoke_vdb_boxes(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds,
-                          bool draw_wire)
-{
-#ifdef WITH_OPENVDB
-	struct OpenVDBSmokeData *data = sds->data;
 	float (*verts)[3] = NULL, (*colors)[3] = NULL, (*normals)[3] = NULL;
 	int numverts;
 	
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	OpenVDB_smoke_get_draw_buffers_boxes(data, &verts, &colors, &normals, &numverts);
+	smoke_vdb_get_draw_buffers(sds, &verts, &colors, &normals, &numverts);
 	
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glDisable(GL_BLEND);
+	/* disable polygons when no normals available */
+	draw_wire |= (normals == NULL);
 	
-	glVertexPointer(3, GL_FLOAT, 0, verts);
-	glColorPointer(3, GL_FLOAT, 0, colors);
-	
-	if (draw_wire) {
-		glDisable(GL_CULL_FACE);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-	else {
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_LIGHTING);
-		glEnable(GL_DEPTH_TEST);
+	if (numverts > 0 && verts && colors) {
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_COLOR_ARRAY);
+		glDisable(GL_BLEND);
 		
-		glNormalPointer(GL_FLOAT, 0, normals);
-	}
-	
-	glDrawArrays(GL_QUADS, 0, numverts);
-	
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-	
-	if (draw_wire) {
-		glEnable(GL_CULL_FACE);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
-	else {
-		glDisableClientState(GL_NORMAL_ARRAY);
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_LIGHTING);
+		glVertexPointer(3, GL_FLOAT, 0, verts);
+		glColorPointer(3, GL_FLOAT, 0, colors);
 		
-		glDisableClientState(GL_NORMAL_ARRAY);
+		if (draw_wire) {
+			glDisable(GL_CULL_FACE);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		}
+		else {
+			glEnableClientState(GL_NORMAL_ARRAY);
+			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			glEnable(GL_COLOR_MATERIAL);
+			glEnable(GL_LIGHTING);
+			glEnable(GL_DEPTH_TEST);
+			
+			glNormalPointer(GL_FLOAT, 0, normals);
+		}
+		
+		glDrawArrays(GL_QUADS, 0, numverts);
+		
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+		
+		if (draw_wire) {
+			glEnable(GL_CULL_FACE);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+		else {
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisable(GL_COLOR_MATERIAL);
+			glDisable(GL_LIGHTING);
+			
+			glDisableClientState(GL_NORMAL_ARRAY);
+		}
 	}
 	
 	if (verts)
@@ -683,10 +644,6 @@ bool draw_smoke_vdb_boxes(struct Scene *UNUSED(scene), struct Object *ob, Region
 		MEM_freeN(normals);
 	
 	return true;
-#else
-	UNUSED_VARS(rv3d, sds);
-	return false;
-#endif
 }
 
 void draw_smoke_vdb_blend(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)

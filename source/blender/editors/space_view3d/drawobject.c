@@ -8128,13 +8128,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					draw_smoke_vdb_blend(scene, ob, rv3d, sds);
 					break;
 				case MOD_SMOKE_VDB_DISPLAY_CELLS:
-					draw_smoke_vdb_cells(scene, ob, rv3d, sds);
+					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, true);
 					break;
 				case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
 					draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
 					break;
 				case MOD_SMOKE_VDB_DISPLAY_BOXES:
-					draw_smoke_vdb_boxes(scene, ob, rv3d, sds, draw_wire);
+					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
 					break;
 			}
 		}

@@ -59,6 +59,9 @@ void smoke_vdb_init_data(struct Object *ob, struct SmokeDomainVDBSettings *sds);
 void smoke_vdb_free_data(struct SmokeDomainVDBSettings *sds);
 
 void smoke_vdb_get_bounds(struct SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3]);
+void smoke_vdb_get_draw_buffers(struct SmokeDomainVDBSettings *sds,
+                                float (**r_verts)[3], float (**r_colors)[3],
+                                float (**r_normals)[3], int *r_numverts);
 float *smoke_vdb_create_dense_texture(struct SmokeDomainVDBSettings *sds, int res[3], float bbmin[3], float bbmax[3]);
 
 /* OpenVDB smoke export/import */

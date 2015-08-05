@@ -140,7 +140,7 @@ static void add_box(float (*verts)[3], float (*colors)[3], float (*normals)[3], 
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffer_size_cells(openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
+static void OpenVDB_get_draw_buffer_size_cells(const openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
                                                int *r_numverts)
 {
 	using namespace openvdb;
@@ -176,13 +176,17 @@ static void OpenVDB_get_draw_buffer_size_cells(openvdb::Grid<TreeType> *grid, in
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_cells(openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
+static void OpenVDB_get_draw_buffers_cells(const openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
                                            float (*verts)[3], float (*colors)[3])
 {
 	using namespace openvdb;
 	using namespace openvdb::math;
 	
 	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid) {
+		return;
+	}
 	
 	/* The following colors are meant to be the same as in the example images of
 	 * "VDB: High-Resolution Sparse Volumes With Dynamic Topology", K. Museth, 2013
@@ -194,9 +198,6 @@ static void OpenVDB_get_draw_buffers_cells(openvdb::Grid<TreeType> *grid, int mi
 	    Vec3f(0.006f, 0.280f, 0.625f)  // leaf nodes (blue)
 	};
 	static const Vec3f voxel_color = Vec3f(1.000f, 0.000f, 0.000f); // active voxel (red)
-	
-	if (!grid)
-		return;
 	
 	int verts_ofs = 0;
 	for (typename TreeType::NodeCIter node_iter = grid->tree().cbeginNode(); node_iter; ++node_iter) {
@@ -247,8 +248,16 @@ struct FloatConverter {
 	}
 };
 
+template <>
+struct FloatConverter<Vec3f > {
+	static float get(const Vec3f &value)
+	{
+		return value.length();
+	}
+};
+
 template <typename TreeType>
-static void OpenVDB_get_draw_buffer_size_boxes(openvdb::Grid<TreeType> *grid,
+static void OpenVDB_get_draw_buffer_size_boxes(const openvdb::Grid<TreeType> *grid,
                                                int *r_numverts)
 {
 	using namespace openvdb;
@@ -290,7 +299,7 @@ static inline void hsv_to_rgb(float h, float s, float v, float *r, float *g, flo
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
+static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid,
                                            float (*verts)[3], float (*colors)[3], float (*normals)[3])
 {
 	using namespace openvdb;
@@ -299,8 +308,9 @@ static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
 	typedef typename TreeType::ValueType ValueType;
 	typedef typename TreeType::LeafNodeType LeafNodeType;
 	
-	if (!grid)
+	if (!grid) {
 		return;
+	}
 	
 	int verts_ofs = 0;
 	
@@ -323,6 +333,78 @@ static void OpenVDB_get_draw_buffers_boxes(openvdb::Grid<TreeType> *grid,
 			Vec3f color = Vec3f(r, g, b);
 			
 			add_box(verts, colors, normals, &verts_ofs, wmin, wmax, color);
+		}
+	}
+}
+
+template <typename TreeType>
+static void OpenVDB_get_grid_bounds(const openvdb::Grid<TreeType> *grid, float bbmin[3], float bbmax[3])
+{
+	if (!grid) {
+		Vec3f(0,0,0).toV(bbmin);
+		Vec3f(0,0,0).toV(bbmax);
+		return;
+	}
+	
+	CoordBBox bbox = grid->evalActiveVoxelBoundingBox();
+	BBoxd vbox = grid->transform().indexToWorld(bbox);
+	vbox.min().toV(bbmin);
+	vbox.max().toV(bbmax);
+}
+
+template <typename TreeType>
+static bool OpenVDB_get_dense_texture_res(const openvdb::Grid<TreeType> *grid, int res[3], float bbmin[3], float bbmax[3])
+{
+	if (!grid) {
+		res[0] = res[1] = res[2] = 0;
+		Vec3f(0,0,0).toV(bbmin);
+		Vec3f(0,0,0).toV(bbmax);
+		return false;
+	}
+	
+	if (!grid->cbeginValueOn()) {
+		res[0] = res[1] = res[2] = 0;
+		return false;
+	}
+	
+	CoordBBox bbox = grid->evalActiveVoxelBoundingBox();
+	res[0] = bbox.dim().x();
+	res[1] = bbox.dim().y();
+	res[2] = bbox.dim().z();
+	
+	BBoxd vbox = grid->transform().indexToWorld(bbox);
+	vbox.min().toV(bbmin);
+	vbox.max().toV(bbmax);
+	
+	return res[0] > 0 && res[1] > 0 && res[2] > 0;
+}
+
+template <typename TreeType>
+static void OpenVDB_create_dense_texture(const openvdb::Grid<TreeType> *grid, float *buffer)
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef Grid<TreeType> GridType;
+	typedef typename TreeType::ValueType ValueType;
+	
+	if (!grid) {
+		return;
+	}
+	
+	typename GridType::ConstAccessor acc = grid->getConstAccessor();
+	
+	CoordBBox bbox = grid->evalActiveVoxelBoundingBox();
+	
+	Coord bbmin = bbox.min(), bbmax = bbox.max();
+	size_t index = 0;
+	Coord ijk;
+	int &i = ijk[0], &j = ijk[1], &k = ijk[2];
+	for (k = bbmin[2]; k <= bbmax[2]; ++k) {
+		for (j = bbmin[1]; j <= bbmax[1]; ++j) {
+			for (i = bbmin[0]; i <= bbmax[0]; ++i, ++index) {
+				buffer[index] = acc.isValueOn(ijk) ? FloatConverter<ValueType>::get(acc.getValue(ijk)) : 0.0f;
+			}
 		}
 	}
 }

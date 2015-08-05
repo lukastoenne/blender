@@ -3439,6 +3439,17 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 #ifdef WITH_OPENVDB
 
+static OpenVDBSmokeGridType smoke_grid_type(int field)
+{
+	switch (field) {
+		case MOD_SMOKE_VDB_FIELD_DENSITY: return OpenVDBSmokeGrid_Density;
+		case MOD_SMOKE_VDB_FIELD_VELOCITY: return OpenVDBSmokeGrid_Velocity;
+		case MOD_SMOKE_VDB_FIELD_PRESSURE: return OpenVDBSmokeGrid_Pressure;
+		
+		default: BLI_assert(false); return OpenVDBSmokeGrid_Density; /* unhandled type */
+	}
+}
+
 void smoke_vdb_init_data(Object *UNUSED(ob), SmokeDomainVDBSettings *sds)
 {
 	float cell_mat[4][4];
@@ -3458,20 +3469,42 @@ void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 	}
 }
 
-void smoke_vdb_get_bounds(struct SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3])
+void smoke_vdb_get_bounds(SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3])
 {
 	if (sds->data)
-		OpenVDB_smoke_get_bounds(sds->data, bbmin, bbmax);
+		OpenVDB_smoke_get_bounds(sds->data, smoke_grid_type(sds->display_field), bbmin, bbmax);
 	else {
 		zero_v3(bbmin);
 		zero_v3(bbmax);
 	}
 }
 
+void smoke_vdb_get_draw_buffers(SmokeDomainVDBSettings *sds,
+                                float (**r_verts)[3], float (**r_colors)[3],
+                                float (**r_normals)[3], int *r_numverts)
+{
+	switch (sds->display_mode) {
+		case MOD_SMOKE_VDB_DISPLAY_CELLS:
+			OpenVDB_smoke_get_draw_buffers_cells(sds->data, smoke_grid_type(sds->display_field),
+			                                     r_verts, r_colors, r_numverts);
+			break;
+		case MOD_SMOKE_VDB_DISPLAY_BOXES:
+			OpenVDB_smoke_get_draw_buffers_boxes(sds->data, smoke_grid_type(sds->display_field),
+			                                     r_verts, r_colors, r_normals, r_numverts);
+			break;
+		default:
+			*r_verts = NULL;
+			*r_colors = NULL;
+			*r_normals = NULL;
+			*r_numverts = 0;
+			break;
+	}
+}
+
 float *smoke_vdb_create_dense_texture(SmokeDomainVDBSettings *sds, int res[3], float bbmin[3], float bbmax[3])
 {
 	if (sds->data) {
-		return OpenVDB_smoke_get_texture_buffer(sds->data, res, bbmin, bbmax);
+		return OpenVDB_smoke_get_texture_buffer(sds->data, smoke_grid_type(sds->display_field), res, bbmin, bbmax);
 	}
 	else
 		return NULL;
@@ -3881,6 +3914,17 @@ void smoke_vdb_get_bounds(SmokeDomainVDBSettings *sds, float bbmin[3], float bbm
 	UNUSED_VARS(sds);
 	zero_v3(bbmin);
 	zero_v3(bbmax);
+}
+
+void smoke_vdb_get_draw_buffers(SmokeDomainVDBSettings *sds,
+                                float (**r_verts)[3], float (**r_colors)[3],
+                                float (**r_normals)[3], int *r_numverts)
+{
+	UNUSED_VARS(sds);
+	*r_verts = NULL;
+	*r_colors = NULL;
+	*r_normals = NULL;
+	*r_numverts = 0;
 }
 
 void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *ob,

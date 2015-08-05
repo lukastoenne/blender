@@ -89,11 +89,4 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
-if(WITH_OPENVDB)
-	add_definitions(-DWITH_OPENVDB)
-	list(APPEND INC
-	     ../../../../intern/openvdb
-	)
-endif()
-
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}")
