@@ -8066,9 +8066,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
-				glLoadMatrixf(rv3d->viewmat);
-				glMultMatrixf(ob->obmat);
-
 				/* get view vector */
 				invert_m4_m4(ob->imat, ob->obmat);
 				mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);

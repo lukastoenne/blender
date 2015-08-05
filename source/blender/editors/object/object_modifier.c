@@ -74,7 +74,6 @@
 #include "BKE_ocean.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
-#include "BKE_pointcache.h"
 #include "BKE_screen.h"
 #include "BKE_smoke.h"
 #include "BKE_softbody.h"
