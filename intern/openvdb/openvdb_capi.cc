@@ -327,12 +327,11 @@ void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_min, float value_max,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
-	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3;
-	
 	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_draw_buffer_size_boxes(grid, r_numverts); \
+	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3; \
 	*r_verts = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB vertex buffer"); \
 	*r_colors = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
 	*r_normals = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
