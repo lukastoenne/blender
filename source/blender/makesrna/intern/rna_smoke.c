@@ -827,6 +827,18 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_enum_default(prop, MOD_SMOKE_VDB_FIELD_DENSITY);
 	RNA_def_property_ui_text(prop, "Display Field", "Primary field type to display");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "display_value_min", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 0.0f);
+	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1f, 3);
+	RNA_def_property_ui_text(prop, "Display Value Minimum", "Minimum displayed value");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "display_value_max", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1f, 3);
+	RNA_def_property_ui_text(prop, "Display Value Maximum", "Maximum displayed value");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

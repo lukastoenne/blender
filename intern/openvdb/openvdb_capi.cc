@@ -324,7 +324,7 @@ void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 #undef DO_GRID
 }
 
-void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
+void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_min, float value_max,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
 	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3;
@@ -336,7 +336,7 @@ void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 	*r_verts = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB vertex buffer"); \
 	*r_colors = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
 	*r_normals = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
-	internal::OpenVDB_get_draw_buffers_boxes(grid, *r_verts, *r_colors, *r_normals);
+	internal::OpenVDB_get_draw_buffers_boxes(grid, value_min, value_max, *r_verts, *r_colors, *r_normals);
 	
 	SELECT_SMOKE_GRID(data, grid);
 	
@@ -374,6 +374,18 @@ float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, OpenVDBS
 #undef DO_GRID
 	
 	return NULL;
+}
+
+void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float *min, float *max)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	
+#define DO_GRID(grid) \
+	internal::OpenVDB_get_grid_value_range(grid, min, max);
+	
+	SELECT_SMOKE_GRID(data, grid);
+	
+#undef DO_GRID
 }
 
 #undef OPENVDB_SELECT_GRID

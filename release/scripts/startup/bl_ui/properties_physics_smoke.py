@@ -325,6 +325,15 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
         row = layout.row(align=True)
         row.prop(domain, "display_mode", expand=True)
 
+        if domain.display_mode in {'BOXES'}:
+            row = layout.row(align=True)
+            row.label("Scale:")
+            row.prop(domain, "display_value_min", text="")
+            row.prop(domain, "display_value_max", text="")
+            row.operator("SMOKE_OT_display_value_adjust", text="", icon='ARROW_LEFTRIGHT')
+
+        layout.separator()
+
         col = layout.column(align=True)
         col.prop(domain, "display_field", text="Field")
 

@@ -199,6 +199,7 @@ typedef struct SmokeDomainVDBSettings {
 	
 	short display_mode;
 	short display_field;
+	float display_value_min, display_value_max;
 	int tex_res[3];
 	float tex_bbmin[3], tex_bbmax[3];
 	struct GPUTexture *tex;

@@ -128,4 +128,7 @@ void RIGIDBODY_OT_world_add(struct wmOperatorType *ot);
 void RIGIDBODY_OT_world_remove(struct wmOperatorType *ot);
 void RIGIDBODY_OT_world_export(struct wmOperatorType *ot);
 
+/* smoke_vdb.c */
+void SMOKE_OT_display_value_adjust(struct wmOperatorType *ot);
+
 #endif /* __PHYSICS_INTERN_H__ */

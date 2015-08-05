@@ -30,6 +30,7 @@
 #include <string>
 
 #include <openvdb/openvdb.h>
+#include <openvdb/tools/Statistics.h>
 
 double time_dt();
 
@@ -299,7 +300,7 @@ static inline void hsv_to_rgb(float h, float s, float v, float *r, float *g, flo
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid,
+static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, float value_min, float value_max,
                                            float (*verts)[3], float (*colors)[3], float (*normals)[3])
 {
 	using namespace openvdb;
@@ -312,6 +313,7 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid,
 		return;
 	}
 	
+	const float scale_fac = value_max > value_min ? 1.0f / (value_max - value_min) : 0.0f;
 	int verts_ofs = 0;
 	
 	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
@@ -321,6 +323,7 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid,
 			const Coord ijk = value_iter.getCoord();
 			
 			float fac = FloatConverter<ValueType>::get(value_iter.getValue());
+			fac = (fac - value_min) * scale_fac;
 			fac = std::max(0.0f, std::min(fac, 1.0f));
 			
 			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
@@ -350,6 +353,24 @@ static void OpenVDB_get_grid_bounds(const openvdb::Grid<TreeType> *grid, float b
 	BBoxd vbox = grid->transform().indexToWorld(bbox);
 	vbox.min().toV(bbmin);
 	vbox.max().toV(bbmax);
+}
+
+template <typename TreeType>
+static void OpenVDB_get_grid_value_range(const openvdb::Grid<TreeType> *grid, float *min, float *max)
+{
+	typedef typename TreeType::ValueType ValueType;
+	
+	float bg = FloatConverter<ValueType>::get(grid->background());
+	
+	if (!grid || !grid->cbeginValueOn()) {
+		*min = bg;
+		*max = bg;
+		return;
+	}
+	
+	math::Extrema ex = tools::extrema(grid->cbeginValueOn());
+	*min = std::min((float)ex.min(), bg);
+	*max = std::max((float)ex.max(), bg);
 }
 
 template <typename TreeType>

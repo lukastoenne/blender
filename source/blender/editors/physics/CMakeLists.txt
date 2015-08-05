@@ -47,6 +47,7 @@ set(SRC
 	rigidbody_constraint.c
 	rigidbody_object.c
 	rigidbody_world.c
+	smoke_vdb.c
 
 	physics_intern.h
 )
