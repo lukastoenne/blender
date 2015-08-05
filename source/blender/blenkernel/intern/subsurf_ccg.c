@@ -848,6 +848,13 @@ static void ccgDM_getMinMax(DerivedMesh *dm, float r_min[3], float r_max[3])
 	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
 
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		ccgSubSurf_getMinMax(ccgdm->ss, r_min, r_max);
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 
 	if (!ccgSubSurf_getNumVerts(ss))
@@ -2625,11 +2632,10 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			draw_smooth = true;
 			new_matnr = 1;
 		}
-		if (setMaterial) {
-			setMaterial(new_matnr, NULL);
+		if (setMaterial && setMaterial(new_matnr, NULL)) {
+			glShadeModel(draw_smooth ? GL_SMOOTH : GL_FLAT);
+			ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		}
-		glShadeModel(draw_smooth ? GL_SMOOTH : GL_FLAT);
-		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif
@@ -2684,8 +2690,9 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			new_matnr = 1;
 		}
 		glShadeModel(draw_smooth ? GL_SMOOTH : GL_FLAT);
-		setMaterial(new_matnr, &gattribs);
-		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
+		if (setMaterial(new_matnr, &gattribs)) {
+			ccgSubSurf_drawGLMesh(ss, true, -1, -1);
+		}
 		return;
 	}
 #endif
@@ -4537,7 +4544,8 @@ static void set_ccgdm_gpu_geometry(CCGDerivedMesh *ccgdm, DerivedMesh *dm)
 
 	for (index = 0; index < totface; index++) {
 		faceFlags->flag = mpoly ?  mpoly[index].flag : 0;
-		faceFlags->mat_nr = mpoly ? mpoly[index].mat_nr : 0;
+		/* faceFlags->mat_nr = mpoly ? mpoly[index].mat_nr : 0; */
+		faceFlags->mat_nr = 0;
 		faceFlags++;
 	}
 
@@ -4758,11 +4766,15 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 				 * this is to be investiated still to be sure we don't have
 				 * regressions here.
 				 */
-				prevSS = smd->mCache;
-#else
-				ccgSubSurf_free(smd->mCache);
-				smd->mCache = NULL;
+				if (use_gpu_backend) {
+					prevSS = smd->mCache;
+				}
+				else
 #endif
+				{
+					ccgSubSurf_free(smd->mCache);
+					smd->mCache = NULL;
+				}
 			}
 
 
@@ -4838,4 +4850,30 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*r_positions)[3])
 	ccgSubSurf_free(ss);
 
 	dm->release(dm);
+}
+
+bool subsurf_has_edges(DerivedMesh *dm)
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		return true;
+	}
+#else
+	(void)ccgdm;
+#endif
+	return dm->getNumEdges(dm) != 0;
+}
+
+bool subsurf_has_faces(DerivedMesh *dm)
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		return true;
+	}
+#else
+	(void)ccgdm;
+#endif
+	return dm->getNumPolys(dm) != 0;
 }

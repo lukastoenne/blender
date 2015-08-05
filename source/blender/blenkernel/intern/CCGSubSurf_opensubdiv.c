@@ -262,9 +262,9 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		}
 
 		ccgSubSurf__updateGLMeshCoords(ss);
-
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
+		ss->osd_coarse_coords_invalid = false;
 
 		glBindVertexArray(ss->osd_vao);
 		glBindBuffer(GL_ARRAY_BUFFER,
@@ -861,6 +861,28 @@ void ccgSubSurf__sync_opensubdiv(CCGSubSurf *ss)
 #ifdef DUMP_RESULT_GRIDS
 	ccgSubSurf__dumpCoords(ss);
 #endif
+}
+
+void ccgSubSurf_free_osd_mesh(CCGSubSurf *ss)
+{
+	if (ss->osd_mesh != NULL) {
+		/* TODO(sergey): Make sure free happens form the main thread! */
+		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
+		ss->osd_mesh = NULL;
+	}
+	if (ss->osd_vao != 0) {
+		glDeleteVertexArrays(1, &ss->osd_vao);
+		ss->osd_vao = 0;
+	}
+}
+
+void ccgSubSurf_getMinMax(CCGSubSurf *ss, float r_min[3], float r_max[3])
+{
+	int i;
+	BLI_assert(ss->skip_grids == true);
+	for (i = 0; i < ss->osd_num_coarse_coords; i++) {
+		DO_MINMAX(ss->osd_coarse_coords[i], r_min, r_max);
+	}
 }
 
 #endif  /* WITH_OPENSUBDIV */

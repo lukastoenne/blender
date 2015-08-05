@@ -75,6 +75,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
+#include "BKE_subsurf.h"
 #include "BKE_unit.h"
 #include "BKE_tracking.h"
 
@@ -4032,9 +4033,15 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	}
 	
 	/* check polys instead of tessfaces because of dyntopo where tessfaces don't exist */
-	no_edges = (dm->getNumEdges(dm) == 0);
-	no_faces = (dm->getNumPolys(dm) == 0);
-	
+	if (dm->type == DM_TYPE_CCGDM) {
+		no_edges = !subsurf_has_edges(dm);
+		no_faces = !subsurf_has_faces(dm);
+	}
+	else {
+		no_edges = (dm->getNumEdges(dm) == 0);
+		no_faces = (dm->getNumPolys(dm) == 0);
+	}
+
 	/* vertexpaint, faceselect wants this, but it doesnt work for shaded? */
 	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 

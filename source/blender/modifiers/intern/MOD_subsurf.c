@@ -104,7 +104,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 #ifdef WITH_OPENSUBDIV
 	const bool allow_gpu = (flag & MOD_APPLY_ALLOW_GPU) != 0;
-	const bool do_cddm_convert = useRenderParams;
+	const bool do_cddm_convert = useRenderParams || (!isFinalCalc && !smd->use_opensubdiv);
 #else
 	const bool do_cddm_convert = useRenderParams || !isFinalCalc;
 #endif
@@ -127,6 +127,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	{
 		if ((DAG_get_eval_flags_for_object(md->scene, ob) & DAG_EVAL_NEED_CPU) == 0) {
 			subsurf_flags |= SUBSURF_USE_GPU_BACKEND;
+		}
+		else {
+			modifier_setError(md, "OpenSubdiv is disabled due to dependencies");
 		}
 	}
 #endif
@@ -157,7 +160,7 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
 	/* TODO(sergey): Not entirely correct, modifiers on top of subsurf
 	 * could be disabled.
 	 */
-	if (md->next == NULL && allow_gpu) {
+	if (md->next == NULL && allow_gpu && smd->use_opensubdiv) {
 		ss_flags |= SUBSURF_USE_GPU_BACKEND;
 	}
 #endif
@@ -167,6 +170,16 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
 	return result;
 }
 
+static bool dependsOnNormals(ModifierData *md)
+{
+#ifdef WITH_OPENSUBDIV
+	SubsurfModifierData *smd = (SubsurfModifierData *) md;
+	if (smd->use_opensubdiv && md->next == NULL) {
+		return true;
+	}
+#endif
+	return false;
+}
 
 ModifierTypeInfo modifierType_Subsurf = {
 	/* name */              "Subsurf",
@@ -193,7 +206,7 @@ ModifierTypeInfo modifierType_Subsurf = {
 	/* updateDepgraph */    NULL,
 	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */	NULL,
+	/* dependsOnNormals */	dependsOnNormals,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
 	/* foreachTexLink */    NULL,
