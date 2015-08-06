@@ -57,6 +57,32 @@ struct GridScale {
 	}
 };
 
+template <typename GridType>
+inline static void mul_grid_fl(GridType &grid, float f)
+{
+	tools::foreach(grid.beginValueOn(), GridScale(f));
+}
+
+inline static void mul_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const ScalarGrid &b)
+{
+	struct Local {
+		static void mul_v3fl(const Vec3f& a, const float& b, Vec3f& result)
+		    { result = a * b; }
+	};
+	
+	R.tree().combine2(a.tree(), b.tree(), Local::mul_v3fl);
+}
+
+inline static void div_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const ScalarGrid &b)
+{
+	struct Local {
+		static void div_v3fl(const Vec3f& a, const float& b, Vec3f& result)
+		    { result = (b > 0.0f) ? a / b : Vec3f(0.0f, 0.0f, 0.0f); }
+	};
+	
+	R.tree().combine2(a.tree(), b.tree(), Local::div_v3fl);
+}
+
 OpenVDBSmokeData::OpenVDBSmokeData(const Mat4R &cell_transform) :
     cell_transform(Transform::createLinearTransform(cell_transform))
 {
@@ -74,6 +100,11 @@ OpenVDBSmokeData::~OpenVDBSmokeData()
 {
 }
 
+float OpenVDBSmokeData::cell_size() const
+{
+	return cell_transform->voxelSize().x();
+}
+
 void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
                                   float flow_density, bool incremental)
 {
@@ -82,7 +113,7 @@ void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std:
 	
 	FloatGrid::Ptr emission = tools::meshToSignedDistanceField<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
 	tools::sdfToFogVolume(*emission, 0.0f);
-	tools::foreach(emission->beginValueOn(), GridScale(flow_density));
+	mul_grid_fl(*emission, flow_density);
 	
 	if (incremental) {
 		tools::compSum(*density, *emission);
@@ -120,12 +151,45 @@ void OpenVDBSmokeData::clear_obstacles()
 //		density->clear();
 }
 
-void OpenVDBSmokeData::add_gravity(const Vec3f &g)
+void OpenVDBSmokeData::add_gravity_force(const Vec3f &g)
 {
 	tools::compSum(*force, *VectorGrid::create(g));
 }
 
-pcg::State OpenVDBSmokeData::calculate_pressure()
+void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
+{
+	calculate_pressure(dt, bg_pressure);
+	
+	VectorGrid::Ptr f = tools::gradient(*pressure);
+	div_vgrid_fgrid(*f, *f, *density);
+	mul_grid_fl(*f, -dt/cell_size());
+	tools::compSum(*force, *f);
+}
+
+bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
+{
+	force->clear();
+	add_gravity_force(Vec3f(0,0,-1));
+	add_pressure_force(dt, 0.0f);
+	
+	mul_grid_fl(*force, dt);
+	tools::compSum(*velocity, *force);
+	
+	return true;
+	
+#if 0
+	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
+	
+	if (divergence->cbeginValueOn())
+		pressure->setTree(tools::poisson::solve(divergence->tree(), result));
+	else
+		pressure->clear();
+	
+	return true;
+#endif
+}
+
+pcg::State OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 {
 	typedef FloatTree::ValueConverter<VIndex>::Type VIdxTree;
 	typedef pcg::SparseStencilMatrix<float, 7> MatrixType;
@@ -133,7 +197,7 @@ pcg::State OpenVDBSmokeData::calculate_pressure()
 	
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
 	tools::compMul(*divergence, *density->copy());
-	// TODO other factors ...
+	mul_grid_fl(*divergence, cell_size() / dt);
 	
 	VIdxTree::Ptr index_tree = tools::poisson::createIndexTree(divergence->tree());
 	VectorType::Ptr B = tools::poisson::createVectorFromTree<float>(divergence->tree(), *index_tree);
@@ -145,6 +209,10 @@ pcg::State OpenVDBSmokeData::calculate_pressure()
 		Coord c = it.getCoord();
 		VIndex index = index_tree->getValue(c);
 		
+		// TODO probably this can be optimized significantly
+		// by shifting grids as a whole and encode neighbors
+		// as bit flags or so ...
+		
 		Coord neighbors[6] = {
 		    Coord(c[0]-1, c[1], c[2]),
 		    Coord(c[0]+1, c[1], c[2]),
@@ -155,15 +223,30 @@ pcg::State OpenVDBSmokeData::calculate_pressure()
 		};
 		
 		float diag = 0.0f;
+		float bg = 0.0f;
+		FloatGrid::ConstAccessor acc(density->tree());
 		for (int i = 0; i < 6; ++i) {
-			VIndex n = index_tree->getValue(neighbors[i]);
+			const Coord &c = neighbors[i];
+			VIndex n = index_tree->getValue(c);
 			if (n != VINDEX_INVALID) {
-				A.setValue(index, n, 1.0f);
-				diag -= 1.0f;
+				bool is_solid = false;
+				bool is_empty = acc.isValueOn(c);
+				
+				/* add matrix entries for interacting cells (non-solid neighbors) */
+				if (!is_solid) {
+					A.setValue(index, n, 1.0f);
+					diag -= 1.0f;
+				}
+				
+				/* add background pressure terms */
+				if (is_empty) {
+					bg -= bg_pressure;
+				}
 			}
 		}
 		
 		A.setValue(index, index, diag);
+		(*B)[index] += bg;
 	}
 	
 	/* preconditioner for faster convergence */
@@ -187,30 +270,6 @@ pcg::State OpenVDBSmokeData::calculate_pressure()
 	}
 	
 	return result;
-}
-
-bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
-{
-//	calculate_pressure();
-	
-	force->clear();
-	add_gravity(Vec3f(0,0,-1));
-	
-	tools::foreach(force->beginValueOn(), GridScale(dt));
-	tools::compSum(*velocity, *force);
-	
-	return true;
-	
-#if 0
-	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
-	
-	if (divergence->cbeginValueOn())
-		pressure->setTree(tools::poisson::solve(divergence->tree(), result));
-	else
-		pressure->clear();
-	
-	return true;
-#endif
 }
 
 }  /* namespace internal */

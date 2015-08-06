@@ -50,7 +50,11 @@ struct OpenVDBSmokeData {
 	OpenVDBSmokeData(const Mat4R &cell_transform);
 	~OpenVDBSmokeData();
 	
-	void add_gravity(const Vec3f &g);
+	float cell_size() const;
+	
+	void add_gravity_force(const Vec3f &g);
+	void add_pressure_force(float dt, float bg_pressure);
+	
 	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
 	                float flow_density, bool incremental);
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
@@ -58,7 +62,7 @@ struct OpenVDBSmokeData {
 	
 	bool step(float dt, int num_substeps);
 	
-	State calculate_pressure();
+	State calculate_pressure(float dt, float bg_pressure);
 	
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;
