@@ -123,6 +123,8 @@ typedef struct OpenVDBMeshIterator {
 	OpenVDBMeshGetTriangleFn get_triangle;
 } OpenVDBMeshIterator;
 
+void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
+                              float flow_density, bool incremental);
 void OpenVDB_smoke_add_obstacle(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it);
 void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
 

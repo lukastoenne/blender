@@ -252,7 +252,8 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 	delete ((internal::OpenVDBSmokeData *)data);
 }
 
-void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
+static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,
+                              std::vector<openvdb::math::Vec3s> &vertices, std::vector<openvdb::Vec3I> &triangles)
 {
 	using openvdb::math::Vec3s;
 	using openvdb::Vec3I;
@@ -260,9 +261,6 @@ void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDB
 	using openvdb::Mat4R;
 	
 	Mat4R M = internal::convertMatrix(mat);
-	
-	std::vector<Vec3s> vertices;
-	std::vector<Vec3I> triangles;
 	
 	for (; it->has_vertices(it); it->next_vertex(it)) {
 		float co[3];
@@ -277,6 +275,29 @@ void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDB
 		assert(a < vertices.size() && b < vertices.size() && c < vertices.size());
 		triangles.push_back(Vec3I(a, b, c));
 	}
+}
+
+void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
+                              float flow_density, bool incremental)
+{
+	using openvdb::math::Vec3s;
+	using openvdb::Vec3I;
+	
+	std::vector<Vec3s> vertices;
+	std::vector<Vec3I> triangles;
+	get_mesh_geometry(mat, it, vertices, triangles);
+	
+	((internal::OpenVDBSmokeData *)data)->add_inflow(vertices, triangles, flow_density, incremental);
+}
+
+void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
+{
+	using openvdb::math::Vec3s;
+	using openvdb::Vec3I;
+	
+	std::vector<Vec3s> vertices;
+	std::vector<Vec3I> triangles;
+	get_mesh_geometry(mat, it, vertices, triangles);
 	
 	((internal::OpenVDBSmokeData *)data)->add_obstacle(vertices, triangles);
 }

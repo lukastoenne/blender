@@ -2755,7 +2755,7 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 			mul_m4_m4m4(mat, sds->imat, collob->obmat);
 			
 			openvdb_dm_iter_init(&iter, sfs->dm);
-			OpenVDB_smoke_add_obstacle(sds->data, mat, &iter.base);
+			OpenVDB_smoke_add_inflow(sds->data, mat, &iter.base, sfs->density, sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
 		}
 	}
 	if (flowobjs)

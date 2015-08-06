@@ -29,6 +29,7 @@
 #define __OPENVDB_SMOKE_H__
 
 #include <openvdb/openvdb.h>
+#include <openvdb/math/ConjGradient.h>
 
 #include "openvdb_dense_convert.h"
 #include "openvdb_capi.h"
@@ -40,22 +41,30 @@ using openvdb::VectorGrid;
 using openvdb::Mat4R;
 using openvdb::math::Transform;
 using openvdb::math::Vec3s;
+using openvdb::Vec3f;
 using openvdb::Vec3I;
 using openvdb::Vec4I;
+using openvdb::math::pcg::State;
 
 struct OpenVDBSmokeData {
 	OpenVDBSmokeData(const Mat4R &cell_transform);
 	~OpenVDBSmokeData();
 	
+	void add_gravity(const Vec3f &g);
+	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
+	                float flow_density, bool incremental);
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
 	
 	bool step(float dt, int num_substeps);
 	
+	State calculate_pressure();
+	
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;
 	VectorGrid::Ptr velocity;
 	ScalarGrid::Ptr pressure;
+	VectorGrid::Ptr force;
 };
 
 }  /* namespace internal */
