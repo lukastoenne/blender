@@ -605,7 +605,6 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 		glColorPointer(3, GL_FLOAT, 0, colors);
 		
 		if (draw_wire) {
-			glDisable(GL_CULL_FACE);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
 		else {
@@ -624,7 +623,6 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 		glDisableClientState(GL_COLOR_ARRAY);
 		
 		if (draw_wire) {
-			glEnable(GL_CULL_FACE);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 		else {
