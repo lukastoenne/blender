@@ -73,6 +73,19 @@ inline static void mul_fgrid_fgrid(ScalarGrid &R, const ScalarGrid &a, const Sca
 	R.tree().combine2(a.tree(), b.tree(), Local::mul_flfl);
 }
 
+struct add_v3v3 {
+	Vec3f v;
+	add_v3v3(const Vec3f& v) : v(v) {}
+	inline void operator() (const VectorGrid::ValueOnIter& iter) const {
+		iter.setValue((*iter) + v);
+	}
+};
+
+inline static void add_vgrid_v3(VectorGrid &a, const Vec3f &b)
+{
+	tools::foreach(a.beginValueOn(), add_v3v3(b));
+}
+
 inline static void mul_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const ScalarGrid &b)
 {
 	struct Local {
@@ -163,7 +176,7 @@ void OpenVDBSmokeData::clear_obstacles()
 
 void OpenVDBSmokeData::add_gravity_force(const Vec3f &g)
 {
-	tools::compSum(*force, *VectorGrid::create(g));
+	add_vgrid_v3(*force, g);
 }
 
 void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
