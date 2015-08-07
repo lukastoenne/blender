@@ -63,6 +63,16 @@ inline static void mul_grid_fl(GridType &grid, float f)
 	tools::foreach(grid.beginValueOn(), GridScale(f));
 }
 
+inline static void mul_fgrid_fgrid(ScalarGrid &R, const ScalarGrid &a, const ScalarGrid &b)
+{
+	struct Local {
+		static void mul_flfl(const float& a, const float& b, float& result)
+		    { result = a * b; }
+	};
+	
+	R.tree().combine2(a.tree(), b.tree(), Local::mul_flfl);
+}
+
 inline static void mul_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const ScalarGrid &b)
 {
 	struct Local {
@@ -196,7 +206,7 @@ pcg::State OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 	typedef MatrixType::VectorType VectorType;
 	
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
-	tools::compMul(*divergence, *density->copy());
+	mul_fgrid_fgrid(*divergence, *divergence, *density);
 	mul_grid_fl(*divergence, cell_size() / dt);
 	
 	VIdxTree::Ptr index_tree = tools::poisson::createIndexTree(divergence->tree());
