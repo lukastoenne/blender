@@ -3483,23 +3483,32 @@ void smoke_vdb_get_bounds(SmokeDomainVDBSettings *sds, float bbmin[3], float bbm
 
 void smoke_vdb_get_draw_buffers(SmokeDomainVDBSettings *sds,
                                 float (**r_verts)[3], float (**r_colors)[3],
-                                float (**r_normals)[3], int *r_numverts)
+                                float (**r_normals)[3], int *r_numverts, bool *r_use_quads)
 {
 	switch (sds->display_mode) {
 		case MOD_SMOKE_VDB_DISPLAY_CELLS:
 			OpenVDB_smoke_get_draw_buffers_cells(sds->data, smoke_grid_type(sds->display_field),
 			                                     r_verts, r_colors, r_numverts);
+			*r_use_quads = true;
 			break;
 		case MOD_SMOKE_VDB_DISPLAY_BOXES:
 			OpenVDB_smoke_get_draw_buffers_boxes(sds->data, smoke_grid_type(sds->display_field),
 			                                     sds->display_value_min, sds->display_value_max,
 			                                     r_verts, r_colors, r_normals, r_numverts);
+			*r_use_quads = true;
+			break;
+		case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
+			OpenVDB_smoke_get_draw_buffers_needles(sds->data, smoke_grid_type(sds->display_field),
+			                                       sds->display_value_min, sds->display_value_max,
+			                                       r_verts, r_colors, r_normals, r_numverts);
+			*r_use_quads = false;
 			break;
 		default:
 			*r_verts = NULL;
 			*r_colors = NULL;
 			*r_normals = NULL;
 			*r_numverts = 0;
+			*r_use_quads = false;
 			break;
 	}
 }

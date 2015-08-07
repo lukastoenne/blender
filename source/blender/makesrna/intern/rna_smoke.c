@@ -764,6 +764,7 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	    {MOD_SMOKE_VDB_DISPLAY_BLEND, "BLEND", 0, "Blend", "Use smooth alpha-blended display"},
 	    {MOD_SMOKE_VDB_DISPLAY_CELLS, "CELLS", 0, "Cells", "Show active grid cells"},
 	    {MOD_SMOKE_VDB_DISPLAY_BOXES, "BOXES", 0, "Boxes", "Indicate field strength with boxes"},
+	    {MOD_SMOKE_VDB_DISPLAY_NEEDLES, "NEEDLES", 0, "Needles", "Show field vectors with needles"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 

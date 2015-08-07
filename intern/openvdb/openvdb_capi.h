@@ -145,6 +145,8 @@ void OpenVDB_smoke_get_draw_buffers_cells(struct OpenVDBSmokeData *data, OpenVDB
                                           float (**r_verts)[3], float (**r_colors)[3], int *r_numverts);
 void OpenVDB_smoke_get_draw_buffers_boxes(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float value_min, float value_max,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts);
+void OpenVDB_smoke_get_draw_buffers_needles(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float value_min, float value_max,
+                                            float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts);
 
 float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid,
                                         int res[3], float bbmin[3], float bbmax[3]);

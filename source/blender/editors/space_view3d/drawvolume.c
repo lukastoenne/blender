@@ -587,11 +587,14 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 {
 	float (*verts)[3] = NULL, (*colors)[3] = NULL, (*normals)[3] = NULL;
 	int numverts;
+	bool use_quads;
+	GLenum glprim;
 	
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	smoke_vdb_get_draw_buffers(sds, &verts, &colors, &normals, &numverts);
+	smoke_vdb_get_draw_buffers(sds, &verts, &colors, &normals, &numverts, &use_quads);
+	glprim = (use_quads)? GL_QUADS: GL_TRIANGLES;
 	
 	/* disable polygons when no normals available */
 	draw_wire |= (normals == NULL);
@@ -617,7 +620,7 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 			glNormalPointer(GL_FLOAT, 0, normals);
 		}
 		
-		glDrawArrays(GL_QUADS, 0, numverts);
+		glDrawArrays(glprim, 0, numverts);
 		
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);

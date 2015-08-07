@@ -174,6 +174,7 @@ enum {
 	MOD_SMOKE_VDB_DISPLAY_BLEND     = 1,
 	MOD_SMOKE_VDB_DISPLAY_CELLS     = 2,
 	MOD_SMOKE_VDB_DISPLAY_BOXES     = 3,
+	MOD_SMOKE_VDB_DISPLAY_NEEDLES   = 4,
 };
 
 typedef struct SmokeDomainVDBSettings {

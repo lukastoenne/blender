@@ -355,8 +355,26 @@ void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3; \
 	*r_verts = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB vertex buffer"); \
 	*r_colors = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
-	*r_normals = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
+	*r_normals = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB normal buffer"); \
 	internal::OpenVDB_get_draw_buffers_boxes(grid, value_min, value_max, *r_verts, *r_colors, *r_normals);
+	
+	SELECT_SMOKE_GRID(data, grid);
+	
+#undef DO_GRID
+}
+
+void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_min, float value_max,
+                                            float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	
+#define DO_GRID(grid) \
+	internal::OpenVDB_get_draw_buffer_size_needles(grid, r_numverts); \
+	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3; \
+	*r_verts = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB vertex buffer"); \
+	*r_colors = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
+	*r_normals = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB normal buffer"); \
+	internal::OpenVDB_get_draw_buffers_needles(grid, value_min, value_max, *r_verts, *r_colors, *r_normals);
 	
 	SELECT_SMOKE_GRID(data, grid);
 	

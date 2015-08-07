@@ -8136,6 +8136,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				case MOD_SMOKE_VDB_DISPLAY_BOXES:
 					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
 					break;
+				case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
+					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
+					break;
 			}
 		}
 	}

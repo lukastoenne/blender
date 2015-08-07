@@ -325,7 +325,7 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
         row = layout.row(align=True)
         row.prop(domain, "display_mode", expand=True)
 
-        if domain.display_mode in {'BOXES'}:
+        if domain.display_mode in {'BOXES', 'NEEDLES'}:
             row = layout.row(align=True)
             row.label("Scale:")
             row.prop(domain, "display_value_min", text="")

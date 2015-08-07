@@ -78,6 +78,16 @@ static void cross_v3_v3v3(float *r, const float *a, const float *b)
 	r[2] = a[0] * b[1] - a[1] * b[0];
 }
 
+static void get_normal(float nor[3], const Vec3f &v1, const Vec3f &v2, const Vec3f &v3)
+{
+	openvdb::Vec3f n1, n2;
+
+	n1 = v2 - v1;
+	n2 = v3 - v1;
+
+	cross_v3_v3v3(nor, n1.asV(), n2.asV());
+}
+
 static void get_normal(float nor[3], const Vec3f &v1, const Vec3f &v2, const Vec3f &v3, const Vec3f &v4)
 {
 	openvdb::Vec3f n1, n2;
@@ -86,6 +96,30 @@ static void get_normal(float nor[3], const Vec3f &v1, const Vec3f &v2, const Vec
 	n2 = v2 - v4;
 
 	cross_v3_v3v3(nor, n1.asV(), n2.asV());
+}
+
+static inline void add_tri(float (*verts)[3], float (*colors)[3], float (*normals)[3], int *verts_ofs,
+                           const Vec3f &p1, const Vec3f &p2, const Vec3f &p3, const Vec3f &color)
+{
+	copy_v3_v3(verts[*verts_ofs+0], p1.asV());
+	copy_v3_v3(verts[*verts_ofs+1], p2.asV());
+	copy_v3_v3(verts[*verts_ofs+2], p3.asV());
+	
+	copy_v3_v3(colors[*verts_ofs+0], color.asV());
+	copy_v3_v3(colors[*verts_ofs+1], color.asV());
+	copy_v3_v3(colors[*verts_ofs+2], color.asV());
+	
+	if (normals) {
+		float nor[3];
+		
+		get_normal(nor, p1, p2, p3);
+		
+		copy_v3_v3(normals[*verts_ofs+0], nor);
+		copy_v3_v3(normals[*verts_ofs+1], nor);
+		copy_v3_v3(normals[*verts_ofs+2], nor);
+	}
+	
+	*verts_ofs += 3;
 }
 
 static inline void add_quad(float (*verts)[3], float (*colors)[3], float (*normals)[3], int *verts_ofs,
@@ -138,6 +172,30 @@ static void add_box(float (*verts)[3], float (*colors)[3], float (*normals)[3], 
 	add_quad(verts, colors, normals, verts_ofs, corners[3], corners[2], corners[6], corners[7], color);
 	add_quad(verts, colors, normals, verts_ofs, corners[3], corners[7], corners[4], corners[0], color);
 	add_quad(verts, colors, normals, verts_ofs, corners[1], corners[5], corners[6], corners[2], color);
+}
+
+static void add_needle(float (*verts)[3], float (*colors)[3], float (*normals)[3], int *verts_ofs,
+                       const openvdb::Vec3f &center, const openvdb::Vec3f &dir, float len,
+                       const openvdb::Vec3f &color)
+{
+	using namespace openvdb;
+	
+	Vec3f corners[4] = {
+	    Vec3f(0.0f, 0.2f, -0.5f),
+	    Vec3f(-0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
+	    Vec3f(0.2f * 0.866f, -0.2f * 0.5f, -0.5f),
+	    Vec3f(0.0f, 0.0f, 0.5f)
+	};
+	Vec3f up(0.0f, 0.0f, 1.0f);
+	Mat3R rot = math::rotation<Mat3R>(up, dir);
+	for (int i = 0; i < 4; ++i) {
+		corners[i] = (rot * corners[i]) * len + center;
+	}
+	
+	add_tri(verts, colors, normals, verts_ofs, corners[0], corners[1], corners[2], color);
+	add_tri(verts, colors, normals, verts_ofs, corners[0], corners[1], corners[3], color);
+	add_tri(verts, colors, normals, verts_ofs, corners[1], corners[2], corners[3], color);
+	add_tri(verts, colors, normals, verts_ofs, corners[2], corners[0], corners[3], color);
 }
 
 template <typename TreeType>
@@ -250,12 +308,45 @@ struct FloatConverter {
 };
 
 template <>
-struct FloatConverter<Vec3f > {
+struct FloatConverter<Vec3f> {
 	static float get(const Vec3f &value)
 	{
 		return value.length();
 	}
 };
+
+template <typename T>
+struct VectorConverter {
+	static Vec3f get(T value)
+	{
+		return value;
+	}
+};
+
+template <>
+struct VectorConverter<float> {
+	static Vec3f get(float value)
+	{
+		return Vec3f(0.0f, 0.0f, value);
+	}
+};
+
+static inline void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b)
+{
+	float nr, ng, nb;
+
+	nr =        fabs(h * 6.0f - 3.0f) - 1.0f;
+	ng = 2.0f - fabs(h * 6.0f - 2.0f);
+	nb = 2.0f - fabs(h * 6.0f - 4.0f);
+
+	nr = std::max(0.0f, std::min(nr, 1.0f));
+	ng = std::max(0.0f, std::min(ng, 1.0f));
+	nb = std::max(0.0f, std::min(nb, 1.0f));
+
+	*r = ((nr - 1.0f) * s + 1.0f) * v;
+	*g = ((ng - 1.0f) * s + 1.0f) * v;
+	*b = ((nb - 1.0f) * s + 1.0f) * v;
+}
 
 template <typename TreeType>
 static void OpenVDB_get_draw_buffer_size_boxes(const openvdb::Grid<TreeType> *grid,
@@ -280,23 +371,6 @@ static void OpenVDB_get_draw_buffer_size_boxes(const openvdb::Grid<TreeType> *gr
 	}
 	
 	*r_numverts = numverts;
-}
-
-static inline void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b)
-{
-	float nr, ng, nb;
-
-	nr =        fabs(h * 6.0f - 3.0f) - 1.0f;
-	ng = 2.0f - fabs(h * 6.0f - 2.0f);
-	nb = 2.0f - fabs(h * 6.0f - 4.0f);
-
-	nr = std::max(0.0f, std::min(nr, 1.0f));
-	ng = std::max(0.0f, std::min(ng, 1.0f));
-	nb = std::max(0.0f, std::min(nb, 1.0f));
-
-	*r = ((nr - 1.0f) * s + 1.0f) * v;
-	*g = ((ng - 1.0f) * s + 1.0f) * v;
-	*b = ((nb - 1.0f) * s + 1.0f) * v;
 }
 
 template <typename TreeType>
@@ -336,6 +410,73 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, 
 			Vec3f color = Vec3f(r, g, b);
 			
 			add_box(verts, colors, normals, &verts_ofs, wmin, wmax, color);
+		}
+	}
+}
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffer_size_needles(const openvdb::Grid<TreeType> *grid,
+                                                 int *r_numverts)
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid) {
+		*r_numverts = 0;
+		return;
+	}
+	
+	/* count */
+	int numverts = 0;
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		numverts += 4 * 3 * leaf->onVoxelCount();
+	}
+	
+	*r_numverts = numverts;
+}
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid, float value_min, float value_max,
+                                             float (*verts)[3], float (*colors)[3], float (*normals)[3])
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef typename TreeType::ValueType ValueType;
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid) {
+		return;
+	}
+	
+	const float scale_fac = value_max > value_min ? 1.0f / (value_max - value_min) : 0.0f;
+	int verts_ofs = 0;
+	
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
+			const Coord ijk = value_iter.getCoord();
+			
+			Vec3f vec = VectorConverter<ValueType>::get(value_iter.getValue());
+			float len = vec.length();
+			if (len != 0.0f) {
+				vec /= len;
+				
+				len = (len - value_min) * scale_fac;
+				len = std::max(0.0f, std::min(len, 1.0f));
+			}
+			
+			float r, g, b;
+			hsv_to_rgb((len + 2.0f) / 3.0f, 1.0f, 1.0f, &r, &g, &b);
+			Vec3f color = Vec3f(r, g, b);
+			
+			Vec3f center = grid->indexToWorld(ijk);
+			add_needle(verts, colors, normals, &verts_ofs, center, vec, len * grid->voxelSize().x(), color);
 		}
 	}
 }
