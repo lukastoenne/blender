@@ -62,12 +62,14 @@ struct OpenVDBSmokeData {
 	
 	bool step(float dt, int num_substeps);
 	
-	State calculate_pressure(float dt, float bg_pressure);
+	void advect_backwards_trace(float dt);
+	void calculate_pressure(float dt, float bg_pressure);
 	
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;
 	VectorGrid::Ptr velocity;
 	ScalarGrid::Ptr pressure;
+	State pressure_result;
 	VectorGrid::Ptr force;
 };
 

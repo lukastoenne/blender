@@ -129,6 +129,7 @@ void OpenVDB_smoke_add_obstacle(struct OpenVDBSmokeData *data, float mat[4][4], 
 void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
 
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
+bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *data, double *err_abs, double *err_rel, int *iterations);
 
 /* Drawing */
 

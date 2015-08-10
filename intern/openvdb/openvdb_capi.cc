@@ -312,6 +312,15 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substep
 	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);
 }
 
+bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *err_abs, double *err_rel, int *iterations)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	if (err_abs) *err_abs = data->pressure_result.absoluteError;
+	if (err_rel) *err_rel = data->pressure_result.relativeError;
+	if (iterations) *iterations = data->pressure_result.iterations;
+	return data->pressure_result.success;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Drawing */
 
