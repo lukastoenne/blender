@@ -44,6 +44,8 @@
 #include "BLI_math.h"
 #include "BLI_kdtree.h"
 #include "BLI_kdopbvh.h"
+#include "BLI_mempool.h"
+#include "BLI_rand.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_voxel.h"
@@ -473,6 +475,9 @@ static void smokeModifier_freeDomainVDB(SmokeModifierData *smd)
 #endif
 			MEM_freeN(domain->cache);
 		}
+		
+		if (domain->matpoints)
+			BLI_mempool_destroy(domain->matpoints);
 		
 		smoke_vdb_free_data(domain);
 		
@@ -2697,13 +2702,15 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 
 #ifdef WITH_OPENVDB
 
+/* ------------------------------------------------------------------------- */
+/* Iterators for communicating data to the OpenVDB API */
+
 typedef struct OpenVDBDerivedMeshIterator {
 	OpenVDBMeshIterator base;
 	struct MVert *vert, *vert_end;
 	const struct MLoopTri *looptri, *looptri_end;
 	struct MLoop *loop;
 } OpenVDBDerivedMeshIterator;
-
 static bool openvdb_dm_has_vertices(OpenVDBDerivedMeshIterator *it) { return it->vert < it->vert_end; }
 static bool openvdb_dm_has_triangles(OpenVDBDerivedMeshIterator *it) { return it->looptri < it->looptri_end; }
 static void openvdb_dm_next_vertex(OpenVDBDerivedMeshIterator *it) { ++it->vert; }
@@ -2715,8 +2722,7 @@ static void openvdb_dm_get_triangle(OpenVDBDerivedMeshIterator *it, int *a, int 
 	*b = it->loop[it->looptri->tri[1]].v;
 	*c = it->loop[it->looptri->tri[2]].v;
 }
-
-static void openvdb_dm_iter_init(OpenVDBDerivedMeshIterator *it, DerivedMesh *dm)
+static inline void openvdb_dm_iter_init(OpenVDBDerivedMeshIterator *it, DerivedMesh *dm)
 {
 	it->base.has_vertices = (OpenVDBMeshHasVerticesFn)openvdb_dm_has_vertices;
 	it->base.has_triangles = (OpenVDBMeshHasTrianglesFn)openvdb_dm_has_triangles;
@@ -2732,11 +2738,81 @@ static void openvdb_dm_iter_init(OpenVDBDerivedMeshIterator *it, DerivedMesh *dm
 	it->loop = dm->getLoopArray(dm);
 }
 
+typedef struct SmokeMatPointInputStream {
+	OpenVDBPointInputStream base;
+	BLI_mempool_iter iter;
+	MaterialPoint *point;
+} SmokeMatPointInputStream;
+static bool smoke_has_matpoints_in(SmokeMatPointInputStream *stream)
+{
+	return stream->point != NULL;
+}
+static void smoke_next_matpoint_in(SmokeMatPointInputStream *stream)
+{
+	stream->point = BLI_mempool_iterstep(&stream->iter);
+}
+static void smoke_get_matpoint_in(SmokeMatPointInputStream *stream, float loc[3], float *rad, float vel[3])
+{
+	copy_v3_v3(loc, stream->point->loc);
+	*rad = 1.0f;
+	copy_v3_v3(vel, stream->point->vel);
+}
+static inline void smoke_init_matpoint_input_stream(SmokeMatPointInputStream *stream, SmokeDomainVDBSettings *sds)
+{
+	BLI_mempool_iternew(sds->matpoints, &stream->iter);
+	stream->point = BLI_mempool_iterstep(&stream->iter);
+	
+	stream->base.has_points = (OpenVDBHasIPointsFn)smoke_has_matpoints_in;
+	stream->base.next_point = (OpenVDBNextIPointFn)smoke_next_matpoint_in;
+	stream->base.get_point = (OpenVDBGetIPointFn)smoke_get_matpoint_in;
+}
+
+typedef struct SmokeMatPointOutputStream {
+	OpenVDBPointOutputStream base;
+	BLI_mempool_iter iter;
+	MaterialPoint *point;
+} SmokeMatPointOutputStream;
+static bool smoke_has_matpoints_out(SmokeMatPointOutputStream *stream)
+{
+	return stream->point != NULL;
+}
+static void smoke_next_matpoint_out(SmokeMatPointOutputStream *stream)
+{
+	stream->point = BLI_mempool_iterstep(&stream->iter);
+}
+static void smoke_get_matpoint_out(SmokeMatPointOutputStream *stream, float loc[3], float *rad, float vel[3])
+{
+	copy_v3_v3(loc, stream->point->loc);
+	*rad = 1.0f;
+	copy_v3_v3(vel, stream->point->vel);
+}
+static void smoke_set_matpoint_out(SmokeMatPointOutputStream *stream, const float loc[3], float UNUSED(rad), const float vel[3])
+{
+	copy_v3_v3(stream->point->loc, loc);
+	copy_v3_v3(stream->point->vel, vel);
+}
+static inline void smoke_init_matpoint_output_stream(SmokeMatPointOutputStream *stream, SmokeDomainVDBSettings *sds)
+{
+	BLI_mempool_iternew(sds->matpoints, &stream->iter);
+	stream->point = BLI_mempool_iterstep(&stream->iter);
+	
+	stream->base.has_points = (OpenVDBHasOPointsFn)smoke_has_matpoints_out;
+	stream->base.next_point = (OpenVDBNextOPointFn)smoke_next_matpoint_out;
+	stream->base.get_point = (OpenVDBGetOPointFn)smoke_get_matpoint_out;
+	stream->base.set_point = (OpenVDBSetOPointFn)smoke_set_matpoint_out;
+}
+
+/* ------------------------------------------------------------------------- */
+
 static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float UNUSED(dt), bool UNUSED(for_render))
 {
 	Object **flowobjs = NULL;
 	unsigned int numflowobj = 0;
 	unsigned int flowIndex;
+	
+	/* make sure we have material points */
+	if (!sds->matpoints)
+		smoke_vdb_init_matpoints(sds);
 	
 	OpenVDB_smoke_clear_obstacles(sds->data);
 	
@@ -2750,12 +2826,43 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 		if ((smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow)
 		{
 			SmokeFlowSettings *sfs = smd2->flow;
-			OpenVDBDerivedMeshIterator iter;
+//			OpenVDBDerivedMeshIterator iter;
 			float mat[4][4];
 			mul_m4_m4m4(mat, sds->imat, collob->obmat);
 			
-			openvdb_dm_iter_init(&iter, sfs->dm);
-			OpenVDB_smoke_add_inflow(sds->data, mat, &iter.base, sfs->density, sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
+//			openvdb_dm_iter_init(&iter, sfs->dm);
+//			OpenVDB_smoke_add_inflow(sds->data, mat, &iter.base, sfs->density, sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
+			
+			/* XXX dummy code */
+			{
+				int i, numverts = sfs->dm->getNumVerts(sfs->dm);
+				MVert *verts = sfs->dm->getVertArray(sfs->dm);
+				float min[3], max[3], size[3];
+				float r[3];
+				MaterialPoint *pt;
+				
+				if (numverts > 0) {
+					INIT_MINMAX(min, max);
+					for (i = 0; i < numverts; ++i)
+						minmax_v3v3_v3(min, max, verts[i].co);
+				}
+				else {
+					zero_v3(min);
+					zero_v3(max);
+				}
+				sub_v3_v3v3(size, max, min);
+				
+				r[0] = BLI_frand();
+				r[1] = BLI_frand();
+				r[2] = BLI_frand();
+				mul_v3_v3(r, size);
+				add_v3_v3(r, min);
+				mul_m4_v3(mat, r);
+				
+				pt = smoke_vdb_add_matpoint(sds);
+				copy_v3_v3(pt->loc, r);
+				zero_v3(pt->vel);
+			}
 		}
 	}
 	if (flowobjs)
@@ -2772,6 +2879,7 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	float obmat[4][4], imat[4][4];
 	float gravity[3] = {0.0f, 0.0f, 0.0f};
 	float gravity_mag;
+	SmokeMatPointInputStream istream;
 
 	/* update object state */
 	invert_m4_m4(imat, ob->obmat);
@@ -2792,6 +2900,9 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	dt = DT_DEFAULT * (25.0f / fps);
 
 	update_flowsfluids_vdb(scene, ob, sds, dt, for_render);
+
+	smoke_init_matpoint_input_stream(&istream, sds);
+	OpenVDB_smoke_init_grids(sds->data, &istream.base);
 
 	/* Disable substeps for now, since it results in numerical instability */
 	OpenVDB_smoke_step(sds->data, dt, 1);
@@ -3470,6 +3581,37 @@ void smoke_vdb_free_data(SmokeDomainVDBSettings *sds)
 		sds->data = NULL;
 	}
 }
+
+void smoke_vdb_init_matpoints(SmokeDomainVDBSettings *sds)
+{
+	if (sds->matpoints)
+		BLI_mempool_clear(sds->matpoints);
+	else
+		sds->matpoints = BLI_mempool_create(sizeof(MaterialPoint), 1024, 1024, BLI_MEMPOOL_ALLOW_ITER);
+}
+
+void smoke_vdb_clear_matpoints(SmokeDomainVDBSettings *sds)
+{
+	if (sds->matpoints) {
+		BLI_mempool_clear(sds->matpoints);
+	}
+}
+
+MaterialPoint *smoke_vdb_add_matpoint(SmokeDomainVDBSettings *sds)
+{
+	MaterialPoint *pt;
+	BLI_assert(sds->matpoints);
+	pt = BLI_mempool_calloc(sds->matpoints);
+	return pt;
+}
+
+void smoke_vdb_remove_matpoint(SmokeDomainVDBSettings *sds, MaterialPoint *pt)
+{
+	BLI_assert(sds->matpoints);
+	BLI_mempool_free(sds->matpoints, pt);
+}
+
+/* ------------------------------------------------------------------------- */
 
 void smoke_vdb_get_bounds(SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3])
 {

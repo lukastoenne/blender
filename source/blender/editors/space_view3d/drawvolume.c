@@ -39,6 +39,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_mempool.h"
 
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -688,4 +689,62 @@ void draw_smoke_vdb_bounds(struct Scene *UNUSED(scene), struct Object *ob, Regio
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	draw_box(bb.vec, false);
+}
+
+bool draw_smoke_vdb_matpoints(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds)
+{
+	float (*verts)[3] = NULL, (*colors)[3] = NULL, *v, *c;
+	int numverts;
+	BLI_mempool_iter iter;
+	MaterialPoint *pt;
+	
+	if (!sds->matpoints)
+		return false;
+	
+	numverts = BLI_mempool_count(sds->matpoints);
+	verts = MEM_mallocN(numverts * sizeof(float) * 3, "smoke vdb material points vertex buffer");
+	colors = MEM_mallocN(numverts * sizeof(float) * 3, "smoke vdb material points color buffer");
+	
+	BLI_mempool_iternew(sds->matpoints, &iter);
+	v = verts[0];
+	c = colors[0];
+	while ((pt = BLI_mempool_iterstep(&iter))) {
+		copy_v3_v3(v, pt->loc);
+		c[0] = 1.0f;
+		c[1] = 0.0f;
+		c[2] = 0.0f;
+		
+		v += 3;
+		c += 3;
+	}
+	
+	glLoadMatrixf(rv3d->viewmat);
+	glMultMatrixf(ob->obmat);
+	
+	if (numverts > 0 && verts && colors) {
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_COLOR_ARRAY);
+		glDisable(GL_BLEND);
+		
+		glVertexPointer(3, GL_FLOAT, 0, verts);
+		glColorPointer(3, GL_FLOAT, 0, colors);
+		
+		glDisable(GL_COLOR_MATERIAL);
+		glDisable(GL_LIGHTING);
+		glEnable(GL_DEPTH_TEST);
+		glPointSize(3.0f);
+		
+		glDrawArrays(GL_POINTS, 0, numverts);
+		
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+		glPointSize(1.0f);
+	}
+	
+	if (verts)
+		MEM_freeN(verts);
+	if (colors)
+		MEM_freeN(colors);
+	
+	return true;
 }

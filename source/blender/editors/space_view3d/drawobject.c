@@ -8115,30 +8115,37 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		
 		if (smd->domain_vdb) {
 			SmokeDomainVDBSettings *sds = smd->domain_vdb;
-			/* XXX We deliberately ignore per-object max. draw type here,
-			 * so the object can have wire drawing but we still see content
-			 * of the domain in solid shading.
-			 * That's a design problem of the viewport and has to be solved
-			 * on a higher level ...
-			 */
-			bool draw_wire = (v3d->drawtype < OB_WIRE);
 			
-			switch (sds->display_mode) {
-				case MOD_SMOKE_VDB_DISPLAY_BLEND:
-					draw_smoke_vdb_blend(scene, ob, rv3d, sds);
-					break;
-				case MOD_SMOKE_VDB_DISPLAY_CELLS:
-					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, true);
-					break;
-				case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
-					draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
-					break;
-				case MOD_SMOKE_VDB_DISPLAY_BOXES:
-					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
-					break;
-				case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
-					draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
-					break;
+			if (sds->flag & MOD_SMOKE_VDB_SHOW_GRID) {
+				/* XXX We deliberately ignore per-object max. draw type here,
+				 * so the object can have wire drawing but we still see content
+				 * of the domain in solid shading.
+				 * That's a design problem of the viewport and has to be solved
+				 * on a higher level ...
+				 */
+				bool draw_wire = (v3d->drawtype < OB_WIRE);
+				
+				switch (sds->display_mode) {
+					case MOD_SMOKE_VDB_DISPLAY_BLEND:
+						draw_smoke_vdb_blend(scene, ob, rv3d, sds);
+						break;
+					case MOD_SMOKE_VDB_DISPLAY_CELLS:
+						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, true);
+						break;
+					case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
+						draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
+						break;
+					case MOD_SMOKE_VDB_DISPLAY_BOXES:
+						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
+						break;
+					case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
+						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
+						break;
+				}
+			}
+			
+			if (sds->flag & MOD_SMOKE_VDB_SHOW_MATPOINTS) {
+				draw_smoke_vdb_matpoints(scene, ob, rv3d, sds);
 			}
 		}
 	}

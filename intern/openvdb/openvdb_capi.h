@@ -36,6 +36,8 @@ struct OpenVDBFloatGrid;
 struct OpenVDBIntGrid;
 struct OpenVDBVectorGrid;
 struct OpenVDBSmokeData;
+struct OpenVDBPointInputStream;
+struct OpenVDBPointOutputStream;
 
 int OpenVDB_getVersionHex(void);
 
@@ -112,6 +114,7 @@ typedef void (*OpenVDBMeshNextVertexFn)(struct OpenVDBMeshIterator *it);
 typedef void (*OpenVDBMeshNextTriangleFn)(struct OpenVDBMeshIterator *it);
 typedef void (*OpenVDBMeshGetVertexFn)(struct OpenVDBMeshIterator *it, float co[3]);
 typedef void (*OpenVDBMeshGetTriangleFn)(struct OpenVDBMeshIterator *it, int *a, int *b, int *c);
+
 typedef struct OpenVDBMeshIterator {
 	OpenVDBMeshHasVerticesFn has_vertices;
 	OpenVDBMeshHasTrianglesFn has_triangles;
@@ -123,8 +126,33 @@ typedef struct OpenVDBMeshIterator {
 	OpenVDBMeshGetTriangleFn get_triangle;
 } OpenVDBMeshIterator;
 
-void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
-                              float flow_density, bool incremental);
+typedef bool (*OpenVDBHasIPointsFn)(struct OpenVDBPointInputStream *it);
+typedef void (*OpenVDBNextIPointFn)(struct OpenVDBPointInputStream *it);
+typedef void (*OpenVDBGetIPointFn)(struct OpenVDBPointInputStream *it, float loc[3], float *rad, float vel[3]);
+
+typedef struct OpenVDBPointInputStream {
+	OpenVDBHasIPointsFn has_points;
+	OpenVDBNextIPointFn next_point;
+	OpenVDBGetIPointFn get_point;
+} OpenVDBPointInputStream;
+
+typedef bool (*OpenVDBHasOPointsFn)(struct OpenVDBPointOutputStream *it);
+typedef void (*OpenVDBNextOPointFn)(struct OpenVDBPointOutputStream *it);
+typedef void (*OpenVDBGetOPointFn)(struct OpenVDBPointOutputStream *it, float loc[3], float *rad, float vel[3]);
+typedef void (*OpenVDBSetOPointFn)(struct OpenVDBPointOutputStream *it, const float loc[3], float rad, const float vel[3]);
+
+typedef struct OpenVDBPointOutputStream {
+	OpenVDBHasOPointsFn has_points;
+	OpenVDBNextOPointFn next_point;
+	OpenVDBGetOPointFn get_point;
+	OpenVDBSetOPointFn set_point;
+} OpenVDBPointOutputStream;
+
+void OpenVDB_smoke_init_grids(struct OpenVDBSmokeData *data, struct OpenVDBPointInputStream *points);
+void OpenVDB_smoke_update_points(struct OpenVDBSmokeData *data, struct OpenVDBPointOutputStream *points);
+
+//void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
+//                              float flow_density, bool incremental);
 void OpenVDB_smoke_add_obstacle(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it);
 void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
 

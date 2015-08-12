@@ -32,6 +32,7 @@
 #include <openvdb/tools/Composite.h>
 #include <openvdb/tools/GridOperators.h>
 #include <openvdb/tools/Morphology.h> // for tools::erodeVoxels()
+#include <openvdb/tools/ParticlesToLevelSet.h>
 #include <openvdb/tools/PoissonSolver.h>
 
 #include "openvdb_smoke.h"
@@ -44,6 +45,18 @@ using namespace openvdb::math;
 using tools::poisson::VIndex;
 
 static const VIndex VINDEX_INVALID = (VIndex)(-1);
+
+template <typename T>
+static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
+{
+	float min = FLT_MAX, max = -FLT_MAX;
+	for (typename T::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
+		float v = FloatConverter<typename T::ValueType>::get(iter.getValue());
+		if (v < min) min = v;
+		if (v > max) max = v;
+	}
+	printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
+}
 
 struct GridScale {
 	float factor;
@@ -161,6 +174,91 @@ float OpenVDBSmokeData::cell_size() const
 	return cell_transform->voxelSize().x();
 }
 
+class SmokeParticleList
+{
+protected:
+	struct Point {
+		Vec3f loc;
+		float rad;
+		Vec3f vel;
+	};
+	typedef std::vector<Point> PointList;
+	
+	PointList m_points;
+	float m_radius_scale;
+	float m_velocity_scale;
+
+public:
+	typedef Vec3R  value_type;
+	
+	SmokeParticleList(OpenVDBPointInputStream *stream, float rscale=1, float vscale=1)
+	    : m_radius_scale(rscale), m_velocity_scale(vscale)
+	{
+		for (; stream->has_points(stream); stream->next_point(stream)) {
+			float loc[3], rad, vel[3];
+			stream->get_point(stream, loc, &rad, vel);
+			
+			Point pt;
+			pt.loc = Vec3f(loc[0], loc[1], loc[2]);
+			pt.rad = rad * m_radius_scale;
+			pt.vel = Vec3f(vel[0], vel[1], vel[2]) * m_velocity_scale;
+			m_points.push_back(pt);
+		}
+	}
+	
+	//////////////////////////////////////////////////////////////////////////////
+	/// The methods below are the only ones required by tools::ParticleToLevelSet
+	
+	size_t size() const { return m_points.size(); }
+	
+	void getPos(size_t n,  Vec3R &pos) const
+	{
+		pos = m_points[n].loc;
+	}
+	void getPosRad(size_t n, Vec3R& pos, Real& rad) const {
+		pos = m_points[n].loc;
+		rad = m_points[n].rad;
+	}
+	void getPosRadVel(size_t n, Vec3R& pos, Real& rad, Vec3R& vel) const {
+		pos = m_points[n].loc;
+		rad = m_points[n].rad;
+		vel = m_points[n].vel;
+	}
+	// The method below is only required for attribute transfer
+	void getAtt(size_t n, Index32& att) const
+	{
+		att = Index32(n);
+	}
+};
+
+void OpenVDBSmokeData::init_grids(OpenVDBPointInputStream *points)
+{
+	SmokeParticleList pa(points);
+	
+	const float voxel_size = cell_size();
+	const float half_width = cell_size();
+	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size, half_width);
+	ls->setTransform(cell_transform);
+
+	tools::ParticlesToLevelSet<FloatGrid> raster(*ls);
+	raster.setGrainSize(1); /* a value of zero disables threading */
+	raster.rasterizeSpheres(pa);
+	raster.finalize();
+	
+	tools::sdfToFogVolume(*ls, 0.0f);
+	
+	density = ls;
+}
+
+void OpenVDBSmokeData::update_points(OpenVDBPointOutputStream *points)
+{
+	for (; points->has_points(points); points->next_point(points)) {
+//		float loc[3], vel[3];
+//		points->get_point(points, loc, vel);
+	}
+}
+
+#if 0
 void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
                                   float flow_density, bool incremental)
 {
@@ -186,6 +284,7 @@ void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std:
 //	BoolGrid::Ptr mask = tools::sdfInteriorMask(*sdf, 0.0f);
 //	density->topologyIntersection(*mask);
 }
+#endif
 
 void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
@@ -223,18 +322,6 @@ void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
 	div_vgrid_fgrid(*f, *f, *density);
 	mul_grid_fl(*f, -dt/cell_size());
 	tools::compSum(*force, *f);
-}
-
-template <typename T>
-static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
-{
-	float min = FLT_MAX, max = -FLT_MAX;
-	for (typename T::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
-		float v = FloatConverter<typename T::ValueType>::get(iter.getValue());
-		if (v < min) min = v;
-		if (v > max) max = v;
-	}
-	printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
 }
 
 bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)

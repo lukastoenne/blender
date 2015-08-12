@@ -52,11 +52,16 @@ struct OpenVDBSmokeData {
 	
 	float cell_size() const;
 	
+	/* rasterize points into density and velocity grids (beginning of the time step) */
+	void init_grids(OpenVDBPointInputStream *points);
+	/* move particles through the velocity field (end of the time step) */
+	void update_points(OpenVDBPointOutputStream *points);
+	
 	void add_gravity_force(const Vec3f &g);
 	void add_pressure_force(float dt, float bg_pressure);
 	
-	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
-	                float flow_density, bool incremental);
+//	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
+//	                float flow_density, bool incremental);
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
 	

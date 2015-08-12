@@ -58,6 +58,11 @@ int smoke_get_data_flags(struct SmokeDomainSettings *sds);
 void smoke_vdb_init_data(struct Object *ob, struct SmokeDomainVDBSettings *sds);
 void smoke_vdb_free_data(struct SmokeDomainVDBSettings *sds);
 
+void smoke_vdb_init_matpoints(struct SmokeDomainVDBSettings *sds);
+void smoke_vdb_clear_matpoints(struct SmokeDomainVDBSettings *sds);
+struct MaterialPoint *smoke_vdb_add_matpoint(struct SmokeDomainVDBSettings *sds);
+void smoke_vdb_remove_matpoint(struct SmokeDomainVDBSettings *sds, struct MaterialPoint *pt);
+
 void smoke_vdb_get_bounds(struct SmokeDomainVDBSettings *sds, float bbmin[3], float bbmax[3]);
 void smoke_vdb_get_draw_buffers(struct SmokeDomainVDBSettings *sds,
                                 float (**r_verts)[3], float (**r_colors)[3],

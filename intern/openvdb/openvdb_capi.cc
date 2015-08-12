@@ -252,6 +252,18 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 	delete ((internal::OpenVDBSmokeData *)data);
 }
 
+void OpenVDB_smoke_init_grids(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	data->init_grids(points);
+}
+
+void OpenVDB_smoke_update_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
+{
+	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	data->update_points(points);
+}
+
 static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,
                               std::vector<openvdb::math::Vec3s> &vertices, std::vector<openvdb::Vec3I> &triangles)
 {
@@ -277,6 +289,7 @@ static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,
 	}
 }
 
+#if 0
 void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
                               float flow_density, bool incremental)
 {
@@ -289,6 +302,7 @@ void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], st
 	
 	((internal::OpenVDBSmokeData *)data)->add_inflow(vertices, triangles, flow_density, incremental);
 }
+#endif
 
 void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
 {

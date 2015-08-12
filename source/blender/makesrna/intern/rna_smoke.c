@@ -803,10 +803,21 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "OpenVDBCache");
 	RNA_def_property_ui_text(prop, "OpenVDB cache", "");
 
+	prop = RNA_def_property(srna, "show_grid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SMOKE_VDB_SHOW_GRID);
+	RNA_def_property_ui_text(prop, "Show Grid", "Show grid-based data");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "show_material_points", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SMOKE_VDB_SHOW_MATPOINTS);
+	RNA_def_property_ui_text(prop, "Show Material Points", "Show material points");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
 	prop = RNA_def_property(srna, "resolution_axis", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "res_axis");
 	RNA_def_property_enum_items(prop, res_axis_items);
 	RNA_def_property_enum_default(prop, 2);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "resolution", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "res");

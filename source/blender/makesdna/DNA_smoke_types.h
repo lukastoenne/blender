@@ -163,12 +163,20 @@ typedef struct SmokeDomainSettings {
 	short cache_type, pad[3];
 } SmokeDomainSettings;
 
+/* SmokeDomainVDBSettings flag */
+enum {
+	MOD_SMOKE_VDB_SHOW_GRID         = (1 << 0),
+	MOD_SMOKE_VDB_SHOW_MATPOINTS    = (1 << 1),
+};
+
+/* SmokeDomainVDBSettings display field */
 enum {
 	MOD_SMOKE_VDB_FIELD_DENSITY     = 0,
 	MOD_SMOKE_VDB_FIELD_VELOCITY    = 1,
 	MOD_SMOKE_VDB_FIELD_PRESSURE    = 2,
 };
 
+/* SmokeDomainVDBSettings display mode */
 enum {
 	MOD_SMOKE_VDB_DISPLAY_BOUNDS    = 0,
 	MOD_SMOKE_VDB_DISPLAY_BLEND     = 1,
@@ -176,6 +184,11 @@ enum {
 	MOD_SMOKE_VDB_DISPLAY_BOXES     = 3,
 	MOD_SMOKE_VDB_DISPLAY_NEEDLES   = 4,
 };
+
+typedef struct MaterialPoint {
+	float loc[3];
+	float vel[3];
+} MaterialPoint;
 
 typedef struct SmokeDomainVDBSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
@@ -190,6 +203,8 @@ typedef struct SmokeDomainVDBSettings {
 	short res_axis;
 	short pad1[3];
 	int res;
+	
+	struct BLI_mempool *matpoints;
 	
 	/* internal */
 	float bbox_min[3], bbox_max[3];

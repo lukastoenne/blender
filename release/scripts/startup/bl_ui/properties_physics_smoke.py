@@ -322,20 +322,33 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
 
         domain = context.smoke.domain_vdb_settings
 
-        row = layout.row(align=True)
-        row.prop(domain, "display_mode", expand=True)
+        split = layout.split()
+
+        ### Grid Display ###
+        col = split.column()
+        
+        col.prop(domain, "show_grid")
+
+        col2 = col.column(align=True)
+        col2.prop(domain, "display_mode", expand=True)
 
         if domain.display_mode in {'BOXES', 'NEEDLES'}:
-            row = layout.row(align=True)
-            row.label("Scale:")
-            row.prop(domain, "display_value_min", text="")
-            row.prop(domain, "display_value_max", text="")
+            col.label("Scale:")
+            row = col.row()
+            row2 = row.row(align=True)
+            row2.prop(domain, "display_value_min", text="")
+            row2.prop(domain, "display_value_max", text="")
             row.operator("SMOKE_OT_display_value_adjust", text="", icon='ARROW_LEFTRIGHT')
 
         layout.separator()
 
-        col = layout.column(align=True)
-        col.prop(domain, "display_field", text="Field")
+        col2 = col.column(align=True)
+        col2.prop(domain, "display_field", text="Field", expand=True)
+
+        ### Points Display ###
+        col = split.column()
+
+        col.prop(domain, "show_material_points")
 
 
 class DATA_UL_openvdb_caches(UIList):

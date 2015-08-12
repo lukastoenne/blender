@@ -4847,6 +4847,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					domain->cache->writer = NULL;
 				}
 				
+				domain->matpoints = NULL;
+				
 				domain->data = NULL;
 				
 				domain->tex = NULL;

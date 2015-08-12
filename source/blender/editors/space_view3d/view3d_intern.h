@@ -285,6 +285,7 @@ void draw_smoke_volume_ex(struct Object *ob, const float global_size[3], int act
 void draw_smoke_vdb_bounds(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
 void draw_smoke_vdb_blend(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
 bool draw_smoke_vdb_geometry(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d,struct SmokeDomainVDBSettings *sds, bool draw_wire);
+bool draw_smoke_vdb_matpoints(struct Scene *scene, struct Object *ob, struct RegionView3D *rv3d, struct SmokeDomainVDBSettings *sds);
 
 //#define SMOKE_DEBUG_VELOCITY
 //#define SMOKE_DEBUG_HEAT
