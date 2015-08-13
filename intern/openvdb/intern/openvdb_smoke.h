@@ -125,9 +125,9 @@ public:
 		vel = m_points[n].vel;
 	}
 	// The method below is only required for attribute transfer
-	void getAtt(size_t n, openvdb::Index32& att) const
+	void getAtt(size_t n, Vec3f& att) const
 	{
-		att = openvdb::Index32(n);
+		att = m_points[n].vel;
 	}
 };
 
@@ -160,6 +160,7 @@ struct OpenVDBSmokeData {
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;
 	VectorGrid::Ptr velocity;
+	VectorGrid::Ptr velocity_old;
 	ScalarGrid::Ptr pressure;
 	State pressure_result;
 	VectorGrid::Ptr force;

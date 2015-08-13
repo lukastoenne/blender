@@ -91,11 +91,6 @@ inline static void mul_fgrid_fgrid(ScalarGrid &R, const ScalarGrid &a, const Sca
 	struct op {
 		static inline void combine2Extended(CombineArgs<float, float> &args)
 		{
-//			if (args.a() != 0.0f || args.b() != 0.0f) {
-//				const char *aon = args.aIsActive() ? "on" : "off";
-//				const char *bon = args.bIsActive() ? "on" : "off";
-//				printf("combine: %.3f * %.3f [%s, %s]\n", args.a(), args.b(), aon, bon);
-//			}
 			args.setResult(args.a() * args.b());
 			args.setResultIsActive(args.aIsActive() || args.bIsActive());
 		}
@@ -190,16 +185,19 @@ void OpenVDBSmokeData::init_grids()
 	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size);
 	ls->setTransform(cell_transform);
 
-	tools::ParticlesToLevelSet<FloatGrid> raster(*ls);
+	tools::ParticlesToLevelSet<FloatGrid, Vec3f> raster(*ls);
 	raster.setGrainSize(1); /* a value of zero disables threading */
 	raster.rasterizeSpheres(points);
 	raster.finalize();
+	VectorGrid::Ptr vel = raster.attributeGrid();
 	
 	tools::sdfToFogVolume(*ls);
 	
 	/* add a 1-cell padding to allow flow into empty cells */
 	tools::dilateVoxels(ls->tree(), 1, tools::NN_FACE);
+	
 	density = ls;
+	velocity = vel;
 }
 
 void OpenVDBSmokeData::update_points(float dt)
@@ -297,6 +295,9 @@ void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
 
 bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 {
+	/* keep old velocity */
+	velocity_old = velocity;
+	
 	init_grids();
 	
 	density->pruneGrid(1e-4f);
