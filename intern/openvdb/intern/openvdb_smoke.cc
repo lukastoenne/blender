@@ -49,13 +49,17 @@ static const VIndex VINDEX_INVALID = (VIndex)(-1);
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
 {
-	float min = FLT_MAX, max = -FLT_MAX;
-	for (typename T::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
-		float v = FloatConverter<typename T::ValueType>::get(iter.getValue());
-		if (v < min) min = v;
-		if (v > max) max = v;
+	if (grid.empty())
+		printf("%s: %s = 0, min=?, max=?\n", prefix, name);
+	else {
+		float min = FLT_MAX, max = -FLT_MAX;
+		for (typename T::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
+			float v = FloatConverter<typename T::ValueType>::get(iter.getValue());
+			if (v < min) min = v;
+			if (v > max) max = v;
+		}
+		printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
 	}
-	printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
 }
 
 struct GridScale {
@@ -174,87 +178,48 @@ float OpenVDBSmokeData::cell_size() const
 	return cell_transform->voxelSize().x();
 }
 
-class SmokeParticleList
+void OpenVDBSmokeData::init_grids()
 {
-protected:
-	struct Point {
-		Vec3f loc;
-		float rad;
-		Vec3f vel;
-	};
-	typedef std::vector<Point> PointList;
-	
-	PointList m_points;
-	float m_radius_scale;
-	float m_velocity_scale;
-
-public:
-	typedef Vec3R  value_type;
-	
-	SmokeParticleList(OpenVDBPointInputStream *stream, float rscale=1, float vscale=1)
-	    : m_radius_scale(rscale), m_velocity_scale(vscale)
-	{
-		for (; stream->has_points(stream); stream->next_point(stream)) {
-			float loc[3], rad, vel[3];
-			stream->get_point(stream, loc, &rad, vel);
-			
-			Point pt;
-			pt.loc = Vec3f(loc[0], loc[1], loc[2]);
-			pt.rad = rad * m_radius_scale;
-			pt.vel = Vec3f(vel[0], vel[1], vel[2]) * m_velocity_scale;
-			m_points.push_back(pt);
-		}
-	}
-	
-	//////////////////////////////////////////////////////////////////////////////
-	/// The methods below are the only ones required by tools::ParticleToLevelSet
-	
-	size_t size() const { return m_points.size(); }
-	
-	void getPos(size_t n,  Vec3R &pos) const
-	{
-		pos = m_points[n].loc;
-	}
-	void getPosRad(size_t n, Vec3R& pos, Real& rad) const {
-		pos = m_points[n].loc;
-		rad = m_points[n].rad;
-	}
-	void getPosRadVel(size_t n, Vec3R& pos, Real& rad, Vec3R& vel) const {
-		pos = m_points[n].loc;
-		rad = m_points[n].rad;
-		vel = m_points[n].vel;
-	}
-	// The method below is only required for attribute transfer
-	void getAtt(size_t n, Index32& att) const
-	{
-		att = Index32(n);
-	}
-};
-
-void OpenVDBSmokeData::init_grids(OpenVDBPointInputStream *points)
-{
-	SmokeParticleList pa(points);
-	
 	const float voxel_size = cell_size();
-	const float half_width = cell_size();
-	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size, half_width);
+	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size);
 	ls->setTransform(cell_transform);
 
 	tools::ParticlesToLevelSet<FloatGrid> raster(*ls);
 	raster.setGrainSize(1); /* a value of zero disables threading */
-	raster.rasterizeSpheres(pa);
+	raster.rasterizeSpheres(points);
 	raster.finalize();
 	
-	tools::sdfToFogVolume(*ls, 0.0f);
+	tools::sdfToFogVolume(*ls);
 	
+	/* add a 1-cell padding to allow flow into empty cells */
+	tools::dilateVoxels(ls->tree(), 1, tools::NN_FACE);
 	density = ls;
 }
 
-void OpenVDBSmokeData::update_points(OpenVDBPointOutputStream *points)
+void OpenVDBSmokeData::update_points(float dt)
 {
-	for (; points->has_points(points); points->next_point(points)) {
-//		float loc[3], vel[3];
-//		points->get_point(points, loc, vel);
+	typedef VectorGrid::ConstAccessor AccessorType;
+	typedef tools::GridSampler<AccessorType, tools::StaggeredBoxSampler> SamplerType;
+	
+	AccessorType acc_vel(velocity->tree());
+	SamplerType sampler(acc_vel, velocity->transform());
+	
+	/* use RK2 integration to move points through the velocity field */
+	for (SmokeParticleList::iterator it = points.begin(); it != points.end(); ++it) {
+		SmokeParticleList::Point &pt = *it;
+		
+		Vec3f loc1 = pt.loc;
+		// note: velocity from particles is ignored, only grid velocities are used
+		Vec3f vel1 = sampler.wsSample(loc1);
+		
+		Vec3f loc2 = loc1 + 0.5f*dt * vel1;
+		Vec3f vel2 = sampler.wsSample(loc2);
+		
+		Vec3f loc3 = loc2 + dt * vel2;
+		Vec3f vel3 = sampler.wsSample(loc3);
+		
+		pt.loc = loc3;
+		pt.vel = vel3;
 	}
 }
 
@@ -326,29 +291,38 @@ void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
 
 bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 {
+	init_grids();
+	
 	density->pruneGrid(1e-4f);
 	
 	/* only cells with some density can be active */
 	velocity->topologyIntersection(*density);
-	/* add a 1-cell padding to allow flow into empty cells */
-	tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
 	
-	advect_backwards_trace(dt);
+	print_grid_range(*density, "STEP", "density");
+	print_grid_range(*velocity, "STEP", "velocity");
+	
+//	advect_backwards_trace(dt);
+	print_grid_range(*velocity, "V1", "velocity");
 	
 	force->clear();
 	add_gravity_force(Vec3f(0,0,-1));
 	add_pressure_force(dt, 0.0f);
+	print_grid_range(*velocity, "V2", "velocity");
+	
 	printf("  (pressure: ");
-	if (pressure_result.success)
+	if (pressure_result.success) {
+		print_grid_range(*pressure, "INPUT", "pressure");
 		printf(" ok)\n");
+	}
 	else
 		printf(" FAIL! %d iterations, error=%f%%=%f)\n",
 		       pressure_result.iterations, pressure_result.relativeError, pressure_result.absoluteError);
 	
 	mul_grid_fl(*force, dt);
-	print_grid_range(*pressure, "INPUT", "pressure");
 	tools::compSum(*velocity, *force);
-	print_grid_range(*velocity, "TOPO", "velocity");
+	print_grid_range(*velocity, "V3", "velocity");
+	
+	update_points(dt);
 	
 	return true;
 }
@@ -416,10 +390,11 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 	pressure_result.absoluteError = 0.0f;
 	pressure_result.relativeError = 0.0f;
 	
+	printf("=======================================\n");
+	print_grid_range(*density, "PRESSURE", "density");
 	print_grid_range(*velocity, "PRESSURE", "velocity");
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
 	print_grid_range(*divergence, "PRESSURE", "divergence");
-	print_grid_range(*density, "PRESSURE", "density");
 	mul_fgrid_fgrid(*divergence, *divergence, *density);
 	mul_grid_fl(*divergence, cell_size() / dt);
 	if (divergence->empty())

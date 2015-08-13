@@ -139,7 +139,7 @@ typedef struct OpenVDBPointInputStream {
 typedef bool (*OpenVDBHasOPointsFn)(struct OpenVDBPointOutputStream *it);
 typedef void (*OpenVDBNextOPointFn)(struct OpenVDBPointOutputStream *it);
 typedef void (*OpenVDBGetOPointFn)(struct OpenVDBPointOutputStream *it, float loc[3], float *rad, float vel[3]);
-typedef void (*OpenVDBSetOPointFn)(struct OpenVDBPointOutputStream *it, const float loc[3], float rad, const float vel[3]);
+typedef void (*OpenVDBSetOPointFn)(struct OpenVDBPointOutputStream *it, const float loc[3], const float vel[3]);
 
 typedef struct OpenVDBPointOutputStream {
 	OpenVDBHasOPointsFn has_points;
@@ -148,8 +148,8 @@ typedef struct OpenVDBPointOutputStream {
 	OpenVDBSetOPointFn set_point;
 } OpenVDBPointOutputStream;
 
-void OpenVDB_smoke_init_grids(struct OpenVDBSmokeData *data, struct OpenVDBPointInputStream *points);
-void OpenVDB_smoke_update_points(struct OpenVDBSmokeData *data, struct OpenVDBPointOutputStream *points);
+void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *data, struct OpenVDBPointInputStream *points);
+void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *data, struct OpenVDBPointOutputStream *points);
 
 //void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
 //                              float flow_density, bool incremental);

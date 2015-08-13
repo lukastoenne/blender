@@ -252,16 +252,16 @@ void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 	delete ((internal::OpenVDBSmokeData *)data);
 }
 
-void OpenVDB_smoke_init_grids(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
+void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
 {
 	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
-	data->init_grids(points);
+	data->set_points(points);
 }
 
-void OpenVDB_smoke_update_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
+void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
 {
 	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
-	data->update_points(points);
+	data->get_points(points);
 }
 
 static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,

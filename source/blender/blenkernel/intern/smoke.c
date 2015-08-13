@@ -2786,7 +2786,7 @@ static void smoke_get_matpoint_out(SmokeMatPointOutputStream *stream, float loc[
 	*rad = 1.0f;
 	copy_v3_v3(vel, stream->point->vel);
 }
-static void smoke_set_matpoint_out(SmokeMatPointOutputStream *stream, const float loc[3], float UNUSED(rad), const float vel[3])
+static void smoke_set_matpoint_out(SmokeMatPointOutputStream *stream, const float loc[3], const float vel[3])
 {
 	copy_v3_v3(stream->point->loc, loc);
 	copy_v3_v3(stream->point->vel, vel);
@@ -2879,7 +2879,8 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	float obmat[4][4], imat[4][4];
 	float gravity[3] = {0.0f, 0.0f, 0.0f};
 	float gravity_mag;
-	SmokeMatPointInputStream istream;
+	SmokeMatPointInputStream ipoints;
+	SmokeMatPointOutputStream opoints;
 
 	/* update object state */
 	invert_m4_m4(imat, ob->obmat);
@@ -2901,11 +2902,15 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 
 	update_flowsfluids_vdb(scene, ob, sds, dt, for_render);
 
-	smoke_init_matpoint_input_stream(&istream, sds);
-	OpenVDB_smoke_init_grids(sds->data, &istream.base);
+	smoke_init_matpoint_input_stream(&ipoints, sds);
+	OpenVDB_smoke_set_points(sds->data, &ipoints.base);
 
 	/* Disable substeps for now, since it results in numerical instability */
 	OpenVDB_smoke_step(sds->data, dt, 1);
+
+	smoke_init_matpoint_output_stream(&opoints, sds);
+	OpenVDB_smoke_get_points(sds->data, &opoints.base);
+	
 #endif /* WITH_OPENVDB */
 }
 
