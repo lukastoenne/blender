@@ -49,6 +49,7 @@ static const VIndex VINDEX_INVALID = (VIndex)(-1);
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
 {
+#ifndef NDEBUG
 	if (grid.empty())
 		printf("%s: %s = 0, min=?, max=?\n", prefix, name);
 	else {
@@ -60,6 +61,11 @@ static inline void print_grid_range(Grid<T> &grid, const char *prefix, const cha
 		}
 		printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
 	}
+#else
+	(void)grid;
+	(void)prefix;
+	(void)name;
+#endif
 }
 
 struct GridScale {
