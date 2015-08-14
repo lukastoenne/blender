@@ -374,7 +374,7 @@ static void OpenVDB_get_draw_buffer_size_boxes(const openvdb::Grid<TreeType> *gr
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, float value_min, float value_max,
+static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, float value_scale,
                                            float (*verts)[3], float (*colors)[3], float (*normals)[3])
 {
 	using namespace openvdb;
@@ -387,7 +387,7 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, 
 		return;
 	}
 	
-	const float scale_fac = value_max > value_min ? 1.0f / (value_max - value_min) : 0.0f;
+	const float bg = FloatConverter<ValueType>::get(grid->background());
 	int verts_ofs = 0;
 	
 	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
@@ -397,8 +397,8 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, 
 			const Coord ijk = value_iter.getCoord();
 			
 			float fac = FloatConverter<ValueType>::get(value_iter.getValue());
-			fac = (fac - value_min) * scale_fac;
-			fac = std::max(0.0f, std::min(fac, 1.0f));
+			fac = (fac - bg) * value_scale;
+			fac = std::max(-1.0f, std::min(fac, 1.0f));
 			
 			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
 			Vec3f max(ijk.x() + 0.5f*fac, ijk.y() + 0.5f*fac, ijk.z() + 0.5f*fac);
@@ -406,7 +406,8 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, 
 			Vec3f wmax = grid->indexToWorld(max);
 			
 			float r, g, b;
-			hsv_to_rgb((fac + 2.0f) / 3.0f, 1.0f, 1.0f, &r, &g, &b);
+			// -1..0..1 = red..yellow..green
+			hsv_to_rgb((fac + 1.0f) / 6.0f, 1.0f, 1.0f, &r, &g, &b);
 			Vec3f color = Vec3f(r, g, b);
 			
 			add_box(verts, colors, normals, &verts_ofs, wmin, wmax, color);
@@ -440,7 +441,7 @@ static void OpenVDB_get_draw_buffer_size_needles(const openvdb::Grid<TreeType> *
 }
 
 template <typename TreeType>
-static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid, float value_min, float value_max,
+static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid, float value_scale,
                                              float (*verts)[3], float (*colors)[3], float (*normals)[3])
 {
 	using namespace openvdb;
@@ -453,7 +454,7 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 		return;
 	}
 	
-	const float scale_fac = value_max > value_min ? 1.0f / (value_max - value_min) : 0.0f;
+	const float bg = FloatConverter<ValueType>::get(grid->background());
 	int verts_ofs = 0;
 	
 	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
@@ -467,12 +468,13 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 			if (len != 0.0f) {
 				vec /= len;
 				
-				len = (len - value_min) * scale_fac;
-				len = std::max(0.0f, std::min(len, 1.0f));
+				len = (len - bg) * value_scale;
+				len = std::max(-1.0f, std::min(len, 1.0f));
 			}
 			
 			float r, g, b;
-			hsv_to_rgb((len + 2.0f) / 3.0f, 1.0f, 1.0f, &r, &g, &b);
+			// -1..0..1 = red..yellow..green
+			hsv_to_rgb((len + 1.0f) / 6.0f, 1.0f, 1.0f, &r, &g, &b);
 			Vec3f color = Vec3f(r, g, b);
 			
 			Vec3f center = grid->indexToWorld(ijk);
@@ -497,21 +499,21 @@ static void OpenVDB_get_grid_bounds(const openvdb::Grid<TreeType> *grid, float b
 }
 
 template <typename TreeType>
-static void OpenVDB_get_grid_value_range(const openvdb::Grid<TreeType> *grid, float *min, float *max)
+static void OpenVDB_get_grid_value_range(const openvdb::Grid<TreeType> *grid, float *bg, float *min, float *max)
 {
 	typedef typename TreeType::ValueType ValueType;
 	
-	float bg = FloatConverter<ValueType>::get(grid->background());
+	*bg = FloatConverter<ValueType>::get(grid->background());
 	
-	if (!grid || !grid->cbeginValueOn()) {
-		*min = bg;
-		*max = bg;
+	if (!grid || grid->empty()) {
+		*min = *bg;
+		*max = *bg;
 		return;
 	}
 	
 	math::Extrema ex = tools::extrema(grid->cbeginValueOn());
-	*min = std::min((float)ex.min(), bg);
-	*max = std::max((float)ex.max(), bg);
+	*min = std::min((float)ex.min(), *bg);
+	*max = std::max((float)ex.max(), *bg);
 }
 
 template <typename TreeType>

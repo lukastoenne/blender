@@ -841,16 +841,11 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Display Field", "Primary field type to display");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
-	prop = RNA_def_property(srna, "display_value_min", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1f, 3);
-	RNA_def_property_ui_text(prop, "Display Value Minimum", "Minimum displayed value");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
-
-	prop = RNA_def_property(srna, "display_value_max", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "display_value_scale", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_range(prop, -100.0f, 100.0f, 0.1f, 3);
-	RNA_def_property_ui_text(prop, "Display Value Maximum", "Maximum displayed value");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 3);
+	RNA_def_property_ui_text(prop, "Display Value Scale", "Scale displayed values to adjust visualization");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 }
 

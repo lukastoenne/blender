@@ -335,9 +335,7 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
         if domain.display_mode in {'BOXES', 'NEEDLES'}:
             col.label("Scale:")
             row = col.row()
-            row2 = row.row(align=True)
-            row2.prop(domain, "display_value_min", text="")
-            row2.prop(domain, "display_value_max", text="")
+            row.prop(domain, "display_value_scale", text="")
             row.operator("SMOKE_OT_display_value_adjust", text="", icon='ARROW_LEFTRIGHT')
 
         layout.separator()

@@ -697,8 +697,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			domain->res_axis = 2;
 			domain->res = 32;
 			
-			domain->display_value_min = 0.0f;
-			domain->display_value_max = 1.0f;
+			domain->display_value_scale = 1.0f;
 			domain->data = NULL;
 		}
 		else if (smd->type & MOD_SMOKE_TYPE_FLOW)
@@ -3651,13 +3650,13 @@ void smoke_vdb_get_draw_buffers(SmokeDomainVDBSettings *sds,
 			break;
 		case MOD_SMOKE_VDB_DISPLAY_BOXES:
 			OpenVDB_smoke_get_draw_buffers_boxes(sds->data, smoke_grid_type(sds->display_field),
-			                                     sds->display_value_min, sds->display_value_max,
+			                                     sds->display_value_scale,
 			                                     r_verts, r_colors, r_normals, r_numverts);
 			*r_use_quads = true;
 			break;
 		case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
 			OpenVDB_smoke_get_draw_buffers_needles(sds->data, smoke_grid_type(sds->display_field),
-			                                       sds->display_value_min, sds->display_value_max,
+			                                       sds->display_value_scale,
 			                                       r_verts, r_colors, r_normals, r_numverts);
 			*r_use_quads = false;
 			break;
@@ -3682,10 +3681,10 @@ float *smoke_vdb_create_dense_texture(SmokeDomainVDBSettings *sds, int res[3], f
 void smoke_vdb_display_range_adjust(SmokeDomainVDBSettings *sds)
 {
 	if (sds->data) {
-		float min, max;
-		OpenVDB_smoke_get_value_range(sds->data, smoke_grid_type(sds->display_field), &min, &max);
-		sds->display_value_min = min;
-		sds->display_value_max = max;
+		float bg, min, max, range;
+		OpenVDB_smoke_get_value_range(sds->data, smoke_grid_type(sds->display_field), &bg, &min, &max);
+		range = max_ff(max_ff(max - bg, bg - min), 0.0f);
+		sds->display_value_scale = range > 0.0f ? 1.0f/range : 0.0f;
 	}
 }
 
