@@ -201,7 +201,7 @@ void OpenVDBSmokeData::init_grids()
 void OpenVDBSmokeData::update_points(float dt)
 {
 	typedef VectorGrid::ConstAccessor AccessorType;
-	typedef tools::GridSampler<AccessorType, tools::StaggeredBoxSampler> SamplerType;
+	typedef tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
 	
 	AccessorType acc_vel(velocity->tree());
 	SamplerType sampler(acc_vel, velocity->transform());
