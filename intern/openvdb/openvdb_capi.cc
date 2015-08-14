@@ -347,6 +347,7 @@ bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *e
 		case OpenVDBSmokeGrid_Density: { DO_GRID(data->density.get()) } break; \
 		case OpenVDBSmokeGrid_Velocity: { DO_GRID(data->velocity.get()) } break; \
 		case OpenVDBSmokeGrid_Pressure: { DO_GRID(data->pressure.get()) } break; \
+		case OpenVDBSmokeGrid_Divergence: { DO_GRID(data->tmp_divergence.get()) } break; \
 	} (void)0
 
 void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,

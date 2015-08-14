@@ -161,6 +161,7 @@ struct OpenVDBSmokeData {
 	ScalarGrid::Ptr density;
 	VectorGrid::Ptr velocity;
 	VectorGrid::Ptr velocity_old;
+	ScalarGrid::Ptr tmp_divergence;
 	ScalarGrid::Ptr pressure;
 	State pressure_result;
 	VectorGrid::Ptr force;

@@ -190,11 +190,9 @@ void OpenVDBSmokeData::init_grids()
 	raster.rasterizeSpheres(points);
 	raster.finalize();
 	VectorGrid::Ptr vel = raster.attributeGrid();
+	vel->setGridClass(GRID_STAGGERED);
 	
 	tools::sdfToFogVolume(*ls);
-	
-	/* add a 1-cell padding to allow flow into empty cells */
-	tools::dilateVoxels(ls->tree(), 1, tools::NN_FACE);
 	
 	density = ls;
 	velocity = vel;
@@ -303,7 +301,8 @@ bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 	density->pruneGrid(1e-4f);
 	
 	/* only cells with some density can be active */
-	velocity->topologyIntersection(*density);
+	// XXX implicitly true through the point rasterizer
+//	velocity->topologyIntersection(*density);
 	
 	print_grid_range(*density, "STEP", "density");
 	print_grid_range(*velocity, "STEP", "velocity");
@@ -381,17 +380,6 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 	typedef pcg::SparseStencilMatrix<float, 7> MatrixType;
 	typedef MatrixType::VectorType VectorType;
 	
-	struct Local {
-		static Coord get_index_coords(VIndex index, VIndexTree &index_tree)
-		{
-			Grid<VIndexTree>::ValueOnCIter iter = index_tree.cbeginValueOn();
-			for (int i = 0; iter; ++iter, ++i)
-				if (i == (int)index)
-					return iter.getCoord();
-			return Coord();
-		}
-	};
-	
 	pressure_result.success = false;
 	pressure_result.iterations = 0;
 	pressure_result.absoluteError = 0.0f;
@@ -400,10 +388,16 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 	printf("=======================================\n");
 	print_grid_range(*density, "PRESSURE", "density");
 	print_grid_range(*velocity, "PRESSURE", "velocity");
+	
+	/* add a 1-cell padding to allow flow into empty cells */
+	tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
+	
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
 	print_grid_range(*divergence, "PRESSURE", "divergence");
+	
 	mul_fgrid_fgrid(*divergence, *divergence, *density);
 	mul_grid_fl(*divergence, cell_size() / dt);
+	tmp_divergence = divergence;
 	if (divergence->empty())
 		return;
 	print_grid_range(*divergence, "PRESSURE", "divergence * density");
@@ -421,6 +415,7 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 		// TODO probably this can be optimized significantly
 		// by shifting grids as a whole and encode neighbors
 		// as bit flags or so ...
+		// XXX look for openvdb stencils? div operator works similar?
 		
 		Coord neighbors[6] = {
 		    Coord(c[0]-1, c[1], c[2]),
@@ -438,16 +433,19 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 			const Coord &c = neighbors[i];
 			VIndex icol = index_tree->getValue(c);
 			if (icol != VINDEX_INVALID) {
-				bool is_solid = false;
+				const bool is_solid = false; // TODO needs obstacle grids
 				/* no need to check actual density threshold, since we prune in advance */
-				bool is_empty = !acc.isValueOn(c);
+				const bool is_empty = !acc.isValueOn(c);
+				const bool is_fluid = !is_solid && !is_empty;
 				
 				/* add matrix entries for interacting cells (non-solid neighbors) */
 				if (!is_solid) {
 					diag -= 1.0f;
 				}
 				
-				A.setValue(irow, icol, (is_solid || is_empty)? 0.0f: 1.0f);
+				if (is_fluid) {
+					A.setValue(irow, icol, 1.0f);
+				}
 				
 				/* add background pressure terms */
 				if (is_empty) {
@@ -464,8 +462,21 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 		(*B)[irow] += bg;
 	}
 	
+	assert(A.isFinite());
+	
 #if 0
 	{
+		struct Local {
+			static Coord get_index_coords(VIndex index, VIndexTree &index_tree)
+			{
+				Grid<VIndexTree>::ValueOnCIter iter = index_tree.cbeginValueOn();
+				for (int i = 0; iter; ++iter, ++i)
+					if (i == (int)index)
+						return iter.getCoord();
+				return Coord();
+			}
+		};
+		
 		printf("A[%d][X] = \n", (int)A.numRows());
 		int irow;
 		for (irow = 0; irow < A.numRows(); ++irow) {

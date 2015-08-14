@@ -3563,6 +3563,7 @@ static OpenVDBSmokeGridType smoke_grid_type(int field)
 		case MOD_SMOKE_VDB_FIELD_DENSITY: return OpenVDBSmokeGrid_Density;
 		case MOD_SMOKE_VDB_FIELD_VELOCITY: return OpenVDBSmokeGrid_Velocity;
 		case MOD_SMOKE_VDB_FIELD_PRESSURE: return OpenVDBSmokeGrid_Pressure;
+		case MOD_SMOKE_VDB_FIELD_DIVERGENCE: return OpenVDBSmokeGrid_Divergence;
 		
 		default: BLI_assert(false); return OpenVDBSmokeGrid_Density; /* unhandled type */
 	}

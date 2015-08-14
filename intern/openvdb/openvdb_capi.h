@@ -165,6 +165,7 @@ typedef enum OpenVDBSmokeGridType {
 	OpenVDBSmokeGrid_Density,
 	OpenVDBSmokeGrid_Velocity,
 	OpenVDBSmokeGrid_Pressure,
+	OpenVDBSmokeGrid_Divergence,
 } OpenVDBSmokeGridType;
 
 void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,

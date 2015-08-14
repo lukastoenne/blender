@@ -772,6 +772,7 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	    {MOD_SMOKE_VDB_FIELD_DENSITY, "DENSITY", 0, "Density", "Show density field"},
 	    {MOD_SMOKE_VDB_FIELD_VELOCITY, "VELOCITY", 0, "Velocity", "Show velocity field"},
 	    {MOD_SMOKE_VDB_FIELD_PRESSURE, "PRESSURE", 0, "Pressure", "Show pressure field"},
+	    {MOD_SMOKE_VDB_FIELD_DIVERGENCE, "DIVERGENCE", 0, "Divergence", "Show divergence field"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
