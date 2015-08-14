@@ -2804,7 +2804,7 @@ static inline void smoke_init_matpoint_output_stream(SmokeMatPointOutputStream *
 
 /* ------------------------------------------------------------------------- */
 
-static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float UNUSED(dt), bool UNUSED(for_render))
+static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float dt, bool UNUSED(for_render))
 {
 	Object **flowobjs = NULL;
 	unsigned int numflowobj = 0;
@@ -2835,11 +2835,12 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 			
 			/* XXX dummy code */
 			{
-				int i, numverts = sfs->dm->getNumVerts(sfs->dm);
+				int numverts = sfs->dm->getNumVerts(sfs->dm);
+				int num_emit, i;
 				MVert *verts = sfs->dm->getVertArray(sfs->dm);
 				float min[3], max[3], size[3];
-				float r[3];
-				MaterialPoint *pt;
+				const float cs = sds->cell_size;
+				float Vpart, Vtot;
 				
 				if (numverts > 0) {
 					INIT_MINMAX(min, max);
@@ -2852,16 +2853,25 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 				}
 				sub_v3_v3v3(size, max, min);
 				
-				r[0] = BLI_frand();
-				r[1] = BLI_frand();
-				r[2] = BLI_frand();
-				mul_v3_v3(r, size);
-				add_v3_v3(r, min);
-				mul_m4_v3(mat, r);
+				Vpart = 4.0f/3.0f*M_PI * cs*cs*cs;
+				Vtot = size[0] * size[1] * size[2];
+				num_emit = sfs->density * dt * Vtot / Vpart;
 				
-				pt = smoke_vdb_add_matpoint(sds);
-				copy_v3_v3(pt->loc, r);
-				zero_v3(pt->vel);
+				for (i = 0; i < num_emit; ++i) {
+					float r[3];
+					MaterialPoint *pt;
+					
+					r[0] = BLI_frand();
+					r[1] = BLI_frand();
+					r[2] = BLI_frand();
+					mul_v3_v3(r, size);
+					add_v3_v3(r, min);
+					mul_m4_v3(mat, r);
+					
+					pt = smoke_vdb_add_matpoint(sds);
+					copy_v3_v3(pt->loc, r);
+					zero_v3(pt->vel);
+				}
 			}
 		}
 	}
