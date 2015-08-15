@@ -2905,6 +2905,7 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	mul_mat3_m4_v3(imat, gravity);
 	normalize_v3(gravity);
 	mul_v3_fl(gravity, gravity_mag);
+	OpenVDB_smoke_set_gravity(sds->data, gravity);
 
 	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
 	dt = DT_DEFAULT * (25.0f / fps);

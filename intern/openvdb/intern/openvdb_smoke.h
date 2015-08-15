@@ -142,7 +142,7 @@ struct OpenVDBSmokeData {
 	/* move particles through the velocity field (end of the time step) */
 	void get_points(OpenVDBPointOutputStream *stream) { points.to_stream(stream); }
 	
-	void add_gravity_force(const Vec3f &g);
+	void add_gravity_force();
 	void add_pressure_force(float dt, float bg_pressure);
 	
 //	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
@@ -150,12 +150,16 @@ struct OpenVDBSmokeData {
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
 	
+	void set_gravity(const Vec3f &g);
+	
 	bool step(float dt, int num_substeps);
 	
 	void init_grids();
 	void update_points(float dt);
 	void advect_backwards_trace(float dt);
 	void calculate_pressure(float dt, float bg_pressure);
+	
+	Vec3f gravity;
 	
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;

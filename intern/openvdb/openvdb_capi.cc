@@ -321,6 +321,11 @@ void OpenVDB_smoke_clear_obstacles(OpenVDBSmokeData *data)
 	((internal::OpenVDBSmokeData *)data)->clear_obstacles();
 }
 
+void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3])
+{
+	((internal::OpenVDBSmokeData *)data)->set_gravity(openvdb::Vec3f(g));
+}
+
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substeps)
 {
 	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);

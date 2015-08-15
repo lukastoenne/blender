@@ -156,6 +156,8 @@ void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *data, struct OpenVDBPoint
 void OpenVDB_smoke_add_obstacle(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it);
 void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
 
+void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3]);
+
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *data, double *err_abs, double *err_rel, int *iterations);
 

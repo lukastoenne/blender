@@ -273,12 +273,17 @@ void OpenVDBSmokeData::clear_obstacles()
 //		density->clear();
 }
 
-void OpenVDBSmokeData::add_gravity_force(const Vec3f &g)
+void OpenVDBSmokeData::set_gravity(const Vec3f &g)
+{
+	gravity = g;
+}
+
+void OpenVDBSmokeData::add_gravity_force()
 {
 	/* density defines which cells gravity acts on */
 	force->topologyUnion(*density);
 	
-	add_vgrid_v3(*force, g);
+	add_vgrid_v3(*force, gravity);
 }
 
 void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
@@ -311,7 +316,7 @@ bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 	print_grid_range(*velocity, "V1", "velocity");
 	
 	force->clear();
-	add_gravity_force(Vec3f(0,0,-1));
+	add_gravity_force();
 	add_pressure_force(dt, 0.0f);
 	print_grid_range(*velocity, "V2", "velocity");
 	
