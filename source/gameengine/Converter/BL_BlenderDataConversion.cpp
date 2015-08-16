@@ -1720,6 +1720,18 @@ static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, u
 	}
 }
 
+// Copy base layer to object layer like in BKE_scene_set_background
+static void blenderSceneSetBackground(Scene *blenderscene)
+{
+	Scene *it;
+	Base *base;
+
+	for (SETLOOPER(blenderscene, it, base)) {
+		base->object->lay = base->lay;
+		base->object->flag = base->flag;
+	}
+}
+
 static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 {
 
@@ -1972,6 +1984,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	SetDefaultLightMode(blenderscene);
+
+	blenderSceneSetBackground(blenderscene);
+
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -2303,7 +2318,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 			/* Store constraints of grouped and instanced objects for all layers */
 			gameobj->AddConstraint(dat);
-						
+
+			/** if it's during libload we only add constraints in the object but
+			 * doesn't create it. Constraint will be replicated later in scene->MergeScene
+			 */
+			if (libloading)
+				continue;
+
 			/* Skipped already converted constraints. 
 			 * This will happen when a group instance is made from a linked group instance
 			 * and both are on the active layer. */
