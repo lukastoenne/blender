@@ -33,6 +33,7 @@
 #include <openvdb/tools/GridOperators.h>
 #include <openvdb/tools/Morphology.h> // for tools::erodeVoxels()
 #include <openvdb/tools/ParticlesToLevelSet.h>
+#include <openvdb/tools/PointIndexGrid.h>
 #include <openvdb/tools/PoissonSolver.h>
 
 #include "openvdb_smoke.h"
@@ -179,8 +180,30 @@ float OpenVDBSmokeData::cell_size() const
 	return cell_transform->voxelSize().x();
 }
 
+template <int> struct util_weight;
+template <> struct util_weight<0> {
+	inline static Real weight(Real x) { return x; }
+};
+template <> struct util_weight<1> {
+	inline static Real weight(Real x) { return 1.0 - x; }
+};
+
+struct util_gather {
+	template <int i, int j, int k>
+	inline static void add_corner(BoxStencil<FloatGrid> &stencil, const Vec3R &offset)
+	{
+		float current = stencil.getValue<i, j, k>();
+		
+		float weight = util_weight<i>::weight(offset.x());
+		
+//		stencil.setValue<i, j, k>(current + weight);
+		stencil.setValue<i, j, k>(1.0f);
+	}
+};
+
 void OpenVDBSmokeData::init_grids()
 {
+#if 0
 	const float voxel_size = cell_size();
 	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size);
 	ls->setTransform(cell_transform);
@@ -196,6 +219,122 @@ void OpenVDBSmokeData::init_grids()
 	
 	density = ls;
 	velocity = vel;
+#elif 0
+	typedef tools::PointIndexTree PointIndexTree;
+	typedef tools::PointIndexGrid PointIndexGrid;
+	typedef FloatGrid::Accessor FloatAccessor;
+	typedef PointIndexGrid::ConstAccessor PointIndexAccessor;
+	typedef openvdb::tools::PointIndexIterator<> PointIndexIterator;
+	
+	PointIndexGrid::Ptr point_grid =
+	        tools::createPointIndexGrid<PointIndexGrid>(points, *cell_transform);
+	
+	PointIndexAccessor acc_point_grid = point_grid->getConstAccessor();
+	FloatAccessor acc_density = density->getAccessor();
+	PointIndexIterator pit;
+	
+	PointIndexTree::ValueOnCIter it = point_grid->cbeginValueOn();
+	for (; it; ++it) {
+		Coord ijk = it.getCoord();
+		CoordBBox bbox(ijk, ijk);
+		bbox.expand(2);
+		Vec3R center = cell_transform->indexToWorld(ijk);
+		
+		Real weight = 0.0f;
+		pit.searchAndUpdate(bbox, acc_point_grid);
+		for (; pit; ++pit) {
+			Index32 index = *pit;
+			Vec3R pos, vel;
+			Real rad;
+			points.getPosRadVel(index, pos, rad, vel);
+			
+			Real wx = 1.0 - fabs(pos.x() - center.x());
+			Real wy = 1.0 - fabs(pos.y() - center.y());
+			Real wz = 1.0 - fabs(pos.z() - center.z());
+			weight += wx * wy * wz;
+		}
+		
+		acc_density.setValueOn(ijk, weight);
+	}
+#elif 1
+	typedef tools::PointIndexTree PointIndexTree;
+	typedef tools::PointIndexGrid PointIndexGrid;
+	typedef FloatGrid::Accessor FloatAccessor;
+	typedef PointIndexGrid::ConstAccessor PointIndexAccessor;
+	typedef openvdb::tools::PointIndexIterator<> PointIndexIterator;
+	
+	density->clear();
+	
+	PointIndexGrid::Ptr point_grid =
+	        tools::createPointIndexGrid<PointIndexGrid>(points, *cell_transform);
+	FloatAccessor acc_density = density->getAccessor();
+	
+	for (size_t n = 0; n < points.size(); ++n) {
+		Vec3R pos, vel;
+		Real rad;
+		points.getPosRadVel(n, pos, rad, vel);
+		
+		Vec3R cpos = cell_transform->worldToIndex(pos);
+		float wx1 = fabs(cpos.x() - floor(cpos.x()));
+		float wy1 = fabs(cpos.y() - floor(cpos.y()));
+		float wz1 = fabs(cpos.z() - floor(cpos.z()));
+		float wx0 = 1.0f - wx1;
+		float wy0 = 1.0f - wy1;
+		float wz0 = 1.0f - wz1;
+		
+		Coord ijk = cell_transform->worldToIndexCellCentered(pos);
+#define ADD_VALUE(i, j, k, w) acc_density.setValueOn(ijk+Coord(i,j,k), acc_density.getValue(ijk+Coord(i,j,k)) + w)
+		ADD_VALUE(0,0,0, wx0 * wy0 * wz0);
+		ADD_VALUE(1,0,0, wx1 * wy0 * wz0);
+		ADD_VALUE(0,1,0, wx0 * wy1 * wz0);
+		ADD_VALUE(1,1,0, wx1 * wy1 * wz0);
+		ADD_VALUE(0,0,1, wx0 * wy0 * wz1);
+		ADD_VALUE(1,0,1, wx1 * wy0 * wz1);
+		ADD_VALUE(0,1,1, wx0 * wy1 * wz1);
+		ADD_VALUE(1,1,1, wx1 * wy1 * wz1);
+#undef ADD_VALUE
+	}
+	
+#else
+	typedef tools::UInt32PointPartitioner PointPartitioner;
+	PointPartitioner::Ptr partitioner =
+	        PointPartitioner::create(points, *cell_transform);
+	
+//	FloatTree &tree = density->tree;
+//	BoxStencil<FloatGrid> stencil(*density);
+//	FloatGrid::Accessor acc(density->tree());
+//	tree.beginLeaf()
+	
+	size_t num_buckets = partitioner->size();
+	for (size_t i = 0; i < num_buckets; ++i) {
+//		CoordBBox leaf_bbox = partitioner->getBBox(i);
+		
+//		acc.setActiveState(coords.getStart(), true);
+		
+		PointPartitioner::IndexIterator it = partitioner->indices(i);
+		for (; it; ++it) {
+			unsigned int index = *it;
+			
+			Vec3R pos, vel;
+			Real rad;
+			points.getPosRadVel(index, pos, rad, vel);
+//			Vec3R cpos = cell_transform->worldToIndex(pos);
+			Vec3R cpos = pos;
+			
+			stencil.moveTo(cpos);
+//			stencil.moveTo(Coord((int)cpos.x(), (int)cpos.y(), (int)cpos.z()));
+			
+			util_gather::add_corner<0, 0, 0>(stencil, cpos);
+			util_gather::add_corner<1, 0, 0>(stencil, cpos);
+			util_gather::add_corner<0, 1, 0>(stencil, cpos);
+			util_gather::add_corner<1, 1, 0>(stencil, cpos);
+			util_gather::add_corner<0, 0, 1>(stencil, cpos);
+			util_gather::add_corner<1, 0, 1>(stencil, cpos);
+			util_gather::add_corner<0, 1, 1>(stencil, cpos);
+			util_gather::add_corner<1, 1, 1>(stencil, cpos);
+		}
+	}
+#endif
 }
 
 void OpenVDBSmokeData::update_points(float dt)
