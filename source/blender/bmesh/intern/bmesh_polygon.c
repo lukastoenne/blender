@@ -99,7 +99,7 @@ static float bm_face_calc_poly_normal(const BMFace *f, float n[3])
 /**
  * \brief COMPUTE POLY NORMAL (BMFace)
  *
- * Same as #calc_poly_normal and #bm_face_calc_poly_normal
+ * Same as #bm_face_calc_poly_normal
  * but takes an array of vertex locations.
  */
 static float bm_face_calc_poly_normal_vertex_cos(
@@ -872,13 +872,15 @@ void BM_face_triangulate(
 			        pf_arena, pf_heap, pf_ehash);
 		}
 
+		BLI_memarena_clear(pf_arena);
+
 		/* loop over calculated triangles and create new geometry */
 		for (i = 0; i < totfilltri; i++) {
 			/* the order is reverse, otherwise the normal is flipped */
 			BMLoop *l_tri[3] = {
-			    loops[tris[i][2]],
+			    loops[tris[i][0]],
 			    loops[tris[i][1]],
-			    loops[tris[i][0]]};
+			    loops[tris[i][2]]};
 
 			BMVert *v_tri[3] = {
 			    l_tri[0]->v,

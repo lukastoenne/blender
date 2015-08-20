@@ -109,7 +109,7 @@
 #include "BLI_threads.h"
 #include "BLI_mempool.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -313,6 +313,56 @@ void blo_do_versions_oldnewmap_insert(OldNewMap *onm, void *oldaddr, void *newad
 	oldnewmap_insert(onm, oldaddr, newaddr, nr);
 }
 
+/**
+ * Do a full search (no state).
+ *
+ * \param lasthit: Use as a reference position to avoid a full search
+ * from either end of the array, giving more efficient lookups.
+ *
+ * \note This would seem an ideal case for hash or btree lookups.
+ * However the data is written in-order, using the \a lasthit will normally avoid calling this function.
+ * Creating a btree/hash structure adds overhead for the common-case to optimize the corner-case
+ * (since most entries will never be retrieved).
+ * So just keep full lookups as a fall-back.
+ */
+static int oldnewmap_lookup_entry_full(const OldNewMap *onm, const void *addr, int lasthit)
+{
+	const int nentries = onm->nentries;
+	const OldNew *entries = onm->entries;
+	int i;
+
+	/* search relative to lasthit where possible */
+	if (lasthit >= 0 && lasthit < nentries) {
+
+		/* search forwards */
+		i = lasthit;
+		while (++i != nentries) {
+			if (entries[i].old == addr) {
+				return i;
+			}
+		}
+
+		/* search backwards */
+		i = lasthit + 1;
+		while (i--) {
+			if (entries[i].old == addr) {
+				return i;
+			}
+		}
+	}
+	else {
+		/* search backwards (full) */
+		i = nentries;
+		while (i--) {
+			if (entries[i].old == addr) {
+				return i;
+			}
+		}
+	}
+
+	return -1;
+}
+
 static void *oldnewmap_lookup_and_inc(OldNewMap *onm, void *addr, bool increase_users) 
 {
 	int i;
@@ -329,16 +379,14 @@ static void *oldnewmap_lookup_and_inc(OldNewMap *onm, void *addr, bool increase_
 		}
 	}
 	
-	for (i = 0; i < onm->nentries; i++) {
+	i = oldnewmap_lookup_entry_full(onm, addr, onm->lasthit);
+	if (i != -1) {
 		OldNew *entry = &onm->entries[i];
-		
-		if (entry->old == addr) {
-			onm->lasthit = i;
-			
-			if (increase_users)
-				entry->nr++;
-			return entry->newp;
-		}
+		BLI_assert(entry->old == addr);
+		onm->lasthit = i;
+		if (increase_users)
+			entry->nr++;
+		return entry->newp;
 	}
 	
 	return NULL;
@@ -368,16 +416,13 @@ static void *oldnewmap_liblookup(OldNewMap *onm, void *addr, void *lib)
 	}
 	else {
 		/* note, this can be a bottle neck when loading some files */
-		unsigned int nentries = (unsigned int)onm->nentries;
-		unsigned int i;
-		OldNew *entry;
-
-		for (i = 0, entry = onm->entries; i < nentries; i++, entry++) {
-			if (entry->old == addr) {
-				ID *id = entry->newp;
-				if (id && (!lib || id->lib)) {
-					return id;
-				}
+		const int i = oldnewmap_lookup_entry_full(onm, addr, -1);
+		if (i != -1) {
+			OldNew *entry = &onm->entries[i];
+			ID *id = entry->newp;
+			BLI_assert(entry->old == addr);
+			if (id && (!lib || id->lib)) {
+				return id;
 			}
 		}
 	}
@@ -1189,47 +1234,60 @@ bool BLO_has_bfile_extension(const char *str)
 	return BLI_testextensie_array(str, ext_test);
 }
 
-bool BLO_is_a_library(const char *path, char *dir, char *group)
+bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, char **r_name)
 {
-	/* return ok when a blenderfile, in dir is the filename,
-	 * in group the type of libdata
-	 */
-	int len;
-	char *fd;
-	
-	/* if path leads to a directory we can be sure we're not in a library */
-	if (BLI_is_dir(path)) return 0;
+	/* We might get some data names with slashes, so we have to go up in path until we find blend file itself,
+	 * then we now next path item is group, and everything else is data name. */
+	char *slash = NULL, *prev_slash = NULL, c = '\0';
 
-	strcpy(dir, path);
-	len = strlen(dir);
-	if (len < 7) return 0;
-	if ((dir[len - 1] != '/') && (dir[len - 1] != '\\')) return 0;
-	
-	group[0] = '\0';
-	dir[len - 1] = '\0';
-
-	/* Find the last slash */
-	fd = (char *)BLI_last_slash(dir);
-
-	if (fd == NULL) return 0;
-	*fd = 0;
-	if (BLO_has_bfile_extension(fd+1)) {
-		/* the last part of the dir is a .blend file, no group follows */
-		*fd = '/'; /* put back the removed slash separating the dir and the .blend file name */
+	r_dir[0] = '\0';
+	if (r_group) {
+		*r_group = NULL;
 	}
-	else {
-		const char * const gp = fd + 1; // in case we have a .blend file, gp points to the group
-		
-		/* Find the last slash */
-		fd = (char *)BLI_last_slash(dir);
-		if (!fd || !BLO_has_bfile_extension(fd+1)) return 0;
-		
-		/* now we know that we are in a blend file and it is safe to 
-		 * assume that gp actually points to a group */
-		if (!STREQ("Screen", gp))
-			BLI_strncpy(group, gp, BLO_GROUP_MAX);
+	if (r_name) {
+		*r_name = NULL;
 	}
-	return 1;
+
+	/* if path leads to an existing directory, we can be sure we're not (in) a library */
+	if (BLI_is_dir(path)) {
+		return false;
+	}
+
+	strcpy(r_dir, path);
+
+	while ((slash = (char *)BLI_last_slash(r_dir))) {
+		char tc = *slash;
+		*slash = '\0';
+		if (BLO_has_bfile_extension(r_dir)) {
+			break;
+		}
+
+		if (prev_slash) {
+			*prev_slash = c;
+		}
+		prev_slash = slash;
+		c = tc;
+	}
+
+	if (!slash) {
+		return false;
+	}
+
+	if (slash[1] != '\0') {
+		BLI_assert(strlen(slash + 1) < BLO_GROUP_MAX);
+		if (r_group) {
+			*r_group = slash + 1;
+		}
+	}
+
+	if (prev_slash && (prev_slash[1] != '\0')) {
+		BLI_assert(strlen(prev_slash + 1) < MAX_ID_NAME - 2);
+		if (r_name) {
+			*r_name = prev_slash + 1;
+		}
+	}
+
+	return true;
 }
 
 /* ************** OLD POINTERS ******************* */
@@ -1237,6 +1295,31 @@ bool BLO_is_a_library(const char *path, char *dir, char *group)
 static void *newdataadr(FileData *fd, void *adr)		/* only direct databocks */
 {
 	return oldnewmap_lookup_and_inc(fd->datamap, adr, true);
+}
+
+/* This is a special version of newdataadr() which allows us to keep lasthit of
+ * map unchanged. In certain cases this makes file loading time significantly
+ * faster.
+ *
+ * Use this function in cases like restoring pointer from one list element to
+ * another list element, but keep lasthit value so we can continue restoring
+ * pointers efficiently.
+ *
+ * Example of this could be found in direct_link_fcurves() which restores the
+ * fcurve group pointer and keeps lasthit optimal for linking all further
+ * fcurves.
+ */
+static void *newdataadr_ex(FileData *fd, void *adr, bool increase_lasthit)		/* only direct databocks */
+{
+	if (increase_lasthit) {
+		return newdataadr(fd, adr);
+	}
+	else {
+		int lasthit = fd->datamap->lasthit;
+		void *newadr = newdataadr(fd, adr);
+		fd->datamap->lasthit = lasthit;
+		return newadr;
+	}
 }
 
 static void *newdataadr_no_us(FileData *fd, void *adr)		/* only direct databocks */
@@ -1655,22 +1738,35 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname)
 	return temp;
 }
 
-static void link_list(FileData *fd, ListBase *lb)		/* only direct data */
+typedef void (*link_list_cb)(FileData *fd, void *data);
+
+static void link_list_ex(FileData *fd, ListBase *lb, link_list_cb callback)		/* only direct data */
 {
 	Link *ln, *prev;
 	
 	if (BLI_listbase_is_empty(lb)) return;
 	
 	lb->first = newdataadr(fd, lb->first);
+	if (callback != NULL) {
+		callback(fd, lb->first);
+	}
 	ln = lb->first;
 	prev = NULL;
 	while (ln) {
 		ln->next = newdataadr(fd, ln->next);
+		if (ln->next != NULL && callback != NULL) {
+			callback(fd, ln->next);
+		}
 		ln->prev = prev;
 		prev = ln;
 		ln = ln->next;
 	}
 	lb->last = prev;
+}
+
+static void link_list(FileData *fd, ListBase *lb)		/* only direct data */
+{
+	link_list_ex(fd, lb, NULL);
 }
 
 static void link_glob_list(FileData *fd, ListBase *lb)		/* for glob data */
@@ -1882,6 +1978,25 @@ static void IDP_LibLinkProperty(IDProperty *UNUSED(prop), int UNUSED(switch_endi
 {
 }
 
+/* ************ READ IMAGE PREVIEW *************** */
+
+static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_prv)
+{
+	PreviewImage *prv = newdataadr(fd, old_prv);
+	
+	if (prv) {
+		int i;
+		for (i = 0; i < NUM_ICON_SIZES; ++i) {
+			if (prv->rect[i]) {
+				prv->rect[i] = newdataadr(fd, prv->rect[i]);
+			}
+			prv->gputexture[i] = NULL;
+		}
+	}
+	
+	return prv;
+}
+
 /* ************ READ ID *************** */
 
 static void direct_link_id(FileData *fd, ID *id)
@@ -2004,25 +2119,6 @@ static PackedFile *direct_link_packedfile(FileData *fd, PackedFile *oldpf)
 	return pf;
 }
 
-/* ************ READ IMAGE PREVIEW *************** */
-
-static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_prv)
-{
-	PreviewImage *prv = newdataadr(fd, old_prv);
-	
-	if (prv) {
-		int i;
-		for (i = 0; i < NUM_ICON_SIZES; ++i) {
-			if (prv->rect[i]) {
-				prv->rect[i] = newdataadr(fd, prv->rect[i]);
-			}
-			prv->gputexture[i] = NULL;
-		}
-	}
-	
-	return prv;
-}
-
 /* ************ READ ANIMATION STUFF ***************** */
 
 /* Legacy Data Support (for Version Patching) ----------------------------- */
@@ -2107,8 +2203,9 @@ static void lib_link_fmodifiers(FileData *fd, ID *id, ListBase *list)
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				data->script = newlibadr(fd, id->lib, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -2166,23 +2263,26 @@ static void direct_link_fmodifiers(FileData *fd, ListBase *list)
 				if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 					BLI_endian_switch_float_array(data->coefficients, data->arraysize);
 				}
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_ENVELOPE:
 			{
 				FMod_Envelope *data=  (FMod_Envelope *)fcm->data;
 				
 				data->data= newdataadr(fd, data->data);
-			}
+
 				break;
+			}
 			case FMODIFIER_TYPE_PYTHON:
 			{
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				data->prop = newdataadr(fd, data->prop);
 				IDP_DirectLinkGroup_OrFree(&data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			}
+
 				break;
+			}
 		}
 	}
 }
@@ -2202,7 +2302,7 @@ static void direct_link_fcurves(FileData *fd, ListBase *list)
 		fcu->rna_path = newdataadr(fd, fcu->rna_path);
 		
 		/* group */
-		fcu->grp = newdataadr(fd, fcu->grp);
+		fcu->grp = newdataadr_ex(fd, fcu->grp, false);
 		
 		/* clear disabled flag - allows disabled drivers to be tried again ([#32155]),
 		 * but also means that another method for "reviving disabled F-Curves" exists
@@ -3702,35 +3802,34 @@ static const char *ptcache_data_struct[] = {
 	"", // BPHYS_DATA_TIMES:
 	"BoidData" // case BPHYS_DATA_BOIDS:
 };
+
+static void direct_link_pointcache_cb(FileData *fd, void *data)
+{
+	PTCacheMem *pm = data;
+	PTCacheExtra *extra;
+	int i;
+	for (i = 0; i < BPHYS_TOT_DATA; i++) {
+		pm->data[i] = newdataadr(fd, pm->data[i]);
+
+		/* the cache saves non-struct data without DNA */
+		if (pm->data[i] && ptcache_data_struct[i][0]=='\0' && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
+			int tot = (BKE_ptcache_data_size (i) * pm->totpoint) / sizeof(int); /* data_size returns bytes */
+			int *poin = pm->data[i];
+
+			BLI_endian_switch_int32_array(poin, tot);
+		}
+	}
+
+	link_list(fd, &pm->extradata);
+
+	for (extra=pm->extradata.first; extra; extra=extra->next)
+		extra->data = newdataadr(fd, extra->data);
+}
+
 static void direct_link_pointcache(FileData *fd, PointCache *cache)
 {
 	if ((cache->flag & PTCACHE_DISK_CACHE)==0) {
-		PTCacheMem *pm;
-		PTCacheExtra *extra;
-		int i;
-		
-		link_list(fd, &cache->mem_cache);
-		
-		pm = cache->mem_cache.first;
-		
-		for (; pm; pm=pm->next) {
-			for (i=0; i<BPHYS_TOT_DATA; i++) {
-				pm->data[i] = newdataadr(fd, pm->data[i]);
-				
-				/* the cache saves non-struct data without DNA */
-				if (pm->data[i] && ptcache_data_struct[i][0]=='\0' && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
-					int tot = (BKE_ptcache_data_size (i) * pm->totpoint) / sizeof(int); /* data_size returns bytes */
-					int *poin = pm->data[i];
-					
-					BLI_endian_switch_int32_array(poin, tot);
-				}
-			}
-			
-			link_list(fd, &pm->extradata);
-			
-			for (extra=pm->extradata.first; extra; extra=extra->next)
-				extra->data = newdataadr(fd, extra->data);
-		}
+		link_list_ex(fd, &cache->mem_cache, direct_link_pointcache_cb);
 	}
 	else
 		BLI_listbase_clear(&cache->mem_cache);
@@ -3940,7 +4039,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			
 			if (psys->clmd) {
 				/* XXX - from reading existing code this seems correct but intended usage of
-				 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
+				 * pointcache /w cloth should be added in 'ParticleSystem' - campbell */
 				psys->clmd->point_cache = psys->pointcache;
 				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
@@ -4008,8 +4107,6 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->pdd = NULL;
 		psys->renderdata = NULL;
 		
-		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache, 0);
-		
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
 			psys->clmd->clothObject = NULL;
@@ -4026,10 +4123,13 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			
 			psys->hair_in_dm = psys->hair_out_dm = NULL;
 			psys->clmd->solver_result = NULL;
-			
+		}
+
+		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache, 0);
+		if (psys->clmd) {
 			psys->clmd->point_cache = psys->pointcache;
 		}
-		
+
 		psys->tree = NULL;
 		psys->bvhtree = NULL;
 	}
@@ -4554,7 +4654,7 @@ static void lib_link_object(FileData *fd, Main *main)
 					bCameraActuator *ca = act->data;
 					ca->ob= newlibadr(fd, ob->id.lib, ca->ob);
 				}
-					/* leave this one, it's obsolete but necessary to read for conversion */
+				/* leave this one, it's obsolete but necessary to read for conversion */
 				else if (act->type == ACT_ADD_OBJECT) {
 					bAddObjectActuator *eoa = act->data;
 					if (eoa) eoa->ob= newlibadr(fd, ob->id.lib, eoa->ob);
@@ -4890,9 +4990,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			collmd->current_xnew = NULL;
 			collmd->current_v = NULL;
 			collmd->time_x = collmd->time_xnew = -1000;
-			collmd->numverts = 0;
+			collmd->mvert_num = 0;
+			collmd->tri_num = 0;
 			collmd->bvhtree = NULL;
-			collmd->mfaces = NULL;
+			collmd->tri = NULL;
 			
 		}
 		else if (md->type == eModifierType_Surface) {
@@ -5244,6 +5345,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 
 	link_list(fd, &ob->lodlevels);
 	ob->currentlod = ob->lodlevels.first;
+
+	ob->preview = direct_link_preview_image(fd, ob->preview);
 }
 
 /* ************ READ SCENE ***************** */
@@ -5801,6 +5904,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			rbw->ltime = (float)rbw->pointcache->startframe;
 		}
 	}
+
+	sce->preview = direct_link_preview_image(fd, sce->preview);
 }
 
 /* ************ READ WM ***************** */
@@ -5951,6 +6056,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 				sc->scene = main->scene.first;
 
 			sc->animtimer = NULL; /* saved in rare cases */
+			sc->scrubbing = false;
 			
 			for (sa = sc->areabase.first; sa; sa = sa->next) {
 				SpaceLink *sl;
@@ -6579,6 +6685,8 @@ void blo_do_versions_view3d_split_250(View3D *v3d, ListBase *regions)
 	/* this was not initialized correct always */
 	if (v3d->twtype == 0)
 		v3d->twtype = V3D_MANIP_TRANSLATE;
+	if (v3d->gridsubdiv == 0)
+		v3d->gridsubdiv = 10;
 }
 
 static bool direct_link_screen(FileData *fd, bScreen *sc)
@@ -6771,6 +6879,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				
 				link_list(fd, &snode->treepath);
 				snode->edittree = NULL;
+				snode->iofsd = NULL;
 				BLI_listbase_clear(&snode->linkdrag);
 			}
 			else if (sl->spacetype == SPACE_TEXT) {
@@ -7043,6 +7152,8 @@ static void lib_link_sound(FileData *fd, Main *main)
 static void direct_link_group(FileData *fd, Group *group)
 {
 	link_list(fd, &group->gobject);
+
+	group->preview = direct_link_preview_image(fd, group->preview);
 }
 
 static void lib_link_group(FileData *fd, Main *main)
@@ -8382,8 +8493,9 @@ static void expand_fmodifiers(FileData *fd, Main *mainvar, ListBase *list)
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				expand_doit(fd, mainvar, data->script);
-			}
+
 				break;
+			}
 		}
 	}
 }

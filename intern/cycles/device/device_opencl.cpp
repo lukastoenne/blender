@@ -349,7 +349,11 @@ void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
 
 }  /* namespace */
 
-/* thread safe cache for contexts and programs */
+/* Thread safe cache for contexts and programs.
+ *
+ * TODO(sergey): Make it more generous, so it can contain any type of program
+ * without hardcoding possible program types in the slot.
+ */
 class OpenCLCache
 {
 	struct Slot
@@ -361,13 +365,16 @@ class OpenCLCache
 		/* cl_program for megakernel (used in OpenCLDeviceMegaKernel) */
 		cl_program ocl_dev_megakernel_program;
 
-		Slot() : mutex(NULL), context(NULL), ocl_dev_base_program(NULL), ocl_dev_megakernel_program(NULL) {}
+		Slot() : mutex(NULL),
+		         context(NULL),
+		         ocl_dev_base_program(NULL),
+		         ocl_dev_megakernel_program(NULL) {}
 
-		Slot(const Slot &rhs)
-			: mutex(rhs.mutex)
-			, context(rhs.context)
-			, ocl_dev_base_program(rhs.ocl_dev_base_program)
-			, ocl_dev_megakernel_program(rhs.ocl_dev_megakernel_program)
+		Slot(const Slot& rhs)
+		    : mutex(rhs.mutex),
+		      context(rhs.context),
+		      ocl_dev_base_program(rhs.ocl_dev_base_program),
+		      ocl_dev_megakernel_program(rhs.ocl_dev_megakernel_program)
 		{
 			/* copy can only happen in map insert, assert that */
 			assert(mutex == NULL);
@@ -414,12 +421,14 @@ class OpenCLCache
 	 * will be holding a lock for the cache. slot_locker should refer to a
 	 * default constructed thread_scoped_lock */
 	template<typename T>
-	static T get_something(cl_platform_id platform, cl_device_id device,
-		T Slot::*member, thread_scoped_lock &slot_locker)
+	static T get_something(cl_platform_id platform,
+	                       cl_device_id device,
+	                       T Slot::*member,
+	                       thread_scoped_lock& slot_locker)
 	{
 		assert(platform != NULL);
 
-		OpenCLCache &self = global_instance();
+		OpenCLCache& self = global_instance();
 
 		thread_scoped_lock cache_lock(self.cache_lock);
 
@@ -452,8 +461,11 @@ class OpenCLCache
 
 	/* store something in the cache. you MUST have tried to get the item before storing to it */
 	template<typename T>
-	static void store_something(cl_platform_id platform, cl_device_id device, T thing,
-		T Slot::*member, thread_scoped_lock &slot_locker)
+	static void store_something(cl_platform_id platform,
+	                            cl_device_id device,
+	                            T thing,
+	                            T Slot::*member,
+	                            thread_scoped_lock& slot_locker)
 	{
 		assert(platform != NULL);
 		assert(device != NULL);
@@ -485,10 +497,14 @@ public:
 	};
 
 	/* see get_something comment */
-	static cl_context get_context(cl_platform_id platform, cl_device_id device,
-		thread_scoped_lock &slot_locker)
+	static cl_context get_context(cl_platform_id platform,
+	                              cl_device_id device,
+	                              thread_scoped_lock& slot_locker)
 	{
-		cl_context context = get_something<cl_context>(platform, device, &Slot::context, slot_locker);
+		cl_context context = get_something<cl_context>(platform,
+		                                               device,
+		                                               &Slot::context,
+		                                               slot_locker);
 
 		if(!context)
 			return NULL;
@@ -502,19 +518,29 @@ public:
 	}
 
 	/* see get_something comment */
-	static cl_program get_program(cl_platform_id platform, cl_device_id device, ProgramName program_name,
-		thread_scoped_lock &slot_locker)
+	static cl_program get_program(cl_platform_id platform,
+	                              cl_device_id device,
+	                              ProgramName program_name,
+	                              thread_scoped_lock& slot_locker)
 	{
 		cl_program program = NULL;
 
-		if(program_name == OCL_DEV_BASE_PROGRAM) {
-			/* Get program related to OpenCLDeviceBase */
-			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_base_program, slot_locker);
-		}
-		else if(program_name == OCL_DEV_MEGAKERNEL_PROGRAM) {
-			/* Get program related to megakernel */
-			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_megakernel_program, slot_locker);
-		} else {
+		switch(program_name) {
+			case OCL_DEV_BASE_PROGRAM:
+				/* Get program related to OpenCLDeviceBase */
+				program = get_something<cl_program>(platform,
+				                                    device,
+				                                    &Slot::ocl_dev_base_program,
+				                                    slot_locker);
+				break;
+			case OCL_DEV_MEGAKERNEL_PROGRAM:
+				/* Get program related to megakernel */
+				program = get_something<cl_program>(platform,
+				                                    device,
+				                                    &Slot::ocl_dev_megakernel_program,
+				                                    slot_locker);
+				break;
+		default:
 			assert(!"Invalid program name");
 		}
 
@@ -530,10 +556,16 @@ public:
 	}
 
 	/* see store_something comment */
-	static void store_context(cl_platform_id platform, cl_device_id device, cl_context context,
-		thread_scoped_lock &slot_locker)
+	static void store_context(cl_platform_id platform,
+	                          cl_device_id device,
+	                          cl_context context,
+	                          thread_scoped_lock& slot_locker)
 	{
-		store_something<cl_context>(platform, device, context, &Slot::context, slot_locker);
+		store_something<cl_context>(platform,
+		                            device,
+		                            context,
+		                            &Slot::context,
+		                            slot_locker);
 
 		/* increment reference count in OpenCL.
 		 * The caller is going to release the object when done with it. */
@@ -543,28 +575,41 @@ public:
 	}
 
 	/* see store_something comment */
-	static void store_program(cl_platform_id platform, cl_device_id device, cl_program program, ProgramName program_name,
-		thread_scoped_lock &slot_locker)
+	static void store_program(cl_platform_id platform,
+	                          cl_device_id device,
+	                          cl_program program,
+	                          ProgramName program_name,
+	                          thread_scoped_lock& slot_locker)
 	{
-		if(program_name == OCL_DEV_BASE_PROGRAM) {
-			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_base_program, slot_locker);
-		}
-		else if(program_name == OCL_DEV_MEGAKERNEL_PROGRAM) {
-			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_megakernel_program, slot_locker);
-		} else {
-			assert(!"Invalid program name\n");
-			return;
+		switch (program_name) {
+			case OCL_DEV_BASE_PROGRAM:
+				store_something<cl_program>(platform,
+				                            device,
+				                            program,
+				                            &Slot::ocl_dev_base_program,
+				                            slot_locker);
+				break;
+			case OCL_DEV_MEGAKERNEL_PROGRAM:
+				store_something<cl_program>(platform,
+				                            device,
+				                            program,
+				                            &Slot::ocl_dev_megakernel_program,
+				                            slot_locker);
+				break;
+			default:
+				assert(!"Invalid program name\n");
+				return;
 		}
 
-		/* increment reference count in OpenCL.
-		 * The caller is going to release the object when done with it. */
+		/* Increment reference count in OpenCL.
+		 * The caller is going to release the object when done with it.
+		 */
 		cl_int ciErr = clRetainProgram(program);
 		assert(ciErr == CL_SUCCESS);
 		(void)ciErr;
 	}
 
-	/* discard all cached contexts and programs
-	 * the parameter is a temporary workaround. See OpenCLCache::~OpenCLCache */
+	/* Discard all cached contexts and programs.  */
 	static void flush()
 	{
 		OpenCLCache &self = global_instance();
@@ -891,79 +936,109 @@ public:
 		return md5.get_hex();
 	}
 
-	bool load_kernels(const DeviceRequestedFeatures& /*requested_features*/)
+	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
-		/* verify if device was initialized */
+		/* Verify if device was initialized. */
 		if(!device_initialized) {
 			fprintf(stderr, "OpenCL: failed to initialize device.\n");
 			return false;
 		}
 
-		/* try to use cached kernel */
+		/* Try to use cached kernel. */
 		thread_scoped_lock cache_locker;
-		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::OCL_DEV_BASE_PROGRAM, cache_locker);
+		cpProgram = load_cached_kernel(requested_features,
+		                               OpenCLCache::OCL_DEV_BASE_PROGRAM,
+		                               cache_locker);
 
 		if(!cpProgram) {
-			/* verify we have right opencl version */
+			VLOG(2) << "No cached OpenCL kernel.";
+
+			/* Verify we have right opencl version. */
 			if(!opencl_version_check())
 				return false;
 
-			/* md5 hash to detect changes */
+			string build_flags = build_options_for_base_program(requested_features);
+
+			/* Calculate md5 hashes to detect changes. */
 			string kernel_path = path_get("kernel");
 			string kernel_md5 = path_files_md5_hash(kernel_path);
-			string device_md5 = device_md5_hash();
+			string device_md5 = device_md5_hash(build_flags);
 
-			/* path to cached binary */
-			string clbin = string_printf("cycles_kernel_%s_%s.clbin", device_md5.c_str(), kernel_md5.c_str());
+			/* Path to cached binary.
+			 *
+			 * TODO(sergey): Seems we could de-duplicate all this string_printf()
+			 * calls with some utility function which will give file name for a
+			 * given hashes..
+			 */
+			string clbin = string_printf("cycles_kernel_%s_%s.clbin",
+			                             device_md5.c_str(),
+			                             kernel_md5.c_str());
 			clbin = path_user_get(path_join("cache", clbin));
 
 			/* path to preprocessed source for debugging */
 			string clsrc, *debug_src = NULL;
 
 			if(opencl_kernel_use_debug()) {
-				clsrc = string_printf("cycles_kernel_%s_%s.cl", device_md5.c_str(), kernel_md5.c_str());
+				clsrc = string_printf("cycles_kernel_%s_%s.cl",
+				                      device_md5.c_str(),
+				                      kernel_md5.c_str());
 				clsrc = path_user_get(path_join("cache", clsrc));
 				debug_src = &clsrc;
 			}
 
-			/* if exists already, try use it */
-			if(path_exists(clbin) && load_binary(kernel_path, clbin, "", &cpProgram)) {
-				/* kernel loaded from binary */
+			/* If binary kernel exists already, try use it. */
+			if(path_exists(clbin) && load_binary(kernel_path,
+			                                     clbin,
+			                                     build_flags,
+			                                     &cpProgram)) {
+				/* Kernel loaded from binary, nothing to do. */
+				VLOG(2) << "Loaded kernel from " << clbin << ".";
 			}
 			else {
-
+				VLOG(2) << "Kernel file " << clbin << " either doesn't exist or failed to be loaded by driver.";
 				string init_kernel_source = "#include \"kernels/opencl/kernel.cl\" // " + kernel_md5 + "\n";
 
-				/* if does not exist or loading binary failed, compile kernel */
-				if(!compile_kernel(kernel_path, init_kernel_source, "", &cpProgram, debug_src))
+				/* If does not exist or loading binary failed, compile kernel. */
+				if(!compile_kernel(kernel_path,
+				                   init_kernel_source,
+				                   build_flags,
+				                   &cpProgram,
+				                   debug_src))
+				{
 					return false;
+				}
 
-				/* save binary for reuse */
-				if(!save_binary(&cpProgram, clbin))
+				/* Save binary for reuse. */
+				if(!save_binary(&cpProgram, clbin)) {
 					return false;
+				}
 			}
 
-			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, cpProgram, OpenCLCache::OCL_DEV_BASE_PROGRAM, cache_locker);
+			/* Cache the program. */
+			store_cached_kernel(cpPlatform,
+			                    cdDevice,
+			                    cpProgram,
+			                    OpenCLCache::OCL_DEV_BASE_PROGRAM,
+			                    cache_locker);
+		}
+		else {
+			VLOG(2) << "Found cached OpenCL kernel.";
 		}
 
-		/* find kernels */
-		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
+		/* Find kernels. */
+#define FIND_KERNEL(kernel_var, kernel_name) \
+		do { \
+			kernel_var = clCreateKernel(cpProgram, "kernel_ocl_" kernel_name, &ciErr); \
+			if(opencl_error(ciErr)) \
+				return false; \
+		} while(0)
 
-		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
+		FIND_KERNEL(ckFilmConvertByteKernel, "convert_to_byte");
+		FIND_KERNEL(ckFilmConvertHalfFloatKernel, "convert_to_half_float");
+		FIND_KERNEL(ckShaderKernel, "shader");
+		FIND_KERNEL(ckBakeKernel, "bake");
 
-		ckShaderKernel = clCreateKernel(cpProgram, "kernel_ocl_shader", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
-
-		ckBakeKernel = clCreateKernel(cpProgram, "kernel_ocl_bake", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
-
+#undef FIND_KERNEL
 		return true;
 	}
 
@@ -981,9 +1056,9 @@ public:
 		}
 
 		if(ckFilmConvertByteKernel)
-			clReleaseKernel(ckFilmConvertByteKernel);  
+			clReleaseKernel(ckFilmConvertByteKernel);
 		if(ckFilmConvertHalfFloatKernel)
-			clReleaseKernel(ckFilmConvertHalfFloatKernel);  
+			clReleaseKernel(ckFilmConvertHalfFloatKernel);
 		if(ckShaderKernel)
 			clReleaseKernel(ckShaderKernel);
 		if(ckBakeKernel)
@@ -1105,7 +1180,7 @@ public:
 	void tex_alloc(const char *name,
 	               device_memory& mem,
 	               InterpolationType /*interpolation*/,
-	               bool /*periodic*/)
+	               ExtensionType /*extension*/)
 	{
 		VLOG(1) << "Texture allocate: " << name << ", " << mem.memory_size() << " bytes.";
 		mem_alloc(mem, MEM_READ_ONLY);
@@ -1303,7 +1378,6 @@ public:
 	virtual void thread_run(DeviceTask * /*task*/) = 0;
 
 protected:
-
 	string kernel_build_options(const string *debug_src = NULL)
 	{
 		string build_options = " -cl-fast-relaxed-math ";
@@ -1493,7 +1567,48 @@ protected:
 		if(!requested_features.use_camera_motion) {
 			build_options += " -D__NO_CAMERA_MOTION__";
 		}
+		if(!requested_features.use_baking) {
+			build_options += " -D__NO_BAKING__";
+		}
 		return build_options;
+	}
+
+	/* ** Those guys are for workign around some compiler-specific bugs ** */
+
+	virtual cl_program load_cached_kernel(
+	        const DeviceRequestedFeatures& /*requested_features*/,
+	        OpenCLCache::ProgramName program_name,
+	        thread_scoped_lock& cache_locker)
+	{
+		return OpenCLCache::get_program(cpPlatform,
+		                                cdDevice,
+		                                program_name,
+		                                cache_locker);
+	}
+
+	virtual void store_cached_kernel(cl_platform_id platform,
+	                                 cl_device_id device,
+	                                 cl_program program,
+	                                 OpenCLCache::ProgramName program_name,
+	                                 thread_scoped_lock& cache_locker)
+	{
+		OpenCLCache::store_program(platform,
+		                           device,
+		                           program,
+		                           program_name,
+		                           cache_locker);
+	}
+
+	virtual string build_options_for_base_program(
+	        const DeviceRequestedFeatures& /*requested_features*/)
+	{
+		/* TODO(sergey): By default we compile all features, meaning
+		 * mega kernel is not getting feature-based optimizations.
+		 *
+		 * Ideally we need always compile kernel with as less features
+		 * enabed as possible to keep performance at it's max.
+		 */
+		return "";
 	}
 };
 
@@ -3439,6 +3554,34 @@ protected:
 		opencl_assert_err(ciErr, "clCreateBuffer");
 		return ptr;
 	}
+
+	/* ** Those guys are for workign around some compiler-specific bugs ** */
+
+	cl_program load_cached_kernel(
+	        const DeviceRequestedFeatures& /*requested_features*/,
+	        OpenCLCache::ProgramName /*program_name*/,
+	        thread_scoped_lock /*cache_locker*/)
+	{
+		VLOG(2) << "Skip loading kernel from cache, "
+		        << "not supported by split kernel.";
+		return NULL;
+	}
+
+	void store_cached_kernel(cl_platform_id /*platform*/,
+	                         cl_device_id /*device*/,
+	                         cl_program /*program*/,
+	                         OpenCLCache::ProgramName /*program_name*/,
+	                         thread_scoped_lock& /*slot_locker*/)
+	{
+		VLOG(2) << "Skip storing kernel in cache, "
+		        << "not supported by split kernel.";
+	}
+
+	string build_options_for_base_program(
+	        const DeviceRequestedFeatures& requested_features)
+	{
+		return build_options_from_requested_features(requested_features);
+	}
 };
 
 Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
@@ -3468,16 +3611,22 @@ bool device_opencl_init(void)
 
 	initialized = true;
 
-	int clew_result = clewInit();
-	if(clew_result == CLEW_SUCCESS) {
-		VLOG(1) << "CLEW initialization succeeded.";
-		result = true;
+	if(opencl_device_type() != 0) {
+		int clew_result = clewInit();
+		if(clew_result == CLEW_SUCCESS) {
+			VLOG(1) << "CLEW initialization succeeded.";
+			result = true;
+		}
+		else {
+			VLOG(1) << "CLEW initialization failed: "
+			        << ((clew_result == CLEW_ERROR_ATEXIT_FAILED)
+			            ? "Error setting up atexit() handler"
+			            : "Error opening the library");
+		}
 	}
 	else {
-		VLOG(1) << "CLEW initialization failed: "
-		        << ((clew_result == CLEW_ERROR_ATEXIT_FAILED)
-		            ? "Error setting up atexit() handler"
-		            : "Error opening the library");
+		VLOG(1) << "Skip initializing CLEW, platform is force disabled.";
+		result = false;
 	}
 
 	return result;

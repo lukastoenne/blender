@@ -38,7 +38,7 @@
 #include "BKE_context.h"
 #include "BKE_report.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 
 #include "BIF_gl.h"
@@ -663,6 +663,14 @@ static void walkEvent(bContext *C, wmOperator *op, WalkInfo *walk, const wmEvent
 			    (walk->center_mval[1] == event->mval[1]))
 			{
 				walk->is_cursor_first = false;
+			}
+			else {
+				/* note, its possible the system isn't giving us the warp event
+				 * ideally we shouldn't have to worry about this, see: T45361 */
+				wmWindow *win = CTX_wm_window(C);
+				WM_cursor_warp(win,
+				               walk->ar->winrct.xmin + walk->center_mval[0],
+				               walk->ar->winrct.ymin + walk->center_mval[1]);
 			}
 			return;
 		}

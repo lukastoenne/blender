@@ -343,6 +343,9 @@ function(setup_liblinks
 	if(WITH_BULLET AND WITH_SYSTEM_BULLET)
 		target_link_libraries(${target} ${BULLET_LIBRARIES})
 	endif()
+	if(WITH_AUDASPACE AND WITH_SYSTEM_AUDASPACE)
+		target_link_libraries(${target} ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+	endif()
 	if(WITH_OPENAL)
 		target_link_libraries(${target} ${OPENAL_LIBRARY})
 	endif()
@@ -369,6 +372,16 @@ function(setup_liblinks
 	endif()
 	if(WITH_OPENCOLORIO)
 		target_link_libraries(${target} ${OPENCOLORIO_LIBRARIES})
+	endif()
+	if(WITH_OPENSUBDIV)
+		if(WIN32 AND NOT UNIX)
+			file_list_suffix(OPENSUBDIV_LIBRARIES_DEBUG "${OPENSUBDIV_LIBRARIES}" "_d")
+			target_link_libraries_debug(${target} "${OPENSUBDIV_LIBRARIES_DEBUG}")
+			target_link_libraries_optimized(${target} "${OPENSUBDIV_LIBRARIES}")
+			unset(OPENSUBDIV_LIBRARIES_DEBUG)
+		else()
+			target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
+		endif()
 	endif()
 	if(WITH_CYCLES_OSL)
 		target_link_libraries(${target} ${OSL_LIBRARIES})
@@ -578,6 +591,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_videotex
 		bf_dna
 		bf_blenfont
+		bf_blentranslation
 		bf_intern_audaspace
 		bf_intern_mikktspace
 		bf_intern_dualcon
@@ -672,6 +686,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
 		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
+	endif()
+
+	if(WITH_OPENSUBDIV)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
