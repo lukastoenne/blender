@@ -40,7 +40,7 @@
 
 #include "BLI_math.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_editmesh.h"
 #include "BKE_paint.h"
@@ -58,9 +58,7 @@
 
 #ifdef WITH_QUICKTIME
 #  include "quicktime_export.h"
-#  ifdef WITH_AUDASPACE
-#    include "AUD_Space.h"
-#  endif
+#  include AUD_TYPES_H
 #endif
 
 #ifdef WITH_FFMPEG
@@ -368,12 +366,12 @@ EnumPropertyItem views_format_multiview_items[] = {
 
 EnumPropertyItem stereo3d_display_items[] = {
 	{S3D_DISPLAY_ANAGLYPH, "ANAGLYPH", 0, "Anaglyph",
-     "Render views for left and right eyes as two differently filtered colors in a single image "
-     "(anaglyph glasses are required)"},
+	 "Render views for left and right eyes as two differently filtered colors in a single image "
+	 "(anaglyph glasses are required)"},
 	{S3D_DISPLAY_INTERLACE, "INTERLACE", 0, "Interlace",
-     "Render views for left and right eyes interlaced in a single image (3D-ready monitor is required)"},
+	 "Render views for left and right eyes interlaced in a single image (3D-ready monitor is required)"},
 	{S3D_DISPLAY_PAGEFLIP, "TIMESEQUENTIAL", 0, "Time Sequential",
-     "Render alternate eyes (also known as page flip, quad buffer support in the graphic card is required)"},
+	 "Render alternate eyes (also known as page flip, quad buffer support in the graphic card is required)"},
 	{S3D_DISPLAY_SIDEBYSIDE, "SIDEBYSIDE", 0, "Side-by-Side", "Render views for left and right eyes side-by-side"},
 	{S3D_DISPLAY_TOPBOTTOM, "TOPBOTTOM", 0, "Top-Bottom", "Render views for left and right eyes one above another"},
 	{0, NULL, 0, NULL, NULL}
@@ -4830,7 +4828,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Volume", "Audio volume");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_SOUND);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 #endif
 
@@ -5883,6 +5881,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "debug_pass_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, render_pass_debug_type_items);
 	RNA_def_property_ui_text(prop, "Debug Pass Type", "Type of the debug pass to use");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 #endif
 
 	/* Nestled Data  */
@@ -6483,7 +6482,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "audio.volume");
 	RNA_def_property_range(prop, 0.0f, 100.0f);
 	RNA_def_property_ui_text(prop, "Volume", "Audio volume");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_SOUND);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SOUND);
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	RNA_def_property_float_funcs(prop, NULL, "rna_Scene_volume_set", NULL);
 

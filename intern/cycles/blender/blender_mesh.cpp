@@ -242,8 +242,16 @@ static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManag
 	bool animated = false;
 
 	volume_data->manager = image_manager;
-	volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
-		b_ob.ptr.data, animated, frame, is_float, is_linear, INTERPOLATION_LINEAR, true);
+	volume_data->slot = image_manager->add_image(
+	        Attribute::standard_name(std),
+	        b_ob.ptr.data,
+	        animated,
+	        frame,
+	        is_float,
+	        is_linear,
+	        INTERPOLATION_LINEAR,
+	        EXTENSION_REPEAT,
+	        true);
 }
 
 static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *mesh, float frame)
@@ -440,7 +448,7 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
 				*data = d->value();
-				data += 1;
+				data++;
 			}
 		}
 	}
@@ -459,10 +467,8 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			size_t i = 0;
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
-				data->x = d->value()[0];
-				data->y = d->value()[1];
-				data->z = d->value()[2];
-				data += 1;
+				*data = get_float3(d->value());
+				data++;
 			}
 		}
 	}
@@ -481,8 +487,8 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			size_t i = 0;
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
-				d->value((float *)data);
-				data += 1;
+				*data = get_float4(d->value());
+				data++;
 			}
 		}
 	}
@@ -502,7 +508,7 @@ static void attr_create_vertex_properties(Scene *scene, Mesh *mesh, BL::Mesh b_m
 			
 			for(l->data.begin(d); d != l->data.end(); ++d, ++i) {
 				*data = (float)d->value();
-				data += 1;
+				data++;
 			}
 		}
 	}

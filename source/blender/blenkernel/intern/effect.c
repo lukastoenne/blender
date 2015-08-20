@@ -541,15 +541,14 @@ int closest_point_on_surface(SurfaceModifierData *surmd, const float co[3], floa
 		}
 
 		if (surface_vel) {
-			MFace *mface = CDDM_get_tessface(surmd->dm, nearest.index);
+			const MLoop *mloop = surmd->bvhtree->loop;
+			const MLoopTri *lt = &surmd->bvhtree->looptri[nearest.index];
 			
-			copy_v3_v3(surface_vel, surmd->v[mface->v1].co);
-			add_v3_v3(surface_vel, surmd->v[mface->v2].co);
-			add_v3_v3(surface_vel, surmd->v[mface->v3].co);
-			if (mface->v4)
-				add_v3_v3(surface_vel, surmd->v[mface->v4].co);
+			copy_v3_v3(surface_vel, surmd->v[mloop[lt->tri[0]].v].co);
+			add_v3_v3(surface_vel, surmd->v[mloop[lt->tri[1]].v].co);
+			add_v3_v3(surface_vel, surmd->v[mloop[lt->tri[2]].v].co);
 
-			mul_v3_fl(surface_vel, mface->v4 ? 0.25f : (1.0f / 3.0f));
+			mul_v3_fl(surface_vel, (1.0f / 3.0f));
 		}
 		return 1;
 	}
@@ -1560,7 +1559,7 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorCon
 	const int res = fmd->fieldlines.res;
 	const int substeps = fmd->fieldlines.substeps;
 	
-	MSurfaceSampleGenerator *gen;
+	MeshSampleGenerator *gen;
 	ForceVizEffectorData funcdata;
 	int i;
 	
@@ -1575,14 +1574,15 @@ static void forceviz_generate_field_lines(ForceVizModifierData *fmd, EffectorCon
 	invert_m4_m4(funcdata.imat, funcdata.mat);
 	funcdata.use_blenjit = fmd->flag & MOD_FORCEVIZ_USE_BLENJIT;
 	
-	gen = BKE_mesh_sample_create_generator_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+//	gen = BKE_mesh_sample_gen_surface_random_ex(dm, fmd->seed, forceviz_field_vertex_weight, &funcdata, true);
+	gen = BKE_mesh_sample_gen_volume_random_bbray(dm, fmd->seed, 10.0f);
 	if (!gen)
 		return;
 	
 	BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT3, fmd->fieldlines.strength_layer);
 	
 	for (i = 0; i < totlines; ++i) {
-		MSurfaceSample sample;
+		MeshSample sample;
 		float loc[3], nor[3], tang[3];
 		
 		/* generate a starting point on the mesh surface */

@@ -231,7 +231,7 @@ void BJIT_load_all_modules(const char *modpath, bool reload)
 			}
 		}
 	}
-	BLI_filelist_free(dir, totfile, NULL);
+	BLI_filelist_free(dir, totfile);
 }
 
 void BJIT_unload_all_modules()

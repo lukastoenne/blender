@@ -37,7 +37,7 @@
 #include "BLI_dlrbTree.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
@@ -3626,6 +3626,19 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 	wmWindow *win;
 
 	for (win = wm->windows.first; win; win = win->next) {
+		if (win->screen->animtimer || win->screen->scrubbing) {
+			return win->screen;
+		}
+	}
+
+	return NULL;
+}
+
+bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
+{
+	wmWindow *win;
+
+	for (win = wm->windows.first; win; win = win->next) {
 		if (win->screen->animtimer) {
 			return win->screen;
 		}
@@ -3633,6 +3646,7 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 
 	return NULL;
 }
+
 
 /* toggle operator */
 int ED_screen_animation_play(bContext *C, int sync, int mode)
@@ -3972,7 +3986,9 @@ static int scene_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 
-	ED_screen_delete_scene(C, scene);
+	if (ED_screen_delete_scene(C, scene) == false) {
+		return OPERATOR_CANCELLED;
+	}
 
 	if (G.debug & G_DEBUG)
 		printf("scene delete %p\n", scene);

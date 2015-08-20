@@ -68,39 +68,6 @@ class AddPresetBase:
         trans = maketrans_init()
         return name.lower().strip().translate(trans)
 
-    def write_preset_py(self, file_preset):
-        def rna_recursive_attr_expand(value, rna_path_step, level):
-            if isinstance(value, bpy.types.PropertyGroup):
-                for sub_value_attr in value.bl_rna.properties.keys():
-                    if sub_value_attr == "rna_type":
-                        continue
-                    sub_value = getattr(value, sub_value_attr)
-                    rna_recursive_attr_expand(sub_value, "%s.%s" % (rna_path_step, sub_value_attr), level)
-            elif type(value).__name__ == "bpy_prop_collection_idprop":  # could use nicer method
-                file_preset.write("%s.clear()\n" % rna_path_step)
-                for sub_value in value:
-                    file_preset.write("item_sub_%d = %s.add()\n" % (level, rna_path_step))
-                    rna_recursive_attr_expand(sub_value, "item_sub_%d" % level, level + 1)
-            else:
-                # convert thin wrapped sequences
-                # to simple lists to repr()
-                try:
-                    value = value[:]
-                except:
-                    pass
-
-                file_preset.write("%s = %r\n" % (rna_path_step, value))
-
-        if hasattr(self, "preset_defines"):
-            for rna_path in self.preset_defines:
-                exec(rna_path)
-                file_preset.write("%s\n" % rna_path)
-            file_preset.write("\n")
-
-        for rna_path in self.preset_values:
-            value = eval(rna_path)
-            rna_recursive_attr_expand(value, rna_path, 1)
-
     def execute(self, context):
         import os
 
@@ -145,10 +112,41 @@ class AddPresetBase:
                                            filepath,
                                            preset_menu_class.preset_xml_map)
                 else:
+
+                    def rna_recursive_attr_expand(value, rna_path_step, level):
+                        if isinstance(value, bpy.types.PropertyGroup):
+                            for sub_value_attr in value.bl_rna.properties.keys():
+                                if sub_value_attr == "rna_type":
+                                    continue
+                                sub_value = getattr(value, sub_value_attr)
+                                rna_recursive_attr_expand(sub_value, "%s.%s" % (rna_path_step, sub_value_attr), level)
+                        elif type(value).__name__ == "bpy_prop_collection_idprop":  # could use nicer method
+                            file_preset.write("%s.clear()\n" % rna_path_step)
+                            for sub_value in value:
+                                file_preset.write("item_sub_%d = %s.add()\n" % (level, rna_path_step))
+                                rna_recursive_attr_expand(sub_value, "item_sub_%d" % level, level + 1)
+                        else:
+                            # convert thin wrapped sequences
+                            # to simple lists to repr()
+                            try:
+                                value = value[:]
+                            except:
+                                pass
+
+                            file_preset.write("%s = %r\n" % (rna_path_step, value))
+
                     file_preset = open(filepath, 'w')
                     file_preset.write("import bpy\n")
 
-                    self.write_preset_py(file_preset)
+                    if hasattr(self, "preset_defines"):
+                        for rna_path in self.preset_defines:
+                            exec(rna_path)
+                            file_preset.write("%s\n" % rna_path)
+                        file_preset.write("\n")
+
+                    for rna_path in self.preset_values:
+                        value = eval(rna_path)
+                        rna_recursive_attr_expand(value, rna_path, 1)
 
                     file_preset.close()
 

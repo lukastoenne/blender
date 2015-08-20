@@ -46,7 +46,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_string_utf8.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_object_types.h"
 #include "DNA_node_types.h"
@@ -159,10 +159,21 @@ static int image_poll(bContext *C)
 static int space_image_buffer_exists_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	if (sima && sima->spacetype == SPACE_IMAGE)
-		if (ED_space_image_has_buffer(sima))
-			return 1;
-	return 0;
+	if (sima && ED_space_image_has_buffer(sima)) {
+		return true;
+	}
+	return false;
+}
+
+static int image_not_packed_poll(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+
+	/* Do not run 'replace' on packed images, it does not give user expected results at all. */
+	if (sima && sima->image && BLI_listbase_is_empty(&sima->image->packedfiles)) {
+		return true;
+	}
+	return false;
 }
 
 static int space_image_file_exists_poll(bContext *C)
@@ -194,26 +205,29 @@ static int space_image_file_exists_poll(bContext *C)
 
 		return ret;
 	}
-	return 0;
+	return false;
 }
 
+#if 0  /* UNUSED */
 static int space_image_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	if (sima && sima->spacetype == SPACE_IMAGE && sima->image)
-		return 1;
-	return 0;
+	if (sima && sima->image) {
+		return true;
+	}
+	return false;
 }
+#endif
 
 int space_image_main_area_poll(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
-	// XXX ARegion *ar = CTX_wm_region(C);
+	/* XXX ARegion *ar = CTX_wm_region(C); */
 
-	if (sima)
-		return 1;  // XXX (ar && ar->type->regionid == RGN_TYPE_WINDOW);
-	
-	return 0;
+	if (sima) {
+		return true;  /* XXX (ar && ar->type->regionid == RGN_TYPE_WINDOW); */
+	}
+	return false;
 }
 
 /* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or editmode */
@@ -1405,7 +1419,7 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = image_replace_exec;
 	ot->invoke = image_replace_invoke;
-	ot->poll = space_image_poll;
+	ot->poll = image_not_packed_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

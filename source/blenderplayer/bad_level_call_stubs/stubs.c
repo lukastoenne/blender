@@ -255,9 +255,9 @@ int multitex_nodes(struct Tex *tex, float texvec[3], float dxt[3], float dyt[3],
 
 struct Material *RE_init_sample_material(struct Material *orig_mat, struct Scene *scene) RET_NULL
 void RE_free_sample_material(struct Material *mat) RET_NONE
-void RE_sample_material_color(struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
-                              int face_index, short hit_quad, struct DerivedMesh *orcoDm, struct Object *ob) RET_NONE
-
+void RE_sample_material_color(
+        struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
+        int tri_index, struct DerivedMesh *orcoDm, struct Object *ob) RET_NONE
 /* nodes */
 struct Render *RE_GetRender(const char *name) RET_NULL
 struct Object *RE_GetCamera(struct Render *re) RET_NULL
@@ -404,7 +404,6 @@ int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) RET_ZERO
 
 
 /* rna editors */
-struct EditMesh;
 
 struct FCurve *verify_fcurve(struct bAction *act, const char group[], struct PointerRNA *ptr, const char rna_path[], const int array_index, short add) RET_NULL
 int insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag) RET_ZERO
@@ -628,6 +627,7 @@ void RE_engine_update_memory_stats(struct RenderEngine *engine, float mem_used, 
 struct RenderEngine *RE_engine_create(struct RenderEngineType *type) RET_NULL
 void RE_engine_frame_set(struct RenderEngine *engine, int frame, float subframe) RET_NONE
 void RE_FreePersistentData(void) RET_NONE
+void RE_sample_point_density(struct Scene *scene, struct PointDensity *pd, int resolution, float *values) RET_NONE;
 void RE_instance_get_particle_info(struct ObjectInstanceRen *obi, float *index, float *age, float *lifetime, float co[3], float *size, float vel[3], float angvel[3]) RET_NONE
 
 /* python */

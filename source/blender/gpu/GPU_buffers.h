@@ -39,6 +39,8 @@
 #  define DEBUG_VBO(X)
 #endif
 
+#include <stddef.h>
+
 struct BMesh;
 struct CCGElem;
 struct CCGKey;
@@ -46,11 +48,12 @@ struct DMFlagMat;
 struct DerivedMesh;
 struct GSet;
 struct GPUVertPointLink;
+struct GPUDrawObject;
 struct PBVH;
 struct MVert;
 
 typedef struct GPUBuffer {
-	int size;        /* in bytes */
+	size_t size;        /* in bytes */
 	void *pointer;   /* used with vertex arrays */
 	unsigned int id; /* used with vertex buffer objects */
 	bool use_vbo;    /* true for VBOs, false for vertex arrays */
@@ -58,16 +61,18 @@ typedef struct GPUBuffer {
 
 typedef struct GPUBufferMaterial {
 	/* range of points used for this material */
-	int start;
-	int totelements;
-	int totloops;
-	int *polys; /* array of polygons for this material */
-	int totpolys; /* total polygons in polys */
-	int counter; /* general purpose counter, initialize first! */
+	unsigned int start;
+	unsigned int totelements;
+	unsigned int totloops;
+	unsigned int *polys; /* array of polygons for this material */
+	unsigned int totpolys; /* total polygons in polys */
+	unsigned int totvisiblepolys; /* total visible polygons */
 
 	/* original material index */
 	short mat_nr;
 } GPUBufferMaterial;
+
+void GPU_buffer_material_finalize(struct GPUDrawObject *gdo, GPUBufferMaterial *matinfo, int totmat);
 
 /* meshes are split up by material since changing materials requires
  * GL state changes that can't occur in the middle of drawing an
@@ -106,23 +111,26 @@ typedef struct GPUDrawObject {
 #endif
 	
 	int colType;
-	int index_setup; /* how indices are setup, starting from start of buffer or start of material */
 
 	GPUBufferMaterial *materials;
 	int totmaterial;
 	
-	int tot_triangle_point;
-	int tot_loose_point;
+	unsigned int tot_triangle_point;
+	unsigned int tot_loose_point;
 	/* different than total loops since ngons get tesselated still */
-	int tot_loop_verts;
+	unsigned int tot_loop_verts;
 	
 	/* caches of the original DerivedMesh values */
-	int totvert;
-	int totedge;
+	unsigned int totvert;
+	unsigned int totedge;
 
-	int loose_edge_offset;
-	int tot_loose_edge_drawn;
-	int tot_edge_drawn;
+	unsigned int loose_edge_offset;
+	unsigned int tot_loose_edge_drawn;
+	unsigned int tot_edge_drawn;
+
+	/* for subsurf, offset where drawing of interior edges starts */
+	unsigned int interior_offset;
+	unsigned int totinterior;
 } GPUDrawObject;
 
 /* currently unused */
@@ -190,6 +198,7 @@ int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
 
 void GPU_buffer_bind(GPUBuffer *buffer, GPUBindingType binding);
+void GPU_buffer_unbind(GPUBuffer *buffer, GPUBindingType binding);
 
 /* can't lock more than one buffer at once */
 void *GPU_buffer_lock(GPUBuffer *buffer, GPUBindingType binding);
@@ -203,7 +212,7 @@ void GPU_color_switch(int mode);
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count);
 
 /* called after drawing */
-void GPU_buffer_unbind(void);
+void GPU_buffers_unbind(void);
 
 /* only unbind interleaved data */
 void GPU_interleaved_attrib_unbind(void);

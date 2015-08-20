@@ -359,7 +359,7 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loop_verts);
 	else
 		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loose_point);
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawUVEdges(DerivedMesh *dm)
@@ -389,7 +389,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 	if (prevdraw && (curpos != prevstart)) {
 		glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
@@ -418,7 +418,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdg
 			GPU_buffer_draw_elements(gdo->edges, GL_LINES, gdo->loose_edge_offset * 2, dm->drawObject->tot_loose_edge_drawn * 2);
 		}
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawLooseEdges(DerivedMesh *dm)
@@ -435,7 +435,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 		GPU_buffer_draw_elements(dm->drawObject->edges, GL_LINES, start, count);
 	}
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 }
 
 static void cdDM_drawFacesSolid(
@@ -449,6 +449,8 @@ static void cdDM_drawFacesSolid(
 	if (cddm->pbvh && cddm->pbvh_draw) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
 			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
+
+			cdDM_update_normals_from_pbvh(dm);
 
 			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
 			              setMaterial, false, false);
@@ -469,7 +471,7 @@ static void cdDM_drawFacesSolid(
 			            dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
 		}
 	}
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 
 	glShadeModel(GL_FLAT);
 }
@@ -505,6 +507,7 @@ static void cdDM_drawFacesTex_common(
 	 */
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			GPU_set_tpage(NULL, false, false);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
@@ -515,7 +518,7 @@ static void cdDM_drawFacesTex_common(
 	colType = CD_TEXTURE_MLOOPCOL;
 	mloopcol = dm->getLoopDataArray(dm, colType);
 	if (!mloopcol) {
-		colType = CD_PREVIEW_MCOL;
+		colType = CD_PREVIEW_MLOOPCOL;
 		mloopcol = dm->getLoopDataArray(dm, colType);
 	}
 	if (!mloopcol) {
@@ -523,8 +526,6 @@ static void cdDM_drawFacesTex_common(
 		mloopcol = dm->getLoopDataArray(dm, colType);
 	}
 
-	cdDM_update_normals_from_pbvh(dm);
-	
 	GPU_vertex_setup(dm);
 	GPU_normal_setup(dm);
 	GPU_triangle_setup(dm);
@@ -611,7 +612,7 @@ static void cdDM_drawFacesTex_common(
 		}
 	}
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 	glShadeModel(GL_FLAT);
 	
 }
@@ -636,10 +637,10 @@ static void cdDM_drawMappedFaces(
 	const MPoly *mpoly = cddm->mpoly;
 	const MLoopCol *mloopcol = NULL;
 	int colType, useColors = flag & DM_DRAW_USE_COLORS, useHide = flag & DM_DRAW_SKIP_HIDDEN;
-	int i, j, orig;
+	int i, j;
 	int start_element = 0, tot_element, tot_drawn;
 	int totpoly;
-	int tottri;
+	int tot_tri_elem;
 	int mat_index;
 	GPUBuffer *findex_buffer = NULL;
 
@@ -653,35 +654,53 @@ static void cdDM_drawMappedFaces(
 
 	/* if we do selection, fill the selection buffer color */
 	if (G.f & G_BACKBUFSEL) {
-		Mesh *me = userData;
-		unsigned int *fi_map;
+		if (!(flag & DM_DRAW_SKIP_SELECT)) {
+			Mesh *me = NULL;
+			BMesh *bm = NULL;
+			unsigned int *fi_map;
 
-		findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
-		fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
+			if (flag & DM_DRAW_SELECT_USE_EDITMODE)
+				bm = userData;
+			else
+				me = userData;
 
-		if (fi_map) {
-			for (i = 0; i < totpoly; i++, mpoly++) {
-				int selcol = 0xFFFFFFFF;
-				orig = (index_mp_to_orig) ? index_mp_to_orig[i] : i;
+			findex_buffer = GPU_buffer_alloc(dm->drawObject->tot_loop_verts * sizeof(int), false);
+			fi_map = GPU_buffer_lock(findex_buffer, GPU_BINDING_ARRAY);
 
-				if ((orig != ORIGINDEX_NONE) && (!useHide || !(me->mpoly[orig].flag & ME_HIDE))) {
-					WM_framebuffer_index_get(orig + 1, &selcol);
+			if (fi_map) {
+				for (i = 0; i < totpoly; i++, mpoly++) {
+					int selcol = 0xFFFFFFFF;
+					const int orig = (index_mp_to_orig) ? index_mp_to_orig[i] : i;
+					bool is_hidden;
+
+					if (useHide) {
+						if (flag & DM_DRAW_SELECT_USE_EDITMODE) {
+							BMFace *efa = BM_face_at_index(bm, orig);
+							is_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN) != 0;
+						}
+						else {
+							is_hidden = (me->mpoly[orig].flag & ME_HIDE) != 0;
+						}
+
+						if ((orig != ORIGINDEX_NONE) && !is_hidden)
+							WM_framebuffer_index_get(orig + 1, &selcol);
+					}
+					else if (orig != ORIGINDEX_NONE)
+						WM_framebuffer_index_get(orig + 1, &selcol);
+
+					for (j = 0; j < mpoly->totloop; j++)
+						fi_map[start_element++] = selcol;
 				}
 
-				for (j = 0; j < mpoly->totloop; j++)
-					fi_map[start_element++] = selcol;
+				start_element = 0;
+				mpoly = cddm->mpoly;
+
+				GPU_buffer_unlock(findex_buffer, GPU_BINDING_ARRAY);
+				GPU_buffer_bind_as_color(findex_buffer);
 			}
-
-			start_element = 0;
-			mpoly = cddm->mpoly;
-
-			GPU_buffer_unlock(findex_buffer, GPU_BINDING_ARRAY);
-			GPU_buffer_bind_as_color(findex_buffer);
 		}
 	}
 	else {
-		cdDM_update_normals_from_pbvh(dm);
-
 		GPU_normal_setup(dm);
 
 		if (useColors) {
@@ -705,21 +724,21 @@ static void cdDM_drawMappedFaces(
 
 	glShadeModel(GL_SMOOTH);
 
-	tottri = dm->drawObject->tot_triangle_point;
+	tot_tri_elem = dm->drawObject->tot_triangle_point;
 
-	if (tottri == 0) {
+	if (tot_tri_elem == 0) {
 		/* avoid buffer problems in following code */
 	}
 	else if (setDrawOptions == NULL) {
 		/* just draw the entire face array */
-		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, tottri);
+		GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, 0, tot_tri_elem);
 	}
 	else {
 		for (mat_index = 0; mat_index < dm->drawObject->totmaterial; mat_index++) {
 			GPUBufferMaterial *bufmat = dm->drawObject->materials + mat_index;
 			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
 			int next_actualFace = bufmat->polys[0];
-			totpoly = bufmat->totpolys;
+			totpoly = useHide ? bufmat->totvisiblepolys : bufmat->totpolys;
 
 			tot_element = 0;
 			start_element = 0;
@@ -739,10 +758,13 @@ static void cdDM_drawMappedFaces(
 					if (i != totpoly - 1)
 						next_actualFace = bufmat->polys[i + 1];
 
-					orig = (index_mp_to_orig) ? index_mp_to_orig[i] : i;
+					if (setDrawOptions) {
+						const int orig = (index_mp_to_orig) ? index_mp_to_orig[actualFace] : actualFace;
 
-					if (setDrawOptions != NULL && (orig != ORIGINDEX_NONE))
-						draw_option = setDrawOptions(userData, orig);
+						if (orig != ORIGINDEX_NONE) {
+							draw_option = setDrawOptions(userData, orig);
+						}
+					}
 
 					if (draw_option == DM_DRAW_OPTION_STIPPLE) {
 						glEnable(GL_POLYGON_STIPPLE);
@@ -787,9 +809,9 @@ static void cdDM_drawMappedFaces(
 
 	glShadeModel(GL_FLAT);
 
-	GPU_buffer_unbind();
+	GPU_buffers_unbind();
 
-	if (G.f & G_BACKBUFSEL)
+	if (findex_buffer)
 		GPU_buffer_free(findex_buffer);
 
 }
@@ -857,14 +879,13 @@ static void cdDM_drawMappedFacesGLSL(
 	 */
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			setMaterial(1, &gattribs);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
 	}
-
-	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
 	do_draw = false;
@@ -892,11 +913,12 @@ static void cdDM_drawMappedFacesGLSL(
 			if (new_matnr != matnr) {
 				glEnd();
 
-				do_draw = setMaterial(matnr = new_matnr, &gattribs);
+				matnr = new_matnr;
+				do_draw = setMaterial(matnr + 1, &gattribs);
 				if (do_draw)
 					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-				glBegin(GL_QUADS);
+				glBegin(GL_TRIANGLES);
 			}
 
 			if (!do_draw) {
@@ -917,7 +939,7 @@ static void cdDM_drawMappedFacesGLSL(
 
 			if (!smoothnormal) {
 				if (nors) {
-					glNormal3fv(nors[a]);
+					glNormal3fv(nors[lt->poly]);
 				}
 				else {
 					/* TODO ideally a normal layer should always be available */
@@ -945,7 +967,7 @@ static void cdDM_drawMappedFacesGLSL(
 		int tot_active_mat;
 		GPUBuffer *buffer = NULL;
 		char *varray;
-		int max_element_size = 0;
+		size_t max_element_size = 0;
 		int tot_loops = 0;
 
 		GPU_vertex_setup(dm);
@@ -1016,7 +1038,7 @@ static void cdDM_drawMappedFacesGLSL(
 			}
 			varray = GPU_buffer_lock_stream(buffer, GPU_BINDING_ARRAY);
 			if (varray == NULL) {
-				GPU_buffer_unbind();
+				GPU_buffers_unbind();
 				GPU_buffer_free(buffer);
 				MEM_freeN(mat_orig_to_new);
 				MEM_freeN(matconv);
@@ -1052,15 +1074,13 @@ static void cdDM_drawMappedFacesGLSL(
 							offset += sizeof(unsigned char) * 4;
 						}
 					}
-					/* TODO, handle tangents */
 					if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
-						const float *tang = matconv[i].attribs.tang.array[i * 4 + 0];
-						copy_v4_v4((float *)&varray[offset], tang);
-						tang = matconv[i].attribs.tang.array[i * 4 + 1];
-						copy_v4_v4((float *)&varray[offset + max_element_size], tang);
-						tang = matconv[i].attribs.tang.array[i * 4 + 2];
-						copy_v4_v4((float *)&varray[offset + max_element_size * 2], tang);
-						offset += sizeof(float) * 4;
+						if (matconv[i].attribs.tface[b].array) {
+							const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang.array;
+							for (j = 0; j < mpoly->totloop; j++)
+								copy_v4_v4((float *)&varray[offset + j * max_element_size], looptang[mpoly->loopstart + j]);
+							offset += sizeof(float) * 4;
+						}
 					}
 				}
 
@@ -1086,7 +1106,7 @@ static void cdDM_drawMappedFacesGLSL(
 			}
 		}
 
-		GPU_buffer_unbind();
+		GPU_buffers_unbind();
 		if (buffer)
 			GPU_buffer_free(buffer);
 
@@ -1126,16 +1146,16 @@ static void cdDM_drawMappedFacesMat(
 	 *       will skip using textures (dyntopo currently destroys UV anyway) and
 	 *       works fine for matcap
 	 */
+
 	if (cddm->pbvh && cddm->pbvh_draw && BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH) {
 		if (BKE_pbvh_has_faces(cddm->pbvh)) {
+			cdDM_update_normals_from_pbvh(dm);
 			setMaterial(userData, 1, &gattribs);
 			BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, false, false);
 		}
 
 		return;
 	}
-
-	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
 
@@ -1166,7 +1186,7 @@ static void cdDM_drawMappedFacesMat(
 
 		/* skipping faces */
 		if (setFace) {
-			orig = (index_mp_to_orig) ? index_mp_to_orig[a] : lt->poly;
+			orig = (index_mp_to_orig) ? index_mp_to_orig[lt->poly] : lt->poly;
 
 			if (orig != ORIGINDEX_NONE && !setFace(userData, orig))
 				continue;
@@ -1175,7 +1195,7 @@ static void cdDM_drawMappedFacesMat(
 		/* smooth normal */
 		if (!smoothnormal) {
 			if (nors) {
-				glNormal3fv(nors[a]);
+				glNormal3fv(nors[lt->poly]);
 			}
 			else {
 				/* TODO ideally a normal layer should always be available */
@@ -1224,32 +1244,69 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	glEnd();
 }
 
+typedef struct FaceCount {
+	unsigned int i_visible;
+	unsigned int i_hidden;
+	unsigned int i_tri_visible;
+	unsigned int i_tri_hidden;
+} FaceCount;
+
 static void cdDM_buffer_copy_triangles(
         DerivedMesh *dm, unsigned int *varray,
         const int *mat_orig_to_new)
 {
-	GPUBufferMaterial *gpumat;
-	int i, findex = 0;
+	GPUBufferMaterial *gpumat, *gpumaterials = dm->drawObject->materials;
+	int i, j, start;
 
-	const MPoly *mpoly;
+	const int totmat = dm->drawObject->totmaterial;
+	const MPoly *mpoly = dm->getPolyArray(dm);
 	const MLoopTri *lt = dm->getLoopTriArray(dm);
-	const int tottri = dm->getNumLoopTri(dm);
+	const int totpoly = dm->getNumPolys(dm);
 
-	mpoly = dm->getPolyArray(dm);
+	FaceCount *fc = MEM_mallocN(sizeof(*fc) * totmat, "gpumaterial.facecount");
 
-	for (i = 0; i < tottri; i++, lt++) {
-		int start;
-		gpumat = dm->drawObject->materials + mat_orig_to_new[mpoly[lt->poly].mat_nr];
-		start = gpumat->counter;
-
-		/* v1 v2 v3 */
-		varray[start++] = lt->tri[0];
-		varray[start++] = lt->tri[1];
-		varray[start++] = lt->tri[2];
-
-		gpumat->counter += 3;
-		findex += 3;
+	for (i = 0; i < totmat; i++) {
+		fc[i].i_visible = 0;
+		fc[i].i_tri_visible = 0;
+		fc[i].i_hidden = gpumaterials[i].totpolys - 1;
+		fc[i].i_tri_hidden = gpumaterials[i].totelements - 1;
 	}
+
+	for (i = 0; i < totpoly; i++) {
+		int tottri = ME_POLY_TRI_TOT(&mpoly[i]);
+		int mati = mat_orig_to_new[mpoly[i].mat_nr];
+		gpumat = gpumaterials + mati;
+
+		if (mpoly[i].flag & ME_HIDE) {
+			for (j = 0; j < tottri; j++, lt++) {
+				start = gpumat->start + fc[mati].i_tri_hidden;
+				/* v1 v2 v3 */
+				varray[start--] = lt->tri[2];
+				varray[start--] = lt->tri[1];
+				varray[start--] = lt->tri[0];
+				fc[mati].i_tri_hidden -= 3;
+			}
+			gpumat->polys[fc[mati].i_hidden--] = i;
+		}
+		else {
+			for (j = 0; j < tottri; j++, lt++) {
+				start = gpumat->start + fc[mati].i_tri_visible;
+				/* v1 v2 v3 */
+				varray[start++] = lt->tri[0];
+				varray[start++] = lt->tri[1];
+				varray[start++] = lt->tri[2];
+				fc[mati].i_tri_visible += 3;
+			}
+			gpumat->polys[fc[mati].i_visible++] = i;
+		}
+	}
+
+	/* set the visible polygons */
+	for (i = 0; i < totmat; i++) {
+		gpumaterials[i].totvisiblepolys = fc[i].i_visible;
+	}
+
+	MEM_freeN(fc);
 }
 
 static void cdDM_buffer_copy_vertex(
@@ -1276,9 +1333,9 @@ static void cdDM_buffer_copy_vertex(
 	}
 
 	/* copy loose points */
-	j = dm->drawObject->tot_triangle_point * 3;
+	j = dm->drawObject->tot_loop_verts * 3;
 	for (i = 0; i < dm->drawObject->totvert; i++) {
-		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_triangle_point) {
+		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_loop_verts) {
 			copy_v3_v3(&varray[j], mvert[i].co);
 			j += 3;
 		}
@@ -1589,30 +1646,19 @@ static void cdDM_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, i
 static void cdDM_drawobject_init_vert_points(
         GPUDrawObject *gdo,
         const MPoly *mpoly, const MLoop *mloop,
-        int tot_poly,
-        int totmat)
+        int tot_poly)
 {
-	GPUBufferMaterial *mat;
-	int i, *mat_orig_to_new;
+	int i;
 	int tot_loops = 0;
 
-	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
-	                                             "GPUDrawObject.mat_orig_to_new");
 	/* allocate the array and space for links */
 	gdo->vert_points = MEM_mallocN(sizeof(GPUVertPointLink) * gdo->totvert,
 	                               "GPUDrawObject.vert_points");
 #ifdef USE_GPU_POINT_LINK
-	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->tot_triangle_point,
+	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->totvert,
 	                                   "GPUDrawObject.vert_points_mem");
 	gdo->vert_points_usage = 0;
 #endif
-
-	/* build a map from the original material indices to the new
-	 * GPUBufferMaterial indices */
-	for (i = 0; i < gdo->totmaterial; i++) {
-		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
-		gdo->materials[i].counter = 0;
-	}
 
 	/* -1 indicates the link is not yet used */
 	for (i = 0; i < gdo->totvert; i++) {
@@ -1625,9 +1671,6 @@ static void cdDM_drawobject_init_vert_points(
 	for (i = 0; i < tot_poly; i++) {
 		int j;
 		const MPoly *mp = &mpoly[i];
-		mat = &gdo->materials[mat_orig_to_new[mp->mat_nr]];
-
-		mat->polys[mat->counter++] = i;
 
 		/* assign unique indices to vertices of the mesh */
 		for (j = 0; j < mp->totloop; j++) {
@@ -1639,19 +1682,11 @@ static void cdDM_drawobject_init_vert_points(
 	/* map any unused vertices to loose points */
 	for (i = 0; i < gdo->totvert; i++) {
 		if (gdo->vert_points[i].point_index == -1) {
-			gdo->vert_points[i].point_index = gdo->tot_triangle_point + gdo->tot_loose_point;
+			gdo->vert_points[i].point_index = gdo->tot_loop_verts + gdo->tot_loose_point;
 			gdo->tot_loose_point++;
 		}
 	}
-
-	MEM_freeN(mat_orig_to_new);
 }
-
-typedef struct {
-	int elements;
-	int loops;
-	int polys;
-} GPUMaterialInfo;
 
 /* see GPUDrawObject's structure definition for a description of the
  * data being initialized here */
@@ -1661,8 +1696,8 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	const MPoly *mpoly;
 	const MLoop *mloop;
 	int totmat = dm->totmat;
-	GPUMaterialInfo *mat_info;
-	int i, curmat, totelements, totloops, totpolys;
+	GPUBufferMaterial *mat_info;
+	int i, totloops, totpolys;
 
 	/* object contains at least one material (default included) so zero means uninitialized dm */
 	BLI_assert(totmat != 0);
@@ -1671,6 +1706,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	mloop = dm->getLoopArray(dm);
 
 	totpolys = dm->getNumPolys(dm);
+	totloops = dm->getNumLoops(dm);
 
 	/* get the number of points used by each material, treating
 	 * each quad as two triangles */
@@ -1678,49 +1714,23 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 
 	for (i = 0; i < totpolys; i++) {
 		const int mat_nr = mpoly[i].mat_nr;
-		mat_info[mat_nr].polys++;
-		mat_info[mat_nr].elements += 3 * ME_POLY_TRI_TOT(&mpoly[i]);
-		mat_info[mat_nr].loops += mpoly[i].totloop;
+		mat_info[mat_nr].totpolys++;
+		mat_info[mat_nr].totelements += 3 * ME_POLY_TRI_TOT(&mpoly[i]);
+		mat_info[mat_nr].totloops += mpoly[i].totloop;
 	}
 	/* create the GPUDrawObject */
 	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
 	gdo->totvert = dm->getNumVerts(dm);
 	gdo->totedge = dm->getNumEdges(dm);
 
-	/* count the number of materials used by this DerivedMesh */
-	for (i = 0; i < totmat; i++) {
-		if (mat_info[i].elements > 0)
-			gdo->totmaterial++;
-	}
-
-	/* allocate an array of materials used by this DerivedMesh */
-	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
-	                             "GPUDrawObject.materials");
-
-	/* initialize the materials array */
-	for (i = 0, curmat = 0, totelements = 0, totloops = 0; i < totmat; i++) {
-		if (mat_info[i].elements > 0) {
-			gdo->materials[curmat].start = totelements;
-			/* can set it to points now but used in cdDM_drawobject_init_vert_points as counter */
-			gdo->materials[curmat].totelements = mat_info[i].elements;
-			gdo->materials[curmat].totloops = mat_info[i].loops;
-			gdo->materials[curmat].mat_nr = i;
-			gdo->materials[curmat].totpolys = mat_info[i].polys;
-			gdo->materials[curmat].polys = MEM_mallocN(sizeof(int) * mat_info[i].polys, "GPUBufferMaterial.polys");
-
-			totelements += mat_info[i].elements;
-			totloops += mat_info[i].loops;
-			curmat++;
-		}
-	}
+	GPU_buffer_material_finalize(gdo, mat_info, totmat);
 
 	gdo->tot_loop_verts = totloops;
 
 	/* store total number of points used for triangles */
-	gdo->tot_triangle_point = totelements;
+	gdo->tot_triangle_point = poly_to_tri_count(totpolys, totloops) * 3;
 
-	cdDM_drawobject_init_vert_points(gdo, mpoly, mloop, totpolys, totmat);
-	MEM_freeN(mat_info);
+	cdDM_drawobject_init_vert_points(gdo, mpoly, mloop, totpolys);
 
 	return gdo;
 }
@@ -2021,7 +2031,7 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 
 	/* this does a referenced copy, with an exception for fluidsim */
 
-	DM_init(dm, DM_TYPE_CDDM, mesh->totvert, mesh->totedge, mesh->totface,
+	DM_init(dm, DM_TYPE_CDDM, mesh->totvert, mesh->totedge, 0 /* mesh->totface */,
 	        mesh->totloop, mesh->totpoly);
 
 	dm->deformedOnly = 1;
@@ -2034,7 +2044,7 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 	CustomData_merge(&mesh->edata, &dm->edgeData, mask, alloctype,
 	                 mesh->totedge);
 	CustomData_merge(&mesh->fdata, &dm->faceData, mask | CD_MASK_ORIGINDEX, alloctype,
-	                 mesh->totface);
+	                 0 /* mesh->totface */);
 	CustomData_merge(&mesh->ldata, &dm->loopData, mask, alloctype,
 	                 mesh->totloop);
 	CustomData_merge(&mesh->pdata, &dm->polyData, mask, alloctype,
@@ -2044,7 +2054,11 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 	cddm->medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
 	cddm->mloop = CustomData_get_layer(&dm->loopData, CD_MLOOP);
 	cddm->mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
+#if 0
 	cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
+#else
+	cddm->mface = NULL;
+#endif
 
 	/* commented since even when CD_ORIGINDEX was first added this line fails
 	 * on the default cube, (after editmode toggle too) - campbell */
@@ -2495,7 +2509,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const bool only_face_normals)
 	cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
 #endif
 
-
+#if 0
 	if (dm->numTessFaceData == 0) {
 		/* No tessellation on this mesh yet, need to calculate one.
 		 *
@@ -2509,6 +2523,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const bool only_face_normals)
 		BLI_assert(CustomData_has_layer(&dm->faceData, CD_ORIGINDEX));
 		CustomData_free_layers(&dm->faceData, CD_NORMAL, dm->numTessFaceData);
 	}
+#endif
 
 	face_nors = MEM_mallocN(sizeof(*face_nors) * dm->numPolyData, "face_nors");
 
@@ -3151,8 +3166,8 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	}
 	
 	/*create new cddm*/
-	cddm2 = (CDDerivedMesh *)CDDM_from_template((
-	        DerivedMesh *)cddm, STACK_SIZE(mvert), STACK_SIZE(medge), 0, STACK_SIZE(mloop), STACK_SIZE(mpoly));
+	cddm2 = (CDDerivedMesh *)CDDM_from_template(
+	        (DerivedMesh *)cddm, STACK_SIZE(mvert), STACK_SIZE(medge), 0, STACK_SIZE(mloop), STACK_SIZE(mpoly));
 	
 	/*update edge indices and copy customdata*/
 	med = medge;
