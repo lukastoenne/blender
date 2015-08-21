@@ -140,6 +140,26 @@ bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MeshSample *sample, 
 
 /* ==== Sampling Utilities ==== */
 
+BLI_INLINE unsigned int hibit(unsigned int n) {
+	n |= (n >>  1);
+	n |= (n >>  2);
+	n |= (n >>  4);
+	n |= (n >>  8);
+	n |= (n >> 16);
+	return n ^ (n >> 1);
+}
+
+static void *buffer_reserve_exp(void *buffer, unsigned int *alloc, size_t elemsize, unsigned int tot)
+{
+	if (tot > (*alloc)) {
+		*alloc = hibit(tot) << 1;
+		buffer = MEM_reallocN(buffer, (size_t)(*alloc) * elemsize);
+	}
+	return buffer;
+}
+
+/* ------------------------------------------------------------------------- */
+
 BLI_INLINE void mesh_sample_weights_from_loc(MeshSample *sample, DerivedMesh *dm, int face_index, const float loc[3])
 {
 	MFace *face = &dm->getTessFaceArray(dm)[face_index];
@@ -472,6 +492,201 @@ MeshSampleGenerator *BKE_mesh_sample_gen_surface_raycast(DerivedMesh *dm, MeshSa
 
 /* ------------------------------------------------------------------------- */
 
+/* Poisson Disk dart throwing algorithm as described in
+ * Cline, David, et al. "Dart throwing on surfaces." Computer Graphics Forum. Vol. 28. No. 4, 2009
+ * and extended by
+ * Geng, Bo, et al. "Approximate Poisson disk sampling on mesh." Science China Information Sciences 56.9 (2013)
+ */
+
+/* The maximum useful number of logarithmic levels for single precision floats, see
+ * White, Kenric B., David Cline, and Parris K. Egbert. "Poisson disk point sets by hierarchical dart throwing."
+ * IEEE Symposium on Interactive Raytracing, 2007.
+ */
+#define MAX_LEVELS 23
+
+typedef struct Triangle {
+	unsigned int poly;
+	unsigned int vert[3];
+	float co[3][3];
+	float area;
+} Triangle;
+
+BLI_INLINE void triangle_init(Triangle *tri, const MVert *mverts, const MLoop *mloops, const MLoopTri *lt)
+{
+	unsigned int v0 = mloops[lt->tri[0]].v;
+	unsigned int v1 = mloops[lt->tri[1]].v;
+	unsigned int v2 = mloops[lt->tri[2]].v;
+	const float *co[3];
+	
+	tri->vert[0] = v0;
+	tri->vert[1] = v1;
+	tri->vert[2] = v2;
+	tri->poly = lt->poly;
+	
+	co[0] = mverts[v0].co;
+	co[1] = mverts[v1].co;
+	co[2] = mverts[v2].co;
+	copy_v3_v3(tri->co[0], co[0]);
+	copy_v3_v3(tri->co[1], co[1]);
+	copy_v3_v3(tri->co[2], co[2]);
+	
+	tri->area = area_tri_v3(co[0], co[1], co[2]);
+}
+
+typedef struct TriangleList {
+	struct Triangle *triangles;
+	unsigned int numtri, alloctri;
+	
+	float Bmin, Bmax; /* area bounds for triangles in this list */
+	
+	float totarea; /* current sum of triangle areas */
+} TriangleList;
+
+BLI_INLINE void tri_list_init(TriangleList *list, float Bmin, float Bmax)
+{
+	list->alloctri = 0;
+	list->numtri = 0;
+	list->triangles = NULL;
+	list->Bmin = Bmin;
+	list->Bmax = Bmax;
+	list->totarea = 0.0f;
+}
+
+BLI_INLINE Triangle *tri_list_append(TriangleList *list)
+{
+	list->numtri += 1;
+	list->triangles = buffer_reserve_exp(list->triangles, &list->alloctri, sizeof(Triangle), list->numtri);
+	
+	return &list->triangles[list->numtri - 1];
+}
+
+typedef struct TriangleIndex {
+	struct TriangleList lists[MAX_LEVELS];
+	
+	float area_max; /* upper area bound */
+} TriangleIndex;
+
+BLI_INLINE unsigned int tri_area_bin(const TriangleIndex *index, float area)
+{
+	/* XXX there may be a faster way because
+	 * floor(log_b(x)) == floor(log_b(floor(x)))
+	 * for real numbers x, i.e. we can convert to int first and
+	 * use efficient bit shifting for log2 (?) - lukas
+	 */
+	return (unsigned int)log2(index->area_max / area);
+}
+
+BLI_INLINE Triangle *tri_index_insert(TriangleIndex *index, const Triangle *tri)
+{
+	Triangle *ptri;
+	TriangleList *list;
+	unsigned int bin = tri_area_bin(index, tri->area);
+	
+	/* discard too tiny triangles */
+	if (bin >= MAX_LEVELS)
+		return NULL;
+	
+	list = &index->lists[bin];
+	
+	ptri = tri_list_append(list);
+	*ptri = tri;
+	
+	list->totarea += tri->area;
+	
+	return ptri;
+}
+
+BLI_INLINE void tri_index_init(TriangleIndex *index, DerivedMesh *dm)
+{
+	const MVert *mverts = dm->getVertArray(dm);
+	const MLoop *mloops = dm->getLoopArray(dm);
+	const MLoopTri *mlooptris = dm->getLoopTriArray(dm);
+	unsigned int numlooptris = (unsigned int)dm->getNumLoopTri(dm);
+	
+	const MLoopTri *lt;
+	unsigned int i;
+	float Bmax;
+	
+	/* find largest triangle area */
+	index->area_max = 0.0f;
+	for (i = 0, lt = mlooptris; i < numlooptris; ++i, ++lt) {
+		Triangle tri;
+		triangle_init(&tri, mverts, mloops, lt);
+		
+		if (tri.area > index->area_max)
+			index->area_max = tri.area;
+	}
+	
+	/* init triangle lists */
+	Bmax = index->area_max;
+	for (i = 0; i < MAX_LEVELS; ++i) {
+		/* triangle area range is halved with each level */
+		float Bmin = Bmax * 0.5f;
+		
+		tri_list_init(&index->lists[i], Bmin, Bmax);
+		
+		Bmax = Bmin;
+	}
+	
+	/* fill triangles into bins */
+	for (i = 0, lt = mlooptris; i < numlooptris; ++i, ++lt) {
+		Triangle tri;
+		
+		triangle_init(&tri, mverts, mloops, lt);
+		tri_index_insert(index, &tri);
+	}
+}
+
+BLI_INLINE void tri_index_free(TriangleIndex *index)
+{
+	int i;
+	for (i = 0; i < MAX_LEVELS; ++i) {
+		if (index->lists[i].triangles)
+			MEM_freeN(index->lists[i].triangles);
+	}
+}
+
+#undef MAX_LEVELS
+
+typedef struct MSurfaceSampleGenerator_PoissonDisk {
+	MeshSampleGenerator base;
+	
+	RNG *rng;
+	TriangleIndex index;
+} MSurfaceSampleGenerator_PoissonDisk;
+
+static void generator_poissondisk_free(MSurfaceSampleGenerator_PoissonDisk *gen)
+{
+	BLI_rng_free(gen->rng);
+	tri_index_free(&gen->index);
+	MEM_freeN(gen);
+}
+
+static bool generator_poissondisk_make_sample(MSurfaceSampleGenerator_PoissonDisk *gen, MeshSample *sample)
+{
+	return false;
+}
+
+MeshSampleGenerator *BKE_mesh_sample_gen_surface_poissondisk(DerivedMesh *dm, unsigned int seed)
+{
+	MSurfaceSampleGenerator_PoissonDisk *gen;
+	
+	DM_ensure_looptri(dm);
+	
+	if (dm->getNumLoopTri(dm) == 0)
+		return NULL;
+	
+	gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_PoissonDisk), "MSurfaceSampleGenerator_PoissonDisk");
+	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_poissondisk_free, (GeneratorMakeSampleFp)generator_poissondisk_make_sample);
+	
+	gen->rng = BLI_rng_new(seed);
+	tri_index_init(&gen->index, dm);
+	
+	return &gen->base;
+}
+
+/* ------------------------------------------------------------------------- */
+
 typedef struct MVolumeSampleGenerator_Random {
 	MeshSampleGenerator base;
 	
@@ -484,10 +699,10 @@ typedef struct MVolumeSampleGenerator_Random {
 	
 	/* current ray intersections */
 	BVHTreeRayHit *ray_hits;
-	int tothits, allochits;
+	unsigned int tothits, allochits;
 	
 	/* current segment index and sample number */
-	int cur_seg, cur_tot, cur_sample;
+	unsigned int cur_seg, cur_tot, cur_sample;
 } MVolumeSampleGenerator_Random;
 
 static void generator_volume_random_free(MVolumeSampleGenerator_Random *gen)
@@ -502,23 +717,6 @@ static void generator_volume_random_free(MVolumeSampleGenerator_Random *gen)
 	MEM_freeN(gen);
 }
 
-BLI_INLINE unsigned int hibit(unsigned int n) {
-	n |= (n >>  1);
-	n |= (n >>  2);
-	n |= (n >>  4);
-	n |= (n >>  8);
-	n |= (n >> 16);
-	return n ^ (n >> 1);
-}
-
-static void generator_volume_hits_reserve(MVolumeSampleGenerator_Random *gen, int tothits)
-{
-	if (tothits > gen->allochits) {
-		gen->allochits = (int)hibit((unsigned int)tothits) << 1;
-		gen->ray_hits = MEM_reallocN(gen->ray_hits, (size_t)gen->allochits * sizeof(BVHTreeRayHit));
-	}
-}
-
 static void generator_volume_ray_cb(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
 {
 	MVolumeSampleGenerator_Random *gen = userdata;
@@ -527,7 +725,7 @@ static void generator_volume_ray_cb(void *userdata, int index, const BVHTreeRay 
 	
 	if (hit->index >= 0) {
 		++gen->tothits;
-		generator_volume_hits_reserve(gen, gen->tothits);
+		gen->ray_hits = buffer_reserve_exp(gen->ray_hits, &gen->allochits, sizeof(BVHTreeRayHit), gen->tothits);
 		
 		memcpy(&gen->ray_hits[gen->tothits-1], hit, sizeof(BVHTreeRayHit));
 	}
@@ -591,7 +789,7 @@ static void generator_volume_init_segment(MVolumeSampleGenerator_Random *gen)
 	b = &gen->ray_hits[gen->cur_seg + 1];
 	
 	length = len_v3v3(a->co, b->co);
-	gen->cur_tot = min_ii(gen->max_samples_per_ray, (int)ceilf(length * gen->density));
+	gen->cur_tot = (unsigned int)min_ii(gen->max_samples_per_ray, (int)ceilf(length * gen->density));
 	gen->cur_sample = 0;
 }
 
@@ -668,7 +866,7 @@ MeshSampleGenerator *BKE_mesh_sample_gen_volume_random_bbray(DerivedMesh *dm, un
 	gen->density = density;
 	gen->max_samples_per_ray = max_ii(1, (int)powf(gen->volume, 1.0f/3.0f)) >> 1;
 	
-	generator_volume_hits_reserve(gen, 64);
+	gen->ray_hits = buffer_reserve_exp(gen->ray_hits, &gen->allochits, sizeof(BVHTreeRayHit), 64);
 	
 	return &gen->base;
 }

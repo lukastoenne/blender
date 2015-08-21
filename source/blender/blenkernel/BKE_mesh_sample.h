@@ -55,6 +55,8 @@ struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_random_ex(struct Derived
 
 struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_raycast(struct DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata);
 
+struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_poissondisk(struct DerivedMesh *dm, unsigned int seed);
+
 struct MeshSampleGenerator *BKE_mesh_sample_gen_volume_random_bbray(struct DerivedMesh *dm, unsigned int seed, float density);
 
 void BKE_mesh_sample_free_generator(struct MeshSampleGenerator *gen);

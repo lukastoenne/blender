@@ -251,7 +251,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 			
 			smd->samples = MEM_callocN(sizeof(MeshSample) * (unsigned int)smd->totsamples, "test samples");
 			
-			gen = BKE_mesh_sample_gen_surface_random(dm, smd->seed);
+//			gen = BKE_mesh_sample_gen_surface_random(dm, smd->seed);
+			gen = BKE_mesh_sample_gen_surface_poissondisk(dm, smd->seed);
 			for (i = 0, sample = smd->samples; i < smd->totsamples; ++i, ++sample) {
 				if (!BKE_mesh_sample_generate(gen, sample))
 					break;
