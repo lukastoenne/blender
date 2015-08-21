@@ -1662,7 +1662,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		else if (md->type==eModifierType_MeshSampleTest) {
 			MeshSampleTestModifierData *smd = (MeshSampleTestModifierData*) md;
 
-			writedata(wd, DATA, sizeof(MSurfaceSample) * smd->totsamples, smd->samples);
+			writedata(wd, DATA, sizeof(MeshSample) * smd->totsamples, smd->samples);
 		}
 	}
 }

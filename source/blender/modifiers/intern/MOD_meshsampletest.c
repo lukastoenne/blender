@@ -45,7 +45,7 @@
 
 #include "BLI_strict_flags.h"
 
-static void initData(ModifierData *md)
+static void initData(ModifierData *UNUSED(md))
 {
 #if 0
 	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *) md;
@@ -223,9 +223,9 @@ static void add_notch(const float loc[3], const float nor[3],
 #endif
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
+static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
                                   DerivedMesh *derivedData,
-                                  ModifierApplyFlag flag)
+                                  ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = derivedData;
 	DerivedMesh *result;
@@ -243,17 +243,23 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		MEdge *me;
 		MLoop *ml;
 		MPoly *mp;
-		MSurfaceSample *sample;
+		MeshSample *sample;
 		int i;
 		
 		if (!smd->samples) {
-			MSurfaceSampleStorage storage;
+			MeshSampleGenerator *gen;
 			
-			smd->samples = MEM_callocN(sizeof(MSurfaceSample) * (unsigned int)smd->totsamples, "test samples");
+			smd->samples = MEM_callocN(sizeof(MeshSample) * (unsigned int)smd->totsamples, "test samples");
 			
-			BKE_mesh_sample_storage_array(&storage, smd->samples, smd->totsamples);
-			BKE_mesh_sample_generate_random(&storage, dm, smd->seed, smd->totsamples);
-			BKE_mesh_sample_storage_release(&storage);
+			gen = BKE_mesh_sample_gen_surface_random(dm, smd->seed);
+			for (i = 0, sample = smd->samples; i < smd->totsamples; ++i, ++sample) {
+				if (!BKE_mesh_sample_generate(gen, sample))
+					break;
+			}
+			for (; i < smd->totsamples; ++i, ++sample) {
+				memset(sample, 0, sizeof(MeshSample));
+			}
+			BKE_mesh_sample_free_generator(gen);
 		}
 		
 		notch_size(&notch_verts, &notch_edges, &notch_loops, &notch_polys);
@@ -286,9 +292,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		ml = result->getLoopArray(result);
 		mp = result->getPolyArray(result);
 		for (i = 0, sample = smd->samples; i < smd->totsamples; ++i, ++sample) {
-			float loc[3], nor[3];
+			float loc[3], nor[3], tang[3];
 			
-			BKE_mesh_sample_eval(dm, sample, loc, nor);
+			BKE_mesh_sample_eval(dm, sample, loc, nor, tang);
 			
 			add_notch(loc, nor,
 			          mv + num_verts + i * notch_verts, me + num_edges + i * notch_edges,

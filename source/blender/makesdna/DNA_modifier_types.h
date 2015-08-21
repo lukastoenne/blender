@@ -1445,14 +1445,6 @@ enum {
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
 
-typedef struct MeshSampleTestModifierData {
-	ModifierData modifier;
-
-	unsigned int seed;
-	int totsamples;
-	struct MSurfaceSample *samples;
-} MeshSampleTestModifierData;
-
 
 typedef struct DataTransferModifierData {
 	ModifierData modifier;
@@ -1528,5 +1520,14 @@ enum {
 	MOD_NORMALEDIT_MIX_SUB  = 2,
 	MOD_NORMALEDIT_MIX_MUL  = 3,
 };
+
+
+typedef struct MeshSampleTestModifierData {
+	ModifierData modifier;
+
+	unsigned int seed;
+	int totsamples;
+	struct MeshSample *samples;
+} MeshSampleTestModifierData;
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

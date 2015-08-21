@@ -4605,10 +4605,12 @@ static void rna_def_modifier_meshsampletest(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Amount", "Number of sample points");
 	RNA_def_property_update(prop, 0, "rna_MeshSampleTestModifier_resample_update");
 
+#if 0
 	prop = RNA_def_property(srna, "samples", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "samples", "totsamples");
 	RNA_def_property_struct_type(prop, "MeshSurfaceSample");
 	RNA_def_property_ui_text(prop, "Samples", "");
+#endif
 }
 
 void RNA_def_modifier(BlenderRNA *brna)
