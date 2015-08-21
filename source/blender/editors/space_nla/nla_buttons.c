@@ -42,7 +42,7 @@
 
 #include "BLI_blenlib.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_nla.h"
 #include "BKE_context.h"
@@ -159,7 +159,9 @@ bool nla_panel_context(const bContext *C, PointerRNA *adt_ptr, PointerRNA *nlt_p
 					}
 					
 					/* AnimData pointer */
-					RNA_pointer_create(id, &RNA_AnimData, ale->adt, adt_ptr);
+					if (adt_ptr) {
+						RNA_pointer_create(id, &RNA_AnimData, ale->adt, adt_ptr);
+					}
 					
 					/* set found status to -1, since setting to 1 would break the loop 
 					 * and potentially skip an active NLA-Track in some cases...
@@ -282,7 +284,7 @@ static void nla_panel_animdata(const bContext *C, Panel *pa)
 	/* Active Action Properties ------------------------------------- */
 	/* action */
 	row = uiLayoutRow(layout, true);
-	uiTemplateID(row, (bContext *)C, &adt_ptr, "action", "ACTION_OT_new", NULL, NULL /*"ACTION_OT_unlink"*/);     // XXX: need to make these operators
+	uiTemplateID(row, (bContext *)C, &adt_ptr, "action", "ACTION_OT_new", NULL, "NLA_OT_action_unlink");
 	
 	/* extrapolation */
 	row = uiLayoutRow(layout, true);
@@ -505,7 +507,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel animdata");
 	strcpy(pt->idname, "NLA_PT_animdata");
 	strcpy(pt->label, N_("Animation Data"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_animdata;
 	pt->poll = nla_animdata_panel_poll;
 	pt->flag = PNL_DEFAULT_CLOSED;
@@ -514,7 +516,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel track");
 	strcpy(pt->idname, "NLA_PT_track");
 	strcpy(pt->label, N_("Active Track"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_track;
 	pt->poll = nla_track_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
@@ -522,7 +524,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel properties");
 	strcpy(pt->idname, "NLA_PT_properties");
 	strcpy(pt->label, N_("Active Strip"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_properties;
 	pt->poll = nla_strip_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
@@ -530,7 +532,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel properties");
 	strcpy(pt->idname, "NLA_PT_actionclip");
 	strcpy(pt->label, N_("Action Clip"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_actclip;
 	pt->poll = nla_strip_actclip_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
@@ -538,7 +540,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel evaluation");
 	strcpy(pt->idname, "NLA_PT_evaluation");
 	strcpy(pt->label, N_("Evaluation"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_evaluation;
 	pt->poll = nla_strip_eval_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
@@ -546,7 +548,7 @@ void nla_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype nla panel modifiers");
 	strcpy(pt->idname, "NLA_PT_modifiers");
 	strcpy(pt->label, N_("Modifiers"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = nla_panel_modifiers;
 	pt->poll = nla_strip_eval_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);

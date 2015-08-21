@@ -54,20 +54,20 @@ struct wmOperatorType;
 typedef struct GP_SpaceConversion {
 	struct bGPdata *gpd;
 	struct bGPDlayer *gpl;
-	
+
 	struct ScrArea *sa;
 	struct ARegion *ar;
 	struct View2D *v2d;
-	
+
 	rctf *subrect;       /* for using the camera rect within the 3d view */
 	rctf subrect_data;
-	
+
 	float mat[4][4];     /* transform matrix on the strokes (introduced in [b770964]) */
 } GP_SpaceConversion;
 
 
-/** 
- * Check whether a given stroke segment is inside a circular brush 
+/**
+ * Check whether a given stroke segment is inside a circular brush
  *
  * \param mval     The current screen-space coordinates (midpoint) of the brush
  * \param mvalo    The previous screen-space coordinates (midpoint) of the brush (NOT CURRENTLY USED)
@@ -81,7 +81,7 @@ bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
 
 
 /**
- * Init settings for stroke point space conversions 
+ * Init settings for stroke point space conversions
  *
  * \param[out] r_gsc  The space conversion settings struct, populated with necessary params
  */
@@ -95,6 +95,12 @@ void gp_point_conversion_init(struct bContext *C, GP_SpaceConversion *r_gsc);
  */
 void gp_point_to_xy(GP_SpaceConversion *settings, struct bGPDstroke *gps, struct bGPDspoint *pt,
                     int *r_x, int *r_y);
+
+/* Poll Callbacks ------------------------------------ */
+/* gpencil_utils.c */
+
+int gp_add_poll(struct bContext *C);
+int gp_active_layer_poll(struct bContext *C);
 
 /* ***************************************************** */
 /* Operator Defines */
@@ -125,6 +131,9 @@ void GPENCIL_OT_select_less(struct wmOperatorType *ot);
 
 void GPENCIL_OT_duplicate(struct wmOperatorType *ot);
 void GPENCIL_OT_delete(struct wmOperatorType *ot);
+void GPENCIL_OT_dissolve(struct wmOperatorType *ot);
+void GPENCIL_OT_copy(struct wmOperatorType *ot);
+void GPENCIL_OT_paste(struct wmOperatorType *ot);
 
 /* buttons editing --- */
 
@@ -134,6 +143,10 @@ void GPENCIL_OT_data_unlink(struct wmOperatorType *ot);
 void GPENCIL_OT_layer_add(struct wmOperatorType *ot);
 void GPENCIL_OT_layer_remove(struct wmOperatorType *ot);
 void GPENCIL_OT_layer_move(struct wmOperatorType *ot);
+void GPENCIL_OT_layer_duplicate(struct wmOperatorType *ot);
+
+void GPENCIL_OT_hide(struct wmOperatorType *ot);
+void GPENCIL_OT_reveal(struct wmOperatorType *ot);
 
 void GPENCIL_OT_active_frame_delete(struct wmOperatorType *ot);
 
@@ -152,17 +165,17 @@ void gpencil_undo_finish(void);
 /* This struct defines a structure used for quick access */
 typedef struct bActListElem {
 	struct bActListElem *next, *prev;
-	
+
 	void *data;   /* source data this elem represents */
 	int   type;   /* one of the ACTTYPE_* values */
 	int   flag;   /* copy of elem's flags for quick access */
 	int   index;  /* copy of adrcode where applicable */
-	
+
 	void  *key_data;  /* motion data - ipo or ipo-curve */
 	short  datatype;  /* type of motion data to expect */
-	
+
 	struct bActionGroup *grp;   /* action group that owns the channel */
-	
+
 	void  *owner;      /* will either be an action channel or fake ipo-channel (for keys) */
 	short  ownertype;  /* type of owner */
 } bActListElem;

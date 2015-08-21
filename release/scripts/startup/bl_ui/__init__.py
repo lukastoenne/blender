@@ -21,9 +21,10 @@
 # note, properties_animviz is a helper module only.
 
 if "bpy" in locals():
-    from imp import reload as _reload
+    from importlib import reload
     for val in _modules_loaded.values():
-        _reload(val)
+        reload(val)
+    del reload
 _modules = [
     "properties_animviz",
     "properties_constraint",
@@ -85,7 +86,7 @@ if bpy.app.build_options.freestyle:
     _modules.append("properties_freestyle")
 __import__(name=__name__, fromlist=_modules)
 _namespace = globals()
-_modules_loaded = {name: _namespace[name] for name in _modules if name != 'bpy'}
+_modules_loaded = {name: _namespace[name] for name in _modules if name != "bpy"}
 del _namespace
 
 
@@ -117,6 +118,7 @@ def register():
     WindowManager.addon_search = StringProperty(
             name="Search",
             description="Search within the selected filter",
+            options={'TEXTEDIT_UPDATE'},
             )
     WindowManager.addon_filter = EnumProperty(
             items=addon_filter_items,

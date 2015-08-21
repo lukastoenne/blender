@@ -35,7 +35,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dlrbTree.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -1050,7 +1050,7 @@ static void poselib_preview_get_next(tPoseLib_PreviewData *pld, int step)
 		LinkData *ld, *ldn, *ldc;
 		
 		/* free and rebuild if needed (i.e. if search-str changed) */
-		if (strcmp(pld->searchstr, pld->searchold)) {
+		if (!STREQ(pld->searchstr, pld->searchold)) {
 			/* free list of temporary search matches */
 			BLI_freelistN(&pld->searchp);
 			
@@ -1196,7 +1196,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
 	
 	/* only accept 'press' event, and ignore 'release', so that we don't get double actions */
 	if (ELEM(event->val, KM_PRESS, KM_NOTHING) == 0) {
-		//printf("PoseLib: skipping event with type '%s' and val %d\n", WM_key_event_string(event->type), event->val);
+		//printf("PoseLib: skipping event with type '%s' and val %d\n", WM_key_event_string(event->type, false), event->val);
 		return ret; 
 	}
 	

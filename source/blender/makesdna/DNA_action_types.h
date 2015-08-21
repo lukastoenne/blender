@@ -250,6 +250,7 @@ typedef enum ePchan_Flag {
 	POSE_ROT        =   (1 << 1),
 	POSE_SIZE       =   (1 << 2),
 	/* old IK/cache stuff... */
+#if 0
 	POSE_IK_MAT     =   (1 << 3),
 	POSE_UNUSED2    =   (1 << 4),
 	POSE_UNUSED3    =   (1 << 5),
@@ -257,6 +258,7 @@ typedef enum ePchan_Flag {
 	POSE_UNUSED5    =   (1 << 7),
 	/* has Standard IK */
 	POSE_HAS_IK     =   (1 << 8),
+#endif
 	/* IK/Pose solving*/
 	POSE_CHAIN      =   (1 << 9),
 	POSE_DONE       =   (1 << 10),
@@ -265,8 +267,10 @@ typedef enum ePchan_Flag {
 	POSE_STRIDE     =   (1 << 12),
 	/* standard IK solving */
 	POSE_IKTREE     =   (1 << 13),
+#if 0
 	/* has Spline IK */
 	POSE_HAS_IKS    =   (1 << 14),
+#endif
 	/* spline IK solving */
 	POSE_IKSPLINE   =   (1 << 15)
 } ePchan_Flag;
@@ -371,7 +375,9 @@ typedef enum ePose_Flags {
 	/* set by BKE_pose_rebuild to give a chance to the IK solver to rebuild IK tree */
 	POSE_WAS_REBUILT = (1 << 5),
 	/* set by game_copy_pose to indicate that this pose is used in the game engine */
-	POSE_GAME_ENGINE = (1 << 6)
+	POSE_GAME_ENGINE = (1 << 6),
+	/* pose constraint flags needs to be updated */
+	POSE_CONSTRAINTS_NEED_UPDATE_FLAGS = (1 << 7),
 } ePose_Flags;
 
 /* IK Solvers ------------------------------------ */
@@ -465,6 +471,9 @@ typedef enum eActionGroup_Flag {
 	AGRP_NOTVISIBLE = (1 << 5),
 	/* for UI (Graph Editor), sub-channels are shown */
 	AGRP_EXPANDED_G = (1 << 6),
+
+	/* sub channel modifiers off */
+	AGRP_MODIFIERS_OFF = (1 << 7),
 	
 	AGRP_TEMP       = (1 << 30),
 	AGRP_MOVED      = (1 << 31)
@@ -487,7 +496,7 @@ typedef struct bAction {
 	ID id;              /* ID-serialisation for relinking */
 	
 	ListBase curves;    /* function-curves (FCurve) */
-	ListBase chanbase;  /* legacy data - Action Channels (bActionChannel) in pre-2.5 animation system */
+	ListBase chanbase DNA_DEPRECATED;  /* legacy data - Action Channels (bActionChannel) in pre-2.5 animation system */
 	ListBase groups;    /* groups of function-curves (bActionGroup) */
 	ListBase markers;   /* markers local to the Action (used to provide Pose-Libraries) */
 	

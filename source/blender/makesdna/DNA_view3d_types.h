@@ -35,9 +35,7 @@
 struct ViewDepths;
 struct Object;
 struct Image;
-struct Tex;
 struct SpaceLink;
-struct Base;
 struct BoundBox;
 struct MovieClip;
 struct MovieClipUser;
@@ -46,6 +44,7 @@ struct bGPdata;
 struct SmoothView3DStore;
 struct wmTimer;
 struct Material;
+struct GPUFX;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -60,6 +59,7 @@ struct Material;
 #include "DNA_listBase.h"
 #include "DNA_image_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_gpu_types.h"
 
 /* ******************************** */
 
@@ -74,10 +74,11 @@ typedef struct BGpic {
 	struct ImageUser iuser;
 	struct MovieClip *clip;
 	struct MovieClipUser cuser;
-	float xof, yof, size, blend;
+	float xof, yof, size, blend, rotation;
 	short view;
 	short flag;
-	short source, pad;
+	short source;
+	char pad[6];
 } BGpic;
 
 /* ********************************* */
@@ -89,11 +90,11 @@ typedef struct RegionView3D {
 	float viewinv[4][4];		/* inverse of viewmat */
 	float persmat[4][4];		/* viewmat*winmat */
 	float persinv[4][4];		/* inverse of persmat */
+	float viewcamtexcofac[4];	/* offset/scale for camera glsl texcoords */
 
 	/* viewmat/persmat multiplied with object matrix, while drawing and selection */
 	float viewmatob[4][4];
 	float persmatob[4][4];
-
 
 	/* user defined clipping planes */
 	float clip[6][4];
@@ -145,6 +146,7 @@ typedef struct RegionView3D {
 	float rot_angle;
 	float rot_axis[3];
 
+	struct GPUFX *compositor;
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -209,10 +211,18 @@ typedef struct View3D {
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
 	struct ListBase afterdraw_xraytransp;
-	
+
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
-	char pad3[5];
+
+	char multiview_eye;				/* multiview current eye - for internal use */
+
+	/* built-in shader effects (eGPUFXFlags) */
+	char pad3[4];
+
+	/* note, 'fx_settings.dof' is currently _not_ allocated,
+	 * instead set (temporarily) from camera */
+	struct GPUFXSettings fx_settings;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
@@ -220,8 +230,20 @@ typedef struct View3D {
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
+	 /* multiview - stereo 3d */
+	short stereo3d_flag;
+	char stereo3d_camera;
+	char pad4;
+	float stereo3d_convergence_factor;
+	float stereo3d_volume_alpha;
+	float stereo3d_convergence_alpha;
 } View3D;
 
+
+/* View3D->stereo_flag (short) */
+#define V3D_S3D_DISPCAMERAS		(1 << 0)
+#define V3D_S3D_DISPPLANE		(1 << 1)
+#define V3D_S3D_DISPVOLUME		(1 << 2)
 
 /* View3D->flag (short) */
 /*#define V3D_DISPIMAGE		1*/ /*UNUSED*/
@@ -246,6 +268,11 @@ typedef struct View3D {
 #define RV3D_NAVIGATING				8
 #define RV3D_GPULIGHT_UPDATE		16
 #define RV3D_IS_GAME_ENGINE			32  /* runtime flag, used to check if LoD's should be used */
+/**
+ * Disable zbuffer offset, skip calls to #ED_view3d_polygon_offset.
+ * Use when precise surface depth is needed and picking bias isn't, see T45434).
+ */
+#define RV3D_ZOFFSET_DISABLED		64
 
 /* RegionView3d->viewlock */
 #define RV3D_LOCKED			(1 << 0)
@@ -340,7 +367,11 @@ enum {
 
 	/* Camera framing options */
 	V3D_BGPIC_CAMERA_ASPECT = (1 << 5),  /* don't stretch to fit the camera view  */
-	V3D_BGPIC_CAMERA_CROP   = (1 << 6)   /* crop out the image */
+	V3D_BGPIC_CAMERA_CROP   = (1 << 6),  /* crop out the image */
+
+	/* Axis flip options */
+	V3D_BGPIC_FLIP_X        = (1 << 7),
+	V3D_BGPIC_FLIP_Y        = (1 << 8),
 };
 
 #define V3D_BGPIC_EXPANDED (V3D_BGPIC_EXPANDED | V3D_BGPIC_CAMERACLIP)
@@ -353,6 +384,9 @@ enum {
 #define RV3D_CAMZOOM_MIN -30
 #define RV3D_CAMZOOM_MAX 600
 
-#endif
+/* #BKE_screen_view3d_zoom_to_fac() values above */
+#define RV3D_CAMZOOM_MIN_FACTOR  0.1657359312880714853f
+#define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
 
+#endif
 

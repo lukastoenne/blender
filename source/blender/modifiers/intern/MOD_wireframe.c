@@ -74,7 +74,7 @@ static bool dependsOnNormals(ModifierData *UNUSED(md))
 	return true;
 }
 
-static DerivedMesh *WireframeModifier_do( WireframeModifierData *wmd, Object *ob, DerivedMesh *dm)
+static DerivedMesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, DerivedMesh *dm)
 {
 	DerivedMesh *result;
 	BMesh *bm;
@@ -133,6 +133,7 @@ ModifierTypeInfo modifierType_Wireframe = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ NULL,

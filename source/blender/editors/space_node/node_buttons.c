@@ -35,7 +35,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -148,14 +148,14 @@ static void node_tree_interface_panel(const bContext *C, Panel *pa)
 	col = uiLayoutColumn(split, true);
 	uiItemL(col, IFACE_("Inputs:"), ICON_NONE);
 	uiTemplateList(col, (bContext *)C, "NODE_UL_interface_sockets", "inputs", &ptr, "inputs", &ptr, "active_input",
-	               0, 0, 0, 0);
+	               NULL, 0, 0, 0, 0);
 	opptr = uiItemFullO(col, "NODE_OT_tree_socket_add", "", ICON_PLUS, NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&opptr, "in_out", SOCK_IN);
 	
 	col = uiLayoutColumn(split, true);
 	uiItemL(col, IFACE_("Outputs:"), ICON_NONE);
 	uiTemplateList(col, (bContext *)C, "NODE_UL_interface_sockets", "outputs", &ptr, "outputs", &ptr, "active_output",
-	               0, 0, 0, 0);
+	               NULL, 0, 0, 0, 0);
 	opptr = uiItemFullO(col, "NODE_OT_tree_socket_add", "", ICON_PLUS, NULL, WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
 	RNA_enum_set(&opptr, "in_out", SOCK_OUT);
 	
@@ -186,7 +186,7 @@ void node_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype node panel node sockets");
 	strcpy(pt->idname, "NODE_PT_sockets");
 	strcpy(pt->label, N_("Sockets"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = node_sockets_panel;
 	pt->poll = node_sockets_poll;
 	pt->flag |= PNL_DEFAULT_CLOSED;
@@ -195,7 +195,7 @@ void node_buttons_register(ARegionType *art)
 	pt = MEM_callocN(sizeof(PanelType), "spacetype node panel tree interface");
 	strcpy(pt->idname, "NODE_PT_node_tree_interface");
 	strcpy(pt->label, N_("Interface"));
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	strcpy(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = node_tree_interface_panel;
 	pt->poll = node_tree_interface_poll;
 	BLI_addtail(&art->paneltypes, pt);

@@ -41,7 +41,6 @@
 
 struct Ipo;
 struct PackedFile;
-struct SpaceLink;
 
 typedef struct bSound {
 	ID id;
@@ -95,8 +94,8 @@ typedef struct bSound {
 	 */
 	void *playback_handle;
 
-	/* mutex for asynchronous loading of sounds */
-	void *mutex;
+	/* spinlock for asynchronous loading of sounds */
+	void *spinlock;
 	/* XXX unused currently	(SOUND_TYPE_LIMITER) */
 	/* float start, end; */
 } bSound;
@@ -118,15 +117,13 @@ enum {
 };
 
 enum {
+#ifdef DNA_DEPRECATED
 	SOUND_FLAGS_3D                   = (1 << 3),  /* deprecated! used for sound actuator loading */
+#endif
 	SOUND_FLAGS_CACHING              = (1 << 4),
 	SOUND_FLAGS_MONO                 = (1 << 5),
 	SOUND_FLAGS_WAVEFORM_LOADING     = (1 << 6),
 };
-
-#if (DNA_DEPRECATED_GCC_POISON == 1)
-#pragma GCC poison SOUND_FLAGS_3D
-#endif
 
 /* to DNA_sound_types.h*/
 

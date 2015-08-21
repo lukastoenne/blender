@@ -54,13 +54,14 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "PIL_time.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_dial.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
+#include "BLI_linklist_stack.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
@@ -73,9 +74,11 @@
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
@@ -87,7 +90,6 @@
 
 #include "BKE_idcode.h"
 
-#include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 #include "BLF_api.h"
 
@@ -100,11 +102,14 @@
 #include "ED_util.h"
 #include "ED_view3d.h"
 
+#include "GPU_material.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "UI_interface.h"
+#include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "WM_api.h"
@@ -166,7 +171,8 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot);
 
 	if (ot->name == NULL) {
@@ -188,7 +194,8 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType *, void *), void *
 	ot = MEM_callocN(sizeof(wmOperatorType), "operatortype");
 	ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot, userdata);
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
@@ -334,7 +341,9 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				 * */
 				if (op->opm->type->flag & OPTYPE_BLOCKING) {
 					int bounds[4] = {-1, -1, -1, -1};
-					int wrap = (U.uiflag & USER_CONTINUOUS_MOUSE) && ((op->opm->flag & OP_GRAB_POINTER) || (op->opm->type->flag & OPTYPE_GRAB_POINTER));
+					const bool wrap = (
+					        (U.uiflag & USER_CONTINUOUS_MOUSE) &&
+					        ((op->opm->flag & OP_IS_MODAL_GRAB_CURSOR) || (op->opm->type->flag & OPTYPE_GRAB_CURSOR)));
 
 					if (wrap) {
 						ARegion *ar = CTX_wm_region(C);
@@ -369,6 +378,7 @@ static void wm_macro_cancel(bContext *C, wmOperator *op)
 wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag)
 {
 	wmOperatorType *ot;
+	const char *i18n_context;
 	
 	if (WM_operatortype_find(idname, true)) {
 		printf("%s: macro error: operator %s exists\n", __func__, idname);
@@ -395,8 +405,9 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *nam
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 	/* Use i18n context from ext.srna if possible (py operators). */
-	RNA_def_struct_translation_context(ot->srna, ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) :
-	                                                            BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	i18n_context = ot->ext.srna ? RNA_struct_translation_context(ot->ext.srna) : BLT_I18NCONTEXT_OPERATOR_DEFAULT;
+	RNA_def_struct_translation_context(ot->srna, i18n_context);
+	ot->translation_context = i18n_context;
 
 	BLI_ghash_insert(global_ops_hash, (void *)ot->idname, ot);
 
@@ -421,7 +432,8 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *, void *), 
 		ot->description = UNDOCUMENTED_OPERATOR_TIP;
 
 	/* Set the default i18n context now, so that opfunc can redefine it if needed! */
-	RNA_def_struct_translation_context(ot->srna, BLF_I18NCONTEXT_OPERATOR_DEFAULT);
+	RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
+	ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
 	opfunc(ot, userdata);
 
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description);
@@ -481,7 +493,7 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 	if (ot->macro.first)
 		wm_operatortype_free_macro(ot);
 
-	BLI_ghash_remove(global_ops_hash, (void *)ot->idname, NULL, NULL);
+	BLI_ghash_remove(global_ops_hash, ot->idname, NULL, NULL);
 
 	WM_keyconfig_update_operatortype();
 
@@ -531,7 +543,7 @@ void WM_operator_py_idname(char *to, const char *from)
 		/* note, we use ascii tolower instead of system tolower, because the
 		 * latter depends on the locale, and can lead to idname mismatch */
 		memcpy(to, from, sizeof(char) * ofs);
-		BLI_ascii_strtolower(to, ofs);
+		BLI_str_tolower_ascii(to, ofs);
 
 		to[ofs] = '.';
 		BLI_strncpy(to + (ofs + 1), sep + 4, OP_MAX_TYPENAME - (ofs + 1));
@@ -552,7 +564,7 @@ void WM_operator_bl_idname(char *to, const char *from)
 			int ofs = (sep - from);
 
 			memcpy(to, from, sizeof(char) * ofs);
-			BLI_ascii_strtoupper(to, ofs);
+			BLI_str_toupper_ascii(to, ofs);
 			strcpy(to + ofs, "_OT_");
 			strcpy(to + (ofs + 4), sep + 1);
 		}
@@ -565,12 +577,13 @@ void WM_operator_bl_idname(char *to, const char *from)
 		to[0] = 0;
 }
 
-/* Print a string representation of the operator, with the args that it runs so python can run it again.
+/**
+ * Print a string representation of the operator, with the args that it runs so python can run it again.
  *
  * When calling from an existing wmOperator, better to use simple version:
- *     WM_operator_pystring(C, op);
+ * `WM_operator_pystring(C, op);`
  *
- * Note: both op and opptr may be NULL (op is only used for macro operators).
+ * \note Both \a op and \a opptr may be `NULL` (\a op is only used for macro operators).
  */
 char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, const bool macro_args,
                               wmOperatorType *ot, PointerRNA *opptr)
@@ -1184,7 +1197,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const struct ImageFor
 	/* dont NULL check prop, this can only run on ops with a 'filepath' */
 	prop = RNA_struct_find_property(op->ptr, "filepath");
 	RNA_property_string_get(op->ptr, prop, filepath);
-	if (BKE_add_image_extension(filepath, im_format)) {
+	if (BKE_image_path_ensure_ext_from_imformat(filepath, im_format)) {
 		RNA_property_string_set(op->ptr, prop, filepath);
 		/* note, we could check for and update 'filename' here,
 		 * but so far nothing needs this. */
@@ -1227,27 +1240,29 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	}
 	
-	prop = RNA_def_boolean(ot->srna, "filter_blender", (filter & BLENDERFILE) != 0, "Filter .blend files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_blender", (filter & FILE_TYPE_BLENDER) != 0, "Filter .blend files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_backup", (filter & BLENDERFILE_BACKUP) != 0, "Filter .blend files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_backup", (filter & FILE_TYPE_BLENDER_BACKUP) != 0, "Filter .blend files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_image", (filter & IMAGEFILE) != 0, "Filter image files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_image", (filter & FILE_TYPE_IMAGE) != 0, "Filter image files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_movie", (filter & MOVIEFILE) != 0, "Filter movie files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_movie", (filter & FILE_TYPE_MOVIE) != 0, "Filter movie files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_python", (filter & PYSCRIPTFILE) != 0, "Filter python files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_python", (filter & FILE_TYPE_PYSCRIPT) != 0, "Filter python files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_font", (filter & FTFONTFILE) != 0, "Filter font files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_font", (filter & FILE_TYPE_FTFONT) != 0, "Filter font files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_sound", (filter & SOUNDFILE) != 0, "Filter sound files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_sound", (filter & FILE_TYPE_SOUND) != 0, "Filter sound files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_text", (filter & TEXTFILE) != 0, "Filter text files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_text", (filter & FILE_TYPE_TEXT) != 0, "Filter text files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_btx", (filter & BTXFILE) != 0, "Filter btx files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_btx", (filter & FILE_TYPE_BTX) != 0, "Filter btx files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_collada", (filter & COLLADAFILE) != 0, "Filter COLLADA files", "");
+	prop = RNA_def_boolean(ot->srna, "filter_collada", (filter & FILE_TYPE_COLLADA) != 0, "Filter COLLADA files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE) != 0, "Filter folders", "");
+	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FILE_TYPE_FOLDER) != 0, "Filter folders", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "filter_blenlib", (filter & FILE_TYPE_BLENDERLIB) != 0, "Filter Blender IDs", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
 	prop = RNA_def_int(ot->srna, "filemode", type, FILE_LOADLIB, FILE_SPECIAL,
@@ -1257,6 +1272,13 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 
 	if (flag & WM_FILESEL_RELPATH)
 		RNA_def_boolean(ot->srna, "relative_path", true, "Relative Path", "Select the file relative to the blend file");
+
+	if ((filter & FILE_TYPE_IMAGE) || (filter & FILE_TYPE_MOVIE)) {
+		prop = RNA_def_boolean(ot->srna, "show_multiview", 0, "Enable Multi-View", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		prop = RNA_def_boolean(ot->srna, "use_multiview", 0, "Use Multi-View", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	}
 
 	prop = RNA_def_enum(ot->srna, "display_type", file_display_items, display, "Display Type", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
@@ -1387,7 +1409,7 @@ bool WM_operator_check_ui_enabled(const bContext *C, const char *idname)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	Scene *scene = CTX_data_scene(C);
 
-	return !(ED_undo_valid(C, idname) == 0 || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
+	return !((ED_undo_is_valid(C, idname) == false) || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
 }
 
 wmOperator *WM_operator_last_redo(const bContext *C)
@@ -1497,7 +1519,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	UI_block_flag_disable(block, UI_BLOCK_LOOP);
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	/* UI_BLOCK_NUMSELECT for layer buttons */
+	UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
 
 	/* if register is not enabled, the operator gets freed on OPERATOR_FINISHED
 	 * ui_apply_but_funcs_after calls ED_undo_operator_repeate_cb and crashes */
@@ -1534,6 +1557,9 @@ typedef struct wmOpPopUp {
 /* Only invoked by OK button in popups created with wm_block_dialog_create() */
 static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	wmOpPopUp *data = arg1;
 	uiBlock *block = arg2;
 
@@ -1546,7 +1572,11 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	/* in this case, wm_operator_ui_popup_cancel wont run */
 	MEM_freeN(data);
 
-	UI_popup_block_close(C, block);
+	/* check window before 'block->handle' incase the
+	 * popup execution closed the window and freed the block. see T44688. */
+	if (BLI_findindex(&wm->windows, win) != -1) {
+		UI_popup_block_close(C, win, block);
+	}
 }
 
 static void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
@@ -1577,7 +1607,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	/* intentionally don't use 'UI_BLOCK_MOVEMOUSE_QUIT', some dialogues have many items
 	 * where quitting by accident is very annoying */
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN);
+	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
 
 	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, 0, style);
 	
@@ -1672,7 +1702,7 @@ int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
 /**
  * For use by #WM_operator_props_popup_call, #WM_operator_props_popup only.
  *
- * \note operator menu needs undo flag enabled , for redo callback */
+ * \note operator menu needs undo flag enabled, for redo callback */
 static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
                                       const bool do_call, const bool do_redo)
 {
@@ -1703,18 +1733,20 @@ static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
 	return OPERATOR_RUNNING_MODAL;
 }
 
-/* Same as WM_operator_props_popup but don't use operator redo.
- * just wraps WM_operator_props_dialog_popup.
+/**
+ * Same as #WM_operator_props_popup but don't use operator redo.
+ * just wraps #WM_operator_props_dialog_popup.
  */
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, false, false);
 }
 
-/* Same as WM_operator_props_popup but call the operator first,
+/**
+ * Same as #WM_operator_props_popup but call the operator first,
  * This way - the button values correspond to the result of the operator.
- * Without this, first access to a button will make the result jump,
- * see [#32452] */
+ * Without this, first access to a button will make the result jump, see T32452.
+ */
 int WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, true, true);
@@ -1818,21 +1850,16 @@ static void WM_OT_operator_defaults(wmOperatorType *ot)
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg))
 {
-	UI_popup_block_close(C, arg_block);
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
 }
 
 static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unused);
 
-/* XXX: hack to refresh splash screen with updated preset menu name,
- * since popup blocks don't get regenerated like panels do */
-static void wm_block_splash_refreshmenu(bContext *UNUSED(C), void *UNUSED(arg_block), void *UNUSED(arg))
+static void wm_block_splash_refreshmenu(bContext *C, void *UNUSED(arg_block), void *UNUSED(arg))
 {
-	/* ugh, causes crashes in other buttons, disabling for now until 
-	 * a better fix */
-#if 0
-	UI_popup_block_close(C, arg_block);
-	UI_popup_block_invoke(C, wm_block_create_splash, NULL);
-#endif
+	ARegion *ar_menu = CTX_wm_menu(C);
+	ED_region_tag_refresh_ui(ar_menu);
 }
 
 static int wm_resource_check_prev(void)
@@ -1914,7 +1941,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	/* note on UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
 	 * with the OS when the splash shows, window clipping in this case gives
 	 * ugly results and clipping the splash isn't useful anyway, just disable it [#32938] */
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
+	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
 
 	/* XXX splash scales with pixelsize, should become widget-units */
 	but = uiDefBut(block, UI_BTYPE_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
@@ -1980,8 +2007,10 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	split = uiLayoutSplit(layout, 0.0f, false);
 	col = uiLayoutColumn(split, false);
 	uiItemL(col, IFACE_("Links"), ICON_NONE);
+#if 0
 	uiItemStringO(col, IFACE_("Support an Open Animation Movie"), ICON_URL, "WM_OT_url_open", "url",
 	              "https://cloud.blender.org/join");
+#endif
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
@@ -1990,7 +2019,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
 	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
+	              "http://www.blender.org/manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
 	if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
 		BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d"
@@ -2023,6 +2052,14 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
 	uiItemL(col, "", ICON_NONE);
 	
+	mt = WM_menutype_find("USERPREF_MT_splash_footer", false);
+	if (mt) {
+		Menu menu = {NULL};
+		menu.layout = uiLayoutColumn(layout, false);
+		menu.type = mt;
+		mt->draw(C, &menu);
+	}
+
 	UI_block_bounds_set_centered(block, 0);
 	
 	return block;
@@ -2264,7 +2301,7 @@ static void WM_OT_read_history(wmOperatorType *ot)
 	ot->description = "Reloads history and bookmarks";
 
 	ot->invoke = WM_operator_confirm;
-	ot->exec = wm_history_read_exec;
+	ot->exec = wm_history_file_read_exec;
 
 	/* this operator is only used for loading settings from a previous blender install */
 	ot->flag = OPTYPE_INTERNAL;
@@ -2427,18 +2464,18 @@ static void wm_open_mainfile_ui(bContext *UNUSED(C), wmOperator *op)
 	struct FileRuntime *file_info = (struct FileRuntime *)&op->customdata;
 	uiLayout *layout = op->layout;
 	uiLayout *col = op->layout;
-	const char *autoexec_text = NULL;
+	const char *autoexec_text;
 
 	uiItemR(layout, op->ptr, "load_ui", 0, NULL, ICON_NONE);
 
 	col = uiLayoutColumn(layout, false);
 	if (file_info->is_untrusted) {
-		autoexec_text = "Trusted Source [Untrusted Path]";
+		autoexec_text = IFACE_("Trusted Source [Untrusted Path]");
 		uiLayoutSetActive(col, false);
 		uiLayoutSetEnabled(col, false);
 	}
 	else {
-		autoexec_text = "Trusted Source";
+		autoexec_text = IFACE_("Trusted Source");
 	}
 
 	uiItemR(col, op->ptr, "use_scripts", 0, autoexec_text, ICON_NONE);
@@ -2456,7 +2493,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	ot->ui = wm_open_mainfile_ui;
 	/* omit window poll so this can work in background mode */
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 
 	RNA_def_boolean(ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
@@ -2559,27 +2596,121 @@ static short wm_link_append_flag(wmOperator *op)
 	return flag;
 }
 
+/* Helper.
+ *     if `name` is non-NULL, we assume a single-item link/append.
+ *     else if `*todo_libraries` is NULL we assume first-run.
+ */
+static void wm_link_append_do_libgroup(
+        bContext *C, wmOperator *op, const char *root, const char *libname, char *group, char *name,
+        const short flag, GSet **todo_libraries)
+{
+	Main *bmain = CTX_data_main(C);
+	Main *mainl;
+	BlendHandle *bh;
+	Library *lib;
+
+	char path[FILE_MAX_LIBEXTRA], relname[FILE_MAX];
+	int idcode;
+	const bool is_first_run = (*todo_libraries == NULL);
+
+	BLI_assert(group);
+	idcode = BKE_idcode_from_name(group);
+
+	bh = BLO_blendhandle_from_file(libname, op->reports);
+
+	if (bh == NULL) {
+		/* unlikely since we just browsed it, but possible
+		 * error reports will have been made by BLO_blendhandle_from_file() */
+		return;
+	}
+
+	/* here appending/linking starts */
+	mainl = BLO_library_append_begin(bmain, &bh, libname);
+	lib = mainl->curlib;
+	BLI_assert(lib);
+
+	if (mainl->versionfile < 250) {
+		BKE_reportf(op->reports, RPT_WARNING,
+		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
+		            "be done! You may want to re-save your lib file with current Blender",
+		            mainl->versionfile, mainl->subversionfile);
+	}
+
+	if (name) {
+		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+	}
+	else {
+		if (is_first_run) {
+			*todo_libraries = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+		}
+
+		RNA_BEGIN (op->ptr, itemptr, "files")
+		{
+			char curr_libname[FILE_MAX];
+			int curr_idcode;
+
+			RNA_string_get(&itemptr, "name", relname);
+
+			BLI_join_dirfile(path, sizeof(path), root, relname);
+
+			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
+				if (!group || !name) {
+					continue;
+				}
+
+				curr_idcode = BKE_idcode_from_name(group);
+
+				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
+					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+				}
+				else if (is_first_run) {
+					BLI_join_dirfile(path, sizeof(path), curr_libname, group);
+					if (!BLI_gset_haskey(*todo_libraries, path)) {
+						BLI_gset_insert(*todo_libraries, BLI_strdup(path));
+					}
+				}
+			}
+		}
+		RNA_END;
+	}
+	BLO_library_append_end(C, mainl, &bh, idcode, flag);
+
+	BLO_blendhandle_close(bh);
+
+	/* mark all library linked objects to be updated */
+	BKE_main_lib_objects_recalc_all(bmain);
+	IMB_colormanagement_check_file_config(bmain);
+
+	/* append, rather than linking */
+	if ((flag & FILE_LINK) == 0) {
+		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
+		BKE_library_make_local(bmain, lib, true);
+	}
+}
+
 static int wm_link_append_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Main *mainl = NULL;
-	BlendHandle *bh;
-	Library *lib;
 	PropertyRNA *prop;
-	char name[FILE_MAX], dir[FILE_MAX], libname[FILE_MAX], group[BLO_GROUP_MAX];
-	int idcode, totfiles = 0;
+	char path[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX];
+	char *group, *name;
+	int totfiles = 0;
 	short flag;
 
-	RNA_string_get(op->ptr, "filename", name);
-	RNA_string_get(op->ptr, "directory", dir);
+	GSet *todo_libraries = NULL;
+
+	RNA_string_get(op->ptr, "filename", relname);
+	RNA_string_get(op->ptr, "directory", root);
+
+	BLI_join_dirfile(path, sizeof(path), root, relname);
 
 	/* test if we have a valid data */
-	if (BLO_is_a_library(dir, libname, group) == 0) {
+	if (!BLO_library_path_explode(path, libname, &group, &name)) {
 		BKE_report(op->reports, RPT_ERROR, "Not a library");
 		return OPERATOR_CANCELLED;
 	}
-	else if (group[0] == 0) {
+	else if (!group) {
 		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 		return OPERATOR_CANCELLED;
 	}
@@ -2593,35 +2724,17 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	if (prop) {
 		totfiles = RNA_property_collection_length(op->ptr, prop);
 		if (totfiles == 0) {
-			if (name[0] == '\0') {
+			if (!name) {
 				BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 				return OPERATOR_CANCELLED;
 			}
 		}
 	}
-	else if (name[0] == '\0') {
+	else if (!name) {
 		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 		return OPERATOR_CANCELLED;
 	}
 
-	bh = BLO_blendhandle_from_file(libname, op->reports);
-
-	if (bh == NULL) {
-		/* unlikely since we just browsed it, but possible
-		 * error reports will have been made by BLO_blendhandle_from_file() */
-		return OPERATOR_CANCELLED;
-	}
-
-
-	/* from here down, no error returns */
-
-	idcode = BKE_idcode_from_name(group);
-
-	/* now we have or selected, or an indicated file */
-	if (RNA_boolean_get(op->ptr, "autoselect"))
-		BKE_scene_base_deselect_all(scene);
-
-	
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */
@@ -2631,39 +2744,36 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		flag &= ~FILE_GROUP_INSTANCE;
 	}
 
+	/* from here down, no error returns */
 
+	/* now we have or selected, or an indicated file */
+	if (RNA_boolean_get(op->ptr, "autoselect"))
+		BKE_scene_base_deselect_all(scene);
+	
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
 	 * take extra care BKE_main_id_flag_all(LIB_LINK_TAG, false) is called after! */
 	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, 1);
 
-	/* here appending/linking starts */
-	mainl = BLO_library_append_begin(bmain, &bh, libname);
-	lib = mainl->curlib;
-	BLI_assert(lib);
-
-	if (totfiles == 0) {
-		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+	if (totfiles != 0) {
+		name = NULL;
 	}
-	else {
-		RNA_BEGIN (op->ptr, itemptr, "files")
-		{
-			RNA_string_get(&itemptr, "name", name);
-			BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+
+	wm_link_append_do_libgroup(C, op, root, libname, group, name, flag, &todo_libraries);
+
+	if (todo_libraries) {
+		GSetIterator libs_it;
+
+		GSET_ITER(libs_it, todo_libraries) {
+			char *libpath = (char *)BLI_gsetIterator_getKey(&libs_it);
+
+			BLO_library_path_explode(libpath, libname, &group, NULL);
+
+			wm_link_append_do_libgroup(C, op, root, libname, group, NULL, flag, &todo_libraries);
 		}
-		RNA_END;
-	}
-	BLO_library_append_end(C, mainl, &bh, idcode, flag);
-	
-	/* mark all library linked objects to be updated */
-	BKE_main_lib_objects_recalc_all(bmain);
-	IMB_colormanagement_check_file_config(bmain);
 
-	/* append, rather than linking */
-	if ((flag & FILE_LINK) == 0) {
-		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
-		BKE_library_make_local(bmain, lib, true);
+		BLI_gset_free(todo_libraries, MEM_freeN);
 	}
 
 	/* important we unset, otherwise these object wont
@@ -2672,11 +2782,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* recreate dependency graph to include new objects */
 	DAG_scene_relations_rebuild(bmain, scene);
-
-	BLO_blendhandle_close(bh);
+	
+	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+	GPU_materials_free();
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
-	BLI_strncpy(G.lib, dir, FILE_MAX);
+	BLI_strncpy(G.lib, root, FILE_MAX);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
@@ -2716,7 +2827,7 @@ static void WM_OT_link(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-	        ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+	        ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER | FILE_TYPE_BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 	        WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_RELPATH | WM_FILESEL_FILES,
 	        FILE_DEFAULTDISPLAY);
 	
@@ -2736,7 +2847,7 @@ static void WM_OT_append(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-		ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+		ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER | FILE_TYPE_BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 		WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES,
 		FILE_DEFAULTDISPLAY);
 
@@ -2828,7 +2939,7 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 	ot->exec = wm_recover_auto_save_exec;
 	ot->invoke = wm_recover_auto_save_invoke;
 
-	WM_operator_properties_filesel(ot, BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_BLENDER, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_LONGDISPLAY);
 }
 
@@ -2843,30 +2954,45 @@ static void wm_filepath_default(char *filepath)
 
 static void save_set_compress(wmOperator *op)
 {
-	if (!RNA_struct_property_is_set(op->ptr, "compress")) {
-		if (G.save_over) /* keep flag for existing file */
-			RNA_boolean_set(op->ptr, "compress", (G.fileflags & G_FILE_COMPRESS) != 0);
-		else /* use userdef for new file */
-			RNA_boolean_set(op->ptr, "compress", (U.flag & USER_FILECOMPRESS) != 0);
+	PropertyRNA *prop;
+
+	prop = RNA_struct_find_property(op->ptr, "compress");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		if (G.save_over) {  /* keep flag for existing file */
+			RNA_property_boolean_set(op->ptr, prop, (G.fileflags & G_FILE_COMPRESS) != 0);
+		}
+		else {  /* use userdef for new file */
+			RNA_property_boolean_set(op->ptr, prop, (U.flag & USER_FILECOMPRESS) != 0);
+		}
+	}
+}
+
+static void save_set_filepath(wmOperator *op)
+{
+	PropertyRNA *prop;
+	char name[FILE_MAX];
+
+	prop = RNA_struct_find_property(op->ptr, "filepath");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		/* if not saved before, get the name of the most recently used .blend file */
+		if (G.main->name[0] == 0 && G.recent_files.first) {
+			struct RecentFile *recent = G.recent_files.first;
+			BLI_strncpy(name, recent->filepath, FILE_MAX);
+		}
+		else {
+			BLI_strncpy(name, G.main->name, FILE_MAX);
+		}
+
+		wm_filepath_default(name);
+		RNA_property_string_set(op->ptr, prop, name);
 	}
 }
 
 static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	char name[FILE_MAX];
 
 	save_set_compress(op);
-	
-	/* if not saved before, get the name of the most recently used .blend file */
-	if (G.main->name[0] == 0 && G.recent_files.first) {
-		struct RecentFile *recent = G.recent_files.first;
-		BLI_strncpy(name, recent->filepath, FILE_MAX);
-	}
-	else
-		BLI_strncpy(name, G.main->name, FILE_MAX);
-	
-	wm_filepath_default(name);
-	RNA_string_set(op->ptr, "filepath", name);
+	save_set_filepath(op);
 	
 	WM_event_add_fileselect(C, op);
 
@@ -2946,7 +3072,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* omit window poll so this can work in background mode */
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", true, "Remap Relative",
@@ -2965,7 +3091,6 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 
 static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	char name[FILE_MAX];
 	int ret;
 	
 	/* cancel if no active window */
@@ -2973,18 +3098,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 		return OPERATOR_CANCELLED;
 
 	save_set_compress(op);
-
-	/* if not saved before, get the name of the most recently used .blend file */
-	if (G.main->name[0] == 0 && G.recent_files.first) {
-		struct RecentFile *recent = G.recent_files.first;
-		BLI_strncpy(name, recent->filepath, FILE_MAX);
-	}
-	else
-		BLI_strncpy(name, G.main->name, FILE_MAX);
-
-	wm_filepath_default(name);
-	
-	RNA_string_set(op->ptr, "filepath", name);
+	save_set_filepath(op);
 
 	/* if we're saving for the first time and prefer relative paths - any existing paths will be absolute,
 	 * enable the option to remap paths to avoid confusion [#37240] */
@@ -2996,8 +3110,11 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	}
 
 	if (G.save_over) {
-		if (BLI_exists(name)) {
-			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, name);
+		char path[FILE_MAX];
+
+		RNA_string_get(op->ptr, "filepath", path);
+		if (BLI_exists(path)) {
+			ret = WM_operator_confirm_message_ex(C, op, IFACE_("Save Over?"), ICON_QUESTION, path);
 		}
 		else {
 			ret = wm_save_as_mainfile_exec(C, op);
@@ -3022,7 +3139,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	ot->check = blend_save_check;
 	/* omit window poll so this can work in background mode */
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_SAVE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BLENDER, FILE_BLENDER, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", false, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", false, "Remap Relative",
@@ -3071,7 +3188,7 @@ static int wm_console_toggle_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 static void WM_OT_console_toggle(wmOperatorType *ot)
 {
 	/* XXX Have to mark these for xgettext, as under linux they do not exists... */
-	ot->name = CTX_N_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Toggle System Console");
+	ot->name = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Toggle System Console");
 	ot->idname = "WM_OT_console_toggle";
 	ot->description = N_("Toggle System Console");
 	
@@ -3122,9 +3239,10 @@ void WM_paint_cursor_end(wmWindowManager *wm, void *handle)
 
 /* **************** Border gesture *************** */
 
-/* Border gesture has two types:
- * 1) WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border
- * 2) WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends
+/**
+ * Border gesture has two types:
+ * -# #WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border.
+ * -# #WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends.
  *
  * It stores 4 values (xmin, xmax, ymin, ymax) and event it ended with (event_type)
  */
@@ -3149,14 +3267,16 @@ static int border_apply_rect(wmOperator *op)
 
 static int border_apply(bContext *C, wmOperator *op, int gesture_mode)
 {
+	PropertyRNA *prop;
+
 	int retval;
 
 	if (!border_apply_rect(op))
 		return 0;
 	
 	/* XXX weak; border should be configured for this without reading event types */
-	if (RNA_struct_find_property(op->ptr, "gesture_mode")) {
-		RNA_int_set(op->ptr, "gesture_mode", gesture_mode);
+	if ((prop = RNA_struct_find_property(op->ptr, "gesture_mode"))) {
+		RNA_property_int_set(op->ptr, prop, gesture_mode);
 	}
 
 	retval = op->type->exec(C, op);
@@ -3421,7 +3541,10 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 					tevent.type = EVT_TWEAK_M;
 				tevent.val = val;
 				/* mouse coords! */
-				wm_event_add(window, &tevent);
+
+				/* important we add immediately after this event, so future mouse releases
+				 * (which may be in the queue already), are handled in order, see T44740 */
+				wm_event_add_ex(window, &tevent, event);
 				
 				WM_gesture_end(C, gesture); /* frees gesture itself, and unregisters from window */
 			}
@@ -3476,6 +3599,8 @@ void wm_tweakevent_test(bContext *C, wmEvent *event, int action)
 
 int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	PropertyRNA *prop;
+
 	op->customdata = WM_gesture_new(C, event, WM_GESTURE_LASSO);
 	
 	/* add modal handler */
@@ -3483,8 +3608,8 @@ int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	
 	wm_gesture_tag_redraw(C);
 	
-	if (RNA_struct_find_property(op->ptr, "cursor")) {
-		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+	if ((prop = RNA_struct_find_property(op->ptr, "cursor"))) {
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_property_int_get(op->ptr, prop));
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -3492,6 +3617,8 @@ int WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 int WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	PropertyRNA *prop;
+
 	op->customdata = WM_gesture_new(C, event, WM_GESTURE_LINES);
 	
 	/* add modal handler */
@@ -3499,8 +3626,8 @@ int WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	
 	wm_gesture_tag_redraw(C);
 	
-	if (RNA_struct_find_property(op->ptr, "cursor")) {
-		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+	if ((prop = RNA_struct_find_property(op->ptr, "cursor"))) {
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_property_int_get(op->ptr, prop));
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -3706,6 +3833,8 @@ static int straightline_apply(bContext *C, wmOperator *op)
 
 int WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	PropertyRNA *prop;
+
 	op->customdata = WM_gesture_new(C, event, WM_GESTURE_STRAIGHTLINE);
 	
 	/* add modal handler */
@@ -3713,8 +3842,8 @@ int WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	
 	wm_gesture_tag_redraw(C);
 	
-	if (RNA_struct_find_property(op->ptr, "cursor")) {
-		WM_cursor_modal_set(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+	if ((prop = RNA_struct_find_property(op->ptr, "cursor"))) {
+		WM_cursor_modal_set(CTX_wm_window(C), RNA_property_int_get(op->ptr, prop));
 	}
 		
 	return OPERATOR_RUNNING_MODAL;
@@ -3794,11 +3923,11 @@ void WM_OT_straightline_gesture(wmOperatorType *ot)
 
 /* *********************** radial control ****************** */
 
-#define WM_RADIAL_CONTROL_DISPLAY_SIZE 200
-#define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE 35
+#define WM_RADIAL_CONTROL_DISPLAY_SIZE (200 * U.pixelsize)
+#define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE (35 * U.pixelsize)
 #define WM_RADIAL_CONTROL_DISPLAY_WIDTH (WM_RADIAL_CONTROL_DISPLAY_SIZE - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE)
 #define WM_RADIAL_CONTROL_HEADER_LENGTH 180
-#define WM_RADIAL_MAX_STR 6
+#define WM_RADIAL_MAX_STR 10
 
 typedef struct {
 	PropertyType type;
@@ -3844,9 +3973,11 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
-		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
-			d[0] = rc->initial_value;
+			d[0] = rc->initial_value * U.pixelsize;
+			break;
+		case PROP_PERCENTAGE:
+			d[0] = (rc->initial_value) / 100.0f * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
 			break;
 		case PROP_FACTOR:
 			d[0] = (1 - rc->initial_value) * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
@@ -3953,10 +4084,18 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
-		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
-			r1 = rc->current_value;
-			r2 = rc->initial_value;
+			r1 = rc->current_value * U.pixelsize;
+			r2 = rc->initial_value * U.pixelsize;
+			tex_radius = r1;
+			alpha = 0.75;
+			break;
+		case PROP_PERCENTAGE:
+			r1 = rc->current_value / 100.0f * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
+			r2 = tex_radius = WM_RADIAL_CONTROL_DISPLAY_SIZE;
+			rmin = WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
+			BLI_snprintf(str, WM_RADIAL_MAX_STR, "%3.1f%%", rc->current_value);
+			strdrawlen = BLI_strlen_utf8(str);
 			tex_radius = r1;
 			alpha = 0.75;
 			break;
@@ -3980,11 +4119,6 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 			alpha = 0.75;
 			break;
 	}
-
-	/* adjust for DPI, like BKE_brush_size_get */
-	r1 *= U.pixelsize;
-	r2 *= U.pixelsize;
-	tex_radius *= U.pixelsize;
 
 	/* Keep cursor in the original place */
 	x = rc->initial_mouse[0] - ar->winrct.xmin;
@@ -4047,12 +4181,15 @@ typedef enum {
 	RC_PROP_REQUIRE_BOOL = 4,
 } RCPropFlags;
 
-/* attempt to retrieve the rna pointer/property from an rna path;
- * returns 0 for failure, 1 for success, and also 1 if property is not
- * set */
-static int radial_control_get_path(PointerRNA *ctx_ptr, wmOperator *op,
-                                   const char *name, PointerRNA *r_ptr,
-                                   PropertyRNA **r_prop, int req_length, RCPropFlags flags)
+/**
+ * Attempt to retrieve the rna pointer/property from an rna path.
+ *
+ * \return 0 for failure, 1 for success, and also 1 if property is not set.
+ */
+static int radial_control_get_path(
+        PointerRNA *ctx_ptr, wmOperator *op,
+        const char *name, PointerRNA *r_ptr,
+        PropertyRNA **r_prop, int req_length, RCPropFlags flags)
 {
 	PropertyRNA *unused_prop;
 	int len;
@@ -4186,8 +4323,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 {
 	wmWindowManager *wm;
 	RadialControl *rc;
-	int min_value_int, max_value_int, step_int;
-	float step_float, precision;
+
 
 	if (!(op->customdata = rc = MEM_callocN(sizeof(RadialControl), "RadialControl")))
 		return OPERATOR_CANCELLED;
@@ -4200,17 +4336,29 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	/* get type, initial, min, and max values of the property */
 	switch ((rc->type = RNA_property_type(rc->prop))) {
 		case PROP_INT:
-			rc->initial_value = RNA_property_int_get(&rc->ptr, rc->prop);
-			RNA_property_int_ui_range(&rc->ptr, rc->prop, &min_value_int,
-			                          &max_value_int, &step_int);
-			rc->min_value = min_value_int;
-			rc->max_value = max_value_int;
+		{
+			int value, min, max, step;
+
+			value = RNA_property_int_get(&rc->ptr, rc->prop);
+			RNA_property_int_ui_range(&rc->ptr, rc->prop, &min, &max, &step);
+
+			rc->initial_value = value;
+			rc->min_value = min_ii(value, min);
+			rc->max_value = max_ii(value, max);
 			break;
+		}
 		case PROP_FLOAT:
-			rc->initial_value = RNA_property_float_get(&rc->ptr, rc->prop);
-			RNA_property_float_ui_range(&rc->ptr, rc->prop, &rc->min_value,
-			                            &rc->max_value, &step_float, &precision);
+		{
+			float value, min, max, step, precision;
+
+			value = RNA_property_float_get(&rc->ptr, rc->prop);
+			RNA_property_float_ui_range(&rc->ptr, rc->prop, &min, &max, &step, &precision);
+
+			rc->initial_value = value;
+			rc->min_value = min_ff(value, min);
+			rc->max_value = max_ff(value, max);
 			break;
+		}
 		default:
 			BKE_report(op->reports, RPT_ERROR, "Property must be an integer or a float");
 			MEM_freeN(rc);
@@ -4268,7 +4416,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
 {
 	RadialControl *rc = op->customdata;
 	wmWindowManager *wm = CTX_wm_manager(C);
-    ScrArea *sa = CTX_wm_area(C);
+	ScrArea *sa = CTX_wm_area(C);
 
 	if (rc->dial) {
 		MEM_freeN(rc->dial);
@@ -4301,9 +4449,9 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 	float delta[2], ret = OPERATOR_RUNNING_MODAL;
 	bool snap;
 	float angle_precision = 0.0f;
-    const bool has_numInput = hasNumInput(&rc->num_input);
-    bool handled = false;
-    float numValue;
+	const bool has_numInput = hasNumInput(&rc->num_input);
+	bool handled = false;
+	float numValue;
 	/* TODO: fix hardcoded events */
 
 	snap = event->ctrl != 0;
@@ -4312,9 +4460,17 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 	if (event->val == KM_PRESS && has_numInput && handleNumInput(C, &rc->num_input, event)) {
 		handled = true;
 		applyNumInput(&rc->num_input, &numValue);
+
+		if (rc->subtype == PROP_ANGLE) {
+			numValue = DEG2RADF(numValue);
+			numValue = fmod(numValue, 2.0f * (float)M_PI);
+			if (numValue < 0.0f)
+				numValue += 2.0f * (float)M_PI;
+		}
+		
 		CLAMP(numValue, rc->min_value, rc->max_value);
 		new_value = numValue;
-
+		
 		radial_control_set_value(rc, new_value);
 		rc->current_value = new_value;
 		radial_control_update_header(op, C);
@@ -4391,17 +4547,21 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 					switch (rc->subtype) {
 						case PROP_NONE:
 						case PROP_DISTANCE:
-						case PROP_PERCENTAGE:
 						case PROP_PIXEL:
 							new_value = dist;
 							if (snap) new_value = ((int)new_value + 5) / 10 * 10;
+							new_value /= U.pixelsize;
+							break;
+						case PROP_PERCENTAGE:
+							new_value = ((dist - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE) / WM_RADIAL_CONTROL_DISPLAY_WIDTH) * 100.0f;
+							if (snap) new_value = ((int)(new_value + 2.5f)) / 5 * 5;
 							break;
 						case PROP_FACTOR:
 							new_value = (WM_RADIAL_CONTROL_DISPLAY_SIZE - dist) / WM_RADIAL_CONTROL_DISPLAY_WIDTH;
 							if (snap) new_value = ((int)ceil(new_value * 10.f) * 10.0f) / 100.f;
 							break;
 						case PROP_ANGLE:
-							new_value = atan2f(delta[1], delta[0]) + M_PI + angle_precision;
+							new_value = atan2f(delta[1], delta[0]) + (float)M_PI + angle_precision;
 							new_value = fmod(new_value, 2.0f * (float)M_PI);
 							if (new_value < 0.0f)
 								new_value += 2.0f * (float)M_PI;
@@ -4452,10 +4612,19 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 		/* Modal numinput inactive, try to handle numeric inputs last... */
 		if (!handled && event->val == KM_PRESS && handleNumInput(C, &rc->num_input, event)) {
 			applyNumInput(&rc->num_input, &numValue);
+
+			if (rc->subtype == PROP_ANGLE) {
+				numValue = DEG2RADF(numValue);
+				numValue = fmod(numValue, 2.0f * (float)M_PI);
+				if (numValue < 0.0f)
+					numValue += 2.0f * (float)M_PI;
+			}
+
 			CLAMP(numValue, rc->min_value, rc->max_value);
 			new_value = numValue;
-
+			
 			radial_control_set_value(rc, new_value);
+			
 			rc->current_value = new_value;
 			radial_control_update_header(op, C);
 			return OPERATOR_RUNNING_MODAL;
@@ -4519,110 +4688,137 @@ static void redraw_timer_window_swap(bContext *C)
 	CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
 }
 
+enum {
+	eRTDrawRegion = 0,
+	eRTDrawRegionSwap = 1,
+	eRTDrawWindow = 2,
+	eRTDrawWindowSwap = 3,
+	eRTAnimationStep = 4,
+	eRTAnimationPlay = 5,
+	eRTUndo = 6,
+};
+
 static EnumPropertyItem redraw_timer_type_items[] = {
-	{0, "DRAW", 0, "Draw Region", "Draw Region"},
-	{1, "DRAW_SWAP", 0, "Draw Region + Swap", "Draw Region and Swap"},
-	{2, "DRAW_WIN", 0, "Draw Window", "Draw Window"},
-	{3, "DRAW_WIN_SWAP", 0, "Draw Window + Swap", "Draw Window and Swap"},
-	{4, "ANIM_STEP", 0, "Anim Step", "Animation Steps"},
-	{5, "ANIM_PLAY", 0, "Anim Play", "Animation Playback"},
-	{6, "UNDO", 0, "Undo/Redo", "Undo/Redo"},
+	{eRTDrawRegion, "DRAW", 0, "Draw Region", "Draw Region"},
+	{eRTDrawRegionSwap, "DRAW_SWAP", 0, "Draw Region + Swap", "Draw Region and Swap"},
+	{eRTDrawWindow, "DRAW_WIN", 0, "Draw Window", "Draw Window"},
+	{eRTDrawWindowSwap, "DRAW_WIN_SWAP", 0, "Draw Window + Swap", "Draw Window and Swap"},
+	{eRTAnimationStep, "ANIM_STEP", 0, "Anim Step", "Animation Steps"},
+	{eRTAnimationPlay, "ANIM_PLAY", 0, "Anim Play", "Animation Playback"},
+	{eRTUndo, "UNDO", 0, "Undo/Redo", "Undo/Redo"},
 	{0, NULL, 0, NULL, NULL}
 };
 
-static int redraw_timer_exec(bContext *C, wmOperator *op)
+
+static void redraw_timer_step(
+        bContext *C, Main *bmain, Scene *scene,
+        wmWindow *win, ScrArea *sa, ARegion *ar,
+        const int type, const int cfra)
 {
-	ARegion *ar = CTX_wm_region(C);
-	double stime = PIL_check_seconds_timer();
-	int type = RNA_enum_get(op->ptr, "type");
-	int iter = RNA_int_get(op->ptr, "iterations");
-	int a;
-	float time;
-	const char *infostr = "";
-	
-	WM_cursor_wait(1);
-
-	for (a = 0; a < iter; a++) {
-		if (type == 0) {
-			if (ar)
-				ED_region_do_draw(C, ar);
+	if (type == eRTDrawRegion) {
+		if (ar) {
+			ED_region_do_draw(C, ar);
+			ar->do_draw = false;
 		}
-		else if (type == 1) {
-			wmWindow *win = CTX_wm_window(C);
-			CTX_wm_menu_set(C, NULL);
-		
-			ED_region_tag_redraw(ar);
-			wm_draw_update(C);
-			
-			CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
-		}
-		else if (type == 2) {
-			wmWindow *win = CTX_wm_window(C);
-			ScrArea *sa;
-			
-			ScrArea *sa_back = CTX_wm_area(C);
-			ARegion *ar_back = CTX_wm_region(C);
+	}
+	else if (type == eRTDrawRegionSwap) {
+		CTX_wm_menu_set(C, NULL);
 
-			CTX_wm_menu_set(C, NULL);
-			
-			for (sa = CTX_wm_screen(C)->areabase.first; sa; sa = sa->next) {
-				ARegion *ar_iter;
-				CTX_wm_area_set(C, sa);
+		ED_region_tag_redraw(ar);
+		wm_draw_update(C);
 
-				for (ar_iter = sa->regionbase.first; ar_iter; ar_iter = ar_iter->next) {
-					if (ar_iter->swinid) {
-						CTX_wm_region_set(C, ar_iter);
-						ED_region_do_draw(C, ar_iter);
-					}
+		CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
+	}
+	else if (type == eRTDrawWindow) {
+		ScrArea *sa_iter;
+
+		CTX_wm_menu_set(C, NULL);
+
+		for (sa_iter = win->screen->areabase.first; sa_iter; sa_iter = sa_iter->next) {
+			ARegion *ar_iter;
+			CTX_wm_area_set(C, sa_iter);
+
+			for (ar_iter = sa_iter->regionbase.first; ar_iter; ar_iter = ar_iter->next) {
+				if (ar_iter->swinid) {
+					CTX_wm_region_set(C, ar_iter);
+					ED_region_do_draw(C, ar_iter);
+					ar_iter->do_draw = false;
 				}
 			}
-
-			CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
-
-			CTX_wm_area_set(C, sa_back);
-			CTX_wm_region_set(C, ar_back);
 		}
-		else if (type == 3) {
+
+		CTX_wm_window_set(C, win);  /* XXX context manipulation warning! */
+
+		CTX_wm_area_set(C, sa);
+		CTX_wm_region_set(C, ar);
+	}
+	else if (type == eRTDrawWindowSwap) {
+		redraw_timer_window_swap(C);
+	}
+	else if (type == eRTAnimationStep) {
+		scene->r.cfra += (cfra == scene->r.cfra) ? 1 : -1;
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+	}
+	else if (type == eRTAnimationPlay) {
+		/* play anim, return on same frame as started with */
+		int tot = (scene->r.efra - scene->r.sfra) + 1;
+
+		while (tot--) {
+			/* todo, ability to escape! */
+			scene->r.cfra++;
+			if (scene->r.cfra > scene->r.efra)
+				scene->r.cfra = scene->r.sfra;
+
+			BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 			redraw_timer_window_swap(C);
 		}
-		else if (type == 4) {
-			Main *bmain = CTX_data_main(C);
-			Scene *scene = CTX_data_scene(C);
-			
-			if (a & 1) scene->r.cfra--;
-			else scene->r.cfra++;
-			BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
-		}
-		else if (type == 5) {
+	}
+	else { /* eRTUndo */
+		ED_undo_pop(C);
+		ED_undo_redo(C);
+	}
+}
 
-			/* play anim, return on same frame as started with */
-			Main *bmain = CTX_data_main(C);
-			Scene *scene = CTX_data_scene(C);
-			int tot = (scene->r.efra - scene->r.sfra) + 1;
+static int redraw_timer_exec(bContext *C, wmOperator *op)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	wmWindow *win = CTX_wm_window(C);
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	double time_start, time_delta;
+	const int type = RNA_enum_get(op->ptr, "type");
+	const int iter = RNA_int_get(op->ptr, "iterations");
+	const double time_limit = (double)RNA_float_get(op->ptr, "time_limit");
+	const int cfra = scene->r.cfra;
+	int a, iter_steps = 0;
+	const char *infostr = "";
 
-			while (tot--) {
-				/* todo, ability to escape! */
-				scene->r.cfra++;
-				if (scene->r.cfra > scene->r.efra)
-					scene->r.cfra = scene->r.sfra;
+	WM_cursor_wait(1);
 
-				BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
-				redraw_timer_window_swap(C);
+	time_start = PIL_check_seconds_timer();
+
+	for (a = 0; a < iter; a++) {
+		redraw_timer_step(C, bmain, scene, win, sa, ar, type, cfra);
+		iter_steps += 1;
+
+		if (time_limit != 0.0) {
+			if ((PIL_check_seconds_timer() - time_start) > time_limit) {
+				break;
 			}
-		}
-		else { /* 6 */
-			ED_undo_pop(C);
-			ED_undo_redo(C);
+			a = 0;
 		}
 	}
 	
-	time = (float)((PIL_check_seconds_timer() - stime) * 1000);
+	time_delta = (PIL_check_seconds_timer() - time_start) * 1000;
 
 	RNA_enum_description(redraw_timer_type_items, type, &infostr);
 
 	WM_cursor_wait(0);
 
-	BKE_reportf(op->reports, RPT_WARNING, "%d x %s: %.2f ms,  average: %.4f", iter, infostr, time, time / iter);
+	BKE_reportf(op->reports, RPT_WARNING,
+	            "%d x %s: %.4f ms, average: %.8f ms",
+	            iter_steps, infostr, time_delta, time_delta / iter_steps);
 	
 	return OPERATOR_FINISHED;
 }
@@ -4637,8 +4833,10 @@ static void WM_OT_redraw_timer(wmOperatorType *ot)
 	ot->exec = redraw_timer_exec;
 	ot->poll = WM_operator_winactive;
 
-	ot->prop = RNA_def_enum(ot->srna, "type", redraw_timer_type_items, 0, "Type", "");
+	ot->prop = RNA_def_enum(ot->srna, "type", redraw_timer_type_items, eRTDrawRegion, "Type", "");
 	RNA_def_int(ot->srna, "iterations", 10, 1, INT_MAX, "Iterations", "Number of times to redraw", 1, 1000);
+	RNA_def_float(ot->srna, "time_limit", 0.0, 0.0, FLT_MAX,
+	              "Time Limit", "Seconds to run the test for (override iterations)", 0.0, 60.0);
 
 }
 
@@ -4681,6 +4879,190 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 	ot->exec = dependency_relations_exec;
 }
 
+/* *************************** Mat/tex/etc. previews generation ************* */
+
+typedef struct PreviewsIDEnsureStack {
+	bContext *C;
+	Scene *scene;
+
+	BLI_LINKSTACK_DECLARE(id_stack, ID *);
+} PreviewsIDEnsureStack;
+
+static void previews_id_ensure(bContext *C, Scene *scene, ID *id)
+{
+	BLI_assert(ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA));
+
+	/* Only preview non-library datablocks, lib ones do not pertain to this .blend file!
+	 * Same goes for ID with no user. */
+	if (!id->lib && (id->us != 0)) {
+		UI_id_icon_render(C, scene, id, false, false);
+		UI_id_icon_render(C, scene, id, true, false);
+	}
+}
+
+static bool previews_id_ensure_callback(void *todo_v, ID **idptr, int UNUSED(cd_flag))
+{
+	PreviewsIDEnsureStack *todo = todo_v;
+	ID *id = *idptr;
+
+	if (id && (id->flag & LIB_DOIT)) {
+		if (ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA)) {
+			previews_id_ensure(todo->C, todo->scene, id);
+		}
+		id->flag &= ~LIB_DOIT;  /* Tag the ID as done in any case. */
+		BLI_LINKSTACK_PUSH(todo->id_stack, id);
+	}
+
+	return true;
+}
+
+static int previews_ensure_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	ListBase *lb[] = {&bmain->mat, &bmain->tex, &bmain->image, &bmain->world, &bmain->lamp, NULL};
+	PreviewsIDEnsureStack preview_id_stack;
+	Scene *scene;
+	ID *id;
+	int i;
+
+	/* We use LIB_DOIT to check whether we have already handled a given ID or not. */
+	BKE_main_id_flag_all(bmain, LIB_DOIT, true);
+
+	BLI_LINKSTACK_INIT(preview_id_stack.id_stack);
+
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		preview_id_stack.scene = scene;
+		preview_id_stack.C = C;
+		id = (ID *)scene;
+
+		do {
+			/* This will loop over all IDs linked by current one, render icons for them if needed,
+			 * and add them to 'todo' preview_id_stack. */
+			BKE_library_foreach_ID_link(id, previews_id_ensure_callback, &preview_id_stack, IDWALK_READONLY);
+		} while ((id = BLI_LINKSTACK_POP(preview_id_stack.id_stack)));
+	}
+
+	BLI_LINKSTACK_FREE(preview_id_stack.id_stack);
+
+	/* Check a last time for ID not used (fake users only, in theory), and
+	 * do our best for those, using current scene... */
+	for (i = 0; lb[i]; i++) {
+		for (id = lb[i]->first; id; id = id->next) {
+			previews_id_ensure(C, NULL, id);
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static void WM_OT_previews_ensure(wmOperatorType *ot)
+{
+	ot->name = "Refresh DataBlock Previews";
+	ot->idname = "WM_OT_previews_ensure";
+	ot->description = "Ensure datablock previews are available and up-to-date "
+	                  "(to be saved in .blend file, only for some types like materials, textures, etc.)";
+
+	ot->exec = previews_ensure_exec;
+}
+
+/* *************************** Datablocks previews clear ************* */
+
+/* Only types supporting previews currently. */
+static EnumPropertyItem preview_id_type_items[] = {
+    {FILTER_ID_SCE, "SCENE", 0, "Scenes", ""},
+    {FILTER_ID_GR, "GROUP", 0, "Groups", ""},
+	{FILTER_ID_OB, "OBJECT", 0, "Objects", ""},
+    {FILTER_ID_MA, "MATERIAL", 0, "Materials", ""},
+    {FILTER_ID_LA, "LAMP", 0, "Lamps", ""},
+    {FILTER_ID_WO, "WORLD", 0, "Worlds", ""},
+    {FILTER_ID_TE, "TEXTURE", 0, "Textures", ""},
+    {FILTER_ID_IM, "IMAGE", 0, "Images", ""},
+#if 0  /* XXX TODO */
+    {FILTER_ID_BR, "BRUSH", 0, "Brushes", ""},
+#endif
+    {0, NULL, 0, NULL, NULL}
+};
+
+static int previews_clear_exec(bContext *C, wmOperator *op)
+{
+	Main *bmain = CTX_data_main(C);
+	ListBase *lb[] = {&bmain->object, &bmain->group,
+	                  &bmain->mat, &bmain->world, &bmain->lamp, &bmain->tex, &bmain->image, NULL};
+	int i;
+
+	const int id_filters = RNA_enum_get(op->ptr, "id_type");
+
+	for (i = 0; lb[i]; i++) {
+		ID *id = lb[i]->first;
+
+		if (!id) continue;
+
+//		printf("%s: %d, %d, %d -> %d\n", id->name, GS(id->name), BKE_idcode_to_idfilter(GS(id->name)),
+//		                                 id_filters, BKE_idcode_to_idfilter(GS(id->name)) & id_filters);
+
+		if (!id || !(BKE_idcode_to_idfilter(GS(id->name)) & id_filters)) {
+			continue;
+		}
+
+		for (; id; id = id->next) {
+			PreviewImage *prv_img = BKE_previewimg_id_ensure(id);
+
+			BKE_previewimg_clear(prv_img);
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static void WM_OT_previews_clear(wmOperatorType *ot)
+{
+	ot->name = "Clear DataBlock Previews";
+	ot->idname = "WM_OT_previews_clear";
+	ot->description = "Clear datablock previews (only for some types like objects, materials, textures, etc.)";
+
+	ot->exec = previews_clear_exec;
+	ot->invoke = WM_menu_invoke;
+
+	ot->prop = RNA_def_enum_flag(ot->srna, "id_type", preview_id_type_items,
+	                             FILTER_ID_SCE | FILTER_ID_OB | FILTER_ID_GR |
+		                         FILTER_ID_MA | FILTER_ID_LA | FILTER_ID_WO | FILTER_ID_TE | FILTER_ID_IM,
+	                             "DataBlock Type", "Which datablock previews to clear");
+}
+
+/* *************************** Doc from UI ************* */
+
+static int doc_view_manual_ui_context_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr_props;
+	char buf[512];
+	short retval = OPERATOR_CANCELLED;
+
+	if (UI_but_online_manual_id_from_active(C, buf, sizeof(buf))) {
+		WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
+		RNA_string_set(&ptr_props, "doc_id", buf);
+
+		retval = WM_operator_name_call_ptr(
+		        C, WM_operatortype_find("WM_OT_doc_view_manual", false),
+		        WM_OP_EXEC_DEFAULT, &ptr_props);
+
+		WM_operator_properties_free(&ptr_props);
+	}
+
+	return retval;
+}
+
+static void WM_OT_doc_view_manual_ui_context(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View Online Manual";
+	ot->idname = "WM_OT_doc_view_manual_ui_context";
+	ot->description = "View a context based online manual in a web browser";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = doc_view_manual_ui_context_exec;
+}
+
 /* ******************************************************* */
 
 static void operatortype_ghash_free_cb(wmOperatorType *ot)
@@ -4697,6 +5079,37 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 		MEM_freeN((void *)ot->idname);
 
 	MEM_freeN(ot);
+}
+
+/* ******************************************************* */
+/* toggle 3D for current window, turning it fullscreen if needed */
+static void WM_OT_stereo3d_set(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	ot->name = "Set Stereo 3D";
+	ot->idname = "WM_OT_set_stereo_3d";
+	ot->description = "Toggle 3D stereo support for current window (or change the display mode)";
+
+	ot->exec = wm_stereo3d_set_exec;
+	ot->invoke = wm_stereo3d_set_invoke;
+	ot->poll = WM_operator_winactive;
+	ot->ui = wm_stereo3d_set_draw;
+	ot->check = wm_stereo3d_set_check;
+	ot->cancel = wm_stereo3d_set_cancel;
+
+	prop = RNA_def_enum(ot->srna, "display_mode", stereo3d_display_items, S3D_DISPLAY_ANAGLYPH, "Display Mode", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_enum(ot->srna, "anaglyph_type", stereo3d_anaglyph_type_items, S3D_ANAGLYPH_REDCYAN, "Anaglyph Type", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_enum(ot->srna, "interlace_type", stereo3d_interlace_type_items, S3D_INTERLACE_ROW, "Interlace Type", "");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "use_interlace_swap", false, "Swap Left/Right",
+	                       "Swap left and right stereo channels");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "use_sidebyside_crosseyed", false, "Cross-Eyed",
+	                       "Right eye should see left image and vice-versa");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ******************************************************* */
@@ -4741,9 +5154,13 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
+	WM_operatortype_append(WM_OT_stereo3d_set);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
+	WM_operatortype_append(WM_OT_previews_ensure);
+	WM_operatortype_append(WM_OT_previews_clear);
+	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
 }
 
 /* circleselect-like modal operators */
@@ -4802,6 +5219,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_circle");
+	WM_modalkeymap_assign(keymap, "GRAPH_OT_select_circle");	
 
 }
 
@@ -4968,6 +5386,8 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 
 	WM_keymap_verify_item(keymap, "WM_OT_window_fullscreen_toggle", F11KEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "WM_OT_quit_blender", QKEY, KM_PRESS, KM_CTRL, 0);
+
+	WM_keymap_add_item(keymap, "WM_OT_doc_view_manual_ui_context", F1KEY, KM_PRESS, KM_ALT, 0);
 
 	/* debug/testing */
 	WM_keymap_verify_item(keymap, "WM_OT_redraw_timer", TKEY, KM_PRESS, KM_ALT | KM_CTRL, 0);

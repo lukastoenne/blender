@@ -228,7 +228,7 @@ uiListType *WM_uilisttype_find(const char *idname, bool quiet)
 
 bool WM_uilisttype_add(uiListType *ult)
 {
-	BLI_ghash_insert(uilisttypes_hash, (void *)ult->idname, ult);
+	BLI_ghash_insert(uilisttypes_hash, ult->idname, ult);
 	return 1;
 }
 
@@ -250,15 +250,14 @@ void WM_uilisttype_init(void)
 
 void WM_uilisttype_free(void)
 {
-	GHashIterator *iter = BLI_ghashIterator_new(uilisttypes_hash);
+	GHashIterator gh_iter;
 
-	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		uiListType *ult = BLI_ghashIterator_getValue(iter);
+	GHASH_ITER (gh_iter, uilisttypes_hash) {
+		uiListType *ult = BLI_ghashIterator_getValue(&gh_iter);
 		if (ult->ext.free) {
 			ult->ext.free(ult->ext.data);
 		}
 	}
-	BLI_ghashIterator_free(iter);
 
 	BLI_ghash_free(uilisttypes_hash, NULL, MEM_freeN);
 	uilisttypes_hash = NULL;
@@ -286,7 +285,7 @@ MenuType *WM_menutype_find(const char *idname, bool quiet)
 
 bool WM_menutype_add(MenuType *mt)
 {
-	BLI_ghash_insert(menutypes_hash, (void *)mt->idname, mt);
+	BLI_ghash_insert(menutypes_hash, mt->idname, mt);
 	return true;
 }
 
@@ -309,15 +308,14 @@ void WM_menutype_init(void)
 
 void WM_menutype_free(void)
 {
-	GHashIterator *iter = BLI_ghashIterator_new(menutypes_hash);
+	GHashIterator gh_iter;
 
-	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		MenuType *mt = BLI_ghashIterator_getValue(iter);
+	GHASH_ITER (gh_iter, menutypes_hash) {
+		MenuType *mt = BLI_ghashIterator_getValue(&gh_iter);
 		if (mt->ext.free) {
 			mt->ext.free(mt->ext.data);
 		}
 	}
-	BLI_ghashIterator_free(iter);
 
 	BLI_ghash_free(menutypes_hash, NULL, MEM_freeN);
 	menutypes_hash = NULL;

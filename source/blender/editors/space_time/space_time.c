@@ -58,6 +58,7 @@
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
+#include "UI_interface.h"
 
 #include "ED_space_api.h"
 #include "ED_markers.h"
@@ -90,13 +91,12 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	fdrawline((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
 }
 
-#define CACHE_DRAW_HEIGHT   3.0f
-
 static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 {
 	PTCacheID *pid;
 	ListBase pidlist;
 	SpaceTimeCache *stc = stime->caches.first;
+	const float cache_draw_height = (4.0f * UI_DPI_FAC * U.pixelsize);
 	float yoffs = 0.f;
 	
 	if (!(stime->cache_display & TIME_CACHE_DISPLAY) || (!ob))
@@ -172,7 +172,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glPushMatrix();
 		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		glScalef(1.0, CACHE_DRAW_HEIGHT, 0.0);
+		glScalef(1.0, cache_draw_height, 0.0);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -230,7 +230,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glPopMatrix();
 		
-		yoffs += CACHE_DRAW_HEIGHT;
+		yoffs += cache_draw_height;
 
 		stc = stc->next;
 	}
@@ -296,13 +296,19 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	DLRBT_Tree keys;
 	ActKeyColumn *ak;
 	
+	float fac1 = (GS(id->name) == ID_GD) ? 0.8f : 0.6f; /* draw GPencil keys taller, to help distinguish them */
+	float fac2 = 1.0f - fac1;
+	
+	float ymin = v2d->tot.ymin;
+	float ymax = v2d->tot.ymax * fac1 + ymin * fac2;
+	
 	/* init binarytree-list for getting keyframes */
 	BLI_dlrbTree_init(&keys);
 	
 	/* init dopesheet settings */
 	if (onlysel)
 		ads.filterflag |= ADS_FILTER_ONLYSEL;
-	
+
 	/* populate tree with keyframe nodes */
 	switch (GS(id->name)) {
 		case ID_SCE:
@@ -329,8 +335,8 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	     (ak) && (ak->cfra <= v2d->cur.xmax);
 	     ak = ak->next)
 	{
-		glVertex2f(ak->cfra, v2d->tot.ymin);
-		glVertex2f(ak->cfra, v2d->tot.ymax);
+		glVertex2f(ak->cfra, ymin);
+		glVertex2f(ak->cfra, ymax);
 	}
 	glEnd(); // GL_LINES
 		
@@ -349,7 +355,7 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 	
 	/* draw grease pencil keyframes (if available) */
 	if (gpd) {
-		glColor3ub(0xB5, 0xE6, 0x1D);
+		UI_ThemeColor(TH_TIME_GP_KEYFRAME);
 		time_draw_idblock_keyframes(v2d, (ID *)gpd, onlysel);
 	}
 	
@@ -359,7 +365,7 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 	 */
 	if (onlysel == 0) {
 		/* set draw color */
-		glColor3ub(0xDD, 0xA7, 0x00);
+		UI_ThemeColorShade(TH_TIME_KEYFRAME, -50);
 		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel);
 	}
 	
@@ -368,7 +374,7 @@ static void time_draw_keyframes(const bContext *C, ARegion *ar)
 	 *    OR the onlysel flag was set, which means that only active object's keyframes should
 	 *    be considered
 	 */
-	glColor3ub(0xDD, 0xD7, 0x00);
+	UI_ThemeColor(TH_TIME_KEYFRAME);
 	
 	if (ob && ((ob->mode == OB_MODE_POSE) || onlysel)) {
 		/* draw keyframes for active object only */

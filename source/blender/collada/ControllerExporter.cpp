@@ -284,7 +284,8 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
 		}
 
 		if (oob_counter > 0) {
-			fprintf(stderr, "Ignored %d Vertex weights which use index to non existing VGroup %ld.\n", oob_counter, joint_index_by_def_index.size());
+			fprintf(stderr, "Ignored %d Vertex weights which use index to non existing VGroup %lu.\n",
+			        oob_counter, joint_index_by_def_index.size());
 		}
 	}
 
@@ -473,7 +474,7 @@ static float get_property(Bone *bone, const char *key, float def)
 	if (bone->prop) {
 		IDProperty *property = IDP_GetPropertyFromGroup(bone->prop, key);
 		if (property) {
-			switch(property->type) {
+			switch (property->type) {
 				case IDP_INT:
 					result = (float)(IDP_Int(property));
 					break;

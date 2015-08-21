@@ -45,7 +45,8 @@ struct ARegion;
 struct ARegionType;
 struct Scene;
 struct Main;
-struct SequencePreview;
+struct wmOperator;
+struct StripElem;
 
 /* space_sequencer.c */
 struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
@@ -58,10 +59,12 @@ void color3ubv_from_seq(struct Scene *curscene, struct Sequence *seq, unsigned c
 void draw_shadedstrip(struct Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 void draw_sequence_extensions(struct Scene *scene, struct ARegion *ar, struct Sequence *seq);
 
+void sequencer_special_update_set(Sequence *seq);
+
 /* UNUSED */
 // void seq_reset_imageofs(struct SpaceSeq *sseq);
 
-struct ImBuf *sequencer_ibuf_get(struct Main *bmain, struct Scene *scene, struct SpaceSeq *sseq, int cfra, int frame_ofs);
+struct ImBuf *sequencer_ibuf_get(struct Main *bmain, struct Scene *scene, struct SpaceSeq *sseq, int cfra, int frame_ofs, const char *viewname);
 
 /* sequencer_edit.c */
 struct View2D;
@@ -77,7 +80,8 @@ int sequencer_edit_poll(struct bContext *C);
 /* UNUSED */
 //int sequencer_strip_poll(struct bContext *C);
 int sequencer_strip_has_path_poll(struct bContext *C);
-int sequencer_view_poll(struct bContext *C);
+int sequencer_view_preview_poll(struct bContext *C);
+int sequencer_view_strips_poll(struct bContext *C);
 
 /* externs */
 extern EnumPropertyItem sequencer_prop_effect_types[];
@@ -128,6 +132,9 @@ void SEQUENCER_OT_copy(struct wmOperatorType *ot);
 void SEQUENCER_OT_paste(struct wmOperatorType *ot);
 
 void SEQUENCER_OT_rebuild_proxy(struct wmOperatorType *ot);
+void SEQUENCER_OT_enable_proxies(struct wmOperatorType *ot);
+
+void SEQUENCER_OT_export_subtitles(struct wmOperatorType *ot);
 
 /* preview specific operators */
 void SEQUENCER_OT_view_all_preview(struct wmOperatorType *ot);
@@ -192,12 +199,17 @@ void SEQUENCER_OT_properties(struct wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_remove(struct wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move(struct wmOperatorType *ot);
+void SEQUENCER_OT_strip_modifier_copy(struct wmOperatorType *ot);
 
 /* sequencer_view.c */
 void SEQUENCER_OT_sample(struct wmOperatorType *ot);
 
 /* sequencer_preview.c */
 void sequencer_preview_add_sound(const struct bContext *C, struct Sequence *seq);
+
+/* sequencer_add */
+int sequencer_image_seq_get_minmax_frame(struct wmOperator *op, int sfra, int *r_minframe, int *r_numdigits);
+void sequencer_image_seq_reserve_frames(struct wmOperator *op, struct StripElem *se, int len, int minframe, int numdigits);
 
 #endif /* __SEQUENCER_INTERN_H__ */
 

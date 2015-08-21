@@ -74,15 +74,21 @@ extern "C"
 #include "BKE_report.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
+#include "BKE_material.h"
 #include "BKE_text.h"
 #include "BKE_sound.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	
+#ifdef __APPLE__
+	int GHOST_HACK_getFirstFile(char buf[]);
+#endif
+	
 // For BLF
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
+#include "BLT_lang.h"
 extern int datatoc_bfont_ttf_size;
 extern char datatoc_bfont_ttf[];
 extern int datatoc_bmonofont_ttf_size;
@@ -297,6 +303,12 @@ static void get_filename(int argc, char **argv, char *filename)
 		if (BLI_exists(argv[argc-1])) {
 			BLI_strncpy(filename, argv[argc-1], FILE_MAX);
 		}
+		if (::strncmp(argv[argc-1], "-psn_", 5)==0) {
+			static char firstfilebuf[512];
+			if (GHOST_HACK_getFirstFile(firstfilebuf)) {
+				BLI_strncpy(filename, firstfilebuf, FILE_MAX);
+			}
+		}
 	}
 	
 	srclen -= ::strlen("MacOS/blenderplayer");
@@ -461,8 +473,8 @@ int main(int argc, char** argv)
 
 	// Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and interface_style.c)
 	BLF_init(11, U.dpi);
-	BLF_lang_init();
-	BLF_lang_set("");
+	BLT_lang_init();
+	BLT_lang_set("");
 
 	BLF_load_mem("default", (unsigned char*)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
 	if (blf_mono_font == -1)
@@ -507,9 +519,12 @@ int main(int argc, char** argv)
 	// enable fast mipmap generation
 	U.use_gpu_mipmap = 1;
 
-	sound_init_once();
+	BKE_sound_init_once();
 
-	set_free_windowmanager_cb(wm_free);
+	// Initialize a default material for meshes without materials.
+	init_def_material();
+
+	BKE_library_callback_free_window_manager_set(wm_free);
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. else it is bundled */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
@@ -585,7 +600,7 @@ int main(int argc, char** argv)
 				i++;
 				G.debug |= G_DEBUG;
 				MEM_set_memory_debug();
-#ifdef DEBUG
+#ifndef NDEBUG
 				BLI_mempool_set_memory_debug();
 #endif
 				break;
@@ -1126,7 +1141,7 @@ int main(int argc, char** argv)
 #ifdef WITH_INTERNATIONAL
 	BLF_free_unifont();
 	BLF_free_unifont_mono();
-	BLF_lang_free();
+	BLT_lang_free();
 #endif
 
 	IMB_exit();

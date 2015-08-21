@@ -42,6 +42,7 @@
 #include "DNA_texture_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
@@ -84,7 +85,7 @@ FCurve *verify_driver_fcurve(ID *id, const char rna_path[], const int array_inde
 	/* init animdata if none available yet */
 	adt = BKE_animdata_from_id(id);
 	if ((adt == NULL) && (add))
-		adt = BKE_id_add_animdata(id);
+		adt = BKE_animdata_add_id(id);
 	if (adt == NULL) {
 		/* if still none (as not allowed to add, or ID doesn't have animdata for some reason) */
 		return NULL;
@@ -450,7 +451,7 @@ static int add_driver_button_exec(bContext *C, wmOperator *op)
 	if (success) {
 		/* send updates */
 		UI_context_update_anim_flag(C);
-		
+		DAG_relations_tag_update(CTX_data_main(C));
 		WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, NULL); // XXX
 	}
 	
@@ -494,14 +495,17 @@ static int remove_driver_button_exec(bContext *C, wmOperator *op)
 	if (ptr.id.data && ptr.data && prop) {
 		char *path = BKE_animdata_driver_path_hack(C, &ptr, prop, NULL);
 		
-		success = ANIM_remove_driver(op->reports, ptr.id.data, path, index, 0);
-		MEM_freeN(path);
+		if (path) {
+			success = ANIM_remove_driver(op->reports, ptr.id.data, path, index, 0);
+
+			MEM_freeN(path);
+		}
 	}
 	
 	if (success) {
 		/* send updates */
 		UI_context_update_anim_flag(C);
-		
+		DAG_relations_tag_update(CTX_data_main(C));
 		WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, NULL);  // XXX
 	}
 	

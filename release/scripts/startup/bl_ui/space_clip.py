@@ -37,7 +37,7 @@ class CLIP_UL_tracking_objects(UIList):
             layout.prop(tobj, "name", text="", emboss=False,
                         icon='CAMERA_DATA' if tobj.is_camera
                         else 'OBJECT_DATA')
-        elif self.layout_type in {'GRID'}:
+        elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="",
                          icon='CAMERA_DATA' if tobj.is_camera
@@ -147,7 +147,7 @@ class CLIP_HT_header(Header):
 
         sc = context.space_data
 
-        if sc.mode in {'TRACKING'}:
+        if sc.mode == 'TRACKING':
             self._draw_tracking(context)
         else:
             self._draw_masking(context)
@@ -467,6 +467,7 @@ class CLIP_PT_tools_cleanup(CLIP_PT_tracking_panel, Panel):
         layout.prop(settings, "clean_frames", text="Frames")
         layout.prop(settings, "clean_error", text="Error")
         layout.prop(settings, "clean_action", text="")
+        layout.operator("clip.filter_tracks")
 
 
 class CLIP_PT_tools_geometry(CLIP_PT_tracking_panel, Panel):
@@ -715,7 +716,7 @@ class CLIP_PT_tracking_camera(Panel):
         if CLIP_PT_clip_view_panel.poll(context):
             sc = context.space_data
 
-            return sc.mode in {'TRACKING'} and sc.clip
+            return sc.mode == 'TRACKING' and sc.clip
 
         return False
 
@@ -755,7 +756,7 @@ class CLIP_PT_tracking_lens(Panel):
         if CLIP_PT_clip_view_panel.poll(context):
             sc = context.space_data
 
-            return sc.mode in {'TRACKING'} and sc.clip
+            return sc.mode == 'TRACKING' and sc.clip
 
         return False
 
@@ -892,7 +893,7 @@ class CLIP_PT_stabilization(CLIP_PT_reconstruction_panel, Panel):
         if CLIP_PT_clip_view_panel.poll(context):
             sc = context.space_data
 
-            return sc.mode in {'TRACKING'} and sc.clip
+            return sc.mode == 'TRACKING' and sc.clip
 
         return False
 
@@ -986,7 +987,9 @@ class CLIP_PT_proxy(CLIP_PT_clip_view_panel, Panel):
         if clip.use_proxy_custom_directory:
             col.prop(clip.proxy, "directory")
 
-        col.operator("clip.rebuild_proxy", text="Build Proxy")
+        col.operator("clip.rebuild_proxy",
+                     text="Build Proxy / Timecode" if clip.source == 'MOVIE'
+                                                   else "Build Proxy")
 
         if clip.source == 'MOVIE':
             col2 = col.column()
@@ -1003,15 +1006,16 @@ class CLIP_PT_proxy(CLIP_PT_clip_view_panel, Panel):
 # -----------------------------------------------------------------------------
 # Mask (similar code in space_image.py, keep in sync)
 
-
-from bl_ui.properties_mask_common import (MASK_PT_mask,
-                                          MASK_PT_layers,
-                                          MASK_PT_spline,
-                                          MASK_PT_point,
-                                          MASK_PT_display,
-                                          MASK_PT_tools,
-                                          MASK_PT_transforms,
-                                          MASK_PT_add)
+from bl_ui.properties_mask_common import (
+        MASK_PT_mask,
+        MASK_PT_layers,
+        MASK_PT_spline,
+        MASK_PT_point,
+        MASK_PT_display,
+        MASK_PT_tools,
+        MASK_PT_transforms,
+        MASK_PT_add,
+        )
 
 
 class CLIP_PT_mask_layers(MASK_PT_layers, Panel):
@@ -1145,11 +1149,14 @@ class CLIP_MT_view(Menu):
 
             layout.operator("clip.view_selected")
             layout.operator("clip.view_all")
+            layout.operator("clip.view_all", text="View Fit").fit_view = True
 
             layout.separator()
             layout.operator("clip.view_zoom_in")
             layout.operator("clip.view_zoom_out")
 
+            layout.separator()
+            layout.prop(sc, "show_metadata")
             layout.separator()
 
             ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
@@ -1214,14 +1221,17 @@ class CLIP_MT_track(Menu):
         layout.operator("clip.solve_camera")
 
         layout.separator()
-        layout.operator("clip.clear_track_path",
-                        text="Clear After").action = 'REMAINED'
+        props = layout.operator("clip.clear_track_path", text="Clear After")
+        props.clear_active = False
+        props.action = 'REMAINED'
 
-        layout.operator("clip.clear_track_path",
-                        text="Clear Before").action = 'UPTO'
+        props = layout.operator("clip.clear_track_path", text="Clear Before")
+        props.clear_active = False
+        props.action = 'UPTO'
 
-        layout.operator("clip.clear_track_path",
-                        text="Clear Track Path").action = 'ALL'
+        props = layout.operator("clip.clear_track_path", text="Clear Track Path")
+        props.clear_active = False
+        props.action = 'ALL'
 
         layout.separator()
         layout.operator("clip.join_tracks")
@@ -1234,16 +1244,21 @@ class CLIP_MT_track(Menu):
         layout.operator("clip.paste_tracks")
 
         layout.separator()
-        layout.operator("clip.track_markers",
-                        text="Track Frame Backwards").backwards = True
+        props = layout.operator("clip.track_markers", text="Track Frame Backwards")
+        props.backwards = True
+        props.sequence = False
 
         props = layout.operator("clip.track_markers", text="Track Backwards")
         props.backwards = True
         props.sequence = True
 
-        layout.operator("clip.track_markers",
-                        text="Track Forwards").sequence = True
-        layout.operator("clip.track_markers", text="Track Frame Forwards")
+        props = layout.operator("clip.track_markers", text="Track Forwards")
+        props.backwards = False
+        props.sequence = True
+
+        props = layout.operator("clip.track_markers", text="Track Frame Forwards")
+        props.backwards = False
+        props.sequence = False
 
         layout.separator()
         layout.operator("clip.delete_track")
@@ -1267,8 +1282,8 @@ class CLIP_MT_reconstruction(Menu):
         layout.operator("clip.set_plane", text="Set Floor").plane = 'FLOOR'
         layout.operator("clip.set_plane", text="Set Wall").plane = 'WALL'
 
-        layout.operator("clip.set_axis", text="Set X Axis").axis = "X"
-        layout.operator("clip.set_axis", text="Set Y Axis").axis = "Y"
+        layout.operator("clip.set_axis", text="Set X Axis").axis = 'X'
+        layout.operator("clip.set_axis", text="Set Y Axis").axis = 'Y'
 
         layout.operator("clip.set_scale")
 
@@ -1285,10 +1300,8 @@ class CLIP_MT_track_visibility(Menu):
         layout = self.layout
 
         layout.operator("clip.hide_tracks_clear", text="Show Hidden")
-        layout.operator("clip.hide_tracks", text="Hide Selected")
-
-        layout.operator("clip.hide_tracks",
-                        text="Hide Unselected").unselected = True
+        layout.operator("clip.hide_tracks", text="Hide Selected").unselected = False
+        layout.operator("clip.hide_tracks", text="Hide Unselected").unselected = True
 
 
 class CLIP_MT_track_transform(Menu):

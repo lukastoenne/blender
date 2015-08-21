@@ -177,7 +177,7 @@ static void axis_angle_to_gimbal_axis(float gmat[3][3], const float axis[3], con
 	mul_qt_v3(quat, gmat[0]);
 
 	/* Y-axis */
-	axis_angle_to_quat(quat, axis, M_PI / 2.0);
+	axis_angle_to_quat(quat, axis, M_PI_2);
 	copy_v3_v3(gmat[1], gmat[0]);
 	mul_qt_v3(quat, gmat[1]);
 
@@ -268,7 +268,6 @@ static int calc_manipulator_stats(const bContext *C)
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	ToolSettings *ts = CTX_data_tool_settings(C);
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
@@ -305,48 +304,11 @@ static int calc_manipulator_stats(const bContext *C)
 
 				BMIter iter;
 
-				/* do vertices/edges/faces for center depending on selection
-				 * mode. note we can't use just vertex selection flag because
-				 * it is not flush down on changes */
-				if (ts->selectmode & SCE_SELECT_VERTEX) {
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-							if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-								totsel++;
-								calc_tw_center(scene, eve->co);
-							}
-						}
-					}
-				}
-				else if (ts->selectmode & SCE_SELECT_EDGE) {
-					BMIter itersub;
-					BMEdge *eed;
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-							/* check the vertex has a selected edge, only add it once */
-							BM_ITER_ELEM (eed, &itersub, eve, BM_EDGES_OF_VERT) {
-								if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
-									totsel++;
-									calc_tw_center(scene, eve->co);
-									break;
-								}
-							}
-						}
-					}
-				}
-				else {
-					BMIter itersub;
-					BMFace *efa;
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-							/* check the vertex has a selected face, only add it once */
-							BM_ITER_ELEM (efa, &itersub, eve, BM_FACES_OF_VERT) {
-								if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
-									totsel++;
-									calc_tw_center(scene, eve->co);
-									break;
-								}
-							}
+				BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+					if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
+						if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+							totsel++;
+							calc_tw_center(scene, eve->co);
 						}
 					}
 				}
@@ -550,7 +512,7 @@ static int calc_manipulator_stats(const bContext *C)
 
 				for (k = 0, ek = point->keys; k < point->totkey; k++, ek++) {
 					if (ek->flag & PEK_SELECT) {
-						calc_tw_center(scene, ek->flag & PEK_USE_WCO ? ek->world_co : ek->co);
+						calc_tw_center(scene, (ek->flag & PEK_USE_WCO) ? ek->world_co : ek->co);
 						totsel++;
 					}
 				}
@@ -933,6 +895,11 @@ static void postOrtho(const bool ortho)
 	}
 }
 
+BLI_INLINE bool manipulator_rotate_is_visible(const int drawflags)
+{
+	return (drawflags & (MAN_ROT_X | MAN_ROT_Y | MAN_ROT_Z));
+}
+
 static void draw_manipulator_rotate(
         View3D *v3d, RegionView3D *rv3d, const int drawflags, const int combo,
         const bool is_moving, const bool is_picksel)
@@ -946,8 +913,8 @@ static void draw_manipulator_rotate(
 	const int colcode = (is_moving) ? MAN_MOVECOL : MAN_RGB;
 	bool ortho;
 
-	/* when called while moving in mixed mode, do not draw when... */
-	if ((drawflags & MAN_ROT_C) == 0) return;
+	/* skip drawing if all axes are locked */
+	if (manipulator_rotate_is_visible(drawflags) == false) return;
 
 	/* Init stuff */
 	glDisable(GL_DEPTH_TEST);
@@ -1089,8 +1056,6 @@ static void draw_manipulator_rotate(
 			glRotatef(90.0, 1.0, 0.0, 0.0);
 			postOrtho(ortho);
 		}
-
-		if (arcs) glDisable(GL_CLIP_PLANE0);
 	}
 	// donut arcs
 	if (arcs) {
@@ -1486,8 +1451,8 @@ static void draw_manipulator_rotate_cyl(
 	int axis_order[3] = {2, 0, 1};
 	int i;
 
-	/* when called while moving in mixed mode, do not draw when... */
-	if ((drawflags & MAN_ROT_C) == 0) return;
+	/* skip drawing if all axes are locked */
+	if (manipulator_rotate_is_visible(drawflags) == false) return;
 
 	manipulator_axis_order(rv3d, axis_order);
 

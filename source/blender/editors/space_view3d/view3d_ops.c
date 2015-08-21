@@ -299,6 +299,9 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_pan", PAD8, KM_PRESS, KM_CTRL, 0)->ptr, "type", V3D_VIEW_PANUP);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", PAD4, KM_PRESS, KM_SHIFT, 0)->ptr, "type", V3D_VIEW_STEPLEFT);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", PAD6, KM_PRESS, KM_SHIFT, 0)->ptr, "type", V3D_VIEW_STEPRIGHT);
+	kmi = WM_keymap_add_item(keymap, "VIEW3D_OT_view_orbit", PAD9, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "type", V3D_VIEW_STEPRIGHT);
+	RNA_float_set(kmi->ptr, "angle", (float)M_PI);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_pan", WHEELUPMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "type", V3D_VIEW_PANRIGHT);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_pan", WHEELDOWNMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "type", V3D_VIEW_PANLEFT);
@@ -344,8 +347,8 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "VIEW3D_OT_ndof_all", NDOF_MOTION, 0, KM_CTRL | KM_SHIFT, 0);
 	kmi = WM_keymap_add_item(keymap, "VIEW3D_OT_view_selected", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "use_all_regions", false);
-	RNA_float_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", NDOF_BUTTON_ROLL_CCW, KM_PRESS, 0, 0)->ptr, "angle", M_PI / -2);
-	RNA_float_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", NDOF_BUTTON_ROLL_CW, KM_PRESS, 0, 0)->ptr, "angle", M_PI / 2);
+	RNA_float_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", NDOF_BUTTON_ROLL_CCW, KM_PRESS, 0, 0)->ptr, "angle", -M_PI_2);
+	RNA_float_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_roll", NDOF_BUTTON_ROLL_CW, KM_PRESS, 0, 0)->ptr, "angle", M_PI_2);
 
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", NDOF_BUTTON_FRONT, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_FRONT);
