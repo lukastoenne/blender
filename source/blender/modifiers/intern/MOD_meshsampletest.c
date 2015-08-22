@@ -45,6 +45,10 @@
 
 #include "BLI_strict_flags.h"
 
+#include "MOD_util.h"
+
+#include "depsgraph_private.h"
+
 static void initData(ModifierData *UNUSED(md))
 {
 #if 0
@@ -74,6 +78,7 @@ static void freeData(ModifierData *md)
 	}
 }
 
+#if 0
 static void notch_size(int *num_verts, int *num_edges, int *num_loops, int *num_polys)
 {
 #if 0
@@ -223,7 +228,70 @@ static void add_notch(const float loc[3], const float nor[3],
 #endif
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
+static DerivedMesh *make_notches(MeshSampleTestModifierData *smd, DerivedMesh *dm)
+{
+	int num_verts = dm->getNumVerts(dm);
+	int num_edges = dm->getNumEdges(dm);
+	int num_loops = dm->getNumLoops(dm);
+	int num_polys = dm->getNumPolys(dm);
+	int notch_verts, notch_edges, notch_loops, notch_polys;
+	DerivedMesh *result;
+	MVert *mv;
+	MEdge *me;
+	MLoop *ml;
+	MPoly *mp;
+	MeshSample *sample;
+	int i;
+	
+	notch_size(&notch_verts, &notch_edges, &notch_loops, &notch_polys);
+	result = CDDM_from_template(dm,
+	                            num_verts + notch_verts * smd->totsamples,
+	                            num_edges + notch_edges * smd->totsamples,
+	                            0,
+	                            num_loops + notch_loops * smd->totsamples,
+	                            num_polys + notch_polys * smd->totsamples);
+	
+	/*copy customdata to original geometry*/
+	DM_copy_vert_data(dm, result, 0, 0, num_verts);
+	DM_copy_edge_data(dm, result, 0, 0, num_edges);
+	DM_copy_loop_data(dm, result, 0, 0, num_loops);
+	DM_copy_poly_data(dm, result, 0, 0, num_polys);
+	
+	if (!CustomData_has_layer(&dm->vertData, CD_MVERT)) {
+		dm->copyVertArray(dm, CDDM_get_verts(result));
+	}
+	if (!CustomData_has_layer(&dm->edgeData, CD_MEDGE)) {
+		dm->copyEdgeArray(dm, CDDM_get_edges(result));
+	}
+	if (!CustomData_has_layer(&dm->polyData, CD_MPOLY)) {
+		dm->copyLoopArray(dm, CDDM_get_loops(result));
+		dm->copyPolyArray(dm, CDDM_get_polys(result));
+	}
+	
+	mv = result->getVertArray(result);
+	me = result->getEdgeArray(result);
+	ml = result->getLoopArray(result);
+	mp = result->getPolyArray(result);
+	for (i = 0, sample = smd->samples; i < smd->totsamples; ++i, ++sample) {
+		float loc[3], nor[3], tang[3];
+		
+		BKE_mesh_sample_eval(dm, sample, loc, nor, tang);
+		
+		add_notch(loc, nor,
+		          mv + num_verts + i * notch_verts, me + num_edges + i * notch_edges,
+		          ml + num_loops + i * notch_loops, mp + num_polys + i * notch_polys,
+		          (unsigned int)(num_verts + i * notch_verts),
+		          (unsigned int)(num_edges + i * notch_edges),
+		          (unsigned int)(num_loops + i * notch_loops));
+	}
+	
+	result->dirty |= DM_DIRTY_NORMALS;
+	
+	return result;
+}
+#endif
+
+static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
                                   DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
 {
@@ -234,15 +302,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	result = dm;
 	
 	if (smd->totsamples > 0) {
-		int num_verts = dm->getNumVerts(dm);
-		int num_edges = dm->getNumEdges(dm);
-		int num_loops = dm->getNumLoops(dm);
-		int num_polys = dm->getNumPolys(dm);
-		int notch_verts, notch_edges, notch_loops, notch_polys;
-		MVert *mv;
-		MEdge *me;
-		MLoop *ml;
-		MPoly *mp;
 		MeshSample *sample;
 		int i;
 		
@@ -262,56 +321,54 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 			BKE_mesh_sample_free_generator(gen);
 		}
 		
-		notch_size(&notch_verts, &notch_edges, &notch_loops, &notch_polys);
-		result = CDDM_from_template(dm,
-		                            num_verts + notch_verts * smd->totsamples,
-		                            num_edges + notch_edges * smd->totsamples,
-		                            0,
-		                            num_loops + notch_loops * smd->totsamples,
-		                            num_polys + notch_polys * smd->totsamples);
-		
-		/*copy customdata to original geometry*/
-		DM_copy_vert_data(dm, result, 0, 0, num_verts);
-		DM_copy_edge_data(dm, result, 0, 0, num_edges);
-		DM_copy_loop_data(dm, result, 0, 0, num_loops);
-		DM_copy_poly_data(dm, result, 0, 0, num_polys);
-		
-		if (!CustomData_has_layer(&dm->vertData, CD_MVERT)) {
-			dm->copyVertArray(dm, CDDM_get_verts(result));
-		}
-		if (!CustomData_has_layer(&dm->edgeData, CD_MEDGE)) {
-			dm->copyEdgeArray(dm, CDDM_get_edges(result));
-		}
-		if (!CustomData_has_layer(&dm->polyData, CD_MPOLY)) {
-			dm->copyLoopArray(dm, CDDM_get_loops(result));
-			dm->copyPolyArray(dm, CDDM_get_polys(result));
-		}
-		
-		mv = result->getVertArray(result);
-		me = result->getEdgeArray(result);
-		ml = result->getLoopArray(result);
-		mp = result->getPolyArray(result);
-		for (i = 0, sample = smd->samples; i < smd->totsamples; ++i, ++sample) {
-			float loc[3], nor[3], tang[3];
-			
-			BKE_mesh_sample_eval(dm, sample, loc, nor, tang);
-			
-			add_notch(loc, nor,
-			          mv + num_verts + i * notch_verts, me + num_edges + i * notch_edges,
-			          ml + num_loops + i * notch_loops, mp + num_polys + i * notch_polys,
-			          (unsigned int)(num_verts + i * notch_verts),
-			          (unsigned int)(num_edges + i * notch_edges),
-			          (unsigned int)(num_loops + i * notch_loops));
-		}
-		
-		result->dirty |= DM_DIRTY_NORMALS;
+#if 0
+		result = make_notches(smd, dm);
+#else
+		ob->transflag |= OB_DUPLISAMPLES;
+#endif
 	}
 	
-	
-//	if (result != dm)
-//		dm->release(dm);
-	
 	return result;
+}
+
+static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+{
+	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *) md;
+
+	walk(userData, ob, &smd->dupli_object);
+}
+
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
+{
+	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *) md;
+
+	walk(userData, ob, (ID **)&smd->dupli_object);
+}
+
+static void updateDepgraph(ModifierData *md, DagForest *forest,
+                           struct Main *UNUSED(bmain),
+                           struct Scene *UNUSED(scene),
+                           Object *UNUSED(ob), DagNode *obNode)
+{
+	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *) md;
+
+	if (smd->dupli_object) {
+		DagNode *Node = dag_get_node(forest, smd->dupli_object);
+
+		dag_add_relation(forest, Node, obNode, DAG_RL_OB_DATA, "MeshSampleTest Modifier");
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	MeshSampleTestModifierData *smd = (MeshSampleTestModifierData *) md;
+	if (smd->dupli_object) {
+		DEG_add_object_relation(node, smd->dupli_object, DEG_OB_COMP_GEOMETRY, "MeshSampleTest Modifier");
+	}
 }
 
 ModifierTypeInfo modifierType_MeshSampleTest = {
@@ -335,10 +392,11 @@ ModifierTypeInfo modifierType_MeshSampleTest = {
 	/* requiredDataMask */  NULL,
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
-	/* updateDepgraph */    NULL,
+    /* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */	NULL,
-	/* foreachObjectLink */ NULL,
-	/* foreachIDLink */     NULL,
+	/* dependsOnNormals */  NULL,
+	/* foreachObjectLink */ foreachObjectLink,
+	/* foreachIDLink */     foreachIDLink,
 	/* foreachTexLink */    NULL,
 };

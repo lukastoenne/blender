@@ -518,6 +518,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.prop(md, "amount")
+        col.prop(md, "seed")
+        col.label(text="Dupli Object:")
+        col.prop(md, "dupli_object", text="")
 
     def MIRROR(self, layout, ob, md):
         split = layout.split(percentage=0.25)

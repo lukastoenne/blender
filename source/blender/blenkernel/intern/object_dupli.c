@@ -56,6 +56,8 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_sample.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
@@ -89,7 +91,7 @@ typedef struct DupliContext {
 } DupliContext;
 
 typedef struct DupliGenerator {
-	short type;				/* dupli type */
+	int type;				/* dupli type */
 	void (*make_duplis)(const DupliContext *ctx);
 } DupliGenerator;
 
@@ -1137,6 +1139,57 @@ const DupliGenerator gen_dupli_particles = {
     make_duplis_particles           /* make_duplis */
 };
 
+/* OB_DUPLISAMPLES */
+static void make_duplis_meshsamples(const DupliContext *ctx)
+{
+	Object *ob = ctx->object;
+	Object *dupliob;
+	MeshSampleTestModifierData *msmd = (MeshSampleTestModifierData *)modifiers_findByType(ob, eModifierType_MeshSampleTest);
+	
+	DerivedMesh *dm;
+	MeshSample *sample;
+	int i;
+	float obmat[4][4], basemat[3][3];
+	
+	if (!msmd)
+		return;
+	dupliob = msmd->dupli_object;
+	if (!dupliob || dupliob == ob)
+		return;
+	
+	copy_m4_m4(obmat, ob->obmat);
+	copy_m3_m4(basemat, dupliob->obmat); /* only rot + scale */
+	
+	dm = mesh_get_derived_final(ctx->scene, ob, CD_MASK_BAREMESH);
+	if (!dm)
+		return;
+	
+	for (i = 0, sample = msmd->samples; i < msmd->totsamples; ++i, ++sample) {
+		float loc[3], nor[3], tang[3];
+		float duplimat[4][4], mat[4][4];
+		
+		BKE_mesh_sample_eval(dm, sample, loc, nor, tang);
+		unit_m4(mat);
+		copy_v3_v3(mat[2], nor);
+		copy_v3_v3(mat[0], tang);
+		cross_v3_v3v3(mat[1], nor, tang);
+		copy_v3_v3(mat[3], loc);
+		
+		mul_m4_m4m3(mat, mat, basemat);
+		mul_m4_m4m4(duplimat, obmat, mat);
+		
+		make_dupli(ctx, dupliob, duplimat, i, false, false);
+		
+		/* recursion */
+		make_recursive_duplis(ctx, dupliob, duplimat, i, false);
+	}
+}
+
+const DupliGenerator gen_dupli_meshsamples = {
+    OB_DUPLISAMPLES,                /* type */
+    make_duplis_meshsamples             /* make_duplis */
+};
+
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -1172,6 +1225,9 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 	}
 	else if (transflag & OB_DUPLIGROUP) {
 		return &gen_dupli_group;
+	}
+	else if (transflag & OB_DUPLISAMPLES) {
+		return &gen_dupli_meshsamples;
 	}
 
 	return NULL;

@@ -1524,7 +1524,9 @@ enum {
 
 typedef struct MeshSampleTestModifierData {
 	ModifierData modifier;
-
+	
+	struct Object *dupli_object;
+	
 	unsigned int seed;
 	int totsamples;
 	struct MeshSample *samples;
