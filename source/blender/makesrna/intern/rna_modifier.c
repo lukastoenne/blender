@@ -549,6 +549,7 @@ RNA_MOD_OBJECT_SET(MeshDeform, object, OB_MESH);
 RNA_MOD_OBJECT_SET(NormalEdit, target, OB_EMPTY);
 RNA_MOD_OBJECT_SET(Shrinkwrap, target, OB_MESH);
 RNA_MOD_OBJECT_SET(Shrinkwrap, auxTarget, OB_MESH);
+RNA_MOD_OBJECT_SET(MeshSampleTest, dupli_object, OB_MESH);
 
 static void rna_HookModifier_object_set(PointerRNA *ptr, PointerRNA value)
 {
@@ -4604,6 +4605,17 @@ static void rna_def_modifier_meshsampletest(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 10000, 1, 1);
 	RNA_def_property_ui_text(prop, "Amount", "Number of sample points");
 	RNA_def_property_update(prop, 0, "rna_MeshSampleTestModifier_resample_update");
+
+	prop = RNA_def_property(srna, "seed", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "seed");
+	RNA_def_property_ui_text(prop, "Seed", "Seed value for random number generation");
+	RNA_def_property_update(prop, 0, "rna_MeshSampleTestModifier_resample_update");
+
+	prop = RNA_def_property(srna, "dupli_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Dupli Object", "");
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_MeshSampleTestModifier_dupli_object_set", NULL, NULL);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
 #if 0
 	prop = RNA_def_property(srna, "samples", PROP_COLLECTION, PROP_NONE);
