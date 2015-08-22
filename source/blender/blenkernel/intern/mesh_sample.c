@@ -635,16 +635,21 @@ BLI_INLINE const Triangle *tri_index_select(const TriangleIndex *index, RNG *rng
 	return result;
 }
 
-BLI_INLINE void tri_index_sample(const TriangleIndex *index, RNG *rng, const Triangle **r_tri, float r_weights[3])
+BLI_INLINE const Triangle *tri_index_sample(const TriangleIndex *index, RNG *rng, float r_weights[3])
 {
 	const Triangle *tri = tri_index_select(index, rng);
 	float a = BLI_rng_get_float(rng);
 	float b = BLI_rng_get_float(rng);
+	if (a + b > 1.0f) {
+		a = 1.0f - a;
+		b = 1.0f - b;
+	}
 	
-	*r_tri = tri;
-	r_weights[0] = a;
-	r_weights[1] = (1.0f - a) * b;
-	r_weights[2] = (1.0f - a) * (1.0f - b);
+	r_weights[0] = 1.0f - (a + b);
+	r_weights[1] = a;
+	r_weights[2] = b;
+	
+	return tri;
 }
 
 BLI_INLINE Triangle *tri_index_insert(TriangleIndex *index, const Triangle *tri)
@@ -737,7 +742,7 @@ static bool generator_poissondisk_make_sample(MSurfaceSampleGenerator_PoissonDis
 {
 	const Triangle *tri;
 	
-	tri_index_sample(&gen->index, gen->rng, &tri, sample->orig_weights);
+	tri = tri_index_sample(&gen->index, gen->rng, sample->orig_weights);
 	sample->orig_poly = tri->poly;
 	sample->orig_verts[0] = tri->vert[0];
 	sample->orig_verts[1] = tri->vert[1];
