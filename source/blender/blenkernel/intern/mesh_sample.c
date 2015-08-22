@@ -576,6 +576,77 @@ BLI_INLINE unsigned int tri_area_bin(const TriangleIndex *index, float area)
 	return (unsigned int)log2(index->area_max / area);
 }
 
+/* rejection sampling is appropriate for a single list,
+ * because the area ratio of triangles is at most 1:2,
+ * i.e. on average rejection is no more than 50% (see the paper) */
+BLI_INLINE Triangle *tri_list_rejection_sample(const TriangleList *list, RNG *rng)
+{
+	Triangle *triangles = list->triangles;
+	unsigned int numtri = list->numtri;
+	const float Bmax = list->Bmax;
+	
+	const unsigned int maxiter = 1000; /* just to be safe */
+	unsigned int iter = 0;
+	
+	while (iter < maxiter) {
+		Triangle *tri = &triangles[BLI_rng_get_uint(rng) % numtri];
+		float u = Bmax * BLI_rng_get_float(rng);
+		
+		if (tri->area >= u)
+			return tri;
+		
+		++iter;
+	}
+	
+	/* fallback to uniform random triangle, should virtually never happen */
+	return &triangles[BLI_rng_get_uint(rng) % numtri];
+}
+
+BLI_INLINE const Triangle *tri_index_select(const TriangleIndex *index, RNG *rng)
+{
+	const TriangleList *list;
+	int i;
+	float totarea, curarea;
+	float u;
+	const Triangle *result = NULL;
+	
+	/* overall area */
+	totarea = 0.0f;
+	for (i = 0, list = index->lists; i < MAX_LEVELS; ++i, ++list) {
+		totarea += list->totarea;
+	}
+	
+	/* first select a triangle list by linear search */
+	u = totarea * BLI_rng_get_float(rng);
+	curarea = 0.0f;
+	for (i = 0, list = index->lists; i < MAX_LEVELS; ++i, ++list) {
+		if (list->numtri > 0) {
+			float nextarea = curarea + list->totarea;
+			
+			if (curarea <= u && u < nextarea) {
+				result = tri_list_rejection_sample(list, rng);
+				break;
+			}
+			
+			curarea = nextarea;
+		}
+	}
+	
+	return result;
+}
+
+BLI_INLINE void tri_index_sample(const TriangleIndex *index, RNG *rng, const Triangle **r_tri, float r_weights[3])
+{
+	const Triangle *tri = tri_index_select(index, rng);
+	float a = BLI_rng_get_float(rng);
+	float b = BLI_rng_get_float(rng);
+	
+	*r_tri = tri;
+	r_weights[0] = a;
+	r_weights[1] = (1.0f - a) * b;
+	r_weights[2] = (1.0f - a) * (1.0f - b);
+}
+
 BLI_INLINE Triangle *tri_index_insert(TriangleIndex *index, const Triangle *tri)
 {
 	Triangle *ptri;
@@ -589,7 +660,7 @@ BLI_INLINE Triangle *tri_index_insert(TriangleIndex *index, const Triangle *tri)
 	list = &index->lists[bin];
 	
 	ptri = tri_list_append(list);
-	*ptri = tri;
+	*ptri = *tri;
 	
 	list->totarea += tri->area;
 	
@@ -664,7 +735,15 @@ static void generator_poissondisk_free(MSurfaceSampleGenerator_PoissonDisk *gen)
 
 static bool generator_poissondisk_make_sample(MSurfaceSampleGenerator_PoissonDisk *gen, MeshSample *sample)
 {
-	return false;
+	const Triangle *tri;
+	
+	tri_index_sample(&gen->index, gen->rng, &tri, sample->orig_weights);
+	sample->orig_poly = tri->poly;
+	sample->orig_verts[0] = tri->vert[0];
+	sample->orig_verts[1] = tri->vert[1];
+	sample->orig_verts[2] = tri->vert[2];
+	
+	return true;
 }
 
 MeshSampleGenerator *BKE_mesh_sample_gen_surface_poissondisk(DerivedMesh *dm, unsigned int seed)
