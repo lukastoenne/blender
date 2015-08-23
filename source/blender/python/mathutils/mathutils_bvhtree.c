@@ -451,7 +451,7 @@ struct PyBVHTree_OverlapData {
 	float epsilon;
 };
 
-static bool py_bvhtree_overlap_cb(void *userdata, int index_a, int index_b, unsigned int UNUSED(thread))
+static bool py_bvhtree_overlap_cb(void *userdata, int index_a, int index_b, int UNUSED(thread))
 {
 	struct PyBVHTree_OverlapData *data = userdata;
 	PyBVHTree *tree_a = data->tree_pair[0];
@@ -522,8 +522,8 @@ static PyObject *py_bvhtree_overlap(PyBVHTree *self, PyBVHTree *other)
 
 			item = PyTuple_New(2);
 			PyTuple_SET_ITEMS(item,
-					PyLong_FromLong(overlap[i].indexA),
-					PyLong_FromLong(overlap[i].indexB));
+			        PyLong_FromLong(overlap[i].indexA),
+			        PyLong_FromLong(overlap[i].indexB));
 
 			PyList_Append(ret, item);
 			Py_DECREF(item);
