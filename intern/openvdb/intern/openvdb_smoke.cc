@@ -50,6 +50,7 @@ static const VIndex VINDEX_INVALID = (VIndex)(-1);
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
 {
+#if 0
 #ifndef NDEBUG
 	if (grid.empty())
 		printf("%s: %s = 0, min=?, max=?\n", prefix, name);
@@ -62,6 +63,11 @@ static inline void print_grid_range(Grid<T> &grid, const char *prefix, const cha
 		}
 		printf("%s: %s = %d, min=%f, max=%f\n", prefix, name, (int)grid.activeVoxelCount(), min, max);
 	}
+#else
+	(void)grid;
+	(void)prefix;
+	(void)name;
+#endif
 #else
 	(void)grid;
 	(void)prefix;
@@ -437,10 +443,15 @@ void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
 
 bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 {
+	ScopeTimer prof("Smoke timestep");
+	
 	/* keep old velocity */
 	velocity_old = velocity;
 	
-	init_grids();
+	{
+		ScopeTimer prof("Init grids");
+		init_grids();
+	}
 	
 	density->pruneGrid(1e-4f);
 	
@@ -456,13 +467,14 @@ bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 	
 	force->clear();
 	add_gravity_force();
-	add_pressure_force(dt, 0.0f);
+	{
+		ScopeTimer prof("Calculate pressure");
+		add_pressure_force(dt, 0.0f);
+	}
 	print_grid_range(*velocity, "V2", "velocity");
 	
-	printf("  (pressure: ");
 	if (pressure_result.success) {
 		print_grid_range(*pressure, "INPUT", "pressure");
-		printf(" ok)\n");
 	}
 	else
 		printf(" FAIL! %d iterations, error=%f%%=%f)\n",
@@ -472,7 +484,10 @@ bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
 	tools::compSum(*velocity, *force);
 	print_grid_range(*velocity, "V3", "velocity");
 	
-	update_points(dt);
+	{
+		ScopeTimer prof("Update particles");
+		update_points(dt);
+	}
 	
 	return true;
 }
@@ -529,7 +544,6 @@ void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
 	pressure_result.absoluteError = 0.0f;
 	pressure_result.relativeError = 0.0f;
 	
-	printf("=======================================\n");
 	print_grid_range(*density, "PRESSURE", "density");
 	print_grid_range(*velocity, "PRESSURE", "velocity");
 	
