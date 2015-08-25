@@ -200,14 +200,14 @@ TEST(OpenVDBSmoke, InitGrids) {
 	
 	FloatGrid::Ptr density = FloatGrid::create(0.0f);
 	FloatTree &tree = density->tree();
-	tree.setValue(Coord(0, 0, 0), 0.5f);
-	tree.setValue(Coord(1, 0, 0), 0.5f);
-	tree.setValue(Coord(0, 1, 0), 0.5f);
-	tree.setValue(Coord(1, 1, 0), 0.5f);
-	tree.setValue(Coord(0, 0, 1), 0.5f);
-	tree.setValue(Coord(1, 0, 1), 0.5f);
-	tree.setValue(Coord(0, 1, 1), 0.5f);
-	tree.setValue(Coord(1, 1, 1), 0.5f);
+	tree.setValue(Coord(0, 0, 0), 0.125f);
+	tree.setValue(Coord(1, 0, 0), 0.125f);
+	tree.setValue(Coord(0, 1, 0), 0.125f);
+	tree.setValue(Coord(1, 1, 0), 0.125f);
+	tree.setValue(Coord(0, 0, 1), 0.125f);
+	tree.setValue(Coord(1, 0, 1), 0.125f);
+	tree.setValue(Coord(0, 1, 1), 0.125f);
+	tree.setValue(Coord(1, 1, 1), 0.125f);
 	
 	EXPECT_GRID_NEAR(*data.density, *density, 1e-5);
 }
