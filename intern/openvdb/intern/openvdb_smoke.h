@@ -53,6 +53,10 @@ class SmokeParticleList
 public:
 	typedef Vec3R value_type;
 	struct Point {
+		Point(const Vec3R &loc, const Real &rad, const Vec3R &vel) :
+		    loc(loc), rad(rad), vel(vel)
+		{}
+		
 		Vec3R loc;
 		Real rad;
 		Vec3R vel;
@@ -72,6 +76,13 @@ public:
 	{
 	}
 	
+	PointList &points() { return m_points; }
+	const PointList &points() const { return m_points; }
+	float radius_scale() const { return m_radius_scale; }
+	void radius_scale(float radius_scale) { m_radius_scale = radius_scale; }
+	float velocity_scale() const { return m_velocity_scale; }
+	void velocity_scale(float velocity_scale) { m_velocity_scale = velocity_scale; }
+	
 	void from_stream(OpenVDBPointInputStream *stream)
 	{
 		m_points.clear();
@@ -81,11 +92,7 @@ public:
 			float rad;
 			stream->get_point(stream, locf.asPointer(), &rad, velf.asPointer());
 			
-			Point pt;
-			pt.loc = locf;
-			pt.rad = rad * m_radius_scale;
-			pt.vel = velf * m_velocity_scale;
-			
+			Point pt(locf, rad * m_radius_scale, velf * m_velocity_scale);
 			m_points.push_back(pt);
 		}
 	}
@@ -131,9 +138,9 @@ public:
 	}
 };
 
-struct OpenVDBSmokeData {
-	OpenVDBSmokeData(const Mat4R &cell_transform);
-	~OpenVDBSmokeData();
+struct SmokeData {
+	SmokeData(const Mat4R &cell_transform);
+	~SmokeData();
 	
 	float cell_size() const;
 	

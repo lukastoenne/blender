@@ -164,7 +164,7 @@ inline static void div_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const Sca
 	R.tree().combine2(a.tree(), b.tree(), Local::div_v3fl);
 }
 
-OpenVDBSmokeData::OpenVDBSmokeData(const Mat4R &cell_transform) :
+SmokeData::SmokeData(const Mat4R &cell_transform) :
     cell_transform(Transform::createLinearTransform(cell_transform))
 {
 	density = ScalarGrid::create(0.0f);
@@ -177,11 +177,11 @@ OpenVDBSmokeData::OpenVDBSmokeData(const Mat4R &cell_transform) :
 	force->setTransform(this->cell_transform);
 }
 
-OpenVDBSmokeData::~OpenVDBSmokeData()
+SmokeData::~SmokeData()
 {
 }
 
-float OpenVDBSmokeData::cell_size() const
+float SmokeData::cell_size() const
 {
 	return cell_transform->voxelSize().x();
 }
@@ -207,7 +207,7 @@ struct util_gather {
 	}
 };
 
-void OpenVDBSmokeData::init_grids()
+void SmokeData::init_grids()
 {
 #if 0
 	const float voxel_size = cell_size();
@@ -343,7 +343,7 @@ void OpenVDBSmokeData::init_grids()
 #endif
 }
 
-void OpenVDBSmokeData::update_points(float dt)
+void SmokeData::update_points(float dt)
 {
 	typedef VectorGrid::ConstAccessor AccessorType;
 	typedef tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
@@ -398,7 +398,7 @@ void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std:
 }
 #endif
 
-void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
+void SmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
 	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
 	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
@@ -412,18 +412,18 @@ void OpenVDBSmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const st
 //	density->topologyIntersection(*mask);
 }
 
-void OpenVDBSmokeData::clear_obstacles()
+void SmokeData::clear_obstacles()
 {
 //	if (density)
 //		density->clear();
 }
 
-void OpenVDBSmokeData::set_gravity(const Vec3f &g)
+void SmokeData::set_gravity(const Vec3f &g)
 {
 	gravity = g;
 }
 
-void OpenVDBSmokeData::add_gravity_force()
+void SmokeData::add_gravity_force()
 {
 	/* density defines which cells gravity acts on */
 	force->topologyUnion(*density);
@@ -431,7 +431,7 @@ void OpenVDBSmokeData::add_gravity_force()
 	add_vgrid_v3(*force, gravity);
 }
 
-void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
+void SmokeData::add_pressure_force(float dt, float bg_pressure)
 {
 	calculate_pressure(dt, bg_pressure);
 	
@@ -441,7 +441,7 @@ void OpenVDBSmokeData::add_pressure_force(float dt, float bg_pressure)
 	tools::compSum(*force, *f);
 }
 
-bool OpenVDBSmokeData::step(float dt, int /*num_substeps*/)
+bool SmokeData::step(float dt, int /*num_substeps*/)
 {
 	ScopeTimer prof("Smoke timestep");
 	
@@ -522,7 +522,7 @@ struct advect_v3 {
 	}
 };
 
-void OpenVDBSmokeData::advect_backwards_trace(float dt)
+void SmokeData::advect_backwards_trace(float dt)
 {
 	VectorGrid::Ptr nvel = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
 	nvel->setTransform(velocity->transformPtr());
@@ -533,7 +533,7 @@ void OpenVDBSmokeData::advect_backwards_trace(float dt)
 	velocity = nvel;
 }
 
-void OpenVDBSmokeData::calculate_pressure(float dt, float bg_pressure)
+void SmokeData::calculate_pressure(float dt, float bg_pressure)
 {
 	typedef FloatTree::ValueConverter<VIndex>::Type VIndexTree;
 	typedef pcg::SparseStencilMatrix<float, 7> MatrixType;

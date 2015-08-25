@@ -244,23 +244,23 @@ void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float 
 
 struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4])
 {
-	return (OpenVDBSmokeData *)(new internal::OpenVDBSmokeData(internal::convertMatrix(cell_mat)));
+	return (OpenVDBSmokeData *)(new internal::SmokeData(internal::convertMatrix(cell_mat)));
 }
 
 void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
 {
-	delete ((internal::OpenVDBSmokeData *)data);
+	delete ((internal::SmokeData *)data);
 }
 
 void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	data->set_points(points);
 }
 
 void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	data->get_points(points);
 }
 
@@ -313,27 +313,27 @@ void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDB
 	std::vector<Vec3I> triangles;
 	get_mesh_geometry(mat, it, vertices, triangles);
 	
-	((internal::OpenVDBSmokeData *)data)->add_obstacle(vertices, triangles);
+	((internal::SmokeData *)data)->add_obstacle(vertices, triangles);
 }
 
 void OpenVDB_smoke_clear_obstacles(OpenVDBSmokeData *data)
 {
-	((internal::OpenVDBSmokeData *)data)->clear_obstacles();
+	((internal::SmokeData *)data)->clear_obstacles();
 }
 
 void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3])
 {
-	((internal::OpenVDBSmokeData *)data)->set_gravity(openvdb::Vec3f(g));
+	((internal::SmokeData *)data)->set_gravity(openvdb::Vec3f(g));
 }
 
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substeps)
 {
-	return ((internal::OpenVDBSmokeData *)data)->step(dt, num_substeps);
+	return ((internal::SmokeData *)data)->step(dt, num_substeps);
 }
 
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *err_abs, double *err_rel, int *iterations)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	if (err_abs) *err_abs = data->pressure_result.absoluteError;
 	if (err_rel) *err_rel = data->pressure_result.relativeError;
 	if (iterations) *iterations = data->pressure_result.iterations;
@@ -361,7 +361,7 @@ void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 	const int min_level = 0;
 	const int max_level = 3;
 	
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_draw_buffer_size_cells(grid, min_level, max_level, true, r_numverts); \
@@ -377,7 +377,7 @@ void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_draw_buffer_size_boxes(grid, r_numverts); \
@@ -395,7 +395,7 @@ void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
                                             float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_draw_buffer_size_needles(grid, r_numverts); \
@@ -413,7 +413,7 @@ void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmok
 void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
                               float bbmin[3], float bbmax[3])
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_grid_bounds(grid, bbmin, bbmax);
@@ -426,7 +426,7 @@ void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridTy
 float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
                                         int res[3], float bbmin[3], float bbmax[3])
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	if (!internal::OpenVDB_get_dense_texture_res(grid, res, bbmin, bbmax)) \
@@ -445,7 +445,7 @@ float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, OpenVDBS
 
 void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float *bg, float *min, float *max)
 {
-	internal::OpenVDBSmokeData *data = (internal::OpenVDBSmokeData *)pdata;
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 #define DO_GRID(grid) \
 	internal::OpenVDB_get_grid_value_range(grid, bg, min, max);

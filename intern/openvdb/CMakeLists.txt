@@ -56,6 +56,10 @@ if(WITH_OPENVDB)
 		openvdb_capi.cc
 		openvdb_util.cc
 	)
+
+	if(WITH_GTESTS)
+		BLENDER_SRC_GTEST("openvdb_smoke" "./tests/openvdb_test_smoke.cc" "bf_intern_openvdb;${OPENVDB_LIBRARIES};${OPENEXR_LIBRARIES}")
+	endif()
 endif()
 
 blender_add_lib(bf_intern_openvdb "${SRC}" "${INC}" "${INC_SYS}")
