@@ -280,7 +280,7 @@ void SmokeData::init_grids()
 		Real rad;
 		points.getPosRadVel(n, pos, rad, vel);
 		
-		Vec3R cpos = cell_transform->worldToIndex(pos);
+		Vec3R cpos = cell_transform->worldToIndex(pos) - Vec3R(0.5, 0.5, 0.5);
 		float wx1 = fabs(cpos.x() - floor(cpos.x()));
 		float wy1 = fabs(cpos.y() - floor(cpos.y()));
 		float wz1 = fabs(cpos.z() - floor(cpos.z()));

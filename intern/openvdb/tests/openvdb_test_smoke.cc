@@ -29,6 +29,7 @@
 
 #include "testing/testing.h"
 
+#include "openvdb_tests.h"
 #include "openvdb_dense_convert.h"
 #include "openvdb_smoke.h"
 
@@ -187,7 +188,7 @@ TEST(OpenVDBSmoke, ParticleListToStream) {
 
 TEST(OpenVDBSmoke, InitGrids) {
 	std::vector<TestPoint> points;
-	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f));
 	TestIPoints istream(points.data(), points.size());
 	
 	Mat4R mat;
@@ -195,6 +196,20 @@ TEST(OpenVDBSmoke, InitGrids) {
 	SmokeData data(mat);
 	
 	data.set_points(&istream.base);
+	data.init_grids();
+	
+	FloatGrid::Ptr density = FloatGrid::create(0.0f);
+	FloatTree &tree = density->tree();
+	tree.setValue(Coord(0, 0, 0), 0.5f);
+	tree.setValue(Coord(1, 0, 0), 0.5f);
+	tree.setValue(Coord(0, 1, 0), 0.5f);
+	tree.setValue(Coord(1, 1, 0), 0.5f);
+	tree.setValue(Coord(0, 0, 1), 0.5f);
+	tree.setValue(Coord(1, 0, 1), 0.5f);
+	tree.setValue(Coord(0, 1, 1), 0.5f);
+	tree.setValue(Coord(1, 1, 1), 0.5f);
+	
+	EXPECT_GRID_NEAR(*data.density, *density, 1e-5);
 	
 #if 0
   Tracks tracks;
