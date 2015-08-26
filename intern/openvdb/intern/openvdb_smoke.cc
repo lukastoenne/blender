@@ -164,6 +164,20 @@ inline static void div_vgrid_fgrid(VectorGrid &R, const VectorGrid &a, const Sca
 	R.tree().combine2(a.tree(), b.tree(), Local::div_v3fl);
 }
 
+inline static void velocity_normalize(VectorGrid &vel, const VectorGrid &weight)
+{
+	struct Local {
+		static void div_v3v3(const Vec3f& v, const Vec3f& w, Vec3f& result)
+		{
+			result = Vec3f((w.x() > 0.0f) ? v.x() / w.x() : 0.0f,
+			               (w.y() > 0.0f) ? v.y() / w.y() : 0.0f,
+			               (w.z() > 0.0f) ? v.z() / w.z() : 0.0f);
+		}
+	};
+	
+	vel.tree().combine2(vel.tree(), weight.tree(), Local::div_v3v3);
+}
+
 SmokeData::SmokeData(const Mat4R &cell_transform) :
     cell_transform(Transform::createLinearTransform(cell_transform))
 {
@@ -210,6 +224,7 @@ struct util_gather {
 void SmokeData::init_grids()
 {
 #if 0
+	/* level set + fog volume */
 	const float voxel_size = cell_size();
 	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size);
 	ls->setTransform(cell_transform);
@@ -226,6 +241,8 @@ void SmokeData::init_grids()
 	density = ls;
 	velocity = vel;
 #elif 0
+	/* point index tree to group particles 
+	 */
 	typedef tools::PointIndexTree PointIndexTree;
 	typedef tools::PointIndexGrid PointIndexGrid;
 	typedef FloatGrid::Accessor FloatAccessor;
@@ -243,7 +260,7 @@ void SmokeData::init_grids()
 	for (; it; ++it) {
 		Coord ijk = it.getCoord();
 		CoordBBox bbox(ijk, ijk);
-		bbox.expand(2);
+		bbox.expand(1);
 		Vec3R center = cell_transform->indexToWorld(ijk);
 		
 		Real weight = 0.0f;
@@ -263,45 +280,91 @@ void SmokeData::init_grids()
 		acc_density.setValueOn(ijk, weight);
 	}
 #elif 1
+	/* simple particle loop
+	 * (does not support averaging and can lead to large density differences)
+	 */
 	typedef tools::PointIndexTree PointIndexTree;
 	typedef tools::PointIndexGrid PointIndexGrid;
 	typedef FloatGrid::Accessor FloatAccessor;
+	typedef VectorGrid::Accessor VectorAccessor;
 	typedef PointIndexGrid::ConstAccessor PointIndexAccessor;
 	typedef openvdb::tools::PointIndexIterator<> PointIndexIterator;
 	
 	density->clear();
+	velocity->clear();
 	
-	PointIndexGrid::Ptr point_grid =
-	        tools::createPointIndexGrid<PointIndexGrid>(points, *cell_transform);
+	/* Temp grid to store accumulated velocity weight for normalization.
+	 * Velocity is a staggered grid, so these weights are not the same as
+	 * the regular density! For more detailed description of weighting functions, see e.g.
+	 * 
+	 * Gerszewski, Dan, and Adam W. Bargteil.
+	 * "Physics-based animation of large-scale splashing liquids."
+	 * ACM Trans. Graph. 32.6 (2013): 185.
+	 */
+	VectorGrid::Ptr velocity_weight = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+	
 	FloatAccessor acc_density = density->getAccessor();
+	VectorAccessor acc_velocity = velocity->getAccessor();
+	VectorAccessor acc_velweight = velocity_weight->getAccessor();
 	
 	for (size_t n = 0; n < points.size(); ++n) {
 		Vec3R pos, vel;
 		Real rad;
 		points.getPosRadVel(n, pos, rad, vel);
 		
-		Vec3R cpos = cell_transform->worldToIndex(pos) - Vec3R(0.5, 0.5, 0.5);
-		float wx1 = fabs(cpos.x() - floor(cpos.x()));
-		float wy1 = fabs(cpos.y() - floor(cpos.y()));
-		float wz1 = fabs(cpos.z() - floor(cpos.z()));
+		Vec3R pos_wall = cell_transform->worldToIndex(pos);
+		Vec3R pos_cell = cell_transform->worldToIndex(pos) - Vec3R(0.5d, 0.5d, 0.5d);
+		Coord ijk = Coord::floor(pos_cell);
+		/* cell center weights (for density) */
+		float wx1 = fabs(pos_cell.x() - round(pos_cell.x()));
+		float wy1 = fabs(pos_cell.y() - round(pos_cell.y()));
+		float wz1 = fabs(pos_cell.z() - round(pos_cell.z()));
 		float wx0 = 1.0f - wx1;
 		float wy0 = 1.0f - wy1;
 		float wz0 = 1.0f - wz1;
+		/* face center weights (for velocity) */
+		float fx1 = fabs(pos_wall.x() - floor(pos_wall.x()));
+		float fy1 = fabs(pos_wall.y() - floor(pos_wall.y()));
+		float fz1 = fabs(pos_wall.z() - floor(pos_wall.z()));
+		float fx0 = 1.0f - fx1;
+		float fy0 = 1.0f - fy1;
+		float fz0 = 1.0f - fz1;
 		
-		Coord ijk = cell_transform->worldToIndexCellCentered(pos);
-#define ADD_VALUE(i, j, k, w) acc_density.setValueOn(ijk+Coord(i,j,k), acc_density.getValue(ijk+Coord(i,j,k)) + w)
-		ADD_VALUE(0,0,0, wx0 * wy0 * wz0);
-		ADD_VALUE(1,0,0, wx1 * wy0 * wz0);
-		ADD_VALUE(0,1,0, wx0 * wy1 * wz0);
-		ADD_VALUE(1,1,0, wx1 * wy1 * wz0);
-		ADD_VALUE(0,0,1, wx0 * wy0 * wz1);
-		ADD_VALUE(1,0,1, wx1 * wy0 * wz1);
-		ADD_VALUE(0,1,1, wx0 * wy1 * wz1);
-		ADD_VALUE(1,1,1, wx1 * wy1 * wz1);
-#undef ADD_VALUE
+		acc_density.setValueOn(ijk+Coord(0,0,0), acc_density.getValue(ijk+Coord(0,0,0)) + wx0 * wy0 * wz0);
+		acc_density.setValueOn(ijk+Coord(1,0,0), acc_density.getValue(ijk+Coord(1,0,0)) + wx1 * wy0 * wz0);
+		acc_density.setValueOn(ijk+Coord(0,1,0), acc_density.getValue(ijk+Coord(0,1,0)) + wx0 * wy1 * wz0);
+		acc_density.setValueOn(ijk+Coord(1,1,0), acc_density.getValue(ijk+Coord(1,1,0)) + wx1 * wy1 * wz0);
+		acc_density.setValueOn(ijk+Coord(0,0,1), acc_density.getValue(ijk+Coord(0,0,1)) + wx0 * wy0 * wz1);
+		acc_density.setValueOn(ijk+Coord(1,0,1), acc_density.getValue(ijk+Coord(1,0,1)) + wx1 * wy0 * wz1);
+		acc_density.setValueOn(ijk+Coord(0,1,1), acc_density.getValue(ijk+Coord(0,1,1)) + wx0 * wy1 * wz1);
+		acc_density.setValueOn(ijk+Coord(1,1,1), acc_density.getValue(ijk+Coord(1,1,1)) + wx1 * wy1 * wz1);
+		
+		float vx0 = fx0 * wy0 * wz0;
+		float vx1 = fx1 * wy0 * wz0;
+		float vy0 = wx0 * fy0 * wz0;
+		float vy1 = wx1 * fy0 * wz0;
+		float vz0 = wx0 * wy0 * fz0;
+		float vz1 = wx1 * wy0 * fz0;
+		acc_velocity.setValueOn(ijk, acc_velocity.getValue(ijk) + Vec3f(vx0*vel.x(), vy0*vel.y(), vz0*vel.z()));
+		acc_velocity.setValueOn(ijk+Coord(1,0,0), acc_velocity.getValue(ijk+Coord(1,0,0)) + Vec3f(vx1*vel.x(), 0.0f, 0.0f));
+		acc_velocity.setValueOn(ijk+Coord(0,1,0), acc_velocity.getValue(ijk+Coord(0,1,0)) + Vec3f(0.0f, vy1*vel.y(), 0.0f));
+		acc_velocity.setValueOn(ijk+Coord(0,0,1), acc_velocity.getValue(ijk+Coord(0,0,1)) + Vec3f(0.0f, 0.0f, vz1*vel.z()));
+		
+		acc_velweight.setValueOn(ijk, acc_velweight.getValue(ijk) + Vec3f(vx0, vy0, vz0));
+		acc_velweight.setValueOn(ijk+Coord(1,0,0), acc_velweight.getValue(ijk+Coord(1,0,0)) + Vec3f(vx1, 0.0f, 0.0f));
+		acc_velweight.setValueOn(ijk+Coord(0,1,0), acc_velweight.getValue(ijk+Coord(0,1,0)) + Vec3f(0.0f, vy1, 0.0f));
+		acc_velweight.setValueOn(ijk+Coord(0,0,1), acc_velweight.getValue(ijk+Coord(0,0,1)) + Vec3f(0.0f, 0.0f, vz1));
 	}
 	
+	/* normalize velocity vectors */
+	velocity_normalize(*velocity, *velocity_weight);
+	
+	velocity_weight.reset(); // release
+	
 #else
+	/* using a point partitioner with a stencil
+	 * (unsuccessful)
+	 */
 	typedef tools::UInt32PointPartitioner PointPartitioner;
 	PointPartitioner::Ptr partitioner =
 	        PointPartitioner::create(points, *cell_transform);

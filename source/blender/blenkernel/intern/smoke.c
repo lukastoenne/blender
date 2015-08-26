@@ -2840,6 +2840,8 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 				float min[3], max[3], size[3];
 				const float cs = sds->cell_size;
 				float Vpart, Vtot;
+				int numpt = BLI_mempool_count(sds->matpoints);
+				RNG *rng = BLI_rng_new(45824 + numpt*numpt);
 				
 				if (numverts > 0) {
 					INIT_MINMAX(min, max);
@@ -2860,17 +2862,25 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 					float r[3];
 					MaterialPoint *pt;
 					
-					r[0] = BLI_frand();
-					r[1] = BLI_frand();
-					r[2] = BLI_frand();
+					r[0] = BLI_rng_get_float(rng);
+					r[1] = BLI_rng_get_float(rng);
+					r[2] = BLI_rng_get_float(rng);
 					mul_v3_v3(r, size);
 					add_v3_v3(r, min);
 					mul_m4_v3(mat, r);
 					
 					pt = smoke_vdb_add_matpoint(sds);
 					copy_v3_v3(pt->loc, r);
+#if 0
+					/* random-direction velocity */
+					BLI_rng_get_float_unit_v3(rng, pt->vel);
+					mul_v3_fl(pt->vel, 1.0f);
+#else
 					zero_v3(pt->vel);
+#endif
 				}
+				
+				BLI_rng_free(rng);
 			}
 		}
 	}
