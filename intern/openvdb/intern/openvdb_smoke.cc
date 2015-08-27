@@ -185,10 +185,12 @@ SmokeData::SmokeData(const Mat4R &cell_transform) :
 	density->setTransform(this->cell_transform);
 	velocity = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
 	velocity->setTransform(this->cell_transform);
+	velocity->setGridClass(GRID_STAGGERED);
 	pressure = ScalarGrid::create(0.0f);
 	pressure->setTransform(this->cell_transform);
 	force = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
 	force->setTransform(this->cell_transform);
+	force->setGridClass(GRID_STAGGERED);
 }
 
 SmokeData::~SmokeData()
