@@ -285,12 +285,8 @@ void SmokeData::init_grids()
 	/* simple particle loop
 	 * (does not support averaging and can lead to large density differences)
 	 */
-	typedef tools::PointIndexTree PointIndexTree;
-	typedef tools::PointIndexGrid PointIndexGrid;
 	typedef FloatGrid::Accessor FloatAccessor;
 	typedef VectorGrid::Accessor VectorAccessor;
-	typedef PointIndexGrid::ConstAccessor PointIndexAccessor;
-	typedef openvdb::tools::PointIndexIterator<> PointIndexIterator;
 	
 	density->clear();
 	velocity->clear();
@@ -314,10 +310,8 @@ void SmokeData::init_grids()
 		Real rad;
 		points.getPosRadVel(n, pos, rad, vel);
 		
-		Vec3R pos_wall = cell_transform->worldToIndex(pos);
-		Vec3R pos_cell = cell_transform->worldToIndex(pos) - Vec3R(0.5d, 0.5d, 0.5d);
-//		Vec3R pos_wall = cell_transform->worldToIndex(pos) + Vec3R(0.5d, 0.5d, 0.5d);
-//		Vec3R pos_cell = cell_transform->worldToIndex(pos);
+		Vec3R pos_wall = cell_transform->worldToIndex(pos) + Vec3R(0.5d, 0.5d, 0.5d);
+		Vec3R pos_cell = cell_transform->worldToIndex(pos);
 		Coord ijk = Coord::floor(pos_wall);
 		/* cell center weights (for density) */
 		float wx1 = fabs(pos_cell.x() - round(pos_cell.x()));
