@@ -580,7 +580,7 @@ static void OpenVDB_get_draw_buffers_staggered(const openvdb::Grid<TreeType> *gr
 		
 		for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
 			const Coord ijk = value_iter.getCoord();
-			Vec3f center = grid->indexToWorld(ijk) + Vec3f(0.5f, 0.5f, 0.5f);
+			Vec3f center = grid->indexToWorld(ijk);
 			
 			Vec3f vec = VectorConverter<ValueType>::get(sampler.wsSample(center));
 			float len = vec.length();
