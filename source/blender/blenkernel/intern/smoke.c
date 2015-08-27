@@ -2871,10 +2871,10 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 					
 					pt = smoke_vdb_add_matpoint(sds);
 					copy_v3_v3(pt->loc, r);
-#if 0
+#if 1
 					/* random-direction velocity */
 					BLI_rng_get_float_unit_v3(rng, pt->vel);
-					mul_v3_fl(pt->vel, 1.0f);
+					mul_v3_fl(pt->vel, 10.0f);
 #else
 					zero_v3(pt->vel);
 #endif
