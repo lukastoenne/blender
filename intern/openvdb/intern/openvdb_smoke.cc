@@ -540,6 +540,10 @@ void SmokeData::add_pressure_force(float dt, float bg_pressure)
 	f->setGridClass(GRID_STAGGERED);
 #endif
 	
+	/* XXX TODO this division leads to extreme velocities,
+	 * probably not correct ...
+	 */
+//	div_vgrid_fgrid(*f, *f, *density);
 	mul_grid_fl(*f, -dt/cell_size());
 	tools::compSum(*force, *f);
 }
