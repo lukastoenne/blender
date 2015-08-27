@@ -314,7 +314,9 @@ void SmokeData::init_grids()
 		
 		Vec3R pos_wall = cell_transform->worldToIndex(pos);
 		Vec3R pos_cell = cell_transform->worldToIndex(pos) - Vec3R(0.5d, 0.5d, 0.5d);
-		Coord ijk = Coord::floor(pos_cell);
+//		Vec3R pos_wall = cell_transform->worldToIndex(pos) + Vec3R(0.5d, 0.5d, 0.5d);
+//		Vec3R pos_cell = cell_transform->worldToIndex(pos);
+		Coord ijk = Coord::floor(pos_wall);
 		/* cell center weights (for density) */
 		float wx1 = fabs(pos_cell.x() - round(pos_cell.x()));
 		float wy1 = fabs(pos_cell.y() - round(pos_cell.y()));
@@ -330,30 +332,28 @@ void SmokeData::init_grids()
 		float fy0 = 1.0f - fy1;
 		float fz0 = 1.0f - fz1;
 		
-		acc_density.setValueOn(ijk+Coord(0,0,0), acc_density.getValue(ijk+Coord(0,0,0)) + wx0 * wy0 * wz0);
-		acc_density.setValueOn(ijk+Coord(1,0,0), acc_density.getValue(ijk+Coord(1,0,0)) + wx1 * wy0 * wz0);
-		acc_density.setValueOn(ijk+Coord(0,1,0), acc_density.getValue(ijk+Coord(0,1,0)) + wx0 * wy1 * wz0);
-		acc_density.setValueOn(ijk+Coord(1,1,0), acc_density.getValue(ijk+Coord(1,1,0)) + wx1 * wy1 * wz0);
-		acc_density.setValueOn(ijk+Coord(0,0,1), acc_density.getValue(ijk+Coord(0,0,1)) + wx0 * wy0 * wz1);
-		acc_density.setValueOn(ijk+Coord(1,0,1), acc_density.getValue(ijk+Coord(1,0,1)) + wx1 * wy0 * wz1);
-		acc_density.setValueOn(ijk+Coord(0,1,1), acc_density.getValue(ijk+Coord(0,1,1)) + wx0 * wy1 * wz1);
-		acc_density.setValueOn(ijk+Coord(1,1,1), acc_density.getValue(ijk+Coord(1,1,1)) + wx1 * wy1 * wz1);
+#define ADD_DENSITY(di, dj, dk, w) \
+	acc_density.setValueOn(ijk+Coord(di,dj,dk), acc_density.getValue(ijk+Coord(di,dj,dk)) + w);
+#define ADD_VELOCITY(di, dj, dk, wx, wy, wz) \
+	acc_velocity.setValueOn(ijk+Coord(di,dj,dk), acc_velocity.getValue(ijk+Coord(di,dj,dk)) + Vec3f(vel.x() * wx, vel.y() * wy, vel.z() * wz)); \
+	acc_velweight.setValueOn(ijk+Coord(di,dj,dk), acc_velweight.getValue(ijk+Coord(di,dj,dk)) + Vec3f(wx, wy, wz));
 		
-		float vx0 = fx0 * wy0 * wz0;
-		float vx1 = fx1 * wy0 * wz0;
-		float vy0 = wx0 * fy0 * wz0;
-		float vy1 = wx1 * fy0 * wz0;
-		float vz0 = wx0 * wy0 * fz0;
-		float vz1 = wx1 * wy0 * fz0;
-		acc_velocity.setValueOn(ijk, acc_velocity.getValue(ijk) + Vec3f(vx0*vel.x(), vy0*vel.y(), vz0*vel.z()));
-		acc_velocity.setValueOn(ijk+Coord(1,0,0), acc_velocity.getValue(ijk+Coord(1,0,0)) + Vec3f(vx1*vel.x(), 0.0f, 0.0f));
-		acc_velocity.setValueOn(ijk+Coord(0,1,0), acc_velocity.getValue(ijk+Coord(0,1,0)) + Vec3f(0.0f, vy1*vel.y(), 0.0f));
-		acc_velocity.setValueOn(ijk+Coord(0,0,1), acc_velocity.getValue(ijk+Coord(0,0,1)) + Vec3f(0.0f, 0.0f, vz1*vel.z()));
+		ADD_DENSITY(0,0,0, wx0 * wy0 * wz0);
+		ADD_DENSITY(0,0,1, wx0 * wy0 * wz1);
+		ADD_DENSITY(0,1,0, wx0 * wy1 * wz0);
+		ADD_DENSITY(0,1,1, wx0 * wy1 * wz1);
+		ADD_DENSITY(1,0,0, wx1 * wy0 * wz0);
+		ADD_DENSITY(1,0,1, wx1 * wy0 * wz1);
+		ADD_DENSITY(1,1,0, wx1 * wy1 * wz0);
+		ADD_DENSITY(1,1,1, wx1 * wy1 * wz1);
 		
-		acc_velweight.setValueOn(ijk, acc_velweight.getValue(ijk) + Vec3f(vx0, vy0, vz0));
-		acc_velweight.setValueOn(ijk+Coord(1,0,0), acc_velweight.getValue(ijk+Coord(1,0,0)) + Vec3f(vx1, 0.0f, 0.0f));
-		acc_velweight.setValueOn(ijk+Coord(0,1,0), acc_velweight.getValue(ijk+Coord(0,1,0)) + Vec3f(0.0f, vy1, 0.0f));
-		acc_velweight.setValueOn(ijk+Coord(0,0,1), acc_velweight.getValue(ijk+Coord(0,0,1)) + Vec3f(0.0f, 0.0f, vz1));
+		ADD_VELOCITY(0,0,0, fx0 * wy0 * wz0, wx0 * fy0 * wz0, wx0 * wy0 * fz0);
+		ADD_VELOCITY(1,0,0, fx1 * wy0 * wz0, 0.0f, 0.0f);
+		ADD_VELOCITY(0,1,0, 0.0f, wx0 * fy1 * wz0, 0.0f);
+		ADD_VELOCITY(0,0,1, 0.0f, 0.0f, wx0 * wy0 * fz1);
+		
+#undef ADD_DENSITY
+#undef ADD_VELOCITY
 	}
 	
 	/* normalize velocity vectors */
