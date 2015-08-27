@@ -332,7 +332,7 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
         col2 = col.column(align=True)
         col2.prop(domain, "display_mode", expand=True)
 
-        if domain.display_mode in {'BOXES', 'NEEDLES'}:
+        if domain.display_mode in {'BOXES', 'NEEDLES', 'STAGGERED'}:
             col.label("Scale:")
             row = col.row()
             row.prop(domain, "display_value_scale", text="")

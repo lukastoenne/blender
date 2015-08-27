@@ -3671,6 +3671,12 @@ void smoke_vdb_get_draw_buffers(SmokeDomainVDBSettings *sds,
 			                                       r_verts, r_colors, r_normals, r_numverts);
 			*r_use_quads = false;
 			break;
+		case MOD_SMOKE_VDB_DISPLAY_STAGGERED:
+			OpenVDB_smoke_get_draw_buffers_staggered(sds->data, smoke_grid_type(sds->display_field),
+			                                         sds->display_value_scale,
+			                                         r_verts, r_colors, r_numverts);
+			*r_use_quads = false;
+			break;
 		default:
 			*r_verts = NULL;
 			*r_colors = NULL;

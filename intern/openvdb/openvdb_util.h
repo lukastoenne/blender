@@ -198,6 +198,41 @@ static void add_needle(float (*verts)[3], float (*colors)[3], float (*normals)[3
 	add_tri(verts, colors, normals, verts_ofs, corners[2], corners[0], corners[3], color);
 }
 
+static void add_staggered_needle(float (*verts)[3], float (*colors)[3], int *verts_ofs,
+                                 const openvdb::Vec3f &center, float size, const openvdb::Vec3f &vec)
+{
+	using namespace openvdb;
+	
+#define SHIFT(v, n) Vec3f((v)[(n)%3], (v)[((n)+2)%3], (v)[((n)+1)%3])
+	
+	Vec3f corners[6] = {
+	    Vec3f(1.0f, 0.0f, 0.0f),
+	    Vec3f(0.0f, 0.0f, 0.15f),
+	    Vec3f(0.0f, 0.0f, -0.15f),
+	    Vec3f(0.0f, 0.15f, 0.0f),
+	    Vec3f(0.0f, -0.15f, 0.0f),
+	};
+	
+	for (int n = 0; n < 3; ++n) {
+		float len = vec[n] * size;
+		
+		Vec3f tip = SHIFT(corners[0], n) * len;
+		Vec3f a = SHIFT(corners[1], n) * len;
+		Vec3f b = SHIFT(corners[2], n) * len;
+		Vec3f c = SHIFT(corners[3], n) * len;
+		Vec3f d = SHIFT(corners[4], n) * len;
+		
+		Vec3f base = center - SHIFT(Vec3f(size * 0.5f, 0.0f, 0.0f), n);
+		
+		Vec3f color = SHIFT(Vec3f(1,0,0), n);
+		
+		add_tri(verts, colors, NULL, verts_ofs, base + tip, base + a, base + b, color);
+		add_tri(verts, colors, NULL, verts_ofs, base + tip, base + c, base + d, color);
+	}
+	
+#undef SHIFT
+}
+
 template <typename TreeType>
 static void OpenVDB_get_draw_buffer_size_cells(const openvdb::Grid<TreeType> *grid, int min_level, int max_level, bool voxels,
                                                int *r_numverts)
@@ -268,9 +303,8 @@ static void OpenVDB_get_draw_buffers_cells(const openvdb::Grid<TreeType> *grid, 
 		CoordBBox bbox;
 		node_iter.getBoundingBox(bbox);
 		
-		const Vec3f min(bbox.min().x() - 0.5f, bbox.min().y() - 0.5f, bbox.min().z() - 0.5f);
-		const Vec3f max(bbox.max().x() + 0.5f, bbox.max().y() + 0.5f, bbox.max().z() + 0.5f);
-		
+		Vec3f min = Vec3f(bbox.min().x(), bbox.min().y(), bbox.min().z()) - Vec3f(0.5f, 0.5f, 0.5f);
+		Vec3f max = Vec3f(bbox.max().x(), bbox.max().y(), bbox.max().z()) + Vec3f(0.5f, 0.5f, 0.5f);
 		Vec3f wmin = grid->indexToWorld(min);
 		Vec3f wmax = grid->indexToWorld(max);
 		
@@ -286,8 +320,8 @@ static void OpenVDB_get_draw_buffers_cells(const openvdb::Grid<TreeType> *grid, 
 			for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
 				const Coord ijk = value_iter.getCoord();
 				
-				Vec3f min(ijk.x() - 0.5f, ijk.y() - 0.5f, ijk.z() - 0.5f);
-				Vec3f max(ijk.x() + 0.5f, ijk.y() + 0.5f, ijk.z() + 0.5f);
+				Vec3f min = Vec3f(ijk.x(), ijk.y(), ijk.z()) - Vec3f(0.5f, 0.5f, 0.5f);
+				Vec3f max = Vec3f(ijk.x(), ijk.y(), ijk.z()) + Vec3f(0.5f, 0.5f, 0.5f);
 				Vec3f wmin = grid->indexToWorld(min);
 				Vec3f wmax = grid->indexToWorld(max);
 				
@@ -400,8 +434,9 @@ static void OpenVDB_get_draw_buffers_boxes(const openvdb::Grid<TreeType> *grid, 
 			fac = (fac - bg) * value_scale;
 			fac = std::max(-1.0f, std::min(fac, 1.0f));
 			
-			Vec3f min(ijk.x() - 0.5f*fac, ijk.y() - 0.5f*fac, ijk.z() - 0.5f*fac);
-			Vec3f max(ijk.x() + 0.5f*fac, ijk.y() + 0.5f*fac, ijk.z() + 0.5f*fac);
+			Vec3f center(ijk.x(), ijk.y(), ijk.z());
+			Vec3f min = center - Vec3f(0.5f, 0.5f, 0.5f) * fac;
+			Vec3f max = center + Vec3f(0.5f, 0.5f, 0.5f) * fac;
 			Vec3f wmin = grid->indexToWorld(min);
 			Vec3f wmax = grid->indexToWorld(max);
 			
@@ -479,6 +514,77 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 			
 			Vec3f center = grid->indexToWorld(ijk);
 			add_needle(verts, colors, normals, &verts_ofs, center, vec, len * grid->voxelSize().x(), color);
+		}
+	}
+}
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffer_size_staggered(const openvdb::Grid<TreeType> *grid,
+                                                   int *r_numverts)
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	if (!grid) {
+		*r_numverts = 0;
+		return;
+	}
+	
+	/* count */
+	int numverts = 0;
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		numverts += 6 * 3 * leaf->onVoxelCount();
+	}
+	
+	*r_numverts = numverts;
+}
+
+template <typename TreeType>
+static void OpenVDB_get_draw_buffers_staggered(const openvdb::Grid<TreeType> *grid, float value_scale,
+                                               float (*verts)[3], float (*colors)[3])
+{
+	using namespace openvdb;
+	using namespace openvdb::math;
+	
+	typedef Grid<TreeType> GridType;
+	typedef typename TreeType::ValueType ValueType;
+	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	typedef typename GridType::ConstAccessor AccessorType;
+	typedef openvdb::tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
+	
+	if (!grid) {
+		return;
+	}
+	
+	const float bg = FloatConverter<ValueType>::get(grid->background());
+	int verts_ofs = 0;
+	
+	AccessorType acc(grid->tree());
+	SamplerType sampler(acc, grid->transform());
+	
+	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
+		const LeafNodeType *leaf = leaf_iter.getLeaf();
+		
+		for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
+			const Coord ijk = value_iter.getCoord();
+			Vec3f center = grid->indexToWorld(ijk) + Vec3f(0.5f, 0.5f, 0.5f);
+			
+			Vec3f vec = VectorConverter<ValueType>::get(sampler.wsSample(center));
+			float len = vec.length();
+			if (len != 0.0f) {
+				vec /= len;
+				
+				len = (len - bg) * value_scale;
+				len = std::max(-1.0f, std::min(len, 1.0f));
+				vec *= len;
+			}
+			
+			add_staggered_needle(verts, colors, &verts_ofs, center, grid->voxelSize().x(), vec);
 		}
 	}
 }

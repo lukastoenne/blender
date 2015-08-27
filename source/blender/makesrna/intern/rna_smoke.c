@@ -765,6 +765,7 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	    {MOD_SMOKE_VDB_DISPLAY_CELLS, "CELLS", 0, "Cells", "Show active grid cells"},
 	    {MOD_SMOKE_VDB_DISPLAY_BOXES, "BOXES", 0, "Boxes", "Indicate field strength with boxes"},
 	    {MOD_SMOKE_VDB_DISPLAY_NEEDLES, "NEEDLES", 0, "Needles", "Show field vectors with needles"},
+	    {MOD_SMOKE_VDB_DISPLAY_STAGGERED, "STAGGERED", 0, "Staggered", "Show field vector components on cell faces"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 

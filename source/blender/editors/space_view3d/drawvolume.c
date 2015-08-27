@@ -597,9 +597,6 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 	smoke_vdb_get_draw_buffers(sds, &verts, &colors, &normals, &numverts, &use_quads);
 	glprim = (use_quads)? GL_QUADS: GL_TRIANGLES;
 	
-	/* disable polygons when no normals available */
-	draw_wire |= (normals == NULL);
-	
 	if (numverts > 0 && verts && colors) {
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_COLOR_ARRAY);
@@ -611,7 +608,7 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 		if (draw_wire) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		}
-		else {
+		else if (normals) {
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glEnable(GL_COLOR_MATERIAL);
@@ -629,7 +626,7 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 		if (draw_wire) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
-		else {
+		else if (normals) {
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisable(GL_COLOR_MATERIAL);
 			glDisable(GL_LIGHTING);

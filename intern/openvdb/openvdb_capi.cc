@@ -410,6 +410,23 @@ void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmok
 #undef DO_GRID
 }
 
+void OpenVDB_smoke_get_draw_buffers_staggered(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
+                                            float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
+{
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
+	
+#define DO_GRID(grid) \
+	internal::OpenVDB_get_draw_buffer_size_staggered(grid, r_numverts); \
+	const size_t bufsize_v3 = (*r_numverts) * sizeof(float) * 3; \
+	*r_verts = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB vertex buffer"); \
+	*r_colors = (float (*)[3])MEM_mallocN(bufsize_v3, "OpenVDB color buffer"); \
+	internal::OpenVDB_get_draw_buffers_staggered(grid, value_scale, *r_verts, *r_colors);
+	
+	SELECT_SMOKE_GRID(data, grid);
+	
+#undef DO_GRID
+}
+
 void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
                               float bbmin[3], float bbmax[3])
 {

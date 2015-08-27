@@ -8129,21 +8129,22 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				 */
 				bool draw_wire = (v3d->drawtype < OB_WIRE);
 				
+				/* cells always shown as wires */
+				if (ELEM(sds->display_mode, MOD_SMOKE_VDB_DISPLAY_CELLS))
+					draw_wire = true;
+				
 				switch (sds->display_mode) {
 					case MOD_SMOKE_VDB_DISPLAY_BLEND:
 						draw_smoke_vdb_blend(scene, ob, rv3d, sds);
 						break;
 					case MOD_SMOKE_VDB_DISPLAY_CELLS:
-						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, true);
+					case MOD_SMOKE_VDB_DISPLAY_BOXES:
+					case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
+					case MOD_SMOKE_VDB_DISPLAY_STAGGERED:
+						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
 						break;
 					case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
 						draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
-						break;
-					case MOD_SMOKE_VDB_DISPLAY_BOXES:
-						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
-						break;
-					case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
-						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
 						break;
 				}
 			}
