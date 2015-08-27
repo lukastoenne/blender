@@ -490,12 +490,56 @@ void SmokeData::add_gravity_force()
 	add_vgrid_v3(*force, gravity);
 }
 
+/* calculates gradient as a staggered grid */
+template<
+    typename InGridT,
+    typename MaskGridType = typename tools::gridop::ToBoolGrid<InGridT>::Type,
+    typename InterruptT = util::NullInterrupter>
+struct StaggeredGradientFunctor
+{
+	typedef InGridT                                         InGridType;
+	typedef typename tools::ScalarToVectorConverter<InGridT>::Type OutGridType;
+	
+	StaggeredGradientFunctor(const InGridT& grid, const MaskGridType* mask,
+	        bool threaded, InterruptT* interrupt):
+	    mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+	
+	template<typename MapT>
+	void operator()(const MapT& map)
+	{
+		typedef math::Gradient<MapT, math::BD_1ST> OpT;
+		tools::gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, OpT, InterruptT>
+		        op(mInputGrid, mMask, map, mInterrupt);
+		mOutputGrid = op.process(mThreaded); // cache the result
+	}
+	
+	const bool                 mThreaded;
+	const InGridT&             mInputGrid;
+	typename OutGridType::Ptr  mOutputGrid;
+	InterruptT*                mInterrupt;
+	const MaskGridType*        mMask;
+};
+
 void SmokeData::add_pressure_force(float dt, float bg_pressure)
 {
 	calculate_pressure(dt, bg_pressure);
 	
+	/* NB: the default gradient function uses 2nd order central differencing,
+	 * maybe 1st order backward differencing should be used instead?
+	 * After all the velocity is defined on the face centers and not the cell centers.
+	 * - lukas
+	 */
+#if 1
 	VectorGrid::Ptr f = tools::gradient(*pressure);
-	div_vgrid_fgrid(*f, *f, *density);
+#else
+	StaggeredGradientFunctor<FloatGrid> functor(*pressure, NULL, true, NULL);
+	processTypedMap(pressure->transform(), functor);
+	if (functor.mOutputGrid)
+		functor.mOutputGrid->setVectorType(openvdb::VEC_COVARIANT);
+	VectorGrid::Ptr f = functor.mOutputGrid;
+	f->setGridClass(GRID_STAGGERED);
+#endif
+	
 	mul_grid_fl(*f, -dt/cell_size());
 	tools::compSum(*force, *f);
 }
