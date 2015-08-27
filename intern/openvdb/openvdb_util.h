@@ -31,6 +31,7 @@
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Statistics.h>
+#include <openvdb/tools/Interpolation.h>
 
 double time_dt();
 
@@ -482,8 +483,12 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 	using namespace openvdb;
 	using namespace openvdb::math;
 	
+	typedef Grid<TreeType> GridType;
 	typedef typename TreeType::ValueType ValueType;
 	typedef typename TreeType::LeafNodeType LeafNodeType;
+	
+	typedef typename GridType::ConstAccessor AccessorType;
+	typedef openvdb::tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
 	
 	if (!grid) {
 		return;
@@ -492,13 +497,17 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 	const float bg = FloatConverter<ValueType>::get(grid->background());
 	int verts_ofs = 0;
 	
+	AccessorType acc(grid->tree());
+	SamplerType sampler(acc, grid->transform());
+	
 	for (typename TreeType::LeafCIter leaf_iter = grid->tree().cbeginLeaf(); leaf_iter; ++leaf_iter) {
 		const LeafNodeType *leaf = leaf_iter.getLeaf();
 		
 		for (typename LeafNodeType::ValueOnCIter value_iter = leaf->cbeginValueOn(); value_iter; ++value_iter) {
 			const Coord ijk = value_iter.getCoord();
+			Vec3f center = grid->indexToWorld(ijk);
 			
-			Vec3f vec = VectorConverter<ValueType>::get(value_iter.getValue());
+			Vec3f vec = VectorConverter<ValueType>::get(sampler.wsSample(center));
 			float len = vec.length();
 			if (len != 0.0f) {
 				vec /= len;
@@ -512,7 +521,6 @@ static void OpenVDB_get_draw_buffers_needles(const openvdb::Grid<TreeType> *grid
 			hsv_to_rgb((len + 1.0f) / 6.0f, 1.0f, 1.0f, &r, &g, &b);
 			Vec3f color = Vec3f(r, g, b);
 			
-			Vec3f center = grid->indexToWorld(ijk);
 			add_needle(verts, colors, normals, &verts_ofs, center, vec, len * grid->voxelSize().x(), color);
 		}
 	}
