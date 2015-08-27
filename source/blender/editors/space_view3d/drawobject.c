@@ -8121,31 +8121,39 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			SmokeDomainVDBSettings *sds = smd->domain_vdb;
 			
 			if (sds->flag & MOD_SMOKE_VDB_SHOW_GRID) {
-				/* XXX We deliberately ignore per-object max. draw type here,
-				 * so the object can have wire drawing but we still see content
-				 * of the domain in solid shading.
-				 * That's a design problem of the viewport and has to be solved
-				 * on a higher level ...
-				 */
-				bool draw_wire = (v3d->drawtype < OB_WIRE);
+				short mode_bit;
 				
-				/* cells always shown as wires */
-				if (ELEM(sds->display_mode, MOD_SMOKE_VDB_DISPLAY_CELLS))
-					draw_wire = true;
-				
-				switch (sds->display_mode) {
-					case MOD_SMOKE_VDB_DISPLAY_BLEND:
-						draw_smoke_vdb_blend(scene, ob, rv3d, sds);
-						break;
-					case MOD_SMOKE_VDB_DISPLAY_CELLS:
-					case MOD_SMOKE_VDB_DISPLAY_BOXES:
-					case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
-					case MOD_SMOKE_VDB_DISPLAY_STAGGERED:
-						draw_smoke_vdb_geometry(scene, ob, rv3d, sds, draw_wire);
-						break;
-					case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
-						draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
-						break;
+				for (mode_bit = 0; mode_bit < 16; ++mode_bit) {
+					short mode = (1 << mode_bit);
+					if ((sds->display_mode & mode) == 0)
+						continue;
+					
+					/* XXX We deliberately ignore per-object max. draw type here,
+					 * so the object can have wire drawing but we still see content
+					 * of the domain in solid shading.
+					 * That's a design problem of the viewport and has to be solved
+					 * on a higher level ...
+					 */
+					bool draw_wire = (v3d->drawtype < OB_WIRE);
+					
+					/* cells always shown as wires */
+					if (ELEM(mode, MOD_SMOKE_VDB_DISPLAY_CELLS))
+						draw_wire = true;
+					
+					switch (mode) {
+						case MOD_SMOKE_VDB_DISPLAY_BLEND:
+							draw_smoke_vdb_blend(scene, ob, rv3d, sds);
+							break;
+						case MOD_SMOKE_VDB_DISPLAY_CELLS:
+						case MOD_SMOKE_VDB_DISPLAY_BOXES:
+						case MOD_SMOKE_VDB_DISPLAY_NEEDLES:
+						case MOD_SMOKE_VDB_DISPLAY_STAGGERED:
+							draw_smoke_vdb_geometry(scene, ob, rv3d, sds, mode, draw_wire);
+							break;
+						case MOD_SMOKE_VDB_DISPLAY_BOUNDS:
+							draw_smoke_vdb_bounds(scene, ob, rv3d, sds);
+							break;
+					}
 				}
 			}
 			

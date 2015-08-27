@@ -583,8 +583,8 @@ static void draw_box(float vec[8][3], bool solid)
 	}
 }
 
-bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d, SmokeDomainVDBSettings *sds,
-                             bool draw_wire)
+bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, RegionView3D *rv3d,
+                             SmokeDomainVDBSettings *sds, short mode, bool draw_wire)
 {
 	float (*verts)[3] = NULL, (*colors)[3] = NULL, (*normals)[3] = NULL;
 	int numverts;
@@ -594,7 +594,7 @@ bool draw_smoke_vdb_geometry(struct Scene *UNUSED(scene), struct Object *ob, Reg
 	glLoadMatrixf(rv3d->viewmat);
 	glMultMatrixf(ob->obmat);
 	
-	smoke_vdb_get_draw_buffers(sds, &verts, &colors, &normals, &numverts, &use_quads);
+	smoke_vdb_get_draw_buffers(sds, mode, &verts, &colors, &normals, &numverts, &use_quads);
 	glprim = (use_quads)? GL_QUADS: GL_TRIANGLES;
 	
 	if (numverts > 0 && verts && colors) {

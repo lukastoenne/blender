@@ -831,6 +831,7 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_enum_items(prop, display_mode_items);
 	RNA_def_property_enum_default(prop, MOD_SMOKE_VDB_DISPLAY_BOUNDS);
 	RNA_def_property_ui_text(prop, "Display Mode", "Mode of display for the smoke sim");
