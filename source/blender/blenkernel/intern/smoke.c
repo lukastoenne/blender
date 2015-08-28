@@ -2856,7 +2856,7 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 				
 				Vpart = 4.0f/3.0f*M_PI * cs*cs*cs;
 				Vtot = size[0] * size[1] * size[2];
-				num_emit = sfs->density * dt * Vtot / Vpart;
+				num_emit = 10.0f * sfs->density * dt * Vtot / Vpart;
 				
 				for (i = 0; i < num_emit; ++i) {
 					float r[3];

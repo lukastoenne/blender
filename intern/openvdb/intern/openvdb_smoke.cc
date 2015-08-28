@@ -569,7 +569,7 @@ bool SmokeData::step(float dt, int /*num_substeps*/)
 	print_grid_range(*density, "STEP", "density");
 	print_grid_range(*velocity, "STEP", "velocity");
 	
-//	advect_backwards_trace(dt);
+	advect_backwards_trace(dt);
 	print_grid_range(*velocity, "V1", "velocity");
 	
 	force->clear();
@@ -623,9 +623,16 @@ struct advect_v3 {
 		Vec3f p0 = transform->indexToWorld(ijk);
 		
 		Vec3f p1 = p0 - dt * v0;
-		Vec3f v1 = sampler.sampleVoxel(p1.x(), p1.y(), p1.z());
+		/* transform to index space for shifting */
+		p1 = transform->worldToIndex(p1);
+		Vec3f p1x = p1 - Vec3f(0.5f, 0.0f, 0.0f);
+		Vec3f p1y = p1 - Vec3f(0.0f, 0.5f, 0.0f);
+		Vec3f p1z = p1 - Vec3f(0.0f, 0.0f, 0.5f);
+		float vx = sampler.isSample(p1x).x();
+		float vy = sampler.isSample(p1y).y();
+		float vz = sampler.isSample(p1z).z();
 		
-		iter.setValue(v1);
+		iter.setValue(Vec3f(vx, vy, vz));
 	}
 };
 
