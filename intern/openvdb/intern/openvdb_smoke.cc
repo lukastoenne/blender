@@ -556,7 +556,7 @@ bool SmokeData::step(float dt, int /*num_substeps*/)
 	velocity_old = velocity;
 	
 	{
-		ScopeTimer prof("Init grids");
+		ScopeTimer prof("--Init grids");
 		init_grids();
 		
 		density->pruneGrid(1e-4f);
@@ -569,33 +569,31 @@ bool SmokeData::step(float dt, int /*num_substeps*/)
 		tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
 	}
 	
-	print_grid_range(*density, "STEP", "density");
-	print_grid_range(*velocity, "STEP", "velocity");
-	
-	advect_backwards_trace(dt);
-	print_grid_range(*velocity, "V1", "velocity");
-	
-	force->clear();
-	add_gravity_force();
 	{
-		ScopeTimer prof("Calculate pressure");
-		add_pressure_force(dt, 0.0f);
+		ScopeTimer prof("--Advect Velocity Field");
+		advect_backwards_trace(dt);
 	}
-	print_grid_range(*velocity, "V2", "velocity");
-	
-	if (pressure_result.success) {
-		print_grid_range(*pressure, "INPUT", "pressure");
-	}
-	else
-		printf(" FAIL! %d iterations, error=%f%%=%f)\n",
-		       pressure_result.iterations, pressure_result.relativeError, pressure_result.absoluteError);
-	
-	mul_grid_fl(*force, dt);
-	tools::compSum(*velocity, *force);
-	print_grid_range(*velocity, "V3", "velocity");
 	
 	{
-		ScopeTimer prof("Update particles");
+		ScopeTimer prof("--Apply External Forces");
+		force->clear();
+		add_gravity_force();
+		{
+			ScopeTimer prof("----Calculate pressure");
+			add_pressure_force(dt, 0.0f);
+		}
+	
+		if (!pressure_result.success) {
+			printf(" FAIL! %d iterations, error=%f%%=%f)\n",
+			       pressure_result.iterations, pressure_result.relativeError, pressure_result.absoluteError);
+		}
+		
+		mul_grid_fl(*force, dt);
+		tools::compSum(*velocity, *force);
+	}
+	
+	{
+		ScopeTimer prof("--Update particles");
 		update_points(dt);
 	}
 	
@@ -661,18 +659,13 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 	pressure_result.absoluteError = 0.0f;
 	pressure_result.relativeError = 0.0f;
 	
-	print_grid_range(*density, "PRESSURE", "density");
-	print_grid_range(*velocity, "PRESSURE", "velocity");
-	
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
-	print_grid_range(*divergence, "PRESSURE", "divergence");
 	
 	mul_fgrid_fgrid(*divergence, *divergence, *density);
 	mul_grid_fl(*divergence, cell_size() / dt);
 	tmp_divergence = divergence;
 	if (divergence->empty())
 		return;
-	print_grid_range(*divergence, "PRESSURE", "divergence * density");
 	
 	VIndexTree::Ptr index_tree = tools::poisson::createIndexTree(divergence->tree());
 	VectorType::Ptr B = tools::poisson::createVectorFromTree<float>(divergence->tree(), *index_tree);
