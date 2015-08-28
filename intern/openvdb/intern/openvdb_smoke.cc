@@ -525,11 +525,11 @@ void SmokeData::add_pressure_force(float dt, float bg_pressure)
 	calculate_pressure(dt, bg_pressure);
 	
 	/* NB: the default gradient function uses 2nd order central differencing,
-	 * maybe 1st order backward differencing should be used instead?
-	 * After all the velocity is defined on the face centers and not the cell centers.
+	 * but 1st order backward differencing should be used instead for staggered grids.
+	 * Not sure why the gradient does not do this automatically like the divergence op...
 	 * - lukas
 	 */
-#if 1
+#if 0
 	VectorGrid::Ptr f = tools::gradient(*pressure);
 #else
 	StaggeredGradientFunctor<FloatGrid> functor(*pressure, NULL, true, NULL);
@@ -540,11 +540,7 @@ void SmokeData::add_pressure_force(float dt, float bg_pressure)
 	f->setGridClass(GRID_STAGGERED);
 #endif
 	
-	/* XXX TODO this division leads to extreme velocities,
-	 * probably not correct ...
-	 */
-//	div_vgrid_fgrid(*f, *f, *density);
-	mul_grid_fl(*f, -dt/cell_size());
+	mul_grid_fl(*f, -1.0f/cell_size());
 	tools::compSum(*force, *f);
 }
 
@@ -659,10 +655,10 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 	pressure_result.absoluteError = 0.0f;
 	pressure_result.relativeError = 0.0f;
 	
+	/* nb: for a staggered grid uses 1st order forward difference automatically */
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
 	
-	mul_fgrid_fgrid(*divergence, *divergence, *density);
-	mul_grid_fl(*divergence, cell_size() / dt);
+	mul_grid_fl(*divergence, -1.0f/cell_size());
 	tmp_divergence = divergence;
 	if (divergence->empty())
 		return;
