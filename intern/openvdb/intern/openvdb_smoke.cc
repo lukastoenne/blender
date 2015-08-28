@@ -558,13 +558,16 @@ bool SmokeData::step(float dt, int /*num_substeps*/)
 	{
 		ScopeTimer prof("Init grids");
 		init_grids();
+		
+		density->pruneGrid(1e-4f);
+		
+		/* only cells with some density can be active */
+		// XXX implicitly true through the point rasterizer
+//		velocity->topologyIntersection(*density);
+		
+		/* add a 1-cell padding to allow flow into empty cells */
+		tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
 	}
-	
-	density->pruneGrid(1e-4f);
-	
-	/* only cells with some density can be active */
-	// XXX implicitly true through the point rasterizer
-//	velocity->topologyIntersection(*density);
 	
 	print_grid_range(*density, "STEP", "density");
 	print_grid_range(*velocity, "STEP", "velocity");
@@ -660,9 +663,6 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 	
 	print_grid_range(*density, "PRESSURE", "density");
 	print_grid_range(*velocity, "PRESSURE", "velocity");
-	
-	/* add a 1-cell padding to allow flow into empty cells */
-	tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
 	
 	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
 	print_grid_range(*divergence, "PRESSURE", "divergence");
