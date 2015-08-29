@@ -201,7 +201,12 @@ typedef struct PreviewImage {
 #  define MAKE_ID2(c, d)  ((d) << 8 | (c))
 #endif
 
-/* ID from database */
+/**
+ * ID from database.
+ *
+ * Written to #BHead.code (for file IO)
+ * and the first 2 bytes of #ID.name (for runtime checks, see #GS macro).
+ */
 #define ID_SCE		MAKE_ID2('S', 'C') /* Scene */
 #define ID_LI		MAKE_ID2('L', 'I') /* Library */
 #define ID_OB		MAKE_ID2('O', 'B') /* Object */
@@ -323,6 +328,7 @@ enum {
 	FILTER_ID_TXT       = (1 << 24),
 	FILTER_ID_VF        = (1 << 25),
 	FILTER_ID_WO        = (1 << 26),
+	FILTER_ID_PA        = (1 << 27),
 };
 
 #ifdef __cplusplus
