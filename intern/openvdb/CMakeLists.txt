@@ -38,7 +38,6 @@ set(SRC
 if(WITH_OPENVDB)
 	add_definitions(
 		-DWITH_OPENVDB
-		-DOPENVDB_USE_BLOSC
 	)
 
 	list(APPEND INC_SYS

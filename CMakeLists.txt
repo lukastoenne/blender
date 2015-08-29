@@ -1592,7 +1592,6 @@ elseif(WIN32)
 			set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
 			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
 			set(OPENVDB_DEFINITIONS)
-			add_definitions(-DOPENVDB_USE_BLOSC)
 		endif()
 
 		if(WITH_MOD_CLOTH_ELTOPO)
