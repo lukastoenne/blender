@@ -201,7 +201,7 @@ TEST(OpenVDBSmoke, InitGrids) {
 	mat.setIdentity();
 	SmokeData data(mat);
 	
-	data.set_points(&istream.base);
+	data.points.from_stream(&istream.base);
 	data.init_grids();
 	
 	FloatGrid::Ptr density = FloatGrid::create(0.0f);

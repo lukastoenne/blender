@@ -64,6 +64,16 @@ public:
 	typedef std::vector<Point> PointList;
 	typedef PointList::iterator iterator;
 	typedef PointList::const_iterator const_iterator;
+	
+	struct PointAccessor {
+		SmokeParticleList *list;
+		Vec3f velocity;
+		PointAccessor(SmokeParticleList *list, const Vec3f &velocity) : list(list), velocity(velocity) {}
+		void add(const Vec3R &pos)
+		{
+			list->m_points.push_back(SmokeParticleList::Point(pos, 1.0f, velocity));
+		}
+	};
 
 protected:
 	PointList m_points;
@@ -83,32 +93,11 @@ public:
 	float velocity_scale() const { return m_velocity_scale; }
 	void velocity_scale(float velocity_scale) { m_velocity_scale = velocity_scale; }
 	
-	void from_stream(OpenVDBPointInputStream *stream)
-	{
-		m_points.clear();
-		
-		for (; stream->has_points(stream); stream->next_point(stream)) {
-			Vec3f locf, velf;
-			float rad;
-			stream->get_point(stream, locf.asPointer(), &rad, velf.asPointer());
-			
-			Point pt(locf, rad * m_radius_scale, velf * m_velocity_scale);
-			m_points.push_back(pt);
-		}
-	}
+	void from_stream(OpenVDBPointInputStream *stream);
+	void to_stream(OpenVDBPointOutputStream *stream) const;
 	
-	void to_stream(OpenVDBPointOutputStream *stream) const
-	{
-		stream->create_points(stream, (int)m_points.size());
-		
-		PointList::const_iterator it;
-		for (it = m_points.begin(); stream->has_points(stream) && it != m_points.end(); stream->next_point(stream), ++it) {
-			const Point &pt = *it;
-			Vec3f locf = pt.loc;
-			Vec3f velf = pt.vel;
-			stream->set_point(stream, locf.asPointer(), velf.asPointer());
-		}
-	}
+	void add_source(const Transform &cell_transform, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
+	                unsigned int seed, float points_per_voxel, const Vec3f &velocity);
 	
 	iterator begin() { return m_points.begin(); }
 	iterator end() { return m_points.end(); }
@@ -146,22 +135,15 @@ struct SmokeData {
 	
 	float cell_size() const;
 	
-	/* rasterize points into density and velocity grids (beginning of the time step) */
-	void set_points(OpenVDBPointInputStream *stream) { points.from_stream(stream); }
-	/* move particles through the velocity field (end of the time step) */
-	void get_points(OpenVDBPointOutputStream *stream) const { points.to_stream(stream); }
-	
 	void add_gravity_force();
 	void add_pressure_force(float dt, float bg_pressure);
 	
-//	void add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
-//	                float flow_density, bool incremental);
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
 	
 	void set_gravity(const Vec3f &g);
 	
-	bool step(float dt, int num_substeps);
+	bool step(float dt);
 	
 	void init_grids();
 	void update_points(float dt);
@@ -174,6 +156,7 @@ struct SmokeData {
 	ScalarGrid::Ptr density;
 	VectorGrid::Ptr velocity;
 	VectorGrid::Ptr velocity_old;
+	
 	ScalarGrid::Ptr tmp_divergence;
 	ScalarGrid::Ptr pressure;
 	State pressure_result;

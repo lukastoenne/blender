@@ -242,28 +242,6 @@ void OpenVDBReader_get_meta_mat4(OpenVDBReader *reader, const char *name, float 
 /* ------------------------------------------------------------------------- */
 /* Simulation */
 
-struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4])
-{
-	return (OpenVDBSmokeData *)(new internal::SmokeData(internal::convertMatrix(cell_mat)));
-}
-
-void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
-{
-	delete ((internal::SmokeData *)data);
-}
-
-void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
-{
-	internal::SmokeData *data = (internal::SmokeData *)pdata;
-	data->set_points(points);
-}
-
-void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
-{
-	internal::SmokeData *data = (internal::SmokeData *)pdata;
-	data->get_points(points);
-}
-
 static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,
                               std::vector<openvdb::math::Vec3s> &vertices, std::vector<openvdb::Vec3I> &triangles)
 {
@@ -289,20 +267,44 @@ static void get_mesh_geometry(float mat[4][4], OpenVDBMeshIterator *it,
 	}
 }
 
-#if 0
-void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
-                              float flow_density, bool incremental)
+struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4])
 {
-	using openvdb::math::Vec3s;
+	return (OpenVDBSmokeData *)(new internal::SmokeData(internal::convertMatrix(cell_mat)));
+}
+
+void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data)
+{
+	delete ((internal::SmokeData *)data);
+}
+
+void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointInputStream *points)
+{
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
+	data->points.from_stream(points);
+}
+
+void OpenVDB_smoke_add_point_source(struct OpenVDBSmokeData *pdata, float mat[4][4], struct OpenVDBMeshIterator *it,
+                                    unsigned int seed, float points_per_voxel, const float velocity[3])
+{
+	using openvdb::math::Transform;
+	using openvdb::Vec3s;
+	using openvdb::Vec3f;
 	using openvdb::Vec3I;
+	
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
 	std::vector<Vec3s> vertices;
 	std::vector<Vec3I> triangles;
 	get_mesh_geometry(mat, it, vertices, triangles);
 	
-	((internal::OpenVDBSmokeData *)data)->add_inflow(vertices, triangles, flow_density, incremental);
+	data->points.add_source(*data->cell_transform, vertices, triangles, seed, points_per_voxel, Vec3f(velocity));
 }
-#endif
+
+void OpenVDB_smoke_apply_points(struct OpenVDBSmokeData *pdata, struct OpenVDBPointOutputStream *points)
+{
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
+	data->points.to_stream(points);
+}
 
 void OpenVDB_smoke_add_obstacle(OpenVDBSmokeData *data, float mat[4][4], OpenVDBMeshIterator *it)
 {
@@ -326,9 +328,9 @@ void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3])
 	((internal::SmokeData *)data)->set_gravity(openvdb::Vec3f(g));
 }
 
-bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int num_substeps)
+bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt)
 {
-	return ((internal::SmokeData *)data)->step(dt, num_substeps);
+	return ((internal::SmokeData *)data)->step(dt);
 }
 
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *err_abs, double *err_rel, int *iterations)

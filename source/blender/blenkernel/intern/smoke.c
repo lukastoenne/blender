@@ -2826,17 +2826,36 @@ static inline void smoke_init_matpoint_output_stream(SmokeMatPointOutputStream *
 
 /* ------------------------------------------------------------------------- */
 
-static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds, float dt, bool UNUSED(for_render))
+static void update_obstacles_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds)
 {
 	Object **flowobjs = NULL;
 	unsigned int numflowobj = 0;
 	unsigned int flowIndex;
 	
-	/* make sure we have material points */
-	if (!sds->matpoints)
-		smoke_vdb_init_matpoints(sds);
-	
 	OpenVDB_smoke_clear_obstacles(sds->data);
+	
+	flowobjs = get_collisionobjects(scene, ob, sds->fluid_group, &numflowobj, eModifierType_Smoke);
+	for (flowIndex = 0; flowIndex < numflowobj; flowIndex++)
+	{
+		Object *collob = flowobjs[flowIndex];
+		SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(collob, eModifierType_Smoke);
+		
+		// check for initialized smoke object
+		if ((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll)
+		{
+			//SmokeCollSettings *scs = smd2->coll;
+			// TODO
+		}
+	}
+	if (flowobjs)
+		MEM_freeN(flowobjs);
+}
+
+static void update_sources_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings *sds)
+{
+	Object **flowobjs = NULL;
+	unsigned int numflowobj = 0;
+	unsigned int flowIndex;
 	
 	flowobjs = get_collisionobjects(scene, ob, sds->fluid_group, &numflowobj, eModifierType_Smoke);
 	for (flowIndex = 0; flowIndex < numflowobj; flowIndex++)
@@ -2848,14 +2867,16 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 		if ((smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow)
 		{
 			SmokeFlowSettings *sfs = smd2->flow;
-//			OpenVDBDerivedMeshIterator iter;
+			OpenVDBDerivedMeshIterator iter;
 			float mat[4][4];
+			float vel[3] = {0,0,0}; // XXX TODO
+			float points_per_voxel = 8.0f; // XXX TODO
 			mul_m4_m4m4(mat, sds->imat, collob->obmat);
 			
-//			openvdb_dm_iter_init(&iter, sfs->dm);
-//			OpenVDB_smoke_add_inflow(sds->data, mat, &iter.base, sfs->density, sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
+			openvdb_dm_iter_init(&iter, sfs->dm);
+			OpenVDB_smoke_add_point_source(sds->data, mat, &iter.base, sds->seed, points_per_voxel, vel);
 			
-			/* XXX dummy code */
+#if 0 /* XXX dummy code using the bounding box */
 			{
 				int numverts = sfs->dm->getNumVerts(sfs->dm);
 				int num_emit, i;
@@ -2905,14 +2926,16 @@ static void update_flowsfluids_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetti
 				
 				BLI_rng_free(rng);
 			}
+#endif
 		}
 	}
 	if (flowobjs)
 		MEM_freeN(flowobjs);
 }
+
 #endif
 
-static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool for_render)
+static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool UNUSED(for_render))
 {
 #ifdef WITH_OPENVDB
 	SmokeDomainVDBSettings *sds = smd->domain_vdb;
@@ -2943,16 +2966,24 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
 	dt = DT_DEFAULT * (25.0f / fps);
 
-	update_flowsfluids_vdb(scene, ob, sds, dt, for_render);
+	/* make sure we have material points */
+	if (!sds->matpoints)
+		smoke_vdb_init_matpoints(sds);
 
 	smoke_init_matpoint_input_stream(&ipoints, sds);
 	OpenVDB_smoke_set_points(sds->data, &ipoints.base);
 
-	/* Disable substeps for now, since it results in numerical instability */
-	OpenVDB_smoke_step(sds->data, dt, 1);
+	update_obstacles_vdb(scene, ob, sds);
+
+	/* TODO no substeps for now */
+	/*for (substeps...)*/ {
+		update_sources_vdb(scene, ob, sds);
+		
+		OpenVDB_smoke_step(sds->data, dt);
+	}
 
 	smoke_init_matpoint_output_stream(&opoints, sds);
-	OpenVDB_smoke_get_points(sds->data, &opoints.base);
+	OpenVDB_smoke_apply_points(sds->data, &opoints.base);
 	
 #endif /* WITH_OPENVDB */
 }

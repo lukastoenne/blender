@@ -34,6 +34,7 @@
 #include <openvdb/tools/Morphology.h> // for tools::erodeVoxels()
 #include <openvdb/tools/ParticlesToLevelSet.h>
 #include <openvdb/tools/PointIndexGrid.h>
+#include <openvdb/tools/PointScatter.h>
 #include <openvdb/tools/PoissonSolver.h>
 
 #include "openvdb_smoke.h"
@@ -178,6 +179,51 @@ inline static void velocity_normalize(VectorGrid &vel, const VectorGrid &weight)
 	vel.tree().combine2(vel.tree(), weight.tree(), Local::div_v3v3);
 }
 
+void SmokeParticleList::from_stream(OpenVDBPointInputStream *stream)
+{
+	m_points.clear();
+	
+	for (; stream->has_points(stream); stream->next_point(stream)) {
+		Vec3f locf, velf;
+		float rad;
+		stream->get_point(stream, locf.asPointer(), &rad, velf.asPointer());
+		
+		Point pt(locf, rad * m_radius_scale, velf * m_velocity_scale);
+		m_points.push_back(pt);
+	}
+}
+
+void SmokeParticleList::to_stream(OpenVDBPointOutputStream *stream) const
+{
+	stream->create_points(stream, (int)m_points.size());
+	
+	PointList::const_iterator it;
+	for (it = m_points.begin(); stream->has_points(stream) && it != m_points.end(); stream->next_point(stream), ++it) {
+		const Point &pt = *it;
+		Vec3f locf = pt.loc;
+		Vec3f velf = pt.vel;
+		stream->set_point(stream, locf.asPointer(), velf.asPointer());
+	}
+}
+
+void SmokeParticleList::add_source(const Transform &cell_transform, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
+                                   unsigned int seed, float points_per_voxel, const Vec3f &velocity)
+{
+	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
+	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
+	
+	FloatGrid::Ptr source = tools::meshToLevelSet<FloatGrid>(cell_transform, vertices, triangles, std::vector<Vec4I>(), 0.0f);
+	
+	typedef boost::mt19937 RngType;
+	typedef tools::DenseUniformPointScatter<PointAccessor, RngType> ScatterType;
+	
+	PointAccessor point_acc(this, velocity);
+	RngType rng = RngType(seed);
+	ScatterType scatter(point_acc, points_per_voxel, rng);
+	
+	scatter(*source);
+}
+
 SmokeData::SmokeData(const Mat4R &cell_transform) :
     cell_transform(Transform::createLinearTransform(cell_transform))
 {
@@ -186,6 +232,7 @@ SmokeData::SmokeData(const Mat4R &cell_transform) :
 	velocity = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
 	velocity->setTransform(this->cell_transform);
 	velocity->setGridClass(GRID_STAGGERED);
+	
 	pressure = ScalarGrid::create(0.0f);
 	pressure->setTransform(this->cell_transform);
 	force = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
@@ -429,34 +476,6 @@ void SmokeData::update_points(float dt)
 	}
 }
 
-#if 0
-void OpenVDBSmokeData::add_inflow(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
-                                  float flow_density, bool incremental)
-{
-	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
-	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
-	
-	FloatGrid::Ptr emission = tools::meshToSignedDistanceField<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
-	tools::sdfToFogVolume(*emission, 0.0f);
-	mul_grid_fl(*emission, flow_density);
-	
-	if (incremental) {
-		tools::compSum(*density, *emission);
-	}
-	else {
-		tools::compReplace(*density, *emission);
-	}
-	
-//	VectorGrid::Ptr grad = tools::gradient(*sdf);
-	
-//	tools::compSum(*density, *sdf);
-//	tools::compSum(*velocity, *grad);
-	
-//	BoolGrid::Ptr mask = tools::sdfInteriorMask(*sdf, 0.0f);
-//	density->topologyIntersection(*mask);
-}
-#endif
-
 void SmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles)
 {
 	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
@@ -544,7 +563,7 @@ void SmokeData::add_pressure_force(float dt, float bg_pressure)
 	tools::compSum(*force, *f);
 }
 
-bool SmokeData::step(float dt, int /*num_substeps*/)
+bool SmokeData::step(float dt)
 {
 	ScopeTimer prof("Smoke timestep");
 	

@@ -153,7 +153,9 @@ typedef struct OpenVDBPointOutputStream {
 } OpenVDBPointOutputStream;
 
 void OpenVDB_smoke_set_points(struct OpenVDBSmokeData *data, struct OpenVDBPointInputStream *points);
-void OpenVDB_smoke_get_points(struct OpenVDBSmokeData *data, struct OpenVDBPointOutputStream *points);
+void OpenVDB_smoke_add_point_source(struct OpenVDBSmokeData *pdata, float mat[4][4], struct OpenVDBMeshIterator *it,
+                                    unsigned int seed, float points_per_voxel, const float velocity[3]);
+void OpenVDB_smoke_apply_points(struct OpenVDBSmokeData *data, struct OpenVDBPointOutputStream *points);
 
 //void OpenVDB_smoke_add_inflow(struct OpenVDBSmokeData *data, float mat[4][4], struct OpenVDBMeshIterator *it,
 //                              float flow_density, bool incremental);
@@ -162,7 +164,7 @@ void OpenVDB_smoke_clear_obstacles(struct OpenVDBSmokeData *data);
 
 void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3]);
 
-bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt, int substeps);
+bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt);
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *data, double *err_abs, double *err_rel, int *iterations);
 
 /* Drawing */

@@ -203,9 +203,10 @@ typedef struct SmokeDomainVDBSettings {
 	
 	int flag;
 	short res_axis;
-	short pad1[3];
+	short pad1;
 	int res;
 	
+	unsigned int seed;
 	struct BLI_mempool *matpoints;
 	
 	/* internal */
