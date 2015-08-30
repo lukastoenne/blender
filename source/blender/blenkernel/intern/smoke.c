@@ -2841,8 +2841,7 @@ static void update_obstacles_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetting
 		SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(collob, eModifierType_Smoke);
 		
 		// check for initialized smoke object
-		if ((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll)
-		{
+		if ((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll) {
 			//SmokeCollSettings *scs = smd2->coll;
 			// TODO
 		}
@@ -2864,8 +2863,7 @@ static void update_sources_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings 
 		SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(collob, eModifierType_Smoke);
 		
 		// check for initialized smoke object
-		if ((smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow)
-		{
+		if ((smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow) {
 			SmokeFlowSettings *sfs = smd2->flow;
 			OpenVDBDerivedMeshIterator iter;
 			float mat[4][4];
@@ -2875,58 +2873,6 @@ static void update_sources_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings 
 			
 			openvdb_dm_iter_init(&iter, sfs->dm);
 			OpenVDB_smoke_add_point_source(sds->data, mat, &iter.base, sds->seed, points_per_voxel, vel);
-			
-#if 0 /* XXX dummy code using the bounding box */
-			{
-				int numverts = sfs->dm->getNumVerts(sfs->dm);
-				int num_emit, i;
-				MVert *verts = sfs->dm->getVertArray(sfs->dm);
-				float min[3], max[3], size[3];
-				const float cs = sds->cell_size;
-				float Vpart, Vtot;
-				int numpt = BLI_mempool_count(sds->matpoints);
-				RNG *rng = BLI_rng_new(45824 + numpt*numpt);
-				
-				if (numverts > 0) {
-					INIT_MINMAX(min, max);
-					for (i = 0; i < numverts; ++i)
-						minmax_v3v3_v3(min, max, verts[i].co);
-				}
-				else {
-					zero_v3(min);
-					zero_v3(max);
-				}
-				sub_v3_v3v3(size, max, min);
-				
-				Vpart = 4.0f/3.0f*M_PI * cs*cs*cs;
-				Vtot = size[0] * size[1] * size[2];
-				num_emit = 10.0f * sfs->density * dt * Vtot / Vpart;
-				
-				for (i = 0; i < num_emit; ++i) {
-					float r[3];
-					MaterialPoint *pt;
-					
-					r[0] = BLI_rng_get_float(rng);
-					r[1] = BLI_rng_get_float(rng);
-					r[2] = BLI_rng_get_float(rng);
-					mul_v3_v3(r, size);
-					add_v3_v3(r, min);
-					mul_m4_v3(mat, r);
-					
-					pt = smoke_vdb_add_matpoint(sds);
-					copy_v3_v3(pt->loc, r);
-#if 1
-					/* random-direction velocity */
-					BLI_rng_get_float_unit_v3(rng, pt->vel);
-					mul_v3_fl(pt->vel, 10.0f);
-#else
-					zero_v3(pt->vel);
-#endif
-				}
-				
-				BLI_rng_free(rng);
-			}
-#endif
 		}
 	}
 	if (flowobjs)
