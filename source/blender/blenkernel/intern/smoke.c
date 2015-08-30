@@ -2768,9 +2768,30 @@ static inline void smoke_init_matpoint_input_stream(SmokeMatPointInputStream *st
 
 typedef struct SmokeMatPointOutputStream {
 	OpenVDBPointOutputStream base;
+	BLI_mempool *pool;
 	BLI_mempool_iter iter;
 	MaterialPoint *point;
 } SmokeMatPointOutputStream;
+static void smoke_create_matpoints(SmokeMatPointOutputStream *stream, int num)
+{
+	int n = BLI_mempool_count(stream->pool);
+	if (n < num) {
+		for (; n < num; ++n) {
+			MaterialPoint *pt = BLI_mempool_calloc(stream->pool);
+			(void)pt; /* mempool warns on unused result, but we only do iterator access */
+		}
+	}
+	else if (n > num) {
+		BLI_mempool_iter iter;
+		MaterialPoint *pt;
+		for (; n > num; --n) {
+			BLI_mempool_iternew(stream->pool, &iter);
+			pt = BLI_mempool_iterstep(&stream->iter);
+			BLI_assert(pt != NULL);
+			BLI_mempool_free(stream->pool, pt);
+		}
+	}
+}
 static bool smoke_has_matpoints_out(SmokeMatPointOutputStream *stream)
 {
 	return stream->point != NULL;
@@ -2792,9 +2813,11 @@ static void smoke_set_matpoint_out(SmokeMatPointOutputStream *stream, const floa
 }
 static inline void smoke_init_matpoint_output_stream(SmokeMatPointOutputStream *stream, SmokeDomainVDBSettings *sds)
 {
+	stream->pool = sds->matpoints;
 	BLI_mempool_iternew(sds->matpoints, &stream->iter);
 	stream->point = BLI_mempool_iterstep(&stream->iter);
 	
+	stream->base.create_points = (OpenVDBCreatePointsFn)smoke_create_matpoints;
 	stream->base.has_points = (OpenVDBHasOPointsFn)smoke_has_matpoints_out;
 	stream->base.next_point = (OpenVDBNextOPointFn)smoke_next_matpoint_out;
 	stream->base.get_point = (OpenVDBGetOPointFn)smoke_get_matpoint_out;

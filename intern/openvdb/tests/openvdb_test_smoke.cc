@@ -54,86 +54,92 @@ struct TestPoint {
 	float vel[3];
 };
 
+typedef std::vector<TestPoint> TestPointList;
+
 struct TestIPoints {
 	OpenVDBPointInputStream base;
-	TestPoint *array;
-	int len;
+	TestPointList::const_iterator it;
+	TestPointList::const_iterator it_end;
 	
-	TestIPoints(TestPoint *array, int len);
+	TestIPoints(const TestPointList &list);
 };
 static bool test_ipoints_has_points(TestIPoints *points)
 {
-	return points->len > 0;
+	return points->it != points->it_end;
 }
 static void test_ipoints_next_point(TestIPoints *points)
 {
-	++points->array;
-	--points->len;
+	++points->it;
 }
 static void test_ipoints_get_point(TestIPoints *points, float loc[3], float *rad, float vel[3])
 {
-	TestPoint *p = points->array;
-	loc[0] = p->loc[0];
-	loc[1] = p->loc[1];
-	loc[2] = p->loc[2];
-	vel[0] = p->vel[0];
-	vel[1] = p->vel[1];
-	vel[2] = p->vel[2];
-	*rad = p->rad;
+	const TestPoint &p = *points->it;
+	loc[0] = p.loc[0];
+	loc[1] = p.loc[1];
+	loc[2] = p.loc[2];
+	vel[0] = p.vel[0];
+	vel[1] = p.vel[1];
+	vel[2] = p.vel[2];
+	*rad = p.rad;
 }
-TestIPoints::TestIPoints(TestPoint *_array, int _len)
+TestIPoints::TestIPoints(const TestPointList &_list)
 {
 	base.has_points = (OpenVDBHasIPointsFn)test_ipoints_has_points;
 	base.next_point = (OpenVDBNextIPointFn)test_ipoints_next_point;
 	base.get_point = (OpenVDBGetIPointFn)test_ipoints_get_point;
-	array = _array;
-	len = _len;
+	it_end = _list.end();
+	it = _list.begin();
 }
 
 struct TestOPoints {
 	OpenVDBPointOutputStream base;
-	TestPoint *array;
-	int len;
-	TestOPoints(TestPoint *array, int len);
+	TestPointList *list;
+	TestPointList::iterator it;
+	
+	TestOPoints(TestPointList &list);
 };
+static void test_opoints_create_points(TestOPoints *points, int num)
+{
+	points->list->resize(num, TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+}
 static bool test_opoints_has_points(TestOPoints *points)
 {
-	return points->len > 0;
+	return points->it != points->list->end();
 }
 static void test_opoints_next_point(TestOPoints *points)
 {
-	++points->array;
-	--points->len;
+	++points->it;
 }
 static void test_opoints_get_point(TestOPoints *points, float loc[3], float *rad, float vel[3])
 {
-	TestPoint *p = points->array;
-	loc[0] = p->loc[0];
-	loc[1] = p->loc[1];
-	loc[2] = p->loc[2];
-	vel[0] = p->vel[0];
-	vel[1] = p->vel[1];
-	vel[2] = p->vel[2];
-	*rad = p->rad;
+	const TestPoint &p = *points->it;
+	loc[0] = p.loc[0];
+	loc[1] = p.loc[1];
+	loc[2] = p.loc[2];
+	vel[0] = p.vel[0];
+	vel[1] = p.vel[1];
+	vel[2] = p.vel[2];
+	*rad = p.rad;
 }
 static void test_opoints_set_point(TestOPoints *points, const float loc[3], const float vel[3])
 {
-	TestPoint *p = points->array;
-	p->loc[0] = loc[0];
-	p->loc[1] = loc[1];
-	p->loc[2] = loc[2];
-	p->vel[0] = vel[0];
-	p->vel[1] = vel[1];
-	p->vel[2] = vel[2];
+	TestPoint &p = *points->it;
+	p.loc[0] = loc[0];
+	p.loc[1] = loc[1];
+	p.loc[2] = loc[2];
+	p.vel[0] = vel[0];
+	p.vel[1] = vel[1];
+	p.vel[2] = vel[2];
 }
-TestOPoints::TestOPoints(TestPoint *_array, int _len)
+TestOPoints::TestOPoints(TestPointList &_list)
 {
+	base.create_points = (OpenVDBCreatePointsFn)test_opoints_create_points;
 	base.has_points = (OpenVDBHasOPointsFn)test_opoints_has_points;
 	base.next_point = (OpenVDBNextOPointFn)test_opoints_next_point;
 	base.get_point = (OpenVDBGetOPointFn)test_opoints_get_point;
 	base.set_point = (OpenVDBSetOPointFn)test_opoints_set_point;
-	array = _array;
-	len = _len;
+	list = &_list;
+	it = _list.begin();
 }
 
 TEST(OpenVDBSmoke, ParticleListFromStream) {
@@ -150,7 +156,7 @@ TEST(OpenVDBSmoke, ParticleListFromStream) {
 	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 3.3f, 0.0f));
 	
 	SmokeParticleList particles;
-	TestIPoints istream(points.data(), points.size());
+	TestIPoints istream(points);
 	particles.from_stream(&istream.base);
 	EXPECT_EQ(particles.size(), points.size());
 	for (size_t i = 0; i < particles.size(); ++i) {
@@ -175,7 +181,7 @@ TEST(OpenVDBSmoke, ParticleListToStream) {
 	particles.points().push_back(SmokeParticleList::Point(Vec3R(0.0f, 0.0f, 0.0f), 1.0f, Vec3R(51.0f, 0.0f, 0.0f)));
 	
 	std::vector<TestPoint> points(particles.size(), TestPoint(0, 0, 0, 0, 0, 0, 0));
-	TestOPoints ostream(points.data(), points.size());
+	TestOPoints ostream(points);
 	particles.to_stream(&ostream.base);
 	for (size_t i = 0; i < particles.size(); ++i) {
 		Vec3R pos, vel;
@@ -189,7 +195,7 @@ TEST(OpenVDBSmoke, ParticleListToStream) {
 TEST(OpenVDBSmoke, InitGrids) {
 	std::vector<TestPoint> points;
 	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f));
-	TestIPoints istream(points.data(), points.size());
+	TestIPoints istream(points);
 	
 	Mat4R mat;
 	mat.setIdentity();

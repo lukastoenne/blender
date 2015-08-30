@@ -99,6 +99,8 @@ public:
 	
 	void to_stream(OpenVDBPointOutputStream *stream) const
 	{
+		stream->create_points(stream, (int)m_points.size());
+		
 		PointList::const_iterator it;
 		for (it = m_points.begin(); stream->has_points(stream) && it != m_points.end(); stream->next_point(stream), ++it) {
 			const Point &pt = *it;
@@ -147,7 +149,7 @@ struct SmokeData {
 	/* rasterize points into density and velocity grids (beginning of the time step) */
 	void set_points(OpenVDBPointInputStream *stream) { points.from_stream(stream); }
 	/* move particles through the velocity field (end of the time step) */
-	void get_points(OpenVDBPointOutputStream *stream) { points.to_stream(stream); }
+	void get_points(OpenVDBPointOutputStream *stream) const { points.to_stream(stream); }
 	
 	void add_gravity_force();
 	void add_pressure_force(float dt, float bg_pressure);

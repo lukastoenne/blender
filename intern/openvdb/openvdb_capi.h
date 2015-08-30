@@ -35,9 +35,6 @@ struct OpenVDBWriter;
 struct OpenVDBFloatGrid;
 struct OpenVDBIntGrid;
 struct OpenVDBVectorGrid;
-struct OpenVDBSmokeData;
-struct OpenVDBPointInputStream;
-struct OpenVDBPointOutputStream;
 
 int OpenVDB_getVersionHex(void);
 
@@ -102,6 +99,11 @@ void OpenVDBReader_get_meta_v3_int(struct OpenVDBReader *reader, const char *nam
 void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name, float value[4][4]);
 
 /* Simulation */
+struct OpenVDBSmokeData;
+struct OpenVDBInflow;
+struct OpenVDBOutflow;
+struct OpenVDBPointInputStream;
+struct OpenVDBPointOutputStream;
 
 struct OpenVDBSmokeData *OpenVDB_create_smoke_data(float cell_mat[4][4]);
 void OpenVDB_free_smoke_data(struct OpenVDBSmokeData *data);
@@ -140,8 +142,10 @@ typedef bool (*OpenVDBHasOPointsFn)(struct OpenVDBPointOutputStream *it);
 typedef void (*OpenVDBNextOPointFn)(struct OpenVDBPointOutputStream *it);
 typedef void (*OpenVDBGetOPointFn)(struct OpenVDBPointOutputStream *it, float loc[3], float *rad, float vel[3]);
 typedef void (*OpenVDBSetOPointFn)(struct OpenVDBPointOutputStream *it, const float loc[3], const float vel[3]);
+typedef void (*OpenVDBCreatePointsFn)(struct OpenVDBPointOutputStream *it, int num);
 
 typedef struct OpenVDBPointOutputStream {
+	OpenVDBCreatePointsFn create_points;
 	OpenVDBHasOPointsFn has_points;
 	OpenVDBNextOPointFn next_point;
 	OpenVDBGetOPointFn get_point;
