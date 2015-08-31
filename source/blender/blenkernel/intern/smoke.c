@@ -2791,6 +2791,10 @@ static void smoke_create_matpoints(SmokeMatPointOutputStream *stream, int num)
 			BLI_mempool_free(stream->pool, pt);
 		}
 	}
+	
+	/* update iterator */
+	BLI_mempool_iternew(stream->pool, &stream->iter);
+	stream->point = BLI_mempool_iterstep(&stream->iter);
 }
 static bool smoke_has_matpoints_out(SmokeMatPointOutputStream *stream)
 {

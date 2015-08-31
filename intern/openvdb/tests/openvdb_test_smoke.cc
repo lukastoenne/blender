@@ -101,6 +101,7 @@ struct TestOPoints {
 static void test_opoints_create_points(TestOPoints *points, int num)
 {
 	points->list->resize(num, TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+	points->it = points->list->begin();
 }
 static bool test_opoints_has_points(TestOPoints *points)
 {
