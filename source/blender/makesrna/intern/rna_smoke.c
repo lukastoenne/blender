@@ -46,6 +46,13 @@
 
 #include "WM_types.h"
 
+EnumPropertyItem mod_smoke_field_items[] = {
+    {MOD_SMOKE_VDB_FIELD_DENSITY, "DENSITY", 0, "Density", "Show density field"},
+    {MOD_SMOKE_VDB_FIELD_VELOCITY, "VELOCITY", 0, "Velocity", "Show velocity field"},
+    {MOD_SMOKE_VDB_FIELD_PRESSURE, "PRESSURE", 0, "Pressure", "Show pressure field"},
+    {MOD_SMOKE_VDB_FIELD_DIVERGENCE, "DIVERGENCE", 0, "Divergence", "Show divergence field"},
+    {0, NULL, 0, NULL, NULL}
+};
 
 #ifdef RNA_RUNTIME
 
@@ -769,14 +776,6 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem display_field_items[] = {
-	    {MOD_SMOKE_VDB_FIELD_DENSITY, "DENSITY", 0, "Density", "Show density field"},
-	    {MOD_SMOKE_VDB_FIELD_VELOCITY, "VELOCITY", 0, "Velocity", "Show velocity field"},
-	    {MOD_SMOKE_VDB_FIELD_PRESSURE, "PRESSURE", 0, "Pressure", "Show pressure field"},
-	    {MOD_SMOKE_VDB_FIELD_DIVERGENCE, "DIVERGENCE", 0, "Divergence", "Show divergence field"},
-	    {0, NULL, 0, NULL, NULL}
-	};
-
 	srna = RNA_def_struct(brna, "SmokeDomainVDBSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Domain VDB Settings", "Smoke VDB domain settings");
 	RNA_def_struct_sdna(srna, "SmokeDomainVDBSettings");
@@ -838,7 +837,7 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
 	prop = RNA_def_property(srna, "display_field", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, display_field_items);
+	RNA_def_property_enum_items(prop, mod_smoke_field_items);
 	RNA_def_property_enum_default(prop, MOD_SMOKE_VDB_FIELD_DENSITY);
 	RNA_def_property_ui_text(prop, "Display Field", "Primary field type to display");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);

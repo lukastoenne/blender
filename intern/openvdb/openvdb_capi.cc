@@ -350,14 +350,15 @@ bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *e
  * DO_GRID must be defined locally.
  */
 #define SELECT_SMOKE_GRID(data, type) \
-	switch ((type)) { \
-		case OpenVDBSmokeGrid_Density: { DO_GRID(data->density.get()) } break; \
-		case OpenVDBSmokeGrid_Velocity: { DO_GRID(data->velocity.get()) } break; \
-		case OpenVDBSmokeGrid_Pressure: { DO_GRID(data->pressure.get()) } break; \
-		case OpenVDBSmokeGrid_Divergence: { DO_GRID(data->tmp_divergence.get()) } break; \
-	} (void)0
+{ \
+	std::string stype(type); \
+	if (stype == "DENSITY") { DO_GRID(data->density.get()) } \
+	else if (stype == "VELOCITY") { DO_GRID(data->velocity.get()) } \
+	else if (stype == "PRESSURE") { DO_GRID(data->pressure.get()) } \
+	else if (stype == "DIVERGENCE") { DO_GRID(data->tmp_divergence.get()) } \
+} (void)0
 
-void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
+void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, const char *grid,
                                           float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
 {
 	const int min_level = 0;
@@ -376,7 +377,7 @@ void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 #undef DO_GRID
 }
 
-void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, const char *grid, float value_scale,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -394,7 +395,7 @@ void OpenVDB_smoke_get_draw_buffers_boxes(OpenVDBSmokeData *pdata, OpenVDBSmokeG
 #undef DO_GRID
 }
 
-void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, const char *grid, float value_scale,
                                             float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts)
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -412,7 +413,7 @@ void OpenVDB_smoke_get_draw_buffers_needles(OpenVDBSmokeData *pdata, OpenVDBSmok
 #undef DO_GRID
 }
 
-void OpenVDB_smoke_get_draw_buffers_staggered(OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_staggered(OpenVDBSmokeData *pdata, const char *grid, float value_scale,
                                             float (**r_verts)[3], float (**r_colors)[3], int *r_numverts)
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -429,7 +430,7 @@ void OpenVDB_smoke_get_draw_buffers_staggered(OpenVDBSmokeData *pdata, OpenVDBSm
 #undef DO_GRID
 }
 
-void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
+void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, const char *grid,
                               float bbmin[3], float bbmax[3])
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -442,7 +443,7 @@ void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridTy
 #undef DO_GRID
 }
 
-float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
+float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, const char *grid,
                                         int res[3], float bbmin[3], float bbmax[3])
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -462,7 +463,7 @@ float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *pdata, OpenVDBS
 	return NULL;
 }
 
-void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid, float *bg, float *min, float *max)
+void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *pdata, const char *grid, float *bg, float *min, float *max)
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	

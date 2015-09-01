@@ -169,29 +169,22 @@ bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *data, double *er
 
 /* Drawing */
 
-typedef enum OpenVDBSmokeGridType {
-	OpenVDBSmokeGrid_Density,
-	OpenVDBSmokeGrid_Velocity,
-	OpenVDBSmokeGrid_Pressure,
-	OpenVDBSmokeGrid_Divergence,
-} OpenVDBSmokeGridType;
-
-void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, OpenVDBSmokeGridType grid,
+void OpenVDB_smoke_get_bounds(struct OpenVDBSmokeData *pdata, const char *grid,
                               float bbmin[3], float bbmax[3]);
 
-void OpenVDB_smoke_get_draw_buffers_cells(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid,
+void OpenVDB_smoke_get_draw_buffers_cells(struct OpenVDBSmokeData *data, const char *grid,
                                           float (**r_verts)[3], float (**r_colors)[3], int *r_numverts);
-void OpenVDB_smoke_get_draw_buffers_boxes(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_boxes(struct OpenVDBSmokeData *data, const char *grid, float value_scale,
                                           float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts);
-void OpenVDB_smoke_get_draw_buffers_needles(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_needles(struct OpenVDBSmokeData *data, const char *grid, float value_scale,
                                             float (**r_verts)[3], float (**r_colors)[3], float (**r_normals)[3], int *r_numverts);
-void OpenVDB_smoke_get_draw_buffers_staggered(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float value_scale,
+void OpenVDB_smoke_get_draw_buffers_staggered(struct OpenVDBSmokeData *data, const char *grid, float value_scale,
                                               float (**r_verts)[3], float (**r_colors)[3], int *r_numverts);
 
-float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid,
+float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *data, const char *grid,
                                         int res[3], float bbmin[3], float bbmax[3]);
 
-void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *data, OpenVDBSmokeGridType grid, float *bg, float *min, float *max);
+void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *data, const char *grid, float *bg, float *min, float *max);
 
 #ifdef __cplusplus
 }

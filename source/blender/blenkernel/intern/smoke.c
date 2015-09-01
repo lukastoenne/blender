@@ -84,6 +84,9 @@
 #include "BKE_smoke.h"
 #include "BKE_texture.h"
 
+#include "RNA_access.h"
+#include "RNA_enum_types.h"
+
 #include "RE_shader_ext.h"
 
 #include "GPU_glew.h"
@@ -3581,16 +3584,12 @@ int smoke_get_data_flags(SmokeDomainSettings *sds)
 
 #ifdef WITH_OPENVDB
 
-static OpenVDBSmokeGridType smoke_grid_type(int field)
+static const char *smoke_grid_type(int field)
 {
-	switch (field) {
-		case MOD_SMOKE_VDB_FIELD_DENSITY: return OpenVDBSmokeGrid_Density;
-		case MOD_SMOKE_VDB_FIELD_VELOCITY: return OpenVDBSmokeGrid_Velocity;
-		case MOD_SMOKE_VDB_FIELD_PRESSURE: return OpenVDBSmokeGrid_Pressure;
-		case MOD_SMOKE_VDB_FIELD_DIVERGENCE: return OpenVDBSmokeGrid_Divergence;
-		
-		default: BLI_assert(false); return OpenVDBSmokeGrid_Density; /* unhandled type */
-	}
+	const char *name;
+	bool ok = RNA_enum_identifier(mod_smoke_field_items, field, &name);
+	BLI_assert(ok);
+	return name;
 }
 
 void smoke_vdb_init_data(Object *UNUSED(ob), SmokeDomainVDBSettings *sds)
