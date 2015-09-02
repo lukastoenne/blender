@@ -169,14 +169,6 @@ enum {
 	MOD_SMOKE_VDB_SHOW_MATPOINTS    = (1 << 1),
 };
 
-/* SmokeDomainVDBSettings display field */
-enum {
-	MOD_SMOKE_VDB_FIELD_DENSITY     = 0,
-	MOD_SMOKE_VDB_FIELD_VELOCITY    = 1,
-	MOD_SMOKE_VDB_FIELD_PRESSURE    = 2,
-	MOD_SMOKE_VDB_FIELD_DIVERGENCE  = 3,
-};
-
 /* SmokeDomainVDBSettings display mode */
 enum {
 	MOD_SMOKE_VDB_DISPLAY_BOUNDS    = (1 << 0),
