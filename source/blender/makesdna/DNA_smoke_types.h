@@ -204,7 +204,7 @@ typedef struct SmokeDomainVDBSettings {
 	/* internal */
 	float bbox_min[3], bbox_max[3];
 	float cell_size;
-	int pad2;
+	float debug_scale;
 	float obmat[4][4], imat[4][4];
 	struct OpenVDBSmokeData *data;
 	

@@ -2849,8 +2849,14 @@ static void update_obstacles_vdb(Scene *scene, Object *ob, SmokeDomainVDBSetting
 		
 		// check for initialized smoke object
 		if ((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll) {
-			//SmokeCollSettings *scs = smd2->coll;
-			// TODO
+			SmokeCollSettings *scs = smd2->coll;
+			
+			OpenVDBDerivedMeshIterator iter;
+			float mat[4][4];
+			mul_m4_m4m4(mat, sds->imat, collob->obmat);
+			
+			openvdb_dm_iter_init(&iter, scs->dm);
+			OpenVDB_smoke_add_obstacle(sds->data, mat, &iter.base);
 		}
 	}
 	if (flowobjs)
@@ -2888,17 +2894,18 @@ static void update_sources_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings 
 
 #endif
 
-static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float fps, bool UNUSED(for_render))
+static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float dt, bool UNUSED(for_render))
 {
 #ifdef WITH_OPENVDB
 	SmokeDomainVDBSettings *sds = smd->domain_vdb;
 
-	float dt;
 	float obmat[4][4], imat[4][4];
 	float gravity[3] = {0.0f, 0.0f, 0.0f};
 	float gravity_mag;
 	SmokeMatPointInputStream ipoints;
 	SmokeMatPointOutputStream opoints;
+
+	OpenVDB_smoke_debug_scale(sds->data, sds->debug_scale);
 
 	/* update object state */
 	invert_m4_m4(imat, ob->obmat);
@@ -2915,9 +2922,6 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	normalize_v3(gravity);
 	mul_v3_fl(gravity, gravity_mag);
 	OpenVDB_smoke_set_gravity(sds->data, gravity);
-
-	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
-	dt = DT_DEFAULT * (25.0f / fps);
 
 	/* make sure we have material points */
 	if (!sds->matpoints)
@@ -3281,7 +3285,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 //		}
 
 		/* only calculate something when we advanced a single frame */
-		if (framenr != (int)smd->time + 1)
+		if (!ELEM(framenr, (int)smd->time, (int)smd->time + 1))
 			return;
 
 		/* don't simulate if viewing start frame, but scene frame is not real start frame */
@@ -3295,6 +3299,8 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		// simulate the actual smoke
 		{
+			float dt = (smd->time - (float)framenr) * scene->r.frs_sec / scene->r.frs_sec_base;
+			
 #if 0
 			if (sds->flags & MOD_SMOKE_DISSOLVE) {
 				/* low res dissolve */
@@ -3307,7 +3313,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			}
 #endif
 
-			step_vdb(scene, ob, smd, dm, scene->r.frs_sec / scene->r.frs_sec_base, for_render);
+			step_vdb(scene, ob, smd, dm, dt, for_render);
 		}
 
 		// create shadows before writing cache so they get stored

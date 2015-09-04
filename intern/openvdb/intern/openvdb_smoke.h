@@ -28,8 +28,10 @@
 #ifndef __OPENVDB_SMOKE_H__
 #define __OPENVDB_SMOKE_H__
 
+#include <openvdb/Types.h>
 #include <openvdb/openvdb.h>
 #include <openvdb/math/ConjGradient.h>
+#include <openvdb/tools/PoissonSolver.h>
 
 #include "openvdb_dense_convert.h"
 #include "openvdb_capi.h"
@@ -130,16 +132,21 @@ public:
 };
 
 struct SmokeData {
+	typedef openvdb::tools::poisson::VIndex VIndex;
+	typedef openvdb::ScalarTree::ValueConverter<VIndex>::Type VIndexTree;
+	typedef openvdb::math::pcg::SparseStencilMatrix<float, 7> MatrixType;
+	typedef MatrixType::VectorType VectorType;
+	
 	SmokeData(const Mat4R &cell_transform);
 	~SmokeData();
 	
 	float cell_size() const;
 	
-	void add_gravity_force();
-	void add_pressure_force(float dt, float bg_pressure);
+	void add_gravity_force(VectorGrid &force);
 	
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
+	void remove_obstacle_velocity(VectorGrid &grid) const;
 	
 	void set_gravity(const Vec3f &g);
 	
@@ -148,20 +155,34 @@ struct SmokeData {
 	void init_grids();
 	void update_points(float dt);
 	void advect_backwards_trace(float dt);
-	void calculate_pressure(float dt, float bg_pressure);
+	State solve_pressure_equation(const VectorGrid &u,
+	                              const ScalarGrid &mask_fluid,
+	                              const ScalarGrid &mask_solid,
+	                              float bg_pressure,
+	                              ScalarGrid &q);
 	
 	Vec3f gravity;
 	
 	Transform::Ptr cell_transform;
 	ScalarGrid::Ptr density;
+	ScalarGrid::Ptr obstacle;
 	VectorGrid::Ptr velocity;
-	VectorGrid::Ptr velocity_old;
 	
-	ScalarGrid::Ptr tmp_divergence;
-	ScalarGrid::Ptr pressure;
-	State pressure_result;
-	VectorGrid::Ptr force;
 	SmokeParticleList points;
+	
+	State pressure_result;
+	
+	/* grid copies for display */
+	ScalarGrid::Ptr tmp_divergence;
+	ScalarGrid::Ptr tmp_divergence_new;
+	ScalarGrid::Ptr tmp_pressure;
+	VectorGrid::Ptr tmp_pressure_gradient;
+	VectorGrid::Ptr tmp_force;
+	ScalarGrid::Ptr tmp_neighbor_solid[6];
+	ScalarGrid::Ptr tmp_neighbor_fluid[6];
+	ScalarGrid::Ptr tmp_neighbor_empty[6];
+	
+	float debug_scale;
 };
 
 }  /* namespace internal */

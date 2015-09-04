@@ -40,13 +40,16 @@
 #include "openvdb_smoke.h"
 #include "openvdb_util.h"
 
+#define DEBUG_PRESSURE_SOLVE
+
 namespace internal {
 
 using namespace openvdb;
 using namespace openvdb::math;
-using tools::poisson::VIndex;
 
-static const VIndex VINDEX_INVALID = (VIndex)(-1);
+static const SmokeData::VIndex VINDEX_INVALID = (SmokeData::VIndex)(-1);
+
+/* ------------------------------------------------------------------------- */
 
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
@@ -75,6 +78,59 @@ static inline void print_grid_range(Grid<T> &grid, const char *prefix, const cha
 	(void)name;
 #endif
 }
+
+#ifdef DEBUG_PRESSURE_SOLVE
+template <typename MatrixType, typename VectorType>
+inline static void debug_print_poisson_matrix(const MatrixType &A, typename VectorType::Ptr b)
+{
+	typedef SmokeData::VIndex VIndex;
+	typedef ScalarTree::ValueConverter<VIndex>::Type VIndexTree;
+	
+	struct Local {
+		static Coord get_index_coords(VIndex index, VIndexTree &index_tree)
+		{
+			Grid<VIndexTree>::ValueOnCIter iter = index_tree.cbeginValueOn();
+			for (int i = 0; iter; ++iter, ++i)
+				if (i == (int)index)
+					return iter.getCoord();
+			return Coord();
+		}
+	};
+	
+	printf("A[%d][X] = \n", (int)A.numRows());
+	int irow;
+	for (irow = 0; irow < A.numRows(); ++irow) {
+		
+		typename MatrixType::ConstRow row = A.getConstRow(irow);
+		typename MatrixType::ConstValueIter row_iter = row.cbegin();
+		int k;
+//		Coord c = Local::get_index_coords((VIndex)i, *index_tree);
+//		printf("  %d (%d, %d, %d) [%d] ", i, c.x(), c.y(), c.z(), row.size());
+		printf("  %d ", irow);
+		for (k = 0; row_iter; ++row_iter, ++k) {
+			VIndex icol = row_iter.column();
+			printf("%8.3f | ", A.getValue(irow, icol));
+//			printf("[%d]=%.3f | ", (int)icol, A.getValue(irow, icol));
+//			Coord cr = Local::get_index_coords(ir, *index_tree);
+//			printf("(%d,%d,%d)=%.3f | ", cr.x(), cr.y(), cr.z(), A.getValue(i, k));
+		}
+		printf("\n");
+	}
+	
+	printf("\n");
+	
+	printf("B[%d] = \n", (int)b->size());
+	for (int i = 0; i < b->size(); ++i) {
+		printf("  %d %.5f\n", i, (*b)[i]);
+	}
+	
+	fflush(stdout);
+}
+#else
+template <typename MatrixType, typename VectorType>
+inline static void debug_print_poisson_matrix(const MatrixType &A, typename VectorType::Ptr b)
+{ (void)A; (void)b; }
+#endif
 
 struct GridScale {
 	float factor;
@@ -209,8 +265,9 @@ void SmokeParticleList::to_stream(OpenVDBPointOutputStream *stream) const
 void SmokeParticleList::add_source(const Transform &cell_transform, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
                                    unsigned int seed, float points_per_voxel, const Vec3f &velocity)
 {
-	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
-	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
+	// XXX hack to only create a single set of points once for testing
+	if (!m_points.empty())
+		return;
 	
 	FloatGrid::Ptr source = tools::meshToLevelSet<FloatGrid>(cell_transform, vertices, triangles, std::vector<Vec4I>(), 0.0f);
 	
@@ -232,12 +289,8 @@ SmokeData::SmokeData(const Mat4R &cell_transform) :
 	velocity = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
 	velocity->setTransform(this->cell_transform);
 	velocity->setGridClass(GRID_STAGGERED);
-	
-	pressure = ScalarGrid::create(0.0f);
-	pressure->setTransform(this->cell_transform);
-	force = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
-	force->setTransform(this->cell_transform);
-	force->setGridClass(GRID_STAGGERED);
+	obstacle = ScalarGrid::create(0.0f);
+	obstacle->setTransform(this->cell_transform);
 }
 
 SmokeData::~SmokeData()
@@ -249,86 +302,8 @@ float SmokeData::cell_size() const
 	return cell_transform->voxelSize().x();
 }
 
-template <int> struct util_weight;
-template <> struct util_weight<0> {
-	inline static Real weight(Real x) { return x; }
-};
-template <> struct util_weight<1> {
-	inline static Real weight(Real x) { return 1.0 - x; }
-};
-
-struct util_gather {
-	template <int i, int j, int k>
-	inline static void add_corner(BoxStencil<FloatGrid> &stencil, const Vec3R &offset)
-	{
-		float current = stencil.getValue<i, j, k>();
-		
-		float weight = util_weight<i>::weight(offset.x());
-		
-//		stencil.setValue<i, j, k>(current + weight);
-		stencil.setValue<i, j, k>(1.0f);
-	}
-};
-
 void SmokeData::init_grids()
 {
-#if 0
-	/* level set + fog volume */
-	const float voxel_size = cell_size();
-	FloatGrid::Ptr ls = createLevelSet<FloatGrid>(voxel_size);
-	ls->setTransform(cell_transform);
-
-	tools::ParticlesToLevelSet<FloatGrid, Vec3f> raster(*ls);
-	raster.setGrainSize(1); /* a value of zero disables threading */
-	raster.rasterizeSpheres(points);
-	raster.finalize();
-	VectorGrid::Ptr vel = raster.attributeGrid();
-	vel->setGridClass(GRID_STAGGERED);
-	
-	tools::sdfToFogVolume(*ls);
-	
-	density = ls;
-	velocity = vel;
-#elif 0
-	/* point index tree to group particles 
-	 */
-	typedef tools::PointIndexTree PointIndexTree;
-	typedef tools::PointIndexGrid PointIndexGrid;
-	typedef FloatGrid::Accessor FloatAccessor;
-	typedef PointIndexGrid::ConstAccessor PointIndexAccessor;
-	typedef openvdb::tools::PointIndexIterator<> PointIndexIterator;
-	
-	PointIndexGrid::Ptr point_grid =
-	        tools::createPointIndexGrid<PointIndexGrid>(points, *cell_transform);
-	
-	PointIndexAccessor acc_point_grid = point_grid->getConstAccessor();
-	FloatAccessor acc_density = density->getAccessor();
-	PointIndexIterator pit;
-	
-	PointIndexTree::ValueOnCIter it = point_grid->cbeginValueOn();
-	for (; it; ++it) {
-		Coord ijk = it.getCoord();
-		CoordBBox bbox(ijk, ijk);
-		bbox.expand(1);
-		Vec3R center = cell_transform->indexToWorld(ijk);
-		
-		Real weight = 0.0f;
-		pit.searchAndUpdate(bbox, acc_point_grid);
-		for (; pit; ++pit) {
-			Index32 index = *pit;
-			Vec3R pos, vel;
-			Real rad;
-			points.getPosRadVel(index, pos, rad, vel);
-			
-			Real wx = 1.0 - fabs(pos.x() - center.x());
-			Real wy = 1.0 - fabs(pos.y() - center.y());
-			Real wz = 1.0 - fabs(pos.z() - center.z());
-			weight += wx * wy * wz;
-		}
-		
-		acc_density.setValueOn(ijk, weight);
-	}
-#elif 1
 	/* simple particle loop
 	 * (does not support averaging and can lead to large density differences)
 	 */
@@ -357,8 +332,8 @@ void SmokeData::init_grids()
 		Real rad;
 		points.getPosRadVel(n, pos, rad, vel);
 		
-		Vec3R pos_wall = cell_transform->worldToIndex(pos) + Vec3R(0.5d, 0.5d, 0.5d);
-		Vec3R pos_cell = cell_transform->worldToIndex(pos);
+		Vec3R pos_wall = cell_transform->worldToIndex(pos);
+		Vec3R pos_cell = cell_transform->worldToIndex(pos) - Vec3R(0.5d, 0.5d, 0.5d);
 		Coord ijk = Coord::floor(pos_wall);
 		/* cell center weights (for density) */
 		float wx1 = fabs(pos_cell.x() - round(pos_cell.x()));
@@ -403,50 +378,6 @@ void SmokeData::init_grids()
 	velocity_normalize(*velocity, *velocity_weight);
 	
 	velocity_weight.reset(); // release
-	
-#else
-	/* using a point partitioner with a stencil
-	 * (unsuccessful)
-	 */
-	typedef tools::UInt32PointPartitioner PointPartitioner;
-	PointPartitioner::Ptr partitioner =
-	        PointPartitioner::create(points, *cell_transform);
-	
-//	FloatTree &tree = density->tree;
-//	BoxStencil<FloatGrid> stencil(*density);
-//	FloatGrid::Accessor acc(density->tree());
-//	tree.beginLeaf()
-	
-	size_t num_buckets = partitioner->size();
-	for (size_t i = 0; i < num_buckets; ++i) {
-//		CoordBBox leaf_bbox = partitioner->getBBox(i);
-		
-//		acc.setActiveState(coords.getStart(), true);
-		
-		PointPartitioner::IndexIterator it = partitioner->indices(i);
-		for (; it; ++it) {
-			unsigned int index = *it;
-			
-			Vec3R pos, vel;
-			Real rad;
-			points.getPosRadVel(index, pos, rad, vel);
-//			Vec3R cpos = cell_transform->worldToIndex(pos);
-			Vec3R cpos = pos;
-			
-			stencil.moveTo(cpos);
-//			stencil.moveTo(Coord((int)cpos.x(), (int)cpos.y(), (int)cpos.z()));
-			
-			util_gather::add_corner<0, 0, 0>(stencil, cpos);
-			util_gather::add_corner<1, 0, 0>(stencil, cpos);
-			util_gather::add_corner<0, 1, 0>(stencil, cpos);
-			util_gather::add_corner<1, 1, 0>(stencil, cpos);
-			util_gather::add_corner<0, 0, 1>(stencil, cpos);
-			util_gather::add_corner<1, 0, 1>(stencil, cpos);
-			util_gather::add_corner<0, 1, 1>(stencil, cpos);
-			util_gather::add_corner<1, 1, 1>(stencil, cpos);
-		}
-	}
-#endif
 }
 
 void SmokeData::update_points(float dt)
@@ -480,20 +411,17 @@ void SmokeData::add_obstacle(const std::vector<Vec3s> &vertices, const std::vect
 {
 	float bandwidth_ex = (float)LEVEL_SET_HALF_WIDTH;
 	float bandwidth_in = (float)LEVEL_SET_HALF_WIDTH;
-	FloatGrid::Ptr sdf = tools::meshToSignedDistanceField<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
-//	VectorGrid::Ptr grad = tools::gradient(*sdf);
+	FloatGrid::Ptr obs = tools::meshToSignedDistanceField<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), bandwidth_ex, bandwidth_in);
+	BoolGrid::Ptr mask = tools::sdfInteriorMask(*obs, 0.0f);
+	obs->topologyIntersection(*mask);
+//	FloatGrid::Ptr obs = tools::meshToLevelSet<FloatGrid>(*cell_transform, vertices, triangles, std::vector<Vec4I>(), LEVEL_SET_HALF_WIDTH);
 	
-	tools::compSum(*density, *sdf);
-//	tools::compSum(*velocity, *grad);
-	
-//	BoolGrid::Ptr mask = tools::sdfInteriorMask(*sdf, 0.0f);
-//	density->topologyIntersection(*mask);
+	tools::compMax(*obstacle, *obs);
 }
 
 void SmokeData::clear_obstacles()
 {
-//	if (density)
-//		density->clear();
+	obstacle->clear();
 }
 
 void SmokeData::set_gravity(const Vec3f &g)
@@ -501,12 +429,9 @@ void SmokeData::set_gravity(const Vec3f &g)
 	gravity = g;
 }
 
-void SmokeData::add_gravity_force()
+void SmokeData::add_gravity_force(VectorGrid &force)
 {
-	/* density defines which cells gravity acts on */
-	force->topologyUnion(*density);
-	
-	add_vgrid_v3(*force, gravity);
+	add_vgrid_v3(force, gravity);
 }
 
 /* calculates gradient as a staggered grid */
@@ -539,36 +464,29 @@ struct StaggeredGradientFunctor
 	const MaskGridType*        mMask;
 };
 
-void SmokeData::add_pressure_force(float dt, float bg_pressure)
+void SmokeData::remove_obstacle_velocity(VectorGrid &grid) const
 {
-	calculate_pressure(dt, bg_pressure);
+	/* velocity components into obstacle cells are ignored */
+	FloatGrid::ConstAccessor acc = obstacle->getConstAccessor();
 	
-	/* NB: the default gradient function uses 2nd order central differencing,
-	 * but 1st order backward differencing should be used instead for staggered grids.
-	 * Not sure why the gradient does not do this automatically like the divergence op...
-	 * - lukas
-	 */
-#if 0
-	VectorGrid::Ptr f = tools::gradient(*pressure);
-#else
-	StaggeredGradientFunctor<FloatGrid> functor(*pressure, NULL, true, NULL);
-	processTypedMap(pressure->transform(), functor);
-	if (functor.mOutputGrid)
-		functor.mOutputGrid->setVectorType(openvdb::VEC_COVARIANT);
-	VectorGrid::Ptr f = functor.mOutputGrid;
-	f->setGridClass(GRID_STAGGERED);
-#endif
-	
-	mul_grid_fl(*f, -1.0f/cell_size());
-	tools::compSum(*force, *f);
+	for (VectorGrid::ValueOnIter it = grid.beginValueOn(); it; ++it) {
+		Vec3f value = it.getValue();
+		
+		Coord ijk = it.getCoord();
+		if (acc.isValueOn(ijk - Coord(1, 0, 0)))
+			value.x() = 0.0f;
+		if (acc.isValueOn(ijk - Coord(0, 1, 0)))
+			value.y() = 0.0f;
+		if (acc.isValueOn(ijk - Coord(0, 0, 1)))
+			value.z() = 0.0f;
+		
+		it.setValue(value);
+	}
 }
 
 bool SmokeData::step(float dt)
 {
 	ScopeTimer prof("Smoke timestep");
-	
-	/* keep old velocity */
-	velocity_old = velocity;
 	
 	{
 		ScopeTimer prof("--Init grids");
@@ -581,30 +499,85 @@ bool SmokeData::step(float dt)
 //		velocity->topologyIntersection(*density);
 		
 		/* add a 1-cell padding to allow flow into empty cells */
-		tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
+//		tools::dilateVoxels(velocity->tree(), 1, tools::NN_FACE);
+		
+		/* disable obstacle cells */
+		density->topologyDifference(*obstacle);
+		density->pruneGrid();
+		velocity->topologyDifference(*obstacle);
+		velocity->pruneGrid();
+	}
+	
+	{
+		ScopeTimer prof("--Apply External Forces");
+		
+		VectorGrid::Ptr force = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+		force->setTransform(this->cell_transform);
+		force->setGridClass(GRID_STAGGERED);
+		
+		/* density defines which cells forces act on */
+		force->topologyUnion(*density);
+		
+		add_gravity_force(*force);
+		
+		tmp_force = force->deepCopy();
+		
+		mul_grid_fl(*force, dt);
+		tools::compSum(*velocity, *force);
+		remove_obstacle_velocity(*velocity);
 	}
 	
 	{
 		ScopeTimer prof("--Advect Velocity Field");
 		advect_backwards_trace(dt);
+		remove_obstacle_velocity(*velocity);
 	}
 	
 	{
-		ScopeTimer prof("--Apply External Forces");
-		force->clear();
-		add_gravity_force();
-		{
-			ScopeTimer prof("----Calculate pressure");
-			add_pressure_force(dt, 0.0f);
-		}
-	
+		ScopeTimer prof("--Divergence-Free Projection");
+		
+		const float bg_pressure = 1.0f;
+		
+		ScalarGrid::Ptr pressure = ScalarGrid::create(0.0f);
+		pressure->setTransform(cell_transform);
+		pressure_result = solve_pressure_equation(*velocity, *density, *obstacle, bg_pressure, *pressure);
 		if (!pressure_result.success) {
 			printf(" FAIL! %d iterations, error=%f%%=%f)\n",
 			       pressure_result.iterations, pressure_result.relativeError, pressure_result.absoluteError);
 		}
 		
-		mul_grid_fl(*force, dt);
-		tools::compSum(*velocity, *force);
+#if 1
+		/* NB: the default gradient function uses 2nd order central differencing,
+		 * but 1st order backward differencing should be used instead for staggered grids.
+		 * Not sure why the gradient does not do this automatically like the divergence op...
+		 * - lukas
+		 */
+//		tools::dilateVoxels(pressure->tree(), 1, tools::NN_FACE);
+	#if 0
+		VectorGrid::Ptr g = tools::gradient(*pressure);
+		g->setGridClass(GRID_STAGGERED);
+	#else
+		StaggeredGradientFunctor<FloatGrid> functor(*pressure, NULL, true, NULL);
+		processTypedMap(pressure->transform(), functor);
+		if (functor.mOutputGrid)
+			functor.mOutputGrid->setVectorType(openvdb::VEC_COVARIANT);
+		VectorGrid::Ptr g = functor.mOutputGrid;
+		g->setGridClass(GRID_STAGGERED);
+	#endif
+		
+//		mul_grid_fl(*g, -1.0f);
+//		mul_grid_fl(*g, -dt/cell_size());
+//		mul_grid_fl(*g, -1.0f/cell_size());
+//		mul_grid_fl(*g, -cell_size());
+		mul_grid_fl(*g, -1.0f * debug_scale);
+		remove_obstacle_velocity(*g);
+		
+		tmp_pressure_gradient = g->deepCopy();
+		
+		tools::compSum(*velocity, *g);
+		
+		tmp_divergence_new = tools::Divergence<VectorGrid>(*velocity).process();
+#endif
 	}
 	
 	{
@@ -655,6 +628,7 @@ struct advect_v3 {
 void SmokeData::advect_backwards_trace(float dt)
 {
 	VectorGrid::Ptr nvel = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+	nvel->setGridClass(GRID_STAGGERED);
 	nvel->setTransform(velocity->transformPtr());
 	nvel->topologyUnion(*velocity);
 	
@@ -663,32 +637,74 @@ void SmokeData::advect_backwards_trace(float dt)
 	velocity = nvel;
 }
 
-void SmokeData::calculate_pressure(float dt, float bg_pressure)
+pcg::State SmokeData::solve_pressure_equation(const VectorGrid &u,
+                                              const ScalarGrid &mask_fluid,
+                                              const ScalarGrid &mask_solid,
+                                              float bg_pressure,
+                                              ScalarGrid &q)
 {
-	typedef FloatTree::ValueConverter<VIndex>::Type VIndexTree;
-	typedef pcg::SparseStencilMatrix<float, 7> MatrixType;
-	typedef MatrixType::VectorType VectorType;
+	pcg::State result;
+	result.success = false;
+	result.iterations = 0;
+	result.absoluteError = 0.0f;
+	result.relativeError = 0.0f;
 	
-	pressure_result.success = false;
-	pressure_result.iterations = 0;
-	pressure_result.absoluteError = 0.0f;
-	pressure_result.relativeError = 0.0f;
+	ScalarGrid::Ptr div_u = tools::Divergence<VectorGrid>(u).process();
+	if (div_u->empty())
+		return result;
 	
-	/* nb: for a staggered grid uses 1st order forward difference automatically */
-	ScalarGrid::Ptr divergence = tools::Divergence<VectorGrid>(*velocity).process();
+#ifdef DEBUG_PRESSURE_SOLVE
+	tmp_divergence = div_u->deepCopy();
+#endif
 	
-	mul_grid_fl(*divergence, -1.0f/cell_size());
-	tmp_divergence = divergence;
-	if (divergence->empty())
-		return;
+	VIndexTree::Ptr index_tree = tools::poisson::createIndexTree(div_u->tree());
+	VectorType::Ptr b = tools::poisson::createVectorFromTree<float>(div_u->tree(), *index_tree);
 	
-	VIndexTree::Ptr index_tree = tools::poisson::createIndexTree(divergence->tree());
-	VectorType::Ptr B = tools::poisson::createVectorFromTree<float>(divergence->tree(), *index_tree);
-	
-	const pcg::SizeType rows = B->size();
+	const pcg::SizeType rows = b->size();
 	MatrixType A(rows);
 	
-	for (ScalarGrid::ValueOnCIter it = divergence->cbeginValueOn(); it; ++it) {
+	ScalarGrid::ConstAccessor acc_solid(mask_solid.tree());
+	ScalarGrid::ConstAccessor acc_fluid(mask_fluid.tree());
+	
+#ifdef DEBUG_PRESSURE_SOLVE
+	for (int i = 0; i < 6; ++i) {
+		tmp_neighbor_solid[i] = ScalarGrid::create(0.0f);
+		tmp_neighbor_solid[i]->setTransform(cell_transform);
+		tmp_neighbor_fluid[i] = ScalarGrid::create(0.0f);
+		tmp_neighbor_fluid[i]->setTransform(cell_transform);
+		tmp_neighbor_empty[i] = ScalarGrid::create(0.0f);
+		tmp_neighbor_empty[i]->setTransform(cell_transform);
+	}
+	
+	ScalarGrid::Accessor acc_neighbor_solid[6] = {
+	    tmp_neighbor_solid[0]->getAccessor(),
+	    tmp_neighbor_solid[1]->getAccessor(),
+	    tmp_neighbor_solid[2]->getAccessor(),
+	    tmp_neighbor_solid[3]->getAccessor(),
+	    tmp_neighbor_solid[4]->getAccessor(),
+	    tmp_neighbor_solid[5]->getAccessor(),
+	};
+	ScalarGrid::Accessor acc_neighbor_fluid[6] = {
+	    tmp_neighbor_fluid[0]->getAccessor(),
+	    tmp_neighbor_fluid[1]->getAccessor(),
+	    tmp_neighbor_fluid[2]->getAccessor(),
+	    tmp_neighbor_fluid[3]->getAccessor(),
+	    tmp_neighbor_fluid[4]->getAccessor(),
+	    tmp_neighbor_fluid[5]->getAccessor(),
+	};
+	ScalarGrid::Accessor acc_neighbor_empty[6] = {
+	    tmp_neighbor_empty[0]->getAccessor(),
+	    tmp_neighbor_empty[1]->getAccessor(),
+	    tmp_neighbor_empty[2]->getAccessor(),
+	    tmp_neighbor_empty[3]->getAccessor(),
+	    tmp_neighbor_empty[4]->getAccessor(),
+	    tmp_neighbor_empty[5]->getAccessor(),
+	};
+#endif
+	
+	float scale = 1.0f/cell_size();
+	
+	for (ScalarGrid::ValueOnCIter it = div_u->cbeginValueOn(); it; ++it) {
 		Coord c = it.getCoord();
 		VIndex irow = index_tree->getValue(c);
 		
@@ -708,29 +724,33 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 		
 		float diag = 0.0f;
 		float bg = 0.0f;
-		FloatGrid::ConstAccessor acc(density->tree());
 		for (int i = 0; i < 6; ++i) {
-			const Coord &c = neighbors[i];
-			VIndex icol = index_tree->getValue(c);
-			if (icol != VINDEX_INVALID) {
-				const bool is_solid = false; // TODO needs obstacle grids
-				/* no need to check actual density threshold, since we prune in advance */
-				const bool is_empty = !acc.isValueOn(c);
-				const bool is_fluid = !is_solid && !is_empty;
-				
-				/* add matrix entries for interacting cells (non-solid neighbors) */
-				if (!is_solid) {
-					diag -= 1.0f;
-				}
-				
-				if (is_fluid) {
+			const Coord &nc = neighbors[i];
+
+			const bool is_solid = acc_solid.isValueOn(nc);
+			const bool is_fluid = acc_fluid.isValueOn(nc);
+			const bool is_empty = !is_solid && !is_fluid;
+#ifdef DEBUG_PRESSURE_SOLVE
+			acc_neighbor_solid[i].setValue(c, is_solid ? 1.0f : 0.0f);
+			acc_neighbor_fluid[i].setValue(c, is_fluid ? 1.0f : 0.0f);
+			acc_neighbor_empty[i].setValue(c, is_empty ? 1.0f : 0.0f);
+#endif
+			
+			/* add matrix entries for interacting cells (non-solid neighbors) */
+			if (!is_solid) {
+				diag -= 1.0f;
+			}
+			
+			if (is_fluid) {
+				VIndex icol = index_tree->getValue(nc);
+				if (icol != VINDEX_INVALID) {
 					A.setValue(irow, icol, 1.0f);
 				}
-				
-				/* add background pressure terms */
-				if (is_empty) {
-					bg -= bg_pressure;
-				}
+			}
+			
+			/* add background pressure terms */
+			if (is_empty) {
+				bg -= bg_pressure;
 			}
 		}
 		
@@ -738,55 +758,10 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 		if (diag == 0.0f)
 			diag = 1.0f;
 		
-		A.setValue(irow, irow, diag);
-		(*B)[irow] += bg;
+		A.setValue(irow, irow, diag * scale);
+		(*b)[irow] += bg;
 	}
-	
 	assert(A.isFinite());
-	
-#if 0
-	{
-		struct Local {
-			static Coord get_index_coords(VIndex index, VIndexTree &index_tree)
-			{
-				Grid<VIndexTree>::ValueOnCIter iter = index_tree.cbeginValueOn();
-				for (int i = 0; iter; ++iter, ++i)
-					if (i == (int)index)
-						return iter.getCoord();
-				return Coord();
-			}
-		};
-		
-		printf("A[%d][X] = \n", (int)A.numRows());
-		int irow;
-		for (irow = 0; irow < A.numRows(); ++irow) {
-			
-			MatrixType::ConstRow row = A.getConstRow(irow);
-			MatrixType::ConstValueIter row_iter = row.cbegin();
-			int k;
-//			Coord c = Local::get_index_coords((VIndex)i, *index_tree);
-//			printf("  %d (%d, %d, %d) [%d] ", i, c.x(), c.y(), c.z(), row.size());
-			printf("  %d ", irow);
-			for (k = 0; row_iter; ++row_iter, ++k) {
-				VIndex icol = row_iter.column();
-				printf("%8.3f | ", A.getValue(irow, icol));
-//				printf("[%d]=%.3f | ", (int)icol, A.getValue(irow, icol));
-//				Coord cr = Local::get_index_coords(ir, *index_tree);
-//				printf("(%d,%d,%d)=%.3f | ", cr.x(), cr.y(), cr.z(), A.getValue(i, k));
-			}
-			printf("\n");
-		}
-		
-		printf("\n");
-		
-		printf("B[%d] = \n", (int)B->size());
-		for (int i = 0; i < B->size(); ++i) {
-			printf("  %d %.5f\n", i, (*B)[i]);
-		}
-		
-		fflush(stdout);
-	}
-#endif
 	
 	/* preconditioner for faster convergence */
 	pcg::JacobiPreconditioner<MatrixType> precond(A);
@@ -799,14 +774,22 @@ void SmokeData::calculate_pressure(float dt, float bg_pressure)
 	terminator.relativeError = terminator.absoluteError = 1.0e-4;
 	
 	util::NullInterrupter interrupter;
-	pressure_result = math::pcg::solve(A, *B, x, precond, interrupter, terminator);
+	result = math::pcg::solve(A, *b, x, precond, interrupter, terminator);
 	
-	if (pressure_result.success) {
-		pressure->setTree(tools::poisson::createTreeFromVector<float>(x, *index_tree, 0.0f));
+	if (result.success) {
+		q.setTree(tools::poisson::createTreeFromVector<float>(x, *index_tree, 0.0f));
 	}
 	else {
-		pressure->clear();
+		q.clear();
 	}
+//	mul_grid_fl(q, cell_size());
+	mul_grid_fl(q, scale);
+	
+#ifdef DEBUG_PRESSURE_SOLVE
+	tmp_pressure = q.deepCopy();
+#endif
+	
+	return result;
 }
 
 }  /* namespace internal */

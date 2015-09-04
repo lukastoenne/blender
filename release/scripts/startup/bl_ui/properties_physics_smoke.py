@@ -345,6 +345,8 @@ class PHYSICS_PT_smoke_display(PhysicButtonsPanel, Panel):
         col2 = col.column(align=True)
         col2.prop(domain, "display_field", text="Field", expand=True)
 
+        col.prop(domain, "debug_scale")
+
         ### Points Display ###
         layout.prop(domain, "show_material_points")
 

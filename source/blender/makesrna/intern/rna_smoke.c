@@ -51,6 +51,28 @@ EnumPropertyItem mod_smoke_field_items[] = {
     {1, "VELOCITY", 0, "Velocity", "Show velocity field"},
     {2, "PRESSURE", 0, "Pressure", "Show pressure field"},
     {3, "DIVERGENCE", 0, "Divergence", "Show divergence field"},
+    {4, "DIVERGENCE_NEW", 0, "Divergence New", "Divergence after solving the pressure equation (should be zero)"},
+    {5, "FORCE", 0, "Force", "Show force field"},
+    {6, "OBSTACLE", 0, "Obstacle", "Show obstacle field"},
+    {7, "PRESSURE_GRADIENT", 0, "Pressure Gradient", ""},
+    {101, "NEIGHBOR_SOLID1", 0, "Neighbor -X Solid", ""},
+    {102, "NEIGHBOR_SOLID2", 0, "Neighbor +X Solid", ""},
+    {103, "NEIGHBOR_SOLID3", 0, "Neighbor -Y Solid", ""},
+    {104, "NEIGHBOR_SOLID4", 0, "Neighbor +Y Solid", ""},
+    {105, "NEIGHBOR_SOLID5", 0, "Neighbor -Z Solid", ""},
+    {106, "NEIGHBOR_SOLID6", 0, "Neighbor +Z Solid", ""},
+    {111, "NEIGHBOR_FLUID1", 0, "Neighbor -X Fluid", ""},
+    {112, "NEIGHBOR_FLUID2", 0, "Neighbor +X Fluid", ""},
+    {113, "NEIGHBOR_FLUID3", 0, "Neighbor -Y Fluid", ""},
+    {114, "NEIGHBOR_FLUID4", 0, "Neighbor +Y Fluid", ""},
+    {115, "NEIGHBOR_FLUID5", 0, "Neighbor -Z Fluid", ""},
+    {116, "NEIGHBOR_FLUID6", 0, "Neighbor +Z Fluid", ""},
+    {121, "NEIGHBOR_EMPTY1", 0, "Neighbor -X Empty", ""},
+    {122, "NEIGHBOR_EMPTY2", 0, "Neighbor +X Empty", ""},
+    {123, "NEIGHBOR_EMPTY3", 0, "Neighbor -Y Empty", ""},
+    {124, "NEIGHBOR_EMPTY4", 0, "Neighbor +Y Empty", ""},
+    {125, "NEIGHBOR_EMPTY5", 0, "Neighbor -Z Empty", ""},
+    {126, "NEIGHBOR_EMPTY6", 0, "Neighbor +Z Empty", ""},
     {0, NULL, 0, NULL, NULL}
 };
 
@@ -847,6 +869,12 @@ static void rna_def_smoke_domain_vdb_settings(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 3);
 	RNA_def_property_ui_text(prop, "Display Value Scale", "Scale displayed values to adjust visualization");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "debug_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 100.0f);
+	RNA_def_property_ui_text(prop, "Debug Scale", "");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_update");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

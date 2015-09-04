@@ -333,6 +333,11 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt)
 	return ((internal::SmokeData *)data)->step(dt);
 }
 
+void OpenVDB_smoke_debug_scale(struct OpenVDBSmokeData *data, float s)
+{
+	((internal::SmokeData *)data)->debug_scale = s;
+}
+
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *err_abs, double *err_rel, int *iterations)
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
@@ -354,8 +359,31 @@ bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *e
 	std::string stype(type); \
 	if (stype == "DENSITY") { DO_GRID(data->density.get()) } \
 	else if (stype == "VELOCITY") { DO_GRID(data->velocity.get()) } \
-	else if (stype == "PRESSURE") { DO_GRID(data->pressure.get()) } \
+	else if (stype == "PRESSURE") { DO_GRID(data->tmp_pressure.get()) } \
 	else if (stype == "DIVERGENCE") { DO_GRID(data->tmp_divergence.get()) } \
+	else if (stype == "DIVERGENCE_NEW") { DO_GRID(data->tmp_divergence_new.get()) } \
+	else if (stype == "FORCE") { DO_GRID(data->tmp_force.get()) } \
+	else if (stype == "OBSTACLE") { DO_GRID(data->obstacle.get()) } \
+	else if (stype == "PRESSURE_GRADIENT") { DO_GRID(data->tmp_pressure_gradient.get()) } \
+	else if (stype == "NEIGHBOR_SOLID1") { DO_GRID(data->tmp_neighbor_solid[0].get()) } \
+	else if (stype == "NEIGHBOR_SOLID2") { DO_GRID(data->tmp_neighbor_solid[1].get()) } \
+	else if (stype == "NEIGHBOR_SOLID3") { DO_GRID(data->tmp_neighbor_solid[2].get()) } \
+	else if (stype == "NEIGHBOR_SOLID4") { DO_GRID(data->tmp_neighbor_solid[3].get()) } \
+	else if (stype == "NEIGHBOR_SOLID5") { DO_GRID(data->tmp_neighbor_solid[4].get()) } \
+	else if (stype == "NEIGHBOR_SOLID6") { DO_GRID(data->tmp_neighbor_solid[5].get()) } \
+	else if (stype == "NEIGHBOR_FLUID1") { DO_GRID(data->tmp_neighbor_fluid[0].get()) } \
+	else if (stype == "NEIGHBOR_FLUID2") { DO_GRID(data->tmp_neighbor_fluid[1].get()) } \
+	else if (stype == "NEIGHBOR_FLUID3") { DO_GRID(data->tmp_neighbor_fluid[2].get()) } \
+	else if (stype == "NEIGHBOR_FLUID4") { DO_GRID(data->tmp_neighbor_fluid[3].get()) } \
+	else if (stype == "NEIGHBOR_FLUID5") { DO_GRID(data->tmp_neighbor_fluid[4].get()) } \
+	else if (stype == "NEIGHBOR_FLUID6") { DO_GRID(data->tmp_neighbor_fluid[5].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY1") { DO_GRID(data->tmp_neighbor_empty[0].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY2") { DO_GRID(data->tmp_neighbor_empty[1].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY3") { DO_GRID(data->tmp_neighbor_empty[2].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY4") { DO_GRID(data->tmp_neighbor_empty[3].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY5") { DO_GRID(data->tmp_neighbor_empty[4].get()) } \
+	else if (stype == "NEIGHBOR_EMPTY6") { DO_GRID(data->tmp_neighbor_empty[5].get()) } \
+	else { DO_GRID(data->density.get()) } \
 } (void)0
 
 void OpenVDB_smoke_get_draw_buffers_cells(OpenVDBSmokeData *pdata, const char *grid,
