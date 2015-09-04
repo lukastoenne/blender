@@ -28,6 +28,7 @@
 #extension GL_EXT_geometry_shader4 : enable
 #extension GL_ARB_gpu_shader5 : enable
 #extension GL_ARB_explicit_attrib_location : require
+#extension GL_ARB_uniform_buffer_object : require
 
 struct VertexData {
 	vec4 position;
@@ -51,6 +52,10 @@ void main()
 {
 	outpt.v.position = modelViewMatrix * position;
 	outpt.v.normal = normalize(normalMatrix * normal);
+	/* Some compilers expects gl_Position to be written.
+	 * It's not needed once we explicitly switch to GLSL 1.40 or above.
+	 */
+	gl_Position = outpt.v.position;
 }
 
 #endif  /* VERTEX_SHADER */
@@ -197,15 +202,17 @@ struct LightSource {
 	vec4 diffuse;
 	vec4 specular;
 	vec4 spotDirection;
+#ifdef SUPPORT_COLOR_MATERIAL
 	float constantAttenuation;
 	float linearAttenuation;
 	float quadraticAttenuation;
 	float spotCutoff;
 	float spotExponent;
 	float spotCosCutoff;
+#endif
 };
 
-uniform Lighting {
+layout(std140) uniform Lighting {
 	LightSource lightSource[MAX_LIGHTS];
 	int num_enabled_lights;
 };
@@ -249,8 +256,8 @@ void main()
 		vec3 h = normalize(l + vec3(0, 0, 1));
 		float d = max(0.0, dot(N, l));
 		float s = pow(max(0.0, dot(N, h)), shininess);
-		L_diffuse += d * lightSource[i].diffuse;
-		L_specular += s * lightSource[i].specular;
+		L_diffuse += d * lightSource[i].diffuse.rgb;
+		L_specular += s * lightSource[i].specular.rgb;
 	}
 #else  /* USE_COLOR_MATERIAL */
 	vec3 varying_position = inpt.v.position.xyz;

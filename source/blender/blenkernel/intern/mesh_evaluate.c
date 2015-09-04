@@ -1432,7 +1432,30 @@ static void mesh_normals_loop_custom_set(
 					loops = loops->next;
 					BLI_BITMAP_ENABLE(done_loops, lidx);
 				}
-				BLI_BITMAP_ENABLE(done_loops, i);  /* For single loops, where lnors_spacearr.lspacearr[i]->loops is NULL. */
+
+				/* We also have to check between last and first loops, otherwise we may miss some sharp edges here!
+				 * This is just a simplified version of above while loop.
+				 * See T45984. */
+				loops = lnors_spacearr.lspacearr[i]->loops;
+				if (loops && org_nor) {
+					const int lidx = GET_INT_FROM_POINTER(loops->link);
+					MLoop *ml = &mloops[lidx];
+					const int nidx = lidx;
+					float *nor = custom_loopnors[nidx];
+
+					if (is_zero_v3(nor)) {
+						nor = lnors[nidx];
+					}
+
+					if (dot_v3v3(org_nor, nor) < LNOR_SPACE_TRIGO_THRESHOLD) {
+						const MPoly *mp = &mpolys[loop_to_poly[lidx]];
+						const MLoop *mlp = &mloops[(lidx == mp->loopstart) ? mp->loopstart + mp->totloop - 1 : lidx - 1];
+						medges[(prev_ml->e == mlp->e) ? prev_ml->e : ml->e].flag |= ME_SHARP;
+					}
+				}
+
+				/* For single loops, where lnors_spacearr.lspacearr[i]->loops is NULL. */
+				BLI_BITMAP_ENABLE(done_loops, i);
 			}
 		}
 
@@ -1526,6 +1549,38 @@ void BKE_mesh_normals_loop_custom_from_vertices_set(
 	mesh_normals_loop_custom_set(mverts, numVerts, medges, numEdges, mloops, custom_vertnors, numLoops,
 	                             mpolys, polynors, numPolys, r_clnors_data, true);
 }
+
+/**
+ * Computes average per-vertex normals from given custom loop normals.
+ *
+ * @param clnors The computed custom loop normals.
+ * @param r_vert_clnors The (already allocated) array wher to store averaged per-vertex normals.
+ */
+void BKE_mesh_normals_loop_to_vertex(
+        const int numVerts, const MLoop *mloops, const int numLoops,
+        const float (*clnors)[3], float (*r_vert_clnors)[3])
+{
+	const MLoop *ml;
+	int i;
+
+	int *vert_loops_nbr = MEM_callocN(sizeof(*vert_loops_nbr) * (size_t)numVerts, __func__);
+
+	copy_vn_fl((float *)r_vert_clnors, 3 * numVerts, 0.0f);
+
+	for (i = 0, ml = mloops; i < numLoops; i++, ml++) {
+		const unsigned int v = ml->v;
+
+		add_v3_v3(r_vert_clnors[v], clnors[i]);
+		vert_loops_nbr[v]++;
+	}
+
+	for (i = 0; i < numVerts; i++) {
+		mul_v3_fl(r_vert_clnors[i], 1.0f / (float)vert_loops_nbr[i]);
+	}
+
+	MEM_freeN(vert_loops_nbr);
+}
+
 
 #undef LNOR_SPACE_TRIGO_THRESHOLD
 

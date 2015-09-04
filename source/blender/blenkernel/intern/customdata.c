@@ -51,7 +51,7 @@
 #include "BLI_math_color_blend.h"
 #include "BLI_mempool.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
@@ -1504,6 +1504,23 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 	return changed;
 }
 
+/* NOTE: Take care of referenced layers by yourself! */
+void CustomData_realloc(CustomData *data, int totelem)
+{
+	int i;
+	for (i = 0; i < data->totlayer; ++i) {
+		CustomDataLayer *layer = &data->layers[i];
+		const LayerTypeInfo *typeInfo;
+		int size;
+		if (layer->flag & CD_FLAG_NOFREE) {
+			continue;
+		}
+		typeInfo = layerType_getInfo(layer->type);
+		size = totelem * typeInfo->size;
+		layer->data = MEM_reallocN(layer->data, size);
+	}
+}
+
 void CustomData_copy(const struct CustomData *source, struct CustomData *dest,
                      CustomDataMask mask, int alloctype, int totelem)
 {
@@ -2142,7 +2159,8 @@ void CustomData_copy_elements(int type, void *src_data_ofs, void *dst_data_ofs, 
 static void CustomData_copy_data_layer(
         const CustomData *source, CustomData *dest,
         int src_i, int dst_i,
-        int src_index, int dst_index, int count) {
+        int src_index, int dst_index, int count)
+{
 	const LayerTypeInfo *typeInfo;
 	int src_offset;
 	int dst_offset;

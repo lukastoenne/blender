@@ -588,6 +588,33 @@ void IDP_WriteProperty(IDProperty *prop, void *wd)
 	IDP_WriteProperty_OnlyData(prop, wd);
 }
 
+static void write_previews(WriteData *wd, PreviewImage *prv)
+{
+	/* Never write previews when doing memsave (i.e. undo/redo)! */
+	if (prv && !wd->current) {
+		short w = prv->w[1];
+		short h = prv->h[1];
+		unsigned int *rect = prv->rect[1];
+
+		/* don't write out large previews if not requested */
+		if (!(U.flag & USER_SAVE_PREVIEWS)) {
+			prv->w[1] = 0;
+			prv->h[1] = 0;
+			prv->rect[1] = NULL;
+		}
+		writestruct(wd, DATA, "PreviewImage", 1, prv);
+		if (prv->rect[0]) writedata(wd, DATA, prv->w[0] * prv->h[0] * sizeof(unsigned int), prv->rect[0]);
+		if (prv->rect[1]) writedata(wd, DATA, prv->w[1] * prv->h[1] * sizeof(unsigned int), prv->rect[1]);
+
+		/* restore preview, we still want to keep it in memory even if not saved to file */
+		if (!(U.flag & USER_SAVE_PREVIEWS) ) {
+			prv->w[1] = w;
+			prv->h[1] = h;
+			prv->rect[1] = rect;
+		}
+	}
+}
+
 static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 {
 	FModifier *fcm;
@@ -1731,6 +1758,9 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			writelist(wd, DATA, "LinkData", &ob->pc_ids);
 			writelist(wd, DATA, "LodLevel", &ob->lodlevels);
 		}
+
+		write_previews(wd, ob->preview);
+
 		ob= ob->id.next;
 	}
 
@@ -2171,32 +2201,6 @@ static void write_lattices(WriteData *wd, ListBase *idbase)
 	}
 }
 
-static void write_previews(WriteData *wd, PreviewImage *prv)
-{
-	/* Never write previews in undo steps! */
-	if (prv && !wd->current) {
-		short w = prv->w[1];
-		short h = prv->h[1];
-		unsigned int *rect = prv->rect[1];
-		/* don't write out large previews if not requested */
-		if (!(U.flag & USER_SAVE_PREVIEWS)) {
-			prv->w[1] = 0;
-			prv->h[1] = 0;
-			prv->rect[1] = NULL;
-		}
-		writestruct(wd, DATA, "PreviewImage", 1, prv);
-		if (prv->rect[0]) writedata(wd, DATA, prv->w[0]*prv->h[0]*sizeof(unsigned int), prv->rect[0]);
-		if (prv->rect[1]) writedata(wd, DATA, prv->w[1]*prv->h[1]*sizeof(unsigned int), prv->rect[1]);
-
-		/* restore preview, we still want to keep it in memory even if not saved to file */
-		if (!(U.flag & USER_SAVE_PREVIEWS) ) {
-			prv->w[1] = w;
-			prv->h[1] = h;
-			prv->rect[1] = rect;
-		}
-	}
-}
-
 static void write_images(WriteData *wd, ListBase *idbase)
 {
 	Image *ima;
@@ -2605,6 +2609,8 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 			write_pointcaches(wd, &(sce->rigidbody_world->ptcaches));
 		}
 		
+		write_previews(wd, sce->preview);
+
 		sce= sce->id.next;
 	}
 	/* flush helps the compression for undo-save */
@@ -3100,6 +3106,8 @@ static void write_groups(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_GR, "Group", 1, group);
 			if (group->id.properties) IDP_WriteProperty(group->id.properties, wd);
+
+			write_previews(wd, group->preview);
 
 			go= group->gobject.first;
 			while (go) {
@@ -3713,10 +3721,11 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
  * second are an RGBA image (unsigned char)
  * note, this uses 'TEST' since new types will segfault on file load for older blender versions.
  */
-static void write_thumb(WriteData *wd, const int *img)
+static void write_thumb(WriteData *wd, const BlendThumbnail *thumb)
 {
-	if (img)
-		writedata(wd, TEST, (2 + img[0] * img[1]) * sizeof(int), img);
+	if (thumb) {
+		writedata(wd, TEST, BLEN_THUMB_MEMSIZE_FILE(thumb->width, thumb->height), thumb);
+	}
 }
 
 /* if MemFile * there's filesave to memory */
@@ -3724,7 +3733,7 @@ static int write_file_handle(
         Main *mainvar,
         WriteWrap *ww,
         MemFile *compare, MemFile *current,
-        int write_user_block, int write_flags, const int *thumb)
+        int write_user_block, int write_flags, const BlendThumbnail *thumb)
 {
 	BHead bhead;
 	ListBase mainlist;
@@ -3856,7 +3865,8 @@ static bool do_history(const char *name, ReportList *reports)
 }
 
 /* return: success (1) */
-int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportList *reports, const int *thumb)
+int BLO_write_file(
+        Main *mainvar, const char *filepath, int write_flags, ReportList *reports, const BlendThumbnail *thumb)
 {
 	char tempname[FILE_MAX+1];
 	int err, write_user_block;

@@ -442,8 +442,8 @@ void BKE_camera_view_frame_ex(
 			*r_drawsize = 1.0f;
 			depth = -(camera->clipsta + 0.1f) * scale[2];
 			fac = depth / (camera->lens / (-half_sensor));
-			scale_x = 1.0f;
-			scale_y = 1.0f;
+			scale_x = scale[0] / scale[2];
+			scale_y = scale[1] / scale[2];
 		}
 		else {
 			/* fixed size, variable depth (stays a reasonable size in the 3D view) */
@@ -846,18 +846,20 @@ static Object *camera_multiview_advanced(Scene *scene, Object *camera, const cha
 	char name[MAX_NAME];
 	const char *camera_name = camera->id.name + 2;
 	const int len_name = strlen(camera_name);
+	int len_suffix_max = -1;
 
 	name[0] = '\0';
 
+	/* we need to take the better match, thus the len_suffix_max test */
 	for (srv = scene->r.views.first; srv; srv = srv->next) {
 		const int len_suffix = strlen(srv->suffix);
 
-		if (len_name < len_suffix)
+		if ((len_suffix < len_suffix_max) || (len_name < len_suffix))
 			continue;
 
 		if (STREQ(camera_name + (len_name - len_suffix), srv->suffix)) {
 			BLI_snprintf(name, sizeof(name), "%.*s%s", (len_name - len_suffix), camera_name, suffix);
-			break;
+			len_suffix_max = len_suffix;
 		}
 	}
 

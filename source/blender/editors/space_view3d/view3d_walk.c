@@ -38,7 +38,7 @@
 #include "BKE_context.h"
 #include "BKE_report.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 
 #include "BIF_gl.h"
@@ -519,7 +519,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op)
 	walk->speed = 0.0f;
 	walk->is_fast = false;
 	walk->is_slow = false;
-	walk->grid = 1.f / walk->scene->unit.scale_length;
+	walk->grid = (walk->scene->unit.system == USER_UNIT_NONE) ? 1.f : 1.f / walk->scene->unit.scale_length;
 
 	/* user preference settings */
 	walk->teleport.duration = U.walk_navigation.teleport_time;

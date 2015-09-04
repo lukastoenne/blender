@@ -1616,7 +1616,8 @@ void KX_GameObject::Resume(void)
 {
 	if (m_suspended) {
 		SCA_IObject::Resume();
-		if (GetPhysicsController())
+		// Child objects must be static, so we block changing to dynamic
+		if (GetPhysicsController() && !GetParent())
 			GetPhysicsController()->RestoreDynamics();
 
 		m_suspended = false;
@@ -1674,10 +1675,11 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 KX_Scene* KX_GameObject::GetScene()
 {
 	SG_Node* node = this->GetSGNode();
-    if (node == NULL)
-        // this happens for object in non active layers, rely on static scene then
-        return KX_GetActiveScene();
-    return static_cast<KX_Scene*>(node->GetSGClientInfo());
+	if (node == NULL) {
+		// this happens for object in non active layers, rely on static scene then
+		return KX_GetActiveScene();
+	}
+	return static_cast<KX_Scene*>(node->GetSGClientInfo());
 }
 
 /* ---------------------------------------------------------------------
@@ -3437,7 +3439,8 @@ PyObject *KX_GameObject::PySuspendDynamics(PyObject *args)
 
 PyObject *KX_GameObject::PyRestoreDynamics()
 {
-	if (GetPhysicsController())
+	// Child objects must be static, so we block changing to dynamic
+	if (GetPhysicsController() && !GetParent())
 		GetPhysicsController()->RestoreDynamics();
 	Py_RETURN_NONE;
 }
@@ -4086,11 +4089,11 @@ bool ConvertPythonToGameObject(PyObject *value, KX_GameObject **object, bool py_
 		}
 	}
 	
-	if (	PyObject_TypeCheck(value, &KX_GameObject::Type)	||
-			PyObject_TypeCheck(value, &KX_LightObject::Type)	||
-			PyObject_TypeCheck(value, &KX_Camera::Type)			||
-            PyObject_TypeCheck(value, &KX_FontObject::Type) ||
-            PyObject_TypeCheck(value, &KX_NavMeshObject::Type))
+	if (PyObject_TypeCheck(value, &KX_GameObject::Type)	||
+	    PyObject_TypeCheck(value, &KX_LightObject::Type)	||
+	    PyObject_TypeCheck(value, &KX_Camera::Type)			||
+	    PyObject_TypeCheck(value, &KX_FontObject::Type) ||
+	    PyObject_TypeCheck(value, &KX_NavMeshObject::Type))
 	{
 		*object = static_cast<KX_GameObject*>BGE_PROXY_REF(value);
 		
