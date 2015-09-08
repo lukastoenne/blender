@@ -1556,28 +1556,90 @@ bool isect_line_plane_v3(float out[3],
 }
 
 /**
+ * Intersect three planes, return the point where all 3 meet.
+ * See Graphics Gems 1 pg 305
+ *
+ * \param plane_a, plane_b, plane_c: Planes.
+ * \param r_isect_co: The resulting intersection point.
+ */
+bool isect_plane_plane_plane_v3(
+        const float plane_a[4], const float plane_b[4], const float plane_c[4],
+        float r_isect_co[3])
+{
+	float det;
+
+	det = determinant_m3(UNPACK3(plane_a), UNPACK3(plane_b), UNPACK3(plane_c));
+
+	if (det != 0.0f) {
+		float tmp[3];
+
+		/* (plane_b.xyz.cross(plane_c.xyz) * -plane_a[3] +
+		 *  plane_c.xyz.cross(plane_a.xyz) * -plane_b[3] +
+		 *  plane_a.xyz.cross(plane_b.xyz) * -plane_c[3]) / det; */
+
+		cross_v3_v3v3(tmp, plane_c, plane_b);
+		mul_v3_v3fl(r_isect_co, tmp, plane_a[3]);
+
+		cross_v3_v3v3(tmp, plane_a, plane_c);
+		madd_v3_v3fl(r_isect_co, tmp, plane_b[3]);
+
+		cross_v3_v3v3(tmp, plane_b, plane_a);
+		madd_v3_v3fl(r_isect_co, tmp, plane_c[3]);
+
+		mul_v3_fl(r_isect_co, 1.0f / det);
+
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+/**
  * Intersect two planes, return a point on the intersection and a vector
  * that runs on the direction of the intersection.
- * Return error code is the same as 'isect_line_line_v3'.
  *
- * \param r_isect_co The resulting intersection point.
- * \param r_isect_no The resulting vector of the intersection.
- * \param plane_a_co The point on the first plane.
- * \param plane_a_no The normal of the first plane.
- * \param plane_b_co The point on the second plane.
- * \param plane_b_no The normal of the second plane.
  *
- * \note return normal isn't unit length
+ * \note this is a slightly reduced version of #isect_plane_plane_plane_v3
+ *
+ * \param plane_a, plane_b: Planes.
+ * \param r_isect_co: The resulting intersection point.
+ * \param r_isect_no: The resulting vector of the intersection.
+ *
+ * \note \a r_isect_no isn't unit length.
  */
-bool isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
-                          const float plane_a_co[3], const float plane_a_no[3],
-                          const float plane_b_co[3], const float plane_b_no[3])
+bool isect_plane_plane_v3(
+        const float plane_a[4], const float plane_b[4],
+        float r_isect_co[3], float r_isect_no[3])
 {
-	float plane_a_co_other[3];
-	cross_v3_v3v3(r_isect_no, plane_a_no, plane_b_no); /* direction is simply the cross product */
-	cross_v3_v3v3(plane_a_co_other, plane_a_no, r_isect_no);
-	add_v3_v3(plane_a_co_other, plane_a_co);
-	return isect_line_plane_v3(r_isect_co, plane_a_co, plane_a_co_other, plane_b_co, plane_b_no);
+	float det, plane_c[3];
+
+	/* direction is simply the cross product */
+	cross_v3_v3v3(plane_c, plane_a, plane_b);
+
+	/* in this case we don't need to use 'determinant_m3' */
+	det = len_squared_v3(plane_c);
+
+	if (det != 0.0f) {
+		float tmp[3];
+
+		/* (plane_b.xyz.cross(plane_c.xyz) * -plane_a[3] +
+		 *  plane_c.xyz.cross(plane_a.xyz) * -plane_b[3]) / det; */
+		cross_v3_v3v3(tmp, plane_c, plane_b);
+		mul_v3_v3fl(r_isect_co, tmp, plane_a[3]);
+
+		cross_v3_v3v3(tmp, plane_a, plane_c);
+		madd_v3_v3fl(r_isect_co, tmp, plane_b[3]);
+
+		mul_v3_fl(r_isect_co, 1.0f / det);
+
+		copy_v3_v3(r_isect_no, plane_c);
+
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 /**
@@ -1595,16 +1657,21 @@ bool isect_tri_tri_epsilon_v3(
         const float epsilon)
 {
 	const float *tri_pair[2][3] = {{t_a0, t_a1, t_a2}, {t_b0, t_b1, t_b2}};
-	float no_a[3], no_b[3];
+	float plane_a[4], plane_b[4];
 	float plane_co[3], plane_no[3];
 
 	BLI_assert((r_i1 != NULL) == (r_i2 != NULL));
 
 	/* normalizing is needed for small triangles T46007 */
-	normal_tri_v3(no_a, UNPACK3(tri_pair[0]));
-	normal_tri_v3(no_b, UNPACK3(tri_pair[1]));
+	normal_tri_v3(plane_a, UNPACK3(tri_pair[0]));
+	normal_tri_v3(plane_b, UNPACK3(tri_pair[1]));
 
-	if (isect_plane_plane_v3(plane_co, plane_no, t_a0, no_a, t_b0, no_b)) {
+	plane_a[3] = -dot_v3v3(plane_a, t_a0);
+	plane_b[3] = -dot_v3v3(plane_b, t_b0);
+
+	if (isect_plane_plane_v3(plane_a, plane_b, plane_co, plane_no) &&
+	    (normalize_v3(plane_no) > epsilon))
+	{
 		/**
 		 * Implementation note: its simpler to project the triangles onto the intersection plane
 		 * before intersecting their edges with the ray, defined by 'isect_plane_plane_v3'.
@@ -1616,10 +1683,6 @@ bool isect_tri_tri_epsilon_v3(
 		} range[2] = {{FLT_MAX, -FLT_MAX}, {FLT_MAX, -FLT_MAX}};
 		int t;
 		float co_proj[3];
-
-		/* only for numeric stability
-		 * (and so we can call 'closest_to_plane3_normalized_v3' below) */
-		normalize_v3(plane_no);
 
 		closest_to_plane3_normalized_v3(co_proj, plane_no, plane_co);
 
@@ -1634,7 +1697,10 @@ bool isect_tri_tri_epsilon_v3(
 			closest_to_plane3_normalized_v3(tri_proj[2], plane_no, tri_pair[t][2]);
 
 			for (j = 0, j_prev = 2; j < 3; j_prev = j++) {
-				const float edge_fac = line_point_factor_v3_ex(co_proj, tri_proj[j_prev], tri_proj[j], epsilon, -1.0f);
+				/* note that its important to have a very small nonzero epsilon here
+				 * otherwise this fails for very small faces.
+				 * However if its too small, large adjacent faces will count as intersecting */
+				const float edge_fac = line_point_factor_v3_ex(co_proj, tri_proj[j_prev], tri_proj[j], 1e-10f, -1.0f);
 				/* ignore collinear lines, they are either an edge shared between 2 tri's
 				 * (which runs along [co_proj, plane_no], but can be safely ignored).
 				 *
@@ -1647,14 +1713,8 @@ bool isect_tri_tri_epsilon_v3(
 					float span_fac;
 
 					interp_v3_v3v3(ix_tri, tri_pair[t][j_prev], tri_pair[t][j], edge_fac);
-#if 0
-					span_fac = dist_signed_squared_to_plane3_v3(ix_tri, plane_no);
-#else
-					{
-						span_fac = dot_v3v3(plane_no, ix_tri);
-						span_fac = copysignf(span_fac * span_fac, span_fac);
-					}
-#endif
+					/* the actual distance, since 'plane_no' is normalized */
+					span_fac = dot_v3v3(plane_no, ix_tri);
 
 					range[t].min = min_ff(range[t].min, span_fac);
 					range[t].max = max_ff(range[t].max, span_fac);
@@ -1671,8 +1731,8 @@ bool isect_tri_tri_epsilon_v3(
 		{
 			if (r_i1 && r_i2) {
 				project_plane_v3_v3v3(plane_co, plane_co, plane_no);
-				madd_v3_v3v3fl(r_i1, plane_co, plane_no, sqrtf_signed(max_ff(range[0].min, range[1].min)));
-				madd_v3_v3v3fl(r_i2, plane_co, plane_no, sqrtf_signed(min_ff(range[0].max, range[1].max)));
+				madd_v3_v3v3fl(r_i1, plane_co, plane_no, max_ff(range[0].min, range[1].min));
+				madd_v3_v3v3fl(r_i2, plane_co, plane_no, min_ff(range[0].max, range[1].max));
 			}
 
 			return true;
@@ -2175,6 +2235,9 @@ float closest_to_line_v2(float cp[2], const float p[2], const float l1[2], const
 /**
  * A simplified version of #closest_to_line_v3
  * we only need to return the ``lambda``
+ *
+ * \param epsilon: avoid approaching divide-by-zero.
+ * Passing a zero will just check for nonzero division.
  */
 float line_point_factor_v3_ex(
         const float p[3], const float l1[3], const float l2[3],
@@ -2189,7 +2252,7 @@ float line_point_factor_v3_ex(
 #else
 	/* better check for zero */
 	dot = dot_v3v3(u, u);
-	return (fabsf(dot) >= epsilon) ? (dot_v3v3(u, h) / dot) : fallback;
+	return (fabsf(dot) > epsilon) ? (dot_v3v3(u, h) / dot) : fallback;
 #endif
 }
 float line_point_factor_v3(
@@ -2211,7 +2274,7 @@ float line_point_factor_v2_ex(
 #else
 	/* better check for zero */
 	dot = dot_v2v2(u, u);
-	return (fabsf(dot) >= epsilon) ? (dot_v2v2(u, h) / dot) : fallback;
+	return (fabsf(dot) > epsilon) ? (dot_v2v2(u, h) / dot) : fallback;
 #endif
 }
 

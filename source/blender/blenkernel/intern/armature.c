@@ -1141,8 +1141,7 @@ void BKE_armature_loc_world_to_pose(Object *ob, const float inloc[3], float outl
  * Not exported, as it is only used in this file currently... */
 static void get_offset_bone_mat(Bone *bone, float offs_bone[4][4])
 {
-	if (!bone->parent)
-		return;
+	BLI_assert(bone->parent != NULL);
 
 	/* Bone transform itself. */
 	copy_m4_m3(offs_bone, bone->bone_mat);
@@ -1568,15 +1567,14 @@ void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3])
 
 /* recursive part, calculates restposition of entire tree of children */
 /* used by exiting editmode too */
-void BKE_armature_where_is_bone(Bone *bone, Bone *prevbone)
+void BKE_armature_where_is_bone(Bone *bone, Bone *prevbone, const bool use_recursion)
 {
 	float vec[3];
 
 	/* Bone Space */
 	sub_v3_v3v3(vec, bone->tail, bone->head);
+	bone->length = len_v3(vec);
 	vec_roll_to_mat3(vec, bone->roll, bone->bone_mat);
-
-	bone->length = len_v3v3(bone->head, bone->tail);
 
 	/* this is called on old file reading too... */
 	if (bone->xwidth == 0.0f) {
@@ -1599,9 +1597,11 @@ void BKE_armature_where_is_bone(Bone *bone, Bone *prevbone)
 	}
 
 	/* and the kiddies */
-	prevbone = bone;
-	for (bone = bone->childbase.first; bone; bone = bone->next) {
-		BKE_armature_where_is_bone(bone, prevbone);
+	if (use_recursion) {
+		prevbone = bone;
+		for (bone = bone->childbase.first; bone; bone = bone->next) {
+			BKE_armature_where_is_bone(bone, prevbone, use_recursion);
+		}
 	}
 }
 
@@ -1613,7 +1613,7 @@ void BKE_armature_where_is(bArmature *arm)
 
 	/* hierarchical from root to children */
 	for (bone = arm->bonebase.first; bone; bone = bone->next) {
-		BKE_armature_where_is_bone(bone, NULL);
+		BKE_armature_where_is_bone(bone, NULL, true);
 	}
 }
 
