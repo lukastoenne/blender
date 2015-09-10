@@ -45,22 +45,49 @@ using namespace openvdb;
 
 template <typename ValueType>
 struct test_near_values_combine {
+	typedef ValueType EpsType;
+	
 	ValueType eps;
 	
 	test_near_values_combine(const ValueType &eps) : eps(eps) {}
 	
-	inline void operator() (CombineArgs<ValueType, ValueType> &args) const
+	inline void operator() (const ValueType &a, const ValueType &b, const Coord &ijk) const
 	{
-		ValueType a = args.a();
-		ValueType b = args.b();
-		EXPECT_NEAR(a, b, eps);	
+		EXPECT_NEAR(a, b, eps) << "Voxel " << ijk[0] << ", " << ijk[1] << ", " << ijk[2];
 	}
 };
 
-template <typename TreeType>
-static void test_near_values(TreeType &a, TreeType &b, typename TreeType::ValueType eps)
+template <typename ScalarType>
+struct test_near_values_combine<math::Vec3<ScalarType> > {
+	typedef math::Vec3<ScalarType> ValueType;
+	typedef ScalarType EpsType;
+	
+	ScalarType eps;
+	
+	test_near_values_combine(const ScalarType &eps) : eps(eps) {}
+	
+	inline void operator() (const ValueType &a, const ValueType &b, const Coord &ijk) const
+	{
+		EXPECT_NEAR(a[0], b[0], eps) << "Voxel " << ijk[0] << ", " << ijk[1] << ", " << ijk[2];
+		EXPECT_NEAR(a[1], b[1], eps) << "Voxel " << ijk[0] << ", " << ijk[1] << ", " << ijk[2];
+		EXPECT_NEAR(a[2], b[2], eps) << "Voxel " << ijk[0] << ", " << ijk[1] << ", " << ijk[2];
+	}
+};
+
+template <typename TreeType, typename EpsType>
+static void test_near_values(TreeType &a, TreeType &b, EpsType eps)
 {
-	(a).tree().combineExtended((b).tree(), local::test_near_values_combine<typename TreeType::ValueType>((eps))); \
+	typedef typename TreeType::ValueType ValueType;
+	
+	typename TreeType::ConstAccessor acc = b.getConstAccessor();
+	
+	local::test_near_values_combine<ValueType> op(eps);
+	for (typename TreeType::ValueOnIter it = a.beginValueOn(); it; ++it) {
+		Coord ijk = it.getCoord();
+		ValueType b_val = acc.getValue(ijk);
+		
+		op(it.getValue(), b_val, ijk);
+	}
 }
 
 }

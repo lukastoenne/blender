@@ -193,28 +193,90 @@ TEST(OpenVDBSmoke, ParticleListToStream) {
 	}
 }
 
+static ScalarGrid::Ptr init_scalar_grid(Transform::Ptr tfm, float *data,
+                                        int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
+{
+	ScalarGrid::Ptr grid = ScalarGrid::create(0.0f);
+	grid->setTransform(tfm);
+	
+	CoordBBox bbox(Coord(xmin, ymin, zmin), Coord(xmax, ymax, zmax));
+	tools::Dense<const float, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
+	tools::copyFromDense(dense_grid, grid->tree(), 1.0e-6f);
+	
+	return grid;
+}
+
+static VectorGrid::Ptr init_vector_grid(Transform::Ptr tfm, Vec3f *data,
+                                        int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
+{
+	VectorGrid::Ptr grid = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+	grid->setTransform(tfm);
+	grid->setGridClass(GRID_STAGGERED);
+	
+	CoordBBox bbox(Coord(xmin, ymin, zmin), Coord(xmax, ymax, zmax));
+	tools::Dense<const Vec3f, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
+	tools::copyFromDense(dense_grid, grid->tree(), Vec3f(1.0e-6f, 1.0e-6f, 1.0e-6f));
+	
+	return grid;
+}
+
 TEST(OpenVDBSmoke, InitGrids) {
 	std::vector<TestPoint> points;
-	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f));
+	points.push_back(TestPoint(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f));
 	TestIPoints istream(points);
 	
 	Mat4R mat;
 	mat.setIdentity();
 	SmokeData data(mat);
-	
 	data.points.from_stream(&istream.base);
+	
 	data.init_grids();
 	
-	FloatGrid::Ptr density = FloatGrid::create(0.0f);
-	FloatTree &tree = density->tree();
-	tree.setValue(Coord(0, 0, 0), 0.125f);
-	tree.setValue(Coord(1, 0, 0), 0.125f);
-	tree.setValue(Coord(0, 1, 0), 0.125f);
-	tree.setValue(Coord(1, 1, 0), 0.125f);
-	tree.setValue(Coord(0, 0, 1), 0.125f);
-	tree.setValue(Coord(1, 0, 1), 0.125f);
-	tree.setValue(Coord(0, 1, 1), 0.125f);
-	tree.setValue(Coord(1, 1, 1), 0.125f);
+	float ddata[] = {
+	    // z = 0
+	    1.0f, 0.0f,
+	    0.0f, 0.0f,
+	    
+	    // z = 1
+	    0.0f, 0.0f,
+	    0.0f, 0.0f,
+	};
+	Vec3f vdata[] = {
+	    // z = 0
+	    Vec3f(1.0f, 1.0f, 1.0f), Vec3f(0.0f, 1.0f, 1.0f),
+	    Vec3f(1.0f, 1.0f, 1.0f), Vec3f(0.0f, 0.0f, 0.0f),
+	    
+	    // z = 1
+	    Vec3f(1.0f, 1.0f, 1.0f), Vec3f(0.0f, 0.0f, 0.0f),
+	    Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 0.0f),
+	};
+	ScalarGrid::Ptr density = init_scalar_grid(data.cell_transform, ddata, 0, 0, 0, 1, 1, 1);
+	VectorGrid::Ptr velocity = init_vector_grid(data.cell_transform, vdata, 0, 0, 0, 1, 1, 1);
 	
 	EXPECT_GRID_NEAR(*data.density, *density, 1e-5);
+	EXPECT_GRID_NEAR(*data.velocity, *velocity, 1e-5);
 }
+
+#if 0
+TEST(OpenVDBSmoke, PoissonMatrix) {
+	Mat4R mat;
+	mat.setIdentity();
+	SmokeData data(mat);
+	
+	data.density = FloatGrid::create(0.0f);
+	data.velocity = VectorGrid::create(Vec3f(0.0f, 0.0f, 0.0f));
+	data.velocity->setGridClass(GRID_STAGGERED);
+	
+	add_uniform_voxel(*data.density, *data.velocity, 0, 0, 0, Vec3f(1.0f, 1.0f, 1.0f));
+	
+	ScalarGrid::Ptr div = data.calc_divergence();
+	
+	ScalarGrid::Ptr exp_div = ScalarGrid::create(0.0f);
+	{
+		ScalarTree &tree = exp_div->tree();
+		tree.setValue();
+	}
+	
+	EXPECT_GRID_NEAR(*div, *density, 1e-5);
+}
+#endif

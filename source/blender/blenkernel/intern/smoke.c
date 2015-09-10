@@ -3296,14 +3296,11 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		if (framenr != scene->r.cfra)
 			return;
 
-		/* set new time */
-		smd->time = scene->r.cfra;
-
 		/* do simulation */
 
 		// simulate the actual smoke
 		{
-			float dt = (smd->time - (float)framenr) * scene->r.frs_sec / scene->r.frs_sec_base;
+			float dt = FRA2TIME((float)framenr - smd->time);
 			
 #if 0
 			if (sds->flags & MOD_SMOKE_DISSOLVE) {
@@ -3319,6 +3316,9 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 			step_vdb(scene, ob, smd, dm, dt, for_render);
 		}
+
+		/* set new time */
+		smd->time = scene->r.cfra;
 
 		// create shadows before writing cache so they get stored
 //		smoke_calc_transparency(sds, scene);

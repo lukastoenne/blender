@@ -146,6 +146,7 @@ struct SmokeData {
 	
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
+	void remove_border_velocity(VectorGrid &grid) const;
 	void remove_obstacle_velocity(VectorGrid &grid) const;
 	
 	void set_gravity(const Vec3f &g);
@@ -154,7 +155,18 @@ struct SmokeData {
 	
 	void init_grids();
 	void update_points(float dt);
-	void advect_backwards_trace(float dt);
+	
+	enum AdvectionMode {
+		ADVECT_1ST_ORDER = 1,
+		ADVECT_2ND_ORDER = 2,
+		ADVECT_SEMI_LAGRANGE = ADVECT_1ST_ORDER,
+		ADVECT_MAC_CORMACK = ADVECT_2ND_ORDER,
+	};
+	
+	void advect_velocity(float dt, AdvectionMode mode);
+	void advect_density_field(float dt, AdvectionMode mode);
+	
+	ScalarGrid::Ptr calc_divergence();
 	State solve_pressure_equation(const VectorGrid &u,
 	                              const ScalarGrid &mask_fluid,
 	                              const ScalarGrid &mask_solid,
