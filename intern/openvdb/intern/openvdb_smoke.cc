@@ -852,26 +852,47 @@ struct advect_semi_lagrange {
 };
 
 template <typename GridType>
-static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocity, float dt, SmokeData::AdvectionMode mode)
+struct advect_mac_cormack_correct {
+	typedef typename GridType::ValueType ValueType;
+	
+	float strength;
+	
+	advect_mac_cormack_correct(float strength) :
+	    strength(strength)
+	{
+	}
+	
+	inline void operator() (CombineArgs<ValueType, ValueType> &args) const
+	{
+		args.setResultIsActive(args.aIsActive() || args.bIsActive());
+		if (args.bIsActive()) {
+			args.setResult(strength * 0.5f * (args.a() - args.b()));
+		}
+	}
+};
+
+template <typename GridType>
+static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocity, const ScalarGrid &mask, float dt, SmokeData::AdvectionMode mode)
 {
 	typedef typename GridType::Ptr GridTypePtr;
 	
 	/* forward step */
-	GridTypePtr fwd = grid->copy(CP_COPY);
-	fwd->topologyUnion(*grid);
-	tools::foreach(fwd->beginValueOn(), advect_semi_lagrange<GridType>(*grid, velocity, dt));
+	GridTypePtr result = grid->copy(CP_COPY);
+	tools::foreach(result->beginValueOn(), advect_semi_lagrange<GridType>(*grid, velocity, dt));
 	
 	switch (mode) {
 		case SmokeData::ADVECT_SEMI_LAGRANGE:
-			grid = fwd;
+			grid = result;
 			break;
 		
 		case SmokeData::ADVECT_MAC_CORMACK:
 			/* backward step */
-			GridTypePtr bwd = fwd->copy(CP_COPY);
-			bwd->topologyUnion(*fwd);
-			tools::foreach(bwd->beginValueOn(), advect_semi_lagrange<GridType>(*fwd, velocity, -dt));
+			GridTypePtr bwd = result->copy(CP_COPY);
+			tools::foreach(bwd->beginValueOn(), advect_semi_lagrange<GridType>(*result, velocity, -dt));
 			// TODO: compute MacCormack correction, clamping
+			FloatTree t;
+			t.combine
+			result->combine
 			grid = bwd;
 			break;
 	}
