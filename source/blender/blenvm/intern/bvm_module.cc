@@ -34,6 +34,7 @@
 extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_string.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -55,7 +56,25 @@ void BVM_module_free(BVMModule *lib)
 	BLI_ghash_free(lib->functions, NULL, (GHashValFreeFP)ghash_function_free);
 }
 
+/* ------------------------------------------------------------------------- */
+
 static void ghash_function_free(BVMFunction *fun)
 {
 	MEM_freeN(fun);
+}
+
+struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
+{
+	BLI_assert(BLI_ghash_lookup(mod->functions, name) == NULL);
+	
+	BVMFunction *fun = MEM_callocN(sizeof(BVMFunction), "BVM function");
+	BLI_strncpy(fun->name, name, sizeof(fun->name));
+	
+	BLI_ghash_insert(mod->functions, fun->name, fun);
+	return fun;
+}
+
+bool BVM_module_delete_function(BVMModule *mod, const char *name)
+{
+	return BLI_ghash_remove(mod->functions, name, NULL, (GHashValFreeFP)ghash_function_free);
 }

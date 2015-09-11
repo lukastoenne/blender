@@ -41,4 +41,7 @@ typedef struct BVMModule {
 void BVM_module_init(struct BVMModule *lib);
 void BVM_module_free(struct BVMModule *lib);
 
+struct BVMFunction *BVM_module_create_function(struct BVMModule *mod, const char *name);
+bool BVM_module_delete_function(struct BVMModule *mod, const char *name);
+
 #endif /* __BVM_MODULE_H__ */
