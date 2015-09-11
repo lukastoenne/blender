@@ -68,6 +68,9 @@ if env['WITH_BF_INTERNATIONAL']:
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
 
+if env['WITH_BF_LEGACY_DEPSGRAPH']:
+    defs.append('WITH_LEGACY_DEPSGRAPH')
+
 if env['WITH_BF_OPENVDB']:
     incs.append('#intern/openvdb')
     defs.append('WITH_OPENVDB')

@@ -90,6 +90,10 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_LEGACY_DEPSGRAPH)
+	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
+endif()
+
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	list(APPEND INC

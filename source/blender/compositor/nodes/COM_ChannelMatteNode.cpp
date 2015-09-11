@@ -55,7 +55,7 @@ void ChannelMatteNode::convertToOperations(NodeConverter &converter, const Compo
 			convert = new ConvertRGBToYCCOperation();
 			((ConvertRGBToYCCOperation *)convert)->setMode(0); /* BLI_YCC_ITU_BT601 */
 			inv_convert = new ConvertYCCToRGBOperation();
-			((ConvertRGBToYCCOperation *)inv_convert)->setMode(0); /* BLI_YCC_ITU_BT601 */
+			((ConvertYCCToRGBOperation *)inv_convert)->setMode(0); /* BLI_YCC_ITU_BT601 */
 			break;
 		default:
 			break;
@@ -88,10 +88,10 @@ void ChannelMatteNode::convertToOperations(NodeConverter &converter, const Compo
 		converter.addOperation(inv_convert);
 		converter.addLink(operationAlpha->getOutputSocket(0), inv_convert->getInputSocket(0));
 		converter.mapOutputSocket(outputSocketImage, inv_convert->getOutputSocket());
+		converter.addPreview(inv_convert->getOutputSocket());
 	}
 	else {
 		converter.mapOutputSocket(outputSocketImage, operationAlpha->getOutputSocket());
+		converter.addPreview(operationAlpha->getOutputSocket());
 	}
-
-	converter.addPreview(operationAlpha->getOutputSocket());
 }
