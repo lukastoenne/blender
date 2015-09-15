@@ -212,6 +212,7 @@ extern StructRNA RNA_DopeSheet;
 extern StructRNA RNA_Driver;
 extern StructRNA RNA_DriverTarget;
 extern StructRNA RNA_DriverVariable;
+extern StructRNA RNA_DupliGenerator;
 extern StructRNA RNA_DupliObject;
 extern StructRNA RNA_DynamicPaintBrushSettings;
 extern StructRNA RNA_DynamicPaintCanvasSettings;

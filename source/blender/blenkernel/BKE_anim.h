@@ -32,6 +32,9 @@
  *  \author nzc
  *  \since March 2001
  */
+
+#include "RNA_types.h"
+
 struct EvaluationContext;
 struct Path;
 struct Object;
@@ -66,13 +69,18 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* Dupli-Generators */
 
 struct DupliContext;
+struct GHashIterator;
 
 typedef struct DupliGenerator {
 	char idname[64];
 	char name[64];
 	char description[256];
 	int type;				/* dupli type */
+	
 	void (*make_duplis)(const struct DupliContext *ctx);
+	
+	/* RNA integration */
+	ExtensionRNA ext;
 } DupliGenerator;
 
 void BKE_dupli_system_init(void);
@@ -81,7 +89,7 @@ void BKE_dupli_system_free(void);
 struct DupliGenerator *BKE_dupli_gen_find(const char *identifier);
 void BKE_dupli_gen_register(struct DupliGenerator *gen);
 void BKE_dupli_gen_unregister(struct DupliGenerator *gen);
-struct GHashIterator *BKE_dupli_gen_get_iterator(void);
+void BKE_dupli_gen_get_iterator(struct GHashIterator *iter);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */

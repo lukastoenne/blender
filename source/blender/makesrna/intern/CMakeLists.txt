@@ -66,6 +66,7 @@ set(DEFSRC
 	rna_nla.c
 	rna_nodetree.c
 	rna_object.c
+	rna_object_dupli.c
 	rna_object_force.c
 	rna_packedfile.c
 	rna_palette.c

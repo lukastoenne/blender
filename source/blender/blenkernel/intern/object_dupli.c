@@ -82,7 +82,17 @@ void BKE_dupli_system_init(void)
 
 void BKE_dupli_system_free(void)
 {
+	GHashIterator iter;
+	
+	for (BLI_ghashIterator_init(&iter, dupli_gen_hash); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
+		DupliGenerator *gen = BLI_ghashIterator_getValue(&iter);
+		if (gen->ext.free) {
+			gen->ext.free(gen->ext.data);
+		}
+	}
+	
 	BLI_ghash_free(dupli_gen_hash, NULL, (GHashValFreeFP)dupli_gen_free);
+	dupli_gen_hash = NULL;
 }
 
 DupliGenerator *BKE_dupli_gen_find(const char *idname)
@@ -97,7 +107,7 @@ void BKE_dupli_gen_register(DupliGenerator *gen)
 {
 	/* debug only: basic verification of registered types */
 	BLI_assert(gen->idname[0] != '\0');
-	BLI_assert(gen->make_duplis != NULL);
+//	BLI_assert(gen->make_duplis != NULL);
 	
 	BLI_ghash_insert(dupli_gen_hash, gen->idname, gen);
 	
@@ -110,9 +120,9 @@ void BKE_dupli_gen_unregister(DupliGenerator *gen)
 	BLI_ghash_remove(dupli_gen_hash, gen->idname, NULL, (GHashValFreeFP)dupli_gen_free);
 }
 
-GHashIterator *BKE_dupli_gen_get_iterator(void)
+void BKE_dupli_gen_get_iterator(GHashIterator *iter)
 {
-	return BLI_ghashIterator_new(dupli_gen_hash);
+	BLI_ghashIterator_init(iter, dupli_gen_hash);
 }
 
 static void dupli_gen_free(DupliGenerator *gen)

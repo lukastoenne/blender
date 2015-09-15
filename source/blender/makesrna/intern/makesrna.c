@@ -3312,6 +3312,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_nla.c", NULL, RNA_def_nla},
 	{"rna_nodetree.c", NULL, RNA_def_nodetree},
 	{"rna_object.c", "rna_object_api.c", RNA_def_object},
+	{"rna_object_dupli.c", NULL, RNA_def_object_dupli},
 	{"rna_object_force.c", NULL, RNA_def_object_force},
 	{"rna_packedfile.c", NULL, RNA_def_packedfile},
 	{"rna_palette.c", NULL, RNA_def_palette},
