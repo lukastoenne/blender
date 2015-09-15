@@ -180,16 +180,20 @@ typedef struct Object {
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated, use 'matbits' */
 	
-	short transflag, protectflag;	/* transformation settings and transform locks  */
+	int transflag;				/* transformation settings */
+	short protectflag;			/* transform locks  */
 	short trackflag, upflag;
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
 	short scaflag;				/* ui state for game logic */
 	char scavisflag;			/* more display settings for game logic */
 	char depsflag;
 
+	/* dupli generator identifier */
+	char dupli_gen[64]; /* MAX_NAME */
+
 	/* did last modifier stack generation need mapping support? */
 	char lastNeedMapping;  /* bool */
-	char pad[5];
+	char pad[3];
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -412,8 +416,9 @@ enum {
 	OB_RENDER_DUPLI     = 1 << 12,
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
+	OB_DUPLICUSTOM      = 1 << 15, /* use dupli_gen identifier for custom dupli generator */
 
-	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
+	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS | OB_DUPLICUSTOM,
 };
 
 /* (short) trackflag / upflag */

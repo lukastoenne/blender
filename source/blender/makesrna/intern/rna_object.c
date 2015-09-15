@@ -95,8 +95,7 @@ static EnumPropertyItem parent_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-#ifndef RNA_RUNTIME
-static EnumPropertyItem dupli_items[] = {
+static EnumPropertyItem dupli_type_static_items[] = {
 	{0, "NONE", 0, "None", ""},
 	{OB_DUPLIFRAMES, "FRAMES", 0, "Frames", "Make copy of object for every frame"},
 	{OB_DUPLIVERTS, "VERTS", 0, "Verts", "Duplicate child objects on all vertices"},
@@ -104,7 +103,6 @@ static EnumPropertyItem dupli_items[] = {
 	{OB_DUPLIGROUP, "GROUP", 0, "Group", "Enable group instancing"},
 	{0, NULL, 0, NULL, NULL}
 };
-#endif
 
 static EnumPropertyItem collision_bounds_items[] = {
 	{OB_BOUND_BOX, "BOX", 0, "Box", ""},
@@ -1231,6 +1229,54 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const int *valu
 	}
 }
 
+
+static EnumPropertyItem *dupli_type_itemf(struct bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
+                                          PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	EnumPropertyItem *item = NULL;
+	int totitem = 0;
+	
+	/* add static generator types */
+	RNA_enum_items_add(&item, &totitem, dupli_type_static_items);
+	
+	/* add custom generator types */
+	// TODO
+	
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+	
+	return item;
+}
+
+static int rna_Object_dupli_type_get(PointerRNA *ptr)
+{
+	Object *ob = ptr->data;
+	int type = ob->transflag & OB_DUPLI;
+	const char *gen = ob->dupli_gen;
+	
+	if (type & OB_DUPLICUSTOM) {
+		// TODO
+		(void)gen;
+		return 0;
+	}
+	else
+		return type;
+}
+
+static void rna_Object_dupli_type_set(PointerRNA *ptr, int value)
+{
+	Object *ob = ptr->data;
+	
+	if (ELEM(value, 0, OB_DUPLIFRAMES, OB_DUPLIVERTS, OB_DUPLIFACES, OB_DUPLIGROUP)) {
+		ob->transflag = value;
+		ob->dupli_gen[0] = '\0';
+	}
+	else {
+		// TODO
+		ob->transflag = 0;
+		ob->dupli_gen[0] = '\0';
+	}
+}
 
 static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,
                                                     int *UNUSED(softmin), int *UNUSED(softmax))
@@ -2641,7 +2687,8 @@ static void rna_def_object(BlenderRNA *brna)
 	/* duplicates */
 	prop = RNA_def_property(srna, "dupli_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "transflag");
-	RNA_def_property_enum_items(prop, dupli_items);
+	RNA_def_property_enum_items(prop, dupli_type_static_items);
+	RNA_def_property_enum_funcs(prop, "rna_Object_dupli_type_get", "rna_Object_dupli_type_set", "dupli_type_itemf");
 	RNA_def_property_ui_text(prop, "Dupli Type", "If not None, object duplication method to use");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
 
@@ -2875,7 +2922,8 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "UV Coordinates", "UV coordinates in parent object space");
 
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, dupli_items);
+	RNA_def_property_enum_items(prop, dupli_type_static_items);
+	RNA_def_property_enum_funcs(prop, NULL, NULL, "dupli_type_itemf");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dupli Type", "Duplicator type that generated this dupli object");
 }
