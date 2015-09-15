@@ -107,7 +107,7 @@ void BKE_dupli_gen_register(DupliGenerator *gen)
 {
 	/* debug only: basic verification of registered types */
 	BLI_assert(gen->idname[0] != '\0');
-//	BLI_assert(gen->make_duplis != NULL);
+	BLI_assert(gen->make_duplis != NULL);
 	
 	BLI_ghash_insert(dupli_gen_hash, gen->idname, gen);
 	
@@ -130,8 +130,6 @@ static void dupli_gen_free(DupliGenerator *gen)
 	MEM_freeN(gen);
 }
 
-/* Dupli-Geometry */
-
 typedef struct DupliContext {
 	EvaluationContext *eval_ctx;
 	bool do_update;
@@ -152,6 +150,24 @@ typedef struct DupliContext {
 	/* result containers */
 	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
+
+DupliGenerator *BKE_dupli_context_generator(const DupliContext *ctx)
+{
+	return (DupliGenerator *)ctx->gen;
+}
+
+Object *BKE_dupli_context_object(const DupliContext *ctx)
+{
+	return ctx->object;
+}
+
+struct DupliContainer *BKE_dupli_context_container(const DupliContext *ctx)
+{
+	/* note: DupliContainer is a dummy type, used only to clarify the API */
+	return (struct DupliContainer *)ctx;
+}
+
+/* Dupli-Geometry */
 
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
@@ -242,6 +258,14 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 		dob->no_draw = true;
 
 	return dob;
+}
+
+/* API wrapper for make_dupli using the DupliContainer type */
+void BKE_dupli_add_instance(struct DupliContainer *cont,
+                            Object *ob, float mat[4][4], int index,
+                            bool animated, bool hide)
+{
+	make_dupli((const DupliContext *)cont, ob, mat, index, animated, hide);
 }
 
 /* recursive dupli objects

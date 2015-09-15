@@ -39,6 +39,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
 #include "BLI_string.h"
 
 #include "BKE_anim.h"
@@ -54,6 +55,29 @@ static StructRNA *rna_DupliGenerator_refine(struct PointerRNA *ptr)
 		return gen->ext.srna;
 	else
 		return ptr->type;
+}
+
+static void rna_DupliGenerator_make_duplis(const struct DupliContext *ctx)
+{
+	extern FunctionRNA rna_DupliGenerator_make_duplis_func;
+
+	DupliGenerator *gen = BKE_dupli_context_generator(ctx);
+	Object *ob = BKE_dupli_context_object(ctx);
+	struct DupliContainer *cont = BKE_dupli_context_container(ctx);
+
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	RNA_pointer_create(NULL, gen->ext.srna, NULL, &ptr);
+	func = &rna_DupliGenerator_make_duplis_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "container", &cont);
+	RNA_parameter_set_lookup(&list, "object", &ob);
+	gen->ext.call(NULL, &ptr, func, &list);
+
+	RNA_parameter_list_free(&list);
 }
 
 static void rna_DupliGenerator_unregister(Main *UNUSED(bmain), StructRNA *type)
@@ -83,8 +107,6 @@ static StructRNA *rna_DupliGenerator_register(Main *bmain, ReportList *reports,
 {
 	DupliGenerator *gen, dummygen;
 	PointerRNA dummyptr;
-//	FunctionRNA *func;
-//	PropertyRNA *parm;
 	int have_function[1];
 
 	/* setup dummy generator to store static properties in */
@@ -119,7 +141,7 @@ static StructRNA *rna_DupliGenerator_register(Main *bmain, ReportList *reports,
 
 	RNA_def_struct_ui_text(gen->ext.srna, gen->name, gen->description);
 
-//	nt->poll = (have_function[0]) ? rna_Node_poll : NULL;
+	gen->make_duplis = (have_function[0]) ? rna_DupliGenerator_make_duplis : NULL;
 	
 	BKE_dupli_gen_register(gen);
 	
@@ -183,14 +205,23 @@ static void rna_DupliGenerator_description_set(PointerRNA *ptr, const char *valu
 	BLI_strncpy(gen->description, value, sizeof(gen->description));
 }
 
+static void rna_DupliContainer_add(struct DupliContainer *cont, struct Object *ob, float *matrix)
+{
+	bool animated = false;
+	bool hide = false;
+	int index = 0;
+	
+	BKE_dupli_add_instance(cont, ob, (float (*)[4])matrix, index, animated, hide);
+}
+
 #else
 
 static void rna_def_dupli_generator(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-//	FunctionRNA *func;
-//	PropertyRNA *parm;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
 	srna = RNA_def_struct(brna, "DupliGenerator", NULL);
 	RNA_def_struct_sdna(srna, "DupliGenerator");
@@ -215,11 +246,39 @@ static void rna_def_dupli_generator(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, "rna_DupliGenerator_description_get", "rna_DupliGenerator_description_length",
 	                              "rna_DupliGenerator_description_set");
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+
+	func = RNA_def_function(srna, "make_duplis", NULL);
+	RNA_def_function_ui_description(func, "Create dupli instances");
+	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "container", "DupliContainer", "Dupli Container", "Container for dupli instances");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+}
+
+static void rna_def_dupli_container(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	srna = RNA_def_struct(brna, "DupliContainer", NULL);
+	RNA_def_struct_ui_text(srna, "Dupli Container", "Container for creating dupli instances");
+
+	func = RNA_def_function(srna, "add", "rna_DupliContainer_add");
+	RNA_def_function_ui_description(func, "Create a dupli instance");
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object to instantiate");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_property(func, "matrix", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
+	RNA_def_property_ui_text(parm, "Matrix", "Worldspace transformation matrix of the instance");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
 void RNA_def_object_dupli(BlenderRNA *brna)
 {
 	rna_def_dupli_generator(brna);
+	rna_def_dupli_container(brna);
 }
 
 #endif

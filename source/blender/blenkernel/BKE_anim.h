@@ -69,6 +69,7 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* Dupli-Generators */
 
 struct DupliContext;
+struct DupliContainer;
 struct GHashIterator;
 
 typedef struct DupliGenerator {
@@ -90,6 +91,12 @@ struct DupliGenerator *BKE_dupli_gen_find(const char *identifier);
 void BKE_dupli_gen_register(struct DupliGenerator *gen);
 void BKE_dupli_gen_unregister(struct DupliGenerator *gen);
 void BKE_dupli_gen_get_iterator(struct GHashIterator *iter);
+
+struct DupliGenerator *BKE_dupli_context_generator(const struct DupliContext *ctx);
+struct Object *BKE_dupli_context_object(const struct DupliContext *ctx);
+struct DupliContainer *BKE_dupli_context_container(const struct DupliContext *ctx);
+
+void BKE_dupli_add_instance(struct DupliContainer *cont, struct Object *ob, float mat[4][4], int index, bool animated, bool hide);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
