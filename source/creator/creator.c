@@ -75,6 +75,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -1816,6 +1817,7 @@ int main(
 	RE_engines_init();
 	init_nodesystem();
 	psys_init_rng();
+	BKE_dupli_system_init();
 	/* end second init */
 
 

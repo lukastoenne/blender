@@ -328,8 +328,9 @@ typedef struct DupliObject {
 	float mat[4][4];
 	float orco[3], uv[2];
 
-	short type; /* from Object.transflag */
+	int type;	/* from Object.transflag */
 	char no_draw, animated;
+	short pad[3];
 
 	/* persistent identifier for a dupli object, for inter-frame matching of
 	 * objects with motion blur, or inter-update matching for syncing */
@@ -417,6 +418,8 @@ enum {
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
 	OB_DUPLICUSTOM      = 1 << 15, /* use dupli_gen identifier for custom dupli generator */
+
+	OB_MAXDUPLI         = OB_DUPLICUSTOM + 1, /* NOTE: must be greater than the largest dupli flag value! */
 
 	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS | OB_DUPLICUSTOM,
 };

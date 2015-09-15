@@ -65,6 +65,7 @@ extern "C"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
 
+#include "BKE_anim.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_depsgraph.h"
@@ -454,6 +455,7 @@ int main(int argc, char** argv)
 	RNA_init();
 
 	init_nodesystem();
+	BKE_dupli_system_init();
 	
 	initglobals();
 
@@ -1139,6 +1141,7 @@ int main(int argc, char** argv)
 	 * we may get troubles later on */
 
 	free_nodesystem();
+	BKE_dupli_system_free();
 
 	// Cleanup
 	RNA_exit();

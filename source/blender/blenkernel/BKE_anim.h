@@ -63,6 +63,27 @@ void calc_curvepath(struct Object *ob, struct ListBase *nurbs);
 int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], float quat[4], float *radius, float *weight);
 
 /* ---------------------------------------------------- */
+/* Dupli-Generators */
+
+struct DupliContext;
+
+typedef struct DupliGenerator {
+	char idname[64];
+	char name[64];
+	char description[256];
+	int type;				/* dupli type */
+	void (*make_duplis)(const struct DupliContext *ctx);
+} DupliGenerator;
+
+void BKE_dupli_system_init(void);
+void BKE_dupli_system_free(void);
+
+struct DupliGenerator *BKE_dupli_gen_find(const char *identifier);
+void BKE_dupli_gen_register(struct DupliGenerator *gen);
+void BKE_dupli_gen_unregister(struct DupliGenerator *gen);
+struct GHashIterator *BKE_dupli_gen_get_iterator(void);
+
+/* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
 struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);

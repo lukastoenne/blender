@@ -42,6 +42,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 
+#include "BKE_anim.h"
 #include "BKE_camera.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
@@ -174,7 +175,9 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_ghash.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "DNA_key_types.h"
 #include "DNA_constraint_types.h"
@@ -1235,12 +1238,24 @@ static EnumPropertyItem *dupli_type_itemf(struct bContext *UNUSED(C), PointerRNA
 {
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
+	GHashIterator *iter;
 	
 	/* add static generator types */
 	RNA_enum_items_add(&item, &totitem, dupli_type_static_items);
 	
 	/* add custom generator types */
-	// TODO
+	for (iter = BKE_dupli_gen_get_iterator(); !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
+		EnumPropertyItem tmp;
+		DupliGenerator *gen = BLI_ghashIterator_getValue(iter);
+		
+		tmp.value = gen->type;
+		tmp.identifier = gen->idname;
+		tmp.name = gen->name;
+		tmp.description = gen->description;
+		tmp.icon = ICON_NONE;
+		
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
 	
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -1252,12 +1267,13 @@ static int rna_Object_dupli_type_get(PointerRNA *ptr)
 {
 	Object *ob = ptr->data;
 	int type = ob->transflag & OB_DUPLI;
-	const char *gen = ob->dupli_gen;
 	
 	if (type & OB_DUPLICUSTOM) {
-		// TODO
-		(void)gen;
-		return 0;
+		DupliGenerator *gen = BKE_dupli_gen_find(ob->dupli_gen);
+		if (gen)
+			return gen->type;
+		else
+			return 0;
 	}
 	else
 		return type;
@@ -1272,9 +1288,21 @@ static void rna_Object_dupli_type_set(PointerRNA *ptr, int value)
 		ob->dupli_gen[0] = '\0';
 	}
 	else {
-		// TODO
+		GHashIterator *iter;
+		
+		/* default */
 		ob->transflag = 0;
 		ob->dupli_gen[0] = '\0';
+		
+		/* find by enum type value */
+		for (iter = BKE_dupli_gen_get_iterator(); !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
+			DupliGenerator *gen = BLI_ghashIterator_getValue(iter);
+			if (gen->type == value) {
+				ob->transflag = OB_DUPLICUSTOM;
+				BLI_strncpy(ob->dupli_gen, gen->idname, sizeof(ob->dupli_gen));
+				break;
+			}
+		}
 	}
 }
 

@@ -61,6 +61,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 
+#include "BKE_anim.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_bpath.h"
@@ -129,6 +130,7 @@ void free_blender(void)
 	IMB_moviecache_destruct();
 	
 	free_nodesystem();
+	BKE_dupli_system_free();
 }
 
 void initglobals(void)

@@ -35,6 +35,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 
@@ -65,6 +67,59 @@
 
 #include "BLI_strict_flags.h"
 
+/* forward declaration */
+static void dupli_gen_free(DupliGenerator *gen);
+
+/* registration hash table for generator types */
+static GHash *dupli_gen_hash = NULL;
+/* uid value for enum identifiers */
+static int dupli_gen_uid = OB_MAXDUPLI;
+
+void BKE_dupli_system_init(void)
+{
+	dupli_gen_hash = BLI_ghash_str_new("dupli generator hash table");
+}
+
+void BKE_dupli_system_free(void)
+{
+	BLI_ghash_free(dupli_gen_hash, NULL, (GHashValFreeFP)dupli_gen_free);
+}
+
+DupliGenerator *BKE_dupli_gen_find(const char *idname)
+{
+	if (idname[0])
+		return BLI_ghash_lookup(dupli_gen_hash, idname);
+	else
+		return NULL;
+}
+
+void BKE_dupli_gen_register(DupliGenerator *gen)
+{
+	/* debug only: basic verification of registered types */
+	BLI_assert(gen->idname[0] != '\0');
+	BLI_assert(gen->make_duplis != NULL);
+	
+	BLI_ghash_insert(dupli_gen_hash, gen->idname, gen);
+	
+	gen->type = dupli_gen_uid;
+	++dupli_gen_uid;
+}
+
+void BKE_dupli_gen_unregister(DupliGenerator *gen)
+{
+	BLI_ghash_remove(dupli_gen_hash, gen->idname, NULL, (GHashValFreeFP)dupli_gen_free);
+}
+
+GHashIterator *BKE_dupli_gen_get_iterator(void)
+{
+	return BLI_ghashIterator_new(dupli_gen_hash);
+}
+
+static void dupli_gen_free(DupliGenerator *gen)
+{
+	MEM_freeN(gen);
+}
+
 /* Dupli-Geometry */
 
 typedef struct DupliContext {
@@ -87,11 +142,6 @@ typedef struct DupliContext {
 	/* result containers */
 	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
-
-typedef struct DupliGenerator {
-	short type;				/* dupli type */
-	void (*make_duplis)(const DupliContext *ctx);
-} DupliGenerator;
 
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
@@ -319,6 +369,9 @@ static void make_duplis_group(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_group = {
+    "DUPLIGROUP",                   /* name */
+    "Group",                        /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIGROUP,                  /* type */
     make_duplis_group               /* make_duplis */
 };
@@ -397,6 +450,9 @@ static void make_duplis_frames(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_frames = {
+    "DUPLIFRAMES",                  /* name */
+    "Frames",                       /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIFRAMES,                 /* type */
     make_duplis_frames              /* make_duplis */
 };
@@ -542,6 +598,9 @@ static void make_duplis_verts(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_verts = {
+    "DUPLIVERTS",                   /* name */
+    "Vertices",                     /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIVERTS,                  /* type */
     make_duplis_verts               /* make_duplis */
 };
@@ -656,6 +715,9 @@ static void make_duplis_font(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_verts_font = {
+    "DUPLIVERTS_FONT",              /* name */
+    "Font",                         /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIVERTS,                  /* type */
     make_duplis_font                /* make_duplis */
 };
@@ -812,6 +874,9 @@ static void make_duplis_faces(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_faces = {
+    "DUPLIFACES",                   /* name */
+    "Faces",                        /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIFACES,                  /* type */
     make_duplis_faces               /* make_duplis */
 };
@@ -1133,6 +1198,9 @@ static void make_duplis_particles(const DupliContext *ctx)
 }
 
 const DupliGenerator gen_dupli_particles = {
+    "DUPLIPARTS",                   /* name */
+    "Particles",                    /* ui_name */
+    "",                             /* ui_description */
     OB_DUPLIPARTS,                  /* type */
     make_duplis_particles           /* make_duplis */
 };
@@ -1172,6 +1240,9 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 	}
 	else if (transflag & OB_DUPLIGROUP) {
 		return &gen_dupli_group;
+	}
+	else if (transflag & OB_DUPLICUSTOM) {
+		return BKE_dupli_gen_find(ctx->object->dupli_gen);
 	}
 
 	return NULL;
