@@ -141,6 +141,7 @@ typedef struct DupliContext {
 	float space_mat[4][4];
 	unsigned int lay;
 
+	Object *parents[MAX_DUPLI_RECUR];
 	int persistent_id[MAX_DUPLI_RECUR];
 	int level;
 	int index;
@@ -208,6 +209,8 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->object = ob;
 	if (mat)
 		mul_m4_m4m4(r_ctx->space_mat, (float (*)[4])ctx->space_mat, mat);
+	
+	r_ctx->parents[r_ctx->level] = ctx->object;
 	r_ctx->persistent_id[r_ctx->level] = index;
 	++r_ctx->level;
 
@@ -268,8 +271,20 @@ static void make_recursive_duplis(const DupliContext *ctx, Object *ob, float spa
 	/* simple preventing of too deep nested groups with MAX_DUPLI_RECUR */
 	if (ctx->level < MAX_DUPLI_RECUR) {
 		DupliContext rctx;
+		int i;
+		bool cyclic = false;
+		
 		copy_dupli_context(&rctx, ctx, ob, space_mat, index, animated);
-		if (rctx.gen) {
+		
+		/* cyclic recursion check */
+		for (i = 0; i < rctx.level; ++i) {
+			if (rctx.parents[i] == ob) {
+				cyclic = true;
+				break;
+			}
+		}
+		
+		if (!cyclic && rctx.gen) {
 			rctx.gen->make_duplis(&rctx);
 		}
 	}
