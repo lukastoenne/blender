@@ -281,14 +281,16 @@ void BKE_dupli_add_instance(struct DupliContainer *cont,
                             bool animated, bool hide, bool recursive)
 {
 	const DupliContext *ctx = (const DupliContext *)cont;
-	float obmat[4][4];
+	float dobmat[4][4], imat[4][4], space_mat[4][4];
 	
-	mul_m4_m4m4(obmat, ctx->object->obmat, mat);
+	mul_m4_m4m4(dobmat, ctx->object->obmat, mat);
+	invert_m4_m4(imat, ob->obmat);
+	mul_m4_m4m4(space_mat, dobmat, imat);
 	
-	make_dupli(ctx, ob, mat, index, animated, hide);
+	make_dupli(ctx, ob, dobmat, index, animated, hide);
 	
 	if (recursive)
-		make_recursive_duplis(ctx, ob, obmat, index, animated);
+		make_recursive_duplis(ctx, ob, space_mat, index, animated);
 }
 
 /* ---- Child Duplis ---- */
