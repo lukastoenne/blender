@@ -205,13 +205,13 @@ static void rna_DupliGenerator_description_set(PointerRNA *ptr, const char *valu
 	BLI_strncpy(gen->description, value, sizeof(gen->description));
 }
 
-static void rna_DupliContainer_add(struct DupliContainer *cont, struct Object *ob, float *matrix)
+static void rna_DupliContainer_add(struct DupliContainer *cont, struct Object *ob, float *matrix, int index,
+                                   int recursive)
 {
 	bool animated = false;
 	bool hide = false;
-	int index = 0;
 	
-	BKE_dupli_add_instance(cont, ob, (float (*)[4])matrix, index, animated, hide);
+	BKE_dupli_add_instance(cont, ob, (float (*)[4])matrix, index, animated, hide, recursive);
 }
 
 #else
@@ -273,6 +273,8 @@ static void rna_def_dupli_container(BlenderRNA *brna)
 	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_ui_text(parm, "Matrix", "Worldspace transformation matrix of the instance");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_int(func, "index", 0, INT_MIN, INT_MAX, "Index", "Index of the instance", INT_MIN, INT_MAX);
+	RNA_def_boolean(func, "recursive", false, "Recursive", "Recursively add duplis from the instanced object");
 }
 
 void RNA_def_object_dupli(BlenderRNA *brna)

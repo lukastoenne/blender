@@ -260,14 +260,6 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 	return dob;
 }
 
-/* API wrapper for make_dupli using the DupliContainer type */
-void BKE_dupli_add_instance(struct DupliContainer *cont,
-                            Object *ob, float mat[4][4], int index,
-                            bool animated, bool hide)
-{
-	make_dupli((const DupliContext *)cont, ob, mat, index, animated, hide);
-}
-
 /* recursive dupli objects
  * space_mat is the local dupli space (excluding dupli object obmat!)
  */
@@ -281,6 +273,22 @@ static void make_recursive_duplis(const DupliContext *ctx, Object *ob, float spa
 			rctx.gen->make_duplis(&rctx);
 		}
 	}
+}
+
+/* API wrapper for make_dupli using the DupliContainer type */
+void BKE_dupli_add_instance(struct DupliContainer *cont,
+                            Object *ob, float mat[4][4], int index,
+                            bool animated, bool hide, bool recursive)
+{
+	const DupliContext *ctx = (const DupliContext *)cont;
+	float obmat[4][4];
+	
+	mul_m4_m4m4(obmat, ctx->object->obmat, mat);
+	
+	make_dupli(ctx, ob, mat, index, animated, hide);
+	
+	if (recursive)
+		make_recursive_duplis(ctx, ob, obmat, index, animated);
 }
 
 /* ---- Child Duplis ---- */

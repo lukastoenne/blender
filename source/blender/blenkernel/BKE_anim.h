@@ -96,7 +96,8 @@ struct DupliGenerator *BKE_dupli_context_generator(const struct DupliContext *ct
 struct Object *BKE_dupli_context_object(const struct DupliContext *ctx);
 struct DupliContainer *BKE_dupli_context_container(const struct DupliContext *ctx);
 
-void BKE_dupli_add_instance(struct DupliContainer *cont, struct Object *ob, float mat[4][4], int index, bool animated, bool hide);
+void BKE_dupli_add_instance(struct DupliContainer *cont, struct Object *ob, float mat[4][4], int index,
+                            bool animated, bool hide, bool recursive);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
