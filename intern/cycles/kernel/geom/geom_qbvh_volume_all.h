@@ -94,6 +94,27 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	IsectPrecalc isect_precalc;
 	triangle_intersect_precalc(dir, &isect_precalc);
 
+#if 1
+	/* try to intersect with VDB volumes */
+	int num_volumes = kernel_data.tables.num_volumes;
+
+	for (int i = 0; i < num_volumes; i++) {
+		if (kg->float_volumes[i]->intersect(ray, isect_array)) {
+			kernel_data.tables.density_index = i;
+			isect_array++;
+			num_hits++;
+
+			if(num_hits == max_hits) {
+				return num_hits;
+			}
+		}
+	}
+
+	if(num_hits > 0) {
+		return num_hits;
+	}
+#endif
+
 	/* Traversal loop. */
 	do {
 		do {

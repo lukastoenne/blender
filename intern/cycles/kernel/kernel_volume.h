@@ -212,24 +212,34 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	float3 sum = make_float3(0.0f, 0.0f, 0.0f);
 
 #ifdef __OPENVDB__
-	int vdb_index = kernel_data.tables.density_index;
-	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
+	//int vdb_index = kernel_data.tables.density_index;
+	int num_volumes = kernel_data.tables.num_volumes;
+	bool has_vdb_volume = num_volumes > 0;
 	float t1 = 0.0f;
+	int v = 0;
+	float_volume *volume = kg->float_volumes[0];
 
-	if(has_vdb_volume && vdb_index >= 0 && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+	for(; v < num_volumes; v++) {
+		if(volume->intersect(ray, NULL)) {
+			break;
+		}
+		volume++;
+	}
+
+	if(has_vdb_volume && /*v < num_volumes &&*/ volume->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has
 		 * this volume. Also it initializes the rays for the ray marching. */
-		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
-			return;
-		}
+		//if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+		//	return;
+		//}
 
 		/* t and t1 represent the entry and exit points for each leaf node or tile
 		 * containing active voxels. If we don't have any active node in the current
 		 * ray path (i.e. empty space) the ray march loop is not executed,
 		 * otherwise we loop through all leaves until the end of the volume. */
-		while(kg->float_volumes[vdb_index]->march(&t, &t1)) {
+		while(volume->march(&t, &t1)) {
 			int i = 0;
 
 			/* Perform small steps through the current leaf or tile. */
@@ -612,24 +622,32 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	bool path_missed = true;
 
 #ifdef __OPENVDB__
+//	int vdb_index = kernel_data.tables.density_index;
+	int num_volumes = kernel_data.tables.num_volumes;
+	bool has_vdb_volume = num_volumes > 0;
 	float t1 = 0.0f;
-	int vdb_index = kernel_data.tables.density_index;
-	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
+	int i;
 
-	if(has_vdb_volume && vdb_index >= 0 && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+	for(i = 0; i < num_volumes; i++) {
+		if(kg->float_volumes[i]->intersect(ray, NULL)) {
+			break;
+		}
+	}
+
+	if(has_vdb_volume /*&& vdb_index >= 0*/ && kg->float_volumes[i]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has
 		 * this volume. Also it initializes the rays for the ray marching. */
-		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
-			return VOLUME_PATH_MISSED;
-		}
+		//if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+		//	return VOLUME_PATH_MISSED;
+		//}
 
 		/* t and t1 represent the entry and exit points for each leaf node or tile
 		 * containing active voxels. If we don't have any active node in the current
 		 * ray path (i.e. empty space) the ray march loop is not executed,
 		 * otherwise we loop through all leaves until the end of the volume. */
-		while(kg->float_volumes[vdb_index]->march(&t, &t1)) {
+		while(kg->float_volumes[i]->march(&t, &t1)) {
 			path_missed = false;
 
 			/* Perform small steps through the current leaf or tile. */

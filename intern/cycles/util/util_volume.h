@@ -174,7 +174,7 @@ public:
 		}
 	}
 
-	ccl_always_inline bool intersect(const Ray *ray, Intersection */*isect*/)
+	ccl_always_inline bool intersect(const Ray *ray, Intersection *isect)
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
@@ -197,7 +197,7 @@ public:
 
 		if(vdb_isect->setWorldRay(vdb_ray)) {
 			// TODO
-//			isect->t = vdb_ray.t1(); // (kevin) is this correct?
+//			isect->t = (float)vdb_ray.t1(); // (kevin) is this correct?
 //			isect->u = isect->v = 1.0f;
 //			isect->type = ;
 //			isect->shad = shader;
