@@ -67,7 +67,7 @@ struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
 {
 	BLI_assert(BLI_ghash_lookup(mod->functions, name) == NULL);
 	
-	BVMFunction *fun = MEM_callocN(sizeof(BVMFunction), "BVM function");
+	BVMFunction *fun = (BVMFunction *)MEM_callocN(sizeof(BVMFunction), "BVM function");
 	BLI_strncpy(fun->name, name, sizeof(fun->name));
 	
 	BLI_ghash_insert(mod->functions, fun->name, fun);
