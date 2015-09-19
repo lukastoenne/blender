@@ -131,7 +131,7 @@ static void brush_defaults(Brush *brush)
 
 /* Datablock add/copy/free/make_local */
 
-Brush *BKE_brush_add(Main *bmain, const char *name)
+Brush *BKE_brush_add(Main *bmain, const char *name, short ob_mode)
 {
 	Brush *brush;
 
@@ -143,11 +143,23 @@ Brush *BKE_brush_add(Main *bmain, const char *name)
 	brush_defaults(brush);
 
 	brush->sculpt_tool = SCULPT_TOOL_DRAW; /* sculpting defaults to the draw tool for new brushes */
+	brush->ob_mode = ob_mode;
 
 	/* the default alpha falloff curve */
 	BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 
 	return brush;
+}
+
+struct Brush *BKE_brush_first_search(struct Main *bmain, short ob_mode)
+{
+	Brush *brush;
+
+	for (brush = bmain->brush.first; brush; brush = brush->id.next) {
+		if (brush->ob_mode & ob_mode)
+			return brush;
+	}
+	return NULL;
 }
 
 Brush *BKE_brush_copy(Brush *brush)
@@ -297,7 +309,6 @@ void BKE_brush_debug_print_state(Brush *br)
 
 	/* br->flag */
 	BR_TEST_FLAG(BRUSH_AIRBRUSH);
-	BR_TEST_FLAG(BRUSH_TORUS);
 	BR_TEST_FLAG(BRUSH_ALPHA_PRESSURE);
 	BR_TEST_FLAG(BRUSH_SIZE_PRESSURE);
 	BR_TEST_FLAG(BRUSH_JITTER_PRESSURE);
@@ -971,7 +982,7 @@ void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask)
 	}
 }
 
-/* Uses the brush curve control to find a strength value between 0 and 1 */
+/* Uses the brush curve control to find a strength value */
 float BKE_brush_curve_strength(Brush *br, float p, const float len)
 {
 	float strength;
@@ -980,6 +991,15 @@ float BKE_brush_curve_strength(Brush *br, float p, const float len)
 	else p = p / len;
 
 	strength = curvemapping_evaluateF(br->curve, 0, p);
+
+	return strength;
+}
+
+
+/* Uses the brush curve control to find a strength value between 0 and 1 */
+float BKE_brush_curve_strength_clamped(Brush *br, float p, const float len)
+{
+	float strength = BKE_brush_curve_strength(br, p, len);
 
 	CLAMP(strength, 0.0f, 1.0f);
 
@@ -1042,7 +1062,7 @@ struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary)
 	for (i = 0; i < side; ++i) {
 		for (j = 0; j < side; ++j) {
 			float magn = sqrtf(pow2f(i - half) + pow2f(j - half));
-			im->rect_float[i * side + j] = BKE_brush_curve_strength(br, magn, half);
+			im->rect_float[i * side + j] = BKE_brush_curve_strength_clamped(br, magn, half);
 		}
 	}
 

@@ -51,7 +51,7 @@
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_tracking.h"
@@ -468,7 +468,7 @@ MovieTrackingTrack *BKE_tracking_track_duplicate(MovieTrackingTrack *track)
  */
 void BKE_tracking_track_unique_name(ListBase *tracksbase, MovieTrackingTrack *track)
 {
-	BLI_uniquename(tracksbase, track, CTX_DATA_(BLF_I18NCONTEXT_ID_MOVIECLIP, "Track"), '.',
+	BLI_uniquename(tracksbase, track, CTX_DATA_(BLT_I18NCONTEXT_ID_MOVIECLIP, "Track"), '.',
 	               offsetof(MovieTrackingTrack, name), sizeof(track->name));
 }
 
@@ -730,7 +730,7 @@ MovieTrackingTrack *BKE_tracking_track_get_named(MovieTracking *tracking, MovieT
 	return NULL;
 }
 
-MovieTrackingTrack *BKE_tracking_track_get_indexed(MovieTracking *tracking, int tracknr, ListBase **tracksbase_r)
+MovieTrackingTrack *BKE_tracking_track_get_indexed(MovieTracking *tracking, int tracknr, ListBase **r_tracksbase)
 {
 	MovieTrackingObject *object;
 	int cur = 1;
@@ -743,7 +743,7 @@ MovieTrackingTrack *BKE_tracking_track_get_indexed(MovieTracking *tracking, int 
 		while (track) {
 			if (track->flag & TRACK_HAS_BUNDLE) {
 				if (cur == tracknr) {
-					*tracksbase_r = tracksbase;
+					*r_tracksbase = tracksbase;
 					return track;
 				}
 
@@ -756,7 +756,7 @@ MovieTrackingTrack *BKE_tracking_track_get_indexed(MovieTracking *tracking, int 
 		object = object->next;
 	}
 
-	*tracksbase_r = NULL;
+	*r_tracksbase = NULL;
 
 	return NULL;
 }
@@ -1238,7 +1238,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking, L
 
 void BKE_tracking_plane_track_unique_name(ListBase *plane_tracks_base, MovieTrackingPlaneTrack *plane_track)
 {
-	BLI_uniquename(plane_tracks_base, plane_track, CTX_DATA_(BLF_I18NCONTEXT_ID_MOVIECLIP, "Plane Track"), '.',
+	BLI_uniquename(plane_tracks_base, plane_track, CTX_DATA_(BLT_I18NCONTEXT_ID_MOVIECLIP, "Plane Track"), '.',
 	               offsetof(MovieTrackingPlaneTrack, name), sizeof(plane_track->name));
 }
 
@@ -1822,7 +1822,7 @@ MovieReconstructedCamera *BKE_tracking_camera_get_reconstructed(MovieTracking *t
 }
 
 void BKE_tracking_camera_get_reconstructed_interpolate(MovieTracking *tracking, MovieTrackingObject *object,
-                                                       int framenr, float mat[4][4])
+                                                       float framenr, float mat[4][4])
 {
 	MovieTrackingReconstruction *reconstruction;
 	MovieReconstructedCamera *cameras;
@@ -1830,17 +1830,15 @@ void BKE_tracking_camera_get_reconstructed_interpolate(MovieTracking *tracking, 
 
 	reconstruction = BKE_tracking_object_get_reconstruction(tracking, object);
 	cameras = reconstruction->cameras;
-	a = reconstructed_camera_index_get(reconstruction, framenr, true);
+	a = reconstructed_camera_index_get(reconstruction, (int)framenr, true);
 
 	if (a == -1) {
 		unit_m4(mat);
-
 		return;
 	}
 
-	if (cameras[a].framenr != framenr && a > 0 && a < reconstruction->camnr - 1) {
+	if (cameras[a].framenr != framenr && a < reconstruction->camnr - 1) {
 		float t = ((float)framenr - cameras[a].framenr) / (cameras[a + 1].framenr - cameras[a].framenr);
-
 		blend_m4_m4m4(mat, cameras[a].mat, cameras[a + 1].mat, t);
 	}
 	else {

@@ -41,7 +41,7 @@
 #include "BLI_ghash.h"
 #include "BLI_math.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_animsys.h"
@@ -641,6 +641,9 @@ static int separate_armature_exec(bContext *C, wmOperator *op)
 	
 	ED_armature_to_edit(obedit->data);
 	
+	/* parents tips remain selected when connected children are removed. */
+	ED_armature_deselect_all(obedit);
+
 	BKE_report(op->reports, RPT_INFO, "Separated bones");
 
 	/* note, notifier might evolve */
@@ -660,6 +663,7 @@ void ARMATURE_OT_separate(wmOperatorType *ot)
 	ot->description = "Isolate selected bones into a separate armature";
 	
 	/* callbacks */
+	ot->invoke = WM_operator_confirm;
 	ot->exec = separate_armature_exec;
 	ot->poll = ED_operator_editarmature;
 	
@@ -809,7 +813,7 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
 static int armature_parent_set_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
 {
 	EditBone *actbone = CTX_data_active_bone(C);
-	uiPopupMenu *pup = UI_popup_menu_begin(C, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
+	uiPopupMenu *pup = UI_popup_menu_begin(C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
 	uiLayout *layout = UI_popup_menu_layout(pup);
 	int allchildbones = 0;
 	

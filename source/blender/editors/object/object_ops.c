@@ -186,7 +186,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_fix);
 	WM_operatortype_append(OBJECT_OT_vertex_group_invert);
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
-	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
+	WM_operatortype_append(OBJECT_OT_vertex_group_smooth);
 	WM_operatortype_append(OBJECT_OT_vertex_group_clean);
 	WM_operatortype_append(OBJECT_OT_vertex_group_quantize);
 	WM_operatortype_append(OBJECT_OT_vertex_group_limit_total);
@@ -200,7 +200,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_weight_normalize_active_vertex);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_copy);
 
-	WM_operatortype_append(OBJECT_OT_vertex_warp);
+	WM_operatortype_append(TRANSFORM_OT_vertex_warp);
 
 	WM_operatortype_append(OBJECT_OT_game_property_new);
 	WM_operatortype_append(OBJECT_OT_game_property_remove);
@@ -249,7 +249,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_lod_add);
 	WM_operatortype_append(OBJECT_OT_lod_remove);
 
-	WM_operatortype_append(OBJECT_OT_vertex_random);
+	WM_operatortype_append(TRANSFORM_OT_vertex_random);
 
 	WM_operatortype_append(OBJECT_OT_data_transfer);
 	WM_operatortype_append(OBJECT_OT_datalayout_transfer);

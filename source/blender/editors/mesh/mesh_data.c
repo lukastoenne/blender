@@ -429,7 +429,7 @@ int ED_mesh_color_add(Mesh *me, const char *name, const bool active_set)
 		/* copy data from active vertex color layer */
 		if (layernum) {
 			const int layernum_dst = CustomData_get_active_layer(&em->bm->ldata, CD_MLOOPCOL);
-			BM_data_layer_copy(em->bm, &em->bm->ldata, CD_MLOOPCOL, layernum, layernum_dst);
+			BM_data_layer_copy(em->bm, &em->bm->ldata, CD_MLOOPCOL, layernum_dst, layernum);
 		}
 		if (active_set || layernum == 0) {
 			CustomData_set_layer_active(&em->bm->ldata, CD_MLOOPCOL, layernum);
@@ -803,8 +803,11 @@ void MESH_OT_customdata_mask_clear(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* Clear Skin */
-static bool mesh_customdata_skin_has(bContext *C)
+/**
+ * Clear Skin
+ * \return -1 invalid state, 0 no skin, 1 has skin.
+ */
+static int mesh_customdata_skin_state(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 
@@ -812,17 +815,15 @@ static bool mesh_customdata_skin_has(bContext *C)
 		Mesh *me = ob->data;
 		if (me->id.lib == NULL) {
 			CustomData *data = GET_CD_DATA(me, vdata);
-			if (CustomData_has_layer(data, CD_MVERT_SKIN)) {
-				return true;
-			}
+			return CustomData_has_layer(data, CD_MVERT_SKIN);
 		}
 	}
-	return false;
+	return -1;
 }
 
 static int mesh_customdata_skin_add_poll(bContext *C)
 {
-	return !mesh_customdata_skin_has(C);
+	return (mesh_customdata_skin_state(C) == 0);
 }
 
 static int mesh_customdata_skin_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -855,7 +856,7 @@ void MESH_OT_customdata_skin_add(wmOperatorType *ot)
 
 static int mesh_customdata_skin_clear_poll(bContext *C)
 {
-	return mesh_customdata_skin_has(C);
+	return (mesh_customdata_skin_state(C) == 1);
 }
 
 static int mesh_customdata_skin_clear_exec(bContext *C, wmOperator *UNUSED(op))

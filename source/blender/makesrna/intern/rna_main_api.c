@@ -35,6 +35,8 @@
 
 #include "DNA_ID.h"
 #include "DNA_modifier_types.h"
+#include "DNA_space_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
@@ -58,6 +60,7 @@
 #include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
+#include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_scene.h"
@@ -86,7 +89,6 @@
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_text_types.h"
@@ -105,7 +107,7 @@
 
 #include "ED_screen.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -481,12 +483,13 @@ static void rna_Main_textures_remove(Main *bmain, ReportList *reports, PointerRN
 	}
 }
 
-static Brush *rna_Main_brushes_new(Main *bmain, const char *name)
+static Brush *rna_Main_brushes_new(Main *bmain, const char *name, int mode)
 {
-	Brush *brush = BKE_brush_add(bmain, name);
+	Brush *brush = BKE_brush_add(bmain, name, mode);
 	id_us_min(&brush->id);
 	return brush;
 }
+
 static void rna_Main_brushes_remove(Main *bmain, ReportList *reports, PointerRNA *brush_ptr)
 {
 	Brush *brush = brush_ptr->data;
@@ -807,11 +810,12 @@ static int rna_Main_linestyle_is_updated_get(PointerRNA *ptr) { return DAG_id_ty
 
 #else
 
-void RNA_api_main(StructRNA *srna)
+void RNA_api_main(StructRNA *UNUSED(srna))
 {
 #if 0
 	FunctionRNA *func;
 	PropertyRNA *parm;
+
 	/* maybe we want to add functions in 'bpy.data' still?
 	 * for now they are all in collections bpy.data.images.new(...) */
 	func = RNA_def_function(srna, "add_image", "rna_Main_add_image");
@@ -820,8 +824,6 @@ void RNA_api_main(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "image", "Image", "", "New image");
 	RNA_def_function_return(func, parm);
-#else
-	(void)srna;
 #endif
 }
 
@@ -1421,6 +1423,7 @@ void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_ui_description(func, "Add a new brush to the main database");
 	parm = RNA_def_string(func, "name", "Brush", 0, "", "New name for the datablock");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_enum(func, "mode", object_mode_items, OB_MODE_TEXTURE_PAINT, "", "Paint Mode for the new brush");
 	/* return type */
 	parm = RNA_def_pointer(func, "brush", "Brush", "", "New brush datablock");
 	RNA_def_function_return(func, parm);

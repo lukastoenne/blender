@@ -34,7 +34,7 @@
 #include "BLI_linklist_stack.h"
 #include "BLI_stackdefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_DerivedMesh.h"
 
@@ -485,21 +485,13 @@ BMFace *BM_face_create_verts(
         const BMFace *f_example, const eBMCreateFlag create_flag, const bool create_edges)
 {
 	BMEdge **edge_arr = BLI_array_alloca(edge_arr, len);
-	int i, i_prev = len - 1;
 
 	if (create_edges) {
-		for (i = 0; i < len; i++) {
-			edge_arr[i_prev] = BM_edge_create(bm, vert_arr[i_prev], vert_arr[i], NULL, BM_CREATE_NO_DOUBLE);
-			i_prev = i;
-		}
+		BM_edges_from_verts_ensure(bm, edge_arr, vert_arr, len);
 	}
 	else {
-		for (i = 0; i < len; i++) {
-			edge_arr[i_prev] = BM_edge_exists(vert_arr[i_prev], vert_arr[i]);
-			if (edge_arr[i_prev] == NULL) {
-				return NULL;
-			}
-			i_prev = i;
+		if (BM_edges_from_verts(edge_arr, vert_arr, len) == false) {
+			return NULL;
 		}
 	}
 
@@ -2024,7 +2016,7 @@ bool BM_vert_splice_check_double(BMVert *v_a, BMVert *v_b)
  *
  * \return Success
  *
- * \warning This does't work for collapsing edges,
+ * \warning This doesn't work for collapsing edges,
  * where \a v and \a vtarget are connected by an edge
  * (assert checks for this case).
  */
@@ -2193,12 +2185,12 @@ void bmesh_vert_separate(
  *
  * Any edges which failed to split off in #bmesh_vert_separate will be merged back into the original edge.
  *
- * \param edges_seperate
+ * \param edges_separate
  * A list-of-lists, each list is from a single original edge (the first edge is the original),
  * Check for duplicates (not just with the first) but between all.
  * This is O(n2) but radial edges are very rarely >2 and almost never >~10.
  *
- * \note typically its best to avoid createing the data in the first place,
+ * \note typically its best to avoid creating the data in the first place,
  * but inspecting all loops connectivity is quite involved.
  *
  * \note this function looks like it could become slow,
@@ -2403,6 +2395,8 @@ void bmesh_edge_separate(
  * Disconnects a face from its vertex fan at loop \a l_sep
  *
  * \return The newly created BMVert
+ *
+ * \note Will be a no-op and return original vertex if only two edges at that vertex.
  */
 BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 {
@@ -2414,8 +2408,10 @@ BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 
 	/* peel the face from the edge radials on both sides of the
 	 * loop vert, disconnecting the face from its fan */
-	bmesh_edge_separate(bm, l_sep->e, l_sep, false);
-	bmesh_edge_separate(bm, l_sep->prev->e, l_sep->prev, false);
+	if (!BM_edge_is_boundary(l_sep->e))
+		bmesh_edge_separate(bm, l_sep->e, l_sep, false);
+	if (!BM_edge_is_boundary(l_sep->prev->e))
+		bmesh_edge_separate(bm, l_sep->prev->e, l_sep->prev, false);
 
 	/* do inline, below */
 #if 0
@@ -2465,7 +2461,7 @@ BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 /**
  * A version of #bmesh_urmv_loop that disconnects multiple loops at once.
  *
- * Handles the task of finding fans boundaris.
+ * Handles the task of finding fans boundaries.
  */
 BMVert *bmesh_urmv_loop_multi(
         BMesh *bm, BMLoop **larr, int larr_len)
@@ -2633,7 +2629,7 @@ static void bmesh_edge_vert_swap__recursive(BMEdge *e, BMVert *v_dst, BMVert *v_
 
 /**
  * This function assumes l_sep is apart of a larger fan which has already been
- * isolated by calling bmesh_edge_separate to segragate it radially.
+ * isolated by calling bmesh_edge_separate to segregate it radially.
  */
 BMVert *bmesh_urmv_loop_region(BMesh *bm, BMLoop *l_sep)
 {

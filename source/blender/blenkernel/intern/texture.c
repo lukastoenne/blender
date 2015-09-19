@@ -567,7 +567,7 @@ void BKE_texture_free(Tex *tex)
 	BKE_animdata_free((struct ID *)tex);
 	
 	BKE_previewimg_free(&tex->preview);
-	BKE_icon_delete((struct ID *)tex);
+	BKE_icon_id_delete((struct ID *)tex);
 	tex->id.icon_id = 0;
 	
 	if (tex->nodetree) {
@@ -629,7 +629,7 @@ void BKE_texture_default(Tex *tex)
 		tex->env->stype = ENV_ANIM;
 		tex->env->clipsta = 0.1;
 		tex->env->clipend = 100;
-		tex->env->cuberes = 600;
+		tex->env->cuberes = 512;
 		tex->env->depth = 0;
 	}
 
@@ -1423,7 +1423,7 @@ EnvMap *BKE_texture_envmap_add(void)
 	env->stype = ENV_ANIM;
 	env->clipsta = 0.1;
 	env->clipend = 100.0;
-	env->cuberes = 600;
+	env->cuberes = 512;
 	env->viewscale = 0.5;
 	
 	return env;
@@ -1470,11 +1470,8 @@ void BKE_texture_envmap_free(EnvMap *env)
 
 /* ------------------------------------------------------------------------- */
 
-PointDensity *BKE_texture_pointdensity_add(void)
+void BKE_texture_pointdensity_init_data(PointDensity *pd)
 {
-	PointDensity *pd;
-	
-	pd = MEM_callocN(sizeof(PointDensity), "pointdensity");
 	pd->flag = 0;
 	pd->radius = 0.3f;
 	pd->falloff_type = TEX_PD_FALLOFF_STD;
@@ -1498,7 +1495,12 @@ PointDensity *BKE_texture_pointdensity_add(void)
 	pd->falloff_curve->cm->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
 	curvemap_reset(pd->falloff_curve->cm, &pd->falloff_curve->clipr, pd->falloff_curve->preset, CURVEMAP_SLOPE_POSITIVE);
 	curvemapping_changed(pd->falloff_curve, false);
+}
 
+PointDensity *BKE_texture_pointdensity_add(void)
+{
+	PointDensity *pd = MEM_callocN(sizeof(PointDensity), "pointdensity");
+	BKE_texture_pointdensity_init_data(pd);
 	return pd;
 } 
 

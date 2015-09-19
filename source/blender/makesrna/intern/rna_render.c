@@ -77,6 +77,13 @@ EnumPropertyItem render_pass_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem render_pass_debug_type_items[] = {
+	{RENDER_PASS_DEBUG_BVH_TRAVERSAL_STEPS, "BVH_TRAVERSAL_STEPS", 0, "BVH Traversal Steps", ""},
+	{RENDER_PASS_DEBUG_BVH_TRAVERSED_INSTANCES, "BVH_TRAVERSED_INSTANCES", 0, "BVH Traversed Instances", ""},
+	{RENDER_PASS_DEBUG_RAY_BOUNCES, "RAY_BOUNCES", 0, "Ray Steps", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -257,6 +264,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain, ReportList *reports, vo
 
 	/* setup dummy engine & engine type to store static properties in */
 	dummyengine.type = &dummyet;
+	dummyet.flag |= RE_USE_SHADING_NODES_CUSTOM;
 	RNA_pointer_create(NULL, &RNA_RenderEngine, &dummyengine, &dummyptr);
 
 	/* validate the python class */
@@ -628,6 +636,11 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_SHADING_NODES);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
+	prop = RNA_def_property(srna, "bl_use_shading_nodes_custom", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_SHADING_NODES_CUSTOM);
+	RNA_def_property_boolean_default(prop, true);
+	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+
 	prop = RNA_def_property(srna, "bl_use_exclude_layers", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "type->flag", RE_USE_EXCLUDE_LAYERS);
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
@@ -760,11 +773,6 @@ static void rna_def_render_pass(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
-	static EnumPropertyItem render_pass_debug_type_items[] = {
-		{RENDER_PASS_DEBUG_BVH_TRAVERSAL_STEPS, "BVH_TRAVERSAL_STEPS", 0, "BVH Traversal Steps", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
 
 	srna = RNA_def_struct(brna, "RenderPass", NULL);
 	RNA_def_struct_ui_text(srna, "Render Pass", "");

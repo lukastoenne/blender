@@ -44,7 +44,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_linestyle.h"
@@ -69,7 +69,8 @@ static int shader_tree_poll(const bContext *C, bNodeTreeType *UNUSED(treetype))
 	return (scene->r.engine[0] == '\0' ||
 	        STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER) ||
 	        STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME) ||
-	        STREQ(scene->r.engine, RE_engine_id_CYCLES));
+	        STREQ(scene->r.engine, RE_engine_id_CYCLES) ||
+	        !BKE_scene_use_shading_nodes_custom(scene));
 }
 
 static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
@@ -234,8 +235,7 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context, bNod
 	exec = ntree_exec_begin(context, ntree, parent_key);
 	
 	/* allocate the thread stack listbase array */
-	exec->tot_thread = BLI_system_thread_count();
-	exec->threadstack = MEM_callocN(exec->tot_thread * sizeof(ListBase), "thread stack array");
+	exec->threadstack = MEM_callocN(BLENDER_MAX_THREADS * sizeof(ListBase), "thread stack array");
 	
 	for (node = exec->nodetree->nodes.first; node; node = node->next)
 		node->need_exec = 1;
@@ -272,7 +272,7 @@ void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec)
 	int a;
 	
 	if (exec->threadstack) {
-		for (a = 0; a < exec->tot_thread; a++) {
+		for (a = 0; a < BLENDER_MAX_THREADS; a++) {
 			for (nts = exec->threadstack[a].first; nts; nts = nts->next)
 				if (nts->stack) MEM_freeN(nts->stack);
 			BLI_freelistN(&exec->threadstack[a]);

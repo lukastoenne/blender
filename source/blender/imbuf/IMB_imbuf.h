@@ -38,21 +38,21 @@
  * \page IMB Imbuf module external interface
  *
  *
- * \section about About the IMB module
+ * \section imb_about About the IMB module
  *
  * External interface of the IMage Buffer module. This module offers
  * import/export of several graphical file formats. It offers the
  * ImBuf type as a common structure to refer to different graphical
  * file formats, and to enable a uniform way of handling them.
  *
- * \section issues Known issues with IMB
+ * \section imb_issues Known issues with IMB
  *
  * - imbuf is written in C.
  * - Endianness issues are dealt with internally.
  * - File I/O must be done externally. The module uses FILE*'s to
  *   direct input/output.
  *
- * \section dependencies Dependencies
+ * \section imb_dependencies Dependencies
  *
  * IMB needs:
  * - \ref DNA module
@@ -227,7 +227,7 @@ typedef enum IMB_Timecode_Type {
 	                        * and is a sane default) */
 
 	IMB_TC_FREE_RUN   = 2, /* use global timestamp written by recording
-                            * device (prosumer camcorders e.g. can do that) */
+	                        * device (prosumer camcorders e.g. can do that) */
 	IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN = 4, /* interpolate a global timestamp using the
 	                                            * record date and time written by recording
 	                                            * device (*every* consumer camcorder can do
@@ -279,7 +279,7 @@ int IMB_anim_get_duration(struct anim *anim, IMB_Timecode_Type tc);
  * and frs_sec and frs_sec_base untouched if none available!)
  */
 bool IMB_anim_get_fps(struct anim *anim,
-                      short *frs_sec, float *frs_sec_base);
+                      short *frs_sec, float *frs_sec_base, bool no_av_base);
 
 /**
  *
@@ -467,6 +467,7 @@ void bilinear_interpolation(struct ImBuf *in, struct ImBuf *out, float u, float 
 
 void bicubic_interpolation_color(struct ImBuf *in, unsigned char col[4], float col_float[4], float u, float v);
 void nearest_interpolation_color(struct ImBuf *in, unsigned char col[4], float col_float[4], float u, float v);
+void nearest_interpolation_color_wrap(struct ImBuf *in, unsigned char col[4], float col_float[4], float u, float v);
 void bilinear_interpolation_color(struct ImBuf *in, unsigned char col[4], float col_float[4], float u, float v);
 void bilinear_interpolation_color_wrap(struct ImBuf *in, unsigned char col[4], float col_float[4], float u, float v);
 

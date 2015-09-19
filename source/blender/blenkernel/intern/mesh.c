@@ -61,6 +61,7 @@
 #include "BKE_object.h"
 #include "BKE_editmesh.h"
 
+#include "DEG_depsgraph.h"
 
 enum {
 	MESHCMP_DVERT_WEIGHTMISMATCH = 1,
@@ -1174,9 +1175,10 @@ static void make_edges_mdata_extend(MEdge **r_alledge, int *r_totedge,
 
 /* Initialize mverts, medges and, faces for converting nurbs to mesh and derived mesh */
 /* return non-zero on error */
-int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
-                            MEdge **alledge, int *totedge, MLoop **allloop, MPoly **allpoly,
-                            int *totloop, int *totpoly)
+int BKE_mesh_nurbs_to_mdata(
+        Object *ob, MVert **r_allvert, int *r_totvert,
+        MEdge **r_alledge, int *r_totedge, MLoop **r_allloop, MPoly **r_allpoly,
+        int *r_totloop, int *r_totpoly)
 {
 	ListBase disp = {NULL, NULL};
 
@@ -1184,11 +1186,12 @@ int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
 		disp = ob->curve_cache->disp;
 	}
 
-	return BKE_mesh_nurbs_displist_to_mdata(ob, &disp,
-	                                        allvert, totvert,
-	                                        alledge, totedge,
-	                                        allloop, allpoly, NULL,
-	                                        totloop, totpoly);
+	return BKE_mesh_nurbs_displist_to_mdata(
+	        ob, &disp,
+	        r_allvert, r_totvert,
+	        r_alledge, r_totedge,
+	        r_allloop, r_allpoly, NULL,
+	        r_totloop, r_totpoly);
 }
 
 /* BMESH: this doesn't calculate all edges from polygons,
@@ -1196,12 +1199,13 @@ int BKE_mesh_nurbs_to_mdata(Object *ob, MVert **allvert, int *totvert,
 
 /* Initialize mverts, medges and, faces for converting nurbs to mesh and derived mesh */
 /* use specified dispbase */
-int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
-                                     MVert **allvert, int *_totvert,
-                                     MEdge **alledge, int *_totedge,
-                                     MLoop **allloop, MPoly **allpoly,
-                                     MLoopUV **alluv,
-                                     int *_totloop, int *_totpoly)
+int BKE_mesh_nurbs_displist_to_mdata(
+        Object *ob, const ListBase *dispbase,
+        MVert **r_allvert, int *r_totvert,
+        MEdge **r_alledge, int *r_totedge,
+        MLoop **r_allloop, MPoly **r_allpoly,
+        MLoopUV **r_alluv,
+        int *r_totloop, int *r_totpoly)
 {
 	Curve *cu = ob->data;
 	DispList *dl;
@@ -1252,13 +1256,13 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 		return -1;
 	}
 
-	*allvert = mvert = MEM_callocN(sizeof(MVert) * totvert, "nurbs_init mvert");
-	*alledge = medge = MEM_callocN(sizeof(MEdge) * totedge, "nurbs_init medge");
-	*allloop = mloop = MEM_callocN(sizeof(MLoop) * totvlak * 4, "nurbs_init mloop"); // totloop
-	*allpoly = mpoly = MEM_callocN(sizeof(MPoly) * totvlak, "nurbs_init mloop");
+	*r_allvert = mvert = MEM_callocN(sizeof(MVert) * totvert, "nurbs_init mvert");
+	*r_alledge = medge = MEM_callocN(sizeof(MEdge) * totedge, "nurbs_init medge");
+	*r_allloop = mloop = MEM_callocN(sizeof(MLoop) * totvlak * 4, "nurbs_init mloop"); // totloop
+	*r_allpoly = mpoly = MEM_callocN(sizeof(MPoly) * totvlak, "nurbs_init mloop");
 
-	if (alluv)
-		*alluv = mloopuv = MEM_callocN(sizeof(MLoopUV) * totvlak * 4, "nurbs_init mloopuv");
+	if (r_alluv)
+		*r_alluv = mloopuv = MEM_callocN(sizeof(MLoopUV) * totvlak * 4, "nurbs_init mloopuv");
 	
 	/* verts and faces */
 	vertcount = 0;
@@ -1331,7 +1335,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 				mloop[0].v = startvert + index[0];
 				mloop[1].v = startvert + index[2];
 				mloop[2].v = startvert + index[1];
-				mpoly->loopstart = (int)(mloop - (*allloop));
+				mpoly->loopstart = (int)(mloop - (*r_allloop));
 				mpoly->totloop = 3;
 				mpoly->mat_nr = dl->col;
 
@@ -1389,7 +1393,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 					mloop[1].v = p3;
 					mloop[2].v = p4;
 					mloop[3].v = p2;
-					mpoly->loopstart = (int)(mloop - (*allloop));
+					mpoly->loopstart = (int)(mloop - (*r_allloop));
 					mpoly->totloop = 4;
 					mpoly->mat_nr = dl->col;
 
@@ -1439,14 +1443,14 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 	}
 	
 	if (totvlak) {
-		make_edges_mdata_extend(alledge, &totedge,
-		                        *allpoly, *allloop, totvlak);
+		make_edges_mdata_extend(r_alledge, &totedge,
+		                        *r_allpoly, *r_allloop, totvlak);
 	}
 
-	*_totpoly = totvlak;
-	*_totloop = totloop;
-	*_totedge = totedge;
-	*_totvert = totvert;
+	*r_totpoly = totvlak;
+	*r_totloop = totloop;
+	*r_totedge = totedge;
+	*r_totvert = totvert;
 
 	return 0;
 }
@@ -1809,7 +1813,7 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 	int i;
 
 	for (i = 0; i < me->totpoly; i++) {
-		MPoly *mp = &((MPoly *) me->mpoly)[i];
+		MPoly *mp = &me->mpoly[i];
 
 		if (enableSmooth) {
 			mp->flag |= ME_SMOOTH;
@@ -1820,7 +1824,7 @@ void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth)
 	}
 	
 	for (i = 0; i < me->totface; i++) {
-		MFace *mf = &((MFace *) me->mface)[i];
+		MFace *mf = &me->mface[i];
 
 		if (enableSmooth) {
 			mf->flag |= ME_SMOOTH;
@@ -1870,8 +1874,9 @@ int poly_find_loop_from_vert(
  * vertex is not in \a poly
  */
 int poly_get_adj_loops_from_vert(
-        unsigned r_adj[2], const MPoly *poly,
-        const MLoop *mloop, unsigned vert)
+        const MPoly *poly,
+        const MLoop *mloop, unsigned int vert,
+        unsigned int r_adj[2])
 {
 	int corner = poly_find_loop_from_vert(poly,
 	                                      &mloop[poly->loopstart],
@@ -1905,7 +1910,7 @@ int BKE_mesh_edge_other_vert(const MEdge *e, int v)
 }
 
 /* basic vertex data functions */
-bool BKE_mesh_minmax(Mesh *me, float r_min[3], float r_max[3])
+bool BKE_mesh_minmax(const Mesh *me, float r_min[3], float r_max[3])
 {
 	int i = me->totvert;
 	MVert *mvert;
@@ -2232,7 +2237,7 @@ void BKE_mesh_split_faces(Mesh *mesh)
 		BKE_mesh_calc_normals_split(mesh);
 	}
 	lnors = CustomData_get_layer(&mesh->ldata, CD_NORMAL);
-	/* Count. */
+	/* Count number of vertices to be split. */
 	for (poly = 0; poly < num_polys; poly++) {
 		MPoly *mp = &mpoly[poly];
 		int loop;
@@ -2250,15 +2255,16 @@ void BKE_mesh_split_faces(Mesh *mesh)
 		/* No new vertices are to be added, can do early exit. */
 		return;
 	}
-	/* Actual split. */
+	/* Reallocate all vert and edge related data. */
 	mesh->totvert += num_new_verts;
 	mesh->totedge += 2 * num_new_verts;
-	mvert = mesh->mvert = MEM_reallocN(mesh->mvert,
-	                                   sizeof(MVert) * mesh->totvert);
-	medge = mesh->medge = MEM_reallocN(mesh->medge,
-	                                   sizeof(MEdge) * mesh->totedge);
-	CustomData_set_layer(&mesh->vdata, CD_MVERT, mesh->mvert);
-	CustomData_set_layer(&mesh->edata, CD_MEDGE, mesh->medge);
+	CustomData_realloc(&mesh->vdata, mesh->totvert);
+	CustomData_realloc(&mesh->edata, mesh->totedge);
+	/* Update pointers to a newly allocated memory. */
+	BKE_mesh_update_customdata_pointers(mesh, false);
+	mvert = mesh->mvert;
+	medge = mesh->medge;
+	/* Perform actual vertex split. */
 	num_new_verts = 0;
 	for (poly = 0; poly < num_polys; poly++) {
 		MPoly *mp = &mpoly[poly];
@@ -2334,6 +2340,19 @@ Mesh *BKE_mesh_new_from_object(
 			tmpcu = (Curve *)tmpobj->data;
 			tmpcu->id.us--;
 
+			/* Copy cached display list, it might be needed by the stack evaluation.
+			 * Ideally stack should be able to use render-time display list, but doing
+			 * so is quite tricky and not safe so close to the release.
+			 *
+			 * TODO(sergey): Look into more proper solution.
+			 */
+			if (ob->curve_cache != NULL) {
+				if (tmpobj->curve_cache == NULL) {
+					tmpobj->curve_cache = MEM_callocN(sizeof(CurveCache), "CurveCache for curve types");
+				}
+				BKE_displist_copy(&tmpobj->curve_cache->disp, &ob->curve_cache->disp);
+			}
+
 			/* if getting the original caged mesh, delete object modifiers */
 			if (cage)
 				BKE_object_free_modifiers(tmpobj);
@@ -2397,8 +2416,8 @@ Mesh *BKE_mesh_new_from_object(
 				 *               only contains for_render flag. As soon as CoW is
 				 *               implemented, this is to be rethinked.
 				 */
-				EvaluationContext eval_ctx = {0};
-				eval_ctx.mode = DAG_EVAL_RENDER;
+				EvaluationContext eval_ctx;
+				DEG_evaluation_context_init(&eval_ctx, DAG_EVAL_RENDER);
 				BKE_displist_make_mball_forRender(&eval_ctx, sce, ob, &disp);
 				BKE_mesh_from_metaball(&disp, tmpmesh);
 				BKE_displist_free(&disp);
@@ -2523,3 +2542,15 @@ Mesh *BKE_mesh_new_from_object(
 	return tmpmesh;
 }
 
+/* **** Depsgraph evaluation **** */
+
+void BKE_mesh_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
+                            Mesh *mesh)
+{
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s\n", __func__, mesh->id.name);
+	}
+	if (mesh->bb == NULL || (mesh->bb->flag & BOUNDBOX_DIRTY)) {
+		BKE_mesh_texspace_calc(mesh);
+	}
+}

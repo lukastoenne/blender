@@ -36,6 +36,8 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_report.h"
@@ -379,12 +381,11 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
 
 
 /* -------------------------------------------------------------------- */
-/* Data Dropper
- *
- * note: datadropper is only internal name to avoid confusion in this file
- */
+/* Data Dropper */
 
 /** \name Eyedropper (ID data-blocks)
+ *
+ * \note: datadropper is only internal name to avoid confusion in this file.
  * \{ */
 
 typedef struct DataDropper {
@@ -436,7 +437,8 @@ static int datadropper_init(bContext *C, wmOperator *op)
 	type = RNA_property_pointer_type(&ddr->ptr, ddr->prop);
 	ddr->idcode = RNA_type_to_ID_code(type);
 	BLI_assert(ddr->idcode != 0);
-	ddr->idcode_name = BKE_idcode_to_name(ddr->idcode);
+	/* Note we can translate here (instead of on draw time), because this struct has very short lifetime. */
+	ddr->idcode_name = TIP_(BKE_idcode_to_name(ddr->idcode));
 
 	return true;
 }
@@ -653,12 +655,11 @@ void UI_OT_eyedropper_id(wmOperatorType *ot)
 
 
 /* -------------------------------------------------------------------- */
-/* Depth Dropper
- *
- * note: depthdropper is only internal name to avoid confusion in this file
- */
+/* Depth Dropper */
 
 /** \name Eyedropper (Depth)
+ *
+ * \note: depthdropper is only internal name to avoid confusion in this file.
  * \{ */
 
 typedef struct DepthDropper {

@@ -40,7 +40,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "PIL_time.h"
 
@@ -342,29 +342,25 @@ static short gp_stroke_addpoint(tGPsdata *p, const int mval[2], float pressure, 
 			
 			/* store settings */
 			copy_v2_v2_int(&pt->x, mval);
-			pt->pressure = pressure;
+			pt->pressure = 1.0f; /* T44932 - Pressure vals are unreliable, so ignore for now */
 			pt->time = (float)(curtime - p->inittime);
 			
 			/* increment buffer size */
 			gpd->sbuffer_size++;
 		}
 		else {
-			/* normally, we just reset the endpoint to the latest value
+			/* just reset the endpoint to the latest value
 			 *	- assume that pointers for this are always valid...
 			 */
 			pt = ((tGPspoint *)(gpd->sbuffer) + 1);
 			
 			/* store settings */
 			copy_v2_v2_int(&pt->x, mval);
-			pt->pressure = pressure;
+			pt->pressure = 1.0f; /* T44932 - Pressure vals are unreliable, so ignore for now */
 			pt->time = (float)(curtime - p->inittime);
 			
-			/* if this is just the second point we've added, increment the buffer size
-			 * so that it will be drawn properly...
-			 * otherwise, just leave it alone, otherwise we get problems
-			 */
-			if (gpd->sbuffer_size != 2)
-				gpd->sbuffer_size = 2;
+			/* now the buffer has 2 points (and shouldn't be allowed to get any larger) */
+			gpd->sbuffer_size = 2;
 		}
 		
 		/* can keep carrying on this way :) */
@@ -398,7 +394,7 @@ static short gp_stroke_addpoint(tGPsdata *p, const int mval[2], float pressure, 
 		
 		/* store settings */
 		copy_v2_v2_int(&pt->x, mval);
-		pt->pressure = pressure;
+		pt->pressure = 1.0f; /* T44932 - Pressure vals are unreliable, so ignore for now */
 		pt->time = (float)(curtime - p->inittime);
 		
 		/* if there's stroke for this poly line session add (or replace last) point
@@ -1440,11 +1436,13 @@ static void gpencil_draw_exit(bContext *C, wmOperator *op)
 		if (p->paintmode == GP_PAINTMODE_ERASER) {
 			/* turn off radial brush cursor */
 			gpencil_draw_toggle_eraser_cursor(C, p, false);
-			
-			/* if successful, store the new eraser size to be used again next time */
-			if (p->status == GP_STATUS_DONE)
-				U.gp_eraser = p->radius;
 		}
+		
+		/* always store the new eraser size to be used again next time
+		 * NOTE: Do this even when not in eraser mode, as eraser may
+		 *       have been toggled at some point.
+		 */
+		U.gp_eraser = p->radius;
 		
 		/* cleanup */
 		gp_paint_cleanup(p);
@@ -1495,6 +1493,15 @@ static int gpencil_draw_init(bContext *C, wmOperator *op)
 
 
 /* ------------------------------- */
+
+/* ensure that the correct cursor icon is set */
+static void gpencil_draw_cursor_set(tGPsdata *p)
+{
+	if (p->paintmode == GP_PAINTMODE_ERASER)
+		WM_cursor_modal_set(p->win, BC_CROSSCURSOR);  /* XXX need a better cursor */
+	else
+		WM_cursor_modal_set(p->win, BC_PAINTBRUSHCURSOR);
+}
 
 /* update UI indicators of status, including cursor and header prints */
 static void gpencil_draw_status_indicators(tGPsdata *p)
@@ -1736,7 +1743,6 @@ static int gpencil_draw_exec(bContext *C, wmOperator *op)
 static int gpencil_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	tGPsdata *p = NULL;
-	wmWindow *win = CTX_wm_window(C);
 	
 	if (G.debug & G_DEBUG)
 		printf("GPencil - Starting Drawing\n");
@@ -1762,11 +1768,11 @@ static int gpencil_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event
 		gpencil_draw_toggle_eraser_cursor(C, p, true);
 	}
 	
-	/* set cursor */
-	if (p->paintmode == GP_PAINTMODE_ERASER)
-		WM_cursor_modal_set(win, BC_CROSSCURSOR);  /* XXX need a better cursor */
-	else
-		WM_cursor_modal_set(win, BC_PAINTBRUSHCURSOR);
+	/* set cursor 
+	 * NOTE: This may change later (i.e. intentionally via brush toggle,
+	 *       or unintentionally if the user scrolls outside the area)...
+	 */
+	gpencil_draw_cursor_set(p);
 	
 	/* only start drawing immediately if we're allowed to do so... */
 	if (RNA_boolean_get(op->ptr, "wait_for_input") == false) {
@@ -2095,9 +2101,11 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	/* gpencil modal operator stores area, which can be removed while using it (like fullscreen) */
 	if (0 == gpencil_area_exists(C, p->sa))
 		estate = OPERATOR_CANCELLED;
-	else
+	else {
 		/* update status indicators - cursor, header, etc. */
 		gpencil_draw_status_indicators(p);
+		gpencil_draw_cursor_set(p); /* cursor may have changed outside our control - T44084 */
+	}
 	
 	/* process last operations before exiting */
 	switch (estate) {

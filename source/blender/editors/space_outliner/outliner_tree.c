@@ -58,7 +58,7 @@
 #include "BLI_mempool.h"
 #include "BLI_fnmatch.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_main.h"
@@ -104,6 +104,8 @@ static void outliner_storage_cleanup(SpaceOops *soops)
 		/* cleanup only after reading file or undo step, and always for
 		 * RNA datablocks view in order to save memory */
 		if (soops->storeflag & SO_TREESTORE_CLEANUP) {
+			soops->storeflag &= ~SO_TREESTORE_CLEANUP;
+
 			BLI_mempool_iternew(ts, &iter);
 			while ((tselem = BLI_mempool_iterstep(&iter))) {
 				if (tselem->id == NULL) unused++;
@@ -846,6 +848,10 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 		id = ((PointerRNA *)idv)->id.data;
 		if (!id) id = ((PointerRNA *)idv)->data;
 	}
+	else if (type == TSE_GP_LAYER) {
+		/* idv is the layer its self */
+		id = TREESTORE(parent)->id;
+	}
 
 	/* One exception */
 	if (type == TSE_ID_BASE) {
@@ -986,7 +992,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 		te->directdata = seq;
 		te->name = seq->name + 2;
 
-		if (seq->type < SEQ_TYPE_EFFECT) {
+		if (!(seq->type & SEQ_TYPE_EFFECT)) {
 			/*
 			 * This work like the sequence.
 			 * If the sequence have a name (not default name)
@@ -1137,7 +1143,7 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 			int a = 0;
 			
 			for (kmi = km->items.first; kmi; kmi = kmi->next, a++) {
-				const char *key = WM_key_event_string(kmi->type);
+				const char *key = WM_key_event_string(kmi->type, false);
 				
 				if (key[0]) {
 					wmOperatorType *ot = NULL;
@@ -1253,7 +1259,7 @@ static void outliner_add_library_contents(Main *mainvar, SpaceOops *soops, TreeE
 					break;
 			
 			if (id) {
-				ten = outliner_add_element(soops, &te->subtree, (void *)lbarray[a], NULL, TSE_ID_BASE, 0);
+				ten = outliner_add_element(soops, &te->subtree, lbarray[a], NULL, TSE_ID_BASE, 0);
 				ten->directdata = lbarray[a];
 				
 				ten->name = (char *)BKE_idcode_to_name_plural(GS(id->name));
@@ -1293,7 +1299,7 @@ static void outliner_add_orphaned_datablocks(Main *mainvar, SpaceOops *soops)
 				 *   - Add a parameter to BKE_idcode_to_name_plural to get a sane "user-visible" name instead?
 				 *   - Ensure that this uses nice icons for the datablock type involved instead of the dot?
 				 */
-				ten = outliner_add_element(soops, &soops->tree, (void *)lbarray[a], NULL, TSE_ID_BASE, 0);
+				ten = outliner_add_element(soops, &soops->tree, lbarray[a], NULL, TSE_ID_BASE, 0);
 				ten->directdata = lbarray[a];
 				
 				ten->name = (char *)BKE_idcode_to_name_plural(GS(id->name));
@@ -1577,6 +1583,11 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 		soops->search_flags |= SO_SEARCH_RECURSIVE;
 	else
 		soops->search_flags &= ~SO_SEARCH_RECURSIVE;
+
+	if (soops->treehash && (soops->storeflag & SO_TREESTORE_REBUILD)) {
+		soops->storeflag &= ~SO_TREESTORE_REBUILD;
+		BKE_outliner_treehash_rebuild_from_treestore(soops->treehash, soops->treestore);
+	}
 
 	if (soops->tree.first && (soops->storeflag & SO_TREESTORE_REDRAW))
 		return;

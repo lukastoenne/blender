@@ -535,7 +535,7 @@ BLI_INLINE bool ghash_insert_safe_keyonly(GHash *gh, void *key, const bool overr
  * Remove the entry and return it, caller must free from gh->entrypool.
  */
 static Entry *ghash_remove_ex(
-        GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh, const void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         const unsigned int bucket_index)
 {
 	Entry *e_prev;
@@ -653,7 +653,7 @@ GHash *BLI_ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcop
 }
 
 /**
- * Reverve given ammount of entries (resize \a gh accordingly if needed).
+ * Reserve given amount of entries (resize \a gh accordingly if needed).
  */
 void BLI_ghash_reserve(GHash *gh, const unsigned int nentries_reserve)
 {
@@ -767,6 +767,28 @@ bool BLI_ghash_ensure_p(GHash *gh, void *key, void ***r_val)
 }
 
 /**
+ * A version of #BLI_ghash_ensure_p copies the key on insertion.
+ */
+bool BLI_ghash_ensure_p_ex(
+        GHash *gh, const void *key, void ***r_val,
+        GHashKeyCopyFP keycopyfp)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
+	GHashEntry *e = (GHashEntry *)ghash_lookup_entry_ex(gh, key, bucket_index);
+	const bool haskey = (e != NULL);
+
+	if (!haskey) {
+		/* keycopyfp(key) is the only difference to BLI_ghash_ensure_p */
+		e = BLI_mempool_alloc(gh->entrypool);
+		ghash_insert_ex_keyonly_entry(gh, keycopyfp(key), bucket_index, (Entry *)e);
+	}
+
+	*r_val = &e->val;
+	return haskey;
+}
+
+/**
  * Remove \a key from \a gh, or return false if the key wasn't found.
  *
  * \param key  The key to remove.
@@ -774,7 +796,7 @@ bool BLI_ghash_ensure_p(GHash *gh, void *key, void ***r_val)
  * \param valfreefp  Optional callback to free the value.
  * \return true if \a key was removed from \a gh.
  */
-bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+bool BLI_ghash_remove(GHash *gh, const void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
@@ -797,7 +819,7 @@ bool BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFr
  * \param keyfreefp  Optional callback to free the key.
  * \return the value of \a key int \a gh or NULL.
  */
-void *BLI_ghash_popkey(GHash *gh, void *key, GHashKeyFreeFP keyfreefp)
+void *BLI_ghash_popkey(GHash *gh, const void *key, GHashKeyFreeFP keyfreefp)
 {
 	const unsigned int hash = ghash_keyhash(gh, key);
 	const unsigned int bucket_index = ghash_bucket_index(gh, hash);
@@ -1281,7 +1303,7 @@ bool BLI_gset_reinsert(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
 	return ghash_insert_safe_keyonly((GHash *)gs, key, true, keyfreefp);
 }
 
-bool BLI_gset_remove(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
+bool BLI_gset_remove(GSet *gs, const void *key, GSetKeyFreeFP keyfreefp)
 {
 	return BLI_ghash_remove((GHash *)gs, key, keyfreefp, NULL);
 }
@@ -1332,6 +1354,15 @@ GSet *BLI_gset_ptr_new_ex(const char *info, const unsigned int nentries_reserve)
 GSet *BLI_gset_ptr_new(const char *info)
 {
 	return BLI_gset_ptr_new_ex(info, 0);
+}
+
+GSet *BLI_gset_str_new_ex(const char *info, const unsigned int nentries_reserve)
+{
+	return BLI_gset_new_ex(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, info, nentries_reserve);
+}
+GSet *BLI_gset_str_new(const char *info)
+{
+	return BLI_gset_str_new_ex(info, 0);
 }
 
 GSet *BLI_gset_pair_new_ex(const char *info, const unsigned int nentries_reserve)

@@ -87,6 +87,7 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 	 * NOTE: sync this part of the code with ANIM_OT_change_frame
 	 */
 	CFRA = RNA_int_get(op->ptr, "frame");
+	FRAMENUMBER_MIN_CLAMP(CFRA);
 	SUBFRA = 0.f;
 	BKE_sound_seek_scene(bmain, scene);
 	
@@ -138,6 +139,7 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
 /* Modal Operator init */
 static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	bScreen *screen = CTX_wm_screen(C);
 	/* Change to frame that mouse is over before adding modal handler,
 	 * as user could click on a single frame (jump to frame) as well as
 	 * click-dragging over a range (modal scrubbing).
@@ -147,6 +149,9 @@ static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	/* apply these changes first */
 	graphview_cursor_apply(C, op);
 	
+	if (screen)
+		screen->scrubbing = true;
+
 	/* add temp handler */
 	WM_event_add_modal_handler(C, op);
 	return OPERATOR_RUNNING_MODAL;
@@ -155,9 +160,12 @@ static int graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *e
 /* Modal event handling of cursor changing */
 static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	bScreen *screen = CTX_wm_screen(C);
 	/* execute the events */
 	switch (event->type) {
 		case ESCKEY:
+			if (screen)
+				screen->scrubbing = false;
 			return OPERATOR_FINISHED;
 		
 		case MOUSEMOVE:
@@ -172,8 +180,11 @@ static int graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *ev
 			/* we check for either mouse-button to end, as checking for ACTIONMOUSE (which is used to init 
 			 * the modal op) doesn't work for some reason
 			 */
-			if (event->val == KM_RELEASE)
+			if (event->val == KM_RELEASE) {
+				if (screen)
+					screen->scrubbing = false;
 				return OPERATOR_FINISHED;
+			}
 			break;
 	}
 

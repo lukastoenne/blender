@@ -122,8 +122,6 @@ EnumPropertyItem brush_hair_tool_items[] = {
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
-
 #include "RNA_access.h"
 
 #include "BKE_texture.h"
@@ -353,8 +351,8 @@ static void rna_Brush_reset_icon(Brush *br, const char *UNUSED(type))
 		return;
 
 	if (id->icon_id >= BIFICONID_LAST) {
-		BKE_icon_delete(id);
-		BKE_previewimg_free_id(id);
+		BKE_icon_id_delete(id);
+		BKE_previewimg_id_free(id);
 	}
 
 	id->icon_id = 0;
@@ -433,8 +431,8 @@ static void rna_Brush_icon_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poi
 	br->id.icon_id = 0;
 
 	if (br->flag & BRUSH_CUSTOM_ICON) {
-		BKE_previewimg_get(&br->id);
-		BKE_icon_changed(BKE_icon_getid(&br->id));
+		BKE_previewimg_id_ensure(&br->id);
+		BKE_icon_changed(BKE_icon_id_ensure(&br->id));
 	}
 
 	WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
@@ -530,7 +528,7 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 	Brush *me = (Brush *)(ptr->data);
 
 	switch (mode) {
-		case PAINT_SCULPT:
+		case ePaintSculpt:
 			switch (me->sculpt_tool) {
 				case SCULPT_TOOL_DRAW:
 				case SCULPT_TOOL_CREASE:
@@ -570,8 +568,8 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 			}
 			break;
 
-		case PAINT_TEXTURE_2D:
-		case PAINT_TEXTURE_PROJECTIVE:
+		case ePaintTexture2D:
+		case ePaintTextureProjective:
 			switch (me->imagepaint_tool) {
 				case PAINT_TOOL_SOFTEN:
 					return prop_soften_sharpen_items;
@@ -601,9 +599,9 @@ static EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C, PointerRNA *UNUSED(
 	};
 
 	switch (mode) {
-		case PAINT_SCULPT:
-		case PAINT_TEXTURE_2D:
-		case PAINT_TEXTURE_PROJECTIVE:
+		case ePaintSculpt:
+		case ePaintTexture2D:
+		case ePaintTextureProjective:
 			return sculpt_stroke_method_items;
 
 		default:
@@ -1128,12 +1126,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Original Normal",
 	                         "When locked keep using normal of surface where stroke was initiated");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-	
-	prop = RNA_def_property(srna, "use_wrap", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_TORUS);
-	RNA_def_property_ui_text(prop, "Wrap", "Enable torus wrapping while painting");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-	
+		
 	prop = RNA_def_property(srna, "use_pressure_strength", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ALPHA_PRESSURE);
 	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);

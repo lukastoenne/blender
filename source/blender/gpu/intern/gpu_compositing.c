@@ -306,6 +306,9 @@ bool GPU_fx_compositor_initialize_passes(
 
 	fx->effects = 0;
 
+	if (!GPU_non_power_of_two_support() || !GLEW_EXT_framebuffer_object || !GLEW_ARB_fragment_shader)
+		return false;
+
 	if (!fx_settings) {
 		cleanup_fx_gl_data(fx, true);
 		return false;
@@ -340,15 +343,17 @@ bool GPU_fx_compositor_initialize_passes(
 	if (fx_flag & GPU_FX_FLAG_SSAO)
 		num_passes++;
 
-	if (!fx->gbuffer)
+	if (!fx->gbuffer) {
 		fx->gbuffer = GPU_framebuffer_create();
+
+		if (!fx->gbuffer) {
+			return false;
+		}
+	}
 
 	/* try creating the jitter texture */
 	if (!fx->jitter_buffer)
 		fx->jitter_buffer = create_jitter_texture();
-
-	if (!fx->gbuffer)
-		return false;
 
 	/* check if color buffers need recreation */
 	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
@@ -717,14 +722,14 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_concentric_tex;
 			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->factor, fx_ssao->attenuation, 0.0f};
-			float sample_params[4];
+			float sample_params[3];
 
 			sample_params[0] = fx->ssao_sample_count_cache;
 			/* multiplier so we tile the random texture on screen */
-			sample_params[2] = fx->gbuffer_dim[0] / 64.0;
-			sample_params[3] = fx->gbuffer_dim[1] / 64.0;
+			sample_params[1] = fx->gbuffer_dim[0] / 64.0;
+			sample_params[2] = fx->gbuffer_dim[1] / 64.0;
 
-			ssao_params[3] = (passes_left == 1) ? dfdyfac[0] : dfdyfac[1];
+			ssao_params[3] = (passes_left == 1 && !ofs) ? dfdyfac[0] : dfdyfac[1];
 
 			ssao_uniform = GPU_shader_get_uniform(ssao_shader, "ssao_params");
 			ssao_color_uniform = GPU_shader_get_uniform(ssao_shader, "ssao_color");
@@ -740,7 +745,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_vector(ssao_shader, ssao_uniform, 4, 1, ssao_params);
 			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, fx_ssao->color);
 			GPU_shader_uniform_vector(ssao_shader, viewvecs_uniform, 4, 3, viewvecs[0]);
-			GPU_shader_uniform_vector(ssao_shader, ssao_sample_params_uniform, 4, 1, sample_params);
+			GPU_shader_uniform_vector(ssao_shader, ssao_sample_params_uniform, 3, 1, sample_params);
 
 			GPU_texture_bind(src, numslots++);
 			GPU_shader_uniform_texture(ssao_shader, color_uniform, src);

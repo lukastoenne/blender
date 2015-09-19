@@ -107,6 +107,7 @@ class IMAGE_MT_view(Menu):
             layout.operator("image.view_selected")
 
         layout.operator("image.view_all")
+        layout.operator("image.view_all", text="View Fit").fit_view = True
 
         layout.separator()
 
@@ -128,6 +129,7 @@ class IMAGE_MT_select(Menu):
 
         layout.operator("uv.select_border").pinned = False
         layout.operator("uv.select_border", text="Border Select Pinned").pinned = True
+        layout.operator("uv.circle_select")
 
         layout.separator()
 
@@ -336,7 +338,8 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.average_islands_scale")
         layout.operator("uv.minimize_stretch")
         layout.operator("uv.stitch")
-        layout.operator("uv.mark_seam")
+        layout.operator("uv.mark_seam").clear = False
+        layout.operator("uv.mark_seam", text="Clear Seam").clear = True
         layout.operator("uv.seams_from_islands")
         layout.operator("mesh.faces_mirror_uv")
 
@@ -571,7 +574,7 @@ class IMAGE_PT_image_properties(Panel):
         sima = context.space_data
         iuser = sima.image_user
 
-        layout.template_image(sima, "image", iuser)
+        layout.template_image(sima, "image", iuser, multiview=True)
 
 
 class IMAGE_PT_game_properties(Panel):
@@ -702,7 +705,7 @@ class IMAGE_PT_tools_transform_uvs(Panel, UVToolsPanel):
         col.operator("transform.shear")
 
 
-class IMAGE_PT_paint(Panel, BrushButtonsPanel):
+class IMAGE_PT_paint(Panel, ImagePaintPanel):
     bl_label = "Paint"
     bl_category = "Tools"
 
@@ -718,6 +721,11 @@ class IMAGE_PT_paint(Panel, BrushButtonsPanel):
         if brush:
             brush_texpaint_common(self, context, layout, brush, settings)
 
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        toolsettings = context.tool_settings.image_paint
+        return sima.show_paint
 
 class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
     bl_label = "Overlay"
@@ -917,6 +925,24 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
         row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
 
+class IMAGE_PT_tools_imagepaint_symmetry(BrushButtonsPanel, Panel):
+    bl_category = "Tools"
+    bl_context = "imagepaint"
+    bl_label = "Tiling"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings
+        ipaint = toolsettings.image_paint
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.prop(ipaint, "tile_x", text="X", toggle=True)
+        row.prop(ipaint, "tile_y", text="Y", toggle=True)
+
+
 class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
     bl_label = "Appearance"
     bl_options = {'DEFAULT_CLOSED'}
@@ -960,10 +986,6 @@ class IMAGE_PT_tools_paint_options(BrushButtonsPanel, Panel):
         ups = toolsettings.unified_paint_settings
 
         col = layout.column(align=True)
-
-        col.prop(brush, "use_wrap")
-        col.separator()
-
         col.label(text="Unified Settings:")
         row = col.row()
         row.prop(ups, "use_unified_size", text="Size")

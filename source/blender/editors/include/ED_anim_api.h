@@ -412,7 +412,8 @@ typedef enum eAnimChannel_Settings {
 	ACHANNEL_SETTING_EXPAND   = 3,
 	ACHANNEL_SETTING_VISIBLE  = 4,  /* only for Graph Editor */
 	ACHANNEL_SETTING_SOLO     = 5,  /* only for NLA Tracks */
-	ACHANNEL_SETTING_PINNED   = 6   /* only for NLA Actions */
+	ACHANNEL_SETTING_PINNED   = 6,  /* only for NLA Actions */
+	ACHANNEL_SETTING_MOD_OFF  = 7
 } eAnimChannel_Settings;
 
 
@@ -659,6 +660,7 @@ void ANIM_list_elem_update(struct Scene *scene, bAnimListElem *ale);
 /* data -> channels syncing */
 void ANIM_sync_animchannels_to_data(const struct bContext *C);
 
+void ANIM_center_frame(struct bContext *C, int smooth_viewtx);
 /* ************************************************* */
 /* OPERATORS */
 	
@@ -681,7 +683,9 @@ void ED_operatormacros_action(void);
 
 /* Action Editor - Action Management */
 struct AnimData *ED_actedit_animdata_from_context(struct bContext *C);
-void ED_animedit_unlink_action(struct bContext *C, struct ID *id, struct AnimData *adt, struct bAction *act, struct ReportList *reports);
+void ED_animedit_unlink_action(struct bContext *C, struct ID *id, 
+                               struct AnimData *adt, struct bAction *act,
+                               struct ReportList *reports, bool force_delete);
 
 /* ************************************************ */
 

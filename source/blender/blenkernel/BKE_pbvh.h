@@ -34,8 +34,9 @@ struct CCGElem;
 struct CCGKey;
 struct CustomData;
 struct DMFlagMat;
-struct DMGridAdjacency;
-struct MFace;
+struct MPoly;
+struct MLoop;
+struct MLoopTri;
 struct MVert;
 struct PBVH;
 struct PBVHNode;
@@ -60,10 +61,13 @@ typedef void (*BKE_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float *
 /* Building */
 
 PBVH *BKE_pbvh_new(void);
-void BKE_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-                         int totface, int totvert, struct CustomData *vdata);
+void BKE_pbvh_build_mesh(
+        PBVH *bvh,
+        const struct MPoly *mpoly, const struct MLoop *mloop,
+        struct MVert *verts, int totvert, struct CustomData *vdata,
+        const struct MLoopTri *looptri, int looptri_num);
 void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
-                          struct DMGridAdjacency *gridadj, int totgrid,
+                          int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
                           unsigned int **grid_hidden);
 void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, bool smooth_shading, struct BMLog *log, const int cd_vert_node_offset, const int cd_face_node_offset);
@@ -93,14 +97,15 @@ void BKE_pbvh_raycast(
         const float ray_start[3], const float ray_normal[3],
         bool original);
 
-bool BKE_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
-                          const float ray_start[3], const float ray_normal[3],
-                          float *dist);
+bool BKE_pbvh_node_raycast(
+        PBVH *bvh, PBVHNode *node, float (*origco)[3], int use_origco,
+        const float ray_start[3], const float ray_normal[3],
+        float *dist);
 
 bool BKE_pbvh_bmesh_node_raycast_detail(
         PBVHNode *node,
         const float ray_start[3], const float ray_normal[3],
-        float *detail, float *dist);
+        float *dist, float *r_detail);
 
 /* for orthographic cameras, project the far away ray segment points to the root node so
  * we can have better precision. */
@@ -112,7 +117,7 @@ void BKE_pbvh_raycast_project_ray_root(
 
 void BKE_pbvh_node_draw(PBVHNode *node, void *data);
 void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
-                   int (*setMaterial)(int matnr, void *attribs), bool wireframe);
+                   int (*setMaterial)(int matnr, void *attribs), bool wireframe, bool fast);
 
 /* PBVH Access */
 typedef enum {
@@ -145,8 +150,10 @@ typedef enum {
 	PBVH_Subdivide = 1,
 	PBVH_Collapse = 2,
 } PBVHTopologyUpdateMode;
-bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
-                                   const float center[3], float radius);
+bool BKE_pbvh_bmesh_update_topology(
+        PBVH *bvh, PBVHTopologyUpdateMode mode,
+        const float center[3], const float view_normal[3],
+        float radius);
 
 /* Node Access */
 
@@ -172,13 +179,16 @@ void BKE_pbvh_node_mark_normals_update(PBVHNode *node);
 void BKE_pbvh_node_mark_topology_update(PBVHNode *node);
 void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
 
-void BKE_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
-                             int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
-                             struct CCGElem ***grid_elems, struct DMGridAdjacency **gridadj);
-void BKE_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
-                             int *uniquevert, int *totvert);
-void BKE_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
-                             int **vert_indices, struct MVert **verts);
+void BKE_pbvh_node_get_grids(
+        PBVH *bvh, PBVHNode *node,
+        int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
+        struct CCGElem ***grid_elems);
+void BKE_pbvh_node_num_verts(
+        PBVH *bvh, PBVHNode *node,
+        int *r_uniquevert, int *r_totvert);
+void BKE_pbvh_node_get_verts(
+        PBVH *bvh, PBVHNode *node,
+        const int **r_vert_indices, struct MVert **r_verts);
 
 void BKE_pbvh_node_get_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
 void BKE_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
@@ -202,7 +212,7 @@ void BKE_pbvh_update(PBVH *bvh, int flags, float (*face_nors)[3]);
 void BKE_pbvh_redraw_BB(PBVH *bvh, float bb_min[3], float bb_max[3]);
 void BKE_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***r_gridfaces, int *r_totface);
 void BKE_pbvh_grids_update(PBVH *bvh, struct CCGElem **grid_elems,
-                           struct DMGridAdjacency *gridadj, void **gridfaces,
+                           void **gridfaces,
                            struct DMFlagMat *flagmats, unsigned int **grid_hidden);
 
 /* Layer displacement */
@@ -250,7 +260,7 @@ typedef struct PBVHVertexIter {
 	/* mesh */
 	struct MVert *mverts;
 	int totvert;
-	int *vert_indices;
+	const int *vert_indices;
 	float *vmask;
 
 	/* bmesh */

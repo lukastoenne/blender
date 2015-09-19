@@ -987,7 +987,9 @@ class CLIP_PT_proxy(CLIP_PT_clip_view_panel, Panel):
         if clip.use_proxy_custom_directory:
             col.prop(clip.proxy, "directory")
 
-        col.operator("clip.rebuild_proxy", text="Build Proxy")
+        col.operator("clip.rebuild_proxy",
+                     text="Build Proxy / Timecode" if clip.source == 'MOVIE'
+                                                   else "Build Proxy")
 
         if clip.source == 'MOVIE':
             col2 = col.column()
@@ -1147,11 +1149,14 @@ class CLIP_MT_view(Menu):
 
             layout.operator("clip.view_selected")
             layout.operator("clip.view_all")
+            layout.operator("clip.view_all", text="View Fit").fit_view = True
 
             layout.separator()
             layout.operator("clip.view_zoom_in")
             layout.operator("clip.view_zoom_out")
 
+            layout.separator()
+            layout.prop(sc, "show_metadata")
             layout.separator()
 
             ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))

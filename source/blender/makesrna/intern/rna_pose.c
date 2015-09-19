@@ -41,7 +41,7 @@
 
 #include "BLI_math.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "WM_types.h"
 
@@ -108,8 +108,6 @@ EnumPropertyItem color_sets_items[] = {
 
 #include "ED_object.h"
 #include "ED_armature.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 
@@ -194,7 +192,7 @@ static void rna_BoneGroup_name_set(PointerRNA *ptr, const char *value)
 	/* copy the new name into the name slot */
 	BLI_strncpy_utf8(agrp->name, value, sizeof(agrp->name));
 
-	BLI_uniquename(&ob->pose->agroups, agrp, CTX_DATA_(BLF_I18NCONTEXT_ID_ARMATURE, "Group"), '.',
+	BLI_uniquename(&ob->pose->agroups, agrp, CTX_DATA_(BLT_I18NCONTEXT_ID_ARMATURE, "Group"), '.',
 	               offsetof(bActionGroup, name), sizeof(agrp->name));
 }
 
@@ -231,7 +229,7 @@ static void rna_Pose_ik_solver_update(Main *bmain, Scene *UNUSED(scene), Pointer
 	Object *ob = ptr->id.data;
 	bPose *pose = ptr->data;
 
-	pose->flag |= POSE_RECALC;  /* checks & sorts pose channels */
+	BKE_pose_tag_recalc(bmain, pose);  /* checks & sorts pose channels */
 	DAG_relations_tag_update(bmain);
 	
 	BKE_pose_update_constraint_flags(pose);
@@ -356,7 +354,7 @@ static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Object *ob = ptr->id.data;
 	bPose *pose = ob->pose;
 
-	pose->flag |= POSE_RECALC;  /* checks & sorts pose channels */
+	BKE_pose_tag_recalc(bmain, pose);  /* checks & sorts pose channels */
 	rna_Itasc_update(bmain, scene, ptr);
 }
 

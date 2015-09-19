@@ -872,10 +872,10 @@ static bool ConvertMaterial(
 		material->matname	=(mat->id.name);
 
 	if (tface) {
-		material->tface		= *tface;
+		ME_MTEXFACE_CPY(&material->mtexpoly, tface);
 	}
 	else {
-		memset(&material->tface, 0, sizeof(material->tface));
+		memset(&material->mtexpoly, 0, sizeof(material->mtexpoly));
 	}
 	material->material	= mat;
 	return true;
@@ -959,8 +959,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
+	/* needs to be rewritten for loopdata */
 	if (tface) {
-		DM_add_tangent_layer(dm);
+		if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
+			bool generate_data = false;
+			if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+				DM_calc_loop_tangents(dm);
+				generate_data = true;
+			}
+			DM_generate_tangent_tessface_data(dm, generate_data);
+		}
 		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
@@ -995,7 +1003,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	Material* ma = 0;
-	bool collider = true;
 	MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
 	unsigned int rgb[4] = {0};
 
@@ -1065,29 +1072,19 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		else
 			ma = mesh->mat ? mesh->mat[mface->mat_nr]:NULL;
 
-		/* ckeck for texface since texface _only_ is used as a fallback */
-		if (ma == NULL && tface == NULL) {
+		// Check for blender material
+		if (ma == NULL) {
 			ma= &defmaterial;
 		}
 
 		{
-			bool visible = true;
-			bool twoside = false;
 
 			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
 
 			// set render flags
-			if (ma)
-			{
-				visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
-				twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
-				collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
-			}
-			else {
-				visible = true;
-				twoside = false;
-				collider = true;
-			}
+			bool visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
+			bool twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
+			bool collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
 
 			/* mark face as flat, so vertices are split */
 			bool flat = (mface->flag & ME_SMOOTH) == 0;
@@ -1211,7 +1208,9 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 //	velocity clamping XXX
 	shapeProps->m_clamp_vel_min = blenderobject->min_vel;
 	shapeProps->m_clamp_vel_max = blenderobject->max_vel;
-	
+	shapeProps->m_clamp_angvel_min = blenderobject->min_angvel;
+	shapeProps->m_clamp_angvel_max = blenderobject->max_angvel;
+
 //  Character physics properties
 	shapeProps->m_step_height = blenderobject->step_height;
 	shapeProps->m_jump_speed = blenderobject->jump_speed;
@@ -1400,16 +1399,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	if ((blenderobject->gameflag & OB_RECORD_ANIMATION) != 0)
 		gameobj->SetRecordAnimation(true);
 
-	// store materialname in auxinfo, needed for touchsensors
-	if (meshobj)
-	{
-		const STR_String& matname=meshobj->GetMaterialName(0);
-		gameobj->getClientInfo()->m_auxilary_info = (matname.Length() ? (void*)(matname.ReadPtr()+2) : NULL);
-	} else
-	{
-		gameobj->getClientInfo()->m_auxilary_info = 0;
-	}
-
 	delete shapeprops;
 	delete smmaterial;
 	if (dm) {
@@ -1470,7 +1459,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
 	KX_Camera *gamecamera;
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
@@ -1731,6 +1720,18 @@ static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, u
 	}
 }
 
+// Copy base layer to object layer like in BKE_scene_set_background
+static void blenderSceneSetBackground(Scene *blenderscene)
+{
+	Scene *it;
+	Base *base;
+
+	for (SETLOOPER(blenderscene, it, base)) {
+		base->object->lay = base->lay;
+		base->object->flag = base->flag;
+	}
+}
+
 static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 {
 
@@ -1983,6 +1984,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	SetDefaultLightMode(blenderscene);
+
+	blenderSceneSetBackground(blenderscene);
+
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -2051,14 +2055,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 														converter,
 														libloading);
 
-						/* Insert object to the constraint game object list
-						 * so we can check later if there is a instance in the scene or
-						 * an instance and its actual group definition. */
-						convertedlist.insert((KX_GameObject*)gameobj->AddRef());
-
 						bool isInActiveLayer = false;
-						if (gameobj)
-						{
+						if (gameobj) {
+							/* Insert object to the constraint game object list
+							 * so we can check later if there is a instance in the scene or
+							 * an instance and its actual group definition. */
+							convertedlist.insert((KX_GameObject*)gameobj->AddRef());
+
 							/* macro calls object conversion funcs */
 							BL_CONVERTBLENDEROBJECT_SINGLE;
 
@@ -2183,8 +2186,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			case PARSKEL: // skinned - ignore
 				break;
 			case PAROBJECT:
-			case PARCURVE:
-			case PARKEY:
 			case PARVERT3:
 			default:
 				// unhandled
@@ -2316,7 +2317,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 			/* Store constraints of grouped and instanced objects for all layers */
 			gameobj->AddConstraint(dat);
-						
+
+			/** if it's during libload we only add constraints in the object but
+			 * doesn't create it. Constraint will be replicated later in scene->MergeScene
+			 */
+			if (libloading)
+				continue;
+
 			/* Skipped already converted constraints. 
 			 * This will happen when a group instance is made from a linked group instance
 			 * and both are on the active layer. */

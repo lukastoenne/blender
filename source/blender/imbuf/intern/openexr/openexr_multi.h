@@ -48,12 +48,18 @@
 extern "C" {
 #endif
 
+struct StampData;
+
 void *IMB_exr_get_handle(void);
 void *IMB_exr_get_handle_name(const char *name);
-void    IMB_exr_add_channel(void *handle, const char *layname, const char *passname, const char *view, int xstride, int ystride, float *rect);
+void  IMB_exr_add_channel(void *handle,
+                          const char *layname, const char *passname, const char *view,
+                          int xstride, int ystride,
+                          float *rect,
+                          bool use_half_float);
 
 int     IMB_exr_begin_read(void *handle, const char *filename, int *width, int *height);
-int     IMB_exr_begin_write(void *handle, const char *filename, int width, int height, int compress);
+int     IMB_exr_begin_write(void *handle, const char *filename, int width, int height, int compress, const struct StampData *stamp);
 void    IMB_exrtile_begin_write(void *handle, const char *filename, int mipmap, int width, int height, int tilex, int tiley);
 
 void    IMB_exr_set_channel(void *handle, const char *layname, const char *passname, int xstride, int ystride, float *rect);
@@ -86,8 +92,6 @@ bool    IMB_exr_multiview_save(
 void    IMB_exr_close(void *handle);
 
 void    IMB_exr_add_view(void *handle, const char *name);
-
-int IMB_exr_split_token(const char *str, const char *end, const char **token);
 
 bool IMB_exr_has_multilayer(void *handle);
 bool IMB_exr_has_singlelayer_multiview(void *handle);

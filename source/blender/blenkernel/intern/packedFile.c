@@ -418,12 +418,14 @@ int checkPackedFile(const char *filename, PackedFile *pf)
 	return(ret_val);
 }
 
-/* unpackFile() looks at the existing files (abs_name, local_name) and a packed file.
+/**
+ * unpackFile() looks at the existing files (abs_name, local_name) and a packed file.
  *
  * It returns a char *to the existing file name / new file name or NULL when
  * there was an error or when the user decides to cancel the operation.
+ *
+ * \warning 'abs_name' may be relative still! (use a "//" prefix) be sure to run #BLI_path_abs on it first.
  */
-
 char *unpackFile(ReportList *reports, const char *abs_name, const char *local_name, PackedFile *pf, int how)
 {
 	char *newname = NULL;
@@ -438,27 +440,41 @@ char *unpackFile(ReportList *reports, const char *abs_name, const char *local_na
 				temp = abs_name;
 				break;
 			case PF_USE_LOCAL:
+			{
+				char temp_abs[FILE_MAX];
+
+				BLI_strncpy(temp_abs, local_name, sizeof(temp_abs));
+				BLI_path_abs(temp_abs, G.main->name);
+
 				/* if file exists use it */
-				if (BLI_exists(local_name)) {
+				if (BLI_exists(temp_abs)) {
 					temp = local_name;
 					break;
 				}
 				/* else create it */
 				/* fall-through */
+			}
 			case PF_WRITE_LOCAL:
 				if (writePackedFile(reports, local_name, pf, 1) == RET_OK) {
 					temp = local_name;
 				}
 				break;
 			case PF_USE_ORIGINAL:
+			{
+				char temp_abs[FILE_MAX];
+
+				BLI_strncpy(temp_abs, abs_name, sizeof(temp_abs));
+				BLI_path_abs(temp_abs, G.main->name);
+
 				/* if file exists use it */
-				if (BLI_exists(abs_name)) {
+				if (BLI_exists(temp_abs)) {
 					BKE_reportf(reports, RPT_INFO, "Use existing file (instead of packed): %s", abs_name);
 					temp = abs_name;
 					break;
 				}
 				/* else create it */
 				/* fall-through */
+			}
 			case PF_WRITE_ORIGINAL:
 				if (writePackedFile(reports, abs_name, pf, 1) == RET_OK) {
 					temp = abs_name;
@@ -478,7 +494,7 @@ char *unpackFile(ReportList *reports, const char *abs_name, const char *local_na
 }
 
 static void unpack_generate_paths(
-        const char *name, ID *id, char *abspath_r, char *relpath_r, size_t abspathlen, size_t relpathlen)
+        const char *name, ID *id, char *r_abspath, char *r_relpath, size_t abspathlen, size_t relpathlen)
 {
 	char tempname[FILE_MAX];
 	char tempdir[FILE_MAXDIR];
@@ -500,19 +516,19 @@ static void unpack_generate_paths(
 
 	switch (GS(id->name)) {
 		case ID_VF:
-			BLI_snprintf(relpath_r, relpathlen, "//fonts/%s", tempname);
+			BLI_snprintf(r_relpath, relpathlen, "//fonts/%s", tempname);
 			break;
 		case ID_SO:
-			BLI_snprintf(relpath_r, relpathlen, "//sounds/%s", tempname);
+			BLI_snprintf(r_relpath, relpathlen, "//sounds/%s", tempname);
 			break;
 		case ID_IM:
-			BLI_snprintf(relpath_r, relpathlen, "//textures/%s", tempname);
+			BLI_snprintf(r_relpath, relpathlen, "//textures/%s", tempname);
 			break;
 	}
 
 	{
-		size_t len = BLI_strncpy_rlen(abspath_r, tempdir, abspathlen);
-		BLI_strncpy(abspath_r + len, tempname, abspathlen - len);
+		size_t len = BLI_strncpy_rlen(r_abspath, tempdir, abspathlen);
+		BLI_strncpy(r_abspath + len, tempname, abspathlen - len);
 	}
 }
 

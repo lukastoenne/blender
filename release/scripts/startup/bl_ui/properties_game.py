@@ -89,10 +89,14 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.label(text="Velocity:")
+            col.label(text="Linear velocity:")
             sub = col.column(align=True)
             sub.prop(game, "velocity_min", text="Minimum")
             sub.prop(game, "velocity_max", text="Maximum")
+            col.label(text="Angular velocity:")
+            sub = col.column(align=True)
+            sub.prop(game, "angular_velocity_min", text="Minimum")
+            sub.prop(game, "angular_velocity_max", text="Maximum")
 
             col = split.column()
             col.label(text="Damping:")
@@ -100,7 +104,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub.prop(game, "damping", text="Translation", slider=True)
             sub.prop(game, "rotation_damping", text="Rotation", slider=True)
 
-        if physics_type == 'RIGID_BODY':
             layout.separator()
 
             split = layout.split()
@@ -111,6 +114,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "lock_location_y", text="Y")
             col.prop(game, "lock_location_z", text="Z")
 
+        if physics_type == 'RIGID_BODY':
             col = split.column()
             col.label(text="Lock Rotation:")
             col.prop(game, "lock_rotation_x", text="X")
@@ -223,7 +227,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         row.prop(game, "collision_margin", text="Margin", slider=True)
 
         sub = row.row()
-        sub.active = game.physics_type  not in {'SOFT_BODY', 'CHARACTER'}
+        sub.active = game.physics_type not in {'SOFT_BODY', 'CHARACTER'}
         sub.prop(game, "use_collision_compound", text="Compound")
 
         layout.separator()
@@ -243,7 +247,7 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
         game = context.object.game
         rd = context.scene.render
         return (rd.engine in cls.COMPAT_ENGINES) \
-                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY'})
+                and (game.physics_type in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'})
 
     def draw_header(self, context):
         game = context.active_object.game

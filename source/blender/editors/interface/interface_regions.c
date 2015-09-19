@@ -62,7 +62,7 @@
 #include "UI_view2d.h"
 
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "ED_screen.h"
 
@@ -70,8 +70,9 @@
 
 #include "interface_intern.h"
 
-#define MENU_TOP            8
+#define MENU_TOP			(int)(8 * UI_DPI_FAC)
 #define MENU_PADDING		(int)(0.2f * UI_UNIT_Y)
+#define MENU_BORDER			(int)(0.3f * U.widget_unit)
 
 static int rna_property_enum_step(const bContext *C, PointerRNA *ptr, PropertyRNA *prop, int direction)
 {
@@ -106,15 +107,22 @@ static int rna_property_enum_step(const bContext *C, PointerRNA *ptr, PropertyRN
 	return value;
 }
 
+bool ui_but_menu_step_poll(const uiBut *but)
+{
+	BLI_assert(but->type == UI_BTYPE_MENU);
+
+	/* currenly only RNA buttons */
+	return (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_ENUM);
+}
+
 int ui_but_menu_step(uiBut *but, int direction)
 {
-	/* currenly only RNA buttons */
-	if ((but->rnaprop == NULL) || (RNA_property_type(but->rnaprop) != PROP_ENUM)) {
-		printf("%s: cannot cycle button '%s'\n", __func__, but->str);
-		return 0;
+	if (ui_but_menu_step_poll(but)) {
+		return rna_property_enum_step(but->block->evil_C, &but->rnapoin, but->rnaprop, direction);
 	}
 
-	return rna_property_enum_step(but->block->evil_C, &but->rnapoin, but->rnaprop, direction);
+	printf("%s: cannot cycle button '%s'\n", __func__, but->str);
+	return 0;
 }
 
 /******************** Creating Temporary regions ******************/
@@ -147,13 +155,14 @@ static void ui_region_temp_remove(bContext *C, bScreen *sc, ARegion *ar)
 
 #define UI_TIP_PAD_FAC      1.3f
 #define UI_TIP_PADDING      (int)(UI_TIP_PAD_FAC * UI_UNIT_Y)
+#define UI_TIP_MAXWIDTH     600
 
 #define MAX_TOOLTIP_LINES 8
 typedef struct uiTooltipData {
 	rcti bbox;
 	uiFontStyle fstyle;
-	char lines[MAX_TOOLTIP_LINES][512];
-	char header[512], active_info[512];
+	char lines[MAX_TOOLTIP_LINES][2048];
+	char header[2048], active_info[2048];
 	struct {
 		enum {
 			UI_TIP_STYLE_NORMAL = 0,
@@ -170,6 +179,14 @@ typedef struct uiTooltipData {
 		} color_id : 4;
 		int is_pad : 1;
 	} format[MAX_TOOLTIP_LINES];
+
+	struct {
+		unsigned int x_pos;     /* x cursor position at the end of the last line */
+		unsigned int lines;     /* number of lines, 1 or more with word-wrap */
+	} line_geom[MAX_TOOLTIP_LINES];
+
+	int wrap_width;
+
 	int totline;
 	int toth, lineh;
 } uiTooltipData;
@@ -179,9 +196,10 @@ typedef struct uiTooltipData {
 BLI_STATIC_ASSERT(UI_TIP_LC_MAX == UI_TIP_LC_ALERT + 1, "invalid lc-max");
 BLI_STATIC_ASSERT(sizeof(((uiTooltipData *)NULL)->format[0]) <= sizeof(int), "oversize");
 
-static void rgb_tint(float col[3],
-                     float h, float h_strength,
-                     float v, float v_strength)
+static void rgb_tint(
+        float col[3],
+        float h, float h_strength,
+        float v, float v_strength)
 {
 	float col_hsv_from[3];
 	float col_hsv_to[3];
@@ -248,38 +266,48 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	rgb_tint(alert_color,  0.0f, 0.8f, tone_bg, 0.1f);  /* red        */
 
 	/* draw text */
+	BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap(blf_mono_font, data->wrap_width);
 
 	bbox.xmin += 0.5f * pad_px;  /* add padding to the text */
-	bbox.ymax -= 0.5f * (BLI_rcti_size_y(&bbox) - data->toth);
-	bbox.ymin = bbox.ymax - data->lineh;
+	bbox.ymax -= 0.25f * pad_px;
 
 	for (i = 0; i < data->totline; i++) {
+		bbox.ymin = bbox.ymax - (data->lineh * data->line_geom[i].lines);
 		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
 			/* draw header and active data (is done here to be able to change color) */
 			uiFontStyle fstyle_header = data->fstyle;
-			float xofs;
+			float xofs, yofs;
 
 			/* override text-style */
 			fstyle_header.shadow = 1;
 			fstyle_header.shadowcolor = rgb_to_grayscale(tip_colors[UI_TIP_LC_MAIN]);
 			fstyle_header.shadx = fstyle_header.shady = 0;
 			fstyle_header.shadowalpha = 1.0f;
+			fstyle_header.word_wrap = true;
 
 			UI_fontstyle_set(&fstyle_header);
 			glColor3fv(tip_colors[UI_TIP_LC_MAIN]);
 			UI_fontstyle_draw(&fstyle_header, &bbox, data->header);
 
-			xofs = BLF_width(fstyle_header.uifont_id, data->header, sizeof(data->header));
+			/* offset to the end of the last line */
+			xofs = data->line_geom[i].x_pos;
+			yofs = data->lineh * (data->line_geom[i].lines - 1);
 			bbox.xmin += xofs;
+			bbox.ymax -= yofs;
 
 			glColor3fv(tip_colors[UI_TIP_LC_ACTIVE]);
-			UI_fontstyle_draw(&data->fstyle, &bbox, data->active_info);
+			fstyle_header.shadow = 0;
+			UI_fontstyle_draw(&fstyle_header, &bbox, data->active_info);
 
+			/* undo offset */
 			bbox.xmin -= xofs;
+			bbox.ymax += yofs;
 		}
 		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
 			uiFontStyle fstyle_mono = data->fstyle;
 			fstyle_mono.uifont_id = blf_mono_font;
+			fstyle_mono.word_wrap = true;
 
 			UI_fontstyle_set(&fstyle_mono);
 			/* XXX, needed because we dont have mono in 'U.uifonts' */
@@ -288,21 +316,25 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 			UI_fontstyle_draw(&fstyle_mono, &bbox, data->lines[i]);
 		}
 		else {
+			uiFontStyle fstyle_normal = data->fstyle;
 			BLI_assert(data->format[i].style == UI_TIP_STYLE_NORMAL);
+			fstyle_normal.word_wrap = true;
+
 			/* draw remaining data */
-			UI_fontstyle_set(&data->fstyle);
+			UI_fontstyle_set(&fstyle_normal);
 			glColor3fv(tip_colors[data->format[i].color_id]);
-			UI_fontstyle_draw(&data->fstyle, &bbox, data->lines[i]);
+			UI_fontstyle_draw(&fstyle_normal, &bbox, data->lines[i]);
 		}
+
+		bbox.ymax -= data->lineh * data->line_geom[i].lines;
+
 		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
-			bbox.ymax -= data->lineh * UI_TIP_PAD_FAC;
-			bbox.ymin -= data->lineh * UI_TIP_PAD_FAC;
-		}
-		else {
-			bbox.ymax -= data->lineh;
-			bbox.ymin -= data->lineh;
+			bbox.ymax -= data->lineh * (UI_TIP_PAD_FAC - 1);
 		}
 	}
+
+	BLF_disable(data->fstyle.uifont_id, BLF_WORD_WRAP);
+	BLF_disable(blf_mono_font, BLF_WORD_WRAP);
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE_ARB);
@@ -329,10 +361,11 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	char buf[512];
 	/* aspect values that shrink text are likely unreadable */
 	const float aspect = min_ff(1.0f, but->block->aspect);
-	float fonth, fontw;
-	int winx, ofsx, ofsy, w = 0, h, i;
+	int fonth, fontw;
+	int winx, ofsx, ofsy, h, i;
 	rctf rect_fl;
 	rcti rect_i;
+	int font_flag = 0;
 
 	uiStringInfo but_tip = {BUT_GET_TIP, NULL};
 	uiStringInfo enum_label = {BUT_GET_RNAENUM_LABEL, NULL};
@@ -511,9 +544,10 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			}
 
 			if (data_path) {
+				const char *data_delim = (data_path[0] == '[') ? "" : ".";
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]),
-				             "%s.%s",  /* no need to translate */
-				             id_path, data_path);
+				             "%s%s%s",  /* no need to translate */
+				             id_path, data_delim, data_path);
 				MEM_freeN(data_path);
 			}
 			else if (prop) {
@@ -568,6 +602,17 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 	UI_fontstyle_set(&data->fstyle);
 
+	data->wrap_width = min_ii(UI_TIP_MAXWIDTH * U.pixelsize / aspect, WM_window_pixels_x(win) - (UI_TIP_PADDING * 2));
+
+	font_flag |= BLF_WORD_WRAP;
+	if (data->fstyle.kerning == 1) {
+		font_flag |= BLF_KERNING_DEFAULT;
+	}
+	BLF_enable(data->fstyle.uifont_id, font_flag);
+	BLF_enable(blf_mono_font, font_flag);
+	BLF_wordwrap(data->fstyle.uifont_id, data->wrap_width);
+	BLF_wordwrap(blf_mono_font, data->wrap_width);
+
 	/* these defines tweaked depending on font */
 #define TIP_BORDER_X (16.0f / aspect)
 #define TIP_BORDER_Y (6.0f / aspect)
@@ -575,32 +620,42 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	h = BLF_height_max(data->fstyle.uifont_id);
 
 	for (i = 0, fontw = 0, fonth = 0; i < data->totline; i++) {
+		struct ResultBLF info;
+		int w, x_pos = 0;
+
 		if (data->format[i].style == UI_TIP_STYLE_HEADER) {
-			w = BLF_width(data->fstyle.uifont_id, data->header, sizeof(data->header));
-			if (enum_label.strinfo)
-				w += BLF_width(data->fstyle.uifont_id, data->active_info, sizeof(data->active_info));
+			w = BLF_width_ex(data->fstyle.uifont_id, data->header, sizeof(data->header), &info);
+			if (enum_label.strinfo) {
+				x_pos = info.width + (U.widget_unit / 2);
+				w = max_ii(w, x_pos + BLF_width(data->fstyle.uifont_id, data->active_info, sizeof(data->active_info)));
+			}
 		}
 		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
 			BLF_size(blf_mono_font, data->fstyle.points * U.pixelsize, U.dpi);
 
-			w = BLF_width(blf_mono_font, data->lines[i], sizeof(data->lines[i]));
+			w = BLF_width_ex(blf_mono_font, data->lines[i], sizeof(data->lines[i]), &info);
 		}
 		else {
 			BLI_assert(data->format[i].style == UI_TIP_STYLE_NORMAL);
-			w = BLF_width(data->fstyle.uifont_id, data->lines[i], sizeof(data->lines[i]));
+
+			w = BLF_width_ex(data->fstyle.uifont_id, data->lines[i], sizeof(data->lines[i]), &info);
 		}
 
-		fontw = max_ff(fontw, (float)w);
+		fontw = max_ii(fontw, w);
 
+		fonth += h * info.lines;
 		if ((i + 1 != data->totline) && data->format[i + 1].is_pad) {
-			fonth += h * UI_TIP_PAD_FAC;
+			fonth += h * (UI_TIP_PAD_FAC - 1);
 		}
-		else {
-			fonth += h;
-		}
+
+		data->line_geom[i].lines = info.lines;
+		data->line_geom[i].x_pos = x_pos;
 	}
 
 	//fontw *= aspect;
+
+	BLF_disable(data->fstyle.uifont_id, font_flag);
+	BLF_disable(blf_mono_font, font_flag);
 
 	ar->regiondata = data;
 
@@ -826,8 +881,8 @@ static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr
 {
 	/* thumbnail preview */
 	if (data->preview) {
-		int butw =  BLI_rcti_size_x(&data->bbox)                 / data->prv_cols;
-		int buth = (BLI_rcti_size_y(&data->bbox) - 2 * MENU_TOP) / data->prv_rows;
+		int butw = (BLI_rcti_size_x(&data->bbox) - 2 * MENU_BORDER) / data->prv_cols;
+		int buth = (BLI_rcti_size_y(&data->bbox) - 2 * MENU_BORDER) / data->prv_rows;
 		int row, col;
 		
 		*r_rect = data->bbox;
@@ -835,10 +890,10 @@ static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr
 		col = itemnr % data->prv_cols;
 		row = itemnr / data->prv_cols;
 		
-		r_rect->xmin += col * butw;
+		r_rect->xmin += MENU_BORDER + (col * butw);
 		r_rect->xmax = r_rect->xmin + butw;
 		
-		r_rect->ymax = data->bbox.ymax - MENU_TOP - (row * buth);
+		r_rect->ymax -= MENU_BORDER + (row * buth);
 		r_rect->ymin = r_rect->ymax - buth;
 	}
 	/* list view */
@@ -1044,14 +1099,8 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 				ui_searchbox_butrect(&rect, data, a);
 				
 				/* widget itself */
-				if (data->preview) {
-					ui_draw_preview_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
-					                     (a == data->active) ? UI_ACTIVE : 0);
-				}
-				else {
-					ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
-					                  (a == data->active) ? UI_ACTIVE : 0, data->use_sep);
-				}
+				ui_draw_preview_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a],
+				                     (a == data->active) ? UI_ACTIVE : 0);
 			}
 			
 			/* indicate more */
@@ -1123,6 +1172,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	float aspect = but->block->aspect;
 	rctf rect_fl;
 	rcti rect_i;
+	const int margin = UI_POPUP_MARGIN;
 	int winx /*, winy */, ofsx, ofsy;
 	int i;
 	
@@ -1164,7 +1214,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	
 	/* compute position */
 	if (but->block->flag & UI_BLOCK_SEARCH_MENU) {
-		const int margin = UI_POPUP_MARGIN;
+		const int search_but_h = BLI_rctf_size_y(&but->rect) + 10;
 		/* this case is search menu inside other menu */
 		/* we copy region size */
 
@@ -1173,21 +1223,19 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* widget rect, in region coords */
 		data->bbox.xmin = margin;
 		data->bbox.xmax = BLI_rcti_size_x(&ar->winrct) - margin;
-		/* Do not use shadow width for height, gives insane margin with big shadows, and issue T41548 with small ones */
-		data->bbox.ymin = 8 * UI_DPI_FAC;
-		data->bbox.ymax = BLI_rcti_size_y(&ar->winrct) - 8 * UI_DPI_FAC;
+		data->bbox.ymin = margin;
+		data->bbox.ymax = BLI_rcti_size_y(&ar->winrct) - margin;
 		
 		/* check if button is lower half */
 		if (but->rect.ymax < BLI_rctf_cent_y(&but->block->rect)) {
-			data->bbox.ymin += BLI_rctf_size_y(&but->rect);
+			data->bbox.ymin += search_but_h;
 		}
 		else {
-			data->bbox.ymax -= BLI_rctf_size_y(&but->rect);
+			data->bbox.ymax -= search_but_h;
 		}
 	}
 	else {
 		const int searchbox_width = UI_searchbox_size_x();
-		const int margin = UI_POPUP_MARGIN;
 
 		rect_fl.xmin = but->rect.xmin - 5;   /* align text with button */
 		rect_fl.xmax = but->rect.xmax + 5;   /* symmetrical */
@@ -1426,7 +1474,8 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 		if (down || top) {
 			if (dir1 == UI_DIR_UP   && top == 0)  dir1 = UI_DIR_DOWN;
 			if (dir1 == UI_DIR_DOWN && down == 0) dir1 = UI_DIR_UP;
-			if (dir2 == UI_DIR_UP   && top == 0)  dir2 = UI_DIR_DOWN;
+			BLI_assert(dir2 != UI_DIR_UP);
+//			if (dir2 == UI_DIR_UP   && top == 0)  dir2 = UI_DIR_DOWN;
 			if (dir2 == UI_DIR_DOWN && down == 0) dir2 = UI_DIR_UP;
 		}
 
@@ -1638,7 +1687,7 @@ static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)
 }
 
 /**
- * Called for creatign new popups and refreshing existing ones.
+ * Called for creating new popups and refreshing existing ones.
  */
 uiBlock *ui_popup_block_refresh(
         bContext *C, uiPopupBlockHandle *handle,
@@ -1684,13 +1733,8 @@ uiBlock *ui_popup_block_refresh(
 	ar->regiondata = handle;
 
 	/* set UI_BLOCK_NUMSELECT before UI_block_end() so we get alphanumeric keys assigned */
-	if (but) {
-		if (but->type == UI_BTYPE_PULLDOWN) {
-			block->flag |= UI_BLOCK_NUMSELECT;
-		}
-	}
-	else {
-		block->flag |= UI_BLOCK_POPUP | UI_BLOCK_NUMSELECT;
+	if (but == NULL) {
+		block->flag |= UI_BLOCK_POPUP;
 	}
 
 	block->flag |= UI_BLOCK_LOOP;
@@ -1808,9 +1852,10 @@ uiBlock *ui_popup_block_refresh(
 	return block;
 }
 
-uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut *but,
-                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
-                                          void *arg)
+uiPopupBlockHandle *ui_popup_block_create(
+        bContext *C, ARegion *butregion, uiBut *but,
+        uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
+        void *arg)
 {
 	wmWindow *window = CTX_wm_window(C);
 	static ARegionType type;
@@ -2571,8 +2616,9 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 	return pup->block;
 }
 
-uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut *but,
-                                         uiMenuCreateFunc menu_func, void *arg)
+uiPopupBlockHandle *ui_popup_menu_create(
+        bContext *C, ARegion *butregion, uiBut *but,
+        uiMenuCreateFunc menu_func, void *arg)
 {
 	wmWindow *window = CTX_wm_window(C);
 	uiStyle *style = UI_style_get_dpi();
@@ -2619,7 +2665,7 @@ uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut 
 	if (!but) {
 		handle->popup = true;
 
-		UI_popup_handlers_add(C, &window->modalhandlers, handle, false);
+		UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
 		WM_event_add_mousemove(C);
 	}
 	
@@ -2681,7 +2727,7 @@ void UI_popup_menu_end(bContext *C, uiPopupMenu *pup)
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_POPUP, pup);
 	menu->popup = true;
 	
-	UI_popup_handlers_add(C, &window->modalhandlers, menu, false);
+	UI_popup_handlers_add(C, &window->modalhandlers, menu, 0);
 	WM_event_add_mousemove(C);
 	
 	MEM_freeN(pup);
@@ -2807,7 +2853,9 @@ void UI_pie_menu_end(bContext *C, uiPieMenu *pie)
 	menu->popup = true;
 	menu->towardstime = PIL_check_seconds_timer();
 
-	UI_popup_handlers_add(C, &window->modalhandlers, menu, true);
+	UI_popup_handlers_add(
+	        C, &window->modalhandlers,
+	        menu, WM_HANDLER_ACCEPT_DBL_CLICK);
 	WM_event_add_mousemove(C);
 
 	MEM_freeN(pie);
@@ -2850,8 +2898,9 @@ int UI_pie_menu_invoke(struct bContext *C, const char *idname, const wmEvent *ev
 	return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title, const char *opname,
-                            const char *propname, const wmEvent *event)
+int UI_pie_menu_invoke_from_operator_enum(
+        struct bContext *C, const char *title, const char *opname,
+        const char *propname, const wmEvent *event)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
@@ -2867,8 +2916,9 @@ int UI_pie_menu_invoke_from_operator_enum(struct bContext *C, const char *title,
 	return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_rna_enum(struct bContext *C, const char *title, const char *path,
-                    const wmEvent *event)
+int UI_pie_menu_invoke_from_rna_enum(
+        struct bContext *C, const char *title, const char *path,
+        const wmEvent *event)
 {
 	PointerRNA ctx_ptr;
 	PointerRNA r_ptr;
@@ -2997,7 +3047,7 @@ void UI_popup_block_invoke_ex(bContext *C, uiBlockCreateFunc func, void *arg, co
 	handle->optype = (opname) ? WM_operatortype_find(opname, 0) : NULL;
 	handle->opcontext = opcontext;
 	
-	UI_popup_handlers_add(C, &window->modalhandlers, handle, false);
+	UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
 	WM_event_add_mousemove(C);
 }
 
@@ -3020,7 +3070,7 @@ void UI_popup_block_ex(bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc po
 	handle->cancel_func = cancel_func;
 	// handle->opcontext = opcontext;
 	
-	UI_popup_handlers_add(C, &window->modalhandlers, handle, false);
+	UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
 	WM_event_add_mousemove(C);
 }
 
@@ -3039,17 +3089,15 @@ void uiPupBlockOperator(bContext *C, uiBlockCreateFunc func, wmOperator *op, int
 	handle->cancel_func = confirm_cancel_operator;
 	handle->opcontext = opcontext;
 	
-	UI_popup_handlers_add(C, &window->modalhandlers, handle);
+	UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
 	WM_event_add_mousemove(C);
 }
 #endif
 
-void UI_popup_block_close(bContext *C, uiBlock *block)
+void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
 {
+	/* if loading new .blend while popup is open, window will be NULL */
 	if (block->handle) {
-		wmWindow *win = CTX_wm_window(C);
-
-		/* if loading new .blend while popup is open, window will be NULL */
 		if (win) {
 			UI_popup_handlers_remove(&win->modalhandlers, block->handle);
 			ui_popup_block_free(C, block->handle);

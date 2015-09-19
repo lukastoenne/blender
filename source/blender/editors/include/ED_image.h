@@ -47,7 +47,7 @@ struct Mask  *ED_space_image_get_mask(struct SpaceImage *sima);
 void          ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct Mask *mask);
 
 bool ED_space_image_color_sample(struct Scene *scene, struct SpaceImage *sima, struct ARegion *ar, int mval[2], float r_col[3]);
-struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r);
+struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **r_lock);
 void ED_space_image_release_buffer(struct SpaceImage *sima, struct ImBuf *ibuf, void *lock);
 bool ED_space_image_has_buffer(struct SpaceImage *sima);
 
@@ -59,8 +59,8 @@ void ED_space_image_get_uv_aspect(struct SpaceImage *sima, float *aspx, float *a
 
 void ED_space_image_scopes_update(const struct bContext *C, struct SpaceImage *sima, struct ImBuf *ibuf, bool use_view_settings);
 
-void ED_space_image_paint_update(struct wmWindowManager *wm, struct ToolSettings *settings);
-void ED_space_image_uv_sculpt_update(struct wmWindowManager *wm, struct ToolSettings *settings);
+void ED_space_image_paint_update(struct wmWindowManager *wm, struct Scene *scene);
+void ED_space_image_uv_sculpt_update(struct wmWindowManager *wm, struct Scene *scene);
 
 void ED_image_get_uv_aspect(struct Image *ima, struct ImageUser *iuser, float *aspx, float *aspy);
 void ED_image_mouse_pos(struct SpaceImage *sima, struct ARegion *ar, const int mval[2], float co[2]);

@@ -46,7 +46,6 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
-#include "BKE_object.h" /* Needed for BKE_object_matrix_local_get() */
 #include "BKE_object_deform.h"
 
 #include "RNA_access.h"
@@ -89,8 +88,6 @@ EnumPropertyItem object_empty_drawtype_items[] = {
 
 static EnumPropertyItem parent_type_items[] = {
 	{PAROBJECT, "OBJECT", 0, "Object", "The object is parented to an object"},
-	{PARCURVE, "CURVE", 0, "Curve", "The object is parented to a curve"},
-	{PARKEY, "KEY", 0, "Key", ""},
 	{PARSKEL, "ARMATURE", 0, "Armature", ""},
 	{PARSKEL, "LATTICE", 0, "Lattice", "The object is parented to a lattice"}, /* PARSKEL reuse will give issues */
 	{PARVERT1, "VERTEX", 0, "Vertex", "The object is parented to a vertex"},
@@ -203,7 +200,6 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
-#include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_particle.h"
 #include "ED_curve.h"
@@ -470,16 +466,13 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 	if (ob->parent) {
 		Object *par = ob->parent;
 		
-		if (par->type == OB_CURVE) {
-			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARCURVE);
-		}
-		else if (par->type == OB_LATTICE) {
+		if (par->type == OB_LATTICE) {
 			/* special hack: prevents this overriding others */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[4], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[2], PARSKEL);
 		}
 		else if (par->type == OB_ARMATURE) {
 			/* special hack: prevents this being overrided */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[3], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[1], PARSKEL);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
 
@@ -718,7 +711,7 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 
 	DAG_id_tag_update(value.data, 0);
-	assign_material(ob, value.data, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
+	assign_material(ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_Object_active_material_editable(PointerRNA *ptr)
@@ -890,7 +883,7 @@ static void rna_MaterialSlot_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 	int index = (Material **)ptr->data - ob->mat;
 
-	assign_material(ob, value.data, index + 1, BKE_MAT_ASSIGN_USERPREF);
+	assign_material(ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_MaterialSlot_link_get(PointerRNA *ptr)
@@ -950,6 +943,7 @@ static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
 	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
+	DAG_relations_tag_update(bmain);
 }
 
 static char *rna_MaterialSlot_path(PointerRNA *ptr)
@@ -1141,7 +1135,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
 
 	memset(values, 0, sizeof(int) * OB_MAX_STATES);
 	for (i = 0; i < OB_MAX_STATES; i++) {
-		values[i] = (ob->state & (1 << i)) | all_states;
+		values[i] = (ob->state & (1 << i)) ? 1 : 0 | all_states;
 	}
 }
 
@@ -1388,7 +1382,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
 		memcpy(values, bb->vec, sizeof(bb->vec));
 	}
 	else {
-		fill_vn_fl(values, sizeof(bb->vec) / sizeof(float), 0.0f);
+		copy_vn_fl(values, sizeof(bb->vec) / sizeof(float), 0.0f);
 	}
 
 }
@@ -1734,16 +1728,31 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_float_default(prop, 0.1f);
 	RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
-	prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "min_vel");
 	RNA_def_property_range(prop, 0.0, 1000.0);
-	RNA_def_property_ui_text(prop, "Velocity Min", "Clamp velocity to this minimum speed (except when totally still)");
+	RNA_def_property_ui_text(prop, "Velocity Min", "Clamp velocity to this minimum speed (except when totally still), "
+	                         "in distance per second");
 
-	prop = RNA_def_property(srna, "velocity_max", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "velocity_max", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "max_vel");
 	RNA_def_property_range(prop, 0.0, 1000.0);
-	RNA_def_property_ui_text(prop, "Velocity Max", "Clamp velocity to this maximum speed");
+	RNA_def_property_ui_text(prop, "Velocity Max", "Clamp velocity to this maximum speed, "
+	                         "in distance per second");
 	
+	prop = RNA_def_property(srna, "angular_velocity_min", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "min_angvel");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Angular Velocity Min",
+	                         "Clamp angular velocity to this minimum speed (except when totally still), "
+	                         "in angle per second");
+
+	prop = RNA_def_property(srna, "angular_velocity_max", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "max_angvel");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Angular Velocity Max", "Clamp angular velocity to this maximum speed, "
+	                         "in angle per second");
+
 	/* Character physics */
 	prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "step_height");

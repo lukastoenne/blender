@@ -450,7 +450,7 @@ void FONT_OT_text_paste_from_file(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_TEXT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 
@@ -508,7 +508,7 @@ void FONT_OT_text_paste_from_clipboard(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_TEXT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************* text to object operator ********************/
@@ -1366,7 +1366,7 @@ static int insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 				accentcode = 0;
 			}
 			else if (event->utf8_buf[0]) {
-				BLI_strncpy_wchar_from_utf8(inserted_text, event->utf8_buf, 2);
+				inserted_text[0] = BLI_str_utf8_as_unicode(event->utf8_buf);
 				ascii = inserted_text[0];
 				insert_into_textbuf(obedit, ascii);
 				accentcode = 0;
@@ -1785,7 +1785,7 @@ void FONT_OT_open(wmOperatorType *ot)
 	
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_FTFONT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************* delete operator *********************/

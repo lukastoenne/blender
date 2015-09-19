@@ -58,7 +58,7 @@
 #include "BLI_threads.h"
 #include "BLI_task.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -72,6 +72,7 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_group.h"
+#include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -88,6 +89,13 @@
 #include "BKE_sound.h"
 #include "BKE_unit.h"
 #include "BKE_world.h"
+
+#ifdef WITH_OPENSUBDIV
+#  include "BKE_modifier.h"
+#  include "CCGSubSurf.h"
+#endif
+
+#include "DEG_depsgraph.h"
 
 #include "RE_engine.h"
 
@@ -193,6 +201,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 
 		scen->ed = NULL;
 		scen->theDag = NULL;
+		scen->depsgraph = NULL;
 		scen->obedit = NULL;
 		scen->stats = NULL;
 		scen->fps_info = NULL;
@@ -338,6 +347,10 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		}
 	}
 
+	if (sce->preview) {
+		scen->preview = BKE_previewimg_copy(sce->preview);
+	}
+
 	return scen;
 }
 
@@ -431,6 +444,8 @@ void BKE_scene_free(Scene *sce)
 	}
 	
 	DAG_scene_free(sce);
+	if (sce->depsgraph)
+		DEG_graph_free(sce->depsgraph);
 	
 	if (sce->nodetree) {
 		ntreeFreeTree(sce->nodetree);
@@ -445,6 +460,8 @@ void BKE_scene_free(Scene *sce)
 	BKE_sound_destroy_scene(sce);
 
 	BKE_color_managed_view_settings_free(&sce->view_settings);
+
+	BKE_previewimg_free(&sce->preview);
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)
@@ -559,6 +576,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
 	sce->toolsettings->doublimit = 0.001;
+	sce->toolsettings->vgroup_weight = 1.0f;
 	sce->toolsettings->uvcalc_margin = 0.001f;
 	sce->toolsettings->unwrapper = 1;
 	sce->toolsettings->select_thresh = 0.01f;
@@ -724,6 +742,8 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	copy_v2_fl2(sce->safe_areas.title_center, 17.5f / 100.0f, 5.0f / 100.0f);
 	copy_v2_fl2(sce->safe_areas.action_center, 15.0f / 100.0f, 5.0f / 100.0f);
 
+	sce->preview = NULL;
+
 	return sce;
 }
 
@@ -745,6 +765,11 @@ Base *BKE_scene_base_find(Scene *scene, Object *ob)
 	return BLI_findptr(&scene->base, ob, offsetof(Base, object));
 }
 
+/**
+ * Sets the active scene, mainly used when running in background mode (``--scene`` command line argument).
+ * This is also called to set the scene directly, bypassing windowing code.
+ * Otherwise #ED_screen_set_scene is used when changing scenes by the user.
+ */
 void BKE_scene_set_background(Main *bmain, Scene *scene)
 {
 	Scene *sce;
@@ -1167,6 +1192,7 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
 	scene->r.cfra = (int)intpart;
 }
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 /* drivers support/hacks 
  *  - this method is called from scene_update_tagged_recursive(), so gets included in viewport + render
  *	- these are always run since the depsgraph can't handle non-object data
@@ -1267,6 +1293,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 		}
 	}
 }
+#endif  /* WITH_LEGACY_DEPSGRAPH */
 
 /* That's like really a bummer, because currently animation data for armatures
  * might want to use pose, and pose might be missing on the object.
@@ -1296,6 +1323,7 @@ static void scene_armature_depsgraph_workaround(Main *bmain)
 }
 #endif
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 static void scene_rebuild_rbw_recursive(Scene *scene, float ctime)
 {
 	if (scene->set)
@@ -1313,12 +1341,18 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
 	if (BKE_scene_check_rigidbody_active(scene))
 		BKE_rigidbody_do_simulation(scene, ctime);
 }
+#endif
 
 /* Used to visualize CPU threads activity during threaded object update,
  * would pollute STDERR with whole bunch of timing information which then
  * could be parsed and nicely visualized.
  */
-#undef DETAILED_ANALYSIS_OUTPUT
+#ifdef WITH_LEGACY_DEPSGRAPH
+#  undef DETAILED_ANALYSIS_OUTPUT
+#else
+/* ALWAYS KEEY DISABLED! */
+#  undef DETAILED_ANALYSIS_OUTPUT
+#endif
 
 /* Mballs evaluation uses BKE_scene_base_iter_next which calls
  * duplilist for all objects in the scene. This leads to conflict
@@ -1326,10 +1360,16 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
  *
  * Ideally Mballs shouldn't do such an iteration and use DAG
  * queries instead. For the time being we've got new DAG
- * let's keep it simple and update mballs in a ingle thread.
+ * let's keep it simple and update mballs in a single thread.
  */
 #define MBALL_SINGLETHREAD_HACK
 
+/* Need this because CCFDM holds some OpenGL resources. */
+#ifdef WITH_OPENSUBDIV
+#  define OPENSUBDIV_GL_WORKAROUND
+#endif
+
+#ifdef WITH_LEGACY_DEPSGRAPH
 typedef struct StatisicsEntry {
 	struct StatisicsEntry *next, *prev;
 	Object *object;
@@ -1530,6 +1570,47 @@ static bool scene_need_update_objects(Main *bmain)
 		DAG_id_type_tagged(bmain, ID_AR);     /* Armature */
 }
 
+#ifdef OPENSUBDIV_GL_WORKAROUND
+/* CCG DrivedMesh currently hold some OpenGL handles, which could only be
+ * released from the main thread.
+ *
+ * Ideally we need to use gpu_buffer_free, but it's a bit tricky because
+ * some buffers are only accessible from OpenSubdiv side.
+ */
+static void scene_free_unused_opensubdiv_cache(Scene *scene)
+{
+	Base *base;
+	for (base = scene->base.first; base; base = base->next) {
+		Object *object = base->object;
+		if (object->type == OB_MESH && object->recalc & OB_RECALC_DATA) {
+			ModifierData *md = object->modifiers.last;
+			if (md != NULL && md->type == eModifierType_Subsurf) {
+				SubsurfModifierData *smd = (SubsurfModifierData *) md;
+				bool object_in_editmode = object->mode == OB_MODE_EDIT;
+				if (!smd->use_opensubdiv ||
+				    DAG_get_eval_flags_for_object(scene, object) & DAG_EVAL_NEED_CPU)
+				{
+					if (smd->mCache != NULL) {
+						ccgSubSurf_free_osd_mesh(smd->mCache);
+					}
+					if (smd->emCache != NULL) {
+						ccgSubSurf_free_osd_mesh(smd->emCache);
+					}
+				}
+				if (object_in_editmode && smd->mCache != NULL) {
+					ccgSubSurf_free(smd->mCache);
+					smd->mCache = NULL;
+				}
+				if (!object_in_editmode && smd->emCache != NULL) {
+					ccgSubSurf_free(smd->emCache);
+					smd->emCache = NULL;
+				}
+			}
+		}
+	}
+}
+#endif
+
 static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
@@ -1547,6 +1628,10 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	if (!scene_need_update_objects(bmain)) {
 		return;
 	}
+
+#ifdef OPENSUBDIV_GL_WORKAROUND
+	scene_free_unused_opensubdiv_cache(scene);
+#endif
 
 	state.eval_ctx = eval_ctx;
 	state.scene = scene;
@@ -1566,6 +1651,9 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 #endif
 
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
+	if (G.debug & G_DEBUG_DEPSGRAPH_NO_THREADS) {
+		BLI_pool_set_num_threads(task_pool, 1);
+	}
 
 	DAG_threaded_update_begin(scene, scene_update_object_add_task, task_pool);
 	BLI_task_pool_work_and_wait(task_pool);
@@ -1619,6 +1707,7 @@ static void scene_update_tagged_recursive(EvaluationContext *eval_ctx, Main *bma
 	BKE_mask_update_scene(bmain, scene);
 	
 }
+#endif  /* WITH_LEGACY_DEPSGRAPH */
 
 static bool check_rendered_viewport_visible(Main *bmain)
 {
@@ -1670,13 +1759,26 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
 	Scene *sce_iter;
-	
+#ifdef WITH_LEGACY_DEPSGRAPH
+	bool use_new_eval = !DEG_depsgraph_use_legacy();
+#endif
+
 	/* keep this first */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
 
 	/* (re-)build dependency graph if needed */
-	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
+	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set) {
 		DAG_scene_relations_update(bmain, sce_iter);
+		/* Uncomment this to check if graph was properly tagged for update. */
+#if 0
+#ifdef WITH_LEGACY_DEPSGRAPH
+		if (use_new_eval)
+#endif
+		{
+			DAG_scene_relations_validate(bmain, sce_iter);
+		}
+#endif
+	}
 
 	/* flush editing data if needed */
 	prepare_mesh_for_viewport_render(bmain, scene);
@@ -1697,7 +1799,23 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 *
 	 * in the future this should handle updates for all datablocks, not
 	 * only objects and scenes. - brecht */
-	scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
+	}
+	else
+#endif
+	{
+#ifdef OPENSUBDIV_GL_WORKAROUND
+		if (DEG_needs_eval(scene->depsgraph)) {
+			scene_free_unused_opensubdiv_cache(scene);
+		}
+#endif
+		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph, scene);
+		/* TODO(sergey): This is to beocme a node in new depsgraph. */
+		BKE_mask_update_scene(bmain, scene);
+	}
+
 	/* update sound system animation (TODO, move to depsgraph) */
 	BKE_sound_update_scene(bmain, scene);
 
@@ -1715,7 +1833,8 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 * Need to do this so changing material settings from the graph/dopesheet
 	 * will update stuff in the viewport.
 	 */
-	if (DAG_id_type_tagged(bmain, ID_MA)) {
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_MA)) {
 		Material *material;
 		float ctime = BKE_scene_frame_get(scene);
 
@@ -1730,7 +1849,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	}
 
 	/* Also do the same for node trees. */
-	if (DAG_id_type_tagged(bmain, ID_NT)) {
+	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_NT)) {
 		float ctime = BKE_scene_frame_get(scene);
 
 		FOREACH_NODETREE(bmain, ntree, id)
@@ -1741,9 +1860,12 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 		}
 		FOREACH_NODETREE_END
 	}
+#endif
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
+
+	/* Inform editors about possible changes. */
 	DAG_ids_check_recalc(bmain, scene, false);
 
 	/* clear recalc flags */
@@ -1763,6 +1885,14 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	double start_time = PIL_check_seconds_timer();
 #endif
+#ifdef WITH_LEGACY_DEPSGRAPH
+	bool use_new_eval = !DEG_depsgraph_use_legacy();
+#else
+	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the graph? */
+	(void) do_invisible_flush;
+#endif
+
+	DAG_editors_update_pre(bmain, sce, true);
 
 	/* keep this first */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
@@ -1772,12 +1902,16 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 * call this at the start so modifiers with textures don't lag 1 frame */
 	BKE_image_update_frame(bmain, sce->r.cfra);
 	
+#ifdef WITH_LEGACY_DEPSGRAPH
 	/* rebuild rigid body worlds before doing the actual frame update
 	 * this needs to be done on start frame but animation playback usually starts one frame later
 	 * we need to do it here to avoid rebuilding the world on every simulation change, which can be very expensive
 	 */
-	scene_rebuild_rbw_recursive(sce, ctime);
-
+	if (!use_new_eval) {
+		scene_rebuild_rbw_recursive(sce, ctime);
+	}
+#endif
+	
 	BKE_sound_set_cfra(sce->r.cfra);
 	
 	/* clear animation overrides */
@@ -1786,14 +1920,18 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
 		DAG_scene_relations_update(bmain, sce_iter);
 
-	/* flush recalc flags to dependencies, if we were only changing a frame
-	 * this would not be necessary, but if a user or a script has modified
-	 * some datablock before BKE_scene_update_tagged was called, we need the flush */
-	DAG_ids_flush_tagged(bmain);
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		/* flush recalc flags to dependencies, if we were only changing a frame
+		 * this would not be necessary, but if a user or a script has modified
+		 * some datablock before BKE_scene_update_tagged was called, we need the flush */
+		DAG_ids_flush_tagged(bmain);
 
-	/* Following 2 functions are recursive
-	 * so don't call within 'scene_update_tagged_recursive' */
-	DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still
+		/* Following 2 functions are recursive
+		 * so don't call within 'scene_update_tagged_recursive' */
+		DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still
+	}
+#endif
 
 	BKE_mask_evaluate_all_masks(bmain, ctime, true);
 
@@ -1807,8 +1945,12 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
 	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
 	 */
-	BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
-	/*...done with recursive funcs */
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
+		/*...done with recursive funcs */
+	}
+#endif
 
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
 	 * when trying to find materials with drivers that need evaluating [#32017] 
@@ -1818,19 +1960,38 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 
 	/* run rigidbody sim */
 	/* NOTE: current position is so that rigidbody sim affects other objects, might change in the future */
-	scene_do_rb_simulation_recursive(sce, ctime);
-
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		scene_do_rb_simulation_recursive(sce, ctime);
+	}
+#endif
+	
 	/* BKE_object_handle_update() on all objects, groups and sets */
-	scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (use_new_eval) {
+		DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph, ctime, lay);
+	}
+	else {
+		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
+	}
+#else
+	DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph, ctime, lay);
+#endif
+
 	/* update sound system animation (TODO, move to depsgraph) */
 	BKE_sound_update_scene(bmain, sce);
 
-	scene_depsgraph_hack(eval_ctx, sce, sce);
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		scene_depsgraph_hack(eval_ctx, sce, sce);
+	}
+#endif
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 
+	/* Inform editors about possible changes. */
 	DAG_ids_check_recalc(bmain, sce, true);
 
 	/* clear recalc flags */
@@ -2011,6 +2172,12 @@ bool BKE_scene_use_new_shading_nodes(const Scene *scene)
 	return (type && type->flag & RE_USE_SHADING_NODES);
 }
 
+bool BKE_scene_use_shading_nodes_custom(Scene *scene)
+{
+	   RenderEngineType *type = RE_engines_find(scene->r.engine);
+	   return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
+}
+
 bool BKE_scene_uses_blender_internal(const  Scene *scene)
 {
 	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);
@@ -2129,11 +2296,13 @@ size_t BKE_scene_multiview_num_views_get(const RenderData *rd)
 		return 1;
 
 	if (rd->views_format == SCE_VIEWS_FORMAT_STEREO_3D) {
-		if (BLI_findstring(&rd->views, STEREO_LEFT_NAME, offsetof(SceneRenderView, name))) {
+		srv = BLI_findstring(&rd->views, STEREO_LEFT_NAME, offsetof(SceneRenderView, name));
+		if ((srv && srv->viewflag & SCE_VIEW_DISABLE) == 0) {
 			totviews++;
 		}
 
-		if (BLI_findstring(&rd->views, STEREO_RIGHT_NAME, offsetof(SceneRenderView, name))) {
+		srv = BLI_findstring(&rd->views, STEREO_RIGHT_NAME, offsetof(SceneRenderView, name));
+		if ((srv && srv->viewflag & SCE_VIEW_DISABLE) == 0) {
 			totviews++;
 		}
 	}
@@ -2336,11 +2505,11 @@ const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, const s
 	}
 }
 
-void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *rprefix, char **rext)
+void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *rprefix, const char **rext)
 {
 	SceneRenderView *srv;
 	size_t index_act;
-	char *suf_act;
+	const char *suf_act;
 	const char delims[] = {'.', '\0'};
 
 	rprefix[0] = '\0';
@@ -2348,6 +2517,7 @@ void BKE_scene_multiview_view_prefix_get(Scene *scene, const char *name, char *r
 	/* begin of extension */
 	index_act = BLI_str_rpartition(name, delims, rext, &suf_act);
 	BLI_assert(index_act > 0);
+	UNUSED_VARS_NDEBUG(index_act);
 
 	for (srv = scene->r.views.first; srv; srv = srv->next) {
 		if (BKE_scene_multiview_is_render_view_active(&scene->r, srv)) {

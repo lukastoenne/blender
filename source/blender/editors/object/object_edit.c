@@ -42,7 +42,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
@@ -65,6 +65,7 @@
 #include "BKE_curve.h"
 #include "BKE_effect.h"
 #include "BKE_depsgraph.h"
+#include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
@@ -318,7 +319,7 @@ void OBJECT_OT_hide_render_set(wmOperatorType *ot)
  * Load EditMode data back into the object,
  * optionally freeing the editmode data.
  */
-static bool ED_object_editmode_load_ex(Object *obedit, const bool freedata)
+static bool ED_object_editmode_load_ex(Main *bmain, Object *obedit, const bool freedata)
 {
 	if (obedit == NULL) {
 		return false;
@@ -348,6 +349,11 @@ static bool ED_object_editmode_load_ex(Object *obedit, const bool freedata)
 		ED_armature_from_edit(obedit->data);
 		if (freedata)
 			ED_armature_edit_free(obedit->data);
+		/* TODO(sergey): Pose channels might have been changed, so need
+		 * to inform dependency graph about this. But is it really the
+		 * best place to do this?
+		 */
+		DAG_relations_tag_update(bmain);
 	}
 	else if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
 		load_editNurb(obedit);
@@ -376,7 +382,8 @@ static bool ED_object_editmode_load_ex(Object *obedit, const bool freedata)
 
 bool ED_object_editmode_load(Object *obedit)
 {
-	return ED_object_editmode_load_ex(obedit, false);
+	/* TODO(sergey): use proper main here? */
+	return ED_object_editmode_load_ex(G.main, obedit, false);
 }
 
 void ED_object_editmode_exit(bContext *C, int flag)
@@ -389,7 +396,7 @@ void ED_object_editmode_exit(bContext *C, int flag)
 
 	if (flag & EM_WAITCURSOR) waitcursor(1);
 
-	if (ED_object_editmode_load_ex(obedit, freedata) == false) {
+	if (ED_object_editmode_load_ex(CTX_data_main(C), obedit, freedata) == false) {
 		/* in rare cases (background mode) its possible active object
 		 * is flagged for editmode, without 'obedit' being set [#35489] */
 		if (UNLIKELY(scene->basact && (scene->basact->object->mode & OB_MODE_EDIT))) {
@@ -568,7 +575,7 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 {
 	const int mode_flag = OB_MODE_EDIT;
 	const bool is_mode_set = (CTX_data_edit_object(C) != NULL);
-	ToolSettings *toolsettings =  CTX_data_tool_settings(C);
+	Scene *scene =  CTX_data_scene(C);
 
 	if (!is_mode_set) {
 		Object *ob = CTX_data_active_object(C);
@@ -582,7 +589,7 @@ static int editmode_toggle_exec(bContext *C, wmOperator *op)
 	else
 		ED_object_editmode_exit(C, EM_FREEDATA | EM_FREEUNDO | EM_WAITCURSOR);  /* had EM_DO_UNDO but op flag calls undo too [#24685] */
 	
-	ED_space_image_uv_sculpt_update(CTX_wm_manager(C), toolsettings);
+	ED_space_image_uv_sculpt_update(CTX_wm_manager(C), scene);
 
 	return OPERATOR_FINISHED;
 }
@@ -898,6 +905,8 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 					base->object->rdamping = ob->rdamping;
 					base->object->min_vel = ob->min_vel;
 					base->object->max_vel = ob->max_vel;
+					base->object->min_angvel = ob->min_angvel;
+					base->object->max_angvel = ob->max_angvel;
 					if (ob->gameflag & OB_BOUNDS) {
 						base->object->collision_boundtype = ob->collision_boundtype;
 					}
@@ -1780,7 +1789,7 @@ static int game_property_move(bContext *C, wmOperator *op)
 	bProperty *prop;
 	bProperty *otherprop = NULL;
 	const int index = RNA_int_get(op->ptr, "index");
-	const int dir = RNA_int_get(op->ptr, "direction");
+	const int dir = RNA_enum_get(op->ptr, "direction");
 
 	if (ob == NULL)
 		return OPERATOR_CANCELLED;
@@ -2039,6 +2048,8 @@ static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
 			ob_iter->rdamping = ob->rdamping;
 			ob_iter->min_vel = ob->min_vel;
 			ob_iter->max_vel = ob->max_vel;
+			ob_iter->min_angvel = ob->min_angvel;
+			ob_iter->max_angvel = ob->max_angvel;
 			ob_iter->obstacleRad = ob->obstacleRad;
 			ob_iter->mass = ob->mass;
 			copy_v3_v3(ob_iter->anisotropicFriction, ob->anisotropicFriction);

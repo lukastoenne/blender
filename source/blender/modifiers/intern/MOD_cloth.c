@@ -111,8 +111,6 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, 
 
 	CDDM_apply_vert_coords(dm, vertexCos);
 
-	DM_ensure_tessface(dm); /* BMESH - UNTIL MODIFIER IS UPDATED FOR MPoly */
-
 	clothModifier_do(clmd, md->scene, ob, dm, vertexCos);
 
 	dm->release(dm);
@@ -134,6 +132,27 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 				if (coll_clmd) {
 					DagNode *curNode = dag_get_node(forest, ob1);
 					dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Cloth Collision");
+				}
+			}
+		}
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *scene,
+                            Object *ob,
+                            struct DepsNodeHandle *node)
+{
+	ClothModifierData *clmd = (ClothModifierData *)md;
+	if (clmd != NULL) {
+		Base *base;
+		for (base = scene->base.first; base; base = base->next) {
+			Object *ob1 = base->object;
+			if (ob1 != ob) {
+				CollisionModifierData *coll_clmd = (CollisionModifierData *)modifiers_findByType(ob1, eModifierType_Collision);
+				if (coll_clmd) {
+					DEG_add_object_relation(node, ob1, DEG_OB_COMP_TRANSFORM, "Cloth Modifier");
 				}
 			}
 		}
@@ -251,6 +270,7 @@ ModifierTypeInfo modifierType_Cloth = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

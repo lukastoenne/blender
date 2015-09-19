@@ -55,6 +55,7 @@ public:
 	bool advanced_shading;
 	bool pack_images;
 	bool extended_images; /* flag for GPU and Multi device */
+	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
 	vector<DeviceInfo> multi_devices;
 
 	DeviceInfo()
@@ -66,8 +67,68 @@ public:
 		advanced_shading = true;
 		pack_images = false;
 		extended_images = false;
+		use_split_kernel = false;
 	}
 };
+
+class DeviceRequestedFeatures {
+public:
+	/* Use experimental feature set. */
+	bool experimental;
+
+	/* Maximum number of closures in shader trees. */
+	int max_closure;
+
+	/* Selective nodes compilation. */
+
+	/* Identifier of a node group up to which all the nodes needs to be
+	 * compiled in. Nodes from higher group indices will be ignores.
+	 */
+	int max_nodes_group;
+
+	/* Features bitfield indicating which features from the requested group
+	 * will be compiled in. Nodes which corresponds to features which are not
+	 * in this bitfield will be ignored even if they're in the requested group.
+	 */
+	int nodes_features;
+
+	/* BVH/sampling kernel features. */
+	bool use_hair;
+	bool use_object_motion;
+	bool use_camera_motion;
+
+	/* Denotes whether baking functionality is needed. */
+	bool use_baking;
+
+	DeviceRequestedFeatures()
+	{
+		/* TODO(sergey): Find more meaningful defaults. */
+		experimental = false;
+		max_closure = 0;
+		max_nodes_group = 0;
+		nodes_features = 0;
+		use_hair = false;
+		use_object_motion = false;
+		use_camera_motion = false;
+		use_baking = false;
+	}
+
+	bool modified(const DeviceRequestedFeatures& requested_features)
+	{
+		return !(experimental == requested_features.experimental &&
+		         max_closure == requested_features.max_closure &&
+		         max_nodes_group == requested_features.max_nodes_group &&
+		         nodes_features == requested_features.nodes_features &&
+		         use_hair == requested_features.use_hair &&
+		         use_object_motion == requested_features.use_object_motion &&
+		         use_camera_motion == requested_features.use_camera_motion &&
+		         use_baking == requested_features.use_baking);
+	}
+
+};
+
+std::ostream& operator <<(std::ostream &os,
+                          const DeviceRequestedFeatures& requested_features);
 
 /* Device */
 
@@ -78,13 +139,16 @@ struct DeviceDrawParams {
 
 class Device {
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) {}
+	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), vertex_buffer(0), info(info_), stats(stats_) {}
 
 	bool background;
 	string error_msg;
 
+	/* used for real time display */
+	unsigned int vertex_buffer;
+
 public:
-	virtual ~Device() {}
+	virtual ~Device();
 
 	/* info */
 	DeviceInfo info;
@@ -109,10 +173,10 @@ public:
 	virtual void tex_alloc(const char * /*name*/,
 	                       device_memory& /*mem*/,
 	                       InterpolationType interpolation = INTERPOLATION_NONE,
-	                       bool periodic = false)
+	                       ExtensionType extension = EXTENSION_REPEAT)
 	{
 		(void)interpolation;  /* Ignored. */
-		(void)periodic;  /* Ignored. */
+		(void)extension;  /* Ignored. */
 	};
 	virtual void tex_free(device_memory& /*mem*/) {};
 
@@ -125,7 +189,9 @@ public:
 	virtual void *osl_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
-	virtual bool load_kernels(bool /*experimental*/) { return true; }
+	virtual bool load_kernels(
+	        const DeviceRequestedFeatures& /*requested_features*/)
+	{ return true; }
 
 	/* tasks */
 	virtual int get_split_task_count(DeviceTask& task) = 0;
@@ -135,7 +201,7 @@ public:
 	
 	/* opengl drawing */
 	virtual void draw_pixels(device_memory& mem, int y, int w, int h,
-		int dy, int width, int height, bool transparent,
+		int dx, int dy, int width, int height, bool transparent,
 		const DeviceDrawParams &draw_params);
 
 #ifdef WITH_NETWORK

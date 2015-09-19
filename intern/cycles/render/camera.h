@@ -83,7 +83,9 @@ public:
 
 	/* motion */
 	MotionTransform motion;
-	bool use_motion;
+	bool use_motion, use_perspective_motion;
+	float fov_pre, fov_post;
+	PerspectiveMotionTransform perspective_motion;
 
 	/* computed camera parameters */
 	Transform screentoworld;
@@ -105,6 +107,7 @@ public:
 	/* update */
 	bool need_update;
 	bool need_device_update;
+	bool need_flags_update;
 	int previous_need_motion;
 
 	/* functions */

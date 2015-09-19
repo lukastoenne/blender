@@ -407,7 +407,7 @@ static float bm_loop_flip_equotion(
 	b[0] = coord[i];
 	b[1] = coord[j];
 
-	return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
+	return cross_v2v2(mat[0], mat[1]);
 }
 
 static void bm_loop_flip_disp(
@@ -1085,7 +1085,7 @@ LinkNode *BM_vert_loop_groups_data_layer_create(
 				mul_vn_fl(lf->data_weights, lf->data_len, 1.0f / lwc.weight_accum);
 			}
 			else {
-				fill_vn_fl(lf->data_weights, lf->data_len, 1.0f / (float)lf->data_len);
+				copy_vn_fl(lf->data_weights, lf->data_len, 1.0f / (float)lf->data_len);
 			}
 
 			BLI_linklist_prepend_arena(&groups, lf, lwc.arena);

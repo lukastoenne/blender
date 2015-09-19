@@ -30,6 +30,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blenfont
+	../depsgraph
 	../makesdna
 	../makesrna
 	../bmesh
@@ -148,6 +149,10 @@ if(WITH_OPENNL)
 	list(APPEND INC_SYS
 		../../../intern/opennl/extern
 	)
+endif()
+
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}")

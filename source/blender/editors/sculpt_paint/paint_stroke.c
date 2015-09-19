@@ -194,7 +194,7 @@ static void paint_draw_line_cursor(bContext *C, int x, int y, void *customdata)
 static bool paint_tool_require_location(Brush *brush, PaintMode mode)
 {
 	switch (mode) {
-		case PAINT_SCULPT:
+		case ePaintSculpt:
 			if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 			                             SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
 			{
@@ -224,6 +224,7 @@ static bool paint_brush_update(bContext *C,
 	bool location_sampled = false;
 	bool location_success = false;
 	bool do_random = false;
+	bool do_random_mask = false;
 	/* XXX: Use pressure value from first brush step for brushes which don't
 	 *      support strokes (grab, thumb). They depends on initial state and
 	 *      brush coord/pressure/etc.
@@ -271,9 +272,11 @@ static bool paint_brush_update(bContext *C,
 	}
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
-		if (((brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) ||
-		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA) ||
-		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)))
+
+		if (ELEM(brush->mtex.brush_map_mode,
+		         MTEX_MAP_MODE_VIEW,
+		         MTEX_MAP_MODE_AREA,
+		         MTEX_MAP_MODE_RANDOM))
 		{
 			do_random = true;
 		}
@@ -286,6 +289,15 @@ static bool paint_brush_update(bContext *C,
 
 		/* take care of mask texture, if any */
 		if (brush->mask_mtex.tex) {
+
+			if (ELEM(brush->mask_mtex.brush_map_mode,
+			         MTEX_MAP_MODE_VIEW,
+			         MTEX_MAP_MODE_AREA,
+			         MTEX_MAP_MODE_RANDOM))
+			{
+				do_random_mask = true;
+			}
+
 			if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
 				BKE_brush_randomize_texture_coords(ups, true);
 			else {
@@ -347,7 +359,8 @@ static bool paint_brush_update(bContext *C,
 		if (!stroke->brush_init) {
 			copy_v2_v2(ups->last_rake, mouse_init);
 		}
-		else {
+		/* curve strokes do their own rake calculation */
+		else if (!(brush->flag & BRUSH_CURVE)) {
 			paint_calculate_rake_rotation(ups, brush, mouse_init);
 		}
 	}
@@ -357,7 +370,9 @@ static bool paint_brush_update(bContext *C,
 			ups->brush_rotation += -brush->mtex.random_angle / 2.0f +
 			                       brush->mtex.random_angle * BLI_frand();
 		}
+	}
 
+	if (do_random_mask) {
 		if (brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
 			ups->brush_rotation_sec += -brush->mask_mtex.random_angle / 2.0f +
 			                           brush->mask_mtex.random_angle * BLI_frand();
@@ -388,7 +403,7 @@ static bool paint_stroke_use_jitter(PaintMode mode, Brush *brush, bool invert)
 	/* jitter-ed brush gives weird and unpredictable result for this
 	 * kinds of stroke, so manually disable jitter usage (sergey) */
 	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
-	use_jitter &= (!ELEM(mode, PAINT_TEXTURE_2D, PAINT_TEXTURE_PROJECTIVE) ||
+	use_jitter &= (!ELEM(mode, ePaintTexture2D, ePaintTextureProjective) ||
 	               !(invert && brush->imagepaint_tool == PAINT_TOOL_CLONE));
 
 
@@ -556,7 +571,7 @@ static float paint_stroke_integrate_overlap(Brush *br, float factor)
 	g = 1.0f / m;
 	max = 0;
 	for (i = 0; i < m; i++) {
-		float overlap = paint_stroke_overlapped_curve(br, i * g, spacing);
+		float overlap = fabs(paint_stroke_overlapped_curve(br, i * g, spacing));
 
 		if (overlap > max)
 			max = overlap;
@@ -671,8 +686,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	get_imapaint_zoom(C, &zoomx, &zoomy);
 	stroke->zoom_2d = max_ff(zoomx, zoomy);
 
-	if (stroke->stroke_mode == BRUSH_STROKE_INVERT)
-	{
+	if (stroke->stroke_mode == BRUSH_STROKE_INVERT) {
 		if (br->flag & (BRUSH_CURVE)) {
 			RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
 		}
@@ -760,13 +774,13 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 		return false;
 
 	switch (mode) {
-		case PAINT_SCULPT:
+		case ePaintSculpt:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
 
-		case PAINT_TEXTURE_2D: /* fall through */
-		case PAINT_TEXTURE_PROJECTIVE:
+		case ePaintTexture2D: /* fall through */
+		case ePaintTextureProjective:
 			if ((br->imagepaint_tool == PAINT_TOOL_FILL) &&
 			    (br->flag & BRUSH_USE_GRADIENT))
 			{
@@ -789,7 +803,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 	}
 
 	switch (mode) {
-		case PAINT_SCULPT:
+		case ePaintSculpt:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
@@ -802,7 +816,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 bool paint_supports_texture(PaintMode mode)
 {
 	/* omit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
-	return ELEM(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
+	return ELEM(mode, ePaintSculpt, ePaintVertex, ePaintTextureProjective, ePaintTexture2D);
 }
 
 /* return true if the brush size can change during paint (normally used for pressure) */
@@ -812,7 +826,7 @@ bool paint_supports_dynamic_tex_coords(Brush *br, PaintMode mode)
 		return false;
 
 	switch (mode) {
-		case PAINT_SCULPT:
+		case ePaintSculpt:
 			if (sculpt_is_grab_tool(br))
 				return false;
 			break;
@@ -955,6 +969,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 	Brush *br = stroke->brush;
 
 	if (br->flag & BRUSH_CURVE) {
+		UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 		const Scene *scene = CTX_data_scene(C);
 		const float spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
 		PaintCurve *pc = br->paint_curve;
@@ -975,18 +990,39 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 		for (i = 0; i < pc->tot_points - 1; i++, pcp++) {
 			int j;
 			float data[(PAINT_CURVE_NUM_SEGMENTS + 1) * 2];
+			float tangents[(PAINT_CURVE_NUM_SEGMENTS + 1) * 2];
 			PaintCurvePoint *pcp_next = pcp + 1;
+			bool do_rake = false;
 
-			for (j = 0; j < 2; j++)
+			for (j = 0; j < 2; j++) {
 				BKE_curve_forward_diff_bezier(
 				        pcp->bez.vec[1][j],
 				        pcp->bez.vec[2][j],
 				        pcp_next->bez.vec[0][j],
 				        pcp_next->bez.vec[1][j],
 				        data + j, PAINT_CURVE_NUM_SEGMENTS, sizeof(float[2]));
+			}
 
+			if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) ||
+			    (br->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE))
+			{
+				do_rake = true;
+				for (j = 0; j < 2; j++) {
+					BKE_curve_forward_diff_tangent_bezier(
+					        pcp->bez.vec[1][j],
+					        pcp->bez.vec[2][j],
+					        pcp_next->bez.vec[0][j],
+					        pcp_next->bez.vec[1][j],
+					        tangents + j, PAINT_CURVE_NUM_SEGMENTS, sizeof(float[2]));
+				}
+			}
 
 			for (j = 0; j < PAINT_CURVE_NUM_SEGMENTS; j++) {
+				if (do_rake) {
+					float rotation = atan2f(tangents[2 * j], tangents[2 * j + 1]);
+					paint_update_brush_rake_rotation(ups, br, rotation);
+				}
+
 				if (!stroke->stroke_started) {
 					stroke->last_pressure = 1.0;
 					copy_v2_v2(stroke->last_mouse_position, data + 2 * j);
@@ -1137,9 +1173,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		copy_v2_fl2(mouse, event->mval[0], event->mval[1]);
 		paint_stroke_line_constrain(stroke, mouse);
 		
-		if (stroke->stroke_started && (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
-		{
-			if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) || (br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+		if (stroke->stroke_started && (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)))) {
+			if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) || (br->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
 				copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
 			}
 			paint_calculate_rake_rotation(stroke->ups, br, mouse);

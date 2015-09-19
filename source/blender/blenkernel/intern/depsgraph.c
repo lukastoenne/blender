@@ -88,16 +88,25 @@
 
 #include "depsgraph_private.h"
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph_query.h"
+
+#ifdef WITH_LEGACY_DEPSGRAPH
+
 static SpinLock threaded_update_lock;
 
 void DAG_init(void)
 {
 	BLI_spin_init(&threaded_update_lock);
+	DEG_register_node_types();
 }
 
 void DAG_exit(void)
 {
 	BLI_spin_end(&threaded_update_lock);
+	DEG_free_node_types();
 }
 
 /* Queue and stack operations for dag traversal 
@@ -1129,6 +1138,23 @@ void dag_add_relation(DagForest *forest, DagNode *fob1, DagNode *fob2, short rel
 	/* parent relation is for cycle checking */
 	dag_add_parent_relation(forest, fob1, fob2, rel, name);
 
+	/* TODO(sergey): Find a better place for this. */
+#ifdef WITH_OPENSUBDIV
+	if ((rel & DAG_RL_DATA_DATA) != 0) {
+		if (fob1->type == ID_OB) {
+			if ((fob1->eval_flags & DAG_EVAL_NEED_CPU) == 0) {
+				Object *ob2 = fob2->ob;
+				if (ob2->recalc & OB_RECALC_ALL) {
+					/* Make sure object has all the data on CPU. */
+					Object *ob1 = fob1->ob;
+					ob1->recalc |= OB_RECALC_DATA;
+				}
+				fob1->eval_flags |= DAG_EVAL_NEED_CPU;
+			}
+		}
+	}
+#endif
+
 	while (itA) { /* search if relation exist already */
 		if (itA->node == fob2) {
 			itA->type |= rel;
@@ -1326,11 +1352,33 @@ void graph_print_adj_list(DagForest *dag)
  * to do their own updates based on changes... */
 static void (*EditorsUpdateIDCb)(Main *bmain, ID *id) = NULL;
 static void (*EditorsUpdateSceneCb)(Main *bmain, Scene *scene, int updated) = NULL;
+static void (*EditorsUpdateScenePreCb)(Main *bmain, Scene *scene, bool time) = NULL;
 
-void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id), void (*scene_func)(Main *bmain, Scene *scene, int updated))
+void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id),
+                           void (*scene_func)(Main *bmain, Scene *scene, int updated),
+                           void (*scene_pre_func)(Main *bmain, Scene *scene, bool time))
 {
-	EditorsUpdateIDCb = id_func;
-	EditorsUpdateSceneCb = scene_func;
+	if (DEG_depsgraph_use_legacy()) {
+		EditorsUpdateIDCb = id_func;
+		EditorsUpdateSceneCb = scene_func;
+		EditorsUpdateScenePreCb = scene_pre_func;
+	}
+	else {
+		/* New dependency graph. */
+		DEG_editors_set_update_cb(id_func, scene_func, scene_pre_func);
+	}
+}
+
+void DAG_editors_update_pre(Main *bmain, Scene *scene, bool time)
+{
+	if (DEG_depsgraph_use_legacy()) {
+		if (EditorsUpdateScenePreCb != NULL) {
+			EditorsUpdateScenePreCb(bmain, scene, time);
+		}
+	}
+	else {
+		DEG_editors_update_pre(bmain, scene, time);
+	}
 }
 
 static void dag_editors_id_update(Main *bmain, ID *id)
@@ -1529,7 +1577,7 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 	Base *base;
 
 	BLI_listbase_clear(&tempbase);
-	
+
 	build_dag(bmain, sce, DAG_RL_ALL_BUT_DATA);
 	
 	dag_check_cycle(sce->theDag);
@@ -1621,32 +1669,65 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 /* clear all dependency graphs */
 void DAG_relations_tag_update(Main *bmain)
 {
-	Scene *sce;
-
-	for (sce = bmain->scene.first; sce; sce = sce->id.next)
-		dag_scene_free(sce);
+	if (DEG_depsgraph_use_legacy()) {
+		Scene *sce;
+		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+			dag_scene_free(sce);
+		}
+	}
+	else {
+		/* New dependency graph. */
+		DEG_relations_tag_update(bmain);
+	}
 }
 
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce);
-	DAG_scene_relations_update(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		dag_scene_free(sce);
+		DAG_scene_relations_update(bmain, sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_rebuild(bmain, sce);
+	}
 }
 
 /* create dependency graph if it was cleared or didn't exist yet */
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
-	if (!sce->theDag)
-		dag_scene_build(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		if (!sce->theDag)
+			dag_scene_build(bmain, sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_update(bmain, sce);
+	}
+}
+
+void DAG_scene_relations_validate(Main *bmain, Scene *sce)
+{
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_debug_scene_relations_validate(bmain, sce);
+	}
 }
 
 void DAG_scene_free(Scene *sce)
 {
-	if (sce->theDag) {
-		free_forest(sce->theDag);
-		MEM_freeN(sce->theDag);
-		sce->theDag = NULL;
+	if (DEG_depsgraph_use_legacy()) {
+		if (sce->theDag) {
+			free_forest(sce->theDag);
+			MEM_freeN(sce->theDag);
+			sce->theDag = NULL;
+		}
+	}
+	else {
+		if (sce->depsgraph) {
+			DEG_graph_free(sce->depsgraph);
+			sce->depsgraph = NULL;
+		}
 	}
 }
 
@@ -1889,7 +1970,11 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 	DagAdjList *itA;
 	Object *ob;
 	int lasttime;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		return;
+	}
+
 	if (sce->theDag == NULL) {
 		printf("DAG zero... not allowed to happen!\n");
 		DAG_scene_relations_update(bmain, sce);
@@ -1934,25 +2019,50 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 	dag_tag_renderlayers(sce, lay);
 }
 
-static int object_modifiers_use_time(Object *ob)
+static bool modifier_nlastrips_use_time(ListBase *strips)
+{
+	NlaStrip *strip;
+	
+	if (strips) {
+		for (strip = strips->first; strip; strip = strip->next) {
+			if (modifier_nlastrips_use_time(&strip->strips)) {
+				return true;
+			}
+			else if (strip->act) {
+				FCurve *fcu;
+				
+				for (fcu = strip->act->curves.first; fcu; fcu = fcu->next) {
+					if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
+						return true;
+				}
+			}
+		}
+	}
+	
+	return false;
+}
+
+static bool object_modifiers_use_time(Object *ob)
 {
 	ModifierData *md;
 	
 	/* check if a modifier in modifier stack needs time input */
-	for (md = ob->modifiers.first; md; md = md->next)
+	for (md = ob->modifiers.first; md; md = md->next) {
 		if (modifier_dependsOnTime(md))
-			return 1;
+			return true;
+	}
 	
 	/* check whether any modifiers are animated */
 	if (ob->adt) {
 		AnimData *adt = ob->adt;
+		NlaTrack *nlt;
 		FCurve *fcu;
 		
 		/* action - check for F-Curves with paths containing 'modifiers[' */
 		if (adt->action) {
 			for (fcu = adt->action->curves.first; fcu; fcu = fcu->next) {
 				if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
-					return 1;
+					return true;
 			}
 		}
 		
@@ -1964,14 +2074,17 @@ static int object_modifiers_use_time(Object *ob)
 		 */
 		for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
 			if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
-				return 1;
+				return true;
 		}
 		
-		/* XXX: also, should check NLA strips, though for now assume that nobody uses
-		 * that and we can omit that for performance reasons... */
+		/* Also check NLA Strips... [#T45938] */
+		for (nlt = adt->nla_tracks.first; nlt; nlt = nlt->next) {
+			if (modifier_nlastrips_use_time(&nlt->strips))
+				return true;
+		}
 	}
 	
-	return 0;
+	return false;
 }
 
 static short animdata_use_time(AnimData *adt)
@@ -2300,7 +2413,7 @@ static void dag_current_scene_layers(Main *bmain, ListBase *lb)
 	}
 }
 
-static void dag_group_on_visible_update(Group *group)
+static void dag_group_on_visible_update(Scene *scene, Group *group)
 {
 	GroupObject *go;
 
@@ -2322,7 +2435,7 @@ static void dag_group_on_visible_update(Group *group)
 		}
 
 		if (go->ob->dup_group)
-			dag_group_on_visible_update(go->ob->dup_group);
+			dag_group_on_visible_update(scene, go->ob->dup_group);
 	}
 }
 
@@ -2330,7 +2443,13 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 {
 	ListBase listbase;
 	DagSceneLayer *dsl;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		/* Inform new dependnecy graphs about visibility changes. */
+		DEG_on_visible_update(bmain, do_time);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 	
@@ -2357,7 +2476,8 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			oblay = (node) ? node->lay : ob->lay;
 
 			if ((oblay & lay) & ~scene->lay_updated) {
-				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+				/* TODO(sergey): Why do we need armature here now but didn't need before? */
+				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE, OB_ARMATURE)) {
 					ob->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
@@ -2375,7 +2495,7 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				if (ob->dup_group)
-					dag_group_on_visible_update(ob->dup_group);
+					dag_group_on_visible_update(scene, ob->dup_group);
 			}
 		}
 
@@ -2609,7 +2729,12 @@ void DAG_ids_flush_tagged(Main *bmain)
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 	bool do_flush = false;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_flush_tagged(bmain);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 
@@ -2652,6 +2777,11 @@ void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 	bool updated = false;
+
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_check_recalc(bmain, scene, time);
+		return;
+	}
 
 	/* loop over all ID types */
 	a  = set_listbasepointers(bmain, lbarray);
@@ -2769,6 +2899,11 @@ void DAG_ids_clear_recalc(Main *bmain)
 
 void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 {
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_id_tag_update_ex(bmain, id, flag);
+		return;
+	}
+
 	if (id == NULL) return;
 
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
@@ -3160,6 +3295,10 @@ short DAG_get_eval_flags_for_object(Scene *scene, void *object)
 {
 	DagNode *node;
 
+	if (!DEG_depsgraph_use_legacy()) {
+		return DEG_get_eval_flags_for_id(scene->depsgraph, (ID *)object);
+	}
+
 	if (scene->theDag == NULL) {
 		/* Happens when converting objects to mesh from a python script
 		 * after modifying scene graph.
@@ -3198,3 +3337,292 @@ bool DAG_is_acyclic(Scene *scene)
 {
 	return scene->theDag->is_acyclic;
 }
+
+#else
+
+/* *********************************************************************
+ * Stubs to avoid linking issues and make sure legacy crap is not used *
+ * *********************************************************************
+ */
+
+DagNodeQueue *queue_create(int UNUSED(slots))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void queue_raz(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void queue_delete(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void push_queue(DagNodeQueue *UNUSED(queue), DagNode *UNUSED(node))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void push_stack(DagNodeQueue *UNUSED(queue), DagNode *UNUSED(node))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+DagNode *pop_queue(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *get_top_node_queue(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagForest *dag_init(void)
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagForest *build_dag(Main *UNUSED(bmain),
+                     Scene *UNUSED(sce),
+                     short UNUSED(mask))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void free_forest(DagForest *UNUSED(Dag))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+DagNode *dag_find_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_add_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_get_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_get_sub_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void dag_add_relation(DagForest *UNUSED(forest),
+                      DagNode *UNUSED(fob1),
+                      DagNode *UNUSED(fob2),
+                      short UNUSED(rel),
+                      const char *UNUSED(name))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* debug test functions */
+
+void graph_print_queue(DagNodeQueue *UNUSED(nqueue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void graph_print_queue_dist(DagNodeQueue *UNUSED(nqueue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void graph_print_adj_list(DagForest *UNUSED(dag))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_scene_flush_update(Main *UNUSED(bmain),
+                            Scene *UNUSED(sce),
+                            unsigned int UNUSED(lay),
+                            const short UNUSED(time))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_scene_update_flags(Main *UNUSED(bmain),
+                            Scene *UNUSED(scene),
+                            unsigned int UNUSED(lay),
+                            const bool UNUSED(do_time),
+                            const bool UNUSED(do_invisible_flush))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* ******************* DAG FOR ARMATURE POSE ***************** */
+
+void DAG_pose_sort(Object *UNUSED(ob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* ************************  DAG FOR THREADED UPDATE  ********************* */
+
+void DAG_threaded_update_begin(Scene *UNUSED(scene),
+                               void (*func)(void *node, void *user_data),
+                               void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+void DAG_threaded_update_handle_node_updated(void *UNUSED(node_v),
+                                             void (*func)(void *node, void *user_data),
+                                             void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+/* ************************ DAG querying ********************* */
+
+Object *DAG_get_node_object(void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+const char *DAG_get_node_name(Scene *UNUSED(scene), void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return "INVALID";
+}
+
+bool DAG_is_acyclic(Scene *UNUSED(scene))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return false;
+}
+
+/* ************************************
+ * This functions are to be supported *
+ * ************************************
+ */
+
+void DAG_init(void)
+{
+	DEG_register_node_types();
+}
+
+void DAG_exit(void)
+{
+	DEG_free_node_types();
+}
+
+/* ************************ API *********************** */
+
+void DAG_editors_update_cb(DEG_EditorUpdateIDCb id_func,
+                           DEG_EditorUpdateSceneCb scene_func,
+                           DEG_EditorUpdateScenePreCb scene_func_pre)
+{
+	DEG_editors_set_update_cb(id_func, scene_func, scene_func_pre);
+}
+
+void DAG_editors_update_pre(Main *bmain, Scene *scene, bool time)
+{
+	DEG_editors_update_pre(bmain, scene, time);
+}
+
+/* Tag all relations for update. */
+void DAG_relations_tag_update(Main *bmain)
+{
+	DEG_relations_tag_update(bmain);
+}
+
+/* Rebuild dependency graph only for a given scene. */
+void DAG_scene_relations_rebuild(Main *bmain, Scene *scene)
+{
+	DEG_scene_relations_rebuild(bmain, scene);
+}
+
+/* Create dependency graph if it was cleared or didn't exist yet. */
+void DAG_scene_relations_update(Main *bmain, Scene *scene)
+{
+	DEG_scene_relations_update(bmain, scene);
+}
+
+void DAG_scene_relations_validate(Main *bmain, Scene *scene)
+{
+	DEG_debug_scene_relations_validate(bmain, scene);
+}
+
+void DAG_scene_free(Scene *scene)
+{
+	DEG_scene_graph_free(scene);
+}
+
+void DAG_on_visible_update(Main *bmain, const bool do_time)
+{
+	DEG_on_visible_update(bmain, do_time);
+}
+
+void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
+{
+	DEG_ids_check_recalc(bmain, scene, time);
+}
+
+void DAG_id_tag_update(ID *id, short flag)
+{
+	DEG_id_tag_update_ex(G.main, id, flag);
+}
+
+void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
+{
+	DEG_id_tag_update_ex(bmain, id, flag);
+}
+
+void DAG_id_type_tag(Main *bmain, short idtype)
+{
+	DEG_id_type_tag(bmain, idtype);
+}
+
+int DAG_id_type_tagged(Main *bmain, short idtype)
+{
+	return DEG_id_type_tagged(bmain, idtype);
+}
+
+void DAG_ids_clear_recalc(Main *bmain)
+{
+	DEG_ids_clear_recalc(bmain);
+}
+
+short DAG_get_eval_flags_for_object(Scene *scene, void *object)
+{
+	return DEG_get_eval_flags_for_id(scene->depsgraph, (ID *)object);
+}
+
+void DAG_ids_flush_tagged(Main *bmain)
+{
+	DEG_ids_flush_tagged(bmain);
+}
+
+/* ************************ DAG DEBUGGING ********************* */
+
+void DAG_print_dependencies(Main *UNUSED(bmain),
+                            Scene *scene,
+                            Object *UNUSED(ob))
+{
+	DEG_debug_graphviz(scene->depsgraph, stdout, "Depsgraph", false);
+}
+
+#endif

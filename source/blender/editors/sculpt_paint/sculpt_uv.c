@@ -224,8 +224,9 @@ static void brush_drawcursor_uvsculpt(bContext *C, int x, int y, void *UNUSED(cu
 }
 
 
-void ED_space_image_uv_sculpt_update(wmWindowManager *wm, ToolSettings *settings)
+void ED_space_image_uv_sculpt_update(wmWindowManager *wm, Scene *scene)
 {
+	ToolSettings *settings = scene->toolsettings;
 	if (settings->use_uv_sculpt) {
 		if (!settings->uvsculpt) {
 			settings->uvsculpt = MEM_callocN(sizeof(*settings->uvsculpt), "UV Smooth paint");
@@ -236,7 +237,7 @@ void ED_space_image_uv_sculpt_update(wmWindowManager *wm, ToolSettings *settings
 			settings->uvsculpt->paint.flags |= PAINT_SHOW_BRUSH;
 		}
 
-		BKE_paint_init(&settings->unified_paint_settings, &settings->uvsculpt->paint, PAINT_CURSOR_SCULPT);
+		BKE_paint_init(scene, ePaintSculptUV, PAINT_CURSOR_SCULPT);
 
 		settings->uvsculpt->paint.paint_cursor = WM_paint_cursor_activate(wm, uv_sculpt_brush_poll,
 		                                                                  brush_drawcursor_uvsculpt, NULL);
@@ -315,7 +316,7 @@ static void HC_relaxation_iteration_uv(BMEditMesh *em, UvSculptData *sculptdata,
 		if ((dist = dot_v2v2(diff, diff)) <= radius) {
 			UvElement *element;
 			float strength;
-			strength = alpha * BKE_brush_curve_strength(brush, sqrtf(dist), radius_root);
+			strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
 
 			sculptdata->uv[i].uv[0] = (1.0f - strength) * sculptdata->uv[i].uv[0] + strength * (tmp_uvdata[i].p[0] - 0.5f * (tmp_uvdata[i].b[0] + tmp_uvdata[i].sum_b[0] / tmp_uvdata[i].ncounter));
 			sculptdata->uv[i].uv[1] = (1.0f - strength) * sculptdata->uv[i].uv[1] + strength * (tmp_uvdata[i].p[1] - 0.5f * (tmp_uvdata[i].b[1] + tmp_uvdata[i].sum_b[1] / tmp_uvdata[i].ncounter));
@@ -379,7 +380,7 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em, UvSculptData *scul
 		if ((dist = dot_v2v2(diff, diff)) <= radius) {
 			UvElement *element;
 			float strength;
-			strength = alpha * BKE_brush_curve_strength(brush, sqrtf(dist), radius_root);
+			strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
 
 			sculptdata->uv[i].uv[0] = (1.0f - strength) * sculptdata->uv[i].uv[0] + strength * tmp_uvdata[i].p[0];
 			sculptdata->uv[i].uv[1] = (1.0f - strength) * sculptdata->uv[i].uv[1] + strength * tmp_uvdata[i].p[1];
@@ -454,7 +455,7 @@ static void uv_sculpt_stroke_apply(bContext *C, wmOperator *op, const wmEvent *e
 			if ((dist = dot_v2v2(diff, diff)) <= radius) {
 				UvElement *element;
 				float strength;
-				strength = alpha * BKE_brush_curve_strength(brush, sqrtf(dist), radius_root);
+				strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
 				normalize_v2(diff);
 
 				sculptdata->uv[i].uv[0] -= strength * diff[0] * 0.001f;
@@ -612,18 +613,18 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		if (do_island_optimization) {
 			/* We will need island information */
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = BM_uv_element_map_create(bm, false, true);
+				data->elementMap = BM_uv_element_map_create(bm, false, true, true);
 			}
 			else {
-				data->elementMap = BM_uv_element_map_create(bm, true, true);
+				data->elementMap = BM_uv_element_map_create(bm, true, true, true);
 			}
 		}
 		else {
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = BM_uv_element_map_create(bm, false, false);
+				data->elementMap = BM_uv_element_map_create(bm, false, true, false);
 			}
 			else {
-				data->elementMap = BM_uv_element_map_create(bm, true, false);
+				data->elementMap = BM_uv_element_map_create(bm, true, true, false);
 			}
 		}
 
@@ -822,7 +823,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 				diff[1] /= aspectRatio;
 				if ((dist = dot_v2v2(diff, diff)) <= radius) {
 					float strength;
-					strength = alpha * BKE_brush_curve_strength(brush, sqrtf(dist), radius_root);
+					strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
 
 					data->initial_stroke->initialSelection[counter].uv = i;
 					data->initial_stroke->initialSelection[counter].strength = strength;

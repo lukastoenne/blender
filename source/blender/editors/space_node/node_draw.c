@@ -41,7 +41,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -123,7 +123,14 @@ void ED_node_tag_update_id(ID *id)
 	bNodeTree *ntree = node_tree_from_ID(id);
 	if (id == NULL || ntree == NULL)
 		return;
-	
+
+	/* TODO(sergey): With the new dependency graph it
+	 * should be just enough to only tag ntree itself,
+	 * all the users of this tree will have update
+	 * flushed from the tree,
+	 */
+	DAG_id_tag_update(&ntree->id, 0);
+
 	if (ntree->type == NTREE_SHADER) {
 		DAG_id_tag_update(id, 0);
 		
@@ -299,6 +306,12 @@ void node_to_view(struct bNode *node, float x, float y, float *rx, float *ry)
 	nodeToView(node, x, y, rx, ry);
 	*rx *= UI_DPI_FAC;
 	*ry *= UI_DPI_FAC;
+}
+
+void node_to_updated_rect(struct bNode *node, rctf *r_rect)
+{
+	node_to_view(node, node->offsetx, node->offsety, &r_rect->xmin, &r_rect->ymax);
+	node_to_view(node, node->offsetx + node->width, node->offsety - node->height, &r_rect->xmax, &r_rect->ymin);
 }
 
 void node_from_view(struct bNode *node, float x, float y, float *rx, float *ry)

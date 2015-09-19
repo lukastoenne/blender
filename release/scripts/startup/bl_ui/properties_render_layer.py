@@ -87,7 +87,7 @@ class RENDERLAYER_PT_layer_options(RenderLayerButtonsPanel, Panel):
         col = split.column()
         col.prop(scene, "layers", text="Scene")
         col.label(text="")
-        col.prop(rl, "light_override", text="Light")
+        col.prop(rl, "light_override", text="Lights")
         col.prop(rl, "material_override", text="Material")
 
         col = split.column()
@@ -126,7 +126,8 @@ class RENDERLAYER_PT_layer_passes(RenderLayerButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
-    def draw_pass_type_buttons(self, box, rl, pass_type):
+    @staticmethod
+    def draw_pass_type_buttons(box, rl, pass_type):
         # property names
         use_pass_type = "use_pass_" + pass_type
         exclude_pass_type = "exclude_" + pass_type
@@ -186,6 +187,7 @@ class RENDERLAYER_UL_renderviews(UIList):
 class RENDERLAYER_PT_views(RenderLayerButtonsPanel, Panel):
     bl_label = "Views"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         rd = context.scene.render

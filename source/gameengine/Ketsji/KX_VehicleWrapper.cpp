@@ -22,7 +22,7 @@
  *  \ingroup ketsji
  */
 
-#include "PyObjectPlus.h"
+#include "EXP_PyObjectPlus.h"
 
 #include "KX_VehicleWrapper.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -87,8 +87,6 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 
 		if (gameOb->GetSGNode())
 		{
-			PHY_IMotionState* motionState = new KX_MotionState(gameOb->GetSGNode());
-			
 			MT_Vector3 attachPos,attachDir,attachAxle;
 			if(!PyVecTo(pylistPos,attachPos)) {
 				PyErr_SetString(PyExc_AttributeError,
@@ -115,6 +113,7 @@ PyObject *KX_VehicleWrapper::PyAddWheel(PyObject *args)
 				return NULL;
 			}
 
+			PHY_IMotionState *motionState = new KX_MotionState(gameOb->GetSGNode());
 			m_vehicle->AddWheel(motionState,attachPos,attachDir,attachAxle,suspensionRestLength,wheelRadius,hasSteering);
 		}
 		

@@ -146,6 +146,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 	RenderView *rv;
 	SceneRenderView *srv;
 	bool is_multiview;
+	Object *camera;
 	View3D *v3d = oglrender->v3d;
 
 	RenderData *rd = &oglrender->scene->r;
@@ -235,6 +236,15 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 		oglrender->iuser.flag &= ~IMA_SHOW_STEREO;
 	}
 	BLI_unlock_thread(LOCK_DRAW_IMAGE);
+
+	/* will only work for non multiview correctly */
+	if (v3d) {
+		camera = BKE_camera_multiview_render(oglrender->scene, v3d->camera, "new opengl render view");
+		BKE_render_result_stamp_info(oglrender->scene, camera, rr, false);
+	}
+	else {
+		BKE_render_result_stamp_info(oglrender->scene, oglrender->scene->camera, rr, false);
+	}
 
 	RE_ReleaseResult(oglrender->re);
 }
@@ -474,17 +484,15 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 	RenderResult *rr;
 	bool ok;
 	char name[FILE_MAX];
-	Object *camera = RE_GetCamera(oglrender->re);
 
 	rr = RE_AcquireResultRead(oglrender->re);
-
-	BKE_render_result_stamp_info(scene, camera, rr);
 
 	BKE_image_path_from_imformat(
 	        name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
 	        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, false, NULL);
 
 	/* write images as individual images or stereo */
+	BKE_render_result_stamp_info(scene, scene->camera, rr, false);
 	ok = RE_WriteRenderViewsImage(oglrender->reports, rr, scene, false, name);
 
 	RE_ReleaseResultImage(oglrender->re);
@@ -807,6 +815,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		}
 	}
 	else {
+		BKE_render_result_stamp_info(scene, scene->camera, rr, false);
 		ok = RE_WriteRenderViewsImage(op->reports, rr, scene, true, name);
 		if (ok) {
 			printf("Saved: %s", name);

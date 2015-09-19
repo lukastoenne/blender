@@ -36,6 +36,7 @@
 #include "util_debug.h"
 #include "util_foreach.h"
 #include "util_opengl.h"
+#include "util_hash.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -144,7 +145,12 @@ bool BlenderSync::sync_recalc()
 	return recalc;
 }
 
-void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, void **python_thread_state, const char *layer)
+void BlenderSync::sync_data(BL::RenderSettings b_render,
+                            BL::SpaceView3D b_v3d,
+                            BL::Object b_override,
+                            int width, int height,
+                            void **python_thread_state,
+                            const char *layer)
 {
 	sync_render_layers(b_v3d, layer);
 	sync_integrator();
@@ -156,7 +162,11 @@ void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, void *
 	mesh_synced.clear(); /* use for objects and motion sync */
 
 	sync_objects(b_v3d);
-	sync_motion(b_v3d, b_override, python_thread_state);
+	sync_motion(b_render,
+	            b_v3d,
+	            b_override,
+	            width, height,
+	            python_thread_state);
 
 	mesh_synced.clear();
 }
@@ -195,6 +205,9 @@ void BlenderSync::sync_integrator()
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");
+	if(get_boolean(cscene, "use_animated_seed"))
+		integrator->seed = hash_int_2d(b_scene.frame_current(), get_int(cscene, "seed"));
+
 	integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	integrator->layer_flag = render_layer.layer;
