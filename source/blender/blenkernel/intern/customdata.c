@@ -1312,7 +1312,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 41: CD_CUSTOMLOOPNORMAL */
 	{sizeof(short[2]), "vec2s", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 42: CD_MESH_SAMPLE */
-	{sizeof(MSurfaceSample), "MSurfaceSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(MeshSample), "MeshSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1329,7 +1329,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
 	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace",
-	/* 39-42 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal", "CDMSurfaceSample",
+	/* 39-42 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal", "CDMeshSample",
 };
 
 

@@ -210,7 +210,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 			
 			/* root */
 			if (k == 0) {
-				MSurfaceSample root_loc;
+				MeshSample root_loc;
 				if (BKE_mesh_sample_from_particle(&root_loc, psys, emitter_dm, pa)) {
 					BM_elem_meshsample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 				}
@@ -464,7 +464,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
 		/* root */
 		if (k == 0) {
-			MSurfaceSample root_loc;
+			MeshSample root_loc;
 			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
 			if (!BKE_mesh_sample_to_particle(&root_loc, psys, emitter_dm, emitter_bvhtree, pa)) {
 				pa->num = 0;

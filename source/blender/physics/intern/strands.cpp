@@ -58,7 +58,7 @@ static bool strand_get_root_vectors(BMEditStrands *edit, BMVert *root, float loc
 {
 	BMesh *bm = edit->bm;
 	DerivedMesh *root_dm = edit->root_dm;
-	MSurfaceSample root_sample;
+	MeshSample root_sample;
 	
 	BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
 	return BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang);

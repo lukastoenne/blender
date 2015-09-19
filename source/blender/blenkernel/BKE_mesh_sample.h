@@ -28,33 +28,38 @@
 struct DerivedMesh;
 struct Key;
 struct KeyBlock;
+struct MFace;
+struct MVert;
 
-struct MSurfaceSample;
+struct MeshSample;
+struct MeshSampleGenerator;
+
+typedef struct MeshSampleGenerator MeshSampleGenerator;
+typedef float (*MeshSampleVertexWeightFp)(struct DerivedMesh *dm, struct MVert *vert, unsigned int index, void *userdata);
+typedef bool (*MeshSampleRayFp)(void *userdata, float ray_start[3], float ray_end[3]);
 
 /* ==== Evaluate ==== */
 
-bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MSurfaceSample *sample, float loc[3], float nor[3], float tang[3]);
-bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct MSurfaceSample *sample, float loc[3]);
+bool BKE_mesh_sample_is_volume_sample(const struct MeshSample *sample);
+
+bool BKE_mesh_sample_eval(struct DerivedMesh *dm, const struct MeshSample *sample, float loc[3], float nor[3], float tang[3]);
+bool BKE_mesh_sample_shapekey(struct Key *key, struct KeyBlock *kb, const struct MeshSample *sample, float loc[3]);
 
 
 /* ==== Sampling ==== */
 
-/* Storage descriptor to allow generic data storage by arbitrary algorithms */
-typedef struct MSurfaceSampleStorage {
-	bool (*store_sample)(void *data, int capacity, int index, const struct MSurfaceSample *sample);
-	void *data;
-	int capacity;
-	int free_data;
-} MSurfaceSampleStorage;
+/* face_weights is optional */
+struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_random(struct DerivedMesh *dm, unsigned int seed);
+struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_random_ex(struct DerivedMesh *dm, unsigned int seed,
+                                                                      MeshSampleVertexWeightFp vertex_weight_cb, void *userdata, bool use_facearea);
 
-void BKE_mesh_sample_storage_single(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *sample);
-void BKE_mesh_sample_storage_array(struct MSurfaceSampleStorage *storage, struct MSurfaceSample *samples, int capacity);
-void BKE_mesh_sample_storage_release(struct MSurfaceSampleStorage *storage);
+struct MeshSampleGenerator *BKE_mesh_sample_gen_surface_raycast(struct DerivedMesh *dm, MeshSampleRayFp ray_cb, void *userdata);
 
-int BKE_mesh_sample_generate_random(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, unsigned int seed, int totsample);
+struct MeshSampleGenerator *BKE_mesh_sample_gen_volume_random_bbray(struct DerivedMesh *dm, unsigned int seed, float density);
 
-typedef bool (*MeshSampleRayCallback)(void *userdata, float ray_start[3], float ray_end[3]);
-int BKE_mesh_sample_generate_raycast(struct MSurfaceSampleStorage *dst, struct DerivedMesh *dm, MeshSampleRayCallback ray_cb, void *userdata, int totsample);
+void BKE_mesh_sample_free_generator(struct MeshSampleGenerator *gen);
+
+bool BKE_mesh_sample_generate(struct MeshSampleGenerator *gen, struct MeshSample *sample);
 
 /* ==== Utilities ==== */
 
@@ -62,7 +67,7 @@ struct ParticleSystem;
 struct ParticleData;
 struct BVHTreeFromMesh;
 
-bool BKE_mesh_sample_from_particle(struct MSurfaceSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct ParticleData *pa);
-bool BKE_mesh_sample_to_particle(struct MSurfaceSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct BVHTreeFromMesh *bvhtree, struct ParticleData *pa);
+bool BKE_mesh_sample_from_particle(struct MeshSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct ParticleData *pa);
+bool BKE_mesh_sample_to_particle(struct MeshSample *sample, struct ParticleSystem *psys, struct DerivedMesh *dm, struct BVHTreeFromMesh *bvhtree, struct ParticleData *pa);
 
 #endif  /* __BKE_MESH_SAMPLE_H__ */

@@ -384,7 +384,7 @@ BLI_INLINE void construct_m4_loc_nor_tan(float mat[4][4], const float loc[3], co
 	mat[3][3] = 1.0f;
 }
 
-static void grow_hair(BMEditStrands *edit, MSurfaceSample *sample)
+static void grow_hair(BMEditStrands *edit, MeshSample *sample)
 {
 	DerivedMesh *dm = edit->root_dm;
 	const float len = 1.5f;
@@ -431,23 +431,23 @@ static bool hair_add_ray_cb(void *vdata, float ray_start[3], float ray_end[3])
 	return true;
 }
 
-static bool hair_get_surface_sample(HairToolData *data, MSurfaceSample *sample)
+static bool hair_get_surface_sample(HairToolData *data, MeshSample *sample)
 {
 	DerivedMesh *dm = data->edit->root_dm;
 	
-	MSurfaceSampleStorage dst;
-	int tot;
+	MeshSampleGenerator *gen;
+	bool ok;
 	
-	BKE_mesh_sample_storage_single(&dst, sample);
-	tot = BKE_mesh_sample_generate_raycast(&dst, dm, hair_add_ray_cb, data, 1);
-	BKE_mesh_sample_storage_release(&dst);
+	gen = BKE_mesh_sample_gen_surface_raycast(dm, hair_add_ray_cb, data);
+	ok = BKE_mesh_sample_generate(gen, sample);
+	BKE_mesh_sample_free_generator(gen);
 	
-	return tot > 0;
+	return ok;
 }
 
 static bool hair_add(HairToolData *data)
 {
-	MSurfaceSample sample;
+	MeshSample sample;
 	
 	if (!hair_get_surface_sample(data, &sample))
 		return false;

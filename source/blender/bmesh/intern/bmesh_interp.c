@@ -923,20 +923,20 @@ void BM_elem_float_data_named_set(CustomData *cd, void *element, int type, const
 	if (f) *f = val;
 }
 
-void BM_elem_meshsample_data_named_get(CustomData *cd, void *element, int type, const char *name, MSurfaceSample *val)
+void BM_elem_meshsample_data_named_get(CustomData *cd, void *element, int type, const char *name, MeshSample *val)
 {
-	const MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	const MeshSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
 	if (s)
-		memcpy(val, s, sizeof(MSurfaceSample));
+		memcpy(val, s, sizeof(MeshSample));
 	else
-		memset(val, 0, sizeof(MSurfaceSample));
+		memset(val, 0, sizeof(MeshSample));
 }
 
-void BM_elem_meshsample_data_named_set(CustomData *cd, void *element, int type, const char *name, const MSurfaceSample *val)
+void BM_elem_meshsample_data_named_set(CustomData *cd, void *element, int type, const char *name, const MeshSample *val)
 {
-	MSurfaceSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
+	MeshSample *s = CustomData_bmesh_get_named(cd, ((BMHeader *)element)->data, type, name);
 	if (s)
-		memcpy(s, val, sizeof(MSurfaceSample));
+		memcpy(s, val, sizeof(MeshSample));
 }
 
 /** \name Loop interpolation functions: BM_vert_loop_groups_data_layer_***
