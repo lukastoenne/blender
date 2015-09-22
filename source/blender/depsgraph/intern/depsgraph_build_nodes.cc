@@ -908,16 +908,48 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
 
-	/* Temporary uber-update node, which does everything.
-	 * It is for the being we're porting old dependencies into the new system.
-	 * We'll get rid of this node as soon as all the granular update functions
-	 * are filled in.
-	 *
-	 * TODO(sergey): Get rid of this node.
-	 */
+	switch (ob->type) {
+		case OB_MESH:
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_mesh_update, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_MESH);
+			break;
+		case OB_ARMATURE:
+			/* XXX pose nodes are built in build_object() - should clarify what happens where for such object data */
+			break;
+		case OB_MBALL:
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_mball_update, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_MBALL);
+			break;
+		case OB_CURVE:
+		case OB_SURF:
+		case OB_FONT:
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_curve_update, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_CURVE);
+			break;
+		case OB_LATTICE:
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_lattice_update, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_LATTICE);
+			break;
+		case OB_EMPTY:
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_empty_update, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_EMPTY);
+			break;
+	}
+
+	if (ob != scene->obedit && ob->particlesystem.first) {
+		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_particles, _1, scene, ob),
+		                   DEG_OPCODE_GEOMETRY_PARTICLES);
+	}
+	
 	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-	                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
-	                   DEG_OPCODE_GEOMETRY_UBEREVAL);
+	                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_data_ready, _1, scene, ob),
+	                   DEG_OPCODE_GEOMETRY_DATA_READY);
 
 	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 	                   DEPSOP_TYPE_INIT, NULL,
@@ -942,18 +974,29 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	}
 
 	/* materials */
+	/* XXX: without depsgraph tagging, driver eval will always need to be run, which will be slow!
+	 * However, not doing anything (or trying to hack around this lack) is not an option
+	 * anymore, especially due to Cycles [#31834]
+	 */
 	if (ob->totcol) {
-		int a;
-
-		for (a = 1; a <= ob->totcol; a++) {
+		for (int a = 1; a <= ob->totcol; a++) {
 			Material *ma = give_current_material(ob, a);
-
+			
 			if (ma) {
 				// XXX?!
 				ComponentDepsNode *geom_node = add_component_node(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 				build_material(geom_node, ma);
 			}
 		}
+		
+		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_material_drivers, _1, scene, ob),
+		                   DEG_OPCODE_GEOMETRY_MATERIAL_DRIVERS);
+	}
+	else if (ob->type == OB_LAMP) {
+		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_lamp_drivers, _1, scene, ob),
+		                   DEG_OPCODE_GEOMETRY_LAMP_DRIVERS);
 	}
 
 	/* geometry collision */
@@ -961,9 +1004,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		// add geometry collider relations
 	}
 
+	/* ---- ob->data datablock updates ---- */
+	/* XXX perhaps move this to a separate function? - lukas_t */
 	if (obdata->flag & LIB_DOIT) {
 		return;
 	}
+	/* XXX is this missing 'obdata->flag |= LIB_DOIT' ?! - lukas_t */
 
 	build_animdata(obdata);
 

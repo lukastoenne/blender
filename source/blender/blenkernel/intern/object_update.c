@@ -156,6 +156,149 @@ void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
 	(void) md;  /* Ignored. */
 }
 
+void BKE_object_handle_data_mesh_update(EvaluationContext *eval_ctx,
+                                        Scene *scene,
+                                        Object *ob)
+{
+	BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+	uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+#ifdef WITH_FREESTYLE
+	/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
+	if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
+		data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
+	}
+#else
+	UNUSED_VARS(eval_ctx);
+#endif
+	if (em) {
+		makeDerivedMesh(scene, ob, em,  data_mask, false); /* was CD_MASK_BAREMESH */
+	}
+	else {
+		makeDerivedMesh(scene, ob, NULL, data_mask, false);
+	}
+}
+
+void BKE_object_handle_data_armature_update(EvaluationContext *UNUSED(eval_ctx),
+                                            Scene *scene,
+                                            Object *ob)
+{
+	if (ob->id.lib && ob->proxy_from) {
+		if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
+			printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
+			       ob->id.name + 2, ob->proxy_from->id.name + 2);
+		}
+	}
+	else {
+		BKE_pose_where_is(scene, ob);
+	}
+}
+
+void BKE_object_handle_data_mball_update(EvaluationContext *eval_ctx,
+                                         Scene *scene,
+                                         Object *ob)
+{
+	BKE_displist_make_mball(eval_ctx, scene, ob);
+}
+
+void BKE_object_handle_data_curve_update(EvaluationContext *UNUSED(eval_ctx),
+                                         Scene *scene,
+                                         Object *ob)
+{
+	BKE_displist_make_curveTypes(scene, ob, 0);
+}
+
+void BKE_object_handle_data_lattice_update(EvaluationContext *UNUSED(eval_ctx),
+                                           Scene *scene,
+                                           Object *ob)
+{
+	BKE_lattice_modifiers_calc(scene, ob);
+}
+
+void BKE_object_handle_data_empty_update(EvaluationContext *UNUSED(eval_ctx),
+                                         Scene *scene,
+                                         Object *ob)
+{
+	if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data) {
+		float ctime = BKE_scene_frame_get(scene);
+		if (BKE_image_is_animated(ob->data))
+			BKE_image_user_check_frame_calc(ob->iuser, (int)ctime, 0);
+	}
+}
+
+void BKE_object_handle_data_material_drivers(EvaluationContext *UNUSED(eval_ctx),
+                                    Scene *scene,
+                                    Object *ob)
+{
+	float ctime = BKE_scene_frame_get(scene);
+	int a;
+	BLI_mutex_lock(&material_lock);
+	for (a = 1; a <= ob->totcol; a++) {
+		Material *ma = give_current_material(ob, a);
+		if (ma) {
+			/* recursively update drivers for this material */
+			material_drivers_update(scene, ma, ctime);
+		}
+	}
+	BLI_mutex_unlock(&material_lock);
+}
+
+void BKE_object_handle_data_lamp_drivers(EvaluationContext *UNUSED(eval_ctx),
+                                    Scene *scene,
+                                    Object *ob)
+{
+	float ctime = BKE_scene_frame_get(scene);
+	lamp_drivers_update(scene, ob->data, ctime);
+}
+
+void BKE_object_handle_data_particles(EvaluationContext *eval_ctx,
+                                      Scene *scene,
+                                      Object *ob)
+{
+	ParticleSystem *tpsys, *psys;
+	DerivedMesh *dm;
+	ob->transflag &= ~OB_DUPLIPARTS;
+	psys = ob->particlesystem.first;
+	while (psys) {
+		/* ensure this update always happens even if psys is disabled */
+		if (psys->recalc & PSYS_RECALC_TYPE) {
+			psys_changed_type(ob, psys);
+		}
+		
+		if (psys_check_enabled(ob, psys)) {
+			/* check use of dupli objects here */
+			if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
+			    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
+			     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
+			{
+				ob->transflag |= OB_DUPLIPARTS;
+			}
+			
+			particle_system_update(scene, ob, psys);
+			psys = psys->next;
+		}
+		else if (psys->flag & PSYS_DELETE) {
+			tpsys = psys->next;
+			BLI_remlink(&ob->particlesystem, psys);
+			psys_free(ob, psys);
+			psys = tpsys;
+		}
+		else
+			psys = psys->next;
+	}
+	
+	if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
+		/* this is to make sure we get render level duplis in groups:
+			 * the derivedmesh must be created before init_render_mesh,
+			 * since object_duplilist does dupliparticles before that */
+		CustomDataMask data_mask = CD_MASK_BAREMESH | CD_MASK_MFACE | CD_MASK_MTFACE | CD_MASK_MCOL;
+		dm = mesh_create_derived_render(scene, ob, data_mask);
+		dm->release(dm);
+		
+		for (psys = ob->particlesystem.first; psys; psys = psys->next)
+			psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
+	}
+}
+
 void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
                                    Scene *scene,
                                    Object *ob)
@@ -185,53 +328,24 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	/* includes all keys and modifiers */
 	switch (ob->type) {
 		case OB_MESH:
-		{
-			BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-			uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
-#ifdef WITH_FREESTYLE
-			/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
-			if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
-				data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
-			}
-#endif
-			if (em) {
-				makeDerivedMesh(scene, ob, em,  data_mask, false); /* was CD_MASK_BAREMESH */
-			}
-			else {
-				makeDerivedMesh(scene, ob, NULL, data_mask, false);
-			}
+			BKE_object_handle_data_mesh_update(eval_ctx, scene, ob);
 			break;
-		}
 		case OB_ARMATURE:
-			if (ob->id.lib && ob->proxy_from) {
-				if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
-					printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
-					       ob->id.name + 2, ob->proxy_from->id.name + 2);
-				}
-			}
-			else {
-				BKE_pose_where_is(scene, ob);
-			}
+			BKE_object_handle_data_armature_update(eval_ctx, scene, ob);
 			break;
-
 		case OB_MBALL:
-			BKE_displist_make_mball(eval_ctx, scene, ob);
+			BKE_object_handle_data_mball_update(eval_ctx, scene, ob);
 			break;
-
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_FONT:
-			BKE_displist_make_curveTypes(scene, ob, 0);
+			BKE_object_handle_data_curve_update(eval_ctx, scene, ob);
 			break;
-
 		case OB_LATTICE:
-			BKE_lattice_modifiers_calc(scene, ob);
+			BKE_object_handle_data_lattice_update(eval_ctx, scene, ob);
 			break;
-
 		case OB_EMPTY:
-			if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data)
-				if (BKE_image_is_animated(ob->data))
-					BKE_image_user_check_frame_calc(ob->iuser, (int)ctime, 0);
+			BKE_object_handle_data_empty_update(eval_ctx, scene, ob);
 			break;
 	}
 
@@ -241,67 +355,15 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	 * anymore, especially due to Cycles [#31834]
 	 */
 	if (ob->totcol) {
-		int a;
-		if (ob->totcol != 0) {
-			BLI_mutex_lock(&material_lock);
-			for (a = 1; a <= ob->totcol; a++) {
-				Material *ma = give_current_material(ob, a);
-				if (ma) {
-					/* recursively update drivers for this material */
-					material_drivers_update(scene, ma, ctime);
-				}
-			}
-			BLI_mutex_unlock(&material_lock);
-		}
+		BKE_object_handle_data_material_drivers(eval_ctx, scene, ob);
 	}
-	else if (ob->type == OB_LAMP)
-		lamp_drivers_update(scene, ob->data, ctime);
+	else if (ob->type == OB_LAMP) {
+		BKE_object_handle_data_lamp_drivers(eval_ctx, scene, ob);
+	}
 
 	/* particles */
 	if (ob != scene->obedit && ob->particlesystem.first) {
-		ParticleSystem *tpsys, *psys;
-		DerivedMesh *dm;
-		ob->transflag &= ~OB_DUPLIPARTS;
-		psys = ob->particlesystem.first;
-		while (psys) {
-			/* ensure this update always happens even if psys is disabled */
-			if (psys->recalc & PSYS_RECALC_TYPE) {
-				psys_changed_type(ob, psys);
-			}
-
-			if (psys_check_enabled(ob, psys)) {
-				/* check use of dupli objects here */
-				if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
-				    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
-				     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
-				{
-					ob->transflag |= OB_DUPLIPARTS;
-				}
-
-				particle_system_update(scene, ob, psys);
-				psys = psys->next;
-			}
-			else if (psys->flag & PSYS_DELETE) {
-				tpsys = psys->next;
-				BLI_remlink(&ob->particlesystem, psys);
-				psys_free(ob, psys);
-				psys = tpsys;
-			}
-			else
-				psys = psys->next;
-		}
-
-		if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
-			/* this is to make sure we get render level duplis in groups:
-			 * the derivedmesh must be created before init_render_mesh,
-			 * since object_duplilist does dupliparticles before that */
-			CustomDataMask data_mask = CD_MASK_BAREMESH | CD_MASK_MFACE | CD_MASK_MTFACE | CD_MASK_MCOL;
-			dm = mesh_create_derived_render(scene, ob, data_mask);
-			dm->release(dm);
-
-			for (psys = ob->particlesystem.first; psys; psys = psys->next)
-				psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
-		}
+		BKE_object_handle_data_particles(eval_ctx, scene, ob);
 	}
 
 	/* quick cache removed */
@@ -337,13 +399,11 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
-                               Scene *scene,
-                               Object *ob)
+/* clear recalc tags on object after calculating data */
+void BKE_object_eval_data_ready(EvaluationContext *UNUSED(eval_ctx),
+                                Scene *UNUSED(scene),
+                                Object *ob)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
-	BLI_assert(ob->type != OB_ARMATURE);
-	BKE_object_handle_data_update(eval_ctx, scene, ob);
-
 	ob->recalc &= ~(OB_RECALC_DATA | OB_RECALC_TIME);
 }

@@ -94,8 +94,24 @@ DEF_DEG_OPCODE(OBJECT_UBEREVAL)
 
 /* Geometry ---------------------------------------- */
 
-/* XXX: Placeholder - UberEval */
-DEF_DEG_OPCODE(GEOMETRY_UBEREVAL)
+/* main object data eval */
+DEF_DEG_OPCODE(GEOMETRY_DATA_MESH)
+DEF_DEG_OPCODE(GEOMETRY_DATA_CURVE)
+DEF_DEG_OPCODE(GEOMETRY_DATA_LATTICE)
+DEF_DEG_OPCODE(GEOMETRY_DATA_MBALL)
+DEF_DEG_OPCODE(GEOMETRY_DATA_EMPTY)
+
+/* particles eval */
+DEF_DEG_OPCODE(GEOMETRY_PARTICLES)
+
+/* extra material/lamp drivers
+ * (XXX should become redundant in new depsgraph)
+ */
+DEF_DEG_OPCODE(GEOMETRY_MATERIAL_DRIVERS)
+DEF_DEG_OPCODE(GEOMETRY_LAMP_DRIVERS)
+
+/* final data tagging node */
+DEF_DEG_OPCODE(GEOMETRY_DATA_READY)
 
 /* Modifier */
 DEF_DEG_OPCODE(GEOMETRY_MODIFIER)

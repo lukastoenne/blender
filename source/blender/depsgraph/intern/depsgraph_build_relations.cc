@@ -1019,9 +1019,9 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 {
 	TimeSourceKey time_src_key;
-	OperationKey obdata_ubereval_key(&ob->id,
-	                                 DEPSNODE_TYPE_GEOMETRY,
-	                                 DEG_OPCODE_GEOMETRY_UBEREVAL);
+	OperationKey obdata_ready_key(&ob->id,
+	                              DEPSNODE_TYPE_GEOMETRY,
+	                              DEG_OPCODE_GEOMETRY_DATA_READY);
 
 	/* particle systems */
 	for (ParticleSystem *psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
@@ -1049,9 +1049,9 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		 * on playback.
 		 */
 		add_relation(psys_key,
-		             obdata_ubereval_key,
+		             obdata_ready_key,
 		             DEPSREL_TYPE_OPERATION,
-		             "PSys -> UberEval");
+		             "PSys -> Data Ready");
 
 #if 0
 		if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
@@ -1593,40 +1593,75 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		}
 	}
 
+	OperationKey tail_key;
+	if (ob->modifiers.last) {
+		ModifierData *md = (ModifierData *)ob->modifiers.last;
+		tail_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
+	}
+	else {
+		tail_key = geom_init_key;
+	}
+	
+	OperationKey obdata_update_key;
+	switch (ob->type) {
+		case OB_MESH:
+			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MESH);
+			break;
+		case OB_MBALL:
+			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MBALL);
+			break;
+		case OB_CURVE:
+		case OB_SURF:
+		case OB_FONT:
+			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_CURVE);
+			break;
+		case OB_LATTICE:
+			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_LATTICE);
+			break;
+		case OB_EMPTY:
+			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_EMPTY);
+			break;
+	}
+
+	add_relation(tail_key, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+	tail_key = obdata_update_key;
+	
 	/* materials */
 	if (ob->totcol) {
-		int a;
-
-		for (a = 1; a <= ob->totcol; a++) {
+		for (int a = 1; a <= ob->totcol; a++) {
 			Material *ma = give_current_material(ob, a);
-
+			
 			if (ma)
 				build_material(&ob->id, ma);
 		}
+		
+		OperationKey ma_drivers_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MATERIAL_DRIVERS);
+		add_relation(tail_key, ma_drivers_key, DEPSREL_TYPE_OPERATION, "Object Geometry Material Drivers");
+		tail_key = ma_drivers_key;
 	}
+	else if (ob->type == OB_LAMP) {
+		OperationKey la_drivers_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_LAMP_DRIVERS);
+		add_relation(tail_key, la_drivers_key, DEPSREL_TYPE_OPERATION, "Object Geometry Material Drivers");
+		tail_key = la_drivers_key;
+	}
+
+	if (ob != scene->obedit && ob->particlesystem.first) {
+		OperationKey particles_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_PARTICLES);
+		add_relation(tail_key, particles_key, DEPSREL_TYPE_OPERATION, "Object Geometry Particles");
+		tail_key = particles_key;
+	}
+	
+	OperationKey obdata_ready_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_READY);
+	add_relation(tail_key, obdata_ready_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Ready");
 
 	/* geometry collision */
 	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
 		// add geometry collider relations
 	}
 
-	/* Make sure uber update is the last in the dependencies.
-	 *
-	 * TODO(sergey): Get rid of this node.
-	 */
-	if (ob->type != OB_ARMATURE) {
-		/* Armatures does no longer require uber node. */
-		OperationKey obdata_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_UBEREVAL);
-		if (ob->modifiers.last) {
-			ModifierData *md = (ModifierData *)ob->modifiers.last;
-			OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
-			add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
-		}
-		else {
-			add_relation(geom_init_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
-		}
-	}
 
+	/* ---- ob->data datablock updates ---- */
+	/* XXX perhaps move this to a separate function? - lukas_t */
 	if (obdata->flag & LIB_DOIT) {
 		return;
 	}
