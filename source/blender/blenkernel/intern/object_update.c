@@ -156,7 +156,7 @@ void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
 	(void) md;  /* Ignored. */
 }
 
-void BKE_object_handle_data_mesh_update(EvaluationContext *eval_ctx,
+void BKE_object_eval_mesh(EvaluationContext *eval_ctx,
                                         Scene *scene,
                                         Object *ob)
 {
@@ -178,7 +178,7 @@ void BKE_object_handle_data_mesh_update(EvaluationContext *eval_ctx,
 	}
 }
 
-void BKE_object_handle_data_armature_update(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_armature(EvaluationContext *UNUSED(eval_ctx),
                                             Scene *scene,
                                             Object *ob)
 {
@@ -193,28 +193,28 @@ void BKE_object_handle_data_armature_update(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_object_handle_data_mball_update(EvaluationContext *eval_ctx,
+void BKE_object_eval_mball(EvaluationContext *eval_ctx,
                                          Scene *scene,
                                          Object *ob)
 {
 	BKE_displist_make_mball(eval_ctx, scene, ob);
 }
 
-void BKE_object_handle_data_curve_update(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_curve(EvaluationContext *UNUSED(eval_ctx),
                                          Scene *scene,
                                          Object *ob)
 {
 	BKE_displist_make_curveTypes(scene, ob, 0);
 }
 
-void BKE_object_handle_data_lattice_update(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_lattice(EvaluationContext *UNUSED(eval_ctx),
                                            Scene *scene,
                                            Object *ob)
 {
 	BKE_lattice_modifiers_calc(scene, ob);
 }
 
-void BKE_object_handle_data_empty_update(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_empty(EvaluationContext *UNUSED(eval_ctx),
                                          Scene *scene,
                                          Object *ob)
 {
@@ -225,7 +225,7 @@ void BKE_object_handle_data_empty_update(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_object_handle_data_material_drivers(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_material_drivers(EvaluationContext *UNUSED(eval_ctx),
                                     Scene *scene,
                                     Object *ob)
 {
@@ -242,7 +242,7 @@ void BKE_object_handle_data_material_drivers(EvaluationContext *UNUSED(eval_ctx)
 	BLI_mutex_unlock(&material_lock);
 }
 
-void BKE_object_handle_data_lamp_drivers(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_lamp_drivers(EvaluationContext *UNUSED(eval_ctx),
                                     Scene *scene,
                                     Object *ob)
 {
@@ -250,7 +250,7 @@ void BKE_object_handle_data_lamp_drivers(EvaluationContext *UNUSED(eval_ctx),
 	lamp_drivers_update(scene, ob->data, ctime);
 }
 
-void BKE_object_handle_data_particles(EvaluationContext *eval_ctx,
+void BKE_object_eval_particles(EvaluationContext *eval_ctx,
                                       Scene *scene,
                                       Object *ob)
 {
@@ -328,24 +328,24 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	/* includes all keys and modifiers */
 	switch (ob->type) {
 		case OB_MESH:
-			BKE_object_handle_data_mesh_update(eval_ctx, scene, ob);
+			BKE_object_eval_mesh(eval_ctx, scene, ob);
 			break;
 		case OB_ARMATURE:
-			BKE_object_handle_data_armature_update(eval_ctx, scene, ob);
+			BKE_object_eval_armature(eval_ctx, scene, ob);
 			break;
 		case OB_MBALL:
-			BKE_object_handle_data_mball_update(eval_ctx, scene, ob);
+			BKE_object_eval_mball(eval_ctx, scene, ob);
 			break;
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_FONT:
-			BKE_object_handle_data_curve_update(eval_ctx, scene, ob);
+			BKE_object_eval_curve(eval_ctx, scene, ob);
 			break;
 		case OB_LATTICE:
-			BKE_object_handle_data_lattice_update(eval_ctx, scene, ob);
+			BKE_object_eval_lattice(eval_ctx, scene, ob);
 			break;
 		case OB_EMPTY:
-			BKE_object_handle_data_empty_update(eval_ctx, scene, ob);
+			BKE_object_eval_empty(eval_ctx, scene, ob);
 			break;
 	}
 
@@ -355,15 +355,15 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	 * anymore, especially due to Cycles [#31834]
 	 */
 	if (ob->totcol) {
-		BKE_object_handle_data_material_drivers(eval_ctx, scene, ob);
+		BKE_object_eval_material_drivers(eval_ctx, scene, ob);
 	}
 	else if (ob->type == OB_LAMP) {
-		BKE_object_handle_data_lamp_drivers(eval_ctx, scene, ob);
+		BKE_object_eval_lamp_drivers(eval_ctx, scene, ob);
 	}
 
 	/* particles */
 	if (ob != scene->obedit && ob->particlesystem.first) {
-		BKE_object_handle_data_particles(eval_ctx, scene, ob);
+		BKE_object_eval_particles(eval_ctx, scene, ob);
 	}
 
 	/* quick cache removed */

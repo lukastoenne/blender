@@ -911,7 +911,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	switch (ob->type) {
 		case OB_MESH:
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_mesh_update, _1, scene, ob),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_mesh, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_MESH);
 			break;
 		case OB_ARMATURE:
@@ -919,31 +919,31 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			break;
 		case OB_MBALL:
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_mball_update, _1, scene, ob),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_mball, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_MBALL);
 			break;
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_FONT:
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_curve_update, _1, scene, ob),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_curve, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_CURVE);
 			break;
 		case OB_LATTICE:
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_lattice_update, _1, scene, ob),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_lattice, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_LATTICE);
 			break;
 		case OB_EMPTY:
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_empty_update, _1, scene, ob),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_empty, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_EMPTY);
 			break;
 	}
 
 	if (ob != scene->obedit && ob->particlesystem.first) {
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_particles, _1, scene, ob),
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_particles, _1, scene, ob),
 		                   DEG_OPCODE_GEOMETRY_PARTICLES);
 	}
 	
@@ -990,12 +990,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		}
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_material_drivers, _1, scene, ob),
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_material_drivers, _1, scene, ob),
 		                   DEG_OPCODE_GEOMETRY_MATERIAL_DRIVERS);
 	}
 	else if (ob->type == OB_LAMP) {
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_handle_data_lamp_drivers, _1, scene, ob),
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_lamp_drivers, _1, scene, ob),
 		                   DEG_OPCODE_GEOMETRY_LAMP_DRIVERS);
 	}
 
