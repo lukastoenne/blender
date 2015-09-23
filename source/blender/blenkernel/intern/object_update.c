@@ -156,24 +156,6 @@ void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
 	(void) md;  /* Ignored. */
 }
 
-void BKE_object_eval_mesh(EvaluationContext *eval_ctx,
-                                        Scene *scene,
-                                        Object *ob)
-{
-	BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-	uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
-#ifdef WITH_FREESTYLE
-	/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
-	if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
-		data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
-	}
-#else
-	UNUSED_VARS(eval_ctx);
-#endif
-	
-	makeDerivedMesh(scene, ob, em, data_mask, false);
-}
-
 void BKE_object_eval_armature(EvaluationContext *UNUSED(eval_ctx),
                                             Scene *scene,
                                             Object *ob)
@@ -323,9 +305,12 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 
 	/* includes all keys and modifiers */
 	switch (ob->type) {
-		case OB_MESH:
+		case OB_MESH: {
+			/* note: only one of these will run, based on edit object */
+			BKE_object_eval_editmesh(eval_ctx, scene, ob);
 			BKE_object_eval_mesh(eval_ctx, scene, ob);
 			break;
+		}
 		case OB_ARMATURE:
 			BKE_object_eval_armature(eval_ctx, scene, ob);
 			break;

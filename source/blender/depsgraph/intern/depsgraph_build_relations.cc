@@ -1602,28 +1602,45 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		tail_key = geom_init_key;
 	}
 	
-	OperationKey obdata_update_key;
+	OperationKey obdata_update_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Data Update Done");
+	
 	switch (ob->type) {
-		case OB_MESH:
-			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MESH);
+		case OB_MESH: {
+			OperationKey update_mesh(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MESH);
+			OperationKey update_editmesh(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_EDITMESH);
+			add_relation(tail_key, update_mesh, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(tail_key, update_editmesh, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_mesh, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_editmesh, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 			break;
-		case OB_MBALL:
-			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MBALL);
+		}
+		case OB_MBALL: {
+			OperationKey update_mball(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_MBALL);
+			add_relation(tail_key, update_mball, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_mball, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 			break;
+		}
 		case OB_CURVE:
 		case OB_SURF:
-		case OB_FONT:
-			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_CURVE);
+		case OB_FONT: {
+			OperationKey update_curve(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_CURVE);
+			add_relation(tail_key, update_curve, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_curve, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 			break;
-		case OB_LATTICE:
-			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_LATTICE);
+		}
+		case OB_LATTICE: {
+			OperationKey update_lattice(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_LATTICE);
+			add_relation(tail_key, update_lattice, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_lattice, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 			break;
-		case OB_EMPTY:
-			obdata_update_key = OperationKey(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_EMPTY);
+		}
+		case OB_EMPTY: {
+			OperationKey update_empty(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_DATA_EMPTY);
+			add_relation(tail_key, update_empty, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
+			add_relation(update_empty, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 			break;
+		}
 	}
-
-	add_relation(tail_key, obdata_update_key, DEPSREL_TYPE_OPERATION, "Object Geometry Data Update");
 	tail_key = obdata_update_key;
 	
 	/* materials */

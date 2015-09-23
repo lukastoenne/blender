@@ -50,6 +50,7 @@
 #include "BLI_linklist.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_depsgraph.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
 #include "BKE_material.h"
@@ -2665,6 +2666,52 @@ void makeDerivedMesh(
 	}
 	else {
 		mesh_build_data(scene, ob, dataMask, build_shapekey_layers, need_mapping);
+	}
+}
+
+void BKE_object_eval_mesh(EvaluationContext *eval_ctx,
+                          Scene *scene,
+                          Object *ob)
+{
+	BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+	
+	if (!em) {
+		bool need_mapping;
+		CustomDataMask data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+		data_mask |= object_get_datamask(scene, ob, &need_mapping);
+#ifdef WITH_FREESTYLE
+		/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
+		if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
+			data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
+		}
+#else
+		UNUSED_VARS(eval_ctx);
+#endif
+		
+		mesh_build_data(scene, ob, data_mask, false, need_mapping);
+	}
+}
+
+void BKE_object_eval_editmesh(EvaluationContext *eval_ctx,
+                              Scene *scene,
+                              Object *ob)
+{
+	BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+
+	if (em) {
+		bool need_mapping;
+		CustomDataMask data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+		data_mask |= object_get_datamask(scene, ob, &need_mapping);
+#ifdef WITH_FREESTYLE
+		/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
+		if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
+			data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
+		}
+#else
+		UNUSED_VARS(eval_ctx);
+#endif
+		
+		editbmesh_build_data(scene, ob, em, data_mask);
 	}
 }
 

@@ -69,6 +69,8 @@ extern "C" {
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_editmesh.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_idcode.h"
@@ -909,11 +911,18 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	ID *obdata = (ID *)ob->data;
 
 	switch (ob->type) {
-		case OB_MESH:
+		case OB_MESH: {
+			/* editmesh is unknown at depsgraph build time,
+			 * only one of these nodes will be evaluated.
+			 */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_mesh, _1, scene, ob),
 			                   DEG_OPCODE_GEOMETRY_DATA_MESH);
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_editmesh, _1, scene, ob),
+			                   DEG_OPCODE_GEOMETRY_DATA_EDITMESH);
 			break;
+		}
 		case OB_ARMATURE:
 			/* XXX pose nodes are built in build_object() - should clarify what happens where for such object data */
 			break;
@@ -940,6 +949,10 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			                   DEG_OPCODE_GEOMETRY_DATA_EMPTY);
 			break;
 	}
+
+	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+	                   DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Data Update Done");
 
 	if (ob != scene->obedit && ob->particlesystem.first) {
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,

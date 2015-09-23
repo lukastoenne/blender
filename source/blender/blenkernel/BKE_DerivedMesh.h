@@ -97,6 +97,7 @@ struct ColorBand;
 struct GPUVertexAttribs;
 struct GPUDrawObject;
 struct PBVH;
+struct EvaluationContext;
 
 /* number of sub-elements each mesh element has (for interpolation) */
 #define SUB_ELEMS_VERT 0
@@ -728,6 +729,9 @@ bool editbmesh_modifier_is_enabled(struct Scene *scene, struct ModifierData *md,
 void makeDerivedMesh(
         struct Scene *scene, struct Object *ob, struct BMEditMesh *em,
         CustomDataMask dataMask, const bool build_shapekey_layers);
+
+void BKE_object_eval_mesh(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
+void BKE_object_eval_editmesh(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 
 void weight_to_rgb(float r_rgb[3], const float weight);
 /** Update the weight MCOL preview layer.
