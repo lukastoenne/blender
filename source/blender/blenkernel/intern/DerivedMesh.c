@@ -1706,6 +1706,7 @@ typedef struct ModifierEvalContext {
 	
 	bool sculpt_mode;
 	bool sculpt_dyntopo;
+	bool sculpt_only_deform;
 	
 	bool has_multires;
 	
@@ -1757,6 +1758,7 @@ static void mesh_init_modifier_context(ModifierEvalContext *ctx,
 
 	ctx->sculpt_mode = (ob->mode & OB_MODE_SCULPT) && ob->sculpt && !useRenderParams;
 	ctx->sculpt_dyntopo = (ctx->sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
+	ctx->sculpt_only_deform = (scene->toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM);
 
 	ctx->has_multires = (mmd && mmd->sculptlvl != 0);
 
@@ -1807,6 +1809,46 @@ typedef struct ModifierEvalIterator {
 	bool isPrevDeform;
 	CustomDataMask append_mask;
 } ModifierEvalIterator;
+
+static bool mesh_calc_modifier_sculptmode_skip(const ModifierEvalContext *ctx, ModifierData *md,
+                                               const bool multires_applied)
+{
+	if (ctx->sculpt_mode
+	    && (!ctx->has_multires || multires_applied || ctx->sculpt_dyntopo))
+	{
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const bool useRenderParams = ctx->app_flags & MOD_APPLY_RENDER;
+		bool unsupported = false;
+
+		if (md->type == eModifierType_Multires && ((MultiresModifierData *)md)->sculptlvl == 0) {
+			/* If multires is on level 0 skip it silently without warning message. */
+			if (!ctx->sculpt_dyntopo) {
+				return true;
+			}
+		}
+
+		if (ctx->sculpt_dyntopo && !useRenderParams)
+			unsupported = true;
+
+		if (ctx->sculpt_only_deform)
+			unsupported |= (mti->type != eModifierTypeType_OnlyDeform);
+
+		unsupported |= multires_applied;
+
+		if (unsupported) {
+			if (ctx->sculpt_dyntopo)
+				modifier_setError(md, "Not supported in dyntopo");
+			else
+				modifier_setError(md, "Not supported in sculpt mode");
+			return true;
+		}
+		else {
+			modifier_setError(md, "Hide, Mask and optimized display disabled");
+		}
+	}
+	
+	return false;
+}
 
 /**
  * new value for useDeform -1  (hack for the gameengine):
@@ -1932,36 +1974,8 @@ static void mesh_calc_modifiers(
 			continue;
 		}
 
-		if (ctx.sculpt_mode &&
-		    (!ctx.has_multires || iter.multires_applied || ctx.sculpt_dyntopo))
-		{
-			bool unsupported = false;
-
-			if (md->type == eModifierType_Multires && ((MultiresModifierData *)md)->sculptlvl == 0) {
-				/* If multires is on level 0 skip it silently without warning message. */
-				if (!ctx.sculpt_dyntopo) {
-					continue;
-				}
-			}
-
-			if (ctx.sculpt_dyntopo && !useRenderParams)
-				unsupported = true;
-
-			if (scene->toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM)
-				unsupported |= (mti->type != eModifierTypeType_OnlyDeform);
-
-			unsupported |= iter.multires_applied;
-
-			if (unsupported) {
-				if (ctx.sculpt_dyntopo)
-					modifier_setError(md, "Not supported in dyntopo");
-				else
-					modifier_setError(md, "Not supported in sculpt mode");
-				continue;
-			}
-			else {
-				modifier_setError(md, "Hide, Mask and optimized display disabled");
-			}
+		if (mesh_calc_modifier_sculptmode_skip(&ctx, md, iter.multires_applied)) {
+			continue;
 		}
 
 		if (need_mapping && !modifier_supportsMapping(md)) {
