@@ -1257,3 +1257,9 @@ void BKE_lattice_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
 {
 }
 
+void BKE_object_eval_lattice(EvaluationContext *UNUSED(eval_ctx),
+                             Scene *scene,
+                             Object *ob)
+{
+	BKE_lattice_modifiers_calc(scene, ob);
+}

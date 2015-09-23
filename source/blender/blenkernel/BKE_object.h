@@ -207,14 +207,9 @@ void BKE_object_eval_data_ready(struct EvaluationContext *eval_ctx,
                                 struct Object *ob);
 
 void BKE_object_handle_data_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
-void BKE_object_eval_armature(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
-void BKE_object_eval_mball(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
-void BKE_object_eval_curve(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
-void BKE_object_eval_lattice(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_eval_empty(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_eval_material_drivers(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_eval_lamp_drivers(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
-void BKE_object_eval_particles(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 
 void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,

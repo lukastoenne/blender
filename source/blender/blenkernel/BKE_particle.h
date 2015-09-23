@@ -468,4 +468,8 @@ void BKE_particle_system_eval(struct EvaluationContext *eval_ctx,
                               struct Object *ob,
                               struct ParticleSystem *psys);
 
+void BKE_object_eval_particles(struct EvaluationContext *eval_ctx,
+                               struct Scene *scene,
+                               struct Object *ob);
+
 #endif

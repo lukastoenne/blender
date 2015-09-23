@@ -57,6 +57,8 @@
 #include "BKE_scene.h"
 #include "BKE_material.h"
 #include "BKE_image.h"
+#include "BKE_mball.h"
+#include "BKE_curve.h"
 
 #include "DEG_depsgraph.h"
 
@@ -156,42 +158,6 @@ void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
 	(void) md;  /* Ignored. */
 }
 
-void BKE_object_eval_armature(EvaluationContext *UNUSED(eval_ctx),
-                                            Scene *scene,
-                                            Object *ob)
-{
-	if (ob->id.lib && ob->proxy_from) {
-		if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
-			printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
-			       ob->id.name + 2, ob->proxy_from->id.name + 2);
-		}
-	}
-	else {
-		BKE_pose_where_is(scene, ob);
-	}
-}
-
-void BKE_object_eval_mball(EvaluationContext *eval_ctx,
-                                         Scene *scene,
-                                         Object *ob)
-{
-	BKE_displist_make_mball(eval_ctx, scene, ob);
-}
-
-void BKE_object_eval_curve(EvaluationContext *UNUSED(eval_ctx),
-                                         Scene *scene,
-                                         Object *ob)
-{
-	BKE_displist_make_curveTypes(scene, ob, 0);
-}
-
-void BKE_object_eval_lattice(EvaluationContext *UNUSED(eval_ctx),
-                                           Scene *scene,
-                                           Object *ob)
-{
-	BKE_lattice_modifiers_calc(scene, ob);
-}
-
 void BKE_object_eval_empty(EvaluationContext *UNUSED(eval_ctx),
                                          Scene *scene,
                                          Object *ob)
@@ -226,55 +192,6 @@ void BKE_object_eval_lamp_drivers(EvaluationContext *UNUSED(eval_ctx),
 {
 	float ctime = BKE_scene_frame_get(scene);
 	lamp_drivers_update(scene, ob->data, ctime);
-}
-
-void BKE_object_eval_particles(EvaluationContext *eval_ctx,
-                                      Scene *scene,
-                                      Object *ob)
-{
-	ParticleSystem *tpsys, *psys;
-	DerivedMesh *dm;
-	ob->transflag &= ~OB_DUPLIPARTS;
-	psys = ob->particlesystem.first;
-	while (psys) {
-		/* ensure this update always happens even if psys is disabled */
-		if (psys->recalc & PSYS_RECALC_TYPE) {
-			psys_changed_type(ob, psys);
-		}
-		
-		if (psys_check_enabled(ob, psys)) {
-			/* check use of dupli objects here */
-			if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
-			    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
-			     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
-			{
-				ob->transflag |= OB_DUPLIPARTS;
-			}
-			
-			particle_system_update(scene, ob, psys);
-			psys = psys->next;
-		}
-		else if (psys->flag & PSYS_DELETE) {
-			tpsys = psys->next;
-			BLI_remlink(&ob->particlesystem, psys);
-			psys_free(ob, psys);
-			psys = tpsys;
-		}
-		else
-			psys = psys->next;
-	}
-	
-	if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
-		/* this is to make sure we get render level duplis in groups:
-			 * the derivedmesh must be created before init_render_mesh,
-			 * since object_duplilist does dupliparticles before that */
-		CustomDataMask data_mask = CD_MASK_BAREMESH | CD_MASK_MFACE | CD_MASK_MTFACE | CD_MASK_MCOL;
-		dm = mesh_create_derived_render(scene, ob, data_mask);
-		dm->release(dm);
-		
-		for (psys = ob->particlesystem.first; psys; psys = psys->next)
-			psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
-	}
 }
 
 void BKE_object_handle_data_update(EvaluationContext *eval_ctx,

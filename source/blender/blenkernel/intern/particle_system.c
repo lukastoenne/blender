@@ -4221,3 +4221,52 @@ void BKE_particle_system_eval(EvaluationContext *UNUSED(eval_ctx),
 	}
 	BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 }
+
+void BKE_object_eval_particles(EvaluationContext *eval_ctx,
+                                      Scene *scene,
+                                      Object *ob)
+{
+	ParticleSystem *tpsys, *psys;
+	DerivedMesh *dm;
+	ob->transflag &= ~OB_DUPLIPARTS;
+	psys = ob->particlesystem.first;
+	while (psys) {
+		/* ensure this update always happens even if psys is disabled */
+		if (psys->recalc & PSYS_RECALC_TYPE) {
+			psys_changed_type(ob, psys);
+		}
+		
+		if (psys_check_enabled(ob, psys)) {
+			/* check use of dupli objects here */
+			if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
+			    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
+			     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
+			{
+				ob->transflag |= OB_DUPLIPARTS;
+			}
+			
+			particle_system_update(scene, ob, psys);
+			psys = psys->next;
+		}
+		else if (psys->flag & PSYS_DELETE) {
+			tpsys = psys->next;
+			BLI_remlink(&ob->particlesystem, psys);
+			psys_free(ob, psys);
+			psys = tpsys;
+		}
+		else
+			psys = psys->next;
+	}
+	
+	if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
+		/* this is to make sure we get render level duplis in groups:
+			 * the derivedmesh must be created before init_render_mesh,
+			 * since object_duplilist does dupliparticles before that */
+		CustomDataMask data_mask = CD_MASK_BAREMESH | CD_MASK_MFACE | CD_MASK_MTFACE | CD_MASK_MCOL;
+		dm = mesh_create_derived_render(scene, ob, data_mask);
+		dm->release(dm);
+		
+		for (psys = ob->particlesystem.first; psys; psys = psys->next)
+			psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
+	}
+}

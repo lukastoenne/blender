@@ -195,6 +195,10 @@ void BKE_pose_eval_flush(struct EvaluationContext *eval_ctx,
 void BKE_pose_eval_proxy_copy(struct EvaluationContext *eval_ctx,
                               struct Object *ob);
 
+void BKE_object_eval_armature(struct EvaluationContext *eval_ctx,
+                              struct Scene *scene,
+                              struct Object *ob);
+
 #ifdef __cplusplus
 }
 #endif

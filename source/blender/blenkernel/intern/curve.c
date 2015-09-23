@@ -4655,3 +4655,10 @@ void BKE_curve_eval_path(EvaluationContext *UNUSED(eval_ctx),
 		printf("%s on %s\n", __func__, curve->id.name);
 	}
 }
+
+void BKE_object_eval_curve(EvaluationContext *UNUSED(eval_ctx),
+                           Scene *scene,
+                           Object *ob)
+{
+	BKE_displist_make_curveTypes(scene, ob, false);
+}

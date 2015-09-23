@@ -200,4 +200,8 @@ void BKE_curve_eval_geometry(struct EvaluationContext *eval_ctx,
 void BKE_curve_eval_path(struct EvaluationContext *eval_ctx,
                          struct Curve *curve);
 
+void BKE_object_eval_curve(struct EvaluationContext *eval_ctx,
+                           struct Scene *scene,
+                           struct Object *ob);
+
 #endif  /* __BKE_CURVE_H__ */

@@ -592,3 +592,10 @@ void BKE_mball_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
                              MetaBall *UNUSED(mball))
 {
 }
+
+void BKE_object_eval_mball(EvaluationContext *eval_ctx,
+                                         Scene *scene,
+                                         Object *ob)
+{
+	BKE_displist_make_mball(eval_ctx, scene, ob);
+}

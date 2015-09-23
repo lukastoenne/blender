@@ -102,4 +102,8 @@ struct EvaluationContext;
 void BKE_lattice_eval_geometry(struct EvaluationContext *eval_ctx,
                                struct Lattice *latt);
 
+void BKE_object_eval_lattice(struct EvaluationContext *eval_ctx,
+                             struct Scene *scene,
+                             struct Object *ob);
+
 #endif  /* __BKE_LATTICE_H__ */

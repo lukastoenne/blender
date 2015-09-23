@@ -75,4 +75,8 @@ struct EvaluationContext;
 void BKE_mball_eval_geometry(struct EvaluationContext *eval_ctx,
                              struct MetaBall *mball);
 
+void BKE_object_eval_mball(struct EvaluationContext *eval_ctx,
+                           struct Scene *scene,
+                           struct Object *ob);
+
 #endif

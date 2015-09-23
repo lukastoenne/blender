@@ -695,3 +695,18 @@ void BKE_pose_eval_proxy_copy(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 		       ob->id.name + 2, ob->proxy_from->id.name + 2);
 	}
 }
+
+void BKE_object_eval_armature(EvaluationContext *UNUSED(eval_ctx),
+                                            Scene *scene,
+                                            Object *ob)
+{
+	if (ob->id.lib && ob->proxy_from) {
+		if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
+			printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
+			       ob->id.name + 2, ob->proxy_from->id.name + 2);
+		}
+	}
+	else {
+		BKE_pose_where_is(scene, ob);
+	}
+}
