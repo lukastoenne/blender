@@ -1688,6 +1688,126 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 	}
 }
 
+/* immutable settings and precomputed temporary data */
+typedef struct ModifierEvalContext {
+	int draw_flag;
+	int required_mode;
+
+	bool do_mod_mcol;
+	bool do_final_wmcol;
+	bool do_init_wmcol;
+	bool do_mod_wmcol;
+	
+	bool do_loop_normals;
+	float loop_normals_split_angle;
+	
+	ModifierApplyFlag app_flags;
+	ModifierApplyFlag deform_app_flags;
+	
+	bool sculpt_mode;
+	bool sculpt_dyntopo;
+	
+	bool has_multires;
+	
+	VirtualModifierData virtualModifierData;
+	
+	ModifierData *firstmd;
+	ModifierData *previewmd;
+	CDMaskLink *datamasks;
+} ModifierEvalContext;
+
+static void mesh_init_modifier_context(ModifierEvalContext *ctx,
+                                       Scene *scene, Object *ob,
+                                       const bool useRenderParams, int useDeform,
+                                       const bool UNUSED(need_mapping),
+                                       CustomDataMask dataMask,
+                                       const int UNUSED(index),
+                                       const bool useCache,
+                                       const bool UNUSED(build_shapekey_layers),
+                                       const bool allow_gpu)
+{
+	Mesh *me = ob->data;
+	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
+	CustomDataMask previewmask = 0;
+	const bool skipVirtualArmature = (useDeform < 0);
+
+	ctx->app_flags =   (useRenderParams ? MOD_APPLY_RENDER : 0)
+	                 | (useCache ? MOD_APPLY_USECACHE : 0)
+	                 | (allow_gpu ? MOD_APPLY_ALLOW_GPU : 0);
+	
+	ctx->deform_app_flags =   ctx->app_flags
+	                        | (useDeform ? MOD_APPLY_USECACHE : 0);
+	
+	ctx->draw_flag = dm_drawflag_calc(scene->toolsettings);
+	ctx->required_mode = useRenderParams ? eModifierMode_Render : eModifierMode_Realtime;
+	
+	/* Generic preview only in object mode! */
+	ctx->do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
+#if 0 /* XXX Will re-enable this when we have global mod stack options. */
+	ctx->do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
+#else
+	ctx->do_final_wmcol = false;
+#endif
+	ctx->do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MLOOPCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !ctx->do_final_wmcol);
+	/* XXX Same as above... For now, only weights preview in WPaint mode. */
+	ctx->do_mod_wmcol = ctx->do_init_wmcol;
+
+	ctx->do_loop_normals = (me->flag & ME_AUTOSMOOTH) != 0;
+	ctx->loop_normals_split_angle = me->smoothresh;
+
+	ctx->sculpt_mode = (ob->mode & OB_MODE_SCULPT) && ob->sculpt && !useRenderParams;
+	ctx->sculpt_dyntopo = (ctx->sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
+
+	ctx->has_multires = (mmd && mmd->sculptlvl != 0);
+
+	/* precompute data */
+
+	if (!skipVirtualArmature) {
+		ctx->firstmd = modifiers_getVirtualModifierList(ob, &ctx->virtualModifierData);
+	}
+	else {
+		/* game engine exception */
+		ctx->firstmd = ob->modifiers.first;
+		if (ctx->firstmd && ctx->firstmd->type == eModifierType_Armature)
+			ctx->firstmd = ctx->firstmd->next;
+	}
+
+	if (ctx->do_mod_wmcol || ctx->do_mod_mcol) {
+		/* Find the last active modifier generating a preview, or NULL if none. */
+		/* XXX Currently, DPaint modifier just ignores this.
+		 *     Needs a stupid hack...
+		 *     The whole "modifier preview" thing has to be (re?)designed, anyway! */
+		ctx->previewmd = modifiers_getLastPreview(scene, ctx->firstmd, ctx->required_mode);
+
+		/* even if the modifier doesn't need the data, to make a preview it may */
+		if (ctx->previewmd) {
+			if (ctx->do_mod_wmcol) {
+				previewmask = CD_MASK_MDEFORMVERT;
+			}
+		}
+	}
+	else
+		ctx->previewmd = NULL;
+
+	ctx->datamasks = modifiers_calcDataMasks(scene, ob, ctx->firstmd, dataMask, ctx->required_mode, ctx->previewmd, previewmask);
+}
+
+static void mesh_free_modifier_context(ModifierEvalContext *ctx)
+{
+	BLI_linklist_free((LinkNode *)ctx->datamasks, NULL);
+}
+
+/* combined iterator for modifier and associated data mask */
+typedef struct ModifierEvalIterator {
+	ModifierData *modifier;
+	CDMaskLink *datamask;
+
+	/* mutable flags */
+	bool multires_applied;
+	bool isPrevDeform;
+	CustomDataMask append_mask;
+} ModifierEvalIterator;
+
 /**
  * new value for useDeform -1  (hack for the gameengine):
  *
@@ -1705,80 +1825,23 @@ static void mesh_calc_modifiers(
         DerivedMesh **r_deform, DerivedMesh **r_final)
 {
 	Mesh *me = ob->data;
-	ModifierData *firstmd, *md, *previewmd = NULL;
-	CDMaskLink *datamasks, *curr;
-	/* XXX Always copying POLYINDEX, else tessellated data are no more valid! */
-	CustomDataMask mask, nextmask, previewmask = 0, append_mask = CD_MASK_ORIGINDEX;
+	ModifierEvalContext ctx;
+	ModifierEvalIterator iter;
 	float (*deformedVerts)[3] = NULL;
 	DerivedMesh *dm = NULL, *orcodm, *clothorcodm, *finaldm;
 	int numVerts = me->totvert;
-	const int required_mode = useRenderParams ? eModifierMode_Render : eModifierMode_Realtime;
-	bool isPrevDeform = false;
-	const bool skipVirtualArmature = (useDeform < 0);
-	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
-	const bool has_multires = (mmd && mmd->sculptlvl != 0);
-	bool multires_applied = false;
-	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt && !useRenderParams;
-	const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
-	const int draw_flag = dm_drawflag_calc(scene->toolsettings);
 
-	/* Generic preview only in object mode! */
-	const bool do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
-#if 0 /* XXX Will re-enable this when we have global mod stack options. */
-	const bool do_final_wmcol = (scene->toolsettings->weights_preview == WP_WPREVIEW_FINAL) && do_wmcol;
-#endif
-	const bool do_final_wmcol = false;
-	const bool do_init_wmcol = ((dataMask & CD_MASK_PREVIEW_MLOOPCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT) && !do_final_wmcol);
-	/* XXX Same as above... For now, only weights preview in WPaint mode. */
-	const bool do_mod_wmcol = do_init_wmcol;
+	mesh_init_modifier_context(&ctx, scene, ob, useRenderParams, useDeform, need_mapping,
+	                           dataMask, index, useCache, build_shapekey_layers, allow_gpu);
 
-	const bool do_loop_normals = (me->flag & ME_AUTOSMOOTH) != 0;
-	const float loop_normals_split_angle = me->smoothresh;
-
-	VirtualModifierData virtualModifierData;
-
-	ModifierApplyFlag app_flags = useRenderParams ? MOD_APPLY_RENDER : 0;
-	ModifierApplyFlag deform_app_flags = app_flags;
-
-
-	if (useCache)
-		app_flags |= MOD_APPLY_USECACHE;
-	if (allow_gpu)
-		app_flags |= MOD_APPLY_ALLOW_GPU;
-	if (useDeform)
-		deform_app_flags |= MOD_APPLY_USECACHE;
-
-	if (!skipVirtualArmature) {
-		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);
-	}
-	else {
-		/* game engine exception */
-		firstmd = ob->modifiers.first;
-		if (firstmd && firstmd->type == eModifierType_Armature)
-			firstmd = firstmd->next;
-	}
-
-	md = firstmd;
+	iter.modifier = ctx.firstmd;
+	iter.datamask = ctx.datamasks;
+	iter.multires_applied = false;
+	iter.isPrevDeform = false;
+	/* XXX Always copying POLYINDEX, else tessellated data are no more valid! */
+	iter.append_mask = CD_MASK_ORIGINDEX;
 
 	modifiers_clearErrors(ob);
-
-	if (do_mod_wmcol || do_mod_mcol) {
-		/* Find the last active modifier generating a preview, or NULL if none. */
-		/* XXX Currently, DPaint modifier just ignores this.
-		 *     Needs a stupid hack...
-		 *     The whole "modifier preview" thing has to be (re?)designed, anyway! */
-		previewmd = modifiers_getLastPreview(scene, md, required_mode);
-
-		/* even if the modifier doesn't need the data, to make a preview it may */
-		if (previewmd) {
-			if (do_mod_wmcol) {
-				previewmask = CD_MASK_MDEFORMVERT;
-			}
-		}
-	}
-
-	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode, previewmd, previewmask);
-	curr = datamasks;
 
 	if (r_deform) {
 		*r_deform = NULL;
@@ -1790,12 +1853,13 @@ static void mesh_calc_modifiers(
 			deformedVerts = inputVertexCos;
 		
 		/* Apply all leading deforming modifiers */
-		for (; md; md = md->next, curr = curr->next) {
+		for (; iter.modifier; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
+			ModifierData *md = iter.modifier;
 			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 			md->scene = scene;
 			
-			if (!modifier_isEnabled(scene, md, required_mode)) {
+			if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
 				continue;
 			}
 
@@ -1803,11 +1867,11 @@ static void mesh_calc_modifiers(
 				continue;
 			}
 
-			if (mti->type == eModifierTypeType_OnlyDeform && !sculpt_dyntopo) {
+			if (mti->type == eModifierTypeType_OnlyDeform && !ctx.sculpt_dyntopo) {
 				if (!deformedVerts)
 					deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
 
-				modwrap_deformVerts(md, ob, NULL, deformedVerts, numVerts, deform_app_flags);
+				modwrap_deformVerts(md, ob, NULL, deformedVerts, numVerts, ctx.deform_app_flags);
 			}
 			else {
 				break;
@@ -1849,12 +1913,13 @@ static void mesh_calc_modifiers(
 	orcodm = NULL;
 	clothorcodm = NULL;
 
-	for (; md; md = md->next, curr = curr->next) {
+	for (; iter.modifier; iter.modifier = iter.modifier->next, iter.datamask = iter.datamask->next) {
+		ModifierData *md = iter.modifier;
 		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 
-		if (!modifier_isEnabled(scene, md, required_mode)) {
+		if (!modifier_isEnabled(scene, md, ctx.required_mode)) {
 			continue;
 		}
 
@@ -1867,28 +1932,28 @@ static void mesh_calc_modifiers(
 			continue;
 		}
 
-		if (sculpt_mode &&
-		    (!has_multires || multires_applied || sculpt_dyntopo))
+		if (ctx.sculpt_mode &&
+		    (!ctx.has_multires || iter.multires_applied || ctx.sculpt_dyntopo))
 		{
 			bool unsupported = false;
 
 			if (md->type == eModifierType_Multires && ((MultiresModifierData *)md)->sculptlvl == 0) {
 				/* If multires is on level 0 skip it silently without warning message. */
-				if (!sculpt_dyntopo) {
+				if (!ctx.sculpt_dyntopo) {
 					continue;
 				}
 			}
 
-			if (sculpt_dyntopo && !useRenderParams)
+			if (ctx.sculpt_dyntopo && !useRenderParams)
 				unsupported = true;
 
 			if (scene->toolsettings->sculpt->flags & SCULPT_ONLY_DEFORM)
 				unsupported |= (mti->type != eModifierTypeType_OnlyDeform);
 
-			unsupported |= multires_applied;
+			unsupported |= iter.multires_applied;
 
 			if (unsupported) {
-				if (sculpt_dyntopo)
+				if (ctx.sculpt_dyntopo)
 					modifier_setError(md, "Not supported in dyntopo");
 				else
 					modifier_setError(md, "Not supported in sculpt mode");
@@ -1907,14 +1972,13 @@ static void mesh_calc_modifiers(
 			continue;
 		}
 
-		/* add an orco layer if needed by this modifier */
-		if (mti->requiredDataMask)
-			mask = mti->requiredDataMask(ob, md);
-		else
-			mask = 0;
-
-		if (dm && (mask & CD_MASK_ORCO))
-			add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+		{
+			/* add an orco layer if needed by this modifier */
+			CustomDataMask mask = mti->requiredDataMask ? mti->requiredDataMask(ob, md) : 0;
+			
+			if (dm && (mask & CD_MASK_ORCO))
+				add_orco_dm(ob, NULL, dm, orcodm, CD_ORCO);
+		}
 
 		/* How to apply modifier depends on (a) what we already have as
 		 * a result of previous modifiers (could be a DerivedMesh or just
@@ -1941,23 +2005,19 @@ static void mesh_calc_modifiers(
 
 			/* if this is not the last modifier in the stack then recalculate the normals
 			 * to avoid giving bogus normals to the next modifier see: [#23673] */
-			if (isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
+			if (iter.isPrevDeform && mti->dependsOnNormals && mti->dependsOnNormals(md)) {
 				/* XXX, this covers bug #23673, but we may need normal calc for other types */
 				if (dm && dm->type == DM_TYPE_CDDM) {
 					CDDM_apply_vert_coords(dm, deformedVerts);
 				}
 			}
 
-			modwrap_deformVerts(md, ob, dm, deformedVerts, numVerts, deform_app_flags);
+			modwrap_deformVerts(md, ob, dm, deformedVerts, numVerts, ctx.deform_app_flags);
 		}
 		else {
 			DerivedMesh *ndm;
-
 			/* determine which data layers are needed by following modifiers */
-			if (curr->next)
-				nextmask = curr->next->mask;
-			else
-				nextmask = dataMask;
+			CustomDataMask nextmask = (iter.datamask->next) ? iter.datamask->next->mask : dataMask;
 
 			/* apply vertex coordinates or build a DerivedMesh as necessary */
 			if (dm) {
@@ -1980,8 +2040,8 @@ static void mesh_calc_modifiers(
 					CDDM_apply_vert_coords(dm, deformedVerts);
 				}
 
-				if (do_init_wmcol)
-					DM_update_weight_mcol(ob, dm, draw_flag, NULL, 0, NULL);
+				if (ctx.do_init_wmcol)
+					DM_update_weight_mcol(ob, dm, ctx.draw_flag, NULL, 0, NULL);
 
 				/* Constructive modifiers need to have an origindex
 				 * otherwise they wont have anywhere to copy the data from.
@@ -2008,27 +2068,28 @@ static void mesh_calc_modifiers(
 				}
 			}
 
-			
-			/* set the DerivedMesh to only copy needed data */
-			mask = curr->mask;
-			/* needMapping check here fixes bug [#28112], otherwise its
-			 * possible that it wont be copied */
-			mask |= append_mask;
-			DM_set_only_copy(dm, mask | (need_mapping ? CD_MASK_ORIGINDEX : 0));
-			
-			/* add cloth rest shape key if need */
-			if (mask & CD_MASK_CLOTH_ORCO)
-				add_orco_dm(ob, NULL, dm, clothorcodm, CD_CLOTH_ORCO);
+			{
+				/* set the DerivedMesh to only copy needed data */
+				CustomDataMask mask = iter.datamask->mask;
+				/* needMapping check here fixes bug [#28112], otherwise its
+				 * possible that it wont be copied */
+				mask |= iter.append_mask;
+				DM_set_only_copy(dm, mask | (need_mapping ? CD_MASK_ORIGINDEX : 0));
+				
+				/* add cloth rest shape key if need */
+				if (mask & CD_MASK_CLOTH_ORCO)
+					add_orco_dm(ob, NULL, dm, clothorcodm, CD_CLOTH_ORCO);
+			}
 
 			/* add an origspace layer if needed */
-			if ((curr->mask) & CD_MASK_ORIGSPACE_MLOOP) {
+			if ((iter.datamask->mask) & CD_MASK_ORIGSPACE_MLOOP) {
 				if (!CustomData_has_layer(&dm->loopData, CD_ORIGSPACE_MLOOP)) {
 					DM_add_loop_layer(dm, CD_ORIGSPACE_MLOOP, CD_CALLOC, NULL);
 					DM_init_origspace(dm);
 				}
 			}
 
-			ndm = modwrap_applyModifier(md, ob, dm, app_flags);
+			ndm = modwrap_applyModifier(md, ob, dm, ctx.app_flags);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
@@ -2055,7 +2116,7 @@ static void mesh_calc_modifiers(
 				                 (mti->requiredDataMask ?
 				                  mti->requiredDataMask(ob, md) : 0));
 
-				ndm = modwrap_applyModifier(md, ob, orcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ndm = modwrap_applyModifier(md, ob, orcodm, (ctx.app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
@@ -2073,7 +2134,7 @@ static void mesh_calc_modifiers(
 				nextmask &= ~CD_MASK_CLOTH_ORCO;
 				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
 
-				ndm = modwrap_applyModifier(md, ob, clothorcodm, (app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
+				ndm = modwrap_applyModifier(md, ob, clothorcodm, (ctx.app_flags & ~MOD_APPLY_USECACHE) | MOD_APPLY_ORCO);
 				ASSERT_IS_VALID_DM(ndm);
 
 				if (ndm) {
@@ -2088,27 +2149,27 @@ static void mesh_calc_modifiers(
 			/* in case of dynamic paint, make sure preview mask remains for following modifiers */
 			/* XXX Temp and hackish solution! */
 			if (md->type == eModifierType_DynamicPaint)
-				append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
+				iter.append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
 			/* In case of active preview modifier, make sure preview mask remains for following modifiers. */
-			else if ((md == previewmd) && (do_mod_wmcol)) {
-				DM_update_weight_mcol(ob, dm, draw_flag, NULL, 0, NULL);
-				append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
+			else if ((md == ctx.previewmd) && (ctx.do_mod_wmcol)) {
+				DM_update_weight_mcol(ob, dm, ctx.draw_flag, NULL, 0, NULL);
+				iter.append_mask |= CD_MASK_PREVIEW_MLOOPCOL;
 			}
 		}
 
-		isPrevDeform = (mti->type == eModifierTypeType_OnlyDeform);
+		iter.isPrevDeform = (mti->type == eModifierTypeType_OnlyDeform);
 
 		/* grab modifiers until index i */
 		if ((index != -1) && (BLI_findindex(&ob->modifiers, md) >= index))
 			break;
 
-		if (sculpt_mode && md->type == eModifierType_Multires) {
-			multires_applied = true;
+		if (ctx.sculpt_mode && md->type == eModifierType_Multires) {
+			iter.multires_applied = true;
 		}
 	}
 
-	for (md = firstmd; md; md = md->next)
-		modifier_freeTemporaryData(md);
+	for (iter.modifier = ctx.firstmd; iter.modifier; iter.modifier = iter.modifier->next)
+		modifier_freeTemporaryData(iter.modifier);
 
 	/* Yay, we are done. If we have a DerivedMesh and deformed vertices
 	 * need to apply these back onto the DerivedMesh. If we have no
@@ -2123,8 +2184,8 @@ static void mesh_calc_modifiers(
 
 #if 0 /* For later nice mod preview! */
 		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
-		if (do_final_wmcol)
-			DM_update_weight_mcol(ob, finaldm, draw_flag, NULL, 0, NULL);
+		if (ctx.do_final_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
 #endif
 	}
 	else if (dm) {
@@ -2132,8 +2193,8 @@ static void mesh_calc_modifiers(
 
 #if 0 /* For later nice mod preview! */
 		/* In case we need modified weights in CD_PREVIEW_MCOL, we have to re-compute it. */
-		if (do_final_wmcol)
-			DM_update_weight_mcol(ob, finaldm, draw_flag, NULL, 0, NULL);
+		if (ctx.do_final_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
 #endif
 	}
 	else {
@@ -2148,8 +2209,8 @@ static void mesh_calc_modifiers(
 		}
 
 		/* In this case, we should never have weight-modifying modifiers in stack... */
-		if (do_init_wmcol)
-			DM_update_weight_mcol(ob, finaldm, draw_flag, NULL, 0, NULL);
+		if (ctx.do_init_wmcol)
+			DM_update_weight_mcol(ob, finaldm, ctx.draw_flag, NULL, 0, NULL);
 	}
 
 	/* add an orco layer if needed */
@@ -2160,12 +2221,12 @@ static void mesh_calc_modifiers(
 			add_orco_dm(ob, NULL, *r_deform, NULL, CD_ORCO);
 	}
 
-	if (do_loop_normals) {
+	if (ctx.do_loop_normals) {
 		/* Compute loop normals (note: will compute poly and vert normals as well, if needed!) */
-		DM_calc_loop_normals(finaldm, do_loop_normals, loop_normals_split_angle);
+		DM_calc_loop_normals(finaldm, ctx.do_loop_normals, ctx.loop_normals_split_angle);
 	}
 
-	if (sculpt_dyntopo == false) {
+	if (ctx.sculpt_dyntopo == false) {
 		/* watch this! after 2.75a we move to from tessface to looptri (by default) */
 		if (dataMask & CD_MASK_MFACE) {
 			DM_ensure_tessface(finaldm);
@@ -2181,7 +2242,7 @@ static void mesh_calc_modifiers(
 		 * Only calc vertex normals if they are flagged as dirty.
 		 * If using loop normals, poly nors have already been computed.
 		 */
-		if (!do_loop_normals) {
+		if (!ctx.do_loop_normals) {
 			dm_ensure_display_normals(finaldm);
 		}
 	}
@@ -2209,8 +2270,8 @@ static void mesh_calc_modifiers(
 
 	if (deformedVerts && deformedVerts != inputVertexCos)
 		MEM_freeN(deformedVerts);
-
-	BLI_linklist_free((LinkNode *)datamasks, NULL);
+	
+	mesh_free_modifier_context(&ctx);
 }
 
 float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *r_numVerts))[3]
