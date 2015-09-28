@@ -265,7 +265,7 @@ void SmokeParticleList::to_stream(OpenVDBPointOutputStream *stream) const
 void SmokeParticleList::add_source(const Transform &cell_transform, const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles,
                                    unsigned int seed, float points_per_voxel, const Vec3f &velocity)
 {
-	FloatGrid::Ptr source = tools::meshToLevelSet<FloatGrid>(cell_transform, vertices, triangles, std::vector<Vec4I>(), 0.0f);
+	FloatGrid::Ptr source = tools::meshToLevelSet<FloatGrid>(cell_transform, vertices, triangles, std::vector<Vec4I>(), 0.5f);
 	
 	typedef boost::mt19937 RngType;
 	typedef tools::DenseUniformPointScatter<PointAccessor, RngType> ScatterType;
