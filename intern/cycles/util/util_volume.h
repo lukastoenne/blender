@@ -63,14 +63,14 @@ using std::isfinite;
 using boost::math::isfinite;
 #endif
 
-/* eventually this should be openvdb::math::Ray<float>, but OpenVDB does not
- * compile in that case */
-typedef openvdb::math::Ray<openvdb::Real> vdb_ray_t;
+typedef openvdb::math::Ray<float> vdb_ray_t;
 
 class vdb_float_volume : public float_volume {
 	typedef openvdb::tools::GridSampler<openvdb::FloatGrid::ConstAccessor, openvdb::tools::PointSampler> point_sampler_t;
 	typedef openvdb::tools::GridSampler<openvdb::FloatGrid::ConstAccessor, openvdb::tools::BoxSampler> box_sampler_t;
-	typedef openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> isector_t;
+	typedef openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid,
+	                                             openvdb::FloatTree::RootNodeType::ChildNodeType::LEVEL,
+	                                             vdb_ray_t> isector_t;
 
 	/* mainly used to ensure thread safety for the accessors */
 	typedef unordered_map<pthread_t, isector_t *> isect_map;
@@ -217,11 +217,11 @@ public:
 		isect_map::iterator iter = isectors.find(thread);
 		isector_t *vdb_isect = iter->second;
 
-		openvdb::Real vdb_t0(*t0), vdb_t1(*t1);
+		float vdb_t0(*t0), vdb_t1(*t1);
 
 		if(vdb_isect->march(vdb_t0, vdb_t1)) {
-			*t0 = (float)vdb_isect->getWorldTime(vdb_t0);
-			*t1 = (float)vdb_isect->getWorldTime(vdb_t1);
+			*t0 = vdb_isect->getWorldTime(vdb_t0);
+			*t1 = vdb_isect->getWorldTime(vdb_t1);
 
 			return true;
 		}
@@ -242,7 +242,9 @@ class vdb_float3_volume : public float3_volume {
 	typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid::ConstAccessor, openvdb::tools::StaggeredPointSampler> stag_point_sampler_t;
 	typedef openvdb::tools::GridSampler<openvdb::Vec3SGrid::ConstAccessor, openvdb::tools::StaggeredBoxSampler> stag_box_sampler_t;
 
-	typedef openvdb::tools::VolumeRayIntersector<openvdb::Vec3SGrid> isector_t;
+	typedef openvdb::tools::VolumeRayIntersector<openvdb::Vec3SGrid,
+	                                             openvdb::FloatTree::RootNodeType::ChildNodeType::LEVEL,
+	                                             vdb_ray_t> isector_t;
 
 	/* mainly used to ensure thread safety for the accessors */
 	typedef unordered_map<pthread_t, isector_t *> isect_map;
@@ -460,11 +462,11 @@ public:
 		isect_map::iterator iter = isectors.find(thread);
 		isector_t *vdb_isect = iter->second;
 
-		openvdb::Real vdb_t0(*t0), vdb_t1(*t1);
+		float vdb_t0(*t0), vdb_t1(*t1);
 
 		if(vdb_isect->march(vdb_t0, vdb_t1)) {
-			*t0 = (float)vdb_isect->getWorldTime(vdb_t0);
-			*t1 = (float)vdb_isect->getWorldTime(vdb_t1);
+			*t0 = vdb_isect->getWorldTime(vdb_t0);
+			*t1 = vdb_isect->getWorldTime(vdb_t1);
 
 			return true;
 		}

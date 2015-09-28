@@ -891,8 +891,8 @@ static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocit
 			tools::foreach(bwd->beginValueOn(), advect_semi_lagrange<GridType>(*result, velocity, -dt));
 			// TODO: compute MacCormack correction, clamping
 			FloatTree t;
-			t.combine
-			result->combine
+//			t.combine
+//			result->combine
 			grid = bwd;
 			break;
 	}
@@ -900,12 +900,12 @@ static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocit
 
 void SmokeData::advect_velocity(float dt, AdvectionMode mode)
 {
-	advect_field<VectorGrid>(velocity, *velocity, dt, mode);
+	advect_field<VectorGrid>(velocity, *velocity, *density, dt, mode);
 }
 
 void SmokeData::advect_density_field(float dt, AdvectionMode mode)
 {
-	advect_field<ScalarGrid>(density, *velocity, dt, mode);
+	advect_field<ScalarGrid>(density, *velocity, *density, dt, mode);
 }
 
 ScalarGrid::Ptr SmokeData::calc_divergence()

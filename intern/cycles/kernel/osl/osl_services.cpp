@@ -34,9 +34,6 @@
 #include "osl_services.h"
 #include "osl_shader.h"
 
-#include "util_foreach.h"
-#include "util_string.h"
-
 #include "kernel_compat_cpu.h"
 #include "kernel_globals.h"
 #include "kernel_random.h"
@@ -44,6 +41,13 @@
 #include "kernel_differential.h"
 #include "kernel_montecarlo.h"
 #include "kernel_camera.h"
+
+/* Note: "util_foreach.h" needs to be included after "kernel_compat_cpu.h", as
+ * for some reason ccl::foreach conflicts with openvdb::tools::foreach, which is
+ * indirectly included through "kernel_compat_cpu.h".
+ */
+#include "util_foreach.h"
+#include "util_string.h"
 
 #include "geom/geom.h"
 
