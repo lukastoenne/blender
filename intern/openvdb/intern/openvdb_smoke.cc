@@ -51,6 +51,8 @@ static const SmokeData::VIndex VINDEX_INVALID = (SmokeData::VIndex)(-1);
 
 /* ------------------------------------------------------------------------- */
 
+static int debug_stage = 0;
+
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
 {
@@ -538,6 +540,88 @@ struct StaggeredGradientFunctor
 	const MaskGridType*        mMask;
 };
 
+template <typename ObstacleGridType>
+struct centered_to_staggered {
+	typedef typename VectorGrid::ValueType ValueType;
+	
+	typedef VectorGrid::ConstAccessor AccessorType;
+	typedef typename ObstacleGridType::ConstAccessor ObstacleAccessorType;
+	
+	typedef tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
+	
+	AccessorType acc;
+	ObstacleAccessorType obs_acc;
+	SamplerType sampler;
+	
+	centered_to_staggered(const VectorGrid &grid, const ObstacleGridType &obs) :
+	    acc(grid.getConstAccessor()),
+	    obs_acc(obs.getConstAccessor()),
+	    sampler(SamplerType(acc, grid.transform()))
+	{
+	}
+	
+	inline Vec3f get_value(const Coord &ijk) const
+	{
+		#define V(di,dj,dk) acc.getValue(ijk.offsetBy((di),(dj),(dk)))
+		#define FLUID(di,dj,dk) acc.isValueOn(ijk.offsetBy((di),(dj),(dk)))
+		#define SOLID(di,dj,dk) obs_acc.isValueOn(ijk.offsetBy((di),(dj),(dk)))
+		return Vec3f(0.5f * (V(0,0,0).x() + V(-1,0,0).x()),
+		             0.5f * (V(0,0,0).y() + V(0,-1,0).y()),
+		             0.5f * (V(0,0,0).z() + V(0,0,-1).z()));
+		#undef V
+	}
+	
+	inline Vec3f get_velocity_x(const Coord &ijk) const
+	{
+		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
+		return Vec3f(V(0,0,0).x(),
+		             0.25f * (V(0,0,0).y() + V(-1,0,0).y() + V(0,1,0).y() + V(-1,1,0).y()),
+		             0.25f * (V(0,0,0).z() + V(-1,0,0).z() + V(0,0,1).z() + V(-1,0,1).z()));
+		#undef V
+	}
+	
+	inline Vec3f get_velocity_y(const Coord &ijk) const
+	{
+		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
+		return Vec3f(0.25f * (V(0,0,0).x() + V(0,-1,0).x() + V(1,0,0).x() + V(1,-1,0).x()),
+		             V(0,0,0).y(),
+		             0.25f * (V(0,0,0).z() + V(0,-1,0).z() + V(0,0,1).z() + V(0,-1,1).z()));
+		#undef V
+	}
+	
+	inline Vec3f get_velocity_z(const Coord &ijk) const
+	{
+		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
+		return Vec3f(0.25f * (V(0,0,0).x() + V(0,0,-1).x() + V(1,0,0).x() + V(1,0,-1).x()),
+		             0.25f * (V(0,0,0).y() + V(0,0,-1).y() + V(0,1,0).y() + V(0,1,-1).y()),
+		             V(0,0,0).z());
+		#undef V
+	}
+	
+	inline void operator() (const typename VectorGrid::ValueOnIter& iter) const
+	{
+		Coord ijk = iter.getCoord();
+		
+		Vec3f v0x = get_velocity_x(ijk);
+		Vec3f v0y = get_velocity_y(ijk);
+		Vec3f v0z = get_velocity_z(ijk);
+		Vec3f p0 = transform->indexToWorld(ijk);
+		
+		Vec3f p1x = p0 - timestep * v0x;
+		Vec3f p1y = p0 - timestep * v0y;
+		Vec3f p1z = p0 - timestep * v0z;
+		/* transform to index space for shifting */
+		p1x = transform->worldToIndex(p1x);
+		p1y = transform->worldToIndex(p1y);
+		p1z = transform->worldToIndex(p1z);
+		
+		ValueType value = Vec3f(sampler.isSample(p1x).x(),
+		                        sampler.isSample(p1y).y(),
+		                        sampler.isSample(p1z).z());
+		iter.setValue(value);
+	}
+};
+
 void SmokeData::remove_border_velocity(VectorGrid &grid) const
 {
 	/* velocity components into obstacle cells are ignored */
@@ -582,6 +666,9 @@ bool SmokeData::step(float dt)
 {
 	ScopeTimer prof("Smoke timestep");
 	
+	printf("DEBUG: %d\n", debug_stage);
+	
+	if (debug_stage == 0)
 	{
 		ScopeTimer prof("--Init grids");
 		init_grids();
@@ -605,6 +692,7 @@ bool SmokeData::step(float dt)
 	}
 	
 #if 1
+	if (debug_stage == 0)
 	{
 		ScopeTimer prof("--Apply External Forces");
 		
@@ -620,15 +708,17 @@ bool SmokeData::step(float dt)
 		tmp_force = force->deepCopy();
 		
 		mul_grid_fl(*force, dt);
-		tools::compSum(*velocity, *force);
-		remove_obstacle_velocity(*velocity);
+//		tools::compSum(*velocity, *force);
+//		remove_obstacle_velocity(*velocity);
 	}
 #endif
 	
 #if 1
+	if (debug_stage == 2)
 	{
 		ScopeTimer prof("--Advect Velocity Field");
-		advect_velocity(dt, ADVECT_MAC_CORMACK);
+		advect_velocity(dt, ADVECT_SEMI_LAGRANGE);
+//		advect_velocity(dt, ADVECT_MAC_CORMACK);
 //		remove_obstacle_velocity(*velocity);
 	}
 #endif
@@ -683,15 +773,29 @@ bool SmokeData::step(float dt)
 #endif
 	}
 	
-#if 1
+#if 0
 	{
 		ScopeTimer prof("--Advect Density");
 		advect_density_field(dt, ADVECT_MAC_CORMACK);
-		
+	}
+#endif
+	
+#if 1
+	if (debug_stage == 4)
+	{
+		ScopeTimer prof("--Deactivate Density Threshold");
 		/* deactivate cells below threshold density */
 		tools::deactivate(density->tree(), 0.0f, 1e-6f);
+	}
+	if (debug_stage == 5)
+	{
+		ScopeTimer prof("--Clamp Velocity Cells to Density");
 		velocity->topologyIntersection(*density);
-		
+	}
+	
+	if (debug_stage == 6)
+	{
+		ScopeTimer prof("--Prune Cells");
 		/* remove unused memory */
 		tools::pruneInactive(density->tree());
 		tools::pruneInactive(velocity->tree());
@@ -706,6 +810,9 @@ bool SmokeData::step(float dt)
 		}
 	}
 #endif
+	
+	if (dt > 0.0f)
+		debug_stage += 1;
 	
 	return true;
 }
@@ -875,6 +982,9 @@ template <typename GridType>
 static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocity, const ScalarGrid &mask, float dt, SmokeData::AdvectionMode mode)
 {
 	typedef typename GridType::Ptr GridTypePtr;
+	
+	/* pad grid to allow advection into empty cells */
+	tools::dilateVoxels(grid->tree(), 1, tools::NN_FACE);
 	
 	/* forward step */
 	GridTypePtr result = grid->copy(CP_COPY);
