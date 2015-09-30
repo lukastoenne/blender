@@ -194,6 +194,7 @@ struct SmokeData {
 	ScalarGrid::Ptr tmp_neighbor_fluid[6];
 	ScalarGrid::Ptr tmp_neighbor_empty[6];
 	
+	int debug_stage;
 	float debug_scale;
 };
 

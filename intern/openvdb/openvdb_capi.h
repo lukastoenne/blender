@@ -167,6 +167,7 @@ void OpenVDB_smoke_set_gravity(struct OpenVDBSmokeData *data, const float g[3]);
 bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt);
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *data, double *err_abs, double *err_rel, int *iterations);
 
+void OpenVDB_smoke_debug_stage(struct OpenVDBSmokeData *data, int s);
 void OpenVDB_smoke_debug_scale(struct OpenVDBSmokeData *data, float s);
 
 /* Drawing */

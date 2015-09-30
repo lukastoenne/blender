@@ -333,6 +333,11 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt)
 	return ((internal::SmokeData *)data)->step(dt);
 }
 
+void OpenVDB_smoke_debug_stage(struct OpenVDBSmokeData *data, int s)
+{
+	((internal::SmokeData *)data)->debug_stage = s;
+}
+
 void OpenVDB_smoke_debug_scale(struct OpenVDBSmokeData *data, float s)
 {
 	((internal::SmokeData *)data)->debug_scale = s;

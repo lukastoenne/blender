@@ -51,8 +51,6 @@ static const SmokeData::VIndex VINDEX_INVALID = (SmokeData::VIndex)(-1);
 
 /* ------------------------------------------------------------------------- */
 
-static int debug_stage = 0;
-
 template <typename T>
 static inline void print_grid_range(Grid<T> &grid, const char *prefix, const char *name)
 {
@@ -290,6 +288,8 @@ SmokeData::SmokeData(const Mat4R &cell_transform) :
 	velocity->setGridClass(GRID_STAGGERED);
 	obstacle = ScalarGrid::create(0.0f);
 	obstacle->setTransform(this->cell_transform);
+	
+	debug_stage = 0xFFFF;
 }
 
 SmokeData::~SmokeData()
@@ -439,16 +439,33 @@ void SmokeData::init_grids()
 	if (density->empty()) {
 		// dam break
 		BBoxd bbox(Vec3d(-1, -0.5, -0.5), Vec3d(1, 0.5, 0.5));
+		Vec3f vel0(0.4, 0.18, -0.8);
+		
+		vel0 *= 1.0f;
+		
 		CoordBBox cbox = cell_transform->worldToIndexCellCentered(bbox);
+		/* need to extend cbox by 1 in positive direction,
+		 * to include neighboring cells for staggered velocity
+		 */
+		cbox.max().offset(1, 1, 1);
 		
 		ScalarGrid::Accessor dacc = density->getAccessor();
 		VectorGrid::Accessor vacc = velocity->getAccessor();
 		
-		for (int i = cbox.min().x(); i < cbox.max().x(); ++i) {
-			for (int j = cbox.min().y(); j < cbox.max().y(); ++j) {
-				for (int k = cbox.min().z(); k < cbox.max().z(); ++k) {
-					dacc.setValueOn(Coord(i, j, k), 1.0f);
-					vacc.setValueOn(Coord(i, j, k), Vec3f(0.0f, 0.0f, 0.0));
+		for (int i = cbox.min().x(); i <= cbox.max().x(); ++i) {
+			for (int j = cbox.min().y(); j <= cbox.max().y(); ++j) {
+				for (int k = cbox.min().z(); k <= cbox.max().z(); ++k) {
+					bool xmax = i == cbox.max().x();
+					bool ymax = j == cbox.max().y();
+					bool zmax = k == cbox.max().z();
+					
+					if (!xmax && !ymax && !zmax)
+						dacc.setValueOn(Coord(i, j, k), 1.0f);
+					
+					float vx = ymax || zmax ? 0.0f : vel0.x();
+					float vy = zmax || xmax ? 0.0f : vel0.y();
+					float vz = xmax || ymax ? 0.0f : vel0.z();
+					vacc.setValueOn(Coord(i, j, k), Vec3f(vx, vy, vz));
 				}
 			}
 		}
@@ -571,35 +588,9 @@ struct centered_to_staggered {
 		#undef V
 	}
 	
-	inline Vec3f get_velocity_x(const Coord &ijk) const
-	{
-		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
-		return Vec3f(V(0,0,0).x(),
-		             0.25f * (V(0,0,0).y() + V(-1,0,0).y() + V(0,1,0).y() + V(-1,1,0).y()),
-		             0.25f * (V(0,0,0).z() + V(-1,0,0).z() + V(0,0,1).z() + V(-1,0,1).z()));
-		#undef V
-	}
-	
-	inline Vec3f get_velocity_y(const Coord &ijk) const
-	{
-		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
-		return Vec3f(0.25f * (V(0,0,0).x() + V(0,-1,0).x() + V(1,0,0).x() + V(1,-1,0).x()),
-		             V(0,0,0).y(),
-		             0.25f * (V(0,0,0).z() + V(0,-1,0).z() + V(0,0,1).z() + V(0,-1,1).z()));
-		#undef V
-	}
-	
-	inline Vec3f get_velocity_z(const Coord &ijk) const
-	{
-		#define V(di,dj,dk) acc_vel.getValue(ijk.offsetBy((di),(dj),(dk)))
-		return Vec3f(0.25f * (V(0,0,0).x() + V(0,0,-1).x() + V(1,0,0).x() + V(1,0,-1).x()),
-		             0.25f * (V(0,0,0).y() + V(0,0,-1).y() + V(0,1,0).y() + V(0,1,-1).y()),
-		             V(0,0,0).z());
-		#undef V
-	}
-	
 	inline void operator() (const typename VectorGrid::ValueOnIter& iter) const
 	{
+#if 0
 		Coord ijk = iter.getCoord();
 		
 		Vec3f v0x = get_velocity_x(ijk);
@@ -619,6 +610,7 @@ struct centered_to_staggered {
 		                        sampler.isSample(p1y).y(),
 		                        sampler.isSample(p1z).z());
 		iter.setValue(value);
+#endif
 	}
 };
 
@@ -666,9 +658,7 @@ bool SmokeData::step(float dt)
 {
 	ScopeTimer prof("Smoke timestep");
 	
-	printf("DEBUG: %d\n", debug_stage);
-	
-	if (debug_stage == 0)
+	if (debug_stage >= 1)
 	{
 		ScopeTimer prof("--Init grids");
 		init_grids();
@@ -691,8 +681,8 @@ bool SmokeData::step(float dt)
 #endif
 	}
 	
-#if 1
-	if (debug_stage == 0)
+#if 0
+	if (debug_stage >= 2)
 	{
 		ScopeTimer prof("--Apply External Forces");
 		
@@ -714,7 +704,7 @@ bool SmokeData::step(float dt)
 #endif
 	
 #if 1
-	if (debug_stage == 2)
+	if (debug_stage >= 3)
 	{
 		ScopeTimer prof("--Advect Velocity Field");
 		advect_velocity(dt, ADVECT_SEMI_LAGRANGE);
@@ -773,27 +763,29 @@ bool SmokeData::step(float dt)
 #endif
 	}
 	
-#if 0
+#if 1
+	if (debug_stage >= 4)
 	{
 		ScopeTimer prof("--Advect Density");
-		advect_density_field(dt, ADVECT_MAC_CORMACK);
+		advect_density_field(dt, ADVECT_SEMI_LAGRANGE);
+//		advect_density_field(dt, ADVECT_MAC_CORMACK);
 	}
 #endif
 	
 #if 1
-	if (debug_stage == 4)
+	if (debug_stage >= 5)
 	{
 		ScopeTimer prof("--Deactivate Density Threshold");
 		/* deactivate cells below threshold density */
-		tools::deactivate(density->tree(), 0.0f, 1e-6f);
+		tools::deactivate(density->tree(), 0.0f, 1e-1f);
 	}
-	if (debug_stage == 5)
+	if (debug_stage >= 6)
 	{
 		ScopeTimer prof("--Clamp Velocity Cells to Density");
 		velocity->topologyIntersection(*density);
 	}
 	
-	if (debug_stage == 6)
+	if (debug_stage >= 7)
 	{
 		ScopeTimer prof("--Prune Cells");
 		/* remove unused memory */
@@ -810,9 +802,6 @@ bool SmokeData::step(float dt)
 		}
 	}
 #endif
-	
-	if (dt > 0.0f)
-		debug_stage += 1;
 	
 	return true;
 }
@@ -862,24 +851,26 @@ struct advect_semi_lagrange {
 	
 	typedef typename GridType::ConstAccessor AccessorType;
 	typedef VectorGrid::ConstAccessor VelocityAccessorType;
+	typedef ScalarGrid::ConstAccessor ObstacleAccessorType;
 	
-	// XXX do we need to use a StaggeredBoxSampler for vector grids?
-	// implementation in mantaflow suggests BoxSampler should be used in both cases:
-	// "no need to shift xpos etc. as lookup field is also shifted"
-//	typedef tools::GridSampler<AccessorType, SampleT> SamplerType;
+	/* no need to use a staggered box sampler, since we use the center point
+	 * for backtracing, with velocity components from from cell walls.
+	 */
 	typedef tools::GridSampler<AccessorType, tools::BoxSampler> SamplerType;
 	
 	Transform::ConstPtr transform;
 	AccessorType acc;
 	SamplerType sampler;
 	VelocityAccessorType acc_vel;
+	ObstacleAccessorType acc_obs;
 	float timestep;
 	
-	advect_semi_lagrange(const GridType &grid, const VectorGrid &velocity, float timestep) :
+	advect_semi_lagrange(const GridType &grid, const VectorGrid &velocity, const ScalarGrid &obstacle, float timestep) :
 	    transform(velocity.transformPtr()),
 	    acc(grid.getConstAccessor()),
 	    sampler(SamplerType(acc, grid.transform())),
 	    acc_vel(velocity.tree()),
+	    acc_obs(obstacle.tree()),
 	    timestep(timestep)
 	{
 	}
@@ -929,8 +920,13 @@ struct advect_semi_lagrange {
 		
 		/* traceback */
 		Vec3f p1 = p0 - timestep * v0;
+		/* transform to index space
+		 * note: worldToIndex is node-centered, but we use cell-centered
+		 *       positions, so have to add 0.5 to the index.
+		 */
+		p1 = transform->worldToIndex(p1) + Vec3d(0.5d, 0.5d, 0.5d);
 		
-		ValueType value = sampler.wsSample(p1);
+		ValueType value = sampler.isSample(p1);
 		iter.setValue(value);
 	}
 	
@@ -946,10 +942,13 @@ struct advect_semi_lagrange {
 		Vec3f p1x = p0 - timestep * v0x;
 		Vec3f p1y = p0 - timestep * v0y;
 		Vec3f p1z = p0 - timestep * v0z;
-		/* transform to index space for shifting */
-		p1x = transform->worldToIndex(p1x);
-		p1y = transform->worldToIndex(p1y);
-		p1z = transform->worldToIndex(p1z);
+		/* transform to index space
+		 * note: worldToIndex is node-centered, but we use cell-centered
+		 *       positions, so have to add 0.5 to the index.
+		 */
+		p1x = transform->worldToIndex(p1x) + Vec3d(0.5d, 0.5d, 0.5d);
+		p1y = transform->worldToIndex(p1y) + Vec3d(0.5d, 0.5d, 0.5d);
+		p1z = transform->worldToIndex(p1z) + Vec3d(0.5d, 0.5d, 0.5d);
 		
 		ValueType value = Vec3f(sampler.isSample(p1x).x(),
 		                        sampler.isSample(p1y).y(),
@@ -979,7 +978,7 @@ struct advect_mac_cormack_correct {
 };
 
 template <typename GridType>
-static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocity, const ScalarGrid &mask, float dt, SmokeData::AdvectionMode mode)
+static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocity, const ScalarGrid &obstacle, float dt, SmokeData::AdvectionMode mode)
 {
 	typedef typename GridType::Ptr GridTypePtr;
 	
@@ -988,7 +987,7 @@ static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocit
 	
 	/* forward step */
 	GridTypePtr result = grid->copy(CP_COPY);
-	tools::foreach(result->beginValueOn(), advect_semi_lagrange<GridType>(*grid, velocity, dt));
+	tools::foreach(result->beginValueOn(), advect_semi_lagrange<GridType>(*grid, velocity, obstacle, dt));
 	
 	switch (mode) {
 		case SmokeData::ADVECT_SEMI_LAGRANGE:
@@ -998,7 +997,7 @@ static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocit
 		case SmokeData::ADVECT_MAC_CORMACK:
 			/* backward step */
 			GridTypePtr bwd = result->copy(CP_COPY);
-			tools::foreach(bwd->beginValueOn(), advect_semi_lagrange<GridType>(*result, velocity, -dt));
+			tools::foreach(bwd->beginValueOn(), advect_semi_lagrange<GridType>(*result, velocity, obstacle, -dt));
 			// TODO: compute MacCormack correction, clamping
 			FloatTree t;
 //			t.combine
@@ -1010,12 +1009,12 @@ static void advect_field(typename GridType::Ptr &grid, const VectorGrid &velocit
 
 void SmokeData::advect_velocity(float dt, AdvectionMode mode)
 {
-	advect_field<VectorGrid>(velocity, *velocity, *density, dt, mode);
+	advect_field<VectorGrid>(velocity, *velocity, *obstacle, dt, mode);
 }
 
 void SmokeData::advect_density_field(float dt, AdvectionMode mode)
 {
-	advect_field<ScalarGrid>(density, *velocity, *density, dt, mode);
+	advect_field<ScalarGrid>(density, *velocity, *obstacle, dt, mode);
 }
 
 ScalarGrid::Ptr SmokeData::calc_divergence()
