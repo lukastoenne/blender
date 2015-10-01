@@ -146,8 +146,6 @@ struct SmokeData {
 	
 	void add_obstacle(const std::vector<Vec3s> &vertices, const std::vector<Vec3I> &triangles);
 	void clear_obstacles();
-	void remove_border_velocity(VectorGrid &grid) const;
-	void remove_obstacle_velocity(VectorGrid &grid) const;
 	
 	void set_gravity(const Vec3f &g);
 	
