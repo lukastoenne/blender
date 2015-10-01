@@ -189,6 +189,18 @@ float *OpenVDB_smoke_get_texture_buffer(struct OpenVDBSmokeData *data, const cha
 
 void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *data, const char *grid, float *bg, float *min, float *max);
 
+/* debug visualization callbacks */
+typedef void (*OpenVDB_DebugDrawDotCb)(const float *p, float r, float g, float b, const int hash1, int hash2, int hash3);
+typedef void (*OpenVDB_DebugDrawCircleCb)(const float *p, float radius, float r, float g, float b, int hash1, int hash2, int hash3);
+typedef void (*OpenVDB_DebugDrawLineCb)(const float *p1, const float *p2, float r, float g, float b, int hash1, int hash2, int hash3);
+typedef void (*OpenVDB_DebugDrawVectorCb)(const float *p, const float *d, float r, float g, float b, int hash1, int hash2, int hash3);
+
+void OpenVDB_smoke_set_debug_callbacks(struct OpenVDBSmokeData *data,
+                                       OpenVDB_DebugDrawDotCb draw_dot,
+                                       OpenVDB_DebugDrawCircleCb draw_circle,
+                                       OpenVDB_DebugDrawLineCb draw_line,
+                                       OpenVDB_DebugDrawVectorCb draw_vector);
+
 #ifdef __cplusplus
 }
 #endif

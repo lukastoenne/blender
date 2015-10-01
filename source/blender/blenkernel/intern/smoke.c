@@ -2898,6 +2898,26 @@ static void update_sources_vdb(Scene *scene, Object *ob, SmokeDomainVDBSettings 
 
 #endif
 
+static const char *debug_draw_category = "OpenVDB Smoke";
+
+/* limit ellipsis to 3 hash values, so they can be passed as callbacks */
+static void vdb_debug_draw_dot(const float *p, float r, float g, float b, int hash1, int hash2, int hash3)
+{
+	BKE_sim_debug_data_add_dot(p, r, g, b, debug_draw_category, hash1, hash2, hash3);
+}
+static void vdb_debug_draw_circle(const float *p, float radius, float r, float g, float b, int hash1, int hash2, int hash3)
+{
+	BKE_sim_debug_data_add_circle(p, radius, r, g, b, debug_draw_category, hash1, hash2, hash3);
+}
+static void vdb_debug_draw_line(const float *p1, const float *p2, float r, float g, float b, int hash1, int hash2, int hash3)
+{
+	BKE_sim_debug_data_add_line(p1, p2, r, g, b, debug_draw_category, hash1, hash2, hash3);
+}
+static void vdb_debug_draw_vector(const float *p, const float *d, float r, float g, float b, int hash1, int hash2, int hash3)
+{
+	BKE_sim_debug_data_add_vector(p, d, r, g, b, debug_draw_category, hash1, hash2, hash3);
+}
+
 static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *domain_dm, float dt, bool UNUSED(for_render))
 {
 #ifdef WITH_OPENVDB
@@ -2910,6 +2930,9 @@ static void step_vdb(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMe
 	SmokeMatPointOutputStream opoints;
 
 	OpenVDB_smoke_debug_scale(sds->data, sds->debug_scale);
+	OpenVDB_smoke_set_debug_callbacks(sds->data, vdb_debug_draw_dot, vdb_debug_draw_circle, vdb_debug_draw_line, vdb_debug_draw_vector);
+
+	BKE_sim_debug_data_clear_category(debug_draw_category);
 
 	/* update object state */
 	invert_m4_m4(imat, ob->obmat);

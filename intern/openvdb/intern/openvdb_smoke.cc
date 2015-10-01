@@ -279,7 +279,11 @@ void SmokeParticleList::add_source(const Transform &cell_transform, const std::v
 }
 
 SmokeData::SmokeData(const Mat4R &cell_transform) :
-    cell_transform(Transform::createLinearTransform(cell_transform))
+    cell_transform(Transform::createLinearTransform(cell_transform)),
+    m_debug_draw_dot(NULL),
+    m_debug_draw_circle(NULL),
+    m_debug_draw_line(NULL),
+    m_debug_draw_vector(NULL)
 {
 	density = ScalarGrid::create(0.0f);
 	density->setTransform(this->cell_transform);

@@ -508,4 +508,18 @@ void OpenVDB_smoke_get_value_range(struct OpenVDBSmokeData *pdata, const char *g
 #undef DO_GRID
 }
 
+void OpenVDB_smoke_set_debug_callbacks(struct OpenVDBSmokeData *pdata,
+                                       OpenVDB_DebugDrawDotCb draw_dot,
+                                       OpenVDB_DebugDrawCircleCb draw_circle,
+                                       OpenVDB_DebugDrawLineCb draw_line,
+                                       OpenVDB_DebugDrawVectorCb draw_vector)
+{
+	internal::SmokeData *data = (internal::SmokeData *)pdata;
+	
+	data->m_debug_draw_dot = draw_dot;
+	data->m_debug_draw_circle = draw_circle;
+	data->m_debug_draw_line = draw_line;
+	data->m_debug_draw_vector = draw_vector;
+}
+
 #undef OPENVDB_SELECT_GRID
