@@ -279,11 +279,7 @@ void SmokeParticleList::add_source(const Transform &cell_transform, const std::v
 }
 
 SmokeData::SmokeData(const Mat4R &cell_transform) :
-    cell_transform(Transform::createLinearTransform(cell_transform)),
-    m_debug_draw_dot(NULL),
-    m_debug_draw_circle(NULL),
-    m_debug_draw_line(NULL),
-    m_debug_draw_vector(NULL)
+    cell_transform(Transform::createLinearTransform(cell_transform))
 {
 	density = ScalarGrid::create(0.0f);
 	density->setTransform(this->cell_transform);
@@ -292,8 +288,6 @@ SmokeData::SmokeData(const Mat4R &cell_transform) :
 	velocity->setGridClass(GRID_STAGGERED);
 	obstacle = ScalarGrid::create(0.0f);
 	obstacle->setTransform(this->cell_transform);
-	
-	debug_stage = 0xFFFF;
 }
 
 SmokeData::~SmokeData()
@@ -658,7 +652,7 @@ bool SmokeData::step(float dt)
 {
 	ScopeTimer prof("Smoke timestep");
 	
-	if (debug_stage >= 1)
+	if (debug.stage >= 1)
 	{
 		ScopeTimer prof("--Init grids");
 		init_grids();
@@ -682,7 +676,7 @@ bool SmokeData::step(float dt)
 	}
 	
 #if 0
-	if (debug_stage >= 2)
+	if (debug.stage >= 2)
 	{
 		ScopeTimer prof("--Apply External Forces");
 		
@@ -703,7 +697,7 @@ bool SmokeData::step(float dt)
 #endif
 	
 #if 0
-	if (debug_stage >= 3)
+	if (debug.stage >= 3)
 	{
 		ScopeTimer prof("--Advect Velocity Field");
 		advect_velocity(dt, ADVECT_MAC_CORMACK);
@@ -759,7 +753,7 @@ bool SmokeData::step(float dt)
 	}
 	
 #if 1
-	if (debug_stage >= 4)
+	if (debug.stage >= 4)
 	{
 		ScopeTimer prof("--Advect Density");
 		advect_density_field(dt, ADVECT_MAC_CORMACK);
@@ -767,19 +761,19 @@ bool SmokeData::step(float dt)
 #endif
 	
 #if 1
-	if (debug_stage >= 5)
+	if (debug.stage >= 5)
 	{
 		ScopeTimer prof("--Deactivate Density Threshold");
 		/* deactivate cells below threshold density */
 		tools::deactivate(density->tree(), 0.0f, 1e-2f);
 	}
-	if (debug_stage >= 6)
+	if (debug.stage >= 6)
 	{
 		ScopeTimer prof("--Clamp Velocity Cells to Density");
 		tools::foreach(velocity->beginValueOn(), prune_velocity(*density));
 	}
 	
-	if (debug_stage >= 7)
+	if (debug.stage >= 7)
 	{
 		ScopeTimer prof("--Prune Cells");
 		/* remove unused memory */

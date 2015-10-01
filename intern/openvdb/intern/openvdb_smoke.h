@@ -131,6 +131,50 @@ public:
 	}
 };
 
+struct SmokeDebug {
+	SmokeDebug() :
+	    stage(0xFFFF),
+	    scale(1.0f),
+	    m_draw_dot(NULL),
+	    m_draw_circle(NULL),
+	    m_draw_line(NULL),
+	    m_draw_vector(NULL)
+	{
+	}
+	
+	int stage;
+	float scale;
+	OpenVDB_DebugDrawDotCb m_draw_dot;
+	OpenVDB_DebugDrawCircleCb m_draw_circle;
+	OpenVDB_DebugDrawLineCb m_draw_line;
+	OpenVDB_DebugDrawVectorCb m_draw_vector;
+	
+	inline void draw_dot(const Vec3f &p, float r, float g, float b,
+	                           int hash1, int hash2 = 0, int hash3 = 0)
+	{
+		if (m_draw_dot)
+			m_draw_dot(p.asPointer(), r, g, b, hash1, hash2, hash3);
+	}
+	inline void draw_circle(const Vec3f &p, float radius, float r, float g, float b,
+	                              int hash1, int hash2 = 0, int hash3 = 0)
+	{
+		if (m_draw_circle)
+			m_draw_circle(p.asPointer(), radius, r, g, b, hash1, hash2, hash3);
+	}
+	inline void draw_line(const Vec3f &p1, const Vec3f &p2, float r, float g, float b,
+	                            int hash1, int hash2 = 0, int hash3 = 0)
+	{
+		if (m_draw_line)
+			m_draw_line(p1.asPointer(), p2.asPointer(), r, g, b, hash1, hash2, hash3);
+	}
+	inline void draw_vector(const Vec3f &p, const Vec3f &d, float r, float g, float b,
+	                              int hash1, int hash2 = 0, int hash3 = 0)
+	{
+		if (m_draw_vector)
+			m_draw_vector(p.asPointer(), d.asPointer(), r, g, b, hash1, hash2, hash3);
+	}
+};
+
 struct SmokeData {
 	typedef openvdb::tools::poisson::VIndex VIndex;
 	typedef openvdb::ScalarTree::ValueConverter<VIndex>::Type VIndexTree;
@@ -192,37 +236,7 @@ struct SmokeData {
 	ScalarGrid::Ptr tmp_neighbor_fluid[6];
 	ScalarGrid::Ptr tmp_neighbor_empty[6];
 	
-	int debug_stage;
-	float debug_scale;
-	OpenVDB_DebugDrawDotCb m_debug_draw_dot;
-	OpenVDB_DebugDrawCircleCb m_debug_draw_circle;
-	OpenVDB_DebugDrawLineCb m_debug_draw_line;
-	OpenVDB_DebugDrawVectorCb m_debug_draw_vector;
-	
-	inline void debug_draw_dot(const Vec3f &p, float r, float g, float b,
-	                           int hash1, int hash2 = 0, int hash3 = 0)
-	{
-		if (m_debug_draw_dot)
-			m_debug_draw_dot(p.asPointer(), r, g, b, hash1, hash2, hash3);
-	}
-	inline void debug_draw_circle(const Vec3f &p, float radius, float r, float g, float b,
-	                              int hash1, int hash2 = 0, int hash3 = 0)
-	{
-		if (m_debug_draw_circle)
-			m_debug_draw_circle(p.asPointer(), radius, r, g, b, hash1, hash2, hash3);
-	}
-	inline void debug_draw_line(const Vec3f &p1, const Vec3f &p2, float r, float g, float b,
-	                            int hash1, int hash2 = 0, int hash3 = 0)
-	{
-		if (m_debug_draw_line)
-			m_debug_draw_line(p1.asPointer(), p2.asPointer(), r, g, b, hash1, hash2, hash3);
-	}
-	inline void debug_draw_vector(const Vec3f &p, const Vec3f &d, float r, float g, float b,
-	                              int hash1, int hash2 = 0, int hash3 = 0)
-	{
-		if (m_debug_draw_vector)
-			m_debug_draw_vector(p.asPointer(), d.asPointer(), r, g, b, hash1, hash2, hash3);
-	}
+	SmokeDebug debug;
 };
 
 }  /* namespace internal */

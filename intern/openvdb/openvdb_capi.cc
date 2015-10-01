@@ -335,12 +335,12 @@ bool OpenVDB_smoke_step(struct OpenVDBSmokeData *data, float dt)
 
 void OpenVDB_smoke_debug_stage(struct OpenVDBSmokeData *data, int s)
 {
-	((internal::SmokeData *)data)->debug_stage = s;
+	((internal::SmokeData *)data)->debug.stage = s;
 }
 
 void OpenVDB_smoke_debug_scale(struct OpenVDBSmokeData *data, float s)
 {
-	((internal::SmokeData *)data)->debug_scale = s;
+	((internal::SmokeData *)data)->debug.scale = s;
 }
 
 bool OpenVDB_smoke_get_pressure_result(struct OpenVDBSmokeData *pdata, double *err_abs, double *err_rel, int *iterations)
@@ -516,10 +516,10 @@ void OpenVDB_smoke_set_debug_callbacks(struct OpenVDBSmokeData *pdata,
 {
 	internal::SmokeData *data = (internal::SmokeData *)pdata;
 	
-	data->m_debug_draw_dot = draw_dot;
-	data->m_debug_draw_circle = draw_circle;
-	data->m_debug_draw_line = draw_line;
-	data->m_debug_draw_vector = draw_vector;
+	data->debug.m_draw_dot = draw_dot;
+	data->debug.m_draw_circle = draw_circle;
+	data->debug.m_draw_line = draw_line;
+	data->debug.m_draw_vector = draw_vector;
 }
 
 #undef OPENVDB_SELECT_GRID
