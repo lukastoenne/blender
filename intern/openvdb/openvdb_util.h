@@ -188,7 +188,7 @@ static void add_needle(float (*verts)[3], float (*colors)[3], float (*normals)[3
 	    Vec3f(0.0f, 0.0f, 0.5f)
 	};
 	Vec3f up(0.0f, 0.0f, 1.0f);
-	Mat3R rot = math::rotation<Mat3R>(up, dir);
+	Mat3R rot = math::rotation<Mat3R>(up, dir).transpose();
 	for (int i = 0; i < 4; ++i) {
 		corners[i] = (rot * corners[i]) * len + center;
 	}
