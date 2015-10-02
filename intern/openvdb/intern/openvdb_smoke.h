@@ -32,6 +32,7 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/math/ConjGradient.h>
 #include <openvdb/tools/PoissonSolver.h>
+#include <tbb/spin_mutex.h>
 
 #include "openvdb_dense_convert.h"
 #include "openvdb_capi.h"
@@ -149,29 +150,39 @@ struct SmokeDebug {
 	OpenVDB_DebugDrawLineCb m_draw_line;
 	OpenVDB_DebugDrawVectorCb m_draw_vector;
 	
+	tbb::spin_mutex draw_mutex;
+	
 	inline void draw_dot(const Vec3f &p, float r, float g, float b,
-	                           int hash1, int hash2 = 0, int hash3 = 0)
+	                     int hash1, int hash2 = 0, int hash3 = 0)
 	{
-		if (m_draw_dot)
+		if (m_draw_dot) {
+			tbb::spin_mutex::scoped_lock lock(draw_mutex);
 			m_draw_dot(p.asPointer(), r, g, b, hash1, hash2, hash3);
+		}
 	}
 	inline void draw_circle(const Vec3f &p, float radius, float r, float g, float b,
-	                              int hash1, int hash2 = 0, int hash3 = 0)
+	                        int hash1, int hash2 = 0, int hash3 = 0)
 	{
-		if (m_draw_circle)
+		if (m_draw_circle) {
+			tbb::spin_mutex::scoped_lock lock(draw_mutex);
 			m_draw_circle(p.asPointer(), radius, r, g, b, hash1, hash2, hash3);
+		}
 	}
 	inline void draw_line(const Vec3f &p1, const Vec3f &p2, float r, float g, float b,
-	                            int hash1, int hash2 = 0, int hash3 = 0)
+	                      int hash1, int hash2 = 0, int hash3 = 0)
 	{
-		if (m_draw_line)
+		if (m_draw_line) {
+			tbb::spin_mutex::scoped_lock lock(draw_mutex);
 			m_draw_line(p1.asPointer(), p2.asPointer(), r, g, b, hash1, hash2, hash3);
+		}
 	}
 	inline void draw_vector(const Vec3f &p, const Vec3f &d, float r, float g, float b,
-	                              int hash1, int hash2 = 0, int hash3 = 0)
+	                        int hash1, int hash2 = 0, int hash3 = 0)
 	{
-		if (m_draw_vector)
+		if (m_draw_vector) {
+			tbb::spin_mutex::scoped_lock lock(draw_mutex);
 			m_draw_vector(p.asPointer(), d.asPointer(), r, g, b, hash1, hash2, hash3);
+		}
 	}
 };
 

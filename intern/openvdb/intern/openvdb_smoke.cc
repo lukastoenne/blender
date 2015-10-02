@@ -132,6 +132,34 @@ inline static void debug_print_poisson_matrix(const MatrixType &A, typename Vect
 { (void)A; (void)b; }
 #endif
 
+static unsigned int hash_combine(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+static unsigned int coord_hash(const Coord &ijk)
+{
+	return hash_combine(hash_combine(ijk.x(), ijk.y()), ijk.z());
+}
+
 struct GridScale {
 	float factor;
 	GridScale(float factor) : factor(factor) {}
@@ -436,7 +464,7 @@ void SmokeData::init_grids()
 	
 	if (density->empty()) {
 		// dam break
-		BBoxd bbox(Vec3d(-1, -0.5, -0.5), Vec3d(1, 0.5, 0.5));
+		BBoxd bbox(Vec3d(-1, -0.1, -0.5), Vec3d(1, 0.1, 0.5));
 		Vec3f vel0(0.4, 0.18, -0.8);
 		
 		vel0 *= 1.0f;
@@ -612,6 +640,7 @@ struct centered_to_staggered {
 	}
 };
 
+/* Note: this operator must not be used shared, it needs per-thread accessors */
 struct prune_velocity {
 	typedef ScalarGrid::ConstAccessor DensityAccessorType;
 	
@@ -696,7 +725,7 @@ bool SmokeData::step(float dt)
 	}
 #endif
 	
-#if 0
+#if 1
 	if (debug.stage >= 3)
 	{
 		ScopeTimer prof("--Advect Velocity Field");
@@ -765,12 +794,15 @@ bool SmokeData::step(float dt)
 	{
 		ScopeTimer prof("--Deactivate Density Threshold");
 		/* deactivate cells below threshold density */
-		tools::deactivate(density->tree(), 0.0f, 1e-2f);
+		tools::deactivate(density->tree(), 0.0f, 1e-3f);
 	}
+#endif
+#if 1
 	if (debug.stage >= 6)
 	{
 		ScopeTimer prof("--Clamp Velocity Cells to Density");
-		tools::foreach(velocity->beginValueOn(), prune_velocity(*density));
+		prune_velocity op(*density);
+		tools::foreach(velocity->beginValueOn(), op, false);
 	}
 	
 	if (debug.stage >= 7)
@@ -794,45 +826,7 @@ bool SmokeData::step(float dt)
 	return true;
 }
 
-#if 0
-struct advect_v3 {
-	typedef VectorGrid::ConstAccessor AccessorType;
-	typedef tools::GridSampler<AccessorType, tools::StaggeredBoxSampler> SamplerType;
-	
-	Transform::ConstPtr transform;
-	AccessorType acc_vel;
-	SamplerType sampler;
-	float dt;
-	
-	advect_v3(const VectorGrid &velocity, float dt) :
-	    transform(velocity.transformPtr()),
-	    acc_vel(velocity.tree()),
-	    sampler(SamplerType(acc_vel, velocity.transform())),
-	    dt(dt)
-	{
-	}
-	
-	inline void operator() (const VectorGrid::ValueOnIter& iter) const {
-		Coord ijk = iter.getCoord();
-		
-		Vec3f v0 = acc_vel.getValue(ijk);
-		Vec3f p0 = transform->indexToWorld(ijk);
-		
-		Vec3f p1 = p0 - dt * v0;
-		/* transform to index space for shifting */
-		p1 = transform->worldToIndex(p1);
-		Vec3f p1x = p1 - Vec3f(0.5f, 0.0f, 0.0f);
-		Vec3f p1y = p1 - Vec3f(0.0f, 0.5f, 0.0f);
-		Vec3f p1z = p1 - Vec3f(0.0f, 0.0f, 0.5f);
-		float vx = sampler.isSample(p1x).x();
-		float vy = sampler.isSample(p1y).y();
-		float vz = sampler.isSample(p1z).z();
-		
-		iter.setValue(Vec3f(vx, vy, vz));
-	}
-};
-#endif
-
+/* Note: this operator must not be used shared, it needs per-thread accessors */
 template <typename GridType>
 struct advect_semi_lagrange {
 	typedef typename GridType::ValueType ValueType;
@@ -852,14 +846,16 @@ struct advect_semi_lagrange {
 	VelocityAccessorType acc_vel;
 	ObstacleAccessorType acc_obs;
 	float timestep;
+	SmokeDebug *debug;
 	
-	advect_semi_lagrange(const GridType &grid, const VectorGrid &velocity, const ScalarGrid &obstacle, float timestep) :
+	advect_semi_lagrange(const GridType &grid, const VectorGrid &velocity, const ScalarGrid &obstacle, float timestep, SmokeDebug &debug) :
 	    transform(velocity.transformPtr()),
 	    acc(grid.getConstAccessor()),
 	    sampler(SamplerType(acc, grid.transform())),
 	    acc_vel(velocity.tree()),
 	    acc_obs(obstacle.tree()),
-	    timestep(timestep)
+	    timestep(timestep),
+	    debug(&debug)
 	{
 	}
 	
@@ -908,11 +904,17 @@ struct advect_semi_lagrange {
 		
 		/* traceback */
 		Vec3f p1 = p0 - timestep * v0;
-		/* transform to index space
-		 * note: worldToIndex is node-centered, but we use cell-centered
-		 *       positions, so have to add 0.5 to the index.
-		 */
-		p1 = transform->worldToIndex(p1) + Vec3d(0.5d, 0.5d, 0.5d);
+		
+#if 0
+		float r = timestep > 0.0f ? 0 : 1;
+		float g = timestep > 0.0f ? 1 : 0;
+		float b = timestep > 0.0f ? 0 : 0;
+		debug->draw_vector(p0, -v0, r, g, b, 387232, coord_hash(ijk));
+		debug->draw_dot(p1, 1, 1, 0, 387237, coord_hash(ijk));
+#endif
+		
+		/* transform to index space */
+		p1 = transform->worldToIndex(p1);
 		
 		ValueType value = sampler.isSample(p1);
 		iter.setValue(value);
@@ -930,13 +932,17 @@ struct advect_semi_lagrange {
 		Vec3f p1x = p0 - timestep * v0x;
 		Vec3f p1y = p0 - timestep * v0y;
 		Vec3f p1z = p0 - timestep * v0z;
-		/* transform to index space
-		 * note: worldToIndex is node-centered, but we use cell-centered
-		 *       positions, so have to add 0.5 to the index.
-		 */
-		p1x = transform->worldToIndex(p1x) + Vec3d(0.5d, 0.5d, 0.5d);
-		p1y = transform->worldToIndex(p1y) + Vec3d(0.5d, 0.5d, 0.5d);
-		p1z = transform->worldToIndex(p1z) + Vec3d(0.5d, 0.5d, 0.5d);
+		
+#if 1
+		debug->draw_vector(p0, v0x, 1, 0, 0, 38721, coord_hash(ijk));
+//		debug->draw_vector(p0, v0y, 0, 1, 0, 38722, coord_hash(ijk));
+		debug->draw_vector(p0, v0z, 0, 0, 1, 38723, coord_hash(ijk));
+#endif
+		
+		/* transform to index space */
+		p1x = transform->worldToIndex(p1x);
+		p1y = transform->worldToIndex(p1y);
+		p1z = transform->worldToIndex(p1z);
 		
 		ValueType value = Vec3f(sampler.isSample(p1x).x(),
 		                        sampler.isSample(p1y).y(),
@@ -993,7 +999,8 @@ struct advect_mac_cormack_correct {
 };
 
 template <typename GridType>
-static typename GridType::Ptr advect_field(const GridType &grid, const VectorGrid &density, const VectorGrid &velocity, const ScalarGrid &obstacle, float dt, SmokeData::AdvectionMode mode)
+static typename GridType::Ptr advect_field(const GridType &grid, const VectorGrid &density, const VectorGrid &velocity, const ScalarGrid &obstacle,
+                                           float dt, SmokeData::AdvectionMode mode, SmokeDebug &debug)
 {
 	typedef typename GridType::Ptr GridTypePtr;
 	
@@ -1003,9 +1010,10 @@ static typename GridType::Ptr advect_field(const GridType &grid, const VectorGri
 	/* forward step */
 	GridTypePtr forward = grid.copy(CP_COPY);
 	/* pad grid to allow advection into empty cells */
-	tools::dilateVoxels(forward->tree(), 2, tools::NN_FACE);
+	tools::dilateVoxels(forward->tree(), 1, tools::NN_FACE);
 	
-	tools::foreach(forward->beginValueOn(), advect_semi_lagrange<GridType>(grid, velocity, obstacle, dt));
+	advect_semi_lagrange<GridType> op_forward(grid, velocity, obstacle, dt, debug);
+	tools::foreach(forward->beginValueOn(), op_forward, false);
 	
 	switch (mode) {
 		case SmokeData::ADVECT_SEMI_LAGRANGE:
@@ -1015,10 +1023,12 @@ static typename GridType::Ptr advect_field(const GridType &grid, const VectorGri
 		case SmokeData::ADVECT_MAC_CORMACK:
 			/* backward step */
 			GridTypePtr backward = forward->copy(CP_COPY);
-//			tools::foreach(backward->beginValueOn(), advect_semi_lagrange<GridType>(*forward, velocity, obstacle, -dt));
+			advect_semi_lagrange<GridType> op_backward(*forward, velocity, obstacle, -dt, debug);
+//			tools::foreach(backward->beginValueOn(), op_backward, false);
 			
 			GridTypePtr corrected = forward->copy(CP_COPY);
-//			tools::foreach(corrected->beginValueOn(), advect_mac_cormack_correct<GridType>(correction, density, grid, *backward));
+			advect_mac_cormack_correct<GridType> op_correct(correction, density, grid, *backward);
+//			tools::foreach(corrected->beginValueOn(), op_correct, false);
 			
 			return corrected;
 			break;
@@ -1029,12 +1039,12 @@ static typename GridType::Ptr advect_field(const GridType &grid, const VectorGri
 
 void SmokeData::advect_velocity(float dt, AdvectionMode mode)
 {
-	velocity = advect_field<VectorGrid>(*velocity, *density, *velocity, *obstacle, dt, mode);
+	velocity = advect_field<VectorGrid>(*velocity, *density, *velocity, *obstacle, dt, mode, debug);
 }
 
 void SmokeData::advect_density_field(float dt, AdvectionMode mode)
 {
-	density = advect_field<ScalarGrid>(*density, *density, *velocity, *obstacle, dt, mode);
+	density = advect_field<ScalarGrid>(*density, *density, *velocity, *obstacle, dt, mode, debug);
 }
 
 ScalarGrid::Ptr SmokeData::calc_divergence()
