@@ -39,12 +39,15 @@ set(SRC
 	intern/bvm_expression.cc
 	intern/bvm_function.cc
 	intern/bvm_module.cc
+	intern/bvm_nodegraph.cc
 	intern/bvm_schedule.cc
 
 	intern/bvm_expression.h
 	intern/bvm_function.h
 	intern/bvm_module.h
+	intern/bvm_nodegraph.h
 	intern/bvm_schedule.h
+	intern/bvm_type_desc.h
 
 	util/bvm_util_hash.h
 	util/bvm_util_map.h
