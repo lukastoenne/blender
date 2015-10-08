@@ -25,14 +25,48 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+/** \file bvm_expression.cc
  *  \ingroup bvm
  */
 
 #include "MEM_guardedalloc.h"
 
-#include "bvm_function.h"
+#include "bvm_expression.h"
 
 namespace bvm {
+
+Expression::Expression()
+{
+}
+
+Expression::~Expression()
+{
+}
+
+void Expression::add_return_value(BVMType type, const string &name)
+{
+	ReturnValue rval;
+	rval.type = type;
+	rval.name = name;
+	return_values.push_back(rval);
+}
+
+size_t Expression::return_values_size() const
+{
+	return return_values.size();
+}
+
+const Expression::ReturnValue &Expression::return_value(size_t index) const
+{
+	return return_values[index];
+}
+
+const Expression::ReturnValue &Expression::return_value(const string &name) const
+{
+	for (ReturnValueList::const_iterator it = return_values.begin(); it != return_values.end(); ++it)
+		if ((*it).name == name)
+			return *it;
+	return *(return_values.end());
+}
 
 } /* namespace bvm */

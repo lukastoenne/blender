@@ -25,23 +25,52 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_MODULE_H__
-#define __BVM_MODULE_H__
+#ifndef __BVM_EXPRESSION_H__
+#define __BVM_EXPRESSION_H__
 
-/** \file BVM_module.h
+/** \file bvm_expression.h
  *  \ingroup bvm
  */
 
-struct BVMFunction;
+#include <vector>
+#include <stdint.h>
 
-typedef struct BVMModule {
-	struct GHash *functions;
-} BVMModule;
+#include "BVM_types.h"
+#include "bvm_util_string.h"
 
-void BVM_module_init(struct BVMModule *lib);
-void BVM_module_free(struct BVMModule *lib);
+namespace bvm {
 
-struct BVMFunction *BVM_module_create_function(struct BVMModule *mod, const char *name);
-bool BVM_module_delete_function(struct BVMModule *mod, const char *name);
+typedef int32_t Instruction;
+typedef std::vector<Instruction> InstructionList;
 
-#endif /* __BVM_MODULE_H__ */
+enum OpCode {
+	OP_NOOP = 0,
+	OP_END,
+	OP_JUMP,
+	OP_JUMP_IF_ZERO,
+	OP_JUMP_IF_ONE,
+};
+
+struct Expression {
+	struct ReturnValue {
+		BVMType type;
+		string name;
+	};
+	typedef std::vector<ReturnValue> ReturnValueList;
+	
+	Expression();
+	~Expression();
+	
+	void add_return_value(BVMType type, const string &name = "");
+	size_t return_values_size() const;
+	const ReturnValue &return_value(size_t index) const;
+	const ReturnValue &return_value(const string &name) const;
+	
+private:
+	ReturnValueList return_values;
+	InstructionList instructions;
+};
+
+} /* namespace bvm */
+
+#endif /* __BVM_EXPRESSION_H__ */

@@ -25,14 +25,19 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+#ifndef __BVM_UTIL_STRING_H__
+#define __BVM_UTIL_STRING_H__
+
+/** \file bvm_util_string.h
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "bvm_function.h"
+#include <string>
 
 namespace bvm {
 
+typedef std::string string;
+
 } /* namespace bvm */
+
+#endif /* __BVM_UTIL_STRING_H__ */

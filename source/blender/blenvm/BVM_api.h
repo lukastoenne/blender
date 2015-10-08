@@ -25,14 +25,40 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+#ifndef __BVM_API_H__
+#define __BVM_API_H__
+
+/** \file BVM_api.h
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
+#include "BVM_types.h"
 
-#include "bvm_function.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace bvm {
+struct BVMContext;
+struct BVMExpression;
+struct BVMFunction;
+struct BVMModule;
 
-} /* namespace bvm */
+struct BVMModule *BVM_module_create(void);
+void BVM_module_free(struct BVMModule *mod);
+
+struct BVMFunction *BVM_module_create_function(struct BVMModule *mod, const char *name);
+bool BVM_module_delete_function(struct BVMModule *mod, const char *name);
+
+/* ------------------------------------------------------------------------- */
+
+const char *BVM_function_name(const struct BVMFunction *fun);
+
+/* ------------------------------------------------------------------------- */
+
+void BVM_expression_eval(struct BVMExpression *expr, void *result);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BVM_API_H__ */

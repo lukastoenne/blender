@@ -25,14 +25,24 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+#ifndef __BVM_TYPES_H__
+#define __BVM_TYPES_H__
+
+/** \file BVM_types.h
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "bvm_function.h"
+typedef enum BVMType {
+	BVM_FLOAT,
+	BVM_FLOAT3,
+} BVMType;
 
-namespace bvm {
+#ifdef __cplusplus
+}
+#endif
 
-} /* namespace bvm */
+#endif /* __BVM_TYPES_H__ */

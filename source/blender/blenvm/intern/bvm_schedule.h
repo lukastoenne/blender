@@ -25,14 +25,32 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+#ifndef __BVM_SCHEDULE_H__
+#define __BVM_SCHEDULE_H__
+
+/** \file bvm_schedule.h
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
+#include <vector>
+#include <stdint.h>
 
-#include "bvm_function.h"
+#include "bvm_util_string.h"
 
 namespace bvm {
 
+struct Kernel;
+
+struct Operation {
+	const Kernel *kernel;
+};
+
+struct Schedule {
+	typedef std::vector<Operation> OperationList;
+	
+	OperationList operations;
+};
+
 } /* namespace bvm */
+
+#endif /* __BVM_SCHEDULE_H__ */

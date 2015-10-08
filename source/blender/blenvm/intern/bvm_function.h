@@ -28,14 +28,23 @@
 #ifndef __BVM_FUNCTION_H__
 #define __BVM_FUNCTION_H__
 
-/** \file BVM_function.h
+/** \file bvm_function.h
  *  \ingroup bvm
  */
 
-#include "DNA_defs.h"
+#include "bvm_util_string.h"
 
-typedef struct BVMFunction {
-	char name[MAX_NAME];
-} BVMFunction;
+namespace bvm {
+
+struct FunctionArgument {
+	string name;
+	bool is_return_value;
+};
+
+struct Function {
+	string name;
+};
+
+} /* namespace bvm */
 
 #endif /* __BVM_FUNCTION_H__ */

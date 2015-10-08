@@ -25,14 +25,32 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+#ifndef __BVM_MODULE_H__
+#define __BVM_MODULE_H__
+
+/** \file bvm_module.h
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "bvm_function.h"
+#include "bvm_util_map.h"
+#include "bvm_util_string.h"
 
 namespace bvm {
 
+struct Function;
+
+struct Module {
+	typedef unordered_map<string, Function*> FunctionMap;
+	
+	FunctionMap functions;
+	
+	Module();
+	~Module();
+	
+	Function *create_function(const string &name);
+	bool remove_function(const string &name);
+};
+
 } /* namespace bvm */
+
+#endif /* __BVM_MODULE_H__ */

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/module.cc
+/** \file bvm_module.cc
  *  \ingroup bvm
  */
 
@@ -39,42 +39,9 @@ extern "C" {
 
 #include "MEM_guardedalloc.h"
 
-#include "BVM_function.h"
-#include "BVM_module.h"
+#include "bvm_function.h"
+#include "bvm_module.h"
 
-// forward declaration
-static void ghash_function_free(BVMFunction *fun);
+namespace bvm {
 
-void BVM_module_init(BVMModule *lib)
-{
-	lib->functions = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "BVM library functions");
-}
-
-void BVM_module_free(BVMModule *lib)
-{
-	BLI_assert(lib->functions != NULL);
-	BLI_ghash_free(lib->functions, NULL, (GHashValFreeFP)ghash_function_free);
-}
-
-/* ------------------------------------------------------------------------- */
-
-static void ghash_function_free(BVMFunction *fun)
-{
-	MEM_freeN(fun);
-}
-
-struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
-{
-	BLI_assert(BLI_ghash_lookup(mod->functions, name) == NULL);
-	
-	BVMFunction *fun = (BVMFunction *)MEM_callocN(sizeof(BVMFunction), "BVM function");
-	BLI_strncpy(fun->name, name, sizeof(fun->name));
-	
-	BLI_ghash_insert(mod->functions, fun->name, fun);
-	return fun;
-}
-
-bool BVM_module_delete_function(BVMModule *mod, const char *name)
-{
-	return BLI_ghash_remove(mod->functions, name, NULL, (GHashValFreeFP)ghash_function_free);
-}
+} /* namespace bvm */

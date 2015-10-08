@@ -25,14 +25,34 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_function.cc
+/** \file blender/blenvm/intern/bvm_api.cc
  *  \ingroup bvm
  */
 
 #include "MEM_guardedalloc.h"
 
+extern "C" {
+#include "BVM_api.h"
+}
+
+#include "bvm_expression.h"
 #include "bvm_function.h"
+#include "bvm_module.h"
 
-namespace bvm {
+#define _MOD(mod) ((bvm::Module *)(mod))
 
-} /* namespace bvm */
+struct BVMModule *BVM_module_create(void)
+{ return (struct BVMModule *)(new bvm::Module()); }
+
+void BVM_module_free(BVMModule *mod)
+{ delete _MOD(mod); }
+
+struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
+{ return (struct BVMFunction *)_MOD(mod)->create_function(name); }
+
+bool BVM_module_delete_function(BVMModule *mod, const char *name)
+{ return _MOD(mod)->remove_function(name); }
+
+#undef _MOD
+
+#undef _EXPR
