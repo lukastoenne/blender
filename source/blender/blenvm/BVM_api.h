@@ -57,6 +57,19 @@ const char *BVM_function_name(const struct BVMFunction *fun);
 
 void BVM_expression_eval(struct BVMExpression *expr, void *result);
 
+/* ------------------------------------------------------------------------- */
+
+struct BVMNodeGraph;
+struct BVMNodeInstance;
+
+struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
+
+/* ------------------------------------------------------------------------- */
+
+struct bNodeTree;
+
+struct BVMExpression *BVM_gen_nodetree_expression(struct bNodeTree *ntree);
+
 #ifdef __cplusplus
 }
 #endif

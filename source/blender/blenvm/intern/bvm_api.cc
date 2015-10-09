@@ -32,14 +32,22 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
+#include "BLI_utildefines.h"
+
+#include "DNA_node_types.h"
+
+#include "BKE_node.h"
+
 #include "BVM_api.h"
 }
 
 #include "bvm_expression.h"
 #include "bvm_function.h"
 #include "bvm_module.h"
+#include "bvm_nodegraph.h"
 
-#define _MOD(mod) ((bvm::Module *)(mod))
+BLI_INLINE bvm::Module *_MOD(struct BVMModule *mod)
+{ return (bvm::Module *)mod; }
 
 struct BVMModule *BVM_module_create(void)
 { return (struct BVMModule *)(new bvm::Module()); }
@@ -53,6 +61,53 @@ struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
 bool BVM_module_delete_function(BVMModule *mod, const char *name)
 { return _MOD(mod)->remove_function(name); }
 
-#undef _MOD
+/* ------------------------------------------------------------------------- */
+
+BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
+{ return (bvm::NodeGraph *)graph; }
+
+BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
+{ return (bvm::NodeInstance *)node; }
+
+struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
+{ return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
+
+/* ------------------------------------------------------------------------- */
+
+static void gen_nodetree_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
+{
+	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
+		BLI_assert(bnode->typeinfo != NULL);
+		if (!nodeIsRegistered(bnode))
+			continue;
+		
+		const char *type = bnode->typeinfo->idname;
+		/*NodeInstance *node =*/ graph.add_node(type, bnode->name);
+	}
+	
+	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
+		if (!(blink->flag & NODE_LINK_VALID))
+			continue;
+		
+		graph.add_link(blink->fromnode->name, blink->fromsock->name,
+		               blink->tonode->name, blink->tosock->name);
+	}
+}
+
+struct BVMExpression *BVM_gen_nodetree_expression(bNodeTree *btree)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	
+	gen_nodetree_nodegraph(btree, graph);
+	
+	// XXX TODO call codegen function here to turn nodegraph into an expression
+	Expression *expr = NULL;
+	
+	return (BVMExpression *)expr;
+}
+
+#undef _GRAPH
 
 #undef _EXPR
