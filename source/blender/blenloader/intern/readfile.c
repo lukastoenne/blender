@@ -124,6 +124,7 @@
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
 #include "BKE_library.h" // for which_libbase
+#include "BKE_library_query.h"
 #include "BKE_idcode.h"
 #include "BKE_material.h"
 #include "BKE_main.h" // for Main
@@ -618,7 +619,9 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 	m = BKE_main_new();
 	BLI_addtail(mainlist, m);
 	
-	lib = BKE_libblock_alloc(m, ID_LI, "lib");
+	/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
+	 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
+	lib = BKE_libblock_alloc(mainlist->first, ID_LI, "Lib");
 	BLI_strncpy(lib->name, filepath, sizeof(lib->name));
 	BLI_strncpy(lib->filepath, name1, sizeof(lib->filepath));
 	
@@ -917,6 +920,41 @@ static int read_file_dna(FileData *fd)
 	return 0;
 }
 
+static int *read_file_thumbnail(FileData *fd)
+{
+	BHead *bhead;
+	int *blend_thumb = NULL;
+
+	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead)) {
+		if (bhead->code == TEST) {
+			const bool do_endian_swap = (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0;
+			int *data = (int *)(bhead + 1);
+
+			if (bhead->len < (2 * sizeof(int))) {
+				break;
+			}
+
+			if (do_endian_swap) {
+				BLI_endian_switch_int32(&data[0]);
+				BLI_endian_switch_int32(&data[1]);
+			}
+
+			if (bhead->len < BLEN_THUMB_MEMSIZE_FILE(data[0], data[1])) {
+				break;
+			}
+
+			blend_thumb = data;
+			break;
+		}
+		else if (bhead->code != REND) {
+			/* Thumbnail is stored in TEST immediately after first REND... */
+			break;
+		}
+	}
+
+	return blend_thumb;
+}
+
 static int fd_read_from_file(FileData *filedata, void *buffer, unsigned int size)
 {
 	int readsize = read(filedata->filedes, buffer, size);
@@ -1078,6 +1116,33 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 		
 		return blo_decode_and_check(fd, reports);
 	}
+}
+
+/**
+ * Same as blo_openblenderfile(), but does not reads DNA data, only header. Use it for light access
+ * (e.g. thumbnail reading).
+ */
+static FileData *blo_openblenderfile_minimal(const char *filepath)
+{
+	gzFile gzfile;
+	errno = 0;
+	gzfile = BLI_gzopen(filepath, "rb");
+
+	if (gzfile != (gzFile)Z_NULL) {
+		FileData *fd = filedata_new();
+		fd->gzfiledes = gzfile;
+		fd->read = fd_read_gzip_from_file;
+
+		decode_blender_header(fd);
+
+		if (fd->flags & FD_FLAGS_FILE_OK) {
+			return fd;
+		}
+
+		blo_freefiledata(fd);
+	}
+
+	return NULL;
 }
 
 static int fd_read_gzip_from_memory(FileData *filedata, void *buffer, unsigned int size)
@@ -1288,6 +1353,33 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, cha
 	}
 
 	return true;
+}
+
+BlendThumbnail *BLO_thumbnail_from_file(const char *filepath)
+{
+	FileData *fd;
+	BlendThumbnail *data;
+	int *fd_data;
+
+	fd = blo_openblenderfile_minimal(filepath);
+	fd_data = fd ? read_file_thumbnail(fd) : NULL;
+
+	if (fd_data) {
+		const size_t sz = BLEN_THUMB_MEMSIZE(fd_data[0], fd_data[1]);
+		data = MEM_mallocN(sz, __func__);
+
+		BLI_assert((sz - sizeof(*data)) == (BLEN_THUMB_MEMSIZE_FILE(fd_data[0], fd_data[1]) - (sizeof(*fd_data) * 2)));
+		data->width = fd_data[0];
+		data->height = fd_data[1];
+		memcpy(data->rect, &fd_data[2], sz - sizeof(*data));
+	}
+	else {
+		data = NULL;
+	}
+
+	blo_freefiledata(fd);
+
+	return data;
 }
 
 /* ************** OLD POINTERS ******************* */
@@ -4498,15 +4590,15 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 
 /* ************ READ OBJECT ***************** */
 
-static void lib_link_modifiers__linkModifiers(void *userData, Object *ob,
-                                              ID **idpoin)
+static void lib_link_modifiers__linkModifiers(
+        void *userData, Object *ob, ID **idpoin, int cd_flag)
 {
 	FileData *fd = userData;
 
 	*idpoin = newlibadr(fd, ob->id.lib, *idpoin);
-	/* hardcoded bad exception; non-object modifier data gets user count (texture, displace) */
-	if (*idpoin && GS((*idpoin)->name)!=ID_OB)
+	if (*idpoin != NULL && (cd_flag & IDWALK_USER) != 0) {
 		(*idpoin)->us++;
+	}
 }
 static void lib_link_modifiers(FileData *fd, Object *ob)
 {
@@ -5492,16 +5584,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 				}
 				if (seq->clip) {
-					seq->clip = newlibadr(fd, sce->id.lib, seq->clip);
-					if (seq->clip) {
-						seq->clip->id.us++;
-					}
+					seq->clip = newlibadr_us(fd, sce->id.lib, seq->clip);
 				}
 				if (seq->mask) {
-					seq->mask = newlibadr(fd, sce->id.lib, seq->mask);
-					if (seq->mask) {
-						seq->mask->id.us++;
-					}
+					seq->mask = newlibadr_us(fd, sce->id.lib, seq->mask);
 				}
 				if (seq->scene_camera) {
 					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
@@ -6441,6 +6527,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_FILE) {
 					SpaceFile *sfile = (SpaceFile *)sl;
 					sfile->op = NULL;
+					sfile->previews_timer = NULL;
 				}
 				else if (sl->spacetype == SPACE_ACTION) {
 					SpaceAction *saction = (SpaceAction *)sl;
@@ -6524,7 +6611,13 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 
 						BLI_mempool_iternew(so->treestore, &iter);
 						while ((tselem = BLI_mempool_iterstep(&iter))) {
-							tselem->id = restore_pointer_by_name(newmain, tselem->id, USER_IGNORE);
+							/* Do not try to restore pointers to drivers/sequence/etc., can crash in undo case! */
+							if (TSE_IS_REAL_ID(tselem)) {
+								tselem->id = restore_pointer_by_name(newmain, tselem->id, USER_IGNORE);
+							}
+							else {
+								tselem->id = NULL;
+							}
 						}
 						if (so->treehash) {
 							/* rebuild hash table, because it depends on ids too */
@@ -6970,6 +7063,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				sfile->files = NULL;
 				sfile->layout = NULL;
 				sfile->op = NULL;
+				sfile->previews_timer = NULL;
 				sfile->params = newdataadr(fd, sfile->params);
 			}
 			else if (sl->spacetype == SPACE_CLIP) {
@@ -7082,11 +7176,7 @@ static void lib_link_speaker(FileData *fd, Main *main)
 		if (spk->id.flag & LIB_NEED_LINK) {
 			if (spk->adt) lib_link_animdata(fd, &spk->id, spk->adt);
 			
-			spk->sound= newlibadr(fd, spk->id.lib, spk->sound);
-			if (spk->sound) {
-				spk->sound->id.us++;
-			}
-			
+			spk->sound = newlibadr_us(fd, spk->id.lib, spk->sound);
 			spk->id.flag -= LIB_NEED_LINK;
 		}
 	}
@@ -8181,6 +8271,24 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 	bfd->type = BLENFILETYPE_BLEND;
 	BLI_strncpy(bfd->main->name, filepath, sizeof(bfd->main->name));
 
+	if (G.background) {
+		/* We only read & store .blend thumbnail in background mode
+		 * (because we cannot re-generate it, no OpenGL available).
+		 */
+		const int *data = read_file_thumbnail(fd);
+
+		if (data) {
+			const size_t sz = BLEN_THUMB_MEMSIZE(data[0], data[1]);
+			bfd->main->blen_thumb = MEM_mallocN(sz, __func__);
+
+			BLI_assert((sz - sizeof(*bfd->main->blen_thumb)) ==
+			           (BLEN_THUMB_MEMSIZE_FILE(data[0], data[1]) - (sizeof(*data) * 2)));
+			bfd->main->blen_thumb->width = data[0];
+			bfd->main->blen_thumb->height = data[1];
+			memcpy(bfd->main->blen_thumb->rect, &data[2], sz - sizeof(*bfd->main->blen_thumb));
+		}
+	}
+
 	while (bhead) {
 		switch (bhead->code) {
 		case DATA:
@@ -8231,10 +8339,10 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 	}
 	
 	/* do before read_libraries, but skip undo case */
-	if (fd->memfile==NULL)
+	if (fd->memfile == NULL) {
 		do_versions(fd, NULL, bfd->main);
-	
-	do_versions_userdef(fd, bfd);
+		do_versions_userdef(fd, bfd);
+	}
 	
 	read_libraries(fd, &mainlist);
 	
@@ -8247,6 +8355,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 	
 	link_global(fd, bfd);	/* as last */
 	
+	fd->mainlist = NULL;  /* Safety, this is local variable, shall not be used afterward. */
+
 	return bfd;
 }
 
@@ -8897,8 +9007,8 @@ static void expand_armature(FileData *fd, Main *mainvar, bArmature *arm)
 #endif
 }
 
-static void expand_object_expandModifiers(void *userData, Object *UNUSED(ob),
-                                          ID **idpoin)
+static void expand_object_expandModifiers(
+        void *userData, Object *UNUSED(ob), ID **idpoin, int UNUSED(cd_flag))
 {
 	struct { FileData *fd; Main *mainvar; } *data= userData;
 	
