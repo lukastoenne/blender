@@ -124,6 +124,7 @@
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
 #include "BKE_library.h" // for which_libbase
+#include "BKE_library_query.h"
 #include "BKE_idcode.h"
 #include "BKE_material.h"
 #include "BKE_main.h" // for Main
@@ -618,7 +619,9 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 	m = BKE_main_new();
 	BLI_addtail(mainlist, m);
 	
-	lib = BKE_libblock_alloc(m, ID_LI, "lib");
+	/* Add library datablock itself to 'main' Main, since libraries are **never** linked data.
+	 * Fixes bug where you could end with all ID_LI datablocks having the same name... */
+	lib = BKE_libblock_alloc(mainlist->first, ID_LI, "Lib");
 	BLI_strncpy(lib->name, filepath, sizeof(lib->name));
 	BLI_strncpy(lib->filepath, name1, sizeof(lib->filepath));
 	
@@ -4587,15 +4590,15 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 
 /* ************ READ OBJECT ***************** */
 
-static void lib_link_modifiers__linkModifiers(void *userData, Object *ob,
-                                              ID **idpoin)
+static void lib_link_modifiers__linkModifiers(
+        void *userData, Object *ob, ID **idpoin, int cd_flag)
 {
 	FileData *fd = userData;
 
 	*idpoin = newlibadr(fd, ob->id.lib, *idpoin);
-	/* hardcoded bad exception; non-object modifier data gets user count (texture, displace) */
-	if (*idpoin && GS((*idpoin)->name)!=ID_OB)
+	if (*idpoin != NULL && (cd_flag & IDWALK_USER) != 0) {
 		(*idpoin)->us++;
+	}
 }
 static void lib_link_modifiers(FileData *fd, Object *ob)
 {
@@ -5577,16 +5580,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 				}
 				if (seq->clip) {
-					seq->clip = newlibadr(fd, sce->id.lib, seq->clip);
-					if (seq->clip) {
-						seq->clip->id.us++;
-					}
+					seq->clip = newlibadr_us(fd, sce->id.lib, seq->clip);
 				}
 				if (seq->mask) {
-					seq->mask = newlibadr(fd, sce->id.lib, seq->mask);
-					if (seq->mask) {
-						seq->mask->id.us++;
-					}
+					seq->mask = newlibadr_us(fd, sce->id.lib, seq->mask);
 				}
 				if (seq->scene_camera) {
 					seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
@@ -7175,11 +7172,7 @@ static void lib_link_speaker(FileData *fd, Main *main)
 		if (spk->id.flag & LIB_NEED_LINK) {
 			if (spk->adt) lib_link_animdata(fd, &spk->id, spk->adt);
 			
-			spk->sound= newlibadr(fd, spk->id.lib, spk->sound);
-			if (spk->sound) {
-				spk->sound->id.us++;
-			}
-			
+			spk->sound = newlibadr_us(fd, spk->id.lib, spk->sound);
 			spk->id.flag -= LIB_NEED_LINK;
 		}
 	}
@@ -9010,8 +9003,8 @@ static void expand_armature(FileData *fd, Main *mainvar, bArmature *arm)
 #endif
 }
 
-static void expand_object_expandModifiers(void *userData, Object *UNUSED(ob),
-                                          ID **idpoin)
+static void expand_object_expandModifiers(
+        void *userData, Object *UNUSED(ob), ID **idpoin, int UNUSED(cd_flag))
 {
 	struct { FileData *fd; Main *mainvar; } *data= userData;
 	
