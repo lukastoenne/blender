@@ -77,6 +77,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
+#include "BKE_library_query.h"
 #include "BKE_particle.h"
 #include "BKE_global.h"
 
@@ -2586,6 +2587,7 @@ void BKE_psys_collision_neartest_cb(void *userdata, int index, const BVHTreeRay 
 }
 static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRayHit *hit, ListBase *colliders)
 {
+	const int raycast_flag = BVH_RAYCAST_DEFAULT & ~(BVH_RAYCAST_WATERTIGHT);
 	ColliderCache *coll;
 	float ray_dir[3];
 
@@ -2594,7 +2596,7 @@ static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRay
 
 	sub_v3_v3v3(ray_dir, col->co2, col->co1);
 	hit->index = -1;
-	hit->dist = col->original_ray_length = len_v3(ray_dir);
+	hit->dist = col->original_ray_length = normalize_v3(ray_dir);
 	col->pce.inside = 0;
 
 	/* even if particle is stationary we want to check for moving colliders */
@@ -2616,8 +2618,11 @@ static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRay
 		col->fac1 = (col->old_cfra - coll->collmd->time_x) / (coll->collmd->time_xnew - coll->collmd->time_x);
 		col->fac2 = (col->cfra - coll->collmd->time_x) / (coll->collmd->time_xnew - coll->collmd->time_x);
 
-		if (col->md && col->md->bvhtree)
-			BLI_bvhtree_ray_cast(col->md->bvhtree, col->co1, ray_dir, col->radius, hit, BKE_psys_collision_neartest_cb, col);
+		if (col->md && col->md->bvhtree) {
+			BLI_bvhtree_ray_cast_ex(
+			        col->md->bvhtree, col->co1, ray_dir, col->radius, hit,
+			        BKE_psys_collision_neartest_cb, col, raycast_flag);
+		}
 	}
 
 	return hit->index >= 0;
@@ -4205,13 +4210,39 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 		invert_m4_m4(psys->imat, ob->obmat);
 }
 
+/* ID looper */
+
+void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func, void *userdata)
+{
+	ParticleTarget *pt;
+
+	func(psys, (ID **)&psys->part, userdata, IDWALK_NOP);
+	func(psys, (ID **)&psys->target_ob, userdata, IDWALK_NOP);
+	func(psys, (ID **)&psys->parent, userdata, IDWALK_NOP);
+
+	for (pt = psys->targets.first; pt; pt = pt->next) {
+		func(psys, (ID **)&pt->ob, userdata, IDWALK_NOP);
+	}
+
+	if (psys->part->phystype == PART_PHYS_BOIDS) {
+		ParticleData *pa;
+		int p;
+
+		for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) {
+			func(psys, (ID **)&pa->boid->ground, userdata, IDWALK_NOP);
+		}
+	}
+}
+
 /* **** Depsgraph evaluation **** */
 
 void BKE_particle_system_eval(EvaluationContext *UNUSED(eval_ctx),
+                              Scene *scene,
                               Object *ob,
                               ParticleSystem *psys)
 {
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
 		printf("%s on %s:%s\n", __func__, ob->id.name, psys->name);
 	}
+	BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH);
 }

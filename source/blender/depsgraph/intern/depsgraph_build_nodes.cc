@@ -451,7 +451,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 
 	/* particle systems */
 	if (ob->particlesystem.first) {
-		build_particles(ob);
+		build_particles(scene, ob);
 	}
 
 	/* grease pencil */
@@ -679,7 +679,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 	}
 }
 
-void DepsgraphNodeBuilder::build_particles(Object *ob)
+void DepsgraphNodeBuilder::build_particles(Scene *scene, Object *ob)
 {
 	/**
 	 * Particle Systems Nodes
@@ -710,7 +710,7 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 		/* this particle system */
 		// TODO: for now, this will just be a placeholder "ubereval" node
 		add_operation_node(psys_comp,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval, _1, ob, psys),
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval, _1, scene, ob, psys),
 		                   DEG_OPCODE_PSYS_EVAL,
 		                   psys->name);
 	}
