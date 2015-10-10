@@ -761,7 +761,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 			BoidRule *rule = NULL;
 			BoidState *state = NULL;
 			ParticleSettings *part = psys->part;
-			ListBase *effectors = NULL;
+			EffectorContext *effectors;
 			EffectorCache *eff;
 
 			dag_add_relation(dag, node, node, DAG_RL_OB_DATA, "Particle-Object Relation");
@@ -800,7 +800,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 			effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
 
 			if (effectors) {
-				for (eff = effectors->first; eff; eff = eff->next) {
+				for (eff = effectors->effectors.first; eff; eff = eff->next) {
 					if (eff->psys) {
 						node2 = dag_get_node(dag, eff->ob);
 						dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Field");
@@ -808,7 +808,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 				}
 			}
 
-			pdEndEffectors(&effectors);
+			pdEndEffectors(effectors);
 
 			if (part->boids) {
 				for (state = part->boids->states.first; state; state = state->next) {

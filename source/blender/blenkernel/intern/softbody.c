@@ -134,7 +134,7 @@ typedef struct  SB_thread_context {
 		float timenow;
 		int ifirst;
 		int ilast;
-		ListBase *do_effector;
+		EffectorContext *do_effector;
 		int do_deflector;
 		float fieldfactor;
 		float windfactor;
@@ -1431,7 +1431,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 	return deflected;
 }
 
-static void _scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow, int ifirst, int ilast, struct ListBase *do_effector)
+static void _scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow, int ifirst, int ilast, struct EffectorContext *do_effector)
 {
 	SoftBody *sb = ob->soft;
 	int a;
@@ -1508,11 +1508,11 @@ static void _scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow,
 static void scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow)
 {
 	SoftBody *sb = ob->soft;
-	ListBase *do_effector = NULL;
+	EffectorContext *do_effector = NULL;
 
 	do_effector = pdInitEffectors(scene, ob, NULL, sb->effector_weights, true);
 	_scan_for_ext_spring_forces(scene, ob, timenow, 0, sb->totspring, do_effector);
-	pdEndEffectors(&do_effector);
+	pdEndEffectors(do_effector);
 }
 
 static void *exec_scan_for_ext_spring_forces(void *data)
@@ -1524,13 +1524,13 @@ static void *exec_scan_for_ext_spring_forces(void *data)
 
 static void sb_sfesf_threads_run(Scene *scene, struct Object *ob, float timenow, int totsprings, int *UNUSED(ptr_to_break_func(void)))
 {
-	ListBase *do_effector = NULL;
+	EffectorContext *do_effector = NULL;
 	ListBase threads;
 	SB_thread_context *sb_threads;
 	int i, totthread, left, dec;
 	int lowsprings =100; /* wild guess .. may increase with better thread management 'above' or even be UI option sb->spawn_cf_threads_nopts */
 
-	do_effector= pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights, true);
+	do_effector = pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights, true);
 
 	/* figure the number of threads while preventing pretty pointless threading overhead */
 	totthread= BKE_scene_num_threads(scene);
@@ -1575,7 +1575,7 @@ static void sb_sfesf_threads_run(Scene *scene, struct Object *ob, float timenow,
 	/* clean up */
 	MEM_freeN(sb_threads);
 
-	pdEndEffectors(&do_effector);
+	pdEndEffectors(do_effector);
 }
 
 
@@ -1943,7 +1943,7 @@ static void sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, floa
 /* since this is definitely the most CPU consuming task here .. try to spread it */
 /* core function _softbody_calc_forces_slice_in_a_thread */
 /* result is int to be able to flag user break */
-static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, float forcetime, float timenow, int ifirst, int ilast, int *UNUSED(ptr_to_break_func(void)), ListBase *do_effector, int do_deflector, float fieldfactor, float windfactor)
+static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, float forcetime, float timenow, int ifirst, int ilast, int *UNUSED(ptr_to_break_func(void)), EffectorContext *do_effector, int do_deflector, float fieldfactor, float windfactor)
 {
 	float iks;
 	int bb, do_selfcollision, do_springcollision, do_aero;
@@ -2154,7 +2154,7 @@ static void *exec_softbody_calc_forces(void *data)
 	return NULL;
 }
 
-static void sb_cf_threads_run(Scene *scene, Object *ob, float forcetime, float timenow, int totpoint, int *UNUSED(ptr_to_break_func(void)), struct ListBase *do_effector, int do_deflector, float fieldfactor, float windfactor)
+static void sb_cf_threads_run(Scene *scene, Object *ob, float forcetime, float timenow, int totpoint, int *UNUSED(ptr_to_break_func(void)), struct EffectorContext *do_effector, int do_deflector, float fieldfactor, float windfactor)
 {
 	ListBase threads;
 	SB_thread_context *sb_threads;
@@ -2216,7 +2216,7 @@ static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, fl
  */
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
 	/*BodyPoint *bproot;*/ /* UNUSED */
-	ListBase *do_effector = NULL;
+	EffectorContext *do_effector = NULL;
 	/* float gravity; */ /* UNUSED */
 	/* float iks; */
 	float fieldfactor = -1.0f, windfactor  = 0.25;
@@ -2250,7 +2250,7 @@ static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, fl
 	if (ob->softflag & OB_SB_FACECOLL) scan_for_ext_face_forces(ob, timenow);
 
 	/* finish matrix and solve */
-	pdEndEffectors(&do_effector);
+	pdEndEffectors(do_effector);
 }
 
 
@@ -2279,7 +2279,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 		BodyPoint  *bp;
 		/* BodyPoint *bproot; */ /* UNUSED */
 		BodySpring *bs;
-		ListBase *do_effector = NULL;
+		EffectorContext *do_effector = NULL;
 		float iks, ks, kd, gravity[3] = {0.0f, 0.0f, 0.0f};
 		float fieldfactor = -1.0f, windfactor  = 0.25f;
 		float tune = sb->ballstiff;
@@ -2656,7 +2656,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 		}
 		/* cleanup */
 #endif
-		pdEndEffectors(&do_effector);
+		pdEndEffectors(do_effector);
 	}
 }
 

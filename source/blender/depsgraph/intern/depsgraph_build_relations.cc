@@ -1090,19 +1090,17 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 #endif
 
 		/* effectors */
-		ListBase *effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
+		EffectorContext *effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
 
-		if (effectors) {
-			for (EffectorCache *eff = (EffectorCache *)effectors->first; eff; eff = eff->next) {
-				if (eff->psys) {
-					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
-					ComponentKey eff_key(&eff->ob->id, DEPSNODE_TYPE_GEOMETRY); // xxx: particles instead?
-					add_relation(eff_key, psys_key, DEPSREL_TYPE_STANDARD, "Particle Field");
-				}
+		for (EffectorCache *eff = (EffectorCache *)effectors->effectors.first; eff; eff = eff->next) {
+			if (eff->psys) {
+				// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
+				ComponentKey eff_key(&eff->ob->id, DEPSNODE_TYPE_GEOMETRY); // xxx: particles instead?
+				add_relation(eff_key, psys_key, DEPSREL_TYPE_STANDARD, "Particle Field");
 			}
 		}
 
-		pdEndEffectors(&effectors);
+		pdEndEffectors(effectors);
 
 		/* boids */
 		if (part->boids) {

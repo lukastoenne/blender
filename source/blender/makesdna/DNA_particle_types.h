@@ -310,7 +310,7 @@ typedef struct ParticleSystem {
 	struct PointCache *pointcache;
 	struct ListBase ptcaches;
 
-	struct ListBase *effectors;
+	struct EffectorContext *effectors;
 
 	ParticleSpring *fluid_springs;
 	int tot_fluidsprings, alloc_fluidsprings;

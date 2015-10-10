@@ -157,7 +157,7 @@ static EffectorCache *new_effector_cache(Scene *scene, Object *ob, ParticleSyste
 	eff->frame = -1;
 	return eff;
 }
-static void add_object_to_effectors(ListBase **effectors, Scene *scene, EffectorWeights *weights, Object *ob, Object *ob_src)
+static void add_object_to_effectors(EffectorContext *effctx, Scene *scene, EffectorWeights *weights, Object *ob, Object *ob_src)
 {
 	EffectorCache *eff = NULL;
 
@@ -167,17 +167,14 @@ static void add_object_to_effectors(ListBase **effectors, Scene *scene, Effector
 	if (ob->pd->shape == PFIELD_SHAPE_POINTS && !ob->derivedFinal )
 		return;
 
-	if (*effectors == NULL)
-		*effectors = MEM_callocN(sizeof(ListBase), "effectors list");
-
 	eff = new_effector_cache(scene, ob, NULL, ob->pd);
 
 	/* make sure imat is up to date */
 	invert_m4_m4(ob->imat, ob->obmat);
 
-	BLI_addtail(*effectors, eff);
+	BLI_addtail(&effctx->effectors, eff);
 }
-static void add_particles_to_effectors(ListBase **effectors, Scene *scene, EffectorWeights *weights, Object *ob, ParticleSystem *psys, ParticleSystem *psys_src)
+static void add_particles_to_effectors(EffectorContext *effctx, Scene *scene, EffectorWeights *weights, Object *ob, ParticleSystem *psys, ParticleSystem *psys_src)
 {
 	ParticleSettings *part= psys->part;
 
@@ -188,27 +185,21 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 		return;
 
 	if ( part->pd && part->pd->forcefield && weights->weight[part->pd->forcefield] != 0.0f) {
-		if (*effectors == NULL)
-			*effectors = MEM_callocN(sizeof(ListBase), "effectors list");
-
-		BLI_addtail(*effectors, new_effector_cache(scene, ob, psys, part->pd));
+		BLI_addtail(&effctx->effectors, new_effector_cache(scene, ob, psys, part->pd));
 	}
 
 	if (part->pd2 && part->pd2->forcefield && weights->weight[part->pd2->forcefield] != 0.0f) {
-		if (*effectors == NULL)
-			*effectors = MEM_callocN(sizeof(ListBase), "effectors list");
-
-		BLI_addtail(*effectors, new_effector_cache(scene, ob, psys, part->pd2));
+		BLI_addtail(&effctx->effectors, new_effector_cache(scene, ob, psys, part->pd2));
 	}
 }
 
 /* returns ListBase handle with objects taking part in the effecting */
-ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
-                          EffectorWeights *weights, bool precalc)
+EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                                 EffectorWeights *weights, bool precalc)
 {
+	EffectorContext *effctx = MEM_callocN(sizeof(EffectorContext), "effector context");
 	Base *base;
 	unsigned int layer= ob_src->lay;
-	ListBase *effectors = NULL;
 	
 	if (weights->group) {
 		GroupObject *go;
@@ -216,13 +207,13 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		for (go= weights->group->gobject.first; go; go= go->next) {
 			if ( (go->ob->lay & layer) ) {
 				if ( go->ob->pd && go->ob->pd->forcefield )
-					add_object_to_effectors(&effectors, scene, weights, go->ob, ob_src);
+					add_object_to_effectors(effctx, scene, weights, go->ob, ob_src);
 
 				if ( go->ob->particlesystem.first ) {
 					ParticleSystem *psys= go->ob->particlesystem.first;
 
 					for ( ; psys; psys=psys->next )
-						add_particles_to_effectors(&effectors, scene, weights, go->ob, psys, psys_src);
+						add_particles_to_effectors(effctx, scene, weights, go->ob, psys, psys_src);
 				}
 			}
 		}
@@ -231,37 +222,36 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		for (base = scene->base.first; base; base= base->next) {
 			if ( (base->lay & layer) ) {
 				if ( base->object->pd && base->object->pd->forcefield )
-					add_object_to_effectors(&effectors, scene, weights, base->object, ob_src);
+					add_object_to_effectors(effctx, scene, weights, base->object, ob_src);
 
 				if ( base->object->particlesystem.first ) {
 					ParticleSystem *psys= base->object->particlesystem.first;
 
 					for ( ; psys; psys=psys->next )
-						add_particles_to_effectors(&effectors, scene, weights, base->object, psys, psys_src);
+						add_particles_to_effectors(effctx, scene, weights, base->object, psys, psys_src);
 				}
 			}
 		}
 	}
 	
 	if (precalc)
-		pdPrecalculateEffectors(effectors);
+		pdPrecalculateEffectors(effctx);
 	
-	return effectors;
+	return effctx;
 }
 
-void pdEndEffectors(ListBase **effectors)
+void pdEndEffectors(EffectorContext *effctx)
 {
-	if (*effectors) {
-		EffectorCache *eff = (*effectors)->first;
-
-		for (; eff; eff=eff->next) {
+	if (effctx) {
+		EffectorCache *eff = effctx->effectors.first;
+		for (; eff; eff = eff->next) {
 			if (eff->guide_data)
 				MEM_freeN(eff->guide_data);
 		}
-
-		BLI_freelistN(*effectors);
-		MEM_freeN(*effectors);
-		*effectors = NULL;
+		
+		BLI_freelistN(&effctx->effectors);
+		
+		MEM_freeN(effctx);
 	}
 }
 
@@ -305,13 +295,11 @@ static void precalculate_effector(EffectorCache *eff)
 	}
 }
 
-void pdPrecalculateEffectors(ListBase *effectors)
+void pdPrecalculateEffectors(EffectorContext *effctx)
 {
-	if (effectors) {
-		EffectorCache *eff = effectors->first;
-		for (; eff; eff=eff->next)
-			precalculate_effector(eff);
-	}
+	EffectorCache *eff = effctx->effectors.first;
+	for (; eff; eff = eff->next)
+		precalculate_effector(eff);
 }
 
 
@@ -955,8 +943,8 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 
 /*  -------- pdDoEffectors() --------
  * generic force/speed system, now used for particles and softbodies
+ * effctx      = compiled effector setup
  * scene       = scene where it runs in, for time and stuff
- * lb			= listbase with objects that take part in effecting
  * opco		= global coord, as input
  * force		= force accumulator
  * speed		= actual current speed which can be altered
@@ -966,7 +954,7 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
  * flags		= only used for softbody wind now
  * guide		= old speed of particle
  */
-void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *weights, EffectedPoint *point, float *force, float *impulse)
+void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, EffectorWeights *weights, EffectedPoint *point, float *force, float *impulse)
 {
 /*
  * Modifies the force on a particle according to its
@@ -988,7 +976,7 @@ void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *we
 	/* Cycle through collected objects, get total of (1/(gravity_strength * dist^gravity_power)) */
 	/* Check for min distance here? (yes would be cool to add that, ton) */
 	
-	if (effectors) for (eff = effectors->first; eff; eff=eff->next) {
+	if (effctx) for (eff = effctx->effectors.first; eff; eff=eff->next) {
 		/* object effectors were fully checked to be OK to evaluate! */
 
 		get_effector_tot(eff, &efd, point, &tot, &p, &step);
