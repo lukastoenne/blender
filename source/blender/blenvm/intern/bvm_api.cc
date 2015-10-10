@@ -41,6 +41,7 @@ extern "C" {
 #include "BVM_api.h"
 }
 
+#include "bvm_eval.h"
 #include "bvm_expression.h"
 #include "bvm_function.h"
 #include "bvm_module.h"
@@ -63,14 +64,39 @@ bool BVM_module_delete_function(BVMModule *mod, const char *name)
 
 /* ------------------------------------------------------------------------- */
 
+BLI_INLINE bvm::Expression *_EXPR(struct BVMExpression *expr)
+{ return (bvm::Expression *)expr; }
+
+void BVM_expression_free(struct BVMExpression *expr)
+{ delete _EXPR(expr); }
+
+/* ------------------------------------------------------------------------- */
+
 BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
 { return (bvm::NodeGraph *)graph; }
-
 BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
 { return (bvm::NodeInstance *)node; }
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
+
+/* ------------------------------------------------------------------------- */
+
+BLI_INLINE bvm::EvalContext *_CTX(struct BVMEvalContext *ctx)
+{ return (bvm::EvalContext *)ctx; }
+
+struct BVMEvalContext *BVM_context_create(void)
+{ return (BVMEvalContext *)(new bvm::EvalContext()); }
+
+void BVM_context_free(struct BVMEvalContext *ctx)
+{ delete _CTX(ctx); }
+
+void BVM_eval_expression(struct BVMEvalContext *ctx, struct BVMExpression *expr)
+{
+	// TODO
+	(void)ctx;
+	(void)expr;
+}
 
 /* ------------------------------------------------------------------------- */
 

@@ -105,6 +105,8 @@ typedef struct EffectorCache {
 	float guide_loc[4], guide_dir[3], guide_radius;
 	float velocity[3];
 
+	struct BVMExpression *expression;
+
 	float frame;
 	int flag;
 } EffectorCache;
@@ -112,8 +114,7 @@ typedef struct EffectorCache {
 typedef struct EffectorContext {
 	ListBase effectors;
 	
-	void *eval_func;
-	void *eval_data;
+	struct BVMEvalContext *eval_context;
 } EffectorContext;
 
 void            free_partdeflect(struct PartDeflect *pd);
@@ -122,11 +123,6 @@ void            pdEndEffectors(struct EffectorContext *effctx);
 void            pdPrecalculateEffectors(struct EffectorContext *effctx);
 void            pdDoEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights,
                               struct EffectedPoint *point, float *force, float *impulse);
-
-struct EffectorContext *pdInitJITEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
-void            pdEndJITEffectors(struct EffectorContext *effctx);
-void            pdDoJITEffectors(struct EffectorContext *effctx, struct ListBase *colliders, struct EffectorWeights *weights,
-                                 struct EffectedPoint *point, float *force, float *impulse);
 
 void pd_point_from_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, struct EffectedPoint *point);
 void pd_point_from_loc(struct Scene *scene, float *loc, float *vel, int index, struct EffectedPoint *point);

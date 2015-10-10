@@ -548,6 +548,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_bmesh
 		bf_gpu
 		bf_blenkernel
+		bf_blenvm
 		bf_physics
 		bf_nodes
 		bf_rna

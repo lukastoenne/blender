@@ -25,43 +25,22 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file bvm_module.cc
+#ifndef __BVM_EVAL_H__
+#define __BVM_EVAL_H__
+
+/** \file bvm_eval.h
  *  \ingroup bvm
  */
 
-#include <cstdlib> /* needed for BLI_assert */
-
-extern "C" {
-#include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-#include "BLI_string.h"
-}
-
-#include "MEM_guardedalloc.h"
-
-#include "bvm_function.h"
-#include "bvm_module.h"
-
 namespace bvm {
 
-Module::Module()
-{
-}
-
-Module::~Module()
-{
-}
-
-Function *Module::create_function(const string &/*name*/)
-{
-	// TODO
-	return NULL;
-}
-
-bool Module::remove_function(const string &/*name*/)
-{
-	// TODO
-	return true;
-}
+struct EvalContext {
+	EvalContext();
+	~EvalContext();
+	
+	
+};
 
 } /* namespace bvm */
+
+#endif /* __BVM_EVAL_H__ */

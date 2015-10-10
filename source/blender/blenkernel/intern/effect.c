@@ -41,6 +41,7 @@
 #include "DNA_group_types.h"
 #include "DNA_listBase.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_particle_types.h"
@@ -65,11 +66,13 @@
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
 
+#include "BVM_api.h"
 
 #include "RE_render_ext.h"
 #include "RE_shader_ext.h"
@@ -147,7 +150,7 @@ void free_partdeflect(PartDeflect *pd)
 	MEM_freeN(pd);
 }
 
-static EffectorCache *new_effector_cache(Scene *scene, Object *ob, ParticleSystem *psys, PartDeflect *pd)
+static EffectorCache *new_effector_cache(EffectorContext *effctx, Scene *scene, Object *ob, ParticleSystem *psys, PartDeflect *pd)
 {
 	EffectorCache *eff = MEM_callocN(sizeof(EffectorCache), "EffectorCache");
 	eff->scene = scene;
@@ -155,24 +158,23 @@ static EffectorCache *new_effector_cache(Scene *scene, Object *ob, ParticleSyste
 	eff->psys = psys;
 	eff->pd = pd;
 	eff->frame = -1;
+	
+	BLI_addtail(&effctx->effectors, eff);
+	
 	return eff;
 }
 static void add_object_to_effectors(EffectorContext *effctx, Scene *scene, EffectorWeights *weights, Object *ob, Object *ob_src)
 {
-	EffectorCache *eff = NULL;
-
 	if ( ob == ob_src || weights->weight[ob->pd->forcefield] == 0.0f )
 		return;
 
 	if (ob->pd->shape == PFIELD_SHAPE_POINTS && !ob->derivedFinal )
 		return;
 
-	eff = new_effector_cache(scene, ob, NULL, ob->pd);
+	new_effector_cache(effctx, scene, ob, NULL, ob->pd);
 
 	/* make sure imat is up to date */
 	invert_m4_m4(ob->imat, ob->obmat);
-
-	BLI_addtail(&effctx->effectors, eff);
 }
 static void add_particles_to_effectors(EffectorContext *effctx, Scene *scene, EffectorWeights *weights, Object *ob, ParticleSystem *psys, ParticleSystem *psys_src)
 {
@@ -185,11 +187,35 @@ static void add_particles_to_effectors(EffectorContext *effctx, Scene *scene, Ef
 		return;
 
 	if ( part->pd && part->pd->forcefield && weights->weight[part->pd->forcefield] != 0.0f) {
-		BLI_addtail(&effctx->effectors, new_effector_cache(scene, ob, psys, part->pd));
+		new_effector_cache(effctx, scene, ob, psys, part->pd);
 	}
 
 	if (part->pd2 && part->pd2->forcefield && weights->weight[part->pd2->forcefield] != 0.0f) {
-		BLI_addtail(&effctx->effectors, new_effector_cache(scene, ob, psys, part->pd2));
+		new_effector_cache(effctx, scene, ob, psys, part->pd2);
+	}
+}
+static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene, EffectorWeights *UNUSED(weights), Object *ob, Object *ob_src)
+{
+	if (ob == ob_src)
+		return;
+	
+	if (ob->nodetree) {
+		bNode *node;
+		
+		/* XXX TODO This is a placeholder for future component nodes design! */
+		
+		for (node = ob->nodetree->nodes.first; node; node = node->next) {
+			if (STREQ(node->typeinfo->idname, "ForceFieldNode")) {
+				bNodeTree *ff_ntree = (bNodeTree *)node->id;
+				
+				if (ff_ntree) {
+					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
+					eff->expression = BVM_gen_nodetree_expression(ff_ntree);
+				}
+				
+				break;
+			}
+		}
 	}
 }
 
@@ -209,6 +235,8 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 				if ( go->ob->pd && go->ob->pd->forcefield )
 					add_object_to_effectors(effctx, scene, weights, go->ob, ob_src);
 
+				add_object_nodes_to_effectors(effctx, scene, weights, go->ob, ob_src);
+
 				if ( go->ob->particlesystem.first ) {
 					ParticleSystem *psys= go->ob->particlesystem.first;
 
@@ -224,6 +252,8 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 				if ( base->object->pd && base->object->pd->forcefield )
 					add_object_to_effectors(effctx, scene, weights, base->object, ob_src);
 
+				add_object_nodes_to_effectors(effctx, scene, weights, base->object, ob_src);
+
 				if ( base->object->particlesystem.first ) {
 					ParticleSystem *psys= base->object->particlesystem.first;
 
@@ -237,6 +267,8 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 	if (precalc)
 		pdPrecalculateEffectors(effctx);
 	
+	effctx->eval_context = BVM_context_create();
+	
 	return effctx;
 }
 
@@ -247,9 +279,14 @@ void pdEndEffectors(EffectorContext *effctx)
 		for (; eff; eff = eff->next) {
 			if (eff->guide_data)
 				MEM_freeN(eff->guide_data);
+			if (eff->expression)
+				BVM_expression_free(eff->expression);
 		}
 		
 		BLI_freelistN(&effctx->effectors);
+		
+		if (effctx->eval_context)
+			BVM_context_free(effctx->eval_context);
 		
 		MEM_freeN(effctx);
 	}
@@ -982,7 +1019,10 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 		get_effector_tot(eff, &efd, point, &tot, &p, &step);
 
 		for (; p<tot; p+=step) {
-			if (get_effector_data(eff, &efd, point, 0)) {
+			if (eff->expression) {
+				BVM_eval_expression(effctx->eval_context, eff->expression);
+			}
+			else if (get_effector_data(eff, &efd, point, 0)) {
 				efd.falloff= effector_falloff(eff, &efd, point, weights);
 				
 				if (efd.falloff > 0.0f)

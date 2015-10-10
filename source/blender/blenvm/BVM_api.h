@@ -55,7 +55,7 @@ const char *BVM_function_name(const struct BVMFunction *fun);
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_expression_eval(struct BVMExpression *expr, void *result);
+void BVM_expression_free(struct BVMExpression *expr);
 
 /* ------------------------------------------------------------------------- */
 
@@ -63,6 +63,15 @@ struct BVMNodeGraph;
 struct BVMNodeInstance;
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
+
+/* ------------------------------------------------------------------------- */
+
+struct BVMEvalContext;
+
+struct BVMEvalContext *BVM_context_create(void);
+void BVM_context_free(struct BVMEvalContext *result);
+
+void BVM_eval_expression(struct BVMEvalContext *context, struct BVMExpression *expr);
 
 /* ------------------------------------------------------------------------- */
 

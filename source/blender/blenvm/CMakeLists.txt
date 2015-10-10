@@ -38,12 +38,14 @@ set(INC_SYS
 
 set(SRC
 	intern/bvm_api.cc
+	intern/bvm_eval.cc
 	intern/bvm_expression.cc
 	intern/bvm_function.cc
 	intern/bvm_module.cc
 	intern/bvm_nodegraph.cc
 	intern/bvm_schedule.cc
 
+	intern/bvm_eval.h
 	intern/bvm_expression.h
 	intern/bvm_function.h
 	intern/bvm_module.h
