@@ -1020,7 +1020,7 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 
 		for (; p<tot; p+=step) {
 			if (eff->expression) {
-				BVM_eval_expression(effctx->eval_context, eff->expression);
+				BVM_eval_forcefield(effctx->eval_context, eff->expression, force, impulse);
 			}
 			else if (get_effector_data(eff, &efd, point, 0)) {
 				efd.falloff= effector_falloff(eff, &efd, point, weights);

@@ -91,11 +91,10 @@ struct BVMEvalContext *BVM_context_create(void)
 void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
 
-void BVM_eval_expression(struct BVMEvalContext *ctx, struct BVMExpression *expr)
+void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr, float force[3], float impulse[3])
 {
-	// TODO
-	(void)ctx;
-	(void)expr;
+	void *results[] = { force, impulse };
+	_CTX(ctx)->eval_expression(*_EXPR(expr), results);
 }
 
 /* ------------------------------------------------------------------------- */

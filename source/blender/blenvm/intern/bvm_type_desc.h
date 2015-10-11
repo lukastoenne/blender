@@ -54,6 +54,10 @@ struct BaseTypeTraits<BVM_FLOAT3> {
 /* ------------------------------------------------------------------------- */
 
 struct TypeDesc {
+	TypeDesc(BVMType base_type) :
+	    base_type(base_type)
+	{}
+	
 	BVMType base_type;
 };
 
@@ -61,40 +65,74 @@ struct TypeDesc {
 
 struct Value {
 	template <typename T>
-	static inline Value *create(BVMType type, T value);
+	static Value *create(BVMType type, T data);
 	
 	virtual ~Value()
 	{}
 	
+	const TypeDesc &typedesc() const { return m_typedesc; }
+	
+	template <typename T>
+	void get(T data) const;
+	
 protected:
-	Value()
+	Value(const TypeDesc &typedesc) :
+	    m_typedesc(typedesc)
 	{}
+	
+	TypeDesc m_typedesc;
 };
 
 template <BVMType type>
 struct ValueType : public Value {
 	typedef BaseTypeTraits<type> traits;
+	typedef typename traits::POD POD;
 	
-	ValueType(typename traits::POD value) :
-	    value(value)
+	ValueType(typename traits::POD data) :
+	    Value(TypeDesc(type)),
+	    m_data(data)
 	{}
 	
 	template <typename T>
-	ValueType(T value)
+	ValueType(T data)
 	{}
 	
-	TypeDesc *typedesc;
-	typename traits::POD value;
+	const POD &data() const { return m_data; }
+	
+	bool get(POD &data)
+	{
+		data = m_data;
+		return true;
+	}
+	
+	template <typename T>
+	bool get(T data)
+	{
+		(void)data;
+		return false;
+	}
+	
+private:
+	typename traits::POD m_data;
 };
 
 /* ========================================================================= */
 
 template <typename T>
-inline Value *Value::create(BVMType type, T value)
+Value *Value::create(BVMType type, T data)
 {
 	switch (type) {
-		case BVM_FLOAT: return ValueType<BVM_FLOAT>(value);
-		case BVM_FLOAT3: return ValueType<BVM_FLOAT3>(value);
+		case BVM_FLOAT: return ValueType<BVM_FLOAT>(data);
+		case BVM_FLOAT3: return ValueType<BVM_FLOAT3>(data);
+	}
+}
+
+template <typename T>
+void Value::get(T data) const
+{
+	switch (m_typedesc.base_type) {
+		case BVM_FLOAT: return static_cast< ValueType<BVM_FLOAT>* >(this)->get(data);
+		case BVM_FLOAT3: return static_cast< ValueType<BVM_FLOAT3>* >(this)->get(data);
 	}
 }
 

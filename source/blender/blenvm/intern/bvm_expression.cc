@@ -43,12 +43,9 @@ Expression::~Expression()
 {
 }
 
-void Expression::add_return_value(BVMType type, const string &name)
+void Expression::add_return_value(const TypeDesc &typedesc, const string &name)
 {
-	ReturnValue rval;
-	rval.type = type;
-	rval.name = name;
-	return_values.push_back(rval);
+	return_values.push_back(ReturnValue(typedesc, name));
 }
 
 size_t Expression::return_values_size() const

@@ -71,7 +71,7 @@ struct BVMEvalContext;
 struct BVMEvalContext *BVM_context_create(void);
 void BVM_context_free(struct BVMEvalContext *result);
 
-void BVM_eval_expression(struct BVMEvalContext *context, struct BVMExpression *expr);
+void BVM_eval_forcefield(struct BVMEvalContext *context, struct BVMExpression *expr, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
 

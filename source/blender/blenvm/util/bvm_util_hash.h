@@ -31,6 +31,8 @@
 #ifndef __BVM_UTIL_HASH_H__
 #define __BVM_UTIL_HASH_H__
 
+#include <string>
+
 #if defined(BVM_NO_UNORDERED_MAP)
 #  define BVM_HASH_NAMESPACE_BEGIN
 #  define BVM_HASH_NAMESPACE_END

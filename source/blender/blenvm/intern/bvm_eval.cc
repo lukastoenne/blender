@@ -30,6 +30,7 @@
  */
 
 #include "bvm_eval.h"
+#include "bvm_expression.h"
 
 namespace bvm {
 
@@ -39,6 +40,11 @@ EvalContext::EvalContext()
 
 EvalContext::~EvalContext()
 {
+}
+
+void EvalContext::eval_expression(const Expression &expr, void **results) const
+{
+	
 }
 
 } /* namespace bvm */

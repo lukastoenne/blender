@@ -35,7 +35,7 @@
 #include <vector>
 #include <stdint.h>
 
-#include "BVM_types.h"
+#include "bvm_type_desc.h"
 #include "bvm_util_string.h"
 
 namespace bvm {
@@ -53,7 +53,12 @@ enum OpCode {
 
 struct Expression {
 	struct ReturnValue {
-		BVMType type;
+		ReturnValue(const TypeDesc &typedesc, const string &name) :
+		    typedesc(typedesc),
+		    name(name)
+		{}
+		
+		TypeDesc typedesc;
 		string name;
 	};
 	typedef std::vector<ReturnValue> ReturnValueList;
@@ -61,7 +66,7 @@ struct Expression {
 	Expression();
 	~Expression();
 	
-	void add_return_value(BVMType type, const string &name = "");
+	void add_return_value(const TypeDesc &typedesc, const string &name = "");
 	size_t return_values_size() const;
 	const ReturnValue &return_value(size_t index) const;
 	const ReturnValue &return_value(const string &name) const;

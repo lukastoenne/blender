@@ -32,13 +32,40 @@
  *  \ingroup bvm
  */
 
+#include "bvm_type_desc.h"
+
+#include "bvm_util_map.h"
+#include "bvm_util_string.h"
+
 namespace bvm {
+
+struct Expression;
+
+#if 0
+struct EvalResult {
+	typedef unordered_map<string, Value> ValueMap;
+	
+	template <typename T>
+	bool get(const string &name, T data) const
+	{
+		ValueMap::const_iterator it = m_values.find(name);
+		if (it == m_values.end())
+			return false;
+		
+		const Value *value = it->second;
+		return value->get<T>(data);
+	}
+	
+private:
+	ValueMap m_values;
+};
+#endif
 
 struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	
+	void eval_expression(const Expression &expr, void **results) const;
 };
 
 } /* namespace bvm */
