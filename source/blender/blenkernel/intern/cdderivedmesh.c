@@ -967,7 +967,7 @@ static void cdDM_drawMappedFacesGLSL(
 		int *mat_orig_to_new;
 		int tot_active_mat;
 		GPUBuffer *buffer = NULL;
-		char *varray;
+		unsigned char *varray;
 		size_t max_element_size = 0;
 		int tot_loops = 0;
 
@@ -1072,17 +1072,15 @@ static void cdDM_drawMappedFacesGLSL(
 						if (matconv[i].attribs.mcol[b].array) {
 							const MLoopCol *mloopcol = matconv[i].attribs.mcol[b].array;
 							for (j = 0; j < mpoly->totloop; j++)
-								copy_v4_v4_char((char *)&varray[offset + j * max_element_size], &mloopcol[mpoly->loopstart + j].r);
+								copy_v4_v4_uchar(&varray[offset + j * max_element_size], &mloopcol[mpoly->loopstart + j].r);
 							offset += sizeof(unsigned char) * 4;
 						}
 					}
 					if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
-						if (matconv[i].attribs.tface[b].array) {
-							const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang.array;
-							for (j = 0; j < mpoly->totloop; j++)
-								copy_v4_v4((float *)&varray[offset + j * max_element_size], looptang[mpoly->loopstart + j]);
-							offset += sizeof(float) * 4;
-						}
+						const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang.array;
+						for (j = 0; j < mpoly->totloop; j++)
+							copy_v4_v4((float *)&varray[offset + j * max_element_size], looptang[mpoly->loopstart + j]);
+						offset += sizeof(float) * 4;
 					}
 				}
 
@@ -1484,7 +1482,7 @@ static void cdDM_buffer_copy_mcol(
 
 	for (i = 0; i < totpoly; i++, mpoly++) {
 		for (j = 0; j < mpoly->totloop; j++) {
-			copy_v3_v3_char((char *)&varray[start], &mloopcol[mpoly->loopstart + j].r);
+			copy_v3_v3_uchar(&varray[start], &mloopcol[mpoly->loopstart + j].r);
 			start += 3;
 		}
 	}
@@ -2423,10 +2421,11 @@ DerivedMesh *CDDM_copy_from_tessface(DerivedMesh *source)
 
 /* note, the CD_ORIGINDEX layers are all 0, so if there is a direct
  * relationship between mesh data this needs to be set by the caller. */
-DerivedMesh *CDDM_from_template(
+DerivedMesh *CDDM_from_template_ex(
         DerivedMesh *source,
         int numVerts, int numEdges, int numTessFaces,
-        int numLoops, int numPolys)
+        int numLoops, int numPolys,
+        CustomDataMask mask)
 {
 	CDDerivedMesh *cddm = cdDM_create("CDDM_from_template dest");
 	DerivedMesh *dm = &cddm->dm;
@@ -2438,7 +2437,11 @@ DerivedMesh *CDDM_from_template(
 	source->getPolyDataArray(source, CD_ORIGINDEX);
 
 	/* this does a copy of all non mvert/medge/mface layers */
-	DM_from_template(dm, source, DM_TYPE_CDDM, numVerts, numEdges, numTessFaces, numLoops, numPolys);
+	DM_from_template_ex(
+	        dm, source, DM_TYPE_CDDM,
+	        numVerts, numEdges, numTessFaces,
+	        numLoops, numPolys,
+	        mask);
 
 	/* now add mvert/medge/mface layers */
 	CustomData_add_layer(&dm->vertData, CD_MVERT, CD_CALLOC, NULL, numVerts);
@@ -2461,6 +2464,16 @@ DerivedMesh *CDDM_from_template(
 	cddm->mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
 
 	return dm;
+}
+DerivedMesh *CDDM_from_template(
+        DerivedMesh *source,
+        int numVerts, int numEdges, int numTessFaces,
+        int numLoops, int numPolys)
+{
+	return CDDM_from_template_ex(
+	        source, numVerts, numEdges, numTessFaces,
+	        numLoops, numPolys,
+	        CD_MASK_DERIVEDMESH);
 }
 
 void CDDM_apply_vert_coords(DerivedMesh *dm, float (*vertCoords)[3])

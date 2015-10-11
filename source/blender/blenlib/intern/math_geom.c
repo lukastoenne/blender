@@ -497,7 +497,7 @@ float dist_to_line_v3(const float p[3], const float l1[3], const float l2[3])
  * \note the distance from \a v1 & \a v3 to \a v2 doesnt matter
  * (it just defines the planes).
  *
- * \return the lowest squared distance to eithe of the planes.
+ * \return the lowest squared distance to either of the planes.
  * where ``(return < 0.0)`` is outside.
  *
  * <pre>
@@ -3635,8 +3635,8 @@ void perspective_m4(float mat[4][4], const float left, const float right, const 
 	mat[2][3] = -1.0f;
 	mat[3][2] = (-2.0f * nearClip * farClip) / Zdelta;
 	mat[0][1] = mat[0][2] = mat[0][3] =
-	        mat[1][0] = mat[1][2] = mat[1][3] =
-	        mat[3][0] = mat[3][1] = mat[3][3] = 0.0f;
+	mat[1][0] = mat[1][2] = mat[1][3] =
+	mat[3][0] = mat[3][1] = mat[3][3] = 0.0f;
 
 }
 
