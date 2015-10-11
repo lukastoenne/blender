@@ -41,6 +41,7 @@ extern "C" {
 #include "BVM_api.h"
 }
 
+#include "bvm_codegen.h"
 #include "bvm_eval.h"
 #include "bvm_expression.h"
 #include "bvm_function.h"
@@ -99,7 +100,7 @@ void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 
 /* ------------------------------------------------------------------------- */
 
-static void gen_nodetree_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
+static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 {
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		BLI_assert(bnode->typeinfo != NULL);
@@ -117,18 +118,23 @@ static void gen_nodetree_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		graph.add_link(blink->fromnode->name, blink->fromsock->name,
 		               blink->tonode->name, blink->tosock->name);
 	}
+	
+	{
+		float zero[3] = {0.0f, 0.0f, 0.0f};
+		graph.add_output("force", BVM_FLOAT3, zero);
+		graph.add_output("impulse", BVM_FLOAT3, zero);
+	}
 }
 
-struct BVMExpression *BVM_gen_nodetree_expression(bNodeTree *btree)
+struct BVMExpression *BVM_gen_forcefield_expression(bNodeTree *btree)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
 	
-	gen_nodetree_nodegraph(btree, graph);
+	gen_forcefield_nodegraph(btree, graph);
 	
-	// XXX TODO call codegen function here to turn nodegraph into an expression
-	Expression *expr = NULL;
+	Expression *expr = codegen_expression(graph);
 	
 	return (BVMExpression *)expr;
 }

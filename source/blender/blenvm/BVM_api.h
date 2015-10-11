@@ -77,7 +77,7 @@ void BVM_eval_forcefield(struct BVMEvalContext *context, struct BVMExpression *e
 
 struct bNodeTree;
 
-struct BVMExpression *BVM_gen_nodetree_expression(struct bNodeTree *ntree);
+struct BVMExpression *BVM_gen_forcefield_expression(struct bNodeTree *ntree);
 
 #ifdef __cplusplus
 }

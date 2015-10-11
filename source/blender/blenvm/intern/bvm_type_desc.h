@@ -94,8 +94,9 @@ struct ValueType : public Value {
 	{}
 	
 	template <typename T>
-	ValueType(T data)
-	{}
+	ValueType(T data) :
+	    Value(TypeDesc(type))
+	{ (void)data; }
 	
 	const POD &data() const { return m_data; }
 	
@@ -122,9 +123,10 @@ template <typename T>
 Value *Value::create(BVMType type, T data)
 {
 	switch (type) {
-		case BVM_FLOAT: return ValueType<BVM_FLOAT>(data);
-		case BVM_FLOAT3: return ValueType<BVM_FLOAT3>(data);
+		case BVM_FLOAT: return new ValueType<BVM_FLOAT>(data);
+		case BVM_FLOAT3: return new ValueType<BVM_FLOAT3>(data);
 	}
+	return 0;
 }
 
 template <typename T>

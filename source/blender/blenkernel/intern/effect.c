@@ -210,7 +210,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 				
 				if (ff_ntree) {
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->expression = BVM_gen_nodetree_expression(ff_ntree);
+					eff->expression = BVM_gen_forcefield_expression(ff_ntree);
 				}
 				
 				break;
