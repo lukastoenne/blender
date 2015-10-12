@@ -1108,6 +1108,13 @@ static void rna_def_effector_weight(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Smoke Flow", "Smoke Flow effector weight");
 	RNA_def_property_update(prop, 0, "rna_EffectorWeight_update");
+
+	prop = RNA_def_property(srna, "buoyancy", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "weight[14]");
+	RNA_def_property_range(prop, -200.0f, 200.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Buoyancy", "Buoyancy effector weight");
+	RNA_def_property_update(prop, 0, "rna_EffectorWeight_update");
 }
 
 static void rna_def_field(BlenderRNA *brna)
@@ -1135,6 +1142,7 @@ static void rna_def_field(BlenderRNA *brna)
 		{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", "Create turbulence with a noise field"},
 		{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", "Create a force that dampens motion"},
 		{PFIELD_SMOKEFLOW, "SMOKE_FLOW", ICON_FORCE_SMOKEFLOW, "Smoke Flow", "Create a force based on smoke simulation air flow"},
+		{PFIELD_BUOYANCY, "BUOYANCY", ICON_FORCE_SMOKEFLOW, "Buoyancy", "Create a force depending on displaced volume"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

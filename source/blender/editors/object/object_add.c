@@ -140,6 +140,7 @@ static EnumPropertyItem field_type_items[] = {
 	{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", ""},
 	{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", ""},
 	{PFIELD_SMOKEFLOW, "SMOKE", ICON_FORCE_SMOKEFLOW, "Smoke Flow", ""},
+	{PFIELD_BUOYANCY, "BUOYANCY", ICON_FORCE_SMOKEFLOW, "Buoyancy", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

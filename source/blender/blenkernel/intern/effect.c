@@ -124,6 +124,9 @@ PartDeflect *object_add_collision_fields(int type)
 		case PFIELD_SMOKEFLOW:
 			pd->f_flow = 1.0f;
 			break;
+		case PFIELD_BUOYANCY:
+			pd->shape = PFIELD_SHAPE_SURFACE;
+			break;
 	}
 	pd->flag = PFIELD_DO_LOCATION|PFIELD_DO_ROTATION;
 
@@ -323,6 +326,7 @@ void pd_point_from_particle(ParticleSimulationData *sim, ParticleData *pa, Parti
 	point->index = pa - sim->psys->particles;
 	point->size = pa->size;
 	point->charge = 0.0f;
+	point->volume = 4.0f / 3.0f * M_PI * pa->size*pa->size*pa->size;
 	
 	if (part->pd && part->pd->forcefield == PFIELD_CHARGE)
 		point->charge += part->pd->f_strength;
@@ -351,6 +355,7 @@ void pd_point_from_loc(Scene *scene, float *loc, float *vel, int index, Effected
 	point->vel = vel;
 	point->index = index;
 	point->size = 0.0f;
+	point->volume = 1.0f;
 
 	point->vel_to_sec = (float)scene->r.frs_sec;
 	point->vel_to_frame = 1.0f;
@@ -366,6 +371,7 @@ void pd_point_from_soft(Scene *scene, float *loc, float *vel, int index, Effecte
 	point->vel = vel;
 	point->index = index;
 	point->size = 0.0f;
+	point->volume = 1.0f;
 
 	point->vel_to_sec = (float)scene->r.frs_sec;
 	point->vel_to_frame = 1.0f;
@@ -928,6 +934,27 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 				}
 			}
 			break;
+		case PFIELD_BUOYANCY: {
+			const float V = point->volume;
+			float g[3];
+			
+			if (dot_v3v3(efd->vec_to_point, efd->nor) > 0.0f) {
+				zero_v3(force);
+				return;
+			}
+			
+			if (eff->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+				copy_v3_v3(g, eff->scene->physics_settings.gravity);
+			}
+			else {
+				/* TODO add optional custom gravity vector? */
+				zero_v3(g);
+			}
+			
+			/* strength is interpreted as density */
+			mul_v3_v3fl(force, g, -efd->falloff * strength * V);
+			break;
+		}
 
 	}
 

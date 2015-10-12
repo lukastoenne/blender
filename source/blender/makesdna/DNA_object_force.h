@@ -55,6 +55,7 @@ typedef enum PFieldType {
 	PFIELD_TURBULENCE = 11,	/* Force defined by BLI_gTurbulence										*/
 	PFIELD_DRAG       = 12,	/* Linear & quadratic drag												*/
 	PFIELD_SMOKEFLOW  = 13,	/* Force based on smoke simulation air flow								*/
+	PFIELD_BUOYANCY   = 14,	/* Force based on estimated displacement								*/
 	NUM_PFIELD_TYPES
 } PFieldType;
 	
@@ -118,10 +119,9 @@ typedef struct PartDeflect {
 typedef struct EffectorWeights {
 	struct Group *group;		/* only use effectors from this group of objects */
 	
-	float weight[14];			/* effector type specific weights */
+	float weight[15];			/* effector type specific weights */
 	float global_gravity;
 	short flag, rt[3];
-	int pad;
 } EffectorWeights;
 
 /* EffectorWeights->flag */

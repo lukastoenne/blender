@@ -235,6 +235,7 @@ def effector_weights_ui(self, context, weights, weight_type):
     col.prop(weights, "turbulence", slider=True)
     col.prop(weights, "drag", slider=True)
     col.prop(weights, "boid", slider=True)
+    col.prop(weights, "buoyancy", slider=True)
 
 
 def basic_force_field_settings_ui(self, context, field):

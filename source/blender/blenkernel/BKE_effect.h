@@ -57,8 +57,10 @@ typedef struct EffectedPoint {
 	float vel_to_frame;
 	float vel_to_sec;
 
+	float volume;
 	/* only for particles */
 	float size, charge;
+	int pad;
 
 	unsigned int flag;
 	int index;
