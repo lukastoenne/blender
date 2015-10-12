@@ -326,7 +326,6 @@ void pd_point_from_particle(ParticleSimulationData *sim, ParticleData *pa, Parti
 	point->index = pa - sim->psys->particles;
 	point->size = pa->size;
 	point->charge = 0.0f;
-	point->volume = 4.0f / 3.0f * M_PI * pa->size*pa->size*pa->size;
 	
 	if (part->pd && part->pd->forcefield == PFIELD_CHARGE)
 		point->charge += part->pd->f_strength;
@@ -354,8 +353,7 @@ void pd_point_from_loc(Scene *scene, float *loc, float *vel, int index, Effected
 	point->loc = loc;
 	point->vel = vel;
 	point->index = index;
-	point->size = 0.0f;
-	point->volume = 1.0f;
+	point->size = 1.0f;
 
 	point->vel_to_sec = (float)scene->r.frs_sec;
 	point->vel_to_frame = 1.0f;
@@ -370,8 +368,7 @@ void pd_point_from_soft(Scene *scene, float *loc, float *vel, int index, Effecte
 	point->loc = loc;
 	point->vel = vel;
 	point->index = index;
-	point->size = 0.0f;
-	point->volume = 1.0f;
+	point->size = 1.0f;
 
 	point->vel_to_sec = (float)scene->r.frs_sec;
 	point->vel_to_frame = 1.0f;
@@ -935,12 +932,35 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 			}
 			break;
 		case PFIELD_BUOYANCY: {
-			const float V = point->volume;
+			const float r = point->size;
+			const float d = dot_v3v3(efd->vec_to_point, efd->nor);
+			float V;
 			float g[3];
 			
-			if (dot_v3v3(efd->vec_to_point, efd->nor) > 0.0f) {
+			/* Note: we approximate each point as a sphere.
+			 * If the sphere is completely outside the effector, no force is applied.
+			 * If the sphere is completely inside the effector or partially submerged,
+			 * a force is applied proportional to the fraction of submerged volume.
+			 */
+			
+			
+			if (d > r) {
 				zero_v3(force);
 				return;
+			}
+			else if (d < -r) {
+				V = M_PI*4.0f/3.0f * r*r*r;
+			}
+			else if (d > 0.0f) {
+				float Vtot = M_PI*4.0f/3.0f * r*r*r;
+				float h = r - d;
+				float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
+				V = Vtot - Vcap;
+			}
+			else { /* d <= 0.0f */
+				float h = r + d;
+				float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
+				V = Vcap;
 			}
 			
 			if (eff->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
