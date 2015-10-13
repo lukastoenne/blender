@@ -134,5 +134,32 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
         col.prop(rbo, "linear_damping", text="Translation")
         col.prop(rbo, "angular_damping", text="Rotation")
 
+class PHYSICS_PT_rigid_body_forces(PHYSICS_PT_rigidbody_panel, Panel):
+    bl_label = "Rigid Body Forces"
+    bl_default_closed = True
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return (obj and obj.rigid_body and
+                obj.rigid_body.type == 'ACTIVE' and
+                (not context.scene.render.use_game_engine))
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        rbo = ob.rigid_body
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(rbo, "use_volume_forces", text="Volume")
+        sub = col.column()
+        sub.enabled = rbo.use_volume_forces
+        sub.prop(rbo, "volume_sample_amount")
+
+        split.prop(rbo, "sample_seed")
+
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

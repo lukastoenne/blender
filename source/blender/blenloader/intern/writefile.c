@@ -1707,8 +1707,13 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			writestruct(wd, DATA, "BulletSoftBody", 1, ob->bsoft);
 			
 			if (ob->rigidbody_object) {
+				RigidBodyOb *rbo = ob->rigidbody_object;
+				
 				// TODO: if any extra data is added to handle duplis, will need separate function then
-				writestruct(wd, DATA, "RigidBodyOb", 1, ob->rigidbody_object);
+				writestruct(wd, DATA, "RigidBodyOb", 1, rbo);
+				
+				if (rbo->volume_samples)
+					writestruct(wd, DATA, "RigidBodySample", rbo->num_volume_samples, rbo->volume_samples);
 			}
 			if (ob->rigidbody_constraint) {
 				writestruct(wd, DATA, "RigidBodyCon", 1, ob->rigidbody_constraint);

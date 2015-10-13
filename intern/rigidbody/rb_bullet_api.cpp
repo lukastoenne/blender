@@ -638,11 +638,18 @@ void RB_body_get_orientation(rbRigidBody *object, float v_out[4])
 /* ............ */
 /* Overrides for simulation */
 
-void RB_body_apply_central_force(rbRigidBody *object, const float v_in[3])
+void RB_body_apply_central_force(rbRigidBody *object, const float force[3])
 {
 	btRigidBody *body = object->body;
 	
-	body->applyCentralForce(btVector3(v_in[0], v_in[1], v_in[2]));
+	body->applyCentralForce(btVector3(force[0], force[1], force[2]));
+}
+
+void RB_body_apply_force(rbRigidBody *object, const float force[3], const float offset[3])
+{
+	btRigidBody *body = object->body;
+	
+	body->applyForce(btVector3(force[0], force[1], force[2]), btVector3(offset[0], offset[1], offset[2]));
 }
 
 /* ********************************** */

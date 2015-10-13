@@ -60,6 +60,7 @@
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_object.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
@@ -140,6 +141,9 @@ void BKE_rigidbody_free_object(Object *ob)
 		rbo->physics_shape = NULL;
 	}
 
+	if (rbo->volume_samples)
+		MEM_freeN(rbo->volume_samples);
+
 	/* free data itself */
 	MEM_freeN(rbo);
 	ob->rigidbody_object = NULL;
@@ -186,6 +190,8 @@ RigidBodyOb *BKE_rigidbody_copy_object(Object *ob)
 		/* clear out all the fields which need to be revalidated later */
 		rboN->physics_object = NULL;
 		rboN->physics_shape = NULL;
+
+		rboN->volume_samples = NULL;
 	}
 
 	/* return new copy of settings */
@@ -692,6 +698,48 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
 		RB_body_set_mass(rbo->physics_object, RBO_GET_MASS(rbo));
 		RB_body_set_kinematic_state(rbo->physics_object, rbo->flag & RBO_FLAG_KINEMATIC || rbo->flag & RBO_FLAG_DISABLED);
 	}
+
+	/* update samples */
+	{
+		if (rbo->volume_samples)
+			MEM_freeN(rbo->volume_samples);
+		if (rbo->num_volume_samples > 0) {
+			DerivedMesh *dm = rigidbody_get_mesh(ob);
+			
+			rbo->volume_samples = MEM_callocN(sizeof(RigidBodyVolumeSample) * rbo->num_volume_samples, "rigidbody volume samples");
+			
+			if (dm) {
+				MeshSampleGenerator *gen;
+				int i, tot;
+				float volume, density, radius;
+				
+				DM_ensure_looptri(dm);
+				BKE_mesh_calc_volume(dm->getVertArray(dm), dm->getNumVerts(dm),
+				                     dm->getLoopTriArray(dm), dm->getNumLoopTri(dm),
+				                     dm->getLoopArray(dm),
+				                     &volume, NULL);
+				density = volume / (float)rbo->num_volume_samples;
+				radius = sqrt3f(volume / (float)rbo->num_volume_samples * 3.0f/(4.0f*M_PI));
+				
+				gen = BKE_mesh_sample_gen_volume_random_bbray(dm, rbo->sample_seed, density);
+				
+				tot = 0;
+				for (i = 0; i < rbo->num_volume_samples; ++i) {
+					MeshSample msample;
+					RigidBodyVolumeSample *sample = &rbo->volume_samples[tot];
+					float nor[3], tang[3];
+					
+					if (!BKE_mesh_sample_generate(gen, &msample))
+						continue;
+					
+					BKE_mesh_sample_eval(dm, &msample, sample->co, nor, tang);
+					sample->radius = radius;
+					++tot;
+				}
+			}
+		}
+	}
+	
 
 	if (rbw && rbw->physics_world)
 		RB_dworld_add_body(rbw->physics_world, rbo->physics_object, rbo->col_groups);
@@ -1257,26 +1305,73 @@ static void rigidbody_update_sim_ob(Scene *scene, RigidBodyWorld *rbw, Object *o
 		/* get effectors present in the group specified by effector_weights */
 		effectors = pdInitEffectors(scene, ob, NULL, effector_weights, true);
 		if (effectors) {
-			float eff_force[3] = {0.0f, 0.0f, 0.0f};
-			float eff_loc[3], eff_vel[3];
 
-			/* create dummy 'point' which represents last known position of object as result of sim */
-			// XXX: this can create some inaccuracies with sim position, but is probably better than using unsimulated vals?
-			RB_body_get_position(rbo->physics_object, eff_loc);
-			RB_body_get_linear_velocity(rbo->physics_object, eff_vel);
-
-			pd_point_from_loc(scene, eff_loc, eff_vel, 0, &epoint);
-
-			/* calculate net force of effectors, and apply to sim object
-			 *	- we use 'central force' since apply force requires a "relative position" which we don't have...
-			 */
-			pdDoEffectors(effectors, NULL, effector_weights, &epoint, eff_force, NULL);
-			if (G.f & G_DEBUG)
-				printf("\tapplying force (%f,%f,%f) to '%s'\n", eff_force[0], eff_force[1], eff_force[2], ob->id.name + 2);
-			/* activate object in case it is deactivated */
-			if (!is_zero_v3(eff_force))
-				RB_body_activate(rbo->physics_object);
-			RB_body_apply_central_force(rbo->physics_object, eff_force);
+			if ((rbo->flag & RBO_FLAG_USE_VOLUME_FORCES)
+			    && rbo->num_volume_samples > 0
+			    && rbo->volume_samples) {
+				
+				float eff_mat[4][4], eff_vel[3], eff_ave[3];
+				int i;
+				RigidBodyVolumeSample *sample;
+				
+				RB_body_get_transform_matrix(rbo->physics_object, eff_mat);
+				RB_body_get_linear_velocity(rbo->physics_object, eff_vel);
+				RB_body_get_angular_velocity(rbo->physics_object, eff_ave);
+				
+				for (i = 0, sample = rbo->volume_samples; i < rbo->num_volume_samples; ++i, ++sample) {
+					float loc[3], vel[3], tmp[3];
+					float force[3];
+					
+					mul_v3_m4v3(loc, eff_mat, sample->co);
+					
+					/* surface point velocity is affected by angular velocity */
+//					mul_v3_mat3_m4v3(tmp, eff_mat, sample->co); /* angular vel. is in world space, so transform offset */
+//					cross_v3_v3v3(vel, eff_ave, tmp);
+					zero_v3(vel);
+					add_v3_v3(vel, eff_vel);
+					
+					pd_point_from_loc(scene, loc, vel, i, &epoint);
+					epoint.size = sample->radius;
+					
+					zero_v3(force);
+					pdDoEffectors(effectors, NULL, effector_weights, &epoint, force, NULL);
+					
+					/* activate object in case it is deactivated */
+					BKE_sim_debug_data_add_circle(loc, sample->radius, 0,1,0.5, "RB samples", 38573, i);
+					if (!is_zero_v3(force)) {
+						RB_body_activate(rbo->physics_object);
+						BKE_sim_debug_data_add_vector(loc, force, 1,1,0, "RB samples", 38572, i);
+					}
+					else {
+						BKE_sim_debug_data_add_vector(loc, force, 1,0,0, "RB samples", 38572, i);
+					}
+					RB_body_apply_force(rbo->physics_object, force, sample->co);
+				}
+			}
+			else {
+				float eff_loc[3], eff_vel[3];
+				float eff_force[3];
+				
+				/* create dummy 'point' which represents last known position of object as result of sim */
+				// XXX: this can create some inaccuracies with sim position, but is probably better than using unsimulated vals?
+				RB_body_get_position(rbo->physics_object, eff_loc);
+				RB_body_get_linear_velocity(rbo->physics_object, eff_vel);
+				
+				pd_point_from_loc(scene, eff_loc, eff_vel, 0, &epoint);
+				
+				/* calculate net force of effectors, and apply to sim object
+				 *	- we use 'central force' since apply force requires a "relative position" which we don't have...
+				 */
+				zero_v3(eff_force);
+				pdDoEffectors(effectors, NULL, effector_weights, &epoint, eff_force, NULL);
+				if (G.f & G_DEBUG)
+					printf("\tapplying force (%f,%f,%f) to '%s'\n", eff_force[0], eff_force[1], eff_force[2], ob->id.name + 2);
+				
+				/* activate object in case it is deactivated */
+				if (!is_zero_v3(eff_force))
+					RB_body_activate(rbo->physics_object);
+				RB_body_apply_central_force(rbo->physics_object, eff_force);
+			}
 		}
 		else if (G.f & G_DEBUG)
 			printf("\tno forces to apply to '%s'\n", ob->id.name + 2);

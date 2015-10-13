@@ -86,6 +86,11 @@ typedef enum eRigidBodyWorld_Flag {
 /* ******************************** */
 /* RigidBody Object */
 
+typedef struct RigidBodyVolumeSample {
+	float co[3];    /* offset relative to the CoM in object space */
+	float radius;   /* radius of the displacement sphere */
+} RigidBodyVolumeSample;
+
 /* RigidBodyObject (rbo)
  *
  * Represents an object participating in a RigidBody sim.
@@ -123,6 +128,10 @@ typedef struct RigidBodyOb {
 	float orn[4];			/* rigid body orientation */
 	float pos[3];			/* rigid body position */
 	float pad1;
+	
+	int num_volume_samples;
+	int sample_seed;
+	struct RigidBodyVolumeSample *volume_samples;
 } RigidBodyOb;
 
 
@@ -151,7 +160,9 @@ typedef enum eRigidBodyOb_Flag {
 	/* collision margin is not embedded (only used by convex hull shapes for now) */
 	RBO_FLAG_USE_MARGIN			= (1 << 6),
 	/* collision shape deforms during simulation (only for passive triangle mesh shapes) */
-	RBO_FLAG_USE_DEFORM			= (1 << 7)
+	RBO_FLAG_USE_DEFORM			= (1 << 7),
+	/* use surface samples for fluid and drag forces */
+	RBO_FLAG_USE_VOLUME_FORCES	= (1 << 8),
 } eRigidBodyOb_Flag;
 
 /* RigidBody Collision Shape */

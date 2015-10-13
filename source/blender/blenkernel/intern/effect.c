@@ -375,6 +375,26 @@ void pd_point_from_loc(Scene *scene, float *loc, float *vel, int index, Effected
 
 	point->psys = NULL;
 }
+
+void pd_point_from_loc_nor(Scene *scene, float *loc, float *vel, float *nor, int index, EffectedPoint *point)
+{
+	point->loc = loc;
+	point->vel = vel;
+	point->nor = nor;
+	point->index = index;
+	point->size = 1.0f;
+
+	point->vel_to_sec = (float)scene->r.frs_sec;
+	point->vel_to_frame = 1.0f;
+
+	point->flag = 0;
+
+	point->ave = NULL;
+	point->rot = NULL;
+
+	point->psys = NULL;
+}
+
 void pd_point_from_soft(Scene *scene, float *loc, float *vel, int index, EffectedPoint *point)
 {
 	point->loc = loc;
@@ -627,23 +647,6 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		add_v3_v3(vec, point->loc);
 
 		ret = closest_point_on_surface(eff->surmd, vec, efd->loc, efd->nor, real_velocity ? efd->vel : NULL);
-
-		if (eff->pd->forcefield == PFIELD_BUOYANCY) {
-			/* estimate static pressure based on height of fluid column above the point,
-			 * i.e. distance to the surface along the gravity vector.
-			 */
-			float dir[3], g, surfco[3];
-			
-			g = normalize_v3_v3(dir, eff->gravity);
-			negate_v3(dir);
-			
-			if (raycast_point_on_surface(eff->surmd, vec, dir, surfco, NULL, NULL)) {
-				efd->pressure = g * len_v3v3(vec, surfco);
-			}
-			else {
-				efd->pressure = 0.0f;
-			}
-		}
 
 		efd->size = 0.0f;
 	}
@@ -1001,61 +1004,42 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 			const float r = point->size;
 			const float d = dot_v3v3(efd->vec_to_point, efd->nor);
 			
-			/* Buoyancy can be calculated in two ways:
+			/* In theory, buoyancy can be calculated in two ways:
 			 * a) weight of fluid displaced by a sphere around the point
 			 * b) pressure on the point (if it is a surface point with a normal)
 			 * 
-			 * We assume that, if an orientation is defined, the point represents a surface point.
+			 * Pressure method is unsuitable for discretization though, so we use the displacement Method:
+			 * We approximate each point as a sphere.
+			 * If the sphere is completely outside the effector, no force is applied.
+			 * If the sphere is completely inside the effector or partially submerged,
+			 * a force is applied proportional to the fraction of submerged volume.
 			 */
-			if (!point->nor) {
-				/* Displacement Method:
-				 * We approximate each point as a sphere.
-				 * If the sphere is completely outside the effector, no force is applied.
-				 * If the sphere is completely inside the effector or partially submerged,
-				 * a force is applied proportional to the fraction of submerged volume.
-				 */
-				
-				float V;
-				
-				if (d > r) {
-					V = 0.0f;
-					return;
-				}
-				else if (d < -r) {
-					V = M_PI*4.0f/3.0f * r*r*r;
-				}
-				else if (d > 0.0f) {
-					float Vtot = M_PI*4.0f/3.0f * r*r*r;
-					float h = r - d;
-					float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
-					V = Vtot - Vcap;
-				}
-				else { /* d <= 0.0f */
-					float h = r + d;
-					float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
-					V = Vcap;
-				}
-				
-				/* strength is interpreted as density */
-				mul_v3_v3fl(force, eff->gravity, -efd->falloff * strength * V);
+			
+			float V;
+			
+			if (d > r) {
+				V = 0.0f;
+				return;
 			}
-			else {
-				/* Pressure Method:
-				 * Each point represents a surface area disk.
-				 * Pressure excerts a force along the surface normal.
-				 */
-				
-				if (d <= 0.0f) {
-					float nor[3] = {0.0f, 0.0f, 1.0f};
-					mul_qt_v3(point->rot, nor);
-					
-					/* strength is interpreted as density */
-					mul_v3_v3fl(force, nor, -efd->falloff * strength * efd->pressure);
-				}
-				else {
-					zero_v3(force);
-				}
+			else if (d < -r) {
+				V = M_PI*4.0f/3.0f * r*r*r;
 			}
+			else if (d > 0.0f) {
+				float Vtot = M_PI*4.0f/3.0f * r*r*r;
+				float h = r - d;
+				float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
+				V = Vtot - Vcap;
+			}
+			else { /* d <= 0.0f */
+				float h = r + d;
+				float Vcap = M_PI/3.0f * h*h * (3.0f*r - h);
+				V = Vcap;
+			}
+			
+			/* strength is interpreted as density */
+			mul_v3_v3fl(force, eff->gravity, -efd->falloff * strength * V);
+			if (len_v3(force) > 1.0f)
+				printf("??");
 			break;
 		}
 

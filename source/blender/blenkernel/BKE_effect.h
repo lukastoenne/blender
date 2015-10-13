@@ -87,9 +87,6 @@ typedef struct EffectorData {
 	/* only for vortex effector with surface falloff */
 	float nor2[3], vec_to_point2[3];
 
-	/* estimate of hydrostatic pressure */
-	float pressure;
-
 	int *index; /* point index */
 } EffectorData;
 
@@ -124,6 +121,7 @@ void            pdDoEffectors(struct ListBase *effectors, struct ListBase *colli
 
 void pd_point_from_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, struct EffectedPoint *point);
 void pd_point_from_loc(struct Scene *scene, float *loc, float *vel, int index, struct EffectedPoint *point);
+void pd_point_from_loc_nor(struct Scene *scene, float *loc, float *vel, float *nor, int index, struct EffectedPoint *point);
 void pd_point_from_soft(struct Scene *scene, float *loc, float *vel, int index, struct EffectedPoint *point);
 
 /* needed for boids */

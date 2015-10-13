@@ -5331,6 +5331,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 		 */
 		rbo->physics_object = NULL;
 		rbo->physics_shape = NULL;
+		
+		rbo->volume_samples = newdataadr(fd, rbo->volume_samples);
 	}
 	ob->rigidbody_constraint = newdataadr(fd, ob->rigidbody_constraint);
 	if (ob->rigidbody_constraint)

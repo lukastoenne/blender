@@ -153,6 +153,16 @@ static void rna_RigidBodyOb_reset(Main *UNUSED(bmain), Scene *scene, PointerRNA 
 	BKE_rigidbody_cache_reset(rbw);
 }
 
+static void rna_RigidBodyOb_reset_validate(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+{
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	RigidBodyOb *rbo = (RigidBodyOb *)ptr->data;
+	
+	BKE_rigidbody_cache_reset(rbw);
+	
+	rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
+}
+
 static void rna_RigidBodyOb_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Object *ob = ptr->id.data;
@@ -290,6 +300,21 @@ static void rna_RigidBodyOb_kinematic_state_set(PointerRNA *ptr, int value)
 		rbo->flag |= RBO_FLAG_NEEDS_VALIDATE;
 	}
 #endif
+}
+
+static void rna_RigidBodyOb_num_volume_samples_set(PointerRNA *ptr, int value)
+{
+	RigidBodyOb *rbo = (RigidBodyOb *)ptr->data;
+	
+	/* avoid mismatch of array size */
+	if (rbo->num_volume_samples != value) {
+		if (rbo->volume_samples) {
+			MEM_freeN(rbo->volume_samples);
+			rbo->volume_samples = NULL;
+		}
+	}
+	
+	rbo->num_volume_samples = value;
 }
 
 static void rna_RigidBodyOb_activation_state_set(PointerRNA *ptr, int value)
@@ -819,6 +844,26 @@ static void rna_def_rigidbody_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_USE_DEFORM);
 	RNA_def_property_ui_text(prop, "Deforming", "Rigid body deforms during simulation");
 	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset");
+	
+	prop = RNA_def_property(srna, "use_volume_forces", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", RBO_FLAG_USE_VOLUME_FORCES);
+	RNA_def_property_ui_text(prop, "Volume Forces", "Calculate fluid forces based on the collision shape");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset_validate");
+	
+	prop = RNA_def_property(srna, "volume_sample_amount", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "num_volume_samples");
+	RNA_def_property_int_funcs(prop, NULL, "rna_RigidBodyOb_num_volume_samples_set", NULL);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1000, 1, 3);
+	RNA_def_property_int_default(prop, 100);
+	RNA_def_property_ui_text(prop, "Samples", "Number of surface samples for shape-based forces");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset_validate");
+	
+	prop = RNA_def_property(srna, "sample_seed", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "sample_seed");
+	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_ui_text(prop, "Sample Seed", "Seed value for sample generation");
+	RNA_def_property_update(prop, NC_OBJECT | ND_POINTCACHE, "rna_RigidBodyOb_reset_validate");
 	
 	/* Physics Parameters */
 	prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_UNIT_MASS);
