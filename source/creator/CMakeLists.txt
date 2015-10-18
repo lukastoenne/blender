@@ -30,6 +30,7 @@ blender_include_dirs(
 	../../intern/glew-mx
 	../blender/blenlib
 	../blender/blenkernel
+	../blender/blenvm
 	../blender/blenloader
 	../blender/depsgraph
 	../blender/editors/include

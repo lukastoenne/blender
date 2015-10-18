@@ -43,6 +43,9 @@ struct BVMExpression;
 struct BVMFunction;
 struct BVMModule;
 
+void BVM_init(void);
+void BVM_free(void);
+
 struct BVMModule *BVM_module_create(void);
 void BVM_module_free(struct BVMModule *mod);
 

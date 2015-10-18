@@ -79,6 +79,8 @@ extern "C"
 #include "BKE_text.h"
 #include "BKE_sound.h"
 
+#include "BVM_api.h"
+
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	
@@ -454,6 +456,7 @@ int main(int argc, char** argv)
 	RNA_init();
 
 	init_nodesystem();
+	BVM_init();
 	
 	initglobals();
 
@@ -1139,6 +1142,7 @@ int main(int argc, char** argv)
 	 * we may get troubles later on */
 
 	free_nodesystem();
+	BVM_free();
 
 	// Cleanup
 	RNA_exit();

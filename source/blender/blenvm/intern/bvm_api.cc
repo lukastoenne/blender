@@ -48,6 +48,16 @@ extern "C" {
 #include "bvm_module.h"
 #include "bvm_nodegraph.h"
 
+void BVM_init(void)
+{
+}
+
+void BVM_free(void)
+{
+}
+
+/* ------------------------------------------------------------------------- */
+
 BLI_INLINE bvm::Module *_MOD(struct BVMModule *mod)
 { return (bvm::Module *)mod; }
 

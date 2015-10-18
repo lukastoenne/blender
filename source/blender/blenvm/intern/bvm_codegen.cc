@@ -129,8 +129,9 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 		push_stack_index(expr->return_value(0).stack_offset);
 //		push_stack_index(0x0F);
 //		push_opcode(OP_ASSIGN_FLOAT3);
-		push_opcode(OP_END);
 	}
+	
+	push_opcode(OP_END);
 	
 	Expression *result = expr;
 	expr = NULL;

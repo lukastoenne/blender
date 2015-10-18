@@ -41,6 +41,7 @@ set(INC
 	../../../blender/blenfont
 	../../../blender/blenkernel
 	../../../blender/blenlib
+	../../../blender/blenvm
 	../../../blender/blenloader
 	../../../blender/blentranslation
 	../../../blender/gpu

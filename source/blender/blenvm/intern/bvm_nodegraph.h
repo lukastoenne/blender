@@ -46,7 +46,7 @@ extern "C" {
 #endif
 }
 
-#include "BVM_types.h"
+#include "bvm_opcode.h"
 #include "bvm_type_desc.h"
 
 namespace bvm {
