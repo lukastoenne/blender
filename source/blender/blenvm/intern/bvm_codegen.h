@@ -32,14 +32,39 @@
  *  \ingroup bvm
  */
 
+#include <vector>
+
+#include "bvm_expression.h"
+#include "bvm_opcode.h"
 #include "bvm_util_string.h"
 
 namespace bvm {
 
 struct Expression;
 struct NodeGraph;
+struct TypeDesc;
+struct ReturnValue;
 
-Expression *codegen_expression(const NodeGraph &graph);
+struct BVMCompiler {
+	typedef std::vector<int> StackUsers;
+	
+	BVMCompiler();
+	~BVMCompiler();
+	
+	StackIndex find_stack_index(int size) const;
+	void assign_stack_index(ReturnValue &rval);
+	
+	void push_opcode(OpCode op);
+	void push_stack_index(StackIndex arg);
+	void push_float(float f);
+	void push_float3(float3 f);
+	
+	Expression *codegen_expression(const NodeGraph &graph);
+	
+private:
+	StackUsers stack_users;
+	Expression *expr;
+};
 
 } /* namespace bvm */
 

@@ -32,6 +32,8 @@
  *  \ingroup bvm
  */
 
+#include <vector>
+
 #include "bvm_type_desc.h"
 
 #include "bvm_util_map.h"
@@ -40,6 +42,8 @@
 namespace bvm {
 
 struct Expression;
+
+#define BVM_STACK_SIZE 255
 
 #if 0
 struct EvalResult {
@@ -66,6 +70,9 @@ struct EvalContext {
 	~EvalContext();
 	
 	void eval_expression(const Expression &expr, void **results) const;
+	
+protected:
+	void eval_instructions(const Expression &expr, float *stack) const;
 };
 
 } /* namespace bvm */

@@ -35,38 +35,80 @@
 #include <vector>
 #include <stdint.h>
 
+#include "bvm_opcode.h"
 #include "bvm_type_desc.h"
 #include "bvm_util_string.h"
 
 namespace bvm {
 
-typedef int32_t Instruction;
-typedef std::vector<Instruction> InstructionList;
+typedef uint32_t Instruction;
+typedef Instruction StackIndex;
+#define BVM_STACK_INVALID 0xFFFFFFFF
 
-enum OpCode {
-	OP_NOOP = 0,
-	OP_END,
-	OP_JUMP,
-	OP_JUMP_IF_ZERO,
-	OP_JUMP_IF_ONE,
+static inline Instruction float_to_instruction(float f)
+{
+	union { uint32_t i; float f; } u;
+	u.f = f;
+	return u.i;
+}
+
+static inline float instruction_to_float(Instruction i)
+{
+	union { uint32_t i; float f; } u;
+	u.i = i;
+	return u.f;
+}
+
+struct ReturnValue {
+	ReturnValue(const TypeDesc &typedesc, const string &name) :
+	    typedesc(typedesc),
+	    name(name),
+	    stack_offset(BVM_STACK_INVALID)
+	{}
+	
+	TypeDesc typedesc;
+	string name;
+	StackIndex stack_offset;
 };
 
 struct Expression {
-	struct ReturnValue {
-		ReturnValue(const TypeDesc &typedesc, const string &name) :
-		    typedesc(typedesc),
-		    name(name)
-		{}
-		
-		TypeDesc typedesc;
-		string name;
-	};
 	typedef std::vector<ReturnValue> ReturnValueList;
+	typedef std::vector<Instruction> InstructionList;
 	
 	Expression();
 	~Expression();
 	
-	void add_return_value(const TypeDesc &typedesc, const string &name = "");
+	OpCode read_opcode(int *instr) const
+	{
+		OpCode op = (OpCode)instructions[*instr];
+		++(*instr);
+		return op;
+	}
+	StackIndex read_stack_index(int *instr) const
+	{
+		StackIndex index = instructions[*instr];
+		++(*instr);
+		return index;
+	}
+	float read_float(int *instr) const
+	{
+		float f = instruction_to_float(instructions[*instr]);
+		++(*instr);
+		return f;
+	}
+	float3 read_float3(int *instr) const
+	{
+		float3 f;
+		f.x = instruction_to_float(instructions[*instr + 0]);
+		f.y = instruction_to_float(instructions[*instr + 1]);
+		f.z = instruction_to_float(instructions[*instr + 2]);
+		(*instr) += 3;
+		return f;
+	}
+	
+	void add_instruction(Instruction v);
+	
+	ReturnValue &add_return_value(const TypeDesc &typedesc, const string &name = "");
 	size_t return_values_size() const;
 	const ReturnValue &return_value(size_t index) const;
 	const ReturnValue &return_value(const string &name) const;

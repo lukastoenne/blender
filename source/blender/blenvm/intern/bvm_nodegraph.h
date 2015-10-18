@@ -258,43 +258,6 @@ struct NodeGraph {
 	OutputList outputs;
 };
 
-/* ========================================================================= */
-
-template <typename type>
-struct NodeGraphBuilder;
-
-#if 0
-/* ------------------------------------------------------------------------- */
-/* bNodeTree */
-
-template <>
-struct NodeGraphBuilder<bNodeTree> {
-	NodeGraph build(bNodeTree *btree)
-	{
-		NodeGraph tree;
-		
-		for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
-			BLI_assert(bnode->typeinfo != NULL);
-			if (!nodeIsRegistered(bnode))
-				continue;
-			
-			const char *type = bnode->typeinfo->idname;
-			/*NodeInstance *node =*/ tree.add_node(type, bnode->name);
-		}
-		
-		for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
-			if (!(blink->flag & NODE_LINK_VALID))
-				continue;
-			
-			tree.add_link(blink->fromnode->name, blink->fromsock->name,
-			              blink->tonode->name, blink->tosock->name);
-		}
-		
-		return tree;
-	}
-};
-#endif
-
 } /* namespace bvm */
 
 #endif

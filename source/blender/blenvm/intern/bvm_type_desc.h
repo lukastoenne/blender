@@ -38,17 +38,46 @@ namespace bvm {
 
 struct Value;
 
+
+struct float3 {
+	float3()
+	{}
+	
+	float3(float x, float y, float z) :
+	    x(x), y(y), z(z)
+	{}
+	
+	float x;
+	float y;
+	float z;
+};
+
+
 template <BVMType type>
 struct BaseTypeTraits;
 
 template <>
 struct BaseTypeTraits<BVM_FLOAT> {
 	typedef float POD;
+	
+	enum eStackSize { stack_size = 1 };
+	
+	static inline void copy(float *to, const float *from)
+	{
+		*to = *from;
+	}
 };
 
 template <>
 struct BaseTypeTraits<BVM_FLOAT3> {
-	typedef float POD[3];
+	typedef float3 POD;
+	
+	enum eStackSize { stack_size = 3 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
 };
 
 /* ------------------------------------------------------------------------- */
@@ -59,6 +88,9 @@ struct TypeDesc {
 	{}
 	
 	BVMType base_type;
+	
+	inline int stack_size() const;
+	inline void copy_value(void *to, const void *from) const;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -136,6 +168,28 @@ void Value::get(T data) const
 		case BVM_FLOAT: return static_cast< ValueType<BVM_FLOAT>* >(this)->get(data);
 		case BVM_FLOAT3: return static_cast< ValueType<BVM_FLOAT3>* >(this)->get(data);
 	}
+}
+
+int TypeDesc::stack_size() const
+{
+	switch (base_type) {
+		case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::stack_size;
+		case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::stack_size;
+	}
+	return 0;
+}
+
+void TypeDesc::copy_value(void *to, const void *from) const
+{
+	#define COPY_TYPE(a, b, type) \
+	BaseTypeTraits<type>::copy((typename BaseTypeTraits<type>::POD*)to, (typename BaseTypeTraits<type>::POD const *)from);
+	
+	switch (base_type) {
+		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT);
+		case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3);
+	}
+	
+	#undef COPY_TYPE
 }
 
 } /* namespace bvm */

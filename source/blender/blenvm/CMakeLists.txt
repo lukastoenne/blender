@@ -52,6 +52,7 @@ set(SRC
 	intern/bvm_function.h
 	intern/bvm_module.h
 	intern/bvm_nodegraph.h
+	intern/bvm_opcode.h
 	intern/bvm_schedule.h
 	intern/bvm_type_desc.h
 

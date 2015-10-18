@@ -131,10 +131,10 @@ struct BVMExpression *BVM_gen_forcefield_expression(bNodeTree *btree)
 	using namespace bvm;
 	
 	NodeGraph graph;
-	
 	gen_forcefield_nodegraph(btree, graph);
 	
-	Expression *expr = codegen_expression(graph);
+	BVMCompiler compiler;
+	Expression *expr = compiler.codegen_expression(graph);
 	
 	return (BVMExpression *)expr;
 }
