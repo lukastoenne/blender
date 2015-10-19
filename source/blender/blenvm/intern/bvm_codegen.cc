@@ -30,6 +30,7 @@
  */
 
 #include <cstdio>
+#include <set>
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
@@ -150,6 +151,34 @@ StackIndex BVMCompiler::codegen_link(const TypeDesc &from, StackIndex stack_from
 }
 #endif
 
+typedef std::vector<const NodeInstance *> NodeList;
+typedef std::set<const NodeInstance *> NodeSet;
+
+static void sort_nodes_append(const NodeInstance *node, NodeList &result, NodeSet &visited)
+{
+	if (visited.find(node) != visited.end())
+		return;
+	visited.insert(node);
+	
+	for (size_t i = 0; i < node->inputs.size(); ++i) {
+		const NodeInstance *link_node = node->find_input_link_node(i);
+		if (link_node) {
+			sort_nodes_append(link_node, result, visited);
+		}
+	}
+	
+	result.push_back(node);
+}
+
+static void sort_nodes(const NodeGraph &graph, NodeList &result)
+{
+	NodeSet visited;
+	
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
+		sort_nodes_append(&it->second, result, visited);
+	}
+}
+
 Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 {
 	typedef std::pair<const NodeInstance *, const NodeSocket *> SocketPair;
@@ -157,12 +186,13 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 	
 	expr = new Expression();
 	
+	NodeList sorted_nodes;
+	sort_nodes(graph, sorted_nodes);
+	
 	SocketIndexMap socket_index;
 	
-	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin();
-	     it != graph.nodes.end();
-	     ++it) {
-		const NodeInstance &node = it->second;
+	for (NodeList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
+		const NodeInstance &node = **it;
 		
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
