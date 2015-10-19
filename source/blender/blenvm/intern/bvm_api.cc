@@ -40,6 +40,8 @@ extern "C" {
 #include "BKE_node.h"
 
 #include "BVM_api.h"
+
+#include "RNA_access.h"
 }
 
 #include "bvm_codegen.h"
@@ -112,6 +114,36 @@ void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 
 /* ------------------------------------------------------------------------- */
 
+static void set_input_value(bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
+{
+	bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, bindex);
+	
+	switch (binput->type) {
+		case SOCK_FLOAT: {
+			bNodeSocketValueFloat *bvalue = (bNodeSocketValueFloat *)binput->default_value;
+			node->set_input_value(name, bvalue->value);
+			break;
+		}
+		case SOCK_VECTOR: {
+			bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
+			node->set_input_value(name, bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+			break;
+		}
+	}
+}
+
+static void set_all_input_values(bNode *bnode, bvm::NodeInstance *node)
+{
+	bNodeSocket *bsock;
+	int i;
+	
+	for (bsock = (bNodeSocket *)bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
+		const bvm::NodeSocket *input = node->type->find_input(i);
+		
+		set_input_value(bnode, i, node, input->name);
+	}
+}
+
 static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 {
 	{
@@ -122,6 +154,9 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 	
 #if 1
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
+		PointerRNA ptr;
+		RNA_pointer_create((ID *)btree, &RNA_Node, bnode, &ptr);
+		
 		BLI_assert(bnode->typeinfo != NULL);
 		if (!nodeIsRegistered(bnode))
 			continue;
@@ -133,22 +168,33 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		if (bvm::string(type) == "ForceOutputNode") {
 			{
 				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(bnode->name));
-				
-				bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
-				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
-				node->set_input_value("value", bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				set_input_value(bnode, 0, node, "value");
 				
 				graph.set_output_link("force", node, "value");
 			}
 			
 			{
 				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_IMPULSE_" + bvm::string(bnode->name));
-				
-				bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
-				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
-				node->set_input_value("value", bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				set_input_value(bnode, 1, node, "value");
 				
 				graph.set_output_link("impulse", node, "value");
+			}
+		}
+		else if (bvm::string(type) == "ObjectMathNode") {
+			int mode = RNA_enum_get(&ptr, "mode");
+			switch (mode) {
+				case 0: {
+					bvm::NodeInstance *node = graph.add_node("ADD_FLOAT", bnode->name);
+					set_input_value(bnode, 0, node, "value_a");
+					set_input_value(bnode, 1, node, "value_b");
+					break;
+				}
+				case 1: {
+					bvm::NodeInstance *node = graph.add_node("SUB_FLOAT", bnode->name);
+					set_input_value(bnode, 0, node, "value_a");
+					set_input_value(bnode, 1, node, "value_b");
+					break;
+				}
 			}
 		}
 #endif

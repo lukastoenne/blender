@@ -45,6 +45,10 @@ node_categories = [
     ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
         NodeItem("ForceOutputNode"),
         ]),
+    ForceFieldNodeCategory("MATH", "Math", items=[
+        NodeItem("ObjectMathNode"),
+        NodeItem("ObjectVectorMathNode"),
+        ]),
     ]
 
 ###############################################################################
@@ -113,6 +117,49 @@ class ForceOutputNode(ForceNodeBase, ObjectNode):
     def init(self, context):
         self.inputs.new('NodeSocketVector', "Force")
         self.inputs.new('NodeSocketVector', "Impulse")
+
+
+class MathNode(ForceNodeBase, ObjectNode):
+    '''Math '''
+    bl_idname = 'ObjectMathNode'
+    bl_label = 'Math'
+
+    _mode_items = [
+        ('ADD', 'Add', '', 'NONE', 0),
+        ('SUB', 'Subtract', '', 'NONE', 1),
+    ]
+    mode = EnumProperty(name="Mode",
+                        items=_mode_items)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketFloat', "Value")
+        self.inputs.new('NodeSocketFloat', "Value")
+        self.outputs.new('NodeSocketFloat', "Value")
+
+
+class VectorMathNode(ForceNodeBase, ObjectNode):
+    '''Vector Math '''
+    bl_idname = 'ObjectVectorMathNode'
+    bl_label = 'Vector Math'
+
+    _mode_items = [
+        ('ADD', 'Add', '', 'NONE', 0),
+        ('SUB', 'Subtract', '', 'NONE', 1),
+    ]
+    mode = EnumProperty(name="Mode",
+                        items=_mode_items)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketFloat', "Value")
 
 ###############################################################################
 

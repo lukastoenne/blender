@@ -535,28 +535,20 @@ void NodeGraph::dump(std::ostream &s)
 
 /* ------------------------------------------------------------------------- */
 
-string get_node_type_from_opcode(OpCode op)
-{
-	switch (op) {
-		case OP_NOOP:;
-		case OP_END:;
-		case OP_VALUE_FLOAT:;
-		case OP_VALUE_FLOAT3:
-			return "";
-		case OP_PASS_FLOAT:       return "PASS_FLOAT";
-		case OP_PASS_FLOAT3:      return "PASS_FLOAT3";
-		default:
-			assert(!"Invalid OpCode");
-			return "";
-	}
-}
-
 OpCode get_opcode_from_node_type(const string &node)
 {
 	if (node == "PASS_FLOAT")
 		return OP_PASS_FLOAT;
 	else if (node == "PASS_FLOAT3")
 		return OP_PASS_FLOAT3;
+	else if (node == "ADD_FLOAT")
+		return OP_ADD_FLOAT;
+	else if (node == "SUB_FLOAT")
+		return OP_SUB_FLOAT;
+	else if (node == "ADD_FLOAT3")
+		return OP_ADD_FLOAT3;
+	else if (node == "SUB_FLOAT3")
+		return OP_SUB_FLOAT3;
 	else {
 		assert(!"Invalid node type");
 		return OP_NOOP;
@@ -573,6 +565,26 @@ void register_opcode_node_types()
 	
 	nt = NodeGraph::add_node_type("PASS_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("ADD_FLOAT");
+	nt->add_input("value_a", BVM_FLOAT, 0.0f);
+	nt->add_input("value_b", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("SUB_FLOAT");
+	nt->add_input("value_a", BVM_FLOAT, 0.0f);
+	nt->add_input("value_b", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("ADD_FLOAT3");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("SUB_FLOAT3");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 }
 

@@ -86,6 +86,34 @@ static void eval_op_pass_float3(float *stack, StackIndex offset_from, StackIndex
 	stack_store_float3(stack, offset_to, f);
 }
 
+static void eval_op_add_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, a + b);
+}
+
+static void eval_op_sub_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, a - b);
+}
+
+static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x + b.x, a.y + b.y, a.z + b.z));
+}
+
+static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
+}
+
 void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 {
 	int instr = 0;
@@ -118,6 +146,34 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 				StackIndex offset_from = expr.read_stack_index(&instr);
 				StackIndex offset_to = expr.read_stack_index(&instr);
 				eval_op_pass_float3(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_ADD_FLOAT: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_add_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_SUB_FLOAT: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_sub_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_ADD_FLOAT3: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_add_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_SUB_FLOAT3: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_END:
