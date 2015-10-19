@@ -33,6 +33,7 @@
 
 extern "C" {
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "DNA_node_types.h"
 
@@ -119,14 +120,38 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		graph.add_output("impulse", BVM_FLOAT3, zero);
 	}
 	
-#if 0
+#if 1
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		BLI_assert(bnode->typeinfo != NULL);
 		if (!nodeIsRegistered(bnode))
 			continue;
 		
 		const char *type = bnode->typeinfo->idname;
+#if 0
 		/*NodeInstance *node =*/ graph.add_node(type, bnode->name);
+#else
+		if (bvm::string(type) == "ForceOutputNode") {
+			{
+				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(bnode->name));
+				
+				bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
+				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
+				node->set_input_value("value", bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				
+				graph.set_output_link("force", node, "value");
+			}
+			
+			{
+				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_IMPULSE_" + bvm::string(bnode->name));
+				
+				bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
+				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
+				node->set_input_value("value", bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				
+				graph.set_output_link("impulse", node, "value");
+			}
+		}
+#endif
 	}
 	
 	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {

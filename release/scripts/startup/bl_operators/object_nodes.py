@@ -42,8 +42,8 @@ node_categories = [
     ObjectNodeCategory("COMPONENTS", "Components", items=[
         NodeItem("ForceFieldNode"),
         ]),
-    ForceFieldNodeCategory("FORCE_FIELD", "Force Field", items=[
-        NodeItem("ForceForceNode"),
+    ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
+        NodeItem("ForceOutputNode"),
         ]),
     ]
 
@@ -104,14 +104,15 @@ class ForceNodeBase():
         return ntree.bl_idname == 'ForceFieldNodeTree'
 
 
-class ForceForceNode(ForceNodeBase, ObjectNode):
-    '''Force'''
-    bl_idname = 'ForceForceNode'
-    bl_label = 'Force'
+class ForceOutputNode(ForceNodeBase, ObjectNode):
+    '''Force Output'''
+    bl_idname = 'ForceOutputNode'
+    bl_label = 'Output'
     bl_icon = 'FORCE_FORCE'
 
     def init(self, context):
-        self.inputs.new('NodeSocketFloat', "Strength")
+        self.inputs.new('NodeSocketVector', "Force")
+        self.inputs.new('NodeSocketVector', "Impulse")
 
 ###############################################################################
 
