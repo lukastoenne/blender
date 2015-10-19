@@ -50,6 +50,7 @@ extern "C" {
 
 void BVM_init(void)
 {
+	bvm::register_opcode_node_types();
 }
 
 void BVM_free(void)
@@ -112,6 +113,13 @@ void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 
 static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 {
+	{
+		float zero[3] = {0.0f, 0.0f, 0.0f};
+		graph.add_output("force", BVM_FLOAT3, zero);
+		graph.add_output("impulse", BVM_FLOAT3, zero);
+	}
+	
+#if 0
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		BLI_assert(bnode->typeinfo != NULL);
 		if (!nodeIsRegistered(bnode))
@@ -128,12 +136,15 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		graph.add_link(blink->fromnode->name, blink->fromsock->name,
 		               blink->tonode->name, blink->tosock->name);
 	}
-	
+#else
+	// XXX TESTING
 	{
-		float zero[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("force", BVM_FLOAT3, zero);
-		graph.add_output("impulse", BVM_FLOAT3, zero);
+		bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "pass0");
+		node->set_input_value("value", bvm::float3(0.5, 1.5, -0.3));
+		
+		graph.set_output_link("force", node, "value");
 	}
+#endif
 }
 
 struct BVMExpression *BVM_gen_forcefield_expression(bNodeTree *btree)

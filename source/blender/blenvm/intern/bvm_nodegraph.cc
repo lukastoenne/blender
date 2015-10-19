@@ -30,14 +30,15 @@
  */
 
 #include <map>
-#include <string>
 #include <vector>
+#include <cassert>
 
 #include "bvm_nodegraph.h"
+#include "bvm_opcode.h"
 
 namespace bvm {
 
-NodeSocket::NodeSocket(const std::string &name, BVMType type, Value *default_value) :
+NodeSocket::NodeSocket(const string &name, BVMType type, Value *default_value) :
     name(name),
     type(type),
     default_value(default_value)
@@ -50,7 +51,7 @@ NodeSocket::~NodeSocket()
 
 /* ------------------------------------------------------------------------- */
 
-NodeType::NodeType(const std::string &name) :
+NodeType::NodeType(const string &name) :
     name(name)
 {
 }
@@ -71,7 +72,7 @@ const NodeSocket *NodeType::find_output(int index) const
 	return &outputs[index];
 }
 
-const NodeSocket *NodeType::find_input(const std::string &name) const
+const NodeSocket *NodeType::find_input(const string &name) const
 {
 	for (SocketList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		const NodeSocket &socket = *it;
@@ -81,7 +82,7 @@ const NodeSocket *NodeType::find_input(const std::string &name) const
 	return NULL;
 }
 
-const NodeSocket *NodeType::find_output(const std::string &name) const
+const NodeSocket *NodeType::find_output(const string &name) const
 {
 	for (SocketList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		const NodeSocket &socket = *it;
@@ -178,14 +179,14 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 }
 #endif
 
-const NodeSocket *NodeType::add_input(const std::string &name, BVMType type, Value *default_value)
+const NodeSocket *NodeType::add_input(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!find_input(name));
 	inputs.push_back(NodeSocket(name, type, default_value));
 	return &inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const std::string &name, BVMType type, Value *default_value)
+const NodeSocket *NodeType::add_output(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!find_output(name));
 	outputs.push_back(NodeSocket(name, type, default_value));
@@ -194,7 +195,7 @@ const NodeSocket *NodeType::add_output(const std::string &name, BVMType type, Va
 
 /* ------------------------------------------------------------------------- */
 
-NodeInstance::NodeInstance(const NodeType *type, const std::string &name) :
+NodeInstance::NodeInstance(const NodeType *type, const string &name) :
     type(type), name(name)
 {
 }
@@ -203,7 +204,7 @@ NodeInstance::~NodeInstance()
 {
 }
 
-NodeInstance *NodeInstance::find_input_link_node(const std::string &name) const
+NodeInstance *NodeInstance::find_input_link_node(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.link_node : NULL;
@@ -215,7 +216,7 @@ NodeInstance *NodeInstance::find_input_link_node(int index) const
 	return socket ? find_input_link_node(socket->name) : NULL;
 }
 
-const NodeSocket *NodeInstance::find_input_link_socket(const std::string &name) const
+const NodeSocket *NodeInstance::find_input_link_socket(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.link_socket : NULL;
@@ -227,7 +228,7 @@ const NodeSocket *NodeInstance::find_input_link_socket(int index) const
 	return socket ? find_input_link_socket(socket->name) : NULL;
 }
 
-const NodeGraphInput *NodeInstance::find_input_extern(const std::string &name) const
+const NodeGraphInput *NodeInstance::find_input_extern(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.graph_input : NULL;
@@ -239,7 +240,7 @@ const NodeGraphInput *NodeInstance::find_input_extern(int index) const
 	return socket ? find_input_extern(socket->name) : NULL;
 }
 
-Value *NodeInstance::find_input_value(const std::string &name) const
+Value *NodeInstance::find_input_value(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.value : NULL;
@@ -251,7 +252,7 @@ Value *NodeInstance::find_input_value(int index) const
 	return socket ? find_input_value(socket->name) : NULL;
 }
 
-Value *NodeInstance::find_output_value(const std::string &name) const
+Value *NodeInstance::find_output_value(const string &name) const
 {
 	OutputMap::const_iterator it = outputs.find(name);
 	return (it != outputs.end()) ? it->second.value : NULL;
@@ -263,7 +264,7 @@ Value *NodeInstance::find_output_value(int index) const
 	return socket ? find_output_value(socket->name) : NULL;
 }
 
-bool NodeInstance::set_input_value(const std::string &name, Value *value)
+bool NodeInstance::set_input_value(const string &name, Value *value)
 {
 	InputInstance &input = inputs[name];
 	if (input.value)
@@ -272,7 +273,7 @@ bool NodeInstance::set_input_value(const std::string &name, Value *value)
 	return true;
 }
 
-bool NodeInstance::set_input_link(const std::string &name, NodeInstance *from_node, const NodeSocket *from_socket)
+bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, const NodeSocket *from_socket)
 {
 	InputInstance &input = inputs[name];
 	if (input.link_node && input.link_socket)
@@ -283,7 +284,7 @@ bool NodeInstance::set_input_link(const std::string &name, NodeInstance *from_no
 	return true;
 }
 
-bool NodeInstance::set_input_extern(const std::string &name, const NodeGraphInput *graph_input)
+bool NodeInstance::set_input_extern(const string &name, const NodeGraphInput *graph_input)
 {
 	InputInstance &input = inputs[name];
 	if (input.graph_input)
@@ -293,7 +294,7 @@ bool NodeInstance::set_input_extern(const std::string &name, const NodeGraphInpu
 	return true;
 }
 
-bool NodeInstance::has_input_link(const std::string &name) const
+bool NodeInstance::has_input_link(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
@@ -310,7 +311,7 @@ bool NodeInstance::has_input_link(int index) const
 	return socket ? has_input_link(socket->name) : false;
 }
 
-bool NodeInstance::has_input_extern(const std::string &name) const
+bool NodeInstance::has_input_extern(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
@@ -327,7 +328,7 @@ bool NodeInstance::has_input_extern(int index) const
 	return socket ? has_input_extern(socket->name) : false;
 }
 
-bool NodeInstance::has_input_value(const std::string &name) const
+bool NodeInstance::has_input_value(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
@@ -344,7 +345,7 @@ bool NodeInstance::has_input_value(int index) const
 	return socket ? has_input_value(socket->name) : false;
 }
 
-bool NodeInstance::set_output_value(const std::string &name, Value *value)
+bool NodeInstance::set_output_value(const string &name, Value *value)
 {
 	OutputInstance &output = outputs[name];
 	if (output.value)
@@ -353,17 +354,34 @@ bool NodeInstance::set_output_value(const std::string &name, Value *value)
 	return true;
 }
 
+bool NodeInstance::has_output_value(const string &name) const
+{
+	OutputMap::const_iterator it = outputs.find(name);
+	if (it != outputs.end()) {
+		const OutputInstance &output = it->second;
+		return (output.value);
+	}
+	else
+		return false;
+}
+
+bool NodeInstance::has_output_value(int index) const
+{
+	const NodeSocket *socket = type->find_output(index);
+	return socket ? has_output_value(socket->name) : false;
+}
+
 /* ------------------------------------------------------------------------- */
 
 NodeGraph::NodeTypeMap NodeGraph::node_types;
 
-const NodeType *NodeGraph::find_node_type(const std::string &name)
+const NodeType *NodeGraph::find_node_type(const string &name)
 {
 	NodeTypeMap::const_iterator it = node_types.find(name);
 	return (it != node_types.end())? &it->second : NULL;
 }
 
-NodeType *NodeGraph::add_node_type(const std::string &name)
+NodeType *NodeGraph::add_node_type(const string &name)
 {
 	std::pair<NodeTypeMap::iterator, bool> result = node_types.insert(NodeTypeMapPair(name, NodeType(name)));
 	if (result.second) {
@@ -374,7 +392,7 @@ NodeType *NodeGraph::add_node_type(const std::string &name)
 		return NULL;
 }
 
-void NodeGraph::remove_node_type(const std::string &name)
+void NodeGraph::remove_node_type(const string &name)
 {
 	NodeTypeMap::iterator it = node_types.find(name);
 	if (it != node_types.end())
@@ -389,13 +407,13 @@ NodeGraph::~NodeGraph()
 {
 }
 
-NodeInstance *NodeGraph::get_node(const std::string &name)
+NodeInstance *NodeGraph::get_node(const string &name)
 {
 	NodeInstanceMap::iterator it = nodes.find(name);
 	return (it != nodes.end())? &it->second : NULL;
 }
 
-NodeInstance *NodeGraph::add_node(const std::string &type, const std::string &name)
+NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 {
 	const NodeType *nodetype = find_node_type(type);
 	std::pair<NodeInstanceMap::iterator, bool> result =
@@ -416,7 +434,7 @@ const NodeGraphOutput *NodeGraph::get_output(int index) const
 	return &outputs[index];
 }
 
-const NodeGraphInput *NodeGraph::get_input(const std::string &name) const
+const NodeGraphInput *NodeGraph::get_input(const string &name) const
 {
 	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		if (it->name == name)
@@ -425,7 +443,7 @@ const NodeGraphInput *NodeGraph::get_input(const std::string &name) const
 	return NULL;
 }
 
-const NodeGraphOutput *NodeGraph::get_output(const std::string &name) const
+const NodeGraphOutput *NodeGraph::get_output(const string &name) const
 {
 	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		if (it->name == name)
@@ -434,21 +452,21 @@ const NodeGraphOutput *NodeGraph::get_output(const std::string &name) const
 	return NULL;
 }
 
-const NodeGraphInput *NodeGraph::add_input(const std::string &name, BVMType type)
+const NodeGraphInput *NodeGraph::add_input(const string &name, BVMType type)
 {
 	BLI_assert(!get_input(name));
 	inputs.push_back(NodeGraphInput(name, type));
 	return &inputs.back();
 }
 
-const NodeGraphOutput *NodeGraph::add_output(const std::string &name, BVMType type, Value *default_value)
+const NodeGraphOutput *NodeGraph::add_output(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!get_output(name));
 	outputs.push_back(NodeGraphOutput(name, type, default_value));
 	return &outputs.back();
 }
 
-void NodeGraph::set_input_argument(const std::string &name, Value *value)
+void NodeGraph::set_input_argument(const string &name, Value *value)
 {
 	for (InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		NodeGraphInput &input = *it;
@@ -458,7 +476,7 @@ void NodeGraph::set_input_argument(const std::string &name, Value *value)
 	}
 }
 
-void NodeGraph::set_output_link(const std::string &name, NodeInstance *link_node, const std::string &link_socket)
+void NodeGraph::set_output_link(const string &name, NodeInstance *link_node, const string &link_socket)
 {
 	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		NodeGraphOutput &output = *it;
@@ -513,6 +531,49 @@ void NodeGraph::dump(std::ostream &s)
 			s << "\n";
 		}
 	}
+}
+
+/* ------------------------------------------------------------------------- */
+
+string get_node_type_from_opcode(OpCode op)
+{
+	switch (op) {
+		case OP_NOOP:;
+		case OP_END:;
+		case OP_VALUE_FLOAT:;
+		case OP_VALUE_FLOAT3:
+			return "";
+		case OP_PASS_FLOAT:       return "PASS_FLOAT";
+		case OP_PASS_FLOAT3:      return "PASS_FLOAT3";
+		default:
+			assert(!"Invalid OpCode");
+			return "";
+	}
+}
+
+OpCode get_opcode_from_node_type(const string &node)
+{
+	if (node == "PASS_FLOAT")
+		return OP_PASS_FLOAT;
+	else if (node == "PASS_FLOAT3")
+		return OP_PASS_FLOAT3;
+	else {
+		assert(!"Invalid node type");
+		return OP_NOOP;
+	}
+}
+
+void register_opcode_node_types()
+{
+	NodeType *nt;
+	
+	nt = NodeGraph::add_node_type("PASS_FLOAT");
+	nt->add_input("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("PASS_FLOAT3");
+	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 }
 
 } /* namespace bvm */

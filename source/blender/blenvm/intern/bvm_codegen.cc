@@ -67,15 +67,17 @@ StackIndex BVMCompiler::find_stack_index(int size) const
 	return BVM_STACK_INVALID;
 }
 
-void BVMCompiler::assign_stack_index(ReturnValue &rval)
+StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
 {
-	int size = rval.typedesc.stack_size();
+	int size = typedesc.stack_size();
 	
-	rval.stack_offset = find_stack_index(size);
+	StackIndex stack_offset = find_stack_index(size);
 	for (int i = 0; i < size; ++i) {
 		// TODO keep track of value users
-		stack_users[rval.stack_offset + i] += 1;
+		stack_users[stack_offset + i] += 1;
 	}
+	
+	return stack_offset;
 }
 
 void BVMCompiler::push_opcode(OpCode op)
@@ -101,9 +103,104 @@ void BVMCompiler::push_float3(float3 f)
 	expr->add_instruction(float_to_instruction(f.z));
 }
 
+StackIndex BVMCompiler::codegen_value(const Value *value)
+{
+	StackIndex offset = assign_stack_index(value->typedesc());
+	
+	switch (value->typedesc().base_type) {
+		case BVM_FLOAT: {
+			float f = 0.0f;
+			value->get(&f);
+			
+			push_opcode(OP_VALUE_FLOAT);
+			push_float(f);
+			push_stack_index(offset);
+			break;
+		}
+		case BVM_FLOAT3: {
+			float3 f = float3(0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_opcode(OP_VALUE_FLOAT3);
+			push_float3(f);
+			push_stack_index(offset);
+			break;
+		}
+	}
+	
+	return offset;
+}
+
+#if 0
+StackIndex BVMCompiler::codegen_link(const TypeDesc &from, StackIndex stack_from,
+                                     const TypeDesc &to, StackIndex stack_to)
+{
+	if (to.assignable(from)) {
+		switch (to.base_type) {
+			case BVM_FLOAT:
+				push_opcode(OP_PASS_FLOAT);
+				break;
+			case BVM_FLOAT3:
+				push_opcode(OP_PASS_FLOAT3);
+				break;
+		}
+		push_stack_index(stack_from);
+		push_stack_index(stack_to);
+	}
+}
+#endif
+
 Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 {
+	typedef std::pair<const NodeInstance *, const NodeSocket *> SocketPair;
+	typedef std::map<SocketPair, StackIndex> SocketIndexMap;
+	
 	expr = new Expression();
+	
+	SocketIndexMap socket_index;
+	
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin();
+	     it != graph.nodes.end();
+	     ++it) {
+		const NodeInstance &node = it->second;
+		
+		for (int i = 0; i < node.type->inputs.size(); ++i) {
+			const NodeSocket &input = node.type->inputs[i];
+			SocketPair key(&node, &input);
+			
+			if (node.has_input_link(i)) {
+				const NodeInstance *link_node = node.find_input_link_node(i);
+				const NodeSocket *link_socket = node.find_input_link_socket(i);
+				SocketPair link_key(link_node, link_socket);
+				socket_index[key] = socket_index[link_key];
+			}
+			else if (node.has_input_value(i)) {
+				Value *value = node.find_input_value(i);
+				socket_index[key] = codegen_value(value);
+			}
+			else {
+				socket_index[key] = codegen_value(input.default_value);
+			}
+		}
+		
+		OpCode op = get_opcode_from_node_type(node.type->name);
+		push_opcode(op);
+		
+		for (int i = 0; i < node.type->inputs.size(); ++i) {
+			const NodeSocket &input = node.type->inputs[i];
+			SocketPair key(&node, &input);
+			
+			push_stack_index(socket_index[key]);
+		}
+		for (int i = 0; i < node.type->outputs.size(); ++i) {
+			const NodeSocket &output = node.type->outputs[i];
+			SocketPair key(&node, &output);
+			
+			socket_index[key] = assign_stack_index(TypeDesc(output.type));
+			
+			push_stack_index(socket_index[key]);
+		}
+	}
 	
 	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin();
 	     it != graph.outputs.end();
@@ -112,24 +209,24 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 		
 		ReturnValue &rval = expr->add_return_value(TypeDesc(output.type), output.name);
 		
-		assign_stack_index(rval);
+		if (output.link_node && output.link_socket) {
+			SocketPair link_key(output.link_node, output.link_socket);
+			
+			rval.stack_offset = socket_index[link_key];
+		}
+		else {
+			rval.stack_offset = assign_stack_index(rval.typedesc);
+		}
 	}
 	
-	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin();
-	     it != graph.nodes.end();
-	     ++it) {
-		const NodeInstance &node = it->second;
-		
-	}
-	
+#if 0
 	// XXX TESTING
 	{
 		push_opcode(OP_VALUE_FLOAT3);
 		push_float3(float3(0.3, -0.6, 0.0));
 		push_stack_index(expr->return_value(0).stack_offset);
-//		push_stack_index(0x0F);
-//		push_opcode(OP_ASSIGN_FLOAT3);
 	}
+#endif
 	
 	push_opcode(OP_END);
 	

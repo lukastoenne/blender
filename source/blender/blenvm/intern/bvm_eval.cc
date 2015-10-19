@@ -74,13 +74,13 @@ static void eval_op_value_float3(float *stack, float3 value, StackIndex offset)
 	stack_store_float3(stack, offset, value);
 }
 
-static void eval_op_assign_float(float *stack, StackIndex offset_to, StackIndex offset_from)
+static void eval_op_pass_float(float *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
 	stack_store_float(stack, offset_to, f);
 }
 
-static void eval_op_assign_float3(float *stack, StackIndex offset_to, StackIndex offset_from)
+static void eval_op_pass_float3(float *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float3 f = stack_load_float3(stack, offset_from);
 	stack_store_float3(stack, offset_to, f);
@@ -108,16 +108,16 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 				eval_op_value_float3(stack, value, offset);
 				break;
 			}
-			case OP_ASSIGN_FLOAT: {
-				int offset_to = instr++;
-				int offset_from = instr++;
-				eval_op_assign_float(stack, offset_to, offset_from);
+			case OP_PASS_FLOAT: {
+				StackIndex offset_from = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_pass_float(stack, offset_from, offset_to);
 				break;
 			}
-			case OP_ASSIGN_FLOAT3: {
-				int offset_to = instr++;
-				int offset_from = instr++;
-				eval_op_assign_float3(stack, offset_to, offset_from);
+			case OP_PASS_FLOAT3: {
+				StackIndex offset_from = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_pass_float3(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_END:

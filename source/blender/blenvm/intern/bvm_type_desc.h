@@ -32,6 +32,8 @@
 #ifndef __BVM_TYPE_TRAITS_H__
 #define __BVM_TYPE_TRAITS_H__
 
+#include <cassert>
+
 #include "BVM_types.h"
 
 namespace bvm {
@@ -87,6 +89,8 @@ struct TypeDesc {
 	    base_type(base_type)
 	{}
 	
+	inline bool assignable(const TypeDesc &other) const;
+	
 	BVMType base_type;
 	
 	inline int stack_size() const;
@@ -105,7 +109,7 @@ struct Value {
 	const TypeDesc &typedesc() const { return m_typedesc; }
 	
 	template <typename T>
-	void get(T data) const;
+	bool get(T *data) const;
 	
 protected:
 	Value(const TypeDesc &typedesc) :
@@ -132,15 +136,16 @@ struct ValueType : public Value {
 	
 	const POD &data() const { return m_data; }
 	
-	bool get(POD &data)
+	bool get(POD *data) const
 	{
-		data = m_data;
+		*data = m_data;
 		return true;
 	}
 	
 	template <typename T>
-	bool get(T data)
+	bool get(T *data) const
 	{
+		assert(!"Data type mismatch");
 		(void)data;
 		return false;
 	}
@@ -162,12 +167,21 @@ Value *Value::create(BVMType type, T data)
 }
 
 template <typename T>
-void Value::get(T data) const
+bool Value::get(T *data) const
 {
 	switch (m_typedesc.base_type) {
-		case BVM_FLOAT: return static_cast< ValueType<BVM_FLOAT>* >(this)->get(data);
-		case BVM_FLOAT3: return static_cast< ValueType<BVM_FLOAT3>* >(this)->get(data);
+		case BVM_FLOAT: return static_cast< const ValueType<BVM_FLOAT>* >(this)->get(data);
+		case BVM_FLOAT3: return static_cast< const ValueType<BVM_FLOAT3>* >(this)->get(data);
 	}
+	return false;
+}
+
+/* ------------------------------------------------------------------------- */
+
+bool TypeDesc::assignable(const TypeDesc &other) const
+{
+	// TODO
+	return base_type == other.base_type;
 }
 
 int TypeDesc::stack_size() const
