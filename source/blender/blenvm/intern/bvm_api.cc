@@ -114,9 +114,15 @@ void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 
 /* ------------------------------------------------------------------------- */
 
-static void set_input_value(bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
+typedef std::pair<bNode*, bNodeSocket*> bSocketPair;
+typedef std::pair<bvm::NodeInstance*, bvm::string> SocketPair;
+typedef std::map<bSocketPair, SocketPair> SocketMap;
+
+static void map_input_socket(SocketMap &socket_map, bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
 {
 	bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, bindex);
+	
+	socket_map[bSocketPair(bnode, binput)] = SocketPair(node, name);
 	
 	switch (binput->type) {
 		case SOCK_FLOAT: {
@@ -132,7 +138,14 @@ static void set_input_value(bNode *bnode, int bindex, bvm::NodeInstance *node, c
 	}
 }
 
-static void set_all_input_values(bNode *bnode, bvm::NodeInstance *node)
+static void map_output_socket(SocketMap &socket_map, bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
+{
+	bNodeSocket *boutput = (bNodeSocket *)BLI_findlink(&bnode->outputs, bindex);
+	
+	socket_map[bSocketPair(bnode, boutput)] = SocketPair(node, name);
+}
+
+static void map_all_input_sockets(SocketMap &socket_map, bNode *bnode, bvm::NodeInstance *node)
 {
 	bNodeSocket *bsock;
 	int i;
@@ -140,7 +153,7 @@ static void set_all_input_values(bNode *bnode, bvm::NodeInstance *node)
 	for (bsock = (bNodeSocket *)bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 		const bvm::NodeSocket *input = node->type->find_input(i);
 		
-		set_input_value(bnode, i, node, input->name);
+		map_input_socket(socket_map, bnode, i, node, input->name);
 	}
 }
 
@@ -151,6 +164,9 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		graph.add_output("force", BVM_FLOAT3, zero);
 		graph.add_output("impulse", BVM_FLOAT3, zero);
 	}
+	
+	/* maps bNodeTree sockets to internal sockets, for converting links */
+	SocketMap socket_map;
 	
 #if 1
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
@@ -168,14 +184,16 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		if (bvm::string(type) == "ForceOutputNode") {
 			{
 				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(bnode->name));
-				set_input_value(bnode, 0, node, "value");
+				map_input_socket(socket_map, bnode, 0, node, "value");
+				map_output_socket(socket_map, bnode, 0, node, "value");
 				
 				graph.set_output_link("force", node, "value");
 			}
 			
 			{
 				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_IMPULSE_" + bvm::string(bnode->name));
-				set_input_value(bnode, 1, node, "value");
+				map_input_socket(socket_map, bnode, 1, node, "value");
+				map_output_socket(socket_map, bnode, 0, node, "value");
 				
 				graph.set_output_link("impulse", node, "value");
 			}
@@ -185,14 +203,35 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 			switch (mode) {
 				case 0: {
 					bvm::NodeInstance *node = graph.add_node("ADD_FLOAT", bnode->name);
-					set_input_value(bnode, 0, node, "value_a");
-					set_input_value(bnode, 1, node, "value_b");
+					map_input_socket(socket_map, bnode, 0, node, "value_a");
+					map_input_socket(socket_map, bnode, 1, node, "value_b");
+					map_output_socket(socket_map, bnode, 0, node, "value");
 					break;
 				}
 				case 1: {
 					bvm::NodeInstance *node = graph.add_node("SUB_FLOAT", bnode->name);
-					set_input_value(bnode, 0, node, "value_a");
-					set_input_value(bnode, 1, node, "value_b");
+					map_input_socket(socket_map, bnode, 0, node, "value_a");
+					map_input_socket(socket_map, bnode, 1, node, "value_b");
+					map_output_socket(socket_map, bnode, 0, node, "value");
+					break;
+				}
+			}
+		}
+		else if (bvm::string(type) == "ObjectVectorMathNode") {
+			int mode = RNA_enum_get(&ptr, "mode");
+			switch (mode) {
+				case 0: {
+					bvm::NodeInstance *node = graph.add_node("ADD_FLOAT3", bnode->name);
+					map_input_socket(socket_map, bnode, 0, node, "value_a");
+					map_input_socket(socket_map, bnode, 1, node, "value_b");
+					map_output_socket(socket_map, bnode, 0, node, "value");
+					break;
+				}
+				case 1: {
+					bvm::NodeInstance *node = graph.add_node("SUB_FLOAT3", bnode->name);
+					map_input_socket(socket_map, bnode, 0, node, "value_a");
+					map_input_socket(socket_map, bnode, 1, node, "value_b");
+					map_output_socket(socket_map, bnode, 0, node, "value");
 					break;
 				}
 			}
@@ -204,8 +243,14 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		if (!(blink->flag & NODE_LINK_VALID))
 			continue;
 		
-		graph.add_link(blink->fromnode->name, blink->fromsock->name,
-		               blink->tonode->name, blink->tosock->name);
+		SocketMap::const_iterator it_from = socket_map.find(bSocketPair(blink->fromnode, blink->fromsock));
+		SocketMap::const_iterator it_to = socket_map.find(bSocketPair(blink->tonode, blink->tosock));
+		if (it_from != socket_map.end() && it_to != socket_map.end()) {
+			SocketPair from_pair = it_from->second;
+			SocketPair to_pair = it_to->second;
+			graph.add_link(from_pair.first, from_pair.second,
+			               to_pair.first, to_pair.second);
+		}
 	}
 #else
 	// XXX TESTING
