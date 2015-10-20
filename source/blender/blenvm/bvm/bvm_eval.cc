@@ -31,6 +31,10 @@
 
 #include <cassert>
 
+extern "C" {
+#include "BLI_math.h"
+}
+
 #include "bvm_eval.h"
 #include "bvm_expression.h"
 
@@ -100,6 +104,123 @@ static void eval_op_sub_float(float *stack, StackIndex offset_a, StackIndex offs
 	stack_store_float(stack, offset_r, a - b);
 }
 
+static void eval_op_mul_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, a * b);
+}
+
+static void eval_op_div_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, b != 0.0f ? a / b : 0.0f);
+}
+
+static void eval_op_sine(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, sinf(f));
+}
+
+static void eval_op_cosine(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, cosf(f));
+}
+
+static void eval_op_tangent(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, tanf(f));
+}
+
+static void eval_op_arcsine(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, asinf(f));
+}
+
+static void eval_op_arccosine(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, acosf(f));
+}
+
+static void eval_op_arctangent(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, atanf(f));
+}
+
+static void eval_op_power(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, (a >= 0.0f)? powf(a, b): 0.0f);
+}
+
+static void eval_op_logarithm(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, (a >= 0.0f && b >= 0.0f)? logf(a) / logf(b): 0.0f);
+}
+
+static void eval_op_minimum(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, min_ff(a, b));
+}
+
+static void eval_op_maximum(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, max_ff(a, b));
+}
+
+static void eval_op_round(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, floorf(f + 0.5f));
+}
+
+static void eval_op_less_than(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, (a < b) ? 1.0f : 0.0f);
+}
+
+static void eval_op_greater_than(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, (a > b) ? 1.0f : 0.0f);
+}
+
+static void eval_op_modulo(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float(stack, offset_r, (b != 0.0f) ? fmodf(a, b) : 0.0f);
+}
+
+static void eval_op_absolute(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, fabsf(f));
+}
+
+static void eval_op_clamp(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	float f = stack_load_float(stack, offset);
+	stack_store_float(stack, offset_r, CLAMPIS(f, 0.0f, 1.0f));
+}
+
 static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
@@ -160,6 +281,123 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 				StackIndex offset_b = expr.read_stack_index(&instr);
 				StackIndex offset_r = expr.read_stack_index(&instr);
 				eval_op_sub_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_FLOAT: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_mul_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_DIV_FLOAT: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_div_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_SINE: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_sine(stack, offset, offset_r);
+				break;
+			}
+			case OP_COSINE: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_cosine(stack, offset, offset_r);
+				break;
+			}
+			case OP_TANGENT: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_tangent(stack, offset, offset_r);
+				break;
+			}
+			case OP_ARCSINE: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_arcsine(stack, offset, offset_r);
+				break;
+			}
+			case OP_ARCCOSINE: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_arccosine(stack, offset, offset_r);
+				break;
+			}
+			case OP_ARCTANGENT: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_arctangent(stack, offset, offset_r);
+				break;
+			}
+			case OP_POWER: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_power(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_LOGARITHM: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_logarithm(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MINIMUM: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_minimum(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MAXIMUM: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_maximum(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_ROUND: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_round(stack, offset, offset_r);
+				break;
+			}
+			case OP_LESS_THAN: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_less_than(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_GREATER_THAN: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_greater_than(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MODULO: {
+				StackIndex offset_a = expr.read_stack_index(&instr);
+				StackIndex offset_b = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_modulo(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_ABSOLUTE: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_absolute(stack, offset, offset_r);
+				break;
+			}
+			case OP_CLAMP: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset_r = expr.read_stack_index(&instr);
+				eval_op_clamp(stack, offset, offset_r);
 				break;
 			}
 			case OP_ADD_FLOAT3: {

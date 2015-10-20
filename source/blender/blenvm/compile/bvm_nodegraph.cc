@@ -537,22 +537,41 @@ void NodeGraph::dump(std::ostream &s)
 
 OpCode get_opcode_from_node_type(const string &node)
 {
-	if (node == "PASS_FLOAT")
-		return OP_PASS_FLOAT;
-	else if (node == "PASS_FLOAT3")
-		return OP_PASS_FLOAT3;
-	else if (node == "ADD_FLOAT")
-		return OP_ADD_FLOAT;
-	else if (node == "SUB_FLOAT")
-		return OP_SUB_FLOAT;
-	else if (node == "ADD_FLOAT3")
-		return OP_ADD_FLOAT3;
-	else if (node == "SUB_FLOAT3")
-		return OP_SUB_FLOAT3;
-	else {
-		assert(!"Invalid node type");
-		return OP_NOOP;
-	}
+	#define NODETYPE(name) \
+	if (node == STRINGIFY(name)) \
+		return OP_##name
+	
+	NODETYPE(PASS_FLOAT);
+	NODETYPE(PASS_FLOAT3);
+	
+	NODETYPE(ADD_FLOAT);
+	NODETYPE(SUB_FLOAT);
+	NODETYPE(MUL_FLOAT);
+	NODETYPE(DIV_FLOAT);
+	NODETYPE(SINE);
+	NODETYPE(COSINE);
+	NODETYPE(TANGENT);
+	NODETYPE(ARCSINE);
+	NODETYPE(ARCCOSINE);
+	NODETYPE(ARCTANGENT);
+	NODETYPE(POWER);
+	NODETYPE(LOGARITHM);
+	NODETYPE(MINIMUM);
+	NODETYPE(MAXIMUM);
+	NODETYPE(ROUND);
+	NODETYPE(LESS_THAN);
+	NODETYPE(GREATER_THAN);
+	NODETYPE(MODULO);
+	NODETYPE(ABSOLUTE);
+	NODETYPE(CLAMP);
+	
+	NODETYPE(ADD_FLOAT3);
+	NODETYPE(SUB_FLOAT3);
+	
+	#undef NODETYPE
+	
+	assert(!"Invalid node type");
+	return OP_NOOP;
 }
 
 void register_opcode_node_types()
@@ -567,15 +586,40 @@ void register_opcode_node_types()
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_node_type("ADD_FLOAT");
-	nt->add_input("value_a", BVM_FLOAT, 0.0f);
-	nt->add_input("value_b", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	#define BINARY_MATH_NODE(name) \
+	nt = NodeGraph::add_node_type(STRINGIFY(name)); \
+	nt->add_input("value_a", BVM_FLOAT, 0.0f); \
+	nt->add_input("value_b", BVM_FLOAT, 0.0f); \
+	nt->add_output("value", BVM_FLOAT, 0.0f)
 	
-	nt = NodeGraph::add_node_type("SUB_FLOAT");
-	nt->add_input("value_a", BVM_FLOAT, 0.0f);
-	nt->add_input("value_b", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	#define UNARY_MATH_NODE(name) \
+	nt = NodeGraph::add_node_type(STRINGIFY(name)); \
+	nt->add_input("value", BVM_FLOAT, 0.0f); \
+	nt->add_output("value", BVM_FLOAT, 0.0f)
+	
+	BINARY_MATH_NODE(ADD_FLOAT);
+	BINARY_MATH_NODE(SUB_FLOAT);
+	BINARY_MATH_NODE(MUL_FLOAT);
+	BINARY_MATH_NODE(DIV_FLOAT);
+	UNARY_MATH_NODE(SINE);
+	UNARY_MATH_NODE(COSINE);
+	UNARY_MATH_NODE(TANGENT);
+	UNARY_MATH_NODE(ARCSINE);
+	UNARY_MATH_NODE(ARCCOSINE);
+	UNARY_MATH_NODE(ARCTANGENT);
+	BINARY_MATH_NODE(POWER);
+	BINARY_MATH_NODE(LOGARITHM);
+	BINARY_MATH_NODE(MINIMUM);
+	BINARY_MATH_NODE(MAXIMUM);
+	UNARY_MATH_NODE(ROUND);
+	BINARY_MATH_NODE(LESS_THAN);
+	BINARY_MATH_NODE(GREATER_THAN);
+	BINARY_MATH_NODE(MODULO);
+	UNARY_MATH_NODE(ABSOLUTE);
+	UNARY_MATH_NODE(CLAMP);
+	
+	#undef BINARY_MATH_NODE
+	#undef UNARY_MATH_NODE
 	
 	nt = NodeGraph::add_node_type("ADD_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));

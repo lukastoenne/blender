@@ -145,16 +145,40 @@ static void map_output_socket(SocketMap &socket_map, bNode *bnode, int bindex, b
 	socket_map[bSocketPair(bnode, boutput)] = SocketPair(node, name);
 }
 
-static void map_all_input_sockets(SocketMap &socket_map, bNode *bnode, bvm::NodeInstance *node)
+static void map_all_sockets(SocketMap &socket_map, bNode *bnode, bvm::NodeInstance *node)
 {
 	bNodeSocket *bsock;
 	int i;
-	
 	for (bsock = (bNodeSocket *)bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 		const bvm::NodeSocket *input = node->type->find_input(i);
-		
 		map_input_socket(socket_map, bnode, i, node, input->name);
 	}
+	for (bsock = (bNodeSocket *)bnode->outputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
+		const bvm::NodeSocket *output = node->type->find_output(i);
+		map_output_socket(socket_map, bnode, i, node, output->name);
+	}
+}
+
+static void binary_math_node(bvm::NodeGraph &graph, SocketMap &socket_map, bNode *bnode, const bvm::string &type)
+{
+	bvm::NodeInstance *node = graph.add_node(type, bnode->name);
+	map_input_socket(socket_map, bnode, 0, node, "value_a");
+	map_input_socket(socket_map, bnode, 1, node, "value_b");
+	map_output_socket(socket_map, bnode, 0, node, "value");
+}
+
+static void unary_math_node(bvm::NodeGraph &graph, SocketMap &socket_map, bNode *bnode, const bvm::string &type)
+{
+	bvm::NodeInstance *node = graph.add_node(type, bnode->name);
+	bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
+	bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
+	bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
+	bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
+	if (sock0_linked || !sock1_linked)
+		map_input_socket(socket_map, bnode, 0, node, "value");
+	else
+		map_input_socket(socket_map, bnode, 1, node, "value");
+	map_output_socket(socket_map, bnode, 0, node, "value");
 }
 
 static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
@@ -201,20 +225,26 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		else if (bvm::string(type) == "ObjectMathNode") {
 			int mode = RNA_enum_get(&ptr, "mode");
 			switch (mode) {
-				case 0: {
-					bvm::NodeInstance *node = graph.add_node("ADD_FLOAT", bnode->name);
-					map_input_socket(socket_map, bnode, 0, node, "value_a");
-					map_input_socket(socket_map, bnode, 1, node, "value_b");
-					map_output_socket(socket_map, bnode, 0, node, "value");
-					break;
-				}
-				case 1: {
-					bvm::NodeInstance *node = graph.add_node("SUB_FLOAT", bnode->name);
-					map_input_socket(socket_map, bnode, 0, node, "value_a");
-					map_input_socket(socket_map, bnode, 1, node, "value_b");
-					map_output_socket(socket_map, bnode, 0, node, "value");
-					break;
-				}
+				case 0: binary_math_node(graph, socket_map, bnode, "ADD_FLOAT"); break;
+				case 1: binary_math_node(graph, socket_map, bnode, "SUB_FLOAT"); break;
+				case 2: binary_math_node(graph, socket_map, bnode, "MUL_FLOAT"); break;
+				case 3: binary_math_node(graph, socket_map, bnode, "DIV_FLOAT"); break;
+				case 4: unary_math_node(graph, socket_map, bnode, "SINE"); break;
+				case 5: unary_math_node(graph, socket_map, bnode, "COSINE"); break;
+				case 6: unary_math_node(graph, socket_map, bnode, "TANGENT"); break;
+				case 7: unary_math_node(graph, socket_map, bnode, "ARCSINE"); break;
+				case 8: unary_math_node(graph, socket_map, bnode, "ARCCOSINE"); break;
+				case 9: unary_math_node(graph, socket_map, bnode, "ARCTANGENT"); break;
+				case 10: binary_math_node(graph, socket_map, bnode, "POWER"); break;
+				case 11: binary_math_node(graph, socket_map, bnode, "LOGARITHM"); break;
+				case 12: binary_math_node(graph, socket_map, bnode, "MINIMUM"); break;
+				case 13: binary_math_node(graph, socket_map, bnode, "MAXIMUM"); break;
+				case 14: unary_math_node(graph, socket_map, bnode, "ROUND"); break;
+				case 15: binary_math_node(graph, socket_map, bnode, "LESS_THAN"); break;
+				case 16: binary_math_node(graph, socket_map, bnode, "GREATER_THAN"); break;
+				case 17: binary_math_node(graph, socket_map, bnode, "MODULO"); break;
+				case 18: unary_math_node(graph, socket_map, bnode, "ABSOLUTE"); break;
+				case 19: unary_math_node(graph, socket_map, bnode, "CLAMP"); break;
 			}
 		}
 		else if (bvm::string(type) == "ObjectVectorMathNode") {
