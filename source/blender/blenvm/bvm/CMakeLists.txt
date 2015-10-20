@@ -23,40 +23,26 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-add_subdirectory(bvm)
-add_subdirectory(compile)
-
 set(INC
 	.
-	bvm
-	compile
-	util
-	../blenkernel
-	../blenlib
-	../makesdna
-	../makesrna
-	../../../intern/guardedalloc
+	..
+	../util
+	../../blenkernel
+	../../blenlib
+	../../makesdna
+	../../makesrna
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
 )
 
 set(SRC
-	intern/bvm_api.cc
-	intern/bvm_function.cc
-	intern/bvm_function.h
-	intern/bvm_module.cc
-	intern/bvm_module.h
-	intern/bvm_schedule.cc
-	intern/bvm_schedule.h
-
-	util/bvm_util_hash.h
-	util/bvm_util_map.h
-	util/bvm_util_string.h
-	util/bvm_util_typedesc.h
-
-	BVM_api.h
-	BVM_types.h
+	bvm_eval.cc
+	bvm_eval.h
+	bvm_expression.cc
+	bvm_expression.h
+	bvm_opcode.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
@@ -80,4 +66,4 @@ else()
 	endif()
 endif()
 
-blender_add_lib(bf_blenvm "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_blenvm_bvm "${SRC}" "${INC}" "${INC_SYS}")
