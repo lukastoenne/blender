@@ -208,7 +208,6 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 	InputMap input_map;
 	OutputMap output_map;
 	
-#if 1
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		PointerRNA ptr;
 		RNA_pointer_create((ID *)btree, &RNA_Node, bnode, &ptr);
@@ -217,11 +216,8 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		if (!nodeIsRegistered(bnode))
 			continue;
 		
-		const char *type = bnode->typeinfo->idname;
-#if 0
-		/*NodeInstance *node =*/ graph.add_node(type, bnode->name);
-#else
-		if (bvm::string(type) == "ForceOutputNode") {
+		bvm::string type = bvm::string(bnode->typeinfo->idname);
+		if (type == "ForceOutputNode") {
 			{
 				bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(bnode->name));
 				map_input_socket(input_map, bnode, 0, node, "value");
@@ -238,7 +234,7 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				graph.set_output_link("impulse", node, "value");
 			}
 		}
-		else if (bvm::string(type) == "ObjectSeparateVectorNode") {
+		else if (type == "ObjectSeparateVectorNode") {
 			{
 				bvm::NodeInstance *node = graph.add_node("GET_ELEM0_FLOAT3", "GET_ELEM0_" + bvm::string(bnode->name));
 				map_input_socket(input_map, bnode, 0, node, "value");
@@ -255,14 +251,14 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				map_output_socket(output_map, bnode, 2, node, "value");
 			}
 		}
-		else if (bvm::string(type) == "ObjectCombineVectorNode") {
+		else if (type == "ObjectCombineVectorNode") {
 			bvm::NodeInstance *node = graph.add_node("SET_FLOAT3", bvm::string(bnode->name));
 			map_input_socket(input_map, bnode, 0, node, "value_x");
 			map_input_socket(input_map, bnode, 1, node, "value_y");
 			map_input_socket(input_map, bnode, 2, node, "value_z");
 			map_output_socket(output_map, bnode, 0, node, "value");
 		}
-		else if (bvm::string(type) == "ForceEffectorDataNode") {
+		else if (type == "ForceEffectorDataNode") {
 			{
 				bvm::NodeInstance *node = graph.add_node("EFFECTOR_POSITION", "EFFECTOR_POS" + bvm::string(bnode->name));
 				map_output_socket(output_map, bnode, 0, node, "value");
@@ -272,7 +268,7 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				map_output_socket(output_map, bnode, 1, node, "value");
 			}
 		}
-		else if (bvm::string(type) == "ObjectMathNode") {
+		else if (type == "ObjectMathNode") {
 			int mode = RNA_enum_get(&ptr, "mode");
 			switch (mode) {
 				case 0: binary_math_node(graph, input_map, output_map, bnode, "ADD_FLOAT"); break;
@@ -297,7 +293,7 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				case 19: unary_math_node(graph, input_map, output_map, bnode, "CLAMP"); break;
 			}
 		}
-		else if (bvm::string(type) == "ObjectVectorMathNode") {
+		else if (type == "ObjectVectorMathNode") {
 			int mode = RNA_enum_get(&ptr, "mode");
 			switch (mode) {
 				case 0: {
@@ -316,7 +312,6 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				}
 			}
 		}
-#endif
 	}
 	
 	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
@@ -343,15 +338,6 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 			       blink->tonode->name, blink->tosock->name);
 		}
 	}
-#else
-	// XXX TESTING
-	{
-		bvm::NodeInstance *node = graph.add_node("PASS_FLOAT3", "pass0");
-		node->set_input_value("value", bvm::float3(0.5, 1.5, -0.3));
-		
-		graph.set_output_link("force", node, "value");
-	}
-#endif
 }
 
 struct BVMExpression *BVM_gen_forcefield_expression(bNodeTree *btree)

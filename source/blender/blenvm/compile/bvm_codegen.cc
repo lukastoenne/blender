@@ -249,15 +249,6 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 		}
 	}
 	
-#if 0
-	// XXX TESTING
-	{
-		push_opcode(OP_VALUE_FLOAT3);
-		push_float3(float3(0.3, -0.6, 0.0));
-		push_stack_index(expr->return_value(0).stack_offset);
-	}
-#endif
-	
 	push_opcode(OP_END);
 	
 	Expression *result = expr;
