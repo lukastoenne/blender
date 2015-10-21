@@ -107,6 +107,16 @@ static void eval_op_get_elem_float3(float *stack, int index, StackIndex offset_f
 	stack_store_float(stack, offset_to, f[index]);
 }
 
+static void eval_op_effector_position(const EvalData *data, float *stack, StackIndex offset)
+{
+	stack_store_float3(stack, offset, data->effector.position);
+}
+
+static void eval_op_effector_velocity(const EvalData *data, float *stack, StackIndex offset)
+{
+	stack_store_float3(stack, offset, data->effector.velocity);
+}
+
 static void eval_op_add_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
@@ -252,7 +262,7 @@ static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex off
 	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
 }
 
-void EvalContext::eval_instructions(const Expression &expr, float *stack) const
+void EvalContext::eval_instructions(const EvalData *data, const Expression &expr, float *stack) const
 {
 	int instr = 0;
 	
@@ -310,6 +320,16 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 				StackIndex offset_from = expr.read_stack_index(&instr);
 				StackIndex offset_to = expr.read_stack_index(&instr);
 				eval_op_get_elem_float3(stack, 2, offset_from, offset_to);
+				break;
+			}
+			case OP_EFFECTOR_POSITION: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				eval_op_effector_position(data, stack, offset);
+				break;
+			}
+			case OP_EFFECTOR_VELOCITY: {
+				StackIndex offset = expr.read_stack_index(&instr);
+				eval_op_effector_velocity(data, stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {
@@ -466,11 +486,11 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 	}
 }
 
-void EvalContext::eval_expression(const Expression &expr, void **results) const
+void EvalContext::eval_expression(const EvalData *data, const Expression &expr, void **results) const
 {
 	float stack[BVM_STACK_SIZE];
 	
-	eval_instructions(expr, stack);
+	eval_instructions(data, expr, stack);
 	
 	for (int i = 0; i < expr.return_values_size(); ++i) {
 		const ReturnValue &rval = expr.return_value(i);

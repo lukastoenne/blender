@@ -70,11 +70,13 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const
 /* ------------------------------------------------------------------------- */
 
 struct BVMEvalContext;
+struct EffectedPoint;
 
 struct BVMEvalContext *BVM_context_create(void);
 void BVM_context_free(struct BVMEvalContext *result);
 
-void BVM_eval_forcefield(struct BVMEvalContext *context, struct BVMExpression *expr, float force[3], float impulse[3]);
+void BVM_eval_forcefield(struct BVMEvalContext *context, struct BVMExpression *expr,
+                         const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
 

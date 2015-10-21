@@ -64,14 +64,31 @@ private:
 };
 #endif
 
+struct EffectorEvalData {
+	EffectorEvalData() :
+	    position(0.0f, 0.0f, 0.0f),
+	    velocity(0.0f, 0.0f, 0.0f)
+	{}
+	
+	float3 position;
+	float3 velocity;
+};
+
+struct EvalData {
+	EvalData()
+	{}
+	
+	EffectorEvalData effector;
+};
+
 struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_expression(const Expression &expr, void **results) const;
+	void eval_expression(const EvalData *data, const Expression &expr, void **results) const;
 	
 protected:
-	void eval_instructions(const Expression &expr, float *stack) const;
+	void eval_instructions(const EvalData *data, const Expression &expr, float *stack) const;
 };
 
 } /* namespace bvm */

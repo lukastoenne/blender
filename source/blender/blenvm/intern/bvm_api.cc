@@ -37,6 +37,7 @@ extern "C" {
 
 #include "DNA_node_types.h"
 
+#include "BKE_effect.h"
 #include "BKE_node.h"
 
 #include "BVM_api.h"
@@ -106,10 +107,15 @@ struct BVMEvalContext *BVM_context_create(void)
 void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
 
-void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr, float force[3], float impulse[3])
+void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
+                         const EffectedPoint *point, float force[3], float impulse[3])
 {
+	bvm::EvalData data;
+	data.effector.position = bvm::float3(point->loc[0], point->loc[1], point->loc[2]);
+	data.effector.velocity = bvm::float3(point->vel[0], point->vel[1], point->vel[2]);
 	void *results[] = { force, impulse };
-	_CTX(ctx)->eval_expression(*_EXPR(expr), results);
+	
+	_CTX(ctx)->eval_expression(&data, *_EXPR(expr), results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -245,6 +251,16 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 			map_input_socket(socket_map, bnode, 1, node, "value_y");
 			map_input_socket(socket_map, bnode, 2, node, "value_z");
 			map_output_socket(socket_map, bnode, 0, node, "value");
+		}
+		else if (bvm::string(type) == "ForceEffectorDataNode") {
+			{
+				bvm::NodeInstance *node = graph.add_node("EFFECTOR_POSITION", "EFFECTOR_POS" + bvm::string(bnode->name));
+				map_output_socket(socket_map, bnode, 0, node, "value");
+			}
+			{
+				bvm::NodeInstance *node = graph.add_node("EFFECTOR_VELOCITY", "EFFECTOR_VEL" + bvm::string(bnode->name));
+				map_output_socket(socket_map, bnode, 1, node, "value");
+			}
 		}
 		else if (bvm::string(type) == "ObjectMathNode") {
 			int mode = RNA_enum_get(&ptr, "mode");
