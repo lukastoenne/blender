@@ -222,6 +222,30 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				graph.set_output_link("impulse", node, "value");
 			}
 		}
+		else if (bvm::string(type) == "ObjectSeparateVectorNode") {
+			{
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM0_FLOAT3", "GET_ELEM0_" + bvm::string(bnode->name));
+				map_input_socket(socket_map, bnode, 0, node, "value");
+				map_output_socket(socket_map, bnode, 0, node, "value");
+			}
+			{
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM1_FLOAT3", "GET_ELEM1_" + bvm::string(bnode->name));
+				map_input_socket(socket_map, bnode, 0, node, "value");
+				map_output_socket(socket_map, bnode, 1, node, "value");
+			}
+			{
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM2_FLOAT3", "GET_ELEM2_" + bvm::string(bnode->name));
+				map_input_socket(socket_map, bnode, 0, node, "value");
+				map_output_socket(socket_map, bnode, 2, node, "value");
+			}
+		}
+		else if (bvm::string(type) == "ObjectCombineVectorNode") {
+			bvm::NodeInstance *node = graph.add_node("SET_FLOAT3", bvm::string(bnode->name));
+			map_input_socket(socket_map, bnode, 0, node, "value_x");
+			map_input_socket(socket_map, bnode, 1, node, "value_y");
+			map_input_socket(socket_map, bnode, 2, node, "value_z");
+			map_output_socket(socket_map, bnode, 0, node, "value");
+		}
 		else if (bvm::string(type) == "ObjectMathNode") {
 			int mode = RNA_enum_get(&ptr, "mode");
 			switch (mode) {

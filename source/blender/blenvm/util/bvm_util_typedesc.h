@@ -49,6 +49,15 @@ struct float3 {
 	    x(x), y(y), z(z)
 	{}
 	
+	float& operator[] (int index)
+	{
+		return ((float*)(&x))[index];
+	}
+	float operator[] (int index) const
+	{
+		return ((float*)(&x))[index];
+	}
+	
 	float x;
 	float y;
 	float z;

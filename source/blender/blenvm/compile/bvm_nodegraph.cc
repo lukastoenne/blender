@@ -543,6 +543,10 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(PASS_FLOAT);
 	NODETYPE(PASS_FLOAT3);
+	NODETYPE(SET_FLOAT3);
+	NODETYPE(GET_ELEM0_FLOAT3);
+	NODETYPE(GET_ELEM1_FLOAT3);
+	NODETYPE(GET_ELEM2_FLOAT3);
 	
 	NODETYPE(ADD_FLOAT);
 	NODETYPE(SUB_FLOAT);
@@ -584,6 +588,24 @@ void register_opcode_node_types()
 	
 	nt = NodeGraph::add_node_type("PASS_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("GET_ELEM0_FLOAT3");
+	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("GET_ELEM1_FLOAT3");
+	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("GET_ELEM2_FLOAT3");
+	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("SET_FLOAT3");
+	nt->add_input("value_x", BVM_FLOAT, 0.0f);
+	nt->add_input("value_y", BVM_FLOAT, 0.0f);
+	nt->add_input("value_z", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	#define BINARY_MATH_NODE(name) \

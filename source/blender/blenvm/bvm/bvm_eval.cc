@@ -68,6 +68,8 @@ inline static void stack_store_float3(float *stack, StackIndex offset, float3 f)
 	*(float3 *)(&stack[offset]) = f;
 }
 
+/* ------------------------------------------------------------------------- */
+
 static void eval_op_value_float(float *stack, float value, StackIndex offset)
 {
 	stack_store_float(stack, offset, value);
@@ -88,6 +90,21 @@ static void eval_op_pass_float3(float *stack, StackIndex offset_from, StackIndex
 {
 	float3 f = stack_load_float3(stack, offset_from);
 	stack_store_float3(stack, offset_to, f);
+}
+
+static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
+{
+	float x = stack_load_float(stack, offset_x);
+	float y = stack_load_float(stack, offset_y);
+	float z = stack_load_float(stack, offset_z);
+	stack_store_float3(stack, offset_to, float3(x, y, z));
+}
+
+static void eval_op_get_elem_float3(float *stack, int index, StackIndex offset_from, StackIndex offset_to)
+{
+	assert(index >= 0 && index < 3);
+	float3 f = stack_load_float3(stack, offset_from);
+	stack_store_float(stack, offset_to, f[index]);
 }
 
 static void eval_op_add_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
@@ -267,6 +284,32 @@ void EvalContext::eval_instructions(const Expression &expr, float *stack) const
 				StackIndex offset_from = expr.read_stack_index(&instr);
 				StackIndex offset_to = expr.read_stack_index(&instr);
 				eval_op_pass_float3(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_SET_FLOAT3: {
+				StackIndex offset_x = expr.read_stack_index(&instr);
+				StackIndex offset_y = expr.read_stack_index(&instr);
+				StackIndex offset_z = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_set_float3(stack, offset_x, offset_y, offset_z, offset_to);
+				break;
+			}
+			case OP_GET_ELEM0_FLOAT3: {
+				StackIndex offset_from = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_get_elem_float3(stack, 0, offset_from, offset_to);
+				break;
+			}
+			case OP_GET_ELEM1_FLOAT3: {
+				StackIndex offset_from = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_get_elem_float3(stack, 1, offset_from, offset_to);
+				break;
+			}
+			case OP_GET_ELEM2_FLOAT3: {
+				StackIndex offset_from = expr.read_stack_index(&instr);
+				StackIndex offset_to = expr.read_stack_index(&instr);
+				eval_op_get_elem_float3(stack, 2, offset_from, offset_to);
 				break;
 			}
 			case OP_ADD_FLOAT: {

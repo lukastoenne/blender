@@ -52,11 +52,25 @@ static inline Instruction float_to_instruction(float f)
 	return u.i;
 }
 
+static inline Instruction int_to_instruction(int v)
+{
+	union { uint32_t i; int v; } u;
+	u.v = v;
+	return u.i;
+}
+
 static inline float instruction_to_float(Instruction i)
 {
 	union { uint32_t i; float f; } u;
 	u.i = i;
 	return u.f;
+}
+
+static inline int instruction_to_int(Instruction i)
+{
+	union { uint32_t i; int v; } u;
+	u.i = i;
+	return u.v;
 }
 
 struct ReturnValue {
@@ -84,18 +98,21 @@ struct Expression {
 		++(*instr);
 		return op;
 	}
+	
 	StackIndex read_stack_index(int *instr) const
 	{
 		StackIndex index = instructions[*instr];
 		++(*instr);
 		return index;
 	}
+	
 	float read_float(int *instr) const
 	{
 		float f = instruction_to_float(instructions[*instr]);
 		++(*instr);
 		return f;
 	}
+	
 	float3 read_float3(int *instr) const
 	{
 		float3 f;
@@ -104,6 +121,13 @@ struct Expression {
 		f.z = instruction_to_float(instructions[*instr + 2]);
 		(*instr) += 3;
 		return f;
+	}
+	
+	int read_int(int *instr) const
+	{
+		int i = instruction_to_int(instructions[*instr]);
+		++(*instr);
+		return i;
 	}
 	
 	void add_instruction(Instruction v);

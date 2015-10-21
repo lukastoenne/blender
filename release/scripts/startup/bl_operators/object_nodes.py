@@ -45,6 +45,10 @@ node_categories = [
     ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
         NodeItem("ForceOutputNode"),
         ]),
+    ForceFieldNodeCategory("CONVERTER", "Converter", items=[
+        NodeItem("ObjectSeparateVectorNode"),
+        NodeItem("ObjectCombineVectorNode"),
+        ]),
     ForceFieldNodeCategory("MATH", "Math", items=[
         NodeItem("ObjectMathNode"),
         NodeItem("ObjectVectorMathNode"),
@@ -117,6 +121,30 @@ class ForceOutputNode(ForceNodeBase, ObjectNode):
     def init(self, context):
         self.inputs.new('NodeSocketVector', "Force")
         self.inputs.new('NodeSocketVector', "Impulse")
+
+
+class SeparateVectorNode(ForceNodeBase, ObjectNode):
+    '''Separate vector into elements'''
+    bl_idname = 'ObjectSeparateVectorNode'
+    bl_label = 'Separate Vector'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketFloat', "X")
+        self.outputs.new('NodeSocketFloat', "Y")
+        self.outputs.new('NodeSocketFloat', "Z")
+
+
+class CombineVectorNode(ForceNodeBase, ObjectNode):
+    '''Combine vector from component values'''
+    bl_idname = 'ObjectCombineVectorNode'
+    bl_label = 'Combine Vector'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketFloat', "X")
+        self.inputs.new('NodeSocketFloat', "Y")
+        self.inputs.new('NodeSocketFloat', "Z")
+        self.outputs.new('NodeSocketVector', "Vector")
 
 
 class MathNode(ForceNodeBase, ObjectNode):
