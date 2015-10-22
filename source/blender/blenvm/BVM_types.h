@@ -39,6 +39,7 @@ extern "C" {
 typedef enum BVMType {
 	BVM_FLOAT,
 	BVM_FLOAT3,
+	BVM_INT,
 } BVMType;
 
 #ifdef __cplusplus

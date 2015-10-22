@@ -91,6 +91,18 @@ struct BaseTypeTraits<BVM_FLOAT3> {
 	}
 };
 
+template <>
+struct BaseTypeTraits<BVM_INT> {
+	typedef int POD;
+	
+	enum eStackSize { stack_size = 1 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
 /* ------------------------------------------------------------------------- */
 
 struct TypeDesc {
@@ -171,6 +183,7 @@ Value *Value::create(BVMType type, T data)
 	switch (type) {
 		case BVM_FLOAT: return new ValueType<BVM_FLOAT>(data);
 		case BVM_FLOAT3: return new ValueType<BVM_FLOAT3>(data);
+		case BVM_INT: return new ValueType<BVM_INT>(data);
 	}
 	return 0;
 }
@@ -181,6 +194,7 @@ bool Value::get(T *data) const
 	switch (m_typedesc.base_type) {
 		case BVM_FLOAT: return static_cast< const ValueType<BVM_FLOAT>* >(this)->get(data);
 		case BVM_FLOAT3: return static_cast< const ValueType<BVM_FLOAT3>* >(this)->get(data);
+		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
 	}
 	return false;
 }
@@ -198,6 +212,7 @@ int TypeDesc::stack_size() const
 	switch (base_type) {
 		case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::stack_size;
 		case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::stack_size;
+		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 	}
 	return 0;
 }
@@ -210,6 +225,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 	switch (base_type) {
 		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT);
 		case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3);
+		case BVM_INT: COPY_TYPE(to, from, BVM_INT);
 	}
 	
 	#undef COPY_TYPE
