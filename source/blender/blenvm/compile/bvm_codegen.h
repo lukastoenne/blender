@@ -59,8 +59,10 @@ struct BVMCompiler {
 	void push_stack_index(StackIndex arg);
 	void push_float(float f);
 	void push_float3(float3 f);
+	void push_int(int i);
 	
 	StackIndex codegen_value(const Value *value);
+	void codegen_constant(const Value *value);
 	Expression *codegen_expression(const NodeGraph &graph);
 	
 private:

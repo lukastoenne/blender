@@ -104,6 +104,11 @@ void BVMCompiler::push_float3(float3 f)
 	expr->add_instruction(float_to_instruction(f.z));
 }
 
+void BVMCompiler::push_int(int i)
+{
+	expr->add_instruction(int_to_instruction(i));
+}
+
 StackIndex BVMCompiler::codegen_value(const Value *value)
 {
 	StackIndex offset = assign_stack_index(value->typedesc());
@@ -127,9 +132,45 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 			push_stack_index(offset);
 			break;
 		}
+		case BVM_INT: {
+			int i = 0;
+			value->get(&i);
+			
+			push_opcode(OP_VALUE_INT);
+			push_int(i);
+			push_stack_index(offset);
+			break;
+		}
 	}
 	
 	return offset;
+}
+
+void BVMCompiler::codegen_constant(const Value *value)
+{
+	switch (value->typedesc().base_type) {
+		case BVM_FLOAT: {
+			float f = 0.0f;
+			value->get(&f);
+			
+			push_float(f);
+			break;
+		}
+		case BVM_FLOAT3: {
+			float3 f = float3(0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_float3(f);
+			break;
+		}
+		case BVM_INT: {
+			int i = 0;
+			value->get(&i);
+			
+			push_int(i);
+			break;
+		}
+	}
 }
 
 #if 0
@@ -198,7 +239,12 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 			const NodeSocket &input = node.type->inputs[i];
 			SocketPair key(&node, &input);
 			
-			if (node.has_input_link(i)) {
+			if (node.is_input_constant(i)) {
+				/* value is stored directly in the instructions list,
+				 * after the opcode
+				 */
+			}
+			else if (node.has_input_link(i)) {
 				const NodeInstance *link_node = node.find_input_link_node(i);
 				const NodeSocket *link_socket = node.find_input_link_socket(i);
 				SocketPair link_key(link_node, link_socket);
@@ -220,7 +266,13 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 			const NodeSocket &input = node.type->inputs[i];
 			SocketPair key(&node, &input);
 			
-			push_stack_index(socket_index[key]);
+			if (node.is_input_constant(i)) {
+				Value *value = node.find_input_value(i);
+				codegen_constant(value);
+			}
+			else {
+				push_stack_index(socket_index[key]);
+			}
 		}
 		for (int i = 0; i < node.type->outputs.size(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];

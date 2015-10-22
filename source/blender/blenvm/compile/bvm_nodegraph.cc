@@ -38,10 +38,11 @@
 
 namespace bvm {
 
-NodeSocket::NodeSocket(const string &name, BVMType type, Value *default_value) :
+NodeSocket::NodeSocket(const string &name, BVMType type, Value *default_value, bool constant) :
     name(name),
     type(type),
-    default_value(default_value)
+    default_value(default_value),
+    constant(constant)
 {
 }
 
@@ -179,17 +180,17 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 }
 #endif
 
-const NodeSocket *NodeType::add_input(const string &name, BVMType type, Value *default_value)
+const NodeSocket *NodeType::add_input(const string &name, BVMType type, Value *default_value, bool constant)
 {
 	BLI_assert(!find_input(name));
-	inputs.push_back(NodeSocket(name, type, default_value));
+	inputs.push_back(NodeSocket(name, type, default_value, constant));
 	return &inputs.back();
 }
 
 const NodeSocket *NodeType::add_output(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!find_output(name));
-	outputs.push_back(NodeSocket(name, type, default_value));
+	outputs.push_back(NodeSocket(name, type, default_value, false));
 	return &outputs.back();
 }
 
@@ -343,6 +344,18 @@ bool NodeInstance::has_input_value(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
 	return socket ? has_input_value(socket->name) : false;
+}
+
+bool NodeInstance::is_input_constant(const string &name) const
+{
+	const NodeSocket *socket = type->find_input(name);
+	return socket ? socket->constant : false;
+}
+
+bool NodeInstance::is_input_constant(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? socket->constant : false;
 }
 
 bool NodeInstance::set_output_value(const string &name, Value *value)
@@ -544,9 +557,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(PASS_FLOAT);
 	NODETYPE(PASS_FLOAT3);
 	NODETYPE(SET_FLOAT3);
-	NODETYPE(GET_ELEM0_FLOAT3);
-	NODETYPE(GET_ELEM1_FLOAT3);
-	NODETYPE(GET_ELEM2_FLOAT3);
+	NODETYPE(GET_ELEM_FLOAT3);
 	
 	NODETYPE(EFFECTOR_POSITION);
 	NODETYPE(EFFECTOR_VELOCITY);
@@ -593,15 +604,8 @@ void register_opcode_node_types()
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_node_type("GET_ELEM0_FLOAT3");
-	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
-	
-	nt = NodeGraph::add_node_type("GET_ELEM1_FLOAT3");
-	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
-	
-	nt = NodeGraph::add_node_type("GET_ELEM2_FLOAT3");
+	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
+	nt->add_input("index", BVM_INT, 0, true);
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	

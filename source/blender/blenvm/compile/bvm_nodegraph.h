@@ -57,12 +57,13 @@ struct NodeGraphInput;
 struct NodeType;
 
 struct NodeSocket {
-	NodeSocket(const string &name, BVMType type, Value *default_value);
+	NodeSocket(const string &name, BVMType type, Value *default_value, bool constant);
 	~NodeSocket();
 	
 	string name;
 	BVMType type;
 	Value *default_value;
+	bool constant;
 };
 
 struct NodeType {
@@ -83,15 +84,15 @@ struct NodeType {
 //	                            Module *module, LLVMContext &context, raw_ostream &err);
 //	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
 	
-	const NodeSocket *add_input(const string &name, BVMType type, Value *default_value);
+	const NodeSocket *add_input(const string &name, BVMType type, Value *default_value, bool constant=false);
 	const NodeSocket *add_output(const string &name, BVMType type, Value *default_value);
 	
 	template <typename T>
-	const NodeSocket *add_input(const string &name, BVMType type, T default_value)
+	const NodeSocket *add_input(const string &name, BVMType type, T default_value, bool constant=false)
 	{
 		Value *c = Value::create(type, default_value);
 		BLI_assert(c != NULL);
-		return add_input(name, type, c);
+		return add_input(name, type, c, constant);
 	}
 	
 	template <typename T>
@@ -163,6 +164,8 @@ struct NodeInstance {
 	bool has_input_extern(int index) const;
 	bool has_input_value(const string &name) const;
 	bool has_input_value(int index) const;
+	bool is_input_constant(const string &name) const;
+	bool is_input_constant(int index) const;
 	bool has_output_value(const string &name) const;
 	bool has_output_value(int index) const;
 	

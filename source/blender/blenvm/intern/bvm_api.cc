@@ -236,17 +236,20 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 		}
 		else if (type == "ObjectSeparateVectorNode") {
 			{
-				bvm::NodeInstance *node = graph.add_node("GET_ELEM0_FLOAT3", "GET_ELEM0_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM_FLOAT3", "GET_ELEM0_" + bvm::string(bnode->name));
+				node->set_input_value("index", 0);
 				map_input_socket(input_map, bnode, 0, node, "value");
 				map_output_socket(output_map, bnode, 0, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = graph.add_node("GET_ELEM1_FLOAT3", "GET_ELEM1_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM_FLOAT3", "GET_ELEM1_" + bvm::string(bnode->name));
+				node->set_input_value("index", 1);
 				map_input_socket(input_map, bnode, 0, node, "value");
 				map_output_socket(output_map, bnode, 1, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = graph.add_node("GET_ELEM2_FLOAT3", "GET_ELEM2_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = graph.add_node("GET_ELEM_FLOAT3", "GET_ELEM2_" + bvm::string(bnode->name));
+				node->set_input_value("index", 2);
 				map_input_socket(input_map, bnode, 0, node, "value");
 				map_output_socket(output_map, bnode, 2, node, "value");
 			}
