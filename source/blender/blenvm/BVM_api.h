@@ -38,7 +38,6 @@
 extern "C" {
 #endif
 
-struct BVMContext;
 struct BVMExpression;
 struct BVMFunction;
 struct BVMModule;
@@ -69,13 +68,17 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const
 
 /* ------------------------------------------------------------------------- */
 
+struct BVMEvalGlobals;
 struct BVMEvalContext;
 struct EffectedPoint;
 
-struct BVMEvalContext *BVM_context_create(void);
-void BVM_context_free(struct BVMEvalContext *result);
+struct BVMEvalGlobals *BVM_globals_create(void);
+void BVM_globals_free(struct BVMEvalGlobals *globals);
 
-void BVM_eval_forcefield(struct BVMEvalContext *context, struct BVMExpression *expr,
+struct BVMEvalContext *BVM_context_create(void);
+void BVM_context_free(struct BVMEvalContext *context);
+
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMExpression *expr,
                          const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */

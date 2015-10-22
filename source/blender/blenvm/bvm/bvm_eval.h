@@ -38,6 +38,8 @@
 #include "bvm_util_string.h"
 #include "bvm_util_typedesc.h"
 
+struct Object;
+
 namespace bvm {
 
 struct Expression;
@@ -64,6 +66,12 @@ private:
 };
 #endif
 
+struct EvalGlobals {
+	typedef std::vector<Object *> ObjectList;
+	
+	ObjectList objects;
+};
+
 struct EffectorEvalData {
 	EffectorEvalData() :
 	    position(0.0f, 0.0f, 0.0f),
@@ -85,10 +93,10 @@ struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_expression(const EvalData *data, const Expression &expr, void **results) const;
+	void eval_expression(const EvalGlobals *globals, const EvalData *data, const Expression *expr, void **results) const;
 	
 protected:
-	void eval_instructions(const EvalData *data, const Expression &expr, float *stack) const;
+	void eval_instructions(const EvalGlobals *globals, const EvalData *data, const Expression *expr, float *stack) const;
 };
 
 } /* namespace bvm */

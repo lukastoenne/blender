@@ -267,7 +267,7 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 	if (precalc)
 		pdPrecalculateEffectors(effctx);
 	
-	effctx->eval_context = BVM_context_create();
+	effctx->eval_globals = BVM_globals_create();
 	
 	return effctx;
 }
@@ -285,8 +285,8 @@ void pdEndEffectors(EffectorContext *effctx)
 		
 		BLI_freelistN(&effctx->effectors);
 		
-		if (effctx->eval_context)
-			BVM_context_free(effctx->eval_context);
+		if (effctx->eval_globals)
+			BVM_globals_free(effctx->eval_globals);
 		
 		MEM_freeN(effctx);
 	}
@@ -1010,6 +1010,8 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 	EffectorData efd;
 	int p=0, tot = 1, step = 1;
 
+	struct BVMEvalContext *eval_context = BVM_context_create();
+
 	/* Cycle through collected objects, get total of (1/(gravity_strength * dist^gravity_power)) */
 	/* Check for min distance here? (yes would be cool to add that, ton) */
 	
@@ -1020,7 +1022,7 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 
 		for (; p<tot; p+=step) {
 			if (eff->expression) {
-				BVM_eval_forcefield(effctx->eval_context, eff->expression, point, force, impulse);
+				BVM_eval_forcefield(effctx->eval_globals, eval_context, eff->expression, point, force, impulse);
 			}
 			else if (get_effector_data(eff, &efd, point, 0)) {
 				efd.falloff= effector_falloff(eff, &efd, point, weights);
@@ -1053,6 +1055,8 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 			}
 		}
 	}
+	
+	BVM_context_free(eval_context);
 }
 
 /* ======== Simulation Debugging ======== */

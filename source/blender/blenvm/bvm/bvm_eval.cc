@@ -277,213 +277,213 @@ static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex off
 	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
 }
 
-void EvalContext::eval_instructions(const EvalData *data, const Expression &expr, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Expression *expr, float *stack) const
 {
 	int instr = 0;
 	
 	while (true) {
-		OpCode op = expr.read_opcode(&instr);
+		OpCode op = expr->read_opcode(&instr);
 		
 		switch(op) {
 			case OP_NOOP:
 				break;
 			case OP_VALUE_FLOAT: {
-				float value = expr.read_float(&instr);
-				StackIndex offset = expr.read_stack_index(&instr);
+				float value = expr->read_float(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_value_float(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_FLOAT3: {
-				float3 value = expr.read_float3(&instr);
-				StackIndex offset = expr.read_stack_index(&instr);
+				float3 value = expr->read_float3(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_value_float3(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_INT: {
-				int value = expr.read_int(&instr);
-				StackIndex offset = expr.read_stack_index(&instr);
+				int value = expr->read_int(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_value_int(stack, value, offset);
 				break;
 			}
 			case OP_PASS_FLOAT: {
-				StackIndex offset_from = expr.read_stack_index(&instr);
-				StackIndex offset_to = expr.read_stack_index(&instr);
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_pass_float(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_FLOAT3: {
-				StackIndex offset_from = expr.read_stack_index(&instr);
-				StackIndex offset_to = expr.read_stack_index(&instr);
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_pass_float3(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT3: {
-				StackIndex offset_x = expr.read_stack_index(&instr);
-				StackIndex offset_y = expr.read_stack_index(&instr);
-				StackIndex offset_z = expr.read_stack_index(&instr);
-				StackIndex offset_to = expr.read_stack_index(&instr);
+				StackIndex offset_x = expr->read_stack_index(&instr);
+				StackIndex offset_y = expr->read_stack_index(&instr);
+				StackIndex offset_z = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_set_float3(stack, offset_x, offset_y, offset_z, offset_to);
 				break;
 			}
 			case OP_GET_ELEM_FLOAT3: {
-				int index = expr.read_int(&instr);
-				StackIndex offset_from = expr.read_stack_index(&instr);
-				StackIndex offset_to = expr.read_stack_index(&instr);
+				int index = expr->read_int(&instr);
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_get_elem_float3(stack, index, offset_from, offset_to);
 				break;
 			}
 			case OP_EFFECTOR_POSITION: {
-				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_effector_position(data, stack, offset);
 				break;
 			}
 			case OP_EFFECTOR_VELOCITY: {
-				StackIndex offset = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_effector_velocity(data, stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_add_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SUB_FLOAT: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sub_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MUL_FLOAT: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_mul_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_DIV_FLOAT: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_div_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SINE: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sine(stack, offset, offset_r);
 				break;
 			}
 			case OP_COSINE: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_cosine(stack, offset, offset_r);
 				break;
 			}
 			case OP_TANGENT: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_tangent(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCSINE: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_arcsine(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCCOSINE: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_arccosine(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCTANGENT: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_arctangent(stack, offset, offset_r);
 				break;
 			}
 			case OP_POWER: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_power(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_LOGARITHM: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_logarithm(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MINIMUM: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_minimum(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MAXIMUM: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_maximum(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_ROUND: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_round(stack, offset, offset_r);
 				break;
 			}
 			case OP_LESS_THAN: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_less_than(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_GREATER_THAN: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_greater_than(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MODULO: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_modulo(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_ABSOLUTE: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_absolute(stack, offset, offset_r);
 				break;
 			}
 			case OP_CLAMP: {
-				StackIndex offset = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_clamp(stack, offset, offset_r);
 				break;
 			}
 			case OP_ADD_FLOAT3: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_add_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SUB_FLOAT3: {
-				StackIndex offset_a = expr.read_stack_index(&instr);
-				StackIndex offset_b = expr.read_stack_index(&instr);
-				StackIndex offset_r = expr.read_stack_index(&instr);
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
@@ -496,14 +496,14 @@ void EvalContext::eval_instructions(const EvalData *data, const Expression &expr
 	}
 }
 
-void EvalContext::eval_expression(const EvalData *data, const Expression &expr, void **results) const
+void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Expression *expr, void **results) const
 {
 	float stack[BVM_STACK_SIZE];
 	
-	eval_instructions(data, expr, stack);
+	eval_instructions(globals, data, expr, stack);
 	
-	for (int i = 0; i < expr.return_values_size(); ++i) {
-		const ReturnValue &rval = expr.return_value(i);
+	for (int i = 0; i < expr->return_values_size(); ++i) {
+		const ReturnValue &rval = expr->return_value(i);
 		float *value = &stack[rval.stack_offset];
 		
 		rval.typedesc.copy_value(results[i], (void *)value);

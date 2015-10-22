@@ -114,7 +114,7 @@ typedef struct EffectorCache {
 typedef struct EffectorContext {
 	ListBase effectors;
 	
-	struct BVMEvalContext *eval_context;
+	struct BVMEvalGlobals *eval_globals;
 } EffectorContext;
 
 void            free_partdeflect(struct PartDeflect *pd);

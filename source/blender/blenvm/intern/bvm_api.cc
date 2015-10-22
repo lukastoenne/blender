@@ -100,8 +100,16 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *
 
 /* ------------------------------------------------------------------------- */
 
+BLI_INLINE bvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
+{ return (bvm::EvalGlobals *)globals; }
 BLI_INLINE bvm::EvalContext *_CTX(struct BVMEvalContext *ctx)
 { return (bvm::EvalContext *)ctx; }
+
+struct BVMEvalGlobals *BVM_globals_create(void)
+{ return (BVMEvalGlobals *)(new bvm::EvalGlobals()); }
+
+void BVM_globals_free(struct BVMEvalGlobals *globals)
+{ delete _GLOBALS(globals); }
 
 struct BVMEvalContext *BVM_context_create(void)
 { return (BVMEvalContext *)(new bvm::EvalContext()); }
@@ -109,7 +117,7 @@ struct BVMEvalContext *BVM_context_create(void)
 void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
 
-void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMExpression *expr,
                          const EffectedPoint *point, float force[3], float impulse[3])
 {
 	bvm::EvalData data;
@@ -117,7 +125,7 @@ void BVM_eval_forcefield(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 	data.effector.velocity = bvm::float3(point->vel[0], point->vel[1], point->vel[2]);
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_expression(&data, *_EXPR(expr), results);
+	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _EXPR(expr), results);
 }
 
 /* ------------------------------------------------------------------------- */
