@@ -464,15 +464,15 @@ void BKE_scene_free(Scene *sce)
 	BKE_previewimg_free(&sce->preview);
 }
 
-Scene *BKE_scene_add(Main *bmain, const char *name)
+void BKE_scene_init(Scene *sce)
 {
-	Scene *sce;
 	ParticleEditSettings *pset;
 	int a;
 	const char *colorspace_name;
 	SceneRenderView *srv;
 
-	sce = BKE_libblock_alloc(bmain, ID_SCE, name);
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(sce, id));
+
 	sce->lay = sce->layact = 1;
 	
 	sce->r.mode = R_GAMMA | R_OSA | R_SHADOW | R_SSS | R_ENVMAP | R_RAYTRACE;
@@ -743,6 +743,15 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	copy_v2_fl2(sce->safe_areas.action_center, 15.0f / 100.0f, 5.0f / 100.0f);
 
 	sce->preview = NULL;
+}
+
+Scene *BKE_scene_add(Main *bmain, const char *name)
+{
+	Scene *sce;
+
+	sce = BKE_libblock_alloc(bmain, ID_SCE, name);
+
+	BKE_scene_init(sce);
 
 	return sce;
 }
@@ -2287,10 +2296,10 @@ double BKE_scene_unit_scale(const UnitSettings *unit, const int unit_type, doubl
 
 /******************** multiview *************************/
 
-size_t BKE_scene_multiview_num_views_get(const RenderData *rd)
+int BKE_scene_multiview_num_views_get(const RenderData *rd)
 {
 	SceneRenderView *srv;
-	size_t totviews	= 0;
+	int totviews = 0;
 
 	if ((rd->scemode & R_MULTIVIEW) == 0)
 		return 1;
@@ -2423,7 +2432,7 @@ const char *BKE_scene_multiview_render_view_name_get(const RenderData *rd, const
 		return "";
 }
 
-size_t BKE_scene_multiview_view_id_get(const RenderData *rd, const char *viewname)
+int BKE_scene_multiview_view_id_get(const RenderData *rd, const char *viewname)
 {
 	SceneRenderView *srv;
 	size_t nr;
@@ -2494,7 +2503,7 @@ const char *BKE_scene_multiview_view_suffix_get(const RenderData *rd, const char
 		return viewname;
 }
 
-const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, const size_t view_id)
+const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, const int view_id)
 {
 	if ((rd->scemode & R_MULTIVIEW) == 0) {
 		return "";
@@ -2549,7 +2558,7 @@ void BKE_scene_multiview_videos_dimensions_get(
 	}
 }
 
-size_t BKE_scene_multiview_num_videos_get(const RenderData *rd)
+int BKE_scene_multiview_num_videos_get(const RenderData *rd)
 {
 	if (BKE_imtype_is_movie(rd->im_format.imtype) == false)
 		return 0;

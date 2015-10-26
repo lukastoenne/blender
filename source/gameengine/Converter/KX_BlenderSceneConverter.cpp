@@ -138,14 +138,6 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	// clears meshes, and hashmaps from blender to gameengine data
 	// delete sumoshapes
 
-	if (m_threadinfo) {
-		BLI_task_pool_work_and_wait(m_threadinfo->m_pool);
-		BLI_task_pool_free(m_threadinfo->m_pool);
-
-		BLI_mutex_end(&m_threadinfo->m_mutex);
-		delete m_threadinfo;
-	}
-
 	int numAdtLists = m_map_blender_to_gameAdtList.size();
 	for (int i = 0; i < numAdtLists; i++) {
 		BL_InterpolatorList *adtList = *m_map_blender_to_gameAdtList.at(i);
@@ -188,6 +180,15 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	}
 
 	m_DynamicMaggie.clear();
+
+	if (m_threadinfo) {
+		/* Thread infos like mutex must be freed after FreeBlendFile function.
+		Because it needs to lock the mutex, even if there's no active task when it's
+		in the scene converter destructor. */
+		BLI_task_pool_free(m_threadinfo->m_pool);
+		BLI_mutex_end(&m_threadinfo->m_mutex);
+		delete m_threadinfo;
+	}
 }
 
 void KX_BlenderSceneConverter::SetNewFileName(const STR_String &filename)
@@ -806,6 +807,16 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 	BLI_mutex_unlock(&m_threadinfo->m_mutex);
 }
 
+void KX_BlenderSceneConverter::FinalizeAsyncLoads()
+{
+	// Finish all loading libraries.
+	if (m_threadinfo) {
+		BLI_task_pool_work_and_wait(m_threadinfo->m_pool);
+	}
+	// Merge all libraries data in the current scene, to avoid memory leak of unmerged scenes.
+	MergeAsyncLoads();
+}
+
 void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 {
 	BLI_mutex_lock(&m_threadinfo->m_mutex);
@@ -861,7 +872,7 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
 	int i = 0;
 	LinkNode *n = names;
 	while (n) {
-		BLO_library_append_named_part(main_tmp, &bpy_openlib, (char *)n->link, idcode);
+		BLO_library_link_named_part(main_tmp, &bpy_openlib, idcode, (char *)n->link);
 		n = (LinkNode *)n->next;
 		i++;
 	}
@@ -905,7 +916,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 	short flag = 0; /* don't need any special options */
 	/* created only for linking, then freed */
-	Main *main_tmp = BLO_library_append_begin(main_newlib, &bpy_openlib, (char *)path);
+	Main *main_tmp = BLO_library_link_begin(main_newlib, &bpy_openlib, (char *)path);
 
 	load_datablocks(main_tmp, bpy_openlib, path, idcode);
 
@@ -918,7 +929,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		load_datablocks(main_tmp, bpy_openlib, path, ID_AC);
 	}
 
-	BLO_library_append_end(NULL, main_tmp, &bpy_openlib, idcode, flag);
+	BLO_library_link_end(main_tmp, &bpy_openlib, flag, NULL, NULL);
 
 	BLO_blendhandle_close(bpy_openlib);
 
@@ -1017,7 +1028,19 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 	if (maggie == NULL)
 		return false;
-	
+
+	// If the given library is currently in loading, we do nothing.
+	if (m_status_map.count(maggie->name)) {
+		BLI_mutex_lock(&m_threadinfo->m_mutex);
+		const bool finished = m_status_map[maggie->name]->IsFinished();
+		BLI_mutex_unlock(&m_threadinfo->m_mutex);
+
+		if (!finished) {
+			printf("Library (%s) is currently being loaded asynchronously, and cannot be freed until this process is done\n", maggie->name);
+			return false;
+		}
+	}
+
 	/* tag all false except the one we remove */
 	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
 		Main *main = *it;

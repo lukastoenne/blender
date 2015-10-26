@@ -421,7 +421,7 @@ void BL_ConvertActuators(const char* maggiename,
 						soundActuatorType);
 
 					// if we made it mono, we have to free it
-					if(snd_sound != sound->playback_handle && snd_sound != NULL)
+					if(sound && snd_sound && snd_sound != sound->playback_handle)
 						AUD_Sound_free(snd_sound);
 
 					tmpsoundact->SetName(bact->name);
@@ -804,6 +804,12 @@ void BL_ConvertActuators(const char* maggiename,
 				case ACT_GAME_LOADCFG:
 					{
 						mode = KX_GameActuator::KX_GAME_LOADCFG;
+						break;
+					}
+					case ACT_GAME_SCREENSHOT:
+					{
+						mode = KX_GameActuator::KX_GAME_SCREENSHOT;
+						filename = gameact->filename;
 						break;
 					}
 				default:
