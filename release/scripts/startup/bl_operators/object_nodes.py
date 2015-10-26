@@ -223,6 +223,10 @@ class VectorMathNode(ForceNodeBase, ObjectNode):
     _mode_items = [
         ('ADD', 'Add', '', 'NONE', 0),
         ('SUB', 'Subtract', '', 'NONE', 1),
+        ('AVERAGE', 'Average', '', 'NONE', 2),
+        ('DOT', 'Dot Product', '', 'NONE', 3),
+        ('CROSS', 'Cross Product', '', 'NONE', 4),
+        ('NORMALIZE', 'Normalize', '', 'NONE', 5),
     ]
     mode = EnumProperty(name="Mode",
                         items=_mode_items)

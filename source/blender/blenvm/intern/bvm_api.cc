@@ -329,6 +329,41 @@ static void gen_forcefield_nodegraph(Object *effob, bNodeTree *btree, bvm::NodeG
 					map_output_socket(output_map, bnode, 0, node, "value");
 					break;
 				}
+				case 2: {
+					bvm::NodeInstance *node = graph.add_node("AVERAGE_FLOAT3", bnode->name);
+					map_input_socket(input_map, bnode, 0, node, "value_a");
+					map_input_socket(input_map, bnode, 1, node, "value_b");
+					map_output_socket(output_map, bnode, 0, node, "value");
+					break;
+				}
+				case 3: {
+					bvm::NodeInstance *node = graph.add_node("DOT_FLOAT3", bnode->name);
+					map_input_socket(input_map, bnode, 0, node, "value_a");
+					map_input_socket(input_map, bnode, 1, node, "value_b");
+					map_output_socket(output_map, bnode, 1, node, "value");
+					break;
+				}
+				case 4: {
+					bvm::NodeInstance *node = graph.add_node("CROSS_FLOAT3", bnode->name);
+					map_input_socket(input_map, bnode, 0, node, "value_a");
+					map_input_socket(input_map, bnode, 1, node, "value_b");
+					map_output_socket(output_map, bnode, 0, node, "value");
+					break;
+				}
+				case 5: {
+					bvm::NodeInstance *node = graph.add_node("NORMALIZE_FLOAT3", bnode->name);
+					bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
+					bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
+					bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
+					bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
+					if (sock0_linked || !sock1_linked)
+						map_input_socket(input_map, bnode, 0, node, "value");
+					else
+						map_input_socket(input_map, bnode, 1, node, "value");
+					map_output_socket(output_map, bnode, 0, node, "vector");
+					map_output_socket(output_map, bnode, 1, node, "value");
+					break;
+				}
 			}
 		}
 		else if (type == "ForceClosestPointNode") {

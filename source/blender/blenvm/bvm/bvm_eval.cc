@@ -268,6 +268,51 @@ static void eval_op_clamp(float *stack, StackIndex offset, StackIndex offset_r)
 	stack_store_float(stack, offset_r, CLAMPIS(f, 0.0f, 1.0f));
 }
 
+static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x + b.x, a.y + b.y, a.z + b.z));
+}
+
+static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
+}
+
+static void eval_op_average_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(0.5f*(a.x+b.x), 0.5f*(a.y+b.y), 0.5f*(a.z+b.z)));
+}
+
+static void eval_op_dot_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float(stack, offset_r, a.x * b.x + a.y * b.y + a.z * b.z);
+}
+
+static void eval_op_cross_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x));
+}
+
+static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex offset_vec, StackIndex offset_val)
+{
+	float3 v = stack_load_float3(stack, offset);
+	float l = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
+	float f = l > 0.0f ? 1.0f/l : 0.0f;
+	float3 vec(v.x * f, v.y * f, v.z * f);
+	stack_store_float3(stack, offset_vec, vec);
+	stack_store_float(stack, offset_val, l);
+}
+
 static void eval_op_effector_closest_point(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_vector,
                                            StackIndex offset_position, StackIndex offset_normal, StackIndex offset_tangent)
 {
@@ -301,20 +346,6 @@ static void eval_op_effector_closest_point(const EvalGlobals *globals, float *st
 		stack_store_float3(stack, offset_position, pos);
 		stack_store_float3(stack, offset_normal, nor);
 	}
-}
-
-static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
-{
-	float3 a = stack_load_float3(stack, offset_a);
-	float3 b = stack_load_float3(stack, offset_b);
-	stack_store_float3(stack, offset_r, float3(a.x + b.x, a.y + b.y, a.z + b.z));
-}
-
-static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
-{
-	float3 a = stack_load_float3(stack, offset_a);
-	float3 b = stack_load_float3(stack, offset_b);
-	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
 }
 
 void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Expression *expr, float *stack) const
@@ -525,6 +556,34 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_b = expr->read_stack_index(&instr);
 				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_AVERAGE_FLOAT3: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_average_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_DOT_FLOAT3: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_dot_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_CROSS_FLOAT3: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_cross_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_NORMALIZE_FLOAT3: {
+				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset_vec = expr->read_stack_index(&instr);
+				StackIndex offset_val = expr->read_stack_index(&instr);
+				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
 				break;
 			}
 			case OP_EFFECTOR_CLOSEST_POINT: {
