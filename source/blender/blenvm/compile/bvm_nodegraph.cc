@@ -559,8 +559,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
 	
-	NODETYPE(EFFECTOR_POSITION);
-	NODETYPE(EFFECTOR_VELOCITY);
+	NODETYPE(POINT_POSITION);
+	NODETYPE(POINT_VELOCITY);
 	
 	NODETYPE(ADD_FLOAT);
 	NODETYPE(SUB_FLOAT);
@@ -621,10 +621,10 @@ void register_opcode_node_types()
 	nt->add_input("value_z", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_node_type("EFFECTOR_POSITION");
+	nt = NodeGraph::add_node_type("POINT_POSITION");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_node_type("EFFECTOR_VELOCITY");
+	nt = NodeGraph::add_node_type("POINT_VELOCITY");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	#define BINARY_MATH_NODE(name) \

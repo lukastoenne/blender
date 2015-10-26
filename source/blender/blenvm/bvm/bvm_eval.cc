@@ -127,12 +127,12 @@ static void eval_op_get_elem_float3(float *stack, int index, StackIndex offset_f
 	stack_store_float(stack, offset_to, f[index]);
 }
 
-static void eval_op_effector_position(const EvalData *data, float *stack, StackIndex offset)
+static void eval_op_point_position(const EvalData *data, float *stack, StackIndex offset)
 {
 	stack_store_float3(stack, offset, data->effector.position);
 }
 
-static void eval_op_effector_velocity(const EvalData *data, float *stack, StackIndex offset)
+static void eval_op_point_velocity(const EvalData *data, float *stack, StackIndex offset)
 {
 	stack_store_float3(stack, offset, data->effector.velocity);
 }
@@ -403,14 +403,14 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_get_elem_float3(stack, index, offset_from, offset_to);
 				break;
 			}
-			case OP_EFFECTOR_POSITION: {
+			case OP_POINT_POSITION: {
 				StackIndex offset = expr->read_stack_index(&instr);
-				eval_op_effector_position(data, stack, offset);
+				eval_op_point_position(data, stack, offset);
 				break;
 			}
-			case OP_EFFECTOR_VELOCITY: {
+			case OP_POINT_VELOCITY: {
 				StackIndex offset = expr->read_stack_index(&instr);
-				eval_op_effector_velocity(data, stack, offset);
+				eval_op_point_velocity(data, stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {

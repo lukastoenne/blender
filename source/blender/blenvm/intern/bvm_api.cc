@@ -277,13 +277,13 @@ static void gen_forcefield_nodegraph(Object *effob, bNodeTree *btree, bvm::NodeG
 			map_input_socket(input_map, bnode, 2, node, "value_z");
 			map_output_socket(output_map, bnode, 0, node, "value");
 		}
-		else if (type == "ForceEffectorDataNode") {
+		else if (type == "ForcePointDataNode") {
 			{
-				bvm::NodeInstance *node = graph.add_node("EFFECTOR_POSITION", "EFFECTOR_POS" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = graph.add_node("POINT_POSITION", "POINT_POS" + bvm::string(bnode->name));
 				map_output_socket(output_map, bnode, 0, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = graph.add_node("EFFECTOR_VELOCITY", "EFFECTOR_VEL" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = graph.add_node("POINT_VELOCITY", "POINT_VEL" + bvm::string(bnode->name));
 				map_output_socket(output_map, bnode, 1, node, "value");
 			}
 		}

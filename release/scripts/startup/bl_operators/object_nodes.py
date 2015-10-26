@@ -43,7 +43,7 @@ node_categories = [
         NodeItem("ForceFieldNode"),
         ]),
     ForceFieldNodeCategory("INPUT", "Input", items=[
-        NodeItem("ForceEffectorDataNode"),
+        NodeItem("ForcePointDataNode"),
         ]),
     ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
         NodeItem("ForceOutputNode"),
@@ -153,10 +153,10 @@ class CombineVectorNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Vector")
 
 
-class EffectorDataNode(ForceNodeBase, ObjectNode):
+class PointDataNode(ForceNodeBase, ObjectNode):
     '''Input data of physical points'''
-    bl_idname = 'ForceEffectorDataNode'
-    bl_label = 'Effector Data'
+    bl_idname = 'ForcePointDataNode'
+    bl_label = 'Point Data'
 
     def init(self, context):
         self.outputs.new('NodeSocketVector', "Position")
