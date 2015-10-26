@@ -586,6 +586,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(ADD_FLOAT3);
 	NODETYPE(SUB_FLOAT3);
 	
+	NODETYPE(EFFECTOR_CLOSEST_POINT);
+	
 	#undef NODETYPE
 	
 	assert(!"Invalid node type");
@@ -665,6 +667,13 @@ void register_opcode_node_types()
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("EFFECTOR_CLOSEST_POINT");
+	nt->add_input("object", BVM_INT, 0, true);
+	nt->add_input("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("tangent", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 }
 
 } /* namespace bvm */

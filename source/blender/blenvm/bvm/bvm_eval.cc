@@ -33,6 +33,11 @@
 
 extern "C" {
 #include "BLI_math.h"
+
+#include "DNA_object_types.h"
+
+#include "BKE_bvhutils.h"
+#include "BKE_DerivedMesh.h"
 }
 
 #include "bvm_eval.h"
@@ -263,6 +268,41 @@ static void eval_op_clamp(float *stack, StackIndex offset, StackIndex offset_r)
 	stack_store_float(stack, offset_r, CLAMPIS(f, 0.0f, 1.0f));
 }
 
+static void eval_op_effector_closest_point(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_vector,
+                                           StackIndex offset_position, StackIndex offset_normal, StackIndex offset_tangent)
+{
+	Object *ob = globals->objects[object_index];
+	DerivedMesh *dm = object_get_derived_final(ob, false);
+	
+	float world[4][4];
+	SpaceTransform transform;
+	unit_m4(world);
+	BLI_space_transform_from_matrices(&transform, world, ob->obmat);
+	
+	float3 vec;
+	vec = stack_load_float3(stack, offset_vector);
+	BLI_space_transform_apply(&transform, &vec.x);
+	
+	BVHTreeFromMesh treeData = {NULL};
+	bvhtree_from_mesh_looptri(&treeData, dm, 0.0, 2, 6);
+	
+	BVHTreeNearest nearest;
+	nearest.index = -1;
+	nearest.dist_sq = FLT_MAX;
+	BLI_bvhtree_find_nearest(treeData.tree, &vec.x, &nearest, treeData.nearest_callback, &treeData);
+	
+	if (nearest.index != -1) {
+		float3 pos, nor;
+		copy_v3_v3(&pos.x, nearest.co);
+		copy_v3_v3(&nor.x, nearest.no);
+		BLI_space_transform_invert(&transform, &pos.x);
+		BLI_space_transform_invert_normal(&transform, &nor.x);
+		
+		stack_store_float3(stack, offset_position, pos);
+		stack_store_float3(stack, offset_normal, nor);
+	}
+}
+
 static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
@@ -485,6 +525,16 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_b = expr->read_stack_index(&instr);
 				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_EFFECTOR_CLOSEST_POINT: {
+				int object_index = expr->read_int(&instr);
+				StackIndex offset_vector = expr->read_stack_index(&instr);
+				StackIndex offset_position = expr->read_stack_index(&instr);
+				StackIndex offset_normal = expr->read_stack_index(&instr);
+				StackIndex offset_tangent = expr->read_stack_index(&instr);
+				eval_op_effector_closest_point(globals, stack, object_index, offset_vector,
+				                               offset_position, offset_normal, offset_tangent);
 				break;
 			}
 			case OP_END:

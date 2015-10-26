@@ -38,6 +38,7 @@ extern "C" {
 #include "BLI_listbase.h"
 
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_effect.h"
 #include "BKE_node.h"
@@ -102,6 +103,8 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *
 
 BLI_INLINE bvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
 { return (bvm::EvalGlobals *)globals; }
+BLI_INLINE const bvm::EvalGlobals *_GLOBALS(const struct BVMEvalGlobals *globals)
+{ return (const bvm::EvalGlobals *)globals; }
 BLI_INLINE bvm::EvalContext *_CTX(struct BVMEvalContext *ctx)
 { return (bvm::EvalContext *)ctx; }
 
@@ -110,6 +113,9 @@ struct BVMEvalGlobals *BVM_globals_create(void)
 
 void BVM_globals_free(struct BVMEvalGlobals *globals)
 { delete _GLOBALS(globals); }
+
+void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob)
+{ _GLOBALS(globals)->objects.push_back(ob); }
 
 struct BVMEvalContext *BVM_context_create(void)
 { return (BVMEvalContext *)(new bvm::EvalContext()); }
@@ -135,6 +141,8 @@ typedef std::pair<bvm::NodeInstance*, bvm::string> SocketPair;
 typedef std::set<SocketPair> SocketSet;
 typedef std::map<bSocketPair, SocketSet> InputMap;
 typedef std::map<bSocketPair, SocketPair> OutputMap;
+
+typedef std::map<struct Object *, int> ObjectPtrMap;
 
 static void map_input_socket(InputMap &input_map, bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
 {
@@ -204,7 +212,7 @@ static void unary_math_node(bvm::NodeGraph &graph, InputMap &input_map, OutputMa
 	map_output_socket(output_map, bnode, 0, node, "value");
 }
 
-static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
+static void gen_forcefield_nodegraph(Object *effob, bNodeTree *btree, bvm::NodeGraph &graph, const ObjectPtrMap &obmap)
 {
 	{
 		float zero[3] = {0.0f, 0.0f, 0.0f};
@@ -323,6 +331,19 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 				}
 			}
 		}
+		else if (type == "ForceClosestPointNode") {
+			bvm::NodeInstance *node = graph.add_node("EFFECTOR_CLOSEST_POINT", bnode->name);
+			Object *object = effob;
+			ObjectPtrMap::const_iterator it = obmap.find(object);
+			if (it != obmap.end()) {
+				int object_index = it->second;
+				node->set_input_value("object", object_index);
+				map_input_socket(input_map, bnode, 0, node, "vector");
+				map_output_socket(output_map, bnode, 0, node, "position");
+				map_output_socket(output_map, bnode, 1, node, "normal");
+				map_output_socket(output_map, bnode, 2, node, "tangent");
+			}
+		}
 	}
 	
 	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
@@ -351,12 +372,22 @@ static void gen_forcefield_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph)
 	}
 }
 
-struct BVMExpression *BVM_gen_forcefield_expression(bNodeTree *btree)
+static void create_object_ptr_map(ObjectPtrMap &obmap, const bvm::EvalGlobals *globals)
+{
+	for (int i = 0; i < globals->objects.size(); ++i) {
+		obmap[globals->objects[i]] = i;
+	}
+}
+
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, Object *effob, bNodeTree *btree)
 {
 	using namespace bvm;
 	
+	ObjectPtrMap obmap;
+	create_object_ptr_map(obmap, _GLOBALS(globals));
+	
 	NodeGraph graph;
-	gen_forcefield_nodegraph(btree, graph);
+	gen_forcefield_nodegraph(effob, btree, graph, obmap);
 	
 	BVMCompiler compiler;
 	Expression *expr = compiler.codegen_expression(graph);

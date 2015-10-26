@@ -202,6 +202,8 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 	if (ob->nodetree) {
 		bNode *node;
 		
+		BVM_globals_add_object(effctx->eval_globals, ob);
+		
 		/* XXX TODO This is a placeholder for future component nodes design! */
 		
 		for (node = ob->nodetree->nodes.first; node; node = node->next) {
@@ -210,7 +212,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 				
 				if (ff_ntree) {
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->expression = BVM_gen_forcefield_expression(ff_ntree);
+					eff->expression = BVM_gen_forcefield_expression(effctx->eval_globals, ob, ff_ntree);
 				}
 				
 				break;
@@ -226,6 +228,9 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 	EffectorContext *effctx = MEM_callocN(sizeof(EffectorContext), "effector context");
 	Base *base;
 	unsigned int layer= ob_src->lay;
+	
+	effctx->eval_globals = BVM_globals_create();
+	BVM_globals_add_object(effctx->eval_globals, ob_src);
 	
 	if (weights->group) {
 		GroupObject *go;
@@ -266,8 +271,6 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 	
 	if (precalc)
 		pdPrecalculateEffectors(effctx);
-	
-	effctx->eval_globals = BVM_globals_create();
 	
 	return effctx;
 }

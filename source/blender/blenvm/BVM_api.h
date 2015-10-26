@@ -75,6 +75,8 @@ struct EffectedPoint;
 struct BVMEvalGlobals *BVM_globals_create(void);
 void BVM_globals_free(struct BVMEvalGlobals *globals);
 
+void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob);
+
 struct BVMEvalContext *BVM_context_create(void);
 void BVM_context_free(struct BVMEvalContext *context);
 
@@ -84,8 +86,9 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 /* ------------------------------------------------------------------------- */
 
 struct bNodeTree;
+struct Object;
 
-struct BVMExpression *BVM_gen_forcefield_expression(struct bNodeTree *ntree);
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct Object *effob, struct bNodeTree *ntree);
 
 #ifdef __cplusplus
 }

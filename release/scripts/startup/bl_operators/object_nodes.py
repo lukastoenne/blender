@@ -56,6 +56,9 @@ node_categories = [
         NodeItem("ObjectMathNode"),
         NodeItem("ObjectVectorMathNode"),
         ]),
+    ForceFieldNodeCategory("GEOMETRY", "Geometry", items=[
+        NodeItem("ForceClosestPointNode"),
+        ]),
     ]
 
 ###############################################################################
@@ -197,6 +200,19 @@ class MathNode(ForceNodeBase, ObjectNode):
         self.inputs.new('NodeSocketFloat', "Value")
         self.inputs.new('NodeSocketFloat', "Value")
         self.outputs.new('NodeSocketFloat', "Value")
+
+
+class ForceClosestPointNode(ForceNodeBase, ObjectNode):
+    '''Closest point on the effector mesh'''
+    bl_idname = 'ForceClosestPointNode'
+    bl_label = 'Closest Point'
+    bl_icon = 'FORCE_FORCE'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketVector', "Position")
+        self.outputs.new('NodeSocketVector', "Normal")
+        self.outputs.new('NodeSocketVector', "Tangent")
 
 
 class VectorMathNode(ForceNodeBase, ObjectNode):
