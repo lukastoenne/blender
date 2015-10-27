@@ -63,6 +63,11 @@ inline static float3 stack_load_float3(float *stack, StackIndex offset)
 	return *(float3 *)(&stack[offset]);
 }
 
+inline static float4 stack_load_float4(float *stack, StackIndex offset)
+{
+	return *(float4 *)(&stack[offset]);
+}
+
 inline static int stack_load_int(float *stack, StackIndex offset)
 {
 	return *(int *)(&stack[offset]);
@@ -81,6 +86,11 @@ inline static void stack_store_float(float *stack, StackIndex offset, float f)
 inline static void stack_store_float3(float *stack, StackIndex offset, float3 f)
 {
 	*(float3 *)(&stack[offset]) = f;
+}
+
+inline static void stack_store_float4(float *stack, StackIndex offset, float4 f)
+{
+	*(float4 *)(&stack[offset]) = f;
 }
 
 inline static void stack_store_int(float *stack, StackIndex offset, int i)
@@ -105,9 +115,19 @@ static void eval_op_value_float3(float *stack, float3 value, StackIndex offset)
 	stack_store_float3(stack, offset, value);
 }
 
+static void eval_op_value_float4(float *stack, float4 value, StackIndex offset)
+{
+	stack_store_float4(stack, offset, value);
+}
+
 static void eval_op_value_int(float *stack, int value, StackIndex offset)
 {
 	stack_store_int(stack, offset, value);
+}
+
+static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offset)
+{
+	stack_store_matrix44(stack, offset, value);
 }
 
 static void eval_op_pass_float(float *stack, StackIndex offset_from, StackIndex offset_to)
@@ -130,10 +150,27 @@ static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex off
 	stack_store_float3(stack, offset_to, float3(x, y, z));
 }
 
+static void eval_op_set_float4(float *stack, StackIndex offset_x, StackIndex offset_y,
+                               StackIndex offset_z, StackIndex offset_w, StackIndex offset_to)
+{
+	float x = stack_load_float(stack, offset_x);
+	float y = stack_load_float(stack, offset_y);
+	float z = stack_load_float(stack, offset_z);
+	float w = stack_load_float(stack, offset_w);
+	stack_store_float4(stack, offset_to, float4(x, y, z, w));
+}
+
 static void eval_op_get_elem_float3(float *stack, int index, StackIndex offset_from, StackIndex offset_to)
 {
 	assert(index >= 0 && index < 3);
 	float3 f = stack_load_float3(stack, offset_from);
+	stack_store_float(stack, offset_to, f[index]);
+}
+
+static void eval_op_get_elem_float4(float *stack, int index, StackIndex offset_from, StackIndex offset_to)
+{
+	assert(index >= 0 && index < 4);
+	float4 f = stack_load_float4(stack, offset_from);
 	stack_store_float(stack, offset_to, f[index]);
 }
 
@@ -388,10 +425,22 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_value_float3(stack, value, offset);
 				break;
 			}
+			case OP_VALUE_FLOAT4: {
+				float4 value = expr->read_float4(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				eval_op_value_float4(stack, value, offset);
+				break;
+			}
 			case OP_VALUE_INT: {
 				int value = expr->read_int(&instr);
 				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_value_int(stack, value, offset);
+				break;
+			}
+			case OP_VALUE_MATRIX44: {
+				matrix44 value = expr->read_matrix44(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				eval_op_value_matrix44(stack, value, offset);
 				break;
 			}
 			case OP_PASS_FLOAT: {
@@ -419,6 +468,22 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = expr->read_stack_index(&instr);
 				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_get_elem_float3(stack, index, offset_from, offset_to);
+				break;
+			}
+			case OP_SET_FLOAT4: {
+				StackIndex offset_x = expr->read_stack_index(&instr);
+				StackIndex offset_y = expr->read_stack_index(&instr);
+				StackIndex offset_z = expr->read_stack_index(&instr);
+				StackIndex offset_w = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_set_float4(stack, offset_x, offset_y, offset_z, offset_w, offset_to);
+				break;
+			}
+			case OP_GET_ELEM_FLOAT4: {
+				int index = expr->read_int(&instr);
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
 				break;
 			}
 			case OP_POINT_POSITION: {

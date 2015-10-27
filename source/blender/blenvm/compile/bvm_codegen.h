@@ -59,6 +59,7 @@ struct BVMCompiler {
 	void push_stack_index(StackIndex arg);
 	void push_float(float f);
 	void push_float3(float3 f);
+	void push_float4(float4 f);
 	void push_int(int i);
 	void push_matrix44(matrix44 m);
 	

@@ -104,6 +104,14 @@ void BVMCompiler::push_float3(float3 f)
 	expr->add_instruction(float_to_instruction(f.z));
 }
 
+void BVMCompiler::push_float4(float4 f)
+{
+	expr->add_instruction(float_to_instruction(f.x));
+	expr->add_instruction(float_to_instruction(f.y));
+	expr->add_instruction(float_to_instruction(f.z));
+	expr->add_instruction(float_to_instruction(f.w));
+}
+
 void BVMCompiler::push_int(int i)
 {
 	expr->add_instruction(int_to_instruction(i));
@@ -152,12 +160,30 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 			push_stack_index(offset);
 			break;
 		}
+		case BVM_FLOAT4: {
+			float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_opcode(OP_VALUE_FLOAT4);
+			push_float4(f);
+			push_stack_index(offset);
+			break;
+		}
 		case BVM_INT: {
 			int i = 0;
 			value->get(&i);
 			
 			push_opcode(OP_VALUE_INT);
 			push_int(i);
+			push_stack_index(offset);
+			break;
+		}
+		case BVM_MATRIX44: {
+			matrix44 m = matrix44::identity();
+			value->get(&m);
+			
+			push_opcode(OP_VALUE_MATRIX44);
+			push_matrix44(m);
 			push_stack_index(offset);
 			break;
 		}
@@ -183,11 +209,25 @@ void BVMCompiler::codegen_constant(const Value *value)
 			push_float3(f);
 			break;
 		}
+		case BVM_FLOAT4: {
+			float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_float4(f);
+			break;
+		}
 		case BVM_INT: {
 			int i = 0;
 			value->get(&i);
 			
 			push_int(i);
+			break;
+		}
+		case BVM_MATRIX44: {
+			matrix44 m = matrix44::identity();
+			value->get(&m);
+			
+			push_matrix44(m);
 			break;
 		}
 	}

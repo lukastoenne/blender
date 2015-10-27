@@ -63,6 +63,29 @@ struct float3 {
 	float z;
 };
 
+struct float4 {
+	float4()
+	{}
+	
+	float4(float x, float y, float z, float w) :
+	    x(x), y(y), z(z), w(w)
+	{}
+	
+	float& operator[] (int index)
+	{
+		return ((float*)(&x))[index];
+	}
+	float operator[] (int index) const
+	{
+		return ((float*)(&x))[index];
+	}
+	
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
 struct matrix44 {
 	enum Layout {
 		COL_MAJOR,
@@ -135,6 +158,18 @@ struct BaseTypeTraits<BVM_FLOAT3> {
 	typedef float3 POD;
 	
 	enum eStackSize { stack_size = 3 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
+template <>
+struct BaseTypeTraits<BVM_FLOAT4> {
+	typedef float4 POD;
+	
+	enum eStackSize { stack_size = 4 };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -246,6 +281,7 @@ Value *Value::create(BVMType type, T data)
 	switch (type) {
 		case BVM_FLOAT: return new ValueType<BVM_FLOAT>(data);
 		case BVM_FLOAT3: return new ValueType<BVM_FLOAT3>(data);
+		case BVM_FLOAT4: return new ValueType<BVM_FLOAT4>(data);
 		case BVM_INT: return new ValueType<BVM_INT>(data);
 		case BVM_MATRIX44: return new ValueType<BVM_MATRIX44>(data);
 	}
@@ -258,6 +294,7 @@ bool Value::get(T *data) const
 	switch (m_typedesc.base_type) {
 		case BVM_FLOAT: return static_cast< const ValueType<BVM_FLOAT>* >(this)->get(data);
 		case BVM_FLOAT3: return static_cast< const ValueType<BVM_FLOAT3>* >(this)->get(data);
+		case BVM_FLOAT4: return static_cast< const ValueType<BVM_FLOAT4>* >(this)->get(data);
 		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
 		case BVM_MATRIX44: return static_cast< const ValueType<BVM_MATRIX44>* >(this)->get(data);
 	}
@@ -277,6 +314,7 @@ int TypeDesc::stack_size() const
 	switch (base_type) {
 		case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::stack_size;
 		case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::stack_size;
+		case BVM_FLOAT4: return BaseTypeTraits<BVM_FLOAT4>::stack_size;
 		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 		case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
 	}
@@ -291,6 +329,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 	switch (base_type) {
 		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT); break;
 		case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3); break;
+		case BVM_FLOAT4: COPY_TYPE(to, from, BVM_FLOAT4); break;
 		case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 		case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 	}

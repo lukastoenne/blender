@@ -123,6 +123,17 @@ struct Expression {
 		return f;
 	}
 	
+	float4 read_float4(int *instr) const
+	{
+		float4 f;
+		f.x = instruction_to_float(instructions[*instr + 0]);
+		f.y = instruction_to_float(instructions[*instr + 1]);
+		f.z = instruction_to_float(instructions[*instr + 2]);
+		f.w = instruction_to_float(instructions[*instr + 3]);
+		(*instr) += 4;
+		return f;
+	}
+	
 	int read_int(int *instr) const
 	{
 		int i = instruction_to_int(instructions[*instr]);
