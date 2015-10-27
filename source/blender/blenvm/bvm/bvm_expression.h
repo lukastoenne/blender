@@ -130,6 +130,29 @@ struct Expression {
 		return i;
 	}
 	
+	matrix44 read_matrix44(int *instr) const
+	{
+		matrix44 m;
+		m.data[0][0] = instruction_to_float(instructions[*instr + 0]);
+		m.data[0][1] = instruction_to_float(instructions[*instr + 1]);
+		m.data[0][2] = instruction_to_float(instructions[*instr + 2]);
+		m.data[0][3] = instruction_to_float(instructions[*instr + 3]);
+		m.data[0][0] = instruction_to_float(instructions[*instr + 4]);
+		m.data[0][1] = instruction_to_float(instructions[*instr + 5]);
+		m.data[0][2] = instruction_to_float(instructions[*instr + 6]);
+		m.data[0][3] = instruction_to_float(instructions[*instr + 7]);
+		m.data[0][0] = instruction_to_float(instructions[*instr + 8]);
+		m.data[0][1] = instruction_to_float(instructions[*instr + 9]);
+		m.data[0][2] = instruction_to_float(instructions[*instr + 10]);
+		m.data[0][3] = instruction_to_float(instructions[*instr + 11]);
+		m.data[3][0] = instruction_to_float(instructions[*instr + 12]);
+		m.data[3][1] = instruction_to_float(instructions[*instr + 13]);
+		m.data[3][2] = instruction_to_float(instructions[*instr + 14]);
+		m.data[3][3] = instruction_to_float(instructions[*instr + 15]);
+		(*instr) += 16;
+		return m;
+	}
+	
 	void add_instruction(Instruction v);
 	
 	ReturnValue &add_return_value(const TypeDesc &typedesc, const string &name = "");

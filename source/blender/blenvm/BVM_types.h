@@ -40,6 +40,7 @@ typedef enum BVMType {
 	BVM_FLOAT,
 	BVM_FLOAT3,
 	BVM_INT,
+	BVM_MATRIX44,
 } BVMType;
 
 #ifdef __cplusplus

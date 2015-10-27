@@ -109,6 +109,26 @@ void BVMCompiler::push_int(int i)
 	expr->add_instruction(int_to_instruction(i));
 }
 
+void BVMCompiler::push_matrix44(matrix44 m)
+{
+	expr->add_instruction(float_to_instruction(m.data[0][0]));
+	expr->add_instruction(float_to_instruction(m.data[0][1]));
+	expr->add_instruction(float_to_instruction(m.data[0][2]));
+	expr->add_instruction(float_to_instruction(m.data[0][3]));
+	expr->add_instruction(float_to_instruction(m.data[1][0]));
+	expr->add_instruction(float_to_instruction(m.data[1][1]));
+	expr->add_instruction(float_to_instruction(m.data[1][2]));
+	expr->add_instruction(float_to_instruction(m.data[1][3]));
+	expr->add_instruction(float_to_instruction(m.data[2][0]));
+	expr->add_instruction(float_to_instruction(m.data[2][1]));
+	expr->add_instruction(float_to_instruction(m.data[2][2]));
+	expr->add_instruction(float_to_instruction(m.data[2][3]));
+	expr->add_instruction(float_to_instruction(m.data[3][0]));
+	expr->add_instruction(float_to_instruction(m.data[3][1]));
+	expr->add_instruction(float_to_instruction(m.data[3][2]));
+	expr->add_instruction(float_to_instruction(m.data[3][3]));
+}
+
 StackIndex BVMCompiler::codegen_value(const Value *value)
 {
 	StackIndex offset = assign_stack_index(value->typedesc());

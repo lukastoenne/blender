@@ -63,6 +63,57 @@ struct float3 {
 	float z;
 };
 
+struct matrix44 {
+	enum Layout {
+		COL_MAJOR,
+		ROW_MAJOR,
+	};
+	
+	matrix44()
+	{}
+	
+	matrix44(const float3 &x, const float3 &y, const float3 &z, const float3 &t)
+	{
+		data[0][0] = x.x;	data[1][0] = y.x;	data[2][0] = z.x;	data[3][0] = t.x;
+		data[0][1] = x.y;	data[1][1] = y.y;	data[2][1] = z.y;	data[3][1] = t.y;
+		data[0][2] = x.z;	data[1][2] = y.z;	data[2][2] = z.z;	data[3][2] = t.z;
+		data[0][3] = 0.0f;	data[1][3] = 0.0f;	data[2][3] = 0.0f;	data[3][3] = 1.0f;
+	}
+	
+	matrix44(const float3 &t)
+	{
+		data[0][0] = 1.0f;	data[1][0] = 0.0f;	data[2][0] = 0.0f;	data[3][0] = t.x;
+		data[0][1] = 0.0f;	data[1][1] = 1.0f;	data[2][1] = 0.0f;	data[3][1] = t.y;
+		data[0][2] = 0.0f;	data[1][2] = 0.0f;	data[2][2] = 1.0f;	data[3][2] = t.z;
+		data[0][3] = 0.0f;	data[1][3] = 0.0f;	data[2][3] = 0.0f;	data[3][3] = 1.0f;
+	}
+	
+	void from_data(float *values, Layout layout = COL_MAJOR) {
+		if (layout == COL_MAJOR) {
+			data[0][0] = values[0]; data[1][0] = values[1]; data[2][0] = values[2]; data[3][0] = values[3];
+			data[0][1] = values[4]; data[1][1] = values[5]; data[2][1] = values[6]; data[3][1] = values[7];
+			data[0][2] = values[8]; data[1][2] = values[9]; data[2][2] = values[10]; data[3][2] = values[11];
+			data[0][3] = values[12]; data[1][3] = values[13]; data[2][3] = values[14]; data[3][3] = values[15];
+		}
+		else {
+			data[0][0] = values[0]; data[1][0] = values[4]; data[2][0] = values[8]; data[3][0] = values[12];
+			data[0][1] = values[1]; data[1][1] = values[5]; data[2][1] = values[9]; data[3][1] = values[13];
+			data[0][2] = values[2]; data[1][2] = values[6]; data[2][2] = values[10]; data[3][2] = values[14];
+			data[0][3] = values[3]; data[1][3] = values[7]; data[2][3] = values[11]; data[3][3] = values[15];
+		}
+	}
+	
+	inline static matrix44 identity()
+	{
+		return matrix44(float3(1.0f, 0.0f, 0.0f),
+		                float3(0.0f, 1.0f, 0.0f),
+		                float3(0.0f, 0.0f, 1.0f),
+		                float3(0.0f, 0.0f, 0.0f));
+	}
+	
+	float data[4][4];
+};
+
 
 template <BVMType type>
 struct BaseTypeTraits;
@@ -96,6 +147,18 @@ struct BaseTypeTraits<BVM_INT> {
 	typedef int POD;
 	
 	enum eStackSize { stack_size = 1 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
+template <>
+struct BaseTypeTraits<BVM_MATRIX44> {
+	typedef matrix44 POD;
+	
+	enum eStackSize { stack_size = 16 };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -184,6 +247,7 @@ Value *Value::create(BVMType type, T data)
 		case BVM_FLOAT: return new ValueType<BVM_FLOAT>(data);
 		case BVM_FLOAT3: return new ValueType<BVM_FLOAT3>(data);
 		case BVM_INT: return new ValueType<BVM_INT>(data);
+		case BVM_MATRIX44: return new ValueType<BVM_MATRIX44>(data);
 	}
 	return 0;
 }
@@ -195,6 +259,7 @@ bool Value::get(T *data) const
 		case BVM_FLOAT: return static_cast< const ValueType<BVM_FLOAT>* >(this)->get(data);
 		case BVM_FLOAT3: return static_cast< const ValueType<BVM_FLOAT3>* >(this)->get(data);
 		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
+		case BVM_MATRIX44: return static_cast< const ValueType<BVM_MATRIX44>* >(this)->get(data);
 	}
 	return false;
 }
@@ -213,6 +278,7 @@ int TypeDesc::stack_size() const
 		case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::stack_size;
 		case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::stack_size;
 		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
+		case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
 	}
 	return 0;
 }
@@ -223,9 +289,10 @@ void TypeDesc::copy_value(void *to, const void *from) const
 	BaseTypeTraits<type>::copy((typename BaseTypeTraits<type>::POD*)to, (typename BaseTypeTraits<type>::POD const *)from);
 	
 	switch (base_type) {
-		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT);
-		case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3);
-		case BVM_INT: COPY_TYPE(to, from, BVM_INT);
+		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT); break;
+		case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3); break;
+		case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
+		case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 	}
 	
 	#undef COPY_TYPE

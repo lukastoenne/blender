@@ -68,6 +68,11 @@ inline static int stack_load_int(float *stack, StackIndex offset)
 	return *(int *)(&stack[offset]);
 }
 
+inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
+{
+	return *(matrix44 *)(&stack[offset]);
+}
+
 inline static void stack_store_float(float *stack, StackIndex offset, float f)
 {
 	*(float *)(&stack[offset]) = f;
@@ -81,6 +86,11 @@ inline static void stack_store_float3(float *stack, StackIndex offset, float3 f)
 inline static void stack_store_int(float *stack, StackIndex offset, int i)
 {
 	*(int *)(&stack[offset]) = i;
+}
+
+inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix44 m)
+{
+	*(matrix44 *)(&stack[offset]) = m;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -311,6 +321,14 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	float3 vec(v.x * f, v.y * f, v.z * f);
 	stack_store_float3(stack, offset_vec, vec);
 	stack_store_float(stack, offset_val, l);
+}
+
+static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
+{
+	Object *ob = globals->objects[object_index];
+	matrix44 m;
+	m.from_data(&ob->obmat[0][0], matrix44::COL_MAJOR);
+	stack_store_matrix44(stack, offset_tfm, m);
 }
 
 static void eval_op_effector_closest_point(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_vector,
@@ -584,6 +602,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_vec = expr->read_stack_index(&instr);
 				StackIndex offset_val = expr->read_stack_index(&instr);
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
+				break;
+			}
+			case OP_EFFECTOR_TRANSFORM: {
+				int object_index = expr->read_int(&instr);
+				StackIndex offset_tfm = expr->read_stack_index(&instr);
+				eval_op_effector_transform(globals, stack, object_index, offset_tfm);
 				break;
 			}
 			case OP_EFFECTOR_CLOSEST_POINT: {

@@ -590,6 +590,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(CROSS_FLOAT3);
 	NODETYPE(NORMALIZE_FLOAT3);
 	
+	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
 	#undef NODETYPE
@@ -691,6 +692,10 @@ void register_opcode_node_types()
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("EFFECTOR_TRANSFORM");
+	nt->add_input("object", BVM_INT, 0, true);
+	nt->add_output("transform", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_node_type("EFFECTOR_CLOSEST_POINT");
 	nt->add_input("object", BVM_INT, 0, true);

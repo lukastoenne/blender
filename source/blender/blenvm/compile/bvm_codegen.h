@@ -60,6 +60,7 @@ struct BVMCompiler {
 	void push_float(float f);
 	void push_float3(float3 f);
 	void push_int(int i);
+	void push_matrix44(matrix44 m);
 	
 	StackIndex codegen_value(const Value *value);
 	void codegen_constant(const Value *value);
