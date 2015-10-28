@@ -70,7 +70,6 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const
 
 struct BVMEvalGlobals;
 struct BVMEvalContext;
-struct EffectedPoint;
 
 struct BVMEvalGlobals *BVM_globals_create(void);
 void BVM_globals_free(struct BVMEvalGlobals *globals);
@@ -80,15 +79,20 @@ void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob);
 struct BVMEvalContext *BVM_context_create(void);
 void BVM_context_free(struct BVMEvalContext *context);
 
+/* ------------------------------------------------------------------------- */
+
+struct bNodeTree;
+struct Object;
+struct EffectedPoint;
+
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct Object *effob, struct bNodeTree *btree);
+
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMExpression *expr,
                          const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
 
-struct bNodeTree;
-struct Object;
 
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct Object *effob, struct bNodeTree *ntree);
 
 #ifdef __cplusplus
 }
