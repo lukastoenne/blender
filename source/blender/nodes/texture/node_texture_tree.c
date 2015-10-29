@@ -242,6 +242,7 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context, bNodeTr
 
 bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
 {
+#if 0
 	bNodeExecContext context;
 	bNodeTreeExec *exec;
 	
@@ -261,8 +262,13 @@ bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
 	ntree->execdata = exec;
 	
 	return exec;
+#else
+	(void)ntree;
+	return NULL;
+#endif
 }
 
+#if 0
 /* free texture delegates */
 static void tex_free_delegates(bNodeTreeExec *exec)
 {
@@ -276,9 +282,11 @@ static void tex_free_delegates(bNodeTreeExec *exec)
 				if (ns->data && !ns->is_copy)
 					MEM_freeN(ns->data);
 }
+#endif
 
 void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
 {
+#if 0
 	bNodeThreadStack *nts;
 	int a;
 	
@@ -296,10 +304,14 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
 	}
 	
 	ntree_exec_end(exec);
+#else
+	(void)exec;
+#endif
 }
 
 void ntreeTexEndExecTree(bNodeTreeExec *exec)
 {
+#if 0
 	if (exec) {
 		/* exec may get freed, so assign ntree */
 		bNodeTree *ntree = exec->nodetree;
@@ -308,8 +320,12 @@ void ntreeTexEndExecTree(bNodeTreeExec *exec)
 		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
 		ntree->execdata = NULL;
 	}
+#else
+	(void)exec;
+#endif
 }
 
+#if 0
 int ntreeTexExecTree(
         bNodeTree *nodes,
         TexResult *texres,
@@ -365,3 +381,4 @@ int ntreeTexExecTree(
 
 	return retval;
 }
+#endif

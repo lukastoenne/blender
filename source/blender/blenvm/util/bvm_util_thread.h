@@ -25,70 +25,58 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_OPCODE_H__
-#define __BVM_OPCODE_H__
+#ifndef __BVM_UTIL_THREAD_H__
+#define __BVM_UTIL_THREAD_H__
 
-/** \file bvm_opcode.h
+/** \file bvm_util_thread.h
  *  \ingroup bvm
  */
 
+#include "BLI_threads.h"
+
 namespace bvm {
 
-enum OpCode {
-	OP_NOOP = 0,
-	OP_VALUE_FLOAT,
-	OP_VALUE_FLOAT3,
-	OP_VALUE_FLOAT4,
-	OP_VALUE_INT,
-	OP_VALUE_MATRIX44,
-	OP_PASS_FLOAT,
-	OP_PASS_FLOAT3,
-	OP_PASS_FLOAT4,
-	OP_SET_FLOAT3,
-	OP_GET_ELEM_FLOAT3,
-	OP_SET_FLOAT4,
-	OP_GET_ELEM_FLOAT4,
+struct mutex {
+	mutex()
+	{
+		BLI_mutex_init(&m);
+	}
 	
-	OP_POINT_POSITION,
-	OP_POINT_VELOCITY,
+	~mutex()
+	{
+		BLI_mutex_end(&m);
+	}
 	
-	OP_ADD_FLOAT,
-	OP_SUB_FLOAT,
-	OP_MUL_FLOAT,
-	OP_DIV_FLOAT,
-	OP_SINE,
-	OP_COSINE,
-	OP_TANGENT,
-	OP_ARCSINE,
-	OP_ARCCOSINE,
-	OP_ARCTANGENT,
-	OP_POWER,
-	OP_LOGARITHM,
-	OP_MINIMUM,
-	OP_MAXIMUM,
-	OP_ROUND,
-	OP_LESS_THAN,
-	OP_GREATER_THAN,
-	OP_MODULO,
-	OP_ABSOLUTE,
-	OP_CLAMP,
+	void lock()
+	{
+		BLI_mutex_lock(&m);
+	}
 	
-	OP_ADD_FLOAT3,
-	OP_SUB_FLOAT3,
-	OP_AVERAGE_FLOAT3,
-	OP_DOT_FLOAT3,
-	OP_CROSS_FLOAT3,
-	OP_NORMALIZE_FLOAT3,
+	void unlock()
+	{
+		BLI_mutex_unlock(&m);
+	}
 	
-	OP_EFFECTOR_TRANSFORM,
-	OP_EFFECTOR_CLOSEST_POINT,
+private:
+	ThreadMutex m;
+};
+
+struct scoped_lock {
+	scoped_lock(mutex &m_) :
+	    m(&m_)
+	{
+		m->lock();
+	}
 	
-	OP_END,
-//	OP_JUMP,
-//	OP_JUMP_IF_ZERO,
-//	OP_JUMP_IF_ONE,
+	~scoped_lock()
+	{
+		m->unlock();
+	}
+	
+private:
+	mutex *m;
 };
 
 } /* namespace bvm */
 
-#endif /* __BVM_OPCODE_H__ */
+#endif /* __BVM_UTIL_THREAD_H__ */

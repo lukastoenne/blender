@@ -43,6 +43,8 @@ extern "C" {
 #include "BKE_effect.h"
 #include "BKE_node.h"
 
+#include "RE_shader_ext.h"
+
 #include "BVM_api.h"
 
 #include "RNA_access.h"
@@ -55,6 +57,7 @@ extern "C" {
 #include "bvm_module.h"
 #include "bvm_nodegraph.h"
 #include "bvm_util_map.h"
+#include "bvm_util_thread.h"
 
 void BVM_init(void)
 {
@@ -63,6 +66,7 @@ void BVM_init(void)
 
 void BVM_free(void)
 {
+	BVM_texture_cache_clear();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -165,6 +169,16 @@ struct bNodeCompiler {
 			case SOCK_VECTOR: {
 				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
 				node->set_input_value(name, bvm::float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				break;
+			}
+			case SOCK_INT: {
+				bNodeSocketValueInt *bvalue = (bNodeSocketValueInt *)binput->default_value;
+				node->set_input_value(name, bvalue->value);
+				break;
+			}
+			case SOCK_RGBA: {
+				bNodeSocketValueRGBA *bvalue = (bNodeSocketValueRGBA *)binput->default_value;
+				node->set_input_value(name, bvm::float4(bvalue->value[0], bvalue->value[1], bvalue->value[2], bvalue->value[3]));
 				break;
 			}
 		}
@@ -476,19 +490,154 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _EXPR(expr), results);
 }
 
-{
-	}
-}
+/* ------------------------------------------------------------------------- */
 
+struct TextureNodeParser : public bNodeParser {
+	TextureNodeParser(const bvm::EvalGlobals */*globals*/)
+	{
+	}
+	
+	void parse(bNodeCompiler *comp, PointerRNA *bnode_ptr) const
+	{
+		bNode *bnode = (bNode *)bnode_ptr->data;
+		bvm::string type = bvm::string(bnode->typeinfo->idname);
+		if (type == "TextureNodeOutput") {
+			{
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(bnode->name));
+				comp->map_input_socket(bnode, 0, node, "value");
+				comp->map_output_socket(bnode, 0, node, "value");
+				
+				comp->set_graph_output("color", node, "value");
+			}
+			
+			{
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(bnode->name));
+				comp->map_input_socket(bnode, 1, node, "value");
+				comp->map_output_socket(bnode, 0, node, "value");
+				
+				comp->set_graph_output("normal", node, "value");
+			}
+		}
+	}
+};
+
+struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex, bNodeTree *btree)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
+	{
+		float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		float N[3] = {0.0f, 0.0f, 0.0f};
+		graph.add_output("color", BVM_FLOAT4, C);
+		graph.add_output("normal", BVM_FLOAT3, N);
+	}
+	TextureNodeParser parser(_GLOBALS(globals));
+	gen_nodegraph(btree, graph, parser);
 	
 	BVMCompiler compiler;
 	Expression *expr = compiler.codegen_expression(graph);
 	
 	return (BVMExpression *)expr;
+}
+
+void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMExpression *expr,
+                      struct TexResult *target,
+                      float coord[3], float dxt[3], float dyt[3], int osatex,
+                      short which_output, int cfra, int UNUSED(preview))
+{
+	using namespace bvm;
+	
+	EvalGlobals globals;
+	
+	EvalData data;
+	TextureEvalData &texdata = data.texture;
+	texdata.co = float3::from_data(coord);
+	texdata.dxt = dxt ? float3::from_data(dxt) : float3(0.0f, 0.0f, 0.0f);
+	texdata.dyt = dyt ? float3::from_data(dyt) : float3(0.0f, 0.0f, 0.0f);
+	texdata.cfra = cfra;
+	texdata.osatex = osatex;
+
+	float4 color;
+	float3 normal;
+	void *results[] = { &color.x, &normal.x };
+	
+	_CTX(ctx)->eval_expression(&globals, &data, _EXPR(expr), results);
+	
+	target->tr = color.x;
+	target->tg = color.y;
+	target->tb = color.z;
+	target->ta = color.w;
+	
+	target->tin = (target->tr + target->tg + target->tb) / 3.0f;
+	target->talpha = true;
+	
+	if (target->nor) {
+		target->nor[0] = normal.x;
+		target->nor[1] = normal.y;
+		target->nor[2] = normal.z;
+	}
+}
+
+/* TODO using shared_ptr or similar here could help relax
+ * order of acquire/release/invalidate calls (keep alive as long as used)
+ */
+typedef unordered_map<Tex*, bvm::Expression*> ExpressionCache;
+
+static ExpressionCache bvm_tex_cache;
+static bvm::mutex bvm_tex_mutex;
+
+struct BVMExpression *BVM_texture_cache_acquire(Tex *tex)
+{
+	using namespace bvm;
+	
+	scoped_lock lock(bvm_tex_mutex);
+	
+	ExpressionCache::const_iterator it = bvm_tex_cache.find(tex);
+	if (it != bvm_tex_cache.end()) {
+		return (BVMExpression *)it->second;
+	}
+	else if (tex->use_nodes && tex->nodetree) {
+		EvalGlobals globals;
+		
+		BVMExpression *expr = BVM_gen_texture_expression((BVMEvalGlobals *)(&globals), tex, tex->nodetree);
+		
+		bvm_tex_cache[tex] = _EXPR(expr);
+		
+		return expr;
+	}
+	else
+		return NULL;
+}
+
+void BVM_texture_cache_release(Tex *tex)
+{
+	(void)tex;
+}
+
+void BVM_texture_cache_invalidate(Tex *tex)
+{
+	using namespace bvm;
+	
+	scoped_lock lock(bvm_tex_mutex);
+	
+	ExpressionCache::iterator it = bvm_tex_cache.find(tex);
+	if (it != bvm_tex_cache.end()) {
+		delete it->second;
+		bvm_tex_cache.erase(it);
+	}
+}
+
+void BVM_texture_cache_clear(void)
+{
+	using namespace bvm;
+	
+	scoped_lock lock(bvm_tex_mutex);
+	
+	for (ExpressionCache::iterator it = bvm_tex_cache.begin(); it != bvm_tex_cache.end(); ++it) {
+		delete it->second;
+	}
+	bvm_tex_cache.clear();
 }
 
 #undef _GRAPH

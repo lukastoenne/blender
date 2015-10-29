@@ -49,6 +49,15 @@ struct float3 {
 	    x(x), y(y), z(z)
 	{}
 	
+	inline static float3 from_data(const float *values)
+	{
+		float3 f;
+		f.x = values[0];
+		f.y = values[1];
+		f.z = values[2];
+		return f;
+	}
+	
 	float& operator[] (int index)
 	{
 		return ((float*)(&x))[index];
@@ -70,6 +79,16 @@ struct float4 {
 	float4(float x, float y, float z, float w) :
 	    x(x), y(y), z(z), w(w)
 	{}
+	
+	inline static float4 from_data(const float *values)
+	{
+		float4 f;
+		f.x = values[0];
+		f.y = values[1];
+		f.z = values[2];
+		f.w = values[3];
+		return f;
+	}
 	
 	float& operator[] (int index)
 	{
@@ -111,19 +130,21 @@ struct matrix44 {
 		data[0][3] = 0.0f;	data[1][3] = 0.0f;	data[2][3] = 0.0f;	data[3][3] = 1.0f;
 	}
 	
-	void from_data(float *values, Layout layout = COL_MAJOR) {
+	inline static matrix44 from_data(const float *values, Layout layout = COL_MAJOR) {
+		matrix44 m;
 		if (layout == COL_MAJOR) {
-			data[0][0] = values[0]; data[1][0] = values[1]; data[2][0] = values[2]; data[3][0] = values[3];
-			data[0][1] = values[4]; data[1][1] = values[5]; data[2][1] = values[6]; data[3][1] = values[7];
-			data[0][2] = values[8]; data[1][2] = values[9]; data[2][2] = values[10]; data[3][2] = values[11];
-			data[0][3] = values[12]; data[1][3] = values[13]; data[2][3] = values[14]; data[3][3] = values[15];
+			m.data[0][0] = values[0]; m.data[1][0] = values[1]; m.data[2][0] = values[2]; m.data[3][0] = values[3];
+			m.data[0][1] = values[4]; m.data[1][1] = values[5]; m.data[2][1] = values[6]; m.data[3][1] = values[7];
+			m.data[0][2] = values[8]; m.data[1][2] = values[9]; m.data[2][2] = values[10]; m.data[3][2] = values[11];
+			m.data[0][3] = values[12]; m.data[1][3] = values[13]; m.data[2][3] = values[14]; m.data[3][3] = values[15];
 		}
 		else {
-			data[0][0] = values[0]; data[1][0] = values[4]; data[2][0] = values[8]; data[3][0] = values[12];
-			data[0][1] = values[1]; data[1][1] = values[5]; data[2][1] = values[9]; data[3][1] = values[13];
-			data[0][2] = values[2]; data[1][2] = values[6]; data[2][2] = values[10]; data[3][2] = values[14];
-			data[0][3] = values[3]; data[1][3] = values[7]; data[2][3] = values[11]; data[3][3] = values[15];
+			m.data[0][0] = values[0]; m.data[1][0] = values[4]; m.data[2][0] = values[8]; m.data[3][0] = values[12];
+			m.data[0][1] = values[1]; m.data[1][1] = values[5]; m.data[2][1] = values[9]; m.data[3][1] = values[13];
+			m.data[0][2] = values[2]; m.data[1][2] = values[6]; m.data[2][2] = values[10]; m.data[3][2] = values[14];
+			m.data[0][3] = values[3]; m.data[1][3] = values[7]; m.data[2][3] = values[11]; m.data[3][3] = values[15];
 		}
+		return m;
 	}
 	
 	inline static matrix44 identity()

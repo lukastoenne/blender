@@ -92,7 +92,22 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 
 /* ------------------------------------------------------------------------- */
 
+struct Tex;
+struct TexResult;
 
+struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex, struct bNodeTree *btree);
+
+void BVM_eval_texture(struct BVMEvalContext *context, struct BVMExpression *expr,
+                      struct TexResult *target,
+                      float coord[3], float dxt[3], float dyt[3], int osatex,
+                      short which_output, int cfra, int preview);
+
+struct BVMExpression *BVM_texture_cache_acquire(Tex *tex);
+void BVM_texture_cache_release(Tex *tex);
+void BVM_texture_cache_invalidate(Tex *tex);
+void BVM_texture_cache_clear(void);
+
+/* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus
 }

@@ -82,11 +82,19 @@ struct EffectorEvalData {
 	float3 velocity;
 };
 
+struct TextureEvalData {
+	float3 co;
+	float3 dxt, dyt;
+	int cfra;
+	int osatex;
+};
+
 struct EvalData {
 	EvalData()
 	{}
 	
 	EffectorEvalData effector;
+	TextureEvalData texture;
 };
 
 struct EvalContext {

@@ -35,6 +35,7 @@ set(INC
 	../blenlib
 	../makesdna
 	../makesrna
+	../render/extern/include
 	../../../intern/guardedalloc
 )
 
@@ -53,6 +54,7 @@ set(SRC
 	util/bvm_util_hash.h
 	util/bvm_util_map.h
 	util/bvm_util_string.h
+	util/bvm_util_thread.h
 	util/bvm_util_typedesc.h
 
 	BVM_api.h

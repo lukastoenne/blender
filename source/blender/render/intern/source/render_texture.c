@@ -62,6 +62,8 @@
 
 #include "BKE_texture.h"
 
+#include "BVM_api.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "envmap.h"
@@ -1111,8 +1113,19 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
-		retval = ntreeTexExecTree(tex->nodetree, texres, texvec, dxt, dyt, osatex, thread,
-		                          tex, which_output, R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0, NULL, NULL);
+		struct BVMExpression *expr = BVM_texture_cache_acquire(tex);
+		
+		if (expr) {
+			struct BVMEvalContext *context = BVM_context_create();
+			
+			BVM_eval_texture(context, expr, texres, texvec, dxt, dyt, osatex, which_output,
+			                 R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0);
+			retval = TEX_INT | TEX_RGB | TEX_NOR;
+			
+			BVM_context_free(context);
+		}
+		
+		BVM_texture_cache_release(tex);
 	}
 	else {
 		switch (tex->type) {
@@ -1303,17 +1316,7 @@ int multitex_nodes(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int os
 /* this is called for surface shading */
 static int multitex_mtex(ShadeInput *shi, MTex *mtex, float texvec[3], float dxt[3], float dyt[3], TexResult *texres, struct ImagePool *pool, const bool skip_load_image)
 {
-	Tex *tex = mtex->tex;
-
-	if (tex->use_nodes && tex->nodetree) {
-		/* stupid exception here .. but we have to pass shi and mtex to
-		 * textures nodes for 2d mapping and color management for images */
-		return ntreeTexExecTree(tex->nodetree, texres, texvec, dxt, dyt, shi->osatex, shi->thread,
-		                        tex, mtex->which_output, R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0, shi, mtex);
-	}
-	else {
-		return multitex(mtex->tex, texvec, dxt, dyt, shi->osatex, texres, shi->thread, mtex->which_output, pool, skip_load_image);
-	}
+	return multitex(mtex->tex, texvec, dxt, dyt, shi->osatex, texres, shi->thread, mtex->which_output, pool, skip_load_image);
 }
 
 /* Warning, if the texres's values are not declared zero, check the return value to be sure
@@ -1332,13 +1335,7 @@ int multitex_ext(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int osat
  */
 int multitex_ext_safe(Tex *tex, float texvec[3], TexResult *texres, struct ImagePool *pool, bool scene_color_manage, const bool skip_load_image)
 {
-	int use_nodes= tex->use_nodes, retval;
-	
-	tex->use_nodes = false;
-	retval= multitex_nodes_intern(tex, texvec, NULL, NULL, 0, texres, 0, 0, NULL, NULL, pool, scene_color_manage, skip_load_image);
-	tex->use_nodes= use_nodes;
-	
-	return retval;
+	return multitex_nodes_intern(tex, texvec, NULL, NULL, 0, texres, 0, 0, NULL, NULL, pool, scene_color_manage, skip_load_image);
 }
 
 

@@ -142,6 +142,12 @@ static void eval_op_pass_float3(float *stack, StackIndex offset_from, StackIndex
 	stack_store_float3(stack, offset_to, f);
 }
 
+static void eval_op_pass_float4(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	float4 f = stack_load_float4(stack, offset_from);
+	stack_store_float4(stack, offset_to, f);
+}
+
 static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
 {
 	float x = stack_load_float(stack, offset_x);
@@ -363,8 +369,7 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
 {
 	Object *ob = globals->objects[object_index];
-	matrix44 m;
-	m.from_data(&ob->obmat[0][0], matrix44::COL_MAJOR);
+	matrix44 m = matrix44::from_data(&ob->obmat[0][0], matrix44::COL_MAJOR);
 	stack_store_matrix44(stack, offset_tfm, m);
 }
 
@@ -400,6 +405,8 @@ static void eval_op_effector_closest_point(const EvalGlobals *globals, float *st
 		
 		stack_store_float3(stack, offset_position, pos);
 		stack_store_float3(stack, offset_normal, nor);
+		// TODO
+		stack_store_float3(stack, offset_tangent, float3(0.0f, 0.0f, 0.0f));
 	}
 }
 
@@ -453,6 +460,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = expr->read_stack_index(&instr);
 				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_pass_float3(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_PASS_FLOAT4: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_pass_float4(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT3: {

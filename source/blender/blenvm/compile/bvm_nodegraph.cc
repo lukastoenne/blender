@@ -556,6 +556,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(PASS_FLOAT);
 	NODETYPE(PASS_FLOAT3);
+	NODETYPE(PASS_FLOAT4);
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
 	
@@ -610,6 +611,10 @@ void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("PASS_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("PASS_FLOAT4");
+	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, true);
