@@ -82,6 +82,8 @@
 #include "BKE_screen.h"
 #include "BKE_tracking.h"
 
+#include "BVM_api.h"
+
 #include "GPU_buffers.h"
 
 #include "atomic_ops.h"
@@ -2646,6 +2648,11 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 				BKE_paint_proj_mesh_data_check(sce, obt, NULL, NULL, NULL, NULL);
 				GPU_drawobject_free(obt->derivedFinal);
 			}
+		}
+
+		if (ELEM(idtype, ID_TE)) {
+			Tex *tex = (Tex *)id;
+			BVM_texture_cache_invalidate(tex);
 		}
 
 		if (idtype == ID_MC) {
