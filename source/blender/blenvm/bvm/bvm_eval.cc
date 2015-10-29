@@ -366,6 +366,11 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	stack_store_float(stack, offset_val, l);
 }
 
+static void eval_op_tex_coord(const EvalData *data, float *stack, StackIndex offset)
+{
+	stack_store_float3(stack, offset, data->texture.co);
+}
+
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
 {
 	Object *ob = globals->objects[object_index];
@@ -682,6 +687,13 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
 				break;
 			}
+			
+			case OP_TEX_COORD: {
+				StackIndex offset = expr->read_stack_index(&instr);
+				eval_op_tex_coord(data, stack, offset);
+				break;
+			}
+			
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = expr->read_int(&instr);
 				StackIndex offset_tfm = expr->read_stack_index(&instr);

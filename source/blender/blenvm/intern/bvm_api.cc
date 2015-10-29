@@ -518,6 +518,10 @@ struct TextureNodeParser : public bNodeParser {
 				comp->set_graph_output("normal", node, "value");
 			}
 		}
+		else if (type == "TextureNodeCoordinates") {
+			bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(bnode->name));
+			comp->map_output_socket(bnode, 0, node, "value");
+		}
 	}
 };
 
