@@ -40,6 +40,8 @@ set(INC_SYS
 set(SRC
 	bvm_eval.cc
 	bvm_eval.h
+	bvm_eval_common.h
+	bvm_eval_texture.h
 	bvm_expression.cc
 	bvm_expression.h
 	bvm_opcode.h

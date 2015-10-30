@@ -41,7 +41,8 @@ extern "C" {
 }
 
 #include "bvm_eval.h"
-#include "bvm_expression.h"
+#include "bvm_eval_common.h"
+#include "bvm_eval_texture.h"
 
 namespace bvm {
 
@@ -51,56 +52,6 @@ EvalContext::EvalContext()
 
 EvalContext::~EvalContext()
 {
-}
-
-inline static float stack_load_float(float *stack, StackIndex offset)
-{
-	return *(float *)(&stack[offset]);
-}
-
-inline static float3 stack_load_float3(float *stack, StackIndex offset)
-{
-	return *(float3 *)(&stack[offset]);
-}
-
-inline static float4 stack_load_float4(float *stack, StackIndex offset)
-{
-	return *(float4 *)(&stack[offset]);
-}
-
-inline static int stack_load_int(float *stack, StackIndex offset)
-{
-	return *(int *)(&stack[offset]);
-}
-
-inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
-{
-	return *(matrix44 *)(&stack[offset]);
-}
-
-inline static void stack_store_float(float *stack, StackIndex offset, float f)
-{
-	*(float *)(&stack[offset]) = f;
-}
-
-inline static void stack_store_float3(float *stack, StackIndex offset, float3 f)
-{
-	*(float3 *)(&stack[offset]) = f;
-}
-
-inline static void stack_store_float4(float *stack, StackIndex offset, float4 f)
-{
-	*(float4 *)(&stack[offset]) = f;
-}
-
-inline static void stack_store_int(float *stack, StackIndex offset, int i)
-{
-	*(int *)(&stack[offset]) = i;
-}
-
-inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix44 m)
-{
-	*(matrix44 *)(&stack[offset]) = m;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -691,6 +642,27 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 			case OP_TEX_COORD: {
 				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_tex_coord(data, stack, offset);
+				break;
+			}
+			case OP_TEX_PROC_VORONOI: {
+				int distance_metric = expr->read_int(&instr);
+				int color_type = expr->read_int(&instr);
+				StackIndex iMinkowskiExponent = expr->read_stack_index(&instr);
+				StackIndex iScale = expr->read_stack_index(&instr);
+				StackIndex iNoiseSize = expr->read_stack_index(&instr);
+				StackIndex iNabla = expr->read_stack_index(&instr);
+				StackIndex iW1 = expr->read_stack_index(&instr);
+				StackIndex iW2 = expr->read_stack_index(&instr);
+				StackIndex iW3 = expr->read_stack_index(&instr);
+				StackIndex iW4 = expr->read_stack_index(&instr);
+				StackIndex iPos = expr->read_stack_index(&instr);
+				StackIndex oIntensity = expr->read_stack_index(&instr);
+				StackIndex oColor = expr->read_stack_index(&instr);
+				StackIndex oNormal = expr->read_stack_index(&instr);
+				eval_op_tex_proc_voronoi(stack, distance_metric, color_type,
+				                         iMinkowskiExponent, iScale, iNoiseSize, iNabla,
+				                         iW1, iW2, iW3, iW4, iPos,
+				                         oIntensity, oColor, oNormal);
 				break;
 			}
 			
