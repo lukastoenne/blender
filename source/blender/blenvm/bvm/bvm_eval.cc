@@ -693,7 +693,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 
 void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Expression *expr, void **results) const
 {
-	float stack[BVM_STACK_SIZE];
+	float stack[BVM_STACK_SIZE] = {0};
 	
 	eval_instructions(globals, data, expr, stack);
 	

@@ -63,7 +63,78 @@ node_categories = [
 
 ###############################################################################
 
-class ObjectNodeTree(NodeTree):
+class NodeCompiler:
+    def __init__(self, context, graph):
+        self.context = context
+        self.graph = graph
+        self.current_node = None
+        self.input_map = dict()
+        self.output_map = dict()
+
+    def add_node(self, type, name):
+        node = self.graph.add_node(type, name)
+        if node is None:
+            raise Exception("Can not add node of type %r" % type)
+        return node
+
+    def map_input(self, index, node, name):
+        socket = self.current_node.inputs[index]
+        key = (self.current_node, socket)
+        if key not in self.input_map:
+            pairs = set()
+            self.input_map[key] = pairs
+        else:
+            pairs = self.input_map[key]
+        pairs.add((node, name))
+
+        if isinstance(socket, bpy.types.NodeSocketFloat):
+            node.set_value_float(name, socket.default_value)
+        elif isinstance(socket, bpy.types.NodeSocketVector):
+            node.set_value_float3(name, socket.default_value)
+        elif isinstance(socket, bpy.types.NodeSocketColor):
+            node.set_value_float4(name, socket.default_value)
+        elif isinstance(socket, bpy.types.NodeSocketColor):
+            node.set_value_float4(name, socket.default_value)
+        elif isinstance(socket, bpy.types.NodeSocketInt):
+            node.set_value_int(name, socket.default_value)
+
+    def map_output(self, index, node, name):
+        socket = self.current_node.outputs[index]
+        key = (self.current_node, socket)
+        if key in self.output_map:
+            raise KeyError("Node output {}:{} is already mapped".format(self.current_node.name, socket.name))
+        self.output_map[key] = (node, name)
+
+    def add_link(self, blink):
+        (from_node, from_socket) = self.output_map.get((blink.from_node, blink.from_socket), (None, None))
+        to_set = self.input_map.get((blink.to_node, blink.to_socket), set())
+        if from_node and from_socket:
+            for (to_node, to_socket) in to_set:
+                self.graph.add_link(from_node, from_socket, to_node, to_socket)
+
+    def set_output(self, name, node, socket):
+        self.graph.set_output(name, node, socket)
+
+
+class NodeTreeBase():
+    def bvm_compile(self, context, graph):
+        comp = NodeCompiler(context, graph)
+
+        for bnode in self.nodes:
+            if not bnode.is_registered_node_type():
+                continue
+            comp.current_node = bnode
+            bnode.compile(comp)
+        comp.current_node = None
+
+        for blink in self.links:
+            if not blink.is_valid:
+                continue
+
+            comp.add_link(blink)
+
+
+class ObjectNodeTree(NodeTreeBase, NodeTree):
     '''Object component nodes'''
     bl_idname = 'ObjectNodeTree'
     bl_label = 'Object Nodes'
@@ -98,9 +169,12 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")
 
+    def compile(self, compiler):
+        pass
+
 ###############################################################################
 
-class ForceFieldNodeTree(NodeTree):
+class ForceFieldNodeTree(NodeTreeBase, NodeTree):
     '''Force field nodes'''
     bl_idname = 'ForceFieldNodeTree'
     bl_label = 'Force Field Nodes'
@@ -128,6 +202,15 @@ class ForceOutputNode(ForceNodeBase, ObjectNode):
         self.inputs.new('NodeSocketVector', "Force")
         self.inputs.new('NodeSocketVector', "Impulse")
 
+    def compile(self, compiler):
+        node = compiler.add_node("PASS_FLOAT3", self.name+"FORCE")
+        compiler.map_input(0, node, "value")
+        compiler.set_output("force", node, "value")
+        
+        node = compiler.add_node("PASS_FLOAT3", self.name+"IMPULSE")
+        compiler.map_input(1, node, "value")
+        compiler.set_output("impulse", node, "value")
+
 
 class SeparateVectorNode(ForceNodeBase, ObjectNode):
     '''Separate vector into elements'''
@@ -139,6 +222,22 @@ class SeparateVectorNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketFloat', "X")
         self.outputs.new('NodeSocketFloat', "Y")
         self.outputs.new('NodeSocketFloat', "Z")
+
+    def compile(self, compiler):
+        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"X")
+        node.set_value_int("index", 0)
+        compiler.map_input(0, node, "value")
+        compiler.map_output(0, node, "value")
+        
+        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Y")
+        node.set_value_int("index", 1)
+        compiler.map_input(0, node, "value")
+        compiler.map_output(1, node, "value")
+        
+        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Z")
+        node.set_value_int("index", 2)
+        compiler.map_input(0, node, "value")
+        compiler.map_output(2, node, "value")
 
 
 class CombineVectorNode(ForceNodeBase, ObjectNode):
@@ -152,6 +251,13 @@ class CombineVectorNode(ForceNodeBase, ObjectNode):
         self.inputs.new('NodeSocketFloat', "Z")
         self.outputs.new('NodeSocketVector', "Vector")
 
+    def compile(self, compiler):
+        node = compiler.add_node("SET_FLOAT3", self.name+"N")
+        compiler.map_input(0, node, "value_x")
+        compiler.map_input(1, node, "value_y")
+        compiler.map_input(2, node, "value_z")
+        compiler.map_output(0, node, "value")
+
 
 class PointDataNode(ForceNodeBase, ObjectNode):
     '''Input data of physical points'''
@@ -162,6 +268,12 @@ class PointDataNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Position")
         self.outputs.new('NodeSocketVector', "Velocity")
 
+    def compile(self, compiler):
+        node = compiler.add_node("POINT_POSITION", self.name+"P")
+        compiler.map_output(0, node, "value")
+        node = compiler.add_node("POINT_VELOCITY", self.name+"V")
+        compiler.map_output(1, node, "value")
+
 
 class MathNode(ForceNodeBase, ObjectNode):
     '''Math '''
@@ -169,10 +281,10 @@ class MathNode(ForceNodeBase, ObjectNode):
     bl_label = 'Math'
 
     _mode_items = [
-        ('ADD', 'Add', '', 'NONE', 0),
-        ('SUB', 'Subtract', '', 'NONE', 1),
-        ('MUL', 'Multiply', '', 'NONE', 2),
-        ('DIV', 'Divide', '', 'NONE', 3),
+        ('ADD_FLOAT', 'Add', '', 'NONE', 0),
+        ('SUB_FLOAT', 'Subtract', '', 'NONE', 1),
+        ('MUL_FLOAT', 'Multiply', '', 'NONE', 2),
+        ('DIV_FLOAT', 'Divide', '', 'NONE', 3),
         ('SINE', 'Sine', '', 'NONE', 4),
         ('COSINE', 'Cosine', '', 'NONE', 5),
         ('TANGENT', 'Tangent', '', 'NONE', 6),
@@ -201,6 +313,88 @@ class MathNode(ForceNodeBase, ObjectNode):
         self.inputs.new('NodeSocketFloat', "Value")
         self.outputs.new('NodeSocketFloat', "Value")
 
+    def compile(self, compiler):
+        node = compiler.add_node(self.mode, self.name+"N")
+
+        is_binary = self.mode in {'ADD_FLOAT', 'SUB_FLOAT', 'MUL_FLOAT', 'DIV_FLOAT', 
+                                  'POWER', 'LOGARITHM', 'MINIMUM', 'MAXIMUM',
+                                  'LESS_THAN', 'GREATER_THAN', 'MODULO'}
+
+        if is_binary:
+            # binary mode
+            compiler.map_input(0, node, "value_a")
+            compiler.map_input(1, node, "value_b")
+        else:
+            # unary mode
+            socket_a = self.inputs[0]
+            socket_b = self.inputs[1]
+            linked_a = (not socket_a.hide) and socket_a.is_linked
+            linked_b = (not socket_a.hide) and socket_a.is_linked
+            if linked_a or (not linked_b):
+                compiler.map_input(0, node, "value")
+            else:
+                compiler.map_input(1, node, "value")
+
+        compiler.map_output(0, node, "value")
+
+
+class VectorMathNode(ForceNodeBase, ObjectNode):
+    '''Vector Math '''
+    bl_idname = 'ObjectVectorMathNode'
+    bl_label = 'Vector Math'
+
+    _mode_items = [
+        ('ADD_FLOAT3', 'Add', '', 'NONE', 0),
+        ('SUB_FLOAT3', 'Subtract', '', 'NONE', 1),
+        ('AVERAGE_FLOAT3', 'Average', '', 'NONE', 2),
+        ('DOT_FLOAT3', 'Dot Product', '', 'NONE', 3),
+        ('CROSS_FLOAT3', 'Cross Product', '', 'NONE', 4),
+        ('NORMALIZE_FLOAT3', 'Normalize', '', 'NONE', 5),
+    ]
+    mode = EnumProperty(name="Mode",
+                        items=_mode_items)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketFloat', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_node(self.mode, self.name+"N")
+
+        is_binary = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'AVERAGE_FLOAT3',
+                                  'DOT_FLOAT3', 'CROSS_FLOAT3'}
+        has_vector_out = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'AVERAGE_FLOAT3',
+                                       'CROSS_FLOAT3', 'NORMALIZE_FLOAT3'}
+        has_value_out = self.mode in {'DOT_FLOAT3', 'NORMALIZE_FLOAT3'}
+
+        if is_binary:
+            # binary node
+            compiler.map_input(0, node, "value_a")
+            compiler.map_input(1, node, "value_b")
+        else:
+            # unary node
+            socket_a = self.inputs[0]
+            socket_b = self.inputs[1]
+            linked_a = (not socket_a.hide) and socket_a.is_linked
+            linked_b = (not socket_a.hide) and socket_a.is_linked
+            if linked_a or (not linked_b):
+                compiler.map_input(0, node, "value")
+            else:
+                compiler.map_input(1, node, "value")
+
+        if has_vector_out and has_value_out:
+            compiler.map_output(0, node, "vector")
+            compiler.map_output(1, node, "value")
+        elif has_vector_out:
+            compiler.map_output(0, node, "value")
+        elif has_value_out:
+            compiler.map_output(1, node, "value")
+
 
 class ForceClosestPointNode(ForceNodeBase, ObjectNode):
     '''Closest point on the effector mesh'''
@@ -214,31 +408,8 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Normal")
         self.outputs.new('NodeSocketVector', "Tangent")
 
-
-class VectorMathNode(ForceNodeBase, ObjectNode):
-    '''Vector Math '''
-    bl_idname = 'ObjectVectorMathNode'
-    bl_label = 'Vector Math'
-
-    _mode_items = [
-        ('ADD', 'Add', '', 'NONE', 0),
-        ('SUB', 'Subtract', '', 'NONE', 1),
-        ('AVERAGE', 'Average', '', 'NONE', 2),
-        ('DOT', 'Dot Product', '', 'NONE', 3),
-        ('CROSS', 'Cross Product', '', 'NONE', 4),
-        ('NORMALIZE', 'Normalize', '', 'NONE', 5),
-    ]
-    mode = EnumProperty(name="Mode",
-                        items=_mode_items)
-
-    def draw_buttons(self, context, layout):
-        layout.prop(self, "mode")
-
-    def init(self, context):
-        self.inputs.new('NodeSocketVector', "Vector")
-        self.inputs.new('NodeSocketVector', "Vector")
-        self.outputs.new('NodeSocketVector', "Vector")
-        self.outputs.new('NodeSocketFloat', "Value")
+    def compile(self, compiler):
+        pass
 
 ###############################################################################
 

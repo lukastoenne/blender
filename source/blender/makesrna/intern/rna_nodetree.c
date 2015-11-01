@@ -592,7 +592,7 @@ static StructRNA *rna_NodeTree_register(
 	bNodeTreeType *nt, dummynt;
 	bNodeTree dummyntree;
 	PointerRNA dummyptr;
-	int have_function[3];
+	int have_function[64];
 
 	/* setup dummy tree & tree type to store static properties in */
 	memset(&dummynt, 0, sizeof(bNodeTreeType));
@@ -8119,6 +8119,15 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 	parm = RNA_def_pointer(func, "result_3", "ID", "From ID", "Original ID data block selected from the context");
 	RNA_def_function_output(func, parm);
+	
+	/* BlenVM compile */
+	func = RNA_def_function(srna, "bvm_compile", NULL);
+	RNA_def_function_ui_description(func, "Convert node settings to blenvm instructions");
+	RNA_def_function_flag(func, FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "context", "BVMCompileContext", "Context", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "graph", "BVMNodeGraph", "Graph", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 }
 
 static void rna_def_composite_nodetree(BlenderRNA *brna)

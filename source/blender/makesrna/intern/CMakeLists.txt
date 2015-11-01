@@ -36,6 +36,7 @@ set(DEFSRC
 	rna_animation.c
 	rna_animviz.c
 	rna_armature.c
+	rna_blenvm.c
 	rna_boid.c
 	rna_brush.c
 	rna_camera.c
@@ -318,6 +319,7 @@ blender_include_dirs(
 	../../blenfont
 	../../blenkernel
 	../../blenlib
+	../../blenvm
 	../../bmesh
 	../../blentranslation
 	../../depsgraph

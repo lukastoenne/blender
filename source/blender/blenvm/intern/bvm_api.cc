@@ -104,6 +104,41 @@ BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
 
+void BVM_nodegraph_add_link(BVMNodeGraph *graph,
+                            struct BVMNodeInstance *from_node, const char *from_socket,
+                            struct BVMNodeInstance *to_node, const char *to_socket)
+{
+	_GRAPH(graph)->add_link(_NODE(from_node), bvm::string(from_socket),
+	                        _NODE(to_node), bvm::string(to_socket));
+}
+
+void BVM_nodegraph_set_output_link(struct BVMNodeGraph *graph,
+                                   const char *name, struct BVMNodeInstance *node, const char *socket)
+{
+	_GRAPH(graph)->set_output_link(name, _NODE(node), socket);
+}
+
+
+void BVM_node_set_input_value_float(struct BVMNodeInstance *node, const char *socket,
+                                    float value)
+{ _NODE(node)->set_input_value(socket, value); }
+
+void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, const char *socket,
+                                     const float value[3])
+{ _NODE(node)->set_input_value(socket, bvm::float3::from_data(value)); }
+
+void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, const char *socket,
+                                     const float value[4])
+{ _NODE(node)->set_input_value(socket, bvm::float4::from_data(value)); }
+
+void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, const char *socket,
+                                       float value[4][4])
+{ _NODE(node)->set_input_value(socket, bvm::matrix44::from_data(&value[0][0])); }
+
+void BVM_node_set_input_value_int(struct BVMNodeInstance *node, const char *socket,
+                                  int value)
+{ _NODE(node)->set_input_value(socket, value); }
+
 /* ------------------------------------------------------------------------- */
 
 BLI_INLINE bvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
@@ -130,6 +165,8 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
+namespace bvm {
+
 struct bNodeCompiler {
 	typedef std::pair<bNode*, bNodeSocket*> bSocketPair;
 	typedef std::pair<bvm::NodeInstance*, bvm::string> SocketPair;
@@ -138,13 +175,17 @@ struct bNodeCompiler {
 	typedef std::map<bSocketPair, SocketPair> OutputMap;
 	
 	bNodeCompiler(bvm::NodeGraph *graph) :
-	    m_graph(graph)
+	    m_graph(graph),
+	    m_current_bnode(NULL)
 	{
 	}
 	
 	~bNodeCompiler()
 	{
 	}
+	
+	bNode *current_node() const { return m_current_bnode; }
+	void set_current_node(bNode *node) { m_current_bnode = node; }
 	
 	const InputMap &input_map() const { return m_input_map; }
 	const OutputMap &output_map() const { return m_output_map; }
@@ -154,11 +195,11 @@ struct bNodeCompiler {
 		return m_graph->add_node(type, name);
 	}
 	
-	void map_input_socket(bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
+	void map_input_socket(int bindex, bvm::NodeInstance *node, const bvm::string &name)
 	{
-		bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&bnode->inputs, bindex);
+		bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&m_current_bnode->inputs, bindex);
 		
-		m_input_map[bSocketPair(bnode, binput)].insert(SocketPair(node, name));
+		m_input_map[bSocketPair(m_current_bnode, binput)].insert(SocketPair(node, name));
 		
 		switch (binput->type) {
 			case SOCK_FLOAT: {
@@ -184,11 +225,11 @@ struct bNodeCompiler {
 		}
 	}
 	
-	void map_output_socket(bNode *bnode, int bindex, bvm::NodeInstance *node, const bvm::string &name)
+	void map_output_socket(int bindex, bvm::NodeInstance *node, const bvm::string &name)
 	{
-		bNodeSocket *boutput = (bNodeSocket *)BLI_findlink(&bnode->outputs, bindex);
+		bNodeSocket *boutput = (bNodeSocket *)BLI_findlink(&m_current_bnode->outputs, bindex);
 		
-		m_output_map[bSocketPair(bnode, boutput)] = SocketPair(node, name);
+		m_output_map[bSocketPair(m_current_bnode, boutput)] = SocketPair(node, name);
 	}
 	
 	void set_graph_output(const bvm::string &graph_output_name, bvm::NodeInstance *node, const bvm::string &name)
@@ -196,17 +237,17 @@ struct bNodeCompiler {
 		m_graph->set_output_link(graph_output_name, node, name);
 	}
 	
-	void map_all_sockets(bNode *bnode, bvm::NodeInstance *node)
+	void map_all_sockets(bvm::NodeInstance *node)
 	{
 		bNodeSocket *bsock;
 		int i;
-		for (bsock = (bNodeSocket *)bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
+		for (bsock = (bNodeSocket *)m_current_bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 			const bvm::NodeSocket *input = node->type->find_input(i);
-			map_input_socket(bnode, i, node, input->name);
+			map_input_socket(i, node, input->name);
 		}
-		for (bsock = (bNodeSocket *)bnode->outputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
+		for (bsock = (bNodeSocket *)m_current_bnode->outputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 			const bvm::NodeSocket *output = node->type->find_output(i);
-			map_output_socket(bnode, i, node, output->name);
+			map_output_socket(i, node, output->name);
 		}
 	}
 	
@@ -234,18 +275,25 @@ struct bNodeCompiler {
 	}
 	
 private:
-	bvm::NodeGraph *m_graph;
+	NodeGraph *m_graph;
+	bNode *m_current_bnode;
 	
 	InputMap m_input_map;
 	OutputMap m_output_map;
 };
 
+} /* namespace bvm */
+
+/* ------------------------------------------------------------------------- */
+
 struct bNodeParser {
-	virtual void parse(bNodeCompiler *nodecomp, PointerRNA *bnode_ptr) const = 0;
+	virtual void parse(bvm::bNodeCompiler *nodecomp, PointerRNA *bnode_ptr) const = 0;
 };
 
 static void gen_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph, const bNodeParser &parser)
 {
+	using namespace bvm;
+	
 	bNodeCompiler nodecomp(&graph);
 	
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
@@ -256,6 +304,7 @@ static void gen_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph, const bNodePa
 		if (!nodeIsRegistered(bnode))
 			continue;
 		
+		nodecomp.set_current_node(bnode);
 		parser.parse(&nodecomp, &ptr);
 	}
 	
@@ -269,26 +318,78 @@ static void gen_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph, const bNodePa
 
 /* ------------------------------------------------------------------------- */
 
-static void binary_math_node(bNodeCompiler *comp, bNode *bnode, const bvm::string &type)
+struct CompileContext {
+	typedef std::map<struct Object *, int> ObjectPtrMap;
+	
+	ObjectPtrMap obmap;
+	
+	CompileContext(const bvm::EvalGlobals *globals)
+	{
+		for (int i = 0; i < globals->objects.size(); ++i)
+			obmap[globals->objects[i]] = i;
+	}
+	
+	int get_object_index(Object *ob)
+	{
+		ObjectPtrMap::const_iterator it = obmap.find(ob);
+		if (it != obmap.end())
+			return it->second;
+		else
+			return -1;
+	}
+	
+	void parse_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
+	{
+		PointerRNA ptr;
+		ParameterList list;
+		FunctionRNA *func;
+		BVMCompileContext *context = (BVMCompileContext *)this;
+		
+		RNA_id_pointer_create((ID *)btree, &ptr);
+		
+		func = RNA_struct_find_function(ptr.type, "bvm_compile");
+		if (!func)
+			return;
+		
+		RNA_parameter_list_create(&list, &ptr, func);
+		RNA_parameter_set_lookup(&list, "context", &context);
+		RNA_parameter_set_lookup(&list, "graph", &graph);
+		btree->typeinfo->ext.call(NULL, &ptr, func, &list);
+		
+		RNA_parameter_list_free(&list);
+	}
+};
+
+inline static CompileContext *_COMP(BVMCompileContext *c)
 {
-	bvm::NodeInstance *node = comp->add_node(type, bnode->name);
-	comp->map_input_socket(bnode, 0, node, "value_a");
-	comp->map_input_socket(bnode, 1, node, "value_b");
-	comp->map_output_socket(bnode, 0, node, "value");
+	return (CompileContext *)c;
 }
 
-static void unary_math_node(bNodeCompiler *comp, bNode *bnode, const bvm::string &type)
+int BVM_compile_get_object_index(BVMCompileContext *context, Object *ob)
 {
-	bvm::NodeInstance *node = comp->add_node(type, bnode->name);
-	bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
-	bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
+	return _COMP(context)->get_object_index(ob);
+}
+
+static void binary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
+{
+	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	comp->map_input_socket(0, node, "value_a");
+	comp->map_input_socket(1, node, "value_b");
+	comp->map_output_socket(0, node, "value");
+}
+
+static void unary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
+{
+	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 0);
+	bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 1);
 	bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
 	bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
 	if (sock0_linked || !sock1_linked)
-		comp->map_input_socket(bnode, 0, node, "value");
+		comp->map_input_socket(0, node, "value");
 	else
-		comp->map_input_socket(bnode, 1, node, "value");
-	comp->map_output_socket(bnode, 0, node, "value");
+		comp->map_input_socket(1, node, "value");
+	comp->map_output_socket(0, node, "value");
 }
 
 struct ForceFieldNodeParser : public bNodeParser {
@@ -305,154 +406,154 @@ struct ForceFieldNodeParser : public bNodeParser {
 		}
 	}
 	
-	void parse(bNodeCompiler *comp, PointerRNA *bnode_ptr) const
+	void parse(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr) const
 	{
 		bNode *bnode = (bNode *)bnode_ptr->data;
 		bvm::string type = bvm::string(bnode->typeinfo->idname);
 		if (type == "ForceOutputNode") {
 			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(bnode->name));
-				comp->map_input_socket(bnode, 0, node, "value");
-				comp->map_output_socket(bnode, 0, node, "value");
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_FORCE_" + bvm::string(comp->current_node()->name));
+				comp->map_input_socket(0, node, "value");
+				comp->map_output_socket(0, node, "value");
 				
 				comp->set_graph_output("force", node, "value");
 			}
 			
 			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_IMPULSE_" + bvm::string(bnode->name));
-				comp->map_input_socket(bnode, 1, node, "value");
-				comp->map_output_socket(bnode, 0, node, "value");
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_IMPULSE_" + bvm::string(comp->current_node()->name));
+				comp->map_input_socket(1, node, "value");
+				comp->map_output_socket(0, node, "value");
 				
 				comp->set_graph_output("impulse", node, "value");
 			}
 		}
 		else if (type == "ObjectSeparateVectorNode") {
 			{
-				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM0_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM0_" + bvm::string(comp->current_node()->name));
 				node->set_input_value("index", 0);
-				comp->map_input_socket(bnode, 0, node, "value");
-				comp->map_output_socket(bnode, 0, node, "value");
+				comp->map_input_socket(0, node, "value");
+				comp->map_output_socket(0, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM1_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM1_" + bvm::string(comp->current_node()->name));
 				node->set_input_value("index", 1);
-				comp->map_input_socket(bnode, 0, node, "value");
-				comp->map_output_socket(bnode, 1, node, "value");
+				comp->map_input_socket(0, node, "value");
+				comp->map_output_socket(1, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM2_" + bvm::string(bnode->name));
+				bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT3", "GET_ELEM2_" + bvm::string(comp->current_node()->name));
 				node->set_input_value("index", 2);
-				comp->map_input_socket(bnode, 0, node, "value");
-				comp->map_output_socket(bnode, 2, node, "value");
+				comp->map_input_socket(0, node, "value");
+				comp->map_output_socket(2, node, "value");
 			}
 		}
 		else if (type == "ObjectCombineVectorNode") {
-			bvm::NodeInstance *node = comp->add_node("SET_FLOAT3", bvm::string(bnode->name));
-			comp->map_input_socket(bnode, 0, node, "value_x");
-			comp->map_input_socket(bnode, 1, node, "value_y");
-			comp->map_input_socket(bnode, 2, node, "value_z");
-			comp->map_output_socket(bnode, 0, node, "value");
+			bvm::NodeInstance *node = comp->add_node("SET_FLOAT3", bvm::string(comp->current_node()->name));
+			comp->map_input_socket(0, node, "value_x");
+			comp->map_input_socket(1, node, "value_y");
+			comp->map_input_socket(2, node, "value_z");
+			comp->map_output_socket(0, node, "value");
 		}
 		else if (type == "ForcePointDataNode") {
 			{
-				bvm::NodeInstance *node = comp->add_node("POINT_POSITION", "POINT_POS" + bvm::string(bnode->name));
-				comp->map_output_socket(bnode, 0, node, "value");
+				bvm::NodeInstance *node = comp->add_node("POINT_POSITION", "POINT_POS" + bvm::string(comp->current_node()->name));
+				comp->map_output_socket(0, node, "value");
 			}
 			{
-				bvm::NodeInstance *node = comp->add_node("POINT_VELOCITY", "POINT_VEL" + bvm::string(bnode->name));
-				comp->map_output_socket(bnode, 1, node, "value");
+				bvm::NodeInstance *node = comp->add_node("POINT_VELOCITY", "POINT_VEL" + bvm::string(comp->current_node()->name));
+				comp->map_output_socket(1, node, "value");
 			}
 		}
 		else if (type == "ObjectMathNode") {
 			int mode = RNA_enum_get(bnode_ptr, "mode");
 			switch (mode) {
-				case 0: binary_math_node(comp, bnode, "ADD_FLOAT"); break;
-				case 1: binary_math_node(comp, bnode, "SUB_FLOAT"); break;
-				case 2: binary_math_node(comp, bnode, "MUL_FLOAT"); break;
-				case 3: binary_math_node(comp, bnode, "DIV_FLOAT"); break;
-				case 4: unary_math_node(comp, bnode, "SINE"); break;
-				case 5: unary_math_node(comp, bnode, "COSINE"); break;
-				case 6: unary_math_node(comp, bnode, "TANGENT"); break;
-				case 7: unary_math_node(comp, bnode, "ARCSINE"); break;
-				case 8: unary_math_node(comp, bnode, "ARCCOSINE"); break;
-				case 9: unary_math_node(comp, bnode, "ARCTANGENT"); break;
-				case 10: binary_math_node(comp, bnode, "POWER"); break;
-				case 11: binary_math_node(comp, bnode, "LOGARITHM"); break;
-				case 12: binary_math_node(comp, bnode, "MINIMUM"); break;
-				case 13: binary_math_node(comp, bnode, "MAXIMUM"); break;
-				case 14: unary_math_node(comp, bnode, "ROUND"); break;
-				case 15: binary_math_node(comp, bnode, "LESS_THAN"); break;
-				case 16: binary_math_node(comp, bnode, "GREATER_THAN"); break;
-				case 17: binary_math_node(comp, bnode, "MODULO"); break;
-				case 18: unary_math_node(comp, bnode, "ABSOLUTE"); break;
-				case 19: unary_math_node(comp, bnode, "CLAMP"); break;
+				case 0: binary_math_node(comp, "ADD_FLOAT"); break;
+				case 1: binary_math_node(comp, "SUB_FLOAT"); break;
+				case 2: binary_math_node(comp, "MUL_FLOAT"); break;
+				case 3: binary_math_node(comp, "DIV_FLOAT"); break;
+				case 4: unary_math_node(comp, "SINE"); break;
+				case 5: unary_math_node(comp, "COSINE"); break;
+				case 6: unary_math_node(comp, "TANGENT"); break;
+				case 7: unary_math_node(comp, "ARCSINE"); break;
+				case 8: unary_math_node(comp, "ARCCOSINE"); break;
+				case 9: unary_math_node(comp, "ARCTANGENT"); break;
+				case 10: binary_math_node(comp, "POWER"); break;
+				case 11: binary_math_node(comp, "LOGARITHM"); break;
+				case 12: binary_math_node(comp, "MINIMUM"); break;
+				case 13: binary_math_node(comp, "MAXIMUM"); break;
+				case 14: unary_math_node(comp, "ROUND"); break;
+				case 15: binary_math_node(comp, "LESS_THAN"); break;
+				case 16: binary_math_node(comp, "GREATER_THAN"); break;
+				case 17: binary_math_node(comp, "MODULO"); break;
+				case 18: unary_math_node(comp, "ABSOLUTE"); break;
+				case 19: unary_math_node(comp, "CLAMP"); break;
 			}
 		}
 		else if (type == "ObjectVectorMathNode") {
 			int mode = RNA_enum_get(bnode_ptr, "mode");
 			switch (mode) {
 				case 0: {
-					bvm::NodeInstance *node = comp->add_node("ADD_FLOAT3", bnode->name);
-					comp->map_input_socket(bnode, 0, node, "value_a");
-					comp->map_input_socket(bnode, 1, node, "value_b");
-					comp->map_output_socket(bnode, 0, node, "value");
+					bvm::NodeInstance *node = comp->add_node("ADD_FLOAT3", comp->current_node()->name);
+					comp->map_input_socket(0, node, "value_a");
+					comp->map_input_socket(1, node, "value_b");
+					comp->map_output_socket(0, node, "value");
 					break;
 				}
 				case 1: {
-					bvm::NodeInstance *node = comp->add_node("SUB_FLOAT3", bnode->name);
-					comp->map_input_socket(bnode, 0, node, "value_a");
-					comp->map_input_socket(bnode, 1, node, "value_b");
-					comp->map_output_socket(bnode, 0, node, "value");
+					bvm::NodeInstance *node = comp->add_node("SUB_FLOAT3", comp->current_node()->name);
+					comp->map_input_socket(0, node, "value_a");
+					comp->map_input_socket(1, node, "value_b");
+					comp->map_output_socket(0, node, "value");
 					break;
 				}
 				case 2: {
-					bvm::NodeInstance *node = comp->add_node("AVERAGE_FLOAT3", bnode->name);
-					comp->map_input_socket(bnode, 0, node, "value_a");
-					comp->map_input_socket(bnode, 1, node, "value_b");
-					comp->map_output_socket(bnode, 0, node, "value");
+					bvm::NodeInstance *node = comp->add_node("AVERAGE_FLOAT3", comp->current_node()->name);
+					comp->map_input_socket(0, node, "value_a");
+					comp->map_input_socket(1, node, "value_b");
+					comp->map_output_socket(0, node, "value");
 					break;
 				}
 				case 3: {
-					bvm::NodeInstance *node = comp->add_node("DOT_FLOAT3", bnode->name);
-					comp->map_input_socket(bnode, 0, node, "value_a");
-					comp->map_input_socket(bnode, 1, node, "value_b");
-					comp->map_output_socket(bnode, 1, node, "value");
+					bvm::NodeInstance *node = comp->add_node("DOT_FLOAT3", comp->current_node()->name);
+					comp->map_input_socket(0, node, "value_a");
+					comp->map_input_socket(1, node, "value_b");
+					comp->map_output_socket(1, node, "value");
 					break;
 				}
 				case 4: {
-					bvm::NodeInstance *node = comp->add_node("CROSS_FLOAT3", bnode->name);
-					comp->map_input_socket(bnode, 0, node, "value_a");
-					comp->map_input_socket(bnode, 1, node, "value_b");
-					comp->map_output_socket(bnode, 0, node, "value");
+					bvm::NodeInstance *node = comp->add_node("CROSS_FLOAT3", comp->current_node()->name);
+					comp->map_input_socket(0, node, "value_a");
+					comp->map_input_socket(1, node, "value_b");
+					comp->map_output_socket(0, node, "value");
 					break;
 				}
 				case 5: {
-					bvm::NodeInstance *node = comp->add_node("NORMALIZE_FLOAT3", bnode->name);
+					bvm::NodeInstance *node = comp->add_node("NORMALIZE_FLOAT3", comp->current_node()->name);
 					bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 0);
 					bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&bnode->inputs, 1);
 					bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
 					bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
 					if (sock0_linked || !sock1_linked)
-						comp->map_input_socket(bnode, 0, node, "value");
+						comp->map_input_socket(0, node, "value");
 					else
-						comp->map_input_socket(bnode, 1, node, "value");
-					comp->map_output_socket(bnode, 0, node, "vector");
-					comp->map_output_socket(bnode, 1, node, "value");
+						comp->map_input_socket(1, node, "value");
+					comp->map_output_socket(0, node, "vector");
+					comp->map_output_socket(1, node, "value");
 					break;
 				}
 			}
 		}
 		else if (type == "ForceClosestPointNode") {
-			bvm::NodeInstance *node = comp->add_node("EFFECTOR_CLOSEST_POINT", bnode->name);
+			bvm::NodeInstance *node = comp->add_node("EFFECTOR_CLOSEST_POINT", comp->current_node()->name);
 			Object *object = effob;
 			ObjectPtrMap::const_iterator it = obmap.find(object);
 			if (it != obmap.end()) {
 				int object_index = it->second;
 				node->set_input_value("object", object_index);
-				comp->map_input_socket(bnode, 0, node, "vector");
-				comp->map_output_socket(bnode, 0, node, "position");
-				comp->map_output_socket(bnode, 1, node, "normal");
-				comp->map_output_socket(bnode, 2, node, "tangent");
+				comp->map_input_socket(0, node, "vector");
+				comp->map_output_socket(0, node, "position");
+				comp->map_output_socket(1, node, "normal");
+				comp->map_output_socket(2, node, "tangent");
 			}
 		}
 	}
@@ -468,8 +569,11 @@ struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals 
 		graph.add_output("force", BVM_FLOAT3, zero);
 		graph.add_output("impulse", BVM_FLOAT3, zero);
 	}
-	ForceFieldNodeParser parser(_GLOBALS(globals), effob);
-	gen_nodegraph(btree, graph, parser);
+	
+	CompileContext comp(_GLOBALS(globals));
+	comp.parse_nodes(btree, &graph);
+//	ForceFieldNodeParser parser(_GLOBALS(globals), effob);
+//	gen_nodegraph(btree, graph, parser);
 	
 	BVMCompiler compiler;
 	Expression *expr = compiler.codegen_expression(graph);
@@ -497,37 +601,37 @@ struct TextureNodeParser : public bNodeParser {
 	{
 	}
 	
-	void parse(bNodeCompiler *comp, PointerRNA *bnode_ptr) const
+	void parse(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr) const
 	{
 		bNode *bnode = (bNode *)bnode_ptr->data;
 		bvm::string type = bvm::string(bnode->typeinfo->idname);
 		if (type == "TextureNodeOutput") {
 			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(bnode->name));
-				comp->map_input_socket(bnode, 0, node, "value");
-				comp->map_output_socket(bnode, 0, node, "value");
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(comp->current_node()->name));
+				comp->map_input_socket(0, node, "value");
+				comp->map_output_socket(0, node, "value");
 				
 				comp->set_graph_output("color", node, "value");
 			}
 			
 			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(bnode->name));
-				comp->map_input_socket(bnode, 1, node, "value");
-				comp->map_output_socket(bnode, 0, node, "value");
+				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(comp->current_node()->name));
+				comp->map_input_socket(1, node, "value");
+				comp->map_output_socket(0, node, "value");
 				
 				comp->set_graph_output("normal", node, "value");
 			}
 		}
 		else if (type == "TextureNodeCoordinates") {
-			bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(bnode->name));
-			comp->map_output_socket(bnode, 0, node, "value");
+			bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(comp->current_node()->name));
+			comp->map_output_socket(0, node, "value");
 		}
 		else if (type == "TextureNodeTexVoronoi") {
 			Tex *tex = (Tex *)bnode->storage;
 			
-			bvm::NodeInstance *node_pos = comp->add_node("TEX_COORD", "TEX_VORONOI_COORD_"+bvm::string(bnode->name));
+			bvm::NodeInstance *node_pos = comp->add_node("TEX_COORD", "TEX_VORONOI_COORD_"+bvm::string(comp->current_node()->name));
 			
-			bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(bnode->name));
+			bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(comp->current_node()->name));
 			node->set_input_value("distance_metric", (int)tex->vn_distm);
 			node->set_input_value("color_type", (int)tex->vn_coltype);
 			node->set_input_value("minkowski_exponent", 2.5f);
@@ -535,15 +639,15 @@ struct TextureNodeParser : public bNodeParser {
 			
 			node->set_input_link("position", node_pos, node_pos->type->find_output(0));
 			
-			comp->map_input_socket(bnode, 2, node, "w1");
-			comp->map_input_socket(bnode, 3, node, "w2");
-			comp->map_input_socket(bnode, 4, node, "w3");
-			comp->map_input_socket(bnode, 5, node, "w4");
-			comp->map_input_socket(bnode, 6, node, "scale");
-			comp->map_input_socket(bnode, 7, node, "noise_size");
+			comp->map_input_socket(2, node, "w1");
+			comp->map_input_socket(3, node, "w2");
+			comp->map_input_socket(4, node, "w3");
+			comp->map_input_socket(5, node, "w4");
+			comp->map_input_socket(6, node, "scale");
+			comp->map_input_socket(7, node, "noise_size");
 			
-			comp->map_output_socket(bnode, 0, node, "color");
-			comp->map_output_socket(bnode, 1, node, "normal");
+			comp->map_output_socket(0, node, "color");
+			comp->map_output_socket(1, node, "normal");
 		}
 	}
 };
