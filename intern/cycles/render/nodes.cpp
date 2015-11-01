@@ -183,6 +183,21 @@ static ShaderEnum image_projection_init()
 	return enm;
 }
 
+static const char* get_osl_interpolation_parameter(InterpolationType interpolation)
+{
+	switch(interpolation) {
+		case INTERPOLATION_CLOSEST:
+			return "closest";
+		case INTERPOLATION_CUBIC:
+			return "cubic";
+		case INTERPOLATION_SMART:
+			return "smart";
+		case INTERPOLATION_LINEAR:
+		default:
+			return "linear";
+	}
+}
+
 ShaderEnum ImageTextureNode::color_space_enum = color_space_init();
 ShaderEnum ImageTextureNode::projection_enum = image_projection_init();
 
@@ -363,22 +378,7 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 	compiler.parameter("projection_blend", projection_blend);
 	compiler.parameter("is_float", is_float);
 	compiler.parameter("use_alpha", !alpha_out->links.empty());
-
-	switch (interpolation) {
-		case INTERPOLATION_CLOSEST:
-			compiler.parameter("interpolation", "closest");
-			break;
-		case INTERPOLATION_CUBIC:
-			compiler.parameter("interpolation", "cubic");
-			break;
-		case INTERPOLATION_SMART:
-			compiler.parameter("interpolation", "smart");
-			break;
-		case INTERPOLATION_LINEAR:
-		default:
-			compiler.parameter("interpolation", "linear");
-			break;
-	}
+	compiler.parameter("interpolation", get_osl_interpolation_parameter(interpolation));
 
 	switch(extension) {
 		case EXTENSION_EXTEND:
@@ -422,6 +422,7 @@ EnvironmentTextureNode::EnvironmentTextureNode()
 	filename = "";
 	builtin_data = NULL;
 	color_space = ustring("Color");
+	interpolation = INTERPOLATION_LINEAR;
 	projection = ustring("Equirectangular");
 	animated = false;
 
@@ -435,7 +436,7 @@ EnvironmentTextureNode::~EnvironmentTextureNode()
 	if(image_manager) {
 		image_manager->remove_image(filename,
 		                            builtin_data,
-		                            INTERPOLATION_LINEAR,
+		                            interpolation,
 		                            EXTENSION_REPEAT);
 	}
 }
@@ -478,7 +479,7 @@ void EnvironmentTextureNode::compile(SVMCompiler& compiler)
 		                                0,
 		                                is_float_bool,
 		                                is_linear,
-		                                INTERPOLATION_LINEAR,
+		                                interpolation,
 		                                EXTENSION_REPEAT,
 		                                use_alpha);
 		is_float = (int)is_float_bool;
@@ -547,7 +548,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 			                                0,
 			                                is_float_bool,
 			                                is_linear,
-			                                INTERPOLATION_LINEAR,
+			                                interpolation,
 			                                EXTENSION_REPEAT,
 			                                use_alpha);
 			is_float = (int)is_float_bool;
@@ -565,6 +566,9 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("color_space", "Linear");
 	else
 		compiler.parameter("color_space", "sRGB");
+
+	compiler.parameter("interpolation", get_osl_interpolation_parameter(interpolation));
+
 	compiler.parameter("is_float", is_float);
 	compiler.parameter("use_alpha", !alpha_out->links.empty());
 	compiler.add(this, "node_environment_texture");
@@ -1382,7 +1386,7 @@ PointDensityTextureNode::~PointDensityTextureNode()
 		image_manager->remove_image(filename,
 		                            builtin_data,
 		                            interpolation,
-		                            EXTENSION_REPEAT);
+		                            EXTENSION_CLIP);
 	}
 }
 
@@ -1414,10 +1418,10 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 
 	image_manager = compiler.image_manager;
 
-	if (use_density || use_color) {
-		if (use_density)
+	if(use_density || use_color) {
+		if(use_density)
 			compiler.stack_assign(density_out);
-		if (use_color)
+		if(use_color)
 			compiler.stack_assign(color_out);
 
 		if(slot == -1) {
@@ -1426,7 +1430,7 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 			                                false, 0,
 			                                is_float, is_linear,
 			                                interpolation,
-			                                EXTENSION_REPEAT,
+			                                EXTENSION_CLIP,
 			                                true);
 		}
 
@@ -1467,14 +1471,14 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 
 	image_manager = compiler.image_manager;
 
-	if (use_density || use_color) {
+	if(use_density || use_color) {
 		if(slot == -1) {
 			bool is_float, is_linear;
 			slot = image_manager->add_image(filename, builtin_data,
 			                                false, 0,
 			                                is_float, is_linear,
 			                                interpolation,
-			                                EXTENSION_REPEAT,
+			                                EXTENSION_CLIP,
 			                                true);
 		}
 
@@ -1485,7 +1489,7 @@ void PointDensityTextureNode::compile(OSLCompiler& compiler)
 			compiler.parameter("mapping", transform_transpose(tfm));
 			compiler.parameter("use_mapping", 1);
 		}
-		switch (interpolation) {
+		switch(interpolation) {
 			case INTERPOLATION_CLOSEST:
 				compiler.parameter("interpolation", "closest");
 				break;
@@ -1676,7 +1680,7 @@ void ConvertNode::compile(SVMCompiler& compiler)
 			compiler.stack_assign(in);
 			compiler.stack_assign(out);
 
-			compiler.add_node(NODE_VALUE_V, in->stack_offset);
+			compiler.add_node(NODE_VALUE_V, out->stack_offset);
 			compiler.add_node(NODE_VALUE_V, in->value);
 		}
 	}
@@ -2355,6 +2359,7 @@ HairBsdfNode::HairBsdfNode()
 	add_input("Offset", SHADER_SOCKET_FLOAT);
 	add_input("RoughnessU", SHADER_SOCKET_FLOAT);
 	add_input("RoughnessV", SHADER_SOCKET_FLOAT);
+	add_input("Tangent", SHADER_SOCKET_VECTOR);
 }
 
 void HairBsdfNode::compile(SVMCompiler& compiler)

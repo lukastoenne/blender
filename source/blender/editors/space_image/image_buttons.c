@@ -644,7 +644,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, Image *image, RenderRes
 	int wmenu1, wmenu2, wmenu3, wmenu4;
 	const char *fake_name;
 	const char *display_name = "";
-	const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO);
+	const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO) != 0;
 
 	uiLayoutRow(layout, true);
 
@@ -702,7 +702,9 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, Image *image, RenderRes
 		UI_but_type_set_menu_from_pulldown(but);
 
 		/* view */
-		if (BLI_listbase_count_ex(&rr->views, 2) > 1 && !show_stereo) {
+		if (BLI_listbase_count_ex(&rr->views, 2) > 1 &&
+		    ((!show_stereo) || (!RE_RenderResult_is_stereo(rr))))
+		{
 			rview = BLI_findlink(&rr->views, iuser->view);
 			display_name = rview ? rview->name : "";
 
@@ -713,8 +715,8 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, Image *image, RenderRes
 	}
 
 	/* stereo image */
-	else if (((image->flag & IMA_IS_STEREO) && (!show_stereo)) ||
-	         ((image->flag & IMA_IS_MULTIVIEW) && ((image->flag & IMA_IS_STEREO) == 0)))
+	else if ((BKE_image_is_stereo(image) && (!show_stereo)) ||
+	         (BKE_image_is_multiview(image) && !BKE_image_is_stereo(image)))
 	{
 		ImageView *iv;
 		int nr = 0;
