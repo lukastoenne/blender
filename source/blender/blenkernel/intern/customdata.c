@@ -61,6 +61,8 @@
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
 
+#include "data_transfer_intern.h"
+
 #include "bmesh.h"
 
 #include <math.h>
@@ -305,13 +307,16 @@ static void layerInterp_normal(
         const void **sources, const float *weights,
         const float *UNUSED(sub_weights), int count, void *dest)
 {
+	/* Note: This is linear interpolation, which is not optimal for vectors.
+	 *       Unfortunately, spherical interpolation of more than two values is hairy, so for now it will do... */
 	float no[3] = {0.0f};
 
 	while (count--) {
 		madd_v3_v3fl(no, (const float *)sources[count], weights[count]);
 	}
 
-	copy_v3_v3((float *)dest, no);
+	/* Weighted sum of normalized vectors will **not** be normalized, even if weights are. */
+	normalize_v3_v3((float *)dest, no);
 }
 
 static void layerCopyValue_normal(const void *source, void *dest, const int mixmode, const float mixfactor)
@@ -926,6 +931,7 @@ static void layerInterp_mloopuv(
 	}
 
 	/* delay writing to the destination incase dest is in sources */
+	((MLoopUV *)dest)->flag = ((MLoopUV *)sources)->flag;
 	copy_v2_v2(((MLoopUV *)dest)->uv, uv);
 }
 
@@ -1312,7 +1318,6 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[2]), "vec2s", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
-/* note, numbers are from trunk and need updating for bmesh */
 
 static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/*   0-4 */ "CDMVert", "CDMSticky", "CDMDeformVert", "CDMEdge", "CDMFace",
@@ -1361,9 +1366,16 @@ const CustomDataMask CD_MASK_BMESH =
     CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
     CD_MASK_CUSTOMLOOPNORMAL;
-const CustomDataMask CD_MASK_FACECORNERS =  /* XXX Not used anywhere! */
-    CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
-    CD_MASK_MLOOPCOL | CD_MASK_NORMAL | CD_MASK_MLOOPTANGENT;
+/**
+ * cover values copied by #BKE_mesh_loops_to_tessdata
+ */
+const CustomDataMask CD_MASK_FACECORNERS =
+    CD_MASK_MTFACE | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
+    CD_MASK_MCOL | CD_MASK_MLOOPCOL |
+    CD_MASK_PREVIEW_MCOL | CD_MASK_PREVIEW_MLOOPCOL |
+    CD_MASK_ORIGSPACE | CD_MASK_ORIGSPACE_MLOOP |
+    CD_MASK_TESSLOOPNORMAL | CD_MASK_NORMAL |
+    CD_MASK_TANGENT | CD_MASK_MLOOPTANGENT;
 const CustomDataMask CD_MASK_EVERYTHING =
     CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_NORMAL /* | CD_MASK_POLYINDEX */ | CD_MASK_PROP_FLT |
@@ -3903,6 +3915,38 @@ static void customdata_data_transfer_interp_generic(
 	}
 
 	MEM_freeN(tmp_dst);
+}
+
+/* Normals are special, we need to take care of source & destination spaces... */
+void customdata_data_transfer_interp_normal_normals(
+        const CustomDataTransferLayerMap *laymap, void *data_dst,
+        const void **sources, const float *weights, const int count,
+        const float mix_factor)
+{
+	const int data_type = laymap->data_type;
+	const int mix_mode = laymap->mix_mode;
+
+	SpaceTransform *space_transform = laymap->interp_data;
+
+	const LayerTypeInfo *type_info = layerType_getInfo(data_type);
+	cd_interp interp_cd = type_info->interp;
+
+	float tmp_dst[3];
+
+	BLI_assert(data_type == CD_NORMAL);
+
+	if (!sources) {
+		/* Not supported here, abort. */
+		return;
+	}
+
+	interp_cd(sources, weights, NULL, count, tmp_dst);
+	if (space_transform) {
+		/* tmp_dst is in source space so far, bring it back in destination space. */
+		BLI_space_transform_invert_normal(space_transform, tmp_dst);
+	}
+
+	CustomData_data_mix_value(data_type, tmp_dst, data_dst, mix_mode, mix_factor);
 }
 
 void CustomData_data_transfer(const MeshPairRemap *me_remap, const CustomDataTransferLayerMap *laymap)
