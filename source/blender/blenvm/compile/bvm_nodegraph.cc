@@ -557,6 +557,9 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(PASS_FLOAT);
 	NODETYPE(PASS_FLOAT3);
 	NODETYPE(PASS_FLOAT4);
+	NODETYPE(PASS_INT);
+	NODETYPE(PASS_MATRIX44);
+	NODETYPE(PASS_POINTER);
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
 	
@@ -618,6 +621,18 @@ void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("PASS_FLOAT4");
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("PASS_INT");
+	nt->add_input("value", BVM_INT, 0);
+	nt->add_output("value", BVM_INT, 0);
+	
+	nt = NodeGraph::add_node_type("PASS_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_node_type("PASS_POINTER");
+	nt->add_input("value", BVM_POINTER, PointerRNA_NULL);
+	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, true);

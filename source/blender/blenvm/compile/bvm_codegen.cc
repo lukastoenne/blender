@@ -137,6 +137,16 @@ void BVMCompiler::push_matrix44(matrix44 m)
 	expr->add_instruction(float_to_instruction(m.data[3][3]));
 }
 
+void BVMCompiler::push_pointer(PointerRNA p)
+{
+	expr->add_instruction(pointer_to_instruction_hi(p.id.data));
+	expr->add_instruction(pointer_to_instruction_lo(p.id.data));
+	expr->add_instruction(pointer_to_instruction_hi(p.type));
+	expr->add_instruction(pointer_to_instruction_lo(p.type));
+	expr->add_instruction(pointer_to_instruction_hi(p.data));
+	expr->add_instruction(pointer_to_instruction_lo(p.data));
+}
+
 StackIndex BVMCompiler::codegen_value(const Value *value)
 {
 	StackIndex offset = assign_stack_index(value->typedesc());
@@ -187,6 +197,15 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 			push_stack_index(offset);
 			break;
 		}
+		case BVM_POINTER: {
+			PointerRNA p = PointerRNA_NULL;
+			value->get(&p);
+			
+			push_opcode(OP_VALUE_POINTER);
+			push_pointer(p);
+			push_stack_index(offset);
+			break;
+		}
 	}
 	
 	return offset;
@@ -228,6 +247,13 @@ void BVMCompiler::codegen_constant(const Value *value)
 			value->get(&m);
 			
 			push_matrix44(m);
+			break;
+		}
+		case BVM_POINTER: {
+			PointerRNA p = PointerRNA_NULL;
+			value->get(&p);
+			
+			push_pointer(p);
 			break;
 		}
 	}

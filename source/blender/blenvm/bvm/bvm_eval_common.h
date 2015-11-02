@@ -62,6 +62,11 @@ inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
 	return *(matrix44 *)(&stack[offset]);
 }
 
+inline static PointerRNA stack_load_pointer(float *stack, StackIndex offset)
+{
+	return *(PointerRNA *)(&stack[offset]);
+}
+
 inline static void stack_store_float(float *stack, StackIndex offset, float f)
 {
 	*(float *)(&stack[offset]) = f;
@@ -85,6 +90,11 @@ inline static void stack_store_int(float *stack, StackIndex offset, int i)
 inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix44 m)
 {
 	*(matrix44 *)(&stack[offset]) = m;
+}
+
+inline static void stack_store_pointer(float *stack, StackIndex offset, PointerRNA p)
+{
+	*(PointerRNA *)(&stack[offset]) = p;
 }
 
 } /* namespace bvm */

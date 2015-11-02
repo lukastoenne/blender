@@ -81,6 +81,11 @@ static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offs
 	stack_store_matrix44(stack, offset, value);
 }
 
+static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex offset)
+{
+	stack_store_pointer(stack, offset, value);
+}
+
 static void eval_op_pass_float(float *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
@@ -97,6 +102,24 @@ static void eval_op_pass_float4(float *stack, StackIndex offset_from, StackIndex
 {
 	float4 f = stack_load_float4(stack, offset_from);
 	stack_store_float4(stack, offset_to, f);
+}
+
+static void eval_op_pass_int(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	int i = stack_load_int(stack, offset_from);
+	stack_store_int(stack, offset_to, i);
+}
+
+static void eval_op_pass_matrix44(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_from);
+	stack_store_matrix44(stack, offset_to, m);
+}
+
+static void eval_op_pass_pointer(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	PointerRNA p = stack_load_pointer(stack, offset_from);
+	stack_store_pointer(stack, offset_to, p);
 }
 
 static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
@@ -406,6 +429,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_value_matrix44(stack, value, offset);
 				break;
 			}
+			case OP_VALUE_POINTER: {
+				PointerRNA value = expr->read_pointer(&instr);
+				StackIndex offset = expr->read_stack_index(&instr);
+				eval_op_value_pointer(stack, value, offset);
+				break;
+			}
 			case OP_PASS_FLOAT: {
 				StackIndex offset_from = expr->read_stack_index(&instr);
 				StackIndex offset_to = expr->read_stack_index(&instr);
@@ -422,6 +451,24 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = expr->read_stack_index(&instr);
 				StackIndex offset_to = expr->read_stack_index(&instr);
 				eval_op_pass_float4(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_PASS_INT: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_pass_int(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_PASS_MATRIX44: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_pass_matrix44(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_PASS_POINTER: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_pass_pointer(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT3: {

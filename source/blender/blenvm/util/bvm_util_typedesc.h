@@ -34,12 +34,15 @@
 
 #include <cassert>
 
+extern "C" {
+#include "RNA_access.h"
+}
+
 #include "BVM_types.h"
 
 namespace bvm {
 
 struct Value;
-
 
 struct float3 {
 	float3()
@@ -222,6 +225,18 @@ struct BaseTypeTraits<BVM_MATRIX44> {
 	}
 };
 
+template <>
+struct BaseTypeTraits<BVM_POINTER> {
+	typedef PointerRNA POD;
+	
+	enum eStackSize { stack_size = 6 };
+	
+	static inline void copy(PointerRNA *to, const PointerRNA *from)
+	{
+		*to = *from;
+	}
+};
+
 /* ------------------------------------------------------------------------- */
 
 struct TypeDesc {
@@ -305,6 +320,7 @@ Value *Value::create(BVMType type, T data)
 		case BVM_FLOAT4: return new ValueType<BVM_FLOAT4>(data);
 		case BVM_INT: return new ValueType<BVM_INT>(data);
 		case BVM_MATRIX44: return new ValueType<BVM_MATRIX44>(data);
+		case BVM_POINTER: return new ValueType<BVM_POINTER>(data);
 	}
 	return 0;
 }
@@ -318,6 +334,7 @@ bool Value::get(T *data) const
 		case BVM_FLOAT4: return static_cast< const ValueType<BVM_FLOAT4>* >(this)->get(data);
 		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
 		case BVM_MATRIX44: return static_cast< const ValueType<BVM_MATRIX44>* >(this)->get(data);
+		case BVM_POINTER: return static_cast< const ValueType<BVM_POINTER>* >(this)->get(data);
 	}
 	return false;
 }
@@ -338,6 +355,7 @@ int TypeDesc::stack_size() const
 		case BVM_FLOAT4: return BaseTypeTraits<BVM_FLOAT4>::stack_size;
 		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 		case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
+		case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
 	}
 	return 0;
 }
@@ -353,6 +371,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 		case BVM_FLOAT4: COPY_TYPE(to, from, BVM_FLOAT4); break;
 		case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 		case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
+		case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
 	}
 	
 	#undef COPY_TYPE
