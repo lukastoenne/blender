@@ -345,6 +345,11 @@ static void eval_op_tex_coord(const EvalData *data, float *stack, StackIndex off
 	stack_store_float3(stack, offset, data->texture.co);
 }
 
+static void eval_op_effector_object(const EvalData *data, float *stack, StackIndex offset)
+{
+	stack_store_pointer(stack, offset, data->effector.object);
+}
+
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
 {
 	Object *ob = globals->objects[object_index];
@@ -352,10 +357,13 @@ static void eval_op_effector_transform(const EvalGlobals *globals, float *stack,
 	stack_store_matrix44(stack, offset_tfm, m);
 }
 
-static void eval_op_effector_closest_point(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_vector,
+static void eval_op_effector_closest_point(float *stack, StackIndex offset_object, StackIndex offset_vector,
                                            StackIndex offset_position, StackIndex offset_normal, StackIndex offset_tangent)
 {
-	Object *ob = globals->objects[object_index];
+	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	if (!ptr.data)
+		return;
+	Object *ob = (Object *)ptr.data;
 	DerivedMesh *dm = object_get_derived_final(ob, false);
 	
 	float world[4][4];
@@ -713,6 +721,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 			
+			case OP_EFFECTOR_OBJECT: {
+				StackIndex offset = expr->read_stack_index(&instr);
+				eval_op_effector_object(data, stack, offset);
+				break;
+			}
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = expr->read_int(&instr);
 				StackIndex offset_tfm = expr->read_stack_index(&instr);
@@ -720,12 +733,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 			case OP_EFFECTOR_CLOSEST_POINT: {
-				int object_index = expr->read_int(&instr);
+				StackIndex offset_object = expr->read_stack_index(&instr);
 				StackIndex offset_vector = expr->read_stack_index(&instr);
 				StackIndex offset_position = expr->read_stack_index(&instr);
 				StackIndex offset_normal = expr->read_stack_index(&instr);
 				StackIndex offset_tangent = expr->read_stack_index(&instr);
-				eval_op_effector_closest_point(globals, stack, object_index, offset_vector,
+				eval_op_effector_closest_point(stack, offset_object, offset_vector,
 				                               offset_position, offset_normal, offset_tangent);
 				break;
 			}

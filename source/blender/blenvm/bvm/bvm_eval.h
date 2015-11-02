@@ -78,6 +78,10 @@ struct EffectorEvalData {
 	    velocity(0.0f, 0.0f, 0.0f)
 	{}
 	
+	/* context */
+	PointerRNA object;
+	
+	/* point */
 	float3 position;
 	float3 velocity;
 };

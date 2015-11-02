@@ -104,10 +104,10 @@ struct bNodeTree;
 struct Object;
 struct EffectedPoint;
 
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct Object *effob, struct bNodeTree *btree);
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct bNodeTree *btree);
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMExpression *expr,
-                         const struct EffectedPoint *point, float force[3], float impulse[3]);
+                         struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
 

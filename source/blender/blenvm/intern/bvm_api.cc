@@ -559,7 +559,7 @@ struct ForceFieldNodeParser : public bNodeParser {
 	}
 };
 
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, Object *effob, bNodeTree *btree)
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, bNodeTree *btree)
 {
 	using namespace bvm;
 	
@@ -582,11 +582,12 @@ struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals 
 }
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMExpression *expr,
-                         const EffectedPoint *point, float force[3], float impulse[3])
+                         struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
 {
 	using namespace bvm;
 	
 	EvalData data;
+	RNA_id_pointer_create((ID *)effob, &data.effector.object);
 	data.effector.position = float3(point->loc[0], point->loc[1], point->loc[2]);
 	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
 	void *results[] = { force, impulse };

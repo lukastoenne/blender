@@ -112,6 +112,9 @@ class NodeCompiler:
             for (to_node, to_socket) in to_set:
                 self.graph.add_link(from_node, from_socket, to_node, to_socket)
 
+    def add_link_internal(self, from_node, from_name, to_node, to_name):
+        self.graph.add_link(from_node, from_name, to_node, to_name)
+
     def set_output(self, name, node, socket):
         self.graph.set_output(name, node, socket)
 
@@ -409,7 +412,13 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Tangent")
 
     def compile(self, compiler):
-        pass
+        obnode = compiler.add_node("EFFECTOR_OBJECT", self.name+"O")
+        node = compiler.add_node("EFFECTOR_CLOSEST_POINT", self.name+"N")
+        compiler.add_link_internal(obnode, "object", node, "object")
+        compiler.map_input(0, node, "vector")
+        compiler.map_output(0, node, "position")
+        compiler.map_output(1, node, "normal")
+        compiler.map_output(2, node, "tangent")
 
 ###############################################################################
 
