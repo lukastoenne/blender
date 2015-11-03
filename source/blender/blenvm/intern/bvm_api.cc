@@ -165,6 +165,96 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
+struct CompileContext {
+	typedef std::map<struct Object *, int> ObjectPtrMap;
+	
+	ObjectPtrMap obmap;
+	
+	CompileContext(const bvm::EvalGlobals *globals)
+	{
+		for (int i = 0; i < globals->objects.size(); ++i)
+			obmap[globals->objects[i]] = i;
+	}
+	
+	int get_object_index(Object *ob)
+	{
+		ObjectPtrMap::const_iterator it = obmap.find(ob);
+		if (it != obmap.end())
+			return it->second;
+		else
+			return -1;
+	}
+};
+
+inline static CompileContext *_COMP(BVMCompileContext *c)
+{
+	return (CompileContext *)c;
+}
+
+int BVM_compile_get_object_index(BVMCompileContext *context, Object *ob)
+{
+	return _COMP(context)->get_object_index(ob);
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void parse_py_nodes(CompileContext *_context, bNodeTree *btree, bvm::NodeGraph *graph)
+{
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	BVMCompileContext *context = (BVMCompileContext *)_context;
+	
+	RNA_id_pointer_create((ID *)btree, &ptr);
+	
+	func = RNA_struct_find_function(ptr.type, "bvm_compile");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &context);
+	RNA_parameter_set_lookup(&list, "graph", &graph);
+	btree->typeinfo->ext.call(NULL, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, bNodeTree *btree)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	{
+		float zero[3] = {0.0f, 0.0f, 0.0f};
+		graph.add_output("force", BVM_FLOAT3, zero);
+		graph.add_output("impulse", BVM_FLOAT3, zero);
+	}
+	
+	CompileContext comp(_GLOBALS(globals));
+	parse_py_nodes(&comp, btree, &graph);
+	
+	BVMCompiler compiler;
+	Expression *expr = compiler.codegen_expression(graph);
+	
+	return (BVMExpression *)expr;
+}
+
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMExpression *expr,
+                         struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
+{
+	using namespace bvm;
+	
+	EvalData data;
+	RNA_id_pointer_create((ID *)effob, &data.effector.object);
+	data.effector.position = float3(point->loc[0], point->loc[1], point->loc[2]);
+	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
+	void *results[] = { force, impulse };
+	
+	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _EXPR(expr), results);
+}
+
+/* ------------------------------------------------------------------------- */
+
 namespace bvm {
 
 struct bNodeCompiler {
@@ -284,17 +374,61 @@ private:
 
 } /* namespace bvm */
 
-/* ------------------------------------------------------------------------- */
+static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
+{
+	bNode *bnode = (bNode *)bnode_ptr->data;
+	bvm::string type = bvm::string(bnode->typeinfo->idname);
+	if (type == "TextureNodeOutput") {
+		{
+			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(comp->current_node()->name));
+			comp->map_input_socket(0, node, "value");
+			comp->map_output_socket(0, node, "value");
+			
+			comp->set_graph_output("color", node, "value");
+		}
+		
+		{
+			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(comp->current_node()->name));
+			comp->map_input_socket(1, node, "value");
+			comp->map_output_socket(0, node, "value");
+			
+			comp->set_graph_output("normal", node, "value");
+		}
+	}
+	else if (type == "TextureNodeCoordinates") {
+		bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(comp->current_node()->name));
+		comp->map_output_socket(0, node, "value");
+	}
+	else if (type == "TextureNodeTexVoronoi") {
+		Tex *tex = (Tex *)bnode->storage;
+		
+		bvm::NodeInstance *node_pos = comp->add_node("TEX_COORD", "TEX_VORONOI_COORD_"+bvm::string(comp->current_node()->name));
+		
+		bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(comp->current_node()->name));
+		node->set_input_value("distance_metric", (int)tex->vn_distm);
+		node->set_input_value("color_type", (int)tex->vn_coltype);
+		node->set_input_value("minkowski_exponent", 2.5f);
+		node->set_input_value("nabla", 0.05f);
+		
+		node->set_input_link("position", node_pos, node_pos->type->find_output(0));
+		
+		comp->map_input_socket(2, node, "w1");
+		comp->map_input_socket(3, node, "w2");
+		comp->map_input_socket(4, node, "w3");
+		comp->map_input_socket(5, node, "w4");
+		comp->map_input_socket(6, node, "scale");
+		comp->map_input_socket(7, node, "noise_size");
+		
+		comp->map_output_socket(0, node, "color");
+		comp->map_output_socket(1, node, "normal");
+	}
+}
 
-struct bNodeParser {
-	virtual void parse(bvm::bNodeCompiler *nodecomp, PointerRNA *bnode_ptr) const = 0;
-};
-
-static void gen_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph, const bNodeParser &parser)
+static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm::NodeGraph *graph)
 {
 	using namespace bvm;
 	
-	bNodeCompiler nodecomp(&graph);
+	bNodeCompiler comp(graph);
 	
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		PointerRNA ptr;
@@ -304,163 +438,18 @@ static void gen_nodegraph(bNodeTree *btree, bvm::NodeGraph &graph, const bNodePa
 		if (!nodeIsRegistered(bnode))
 			continue;
 		
-		nodecomp.set_current_node(bnode);
-		parser.parse(&nodecomp, &ptr);
+		comp.set_current_node(bnode);
+		convert_tex_node(&comp, &ptr);
 	}
 	
 	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
 		if (!(blink->flag & NODE_LINK_VALID))
 			continue;
 		
-		nodecomp.add_link(blink);
+		comp.add_link(blink);
 	}
 }
 
-/* ------------------------------------------------------------------------- */
-
-struct CompileContext {
-	typedef std::map<struct Object *, int> ObjectPtrMap;
-	
-	ObjectPtrMap obmap;
-	
-	CompileContext(const bvm::EvalGlobals *globals)
-	{
-		for (int i = 0; i < globals->objects.size(); ++i)
-			obmap[globals->objects[i]] = i;
-	}
-	
-	int get_object_index(Object *ob)
-	{
-		ObjectPtrMap::const_iterator it = obmap.find(ob);
-		if (it != obmap.end())
-			return it->second;
-		else
-			return -1;
-	}
-	
-	void parse_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
-	{
-		PointerRNA ptr;
-		ParameterList list;
-		FunctionRNA *func;
-		BVMCompileContext *context = (BVMCompileContext *)this;
-		
-		RNA_id_pointer_create((ID *)btree, &ptr);
-		
-		func = RNA_struct_find_function(ptr.type, "bvm_compile");
-		if (!func)
-			return;
-		
-		RNA_parameter_list_create(&list, &ptr, func);
-		RNA_parameter_set_lookup(&list, "context", &context);
-		RNA_parameter_set_lookup(&list, "graph", &graph);
-		btree->typeinfo->ext.call(NULL, &ptr, func, &list);
-		
-		RNA_parameter_list_free(&list);
-	}
-};
-
-inline static CompileContext *_COMP(BVMCompileContext *c)
-{
-	return (CompileContext *)c;
-}
-
-int BVM_compile_get_object_index(BVMCompileContext *context, Object *ob)
-{
-	return _COMP(context)->get_object_index(ob);
-}
-
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, bNodeTree *btree)
-{
-	using namespace bvm;
-	
-	NodeGraph graph;
-	{
-		float zero[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("force", BVM_FLOAT3, zero);
-		graph.add_output("impulse", BVM_FLOAT3, zero);
-	}
-	
-	CompileContext comp(_GLOBALS(globals));
-	comp.parse_nodes(btree, &graph);
-	
-	BVMCompiler compiler;
-	Expression *expr = compiler.codegen_expression(graph);
-	
-	return (BVMExpression *)expr;
-}
-
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMExpression *expr,
-                         struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
-{
-	using namespace bvm;
-	
-	EvalData data;
-	RNA_id_pointer_create((ID *)effob, &data.effector.object);
-	data.effector.position = float3(point->loc[0], point->loc[1], point->loc[2]);
-	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
-	void *results[] = { force, impulse };
-	
-	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _EXPR(expr), results);
-}
-
-/* ------------------------------------------------------------------------- */
-
-struct TextureNodeParser : public bNodeParser {
-	TextureNodeParser(const bvm::EvalGlobals */*globals*/)
-	{
-	}
-	
-	void parse(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr) const
-	{
-		bNode *bnode = (bNode *)bnode_ptr->data;
-		bvm::string type = bvm::string(bnode->typeinfo->idname);
-		if (type == "TextureNodeOutput") {
-			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(comp->current_node()->name));
-				comp->map_input_socket(0, node, "value");
-				comp->map_output_socket(0, node, "value");
-				
-				comp->set_graph_output("color", node, "value");
-			}
-			
-			{
-				bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(comp->current_node()->name));
-				comp->map_input_socket(1, node, "value");
-				comp->map_output_socket(0, node, "value");
-				
-				comp->set_graph_output("normal", node, "value");
-			}
-		}
-		else if (type == "TextureNodeCoordinates") {
-			bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(comp->current_node()->name));
-			comp->map_output_socket(0, node, "value");
-		}
-		else if (type == "TextureNodeTexVoronoi") {
-			Tex *tex = (Tex *)bnode->storage;
-			
-			bvm::NodeInstance *node_pos = comp->add_node("TEX_COORD", "TEX_VORONOI_COORD_"+bvm::string(comp->current_node()->name));
-			
-			bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(comp->current_node()->name));
-			node->set_input_value("distance_metric", (int)tex->vn_distm);
-			node->set_input_value("color_type", (int)tex->vn_coltype);
-			node->set_input_value("minkowski_exponent", 2.5f);
-			node->set_input_value("nabla", 0.05f);
-			
-			node->set_input_link("position", node_pos, node_pos->type->find_output(0));
-			
-			comp->map_input_socket(2, node, "w1");
-			comp->map_input_socket(3, node, "w2");
-			comp->map_input_socket(4, node, "w3");
-			comp->map_input_socket(5, node, "w4");
-			comp->map_input_socket(6, node, "scale");
-			comp->map_input_socket(7, node, "noise_size");
-			
-			comp->map_output_socket(0, node, "color");
-			comp->map_output_socket(1, node, "normal");
-		}
-	}
-};
 
 struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex, bNodeTree *btree)
 {
@@ -473,8 +462,8 @@ struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *gl
 		graph.add_output("color", BVM_FLOAT4, C);
 		graph.add_output("normal", BVM_FLOAT3, N);
 	}
-	TextureNodeParser parser(_GLOBALS(globals));
-	gen_nodegraph(btree, graph, parser);
+	CompileContext comp(_GLOBALS(globals));
+	parse_tex_nodes(&comp, btree, &graph);
 	
 	BVMCompiler compiler;
 	Expression *expr = compiler.codegen_expression(graph);
