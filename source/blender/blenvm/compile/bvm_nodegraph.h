@@ -258,6 +258,7 @@ struct NodeGraph {
 	}
 	
 	void dump(std::ostream &stream = std::cout);
+	void dump_graphviz(FILE *f, const string &label);
 	
 	NodeInstanceMap nodes;
 	InputList inputs;

@@ -451,7 +451,8 @@ static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm:
 }
 
 
-struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex, bNodeTree *btree)
+struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex,
+                                                 bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
 	
@@ -464,6 +465,10 @@ struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *gl
 	}
 	CompileContext comp(_GLOBALS(globals));
 	parse_tex_nodes(&comp, btree, &graph);
+	
+	if (debug_file) {
+		graph.dump_graphviz(debug_file, "Texture Expression Graph");
+	}
 	
 	BVMCompiler compiler;
 	Expression *expr = compiler.codegen_expression(graph);
@@ -530,7 +535,7 @@ struct BVMExpression *BVM_texture_cache_acquire(Tex *tex)
 	else if (tex->use_nodes && tex->nodetree) {
 		EvalGlobals globals;
 		
-		BVMExpression *expr = BVM_gen_texture_expression((BVMEvalGlobals *)(&globals), tex, tex->nodetree);
+		BVMExpression *expr = BVM_gen_texture_expression((BVMEvalGlobals *)(&globals), tex, tex->nodetree, NULL);
 		
 		bvm_tex_cache[tex] = _EXPR(expr);
 		

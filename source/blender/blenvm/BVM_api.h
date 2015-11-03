@@ -32,6 +32,8 @@
  *  \ingroup bvm
  */
 
+#include <stdio.h>
+
 #include "BVM_types.h"
 
 #ifdef __cplusplus
@@ -114,7 +116,8 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex, struct bNodeTree *btree);
+struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex,
+                                                 struct bNodeTree *btree, FILE *debug_file);
 
 void BVM_eval_texture(struct BVMEvalContext *context, struct BVMExpression *expr,
                       struct TexResult *target,

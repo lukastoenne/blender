@@ -29,6 +29,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_path_util.h"
+
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
@@ -64,6 +66,8 @@ static void rna_BVMNodeGraph_set_output(struct BVMNodeGraph *graph,
 {
 	return BVM_nodegraph_set_output_link(graph, name, node, socket);
 }
+
+/* ------------------------------------------------------------------------- */
 
 static void rna_BVMNodeInstance_set_value_float(struct BVMNodeInstance *node, const char *socket, float value)
 {

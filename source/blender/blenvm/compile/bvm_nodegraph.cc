@@ -501,6 +501,10 @@ void NodeGraph::set_output_link(const string &name, NodeInstance *link_node, con
 	}
 }
 
+/* === DEBUGGING === */
+
+#define NL "\r\n"
+
 void NodeGraph::dump(std::ostream &s)
 {
 	s << "NodeGraph\n";
@@ -545,6 +549,142 @@ void NodeGraph::dump(std::ostream &s)
 		}
 	}
 }
+
+static const char *debug_graphviz_fontname = "helvetica";
+static float debug_graphviz_graph_label_size = 20.0f;
+static float debug_graphviz_node_label_size = 14.0f;
+
+struct DebugContext {
+	FILE *file;
+};
+
+static void debug_fprintf(const DebugContext &ctx, const char *fmt, ...) ATTR_PRINTF_FORMAT(2, 3);
+static void debug_fprintf(const DebugContext &ctx, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(ctx.file, fmt, args);
+	va_end(args);
+}
+
+static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *node)
+{
+	const char *shape = "box";
+	const char *style = "filled,rounded";
+	const char *color = "black";
+	const char *fillcolor = "gainsboro";
+	float penwidth = 1.0f;
+	string name = node->type->name;
+	
+	debug_fprintf(ctx, "// %s\n", node->name.c_str());
+	debug_fprintf(ctx, "\"node_%p\"", node);
+	debug_fprintf(ctx, "[");
+	
+	/* html label including rows for input/output sockets
+	 * http://www.graphviz.org/doc/info/shapes.html#html
+	 */
+	debug_fprintf(ctx, "label=<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"4\">");
+	debug_fprintf(ctx, "<TR><TD COLSPAN=\"2\">%s</TD></TR>", name.c_str());
+	int numin = node->type->inputs.size();
+	int numout = node->type->outputs.size();
+	for (int i = 0; i < numin || i < numout; ++i) {
+		debug_fprintf(ctx, "<TR>");
+		
+		if (i < numin) {
+			string name_in = node->type->inputs[i].name;
+			debug_fprintf(ctx, "<TD PORT=\"%s\" BORDER=\"1\">%s</TD>", name_in.c_str(), name_in.c_str());
+		}
+		else
+			debug_fprintf(ctx, "<TD></TD>");
+			
+		if (i < numout) {
+			string name_out = node->type->outputs[i].name;
+			debug_fprintf(ctx, "<TD PORT=\"%s\" BORDER=\"1\">%s</TD>", name_out.c_str(), name_out.c_str());
+		}
+		else
+			debug_fprintf(ctx, "<TD></TD>");
+		
+		debug_fprintf(ctx, "</TR>");
+	}
+	debug_fprintf(ctx, "</TABLE>>");
+	
+	debug_fprintf(ctx, ",fontname=\"%s\"", debug_graphviz_fontname);
+	debug_fprintf(ctx, ",fontsize=\"%f\"", debug_graphviz_node_label_size);
+	debug_fprintf(ctx, ",shape=\"%s\"", shape);
+	debug_fprintf(ctx, ",style=\"%s\"", style);
+	debug_fprintf(ctx, ",color=\"%s\"", color);
+	debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
+	debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+	debug_fprintf(ctx, "];" NL);
+	debug_fprintf(ctx, NL);
+}
+
+static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstance *node)
+{
+	for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
+		const NodeInstance::InputInstance &input = it->second;
+		
+		if (input.link_node && input.link_socket) {
+			float penwidth = 2.0f;
+			
+			const NodeInstance *tail = input.link_node;
+			const string &tail_socket = input.link_socket->name;
+			const NodeInstance *head = node;
+			const string &head_socket = it->first;
+			debug_fprintf(ctx, "// %s:%s -> %s:%s\n",
+			              tail->name.c_str(), tail_socket.c_str(),
+			              head->name.c_str(), head_socket.c_str());
+			debug_fprintf(ctx, "\"node_%p\":%s", tail, tail_socket.c_str());
+			debug_fprintf(ctx, " -> ");
+			debug_fprintf(ctx, "\"node_%p\":%s", head, head_socket.c_str());
+	
+			debug_fprintf(ctx, "[");
+			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+			debug_fprintf(ctx, "id=\"%s\"", (string("A") + head->name.c_str() + "B" + tail->name.c_str()).c_str());
+			
+			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+			debug_fprintf(ctx, "];" NL);
+			debug_fprintf(ctx, NL);
+		}
+		else {
+			
+		}
+	}
+}
+
+void NodeGraph::dump_graphviz(FILE *f, const string &label)
+{
+	DebugContext ctx;
+	ctx.file = f;
+	
+	debug_fprintf(ctx, "digraph depgraph {" NL);
+	debug_fprintf(ctx, "rankdir=LR;" NL);
+	debug_fprintf(ctx, "graph [");
+	debug_fprintf(ctx, "labelloc=\"t\"");
+	debug_fprintf(ctx, ",fontsize=%f", debug_graphviz_graph_label_size);
+	debug_fprintf(ctx, ",fontname=\"%s\"", debug_graphviz_fontname);
+	debug_fprintf(ctx, ",label=\"%s\"", label.c_str());
+//	debug_fprintf(ctx, ",splines=ortho");
+	debug_fprintf(ctx, "];" NL);
+
+	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance *node = &it->second;
+		
+		debug_graphviz_node(ctx, node);
+	}
+	
+	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance *node = &it->second;
+		
+		debug_graphviz_node_links(ctx, node);
+	}
+
+//	deg_debug_graphviz_legend(ctx);
+
+	debug_fprintf(ctx, "}" NL);
+}
+
+#undef NL
 
 /* ------------------------------------------------------------------------- */
 
