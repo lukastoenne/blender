@@ -33,6 +33,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdio>
+#include <sstream>
 
 #include "bvm_nodegraph.h"
 #include "bvm_opcode.h"
@@ -430,8 +431,21 @@ NodeInstance *NodeGraph::get_node(const string &name)
 NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 {
 	const NodeType *nodetype = find_node_type(type);
+	
+	string final = name;
+	if (final.empty()) {
+		std::stringstream ss;
+		ss << nodetype->name;
+		final = ss.str();
+	}
+	if (nodes.find(final) != nodes.end()) {
+		std::stringstream ss;
+		ss << "_" << nodes.size();
+		final = ss.str();
+	}
+	
 	std::pair<NodeInstanceMap::iterator, bool> result =
-	        nodes.insert(NodeInstanceMapPair(name, NodeInstance(nodetype, name)));
+	        nodes.insert(NodeInstanceMapPair(final, NodeInstance(nodetype, final)));
 	
 	return (result.second)? &result.first->second : NULL;
 }

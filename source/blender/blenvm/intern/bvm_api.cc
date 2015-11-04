@@ -280,7 +280,7 @@ struct bNodeCompiler {
 	const InputMap &input_map() const { return m_input_map; }
 	const OutputMap &output_map() const { return m_output_map; }
 	
-	bvm::NodeInstance *add_node(const bvm::string &type,  const bvm::string &name)
+	bvm::NodeInstance *add_node(const bvm::string &type,  const bvm::string &name = "")
 	{
 		return m_graph->add_node(type, name);
 	}
@@ -376,7 +376,7 @@ private:
 
 static void binary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
 {
-	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	bvm::NodeInstance *node = comp->add_node(type);
 	comp->map_input_socket(0, node, "value_a");
 	comp->map_input_socket(1, node, "value_b");
 	comp->map_output_socket(0, node, "value");
@@ -384,7 +384,7 @@ static void binary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
 
 static void unary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
 {
-	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	bvm::NodeInstance *node = comp->add_node(type);
 	bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 0);
 	bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 1);
 	bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
@@ -402,7 +402,7 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	bvm::string type = bvm::string(bnode->typeinfo->idname);
 	if (type == "TextureNodeOutput") {
 		{
-			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4", "RET_COLOR_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT4");
 			comp->map_input_socket(0, node, "value");
 			comp->map_output_socket(0, node, "value");
 			
@@ -410,7 +410,7 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		}
 		
 		{
-			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3", "RET_NORMAL_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("PASS_FLOAT3");
 			comp->map_input_socket(1, node, "value");
 			comp->map_output_socket(0, node, "value");
 			
@@ -419,32 +419,32 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	}
 	else if (type == "TextureNodeDecompose") {
 		{
-			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM0_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 0);
 			comp->map_input_socket(0, node, "value");
 			comp->map_output_socket(0, node, "value");
 		}
 		{
-			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM1_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 1);
 			comp->map_input_socket(0, node, "value");
 			comp->map_output_socket(1, node, "value");
 		}
 		{
-			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM2_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 2);
 			comp->map_input_socket(0, node, "value");
 			comp->map_output_socket(2, node, "value");
 		}
 		{
-			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM3_" + bvm::string(comp->current_node()->name));
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 3);
 			comp->map_input_socket(0, node, "value");
 			comp->map_output_socket(3, node, "value");
 		}
 	}
 	else if (type == "TextureNodeCompose") {
-		bvm::NodeInstance *node = comp->add_node("SET_FLOAT4", bvm::string(comp->current_node()->name));
+		bvm::NodeInstance *node = comp->add_node("SET_FLOAT4");
 		comp->map_input_socket(0, node, "value_x");
 		comp->map_input_socket(1, node, "value_y");
 		comp->map_input_socket(2, node, "value_z");
@@ -452,7 +452,7 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		comp->map_output_socket(0, node, "value");
 	}
 	else if (type == "TextureNodeCoordinates") {
-		bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(comp->current_node()->name));
+		bvm::NodeInstance *node = comp->add_node("TEX_COORD");
 		comp->map_output_socket(0, node, "value");
 	}
 	else if (type == "TextureNodeMath") {
@@ -482,7 +482,7 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	else if (type == "TextureNodeTexVoronoi") {
 		Tex *tex = (Tex *)bnode->storage;
 		
-		bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(comp->current_node()->name));
+		bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI");
 		node->set_input_value("distance_metric", (int)tex->vn_distm);
 		node->set_input_value("color_type", (int)tex->vn_coltype);
 		node->set_input_value("minkowski_exponent", 2.5f);

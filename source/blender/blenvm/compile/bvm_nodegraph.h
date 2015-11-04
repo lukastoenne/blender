@@ -216,7 +216,7 @@ struct NodeGraph {
 	~NodeGraph();
 	
 	NodeInstance *get_node(const string &name);
-	NodeInstance *add_node(const string &type, const string &name);
+	NodeInstance *add_node(const string &type, const string &name = "");
 	
 	template <typename FromT, typename ToT>
 	bool add_link(NodeInstance *from_node, FromT from,
