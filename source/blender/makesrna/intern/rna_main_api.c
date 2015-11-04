@@ -226,7 +226,7 @@ static void rna_Main_objects_remove(Main *bmain, ReportList *reports, PointerRNA
 {
 	Object *object = object_ptr->data;
 	if (ID_REAL_USERS(object) <= 0) {
-		BKE_object_unlink(object); /* needed or ID pointers to this are not cleared */
+		BKE_object_unlink(bmain, object); /* needed or ID pointers to this are not cleared */
 		BKE_libblock_free(bmain, object);
 		RNA_POINTER_INVALIDATE(object_ptr);
 	}
@@ -504,6 +504,7 @@ static void rna_Main_brushes_remove(Main *bmain, ReportList *reports, PointerRNA
 {
 	Brush *brush = brush_ptr->data;
 	if (ID_REAL_USERS(brush) <= 0) {
+		BKE_brush_unlink(bmain, brush);
 		BKE_libblock_free(bmain, brush);
 		RNA_POINTER_INVALIDATE(brush_ptr);
 	}
@@ -539,7 +540,7 @@ static Group *rna_Main_groups_new(Main *bmain, const char *name)
 static void rna_Main_groups_remove(Main *bmain, PointerRNA *group_ptr)
 {
 	Group *group = group_ptr->data;
-	BKE_group_unlink(group);
+	BKE_group_unlink(bmain, group);
 	BKE_libblock_free(bmain, group);
 	RNA_POINTER_INVALIDATE(group_ptr);
 }

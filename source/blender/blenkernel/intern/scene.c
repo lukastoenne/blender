@@ -351,6 +351,8 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		scen->preview = BKE_previewimg_copy(sce->preview);
 	}
 
+	curvemapping_copy_data(&scen->r.mblur_shutter_curve, &sce->r.mblur_shutter_curve);
+
 	return scen;
 }
 
@@ -462,6 +464,7 @@ void BKE_scene_free(Scene *sce)
 	BKE_color_managed_view_settings_free(&sce->view_settings);
 
 	BKE_previewimg_free(&sce->preview);
+	curvemapping_free_data(&sce->r.mblur_shutter_curve);
 }
 
 void BKE_scene_init(Scene *sce)
@@ -1595,7 +1598,8 @@ static void scene_free_unused_opensubdiv_cache(Scene *scene)
 			ModifierData *md = object->modifiers.last;
 			if (md != NULL && md->type == eModifierType_Subsurf) {
 				SubsurfModifierData *smd = (SubsurfModifierData *) md;
-				bool object_in_editmode = object->mode == OB_MODE_EDIT;
+				const bool object_in_editmode = (object->mode == OB_MODE_EDIT);
+				const bool use_simple = (smd->subdivType == ME_SIMPLE_SUBSURF);
 				if (!smd->use_opensubdiv ||
 				    DAG_get_eval_flags_for_object(scene, object) & DAG_EVAL_NEED_CPU)
 				{
@@ -1606,13 +1610,21 @@ static void scene_free_unused_opensubdiv_cache(Scene *scene)
 						ccgSubSurf_free_osd_mesh(smd->emCache);
 					}
 				}
-				if (object_in_editmode && smd->mCache != NULL) {
-					ccgSubSurf_free(smd->mCache);
-					smd->mCache = NULL;
+				if (smd->mCache != NULL) {
+					if (object_in_editmode ||
+					    ccgSubSurf_getSimpleSubdiv(smd->mCache) != use_simple)
+					{
+						ccgSubSurf_free(smd->mCache);
+						smd->mCache = NULL;
+					}
 				}
-				if (!object_in_editmode && smd->emCache != NULL) {
-					ccgSubSurf_free(smd->emCache);
-					smd->emCache = NULL;
+				if (smd->emCache != NULL) {
+					if (!object_in_editmode ||
+					    ccgSubSurf_getSimpleSubdiv(smd->emCache) != use_simple)
+					{
+						ccgSubSurf_free(smd->emCache);
+						smd->emCache = NULL;
+					}
 				}
 			}
 		}
