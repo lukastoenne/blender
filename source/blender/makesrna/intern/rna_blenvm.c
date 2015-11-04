@@ -56,9 +56,10 @@ static struct BVMNodeInstance *rna_BVMNodeGraph_add_node(struct BVMNodeGraph *gr
 
 static void rna_BVMNodeGraph_add_link(struct BVMNodeGraph *graph,
                                     struct BVMNodeInstance *from_node, const char *from_socket,
-                                    struct BVMNodeInstance *to_node, const char *to_socket)
+                                    struct BVMNodeInstance *to_node, const char *to_socket,
+                                    int autoconvert)
 {
-	return BVM_nodegraph_add_link(graph, from_node, from_socket, to_node, to_socket);
+	return BVM_nodegraph_add_link(graph, from_node, from_socket, to_node, to_socket, autoconvert);
 }
 
 static void rna_BVMNodeGraph_set_output(struct BVMNodeGraph *graph,
@@ -172,6 +173,7 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "to_node", "BVMNodeInstance", "Target Node", "");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL);
 	RNA_def_string(func, "to_socket", NULL, 0, "Target Socket", "Target socket name");
+	RNA_def_boolean(func, "autoconvert", true, "Autoconvert", "Add datatype converters where applicable");
 	
 	func = RNA_def_function(srna, "set_output", "rna_BVMNodeGraph_set_output");
 	RNA_def_function_ui_description(func, "Define a node socket as an output value");

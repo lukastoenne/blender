@@ -72,7 +72,8 @@ int BVM_compile_get_object_index(struct BVMCompileContext *context, struct Objec
 struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
 void BVM_nodegraph_add_link(struct BVMNodeGraph *graph,
                             struct BVMNodeInstance *from_node, const char *from_socket,
-                            struct BVMNodeInstance *to_node, const char *to_socket);
+                            struct BVMNodeInstance *to_node, const char *to_socket,
+                            bool autoconvert);
 void BVM_nodegraph_set_output_link(struct BVMNodeGraph *graph,
                                    const char *name, struct BVMNodeInstance *node, const char *socket);
 

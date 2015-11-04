@@ -204,7 +204,7 @@ struct NodeGraph {
 	typedef std::pair<string, NodeType> NodeTypeMapPair;
 	typedef std::map<string, NodeInstance> NodeInstanceMap;
 	typedef std::pair<string, NodeInstance> NodeInstanceMapPair;
-	
+	typedef std::pair<NodeInstance*, string> SocketPair;
 	
 	static NodeTypeMap node_types;
 	
@@ -220,7 +220,8 @@ struct NodeGraph {
 	
 	template <typename FromT, typename ToT>
 	bool add_link(NodeInstance *from_node, FromT from,
-	              NodeInstance *to_node, ToT to)
+	              NodeInstance *to_node, ToT to,
+	              bool autoconvert=true)
 	{
 		if (!to_node || !from_node)
 			return false;
@@ -230,16 +231,24 @@ struct NodeGraph {
 		if (!from_socket || !to_socket)
 			return false;
 		
-		to_node->set_input_link(to_socket->name, from_node, from_socket);
+		SocketPair converted = (autoconvert) ?
+		                           add_type_converter(SocketPair(from_node, from), to_socket->type) :
+		                           SocketPair(from_node, from);
+		if (!converted.first)
+			return false;
+		
+		const NodeSocket *conv_socket = converted.first->type->find_output(converted.second);
+		to_node->set_input_link(to_socket->name, converted.first, conv_socket);
 		
 		return true;
 	}
 	
 	template <typename FromT, typename ToT>
 	bool add_link(const string &from_node, FromT from,
-	              const string &to_node, ToT to)
+	              const string &to_node, ToT to,
+	              bool autoconvert=true)
 	{
-		return add_link(get_node(from_node), from, get_node(to_node), to);
+		return add_link(get_node(from_node), from, get_node(to_node), to, autoconvert);
 	}
 	
 	const NodeGraphInput *get_input(int index) const;
@@ -260,6 +269,132 @@ struct NodeGraph {
 	void dump(std::ostream &stream = std::cout);
 	void dump_graphviz(FILE *f, const string &label);
 	
+protected:
+	SocketPair add_float_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		switch (to_type) {
+			case BVM_FLOAT3: {
+				NodeInstance *node = add_node("SET_FLOAT3");
+				add_link(from.first, from.second, node, "value_x");
+				add_link(from.first, from.second, node, "value_y");
+				add_link(from.first, from.second, node, "value_z");
+				result = SocketPair(node, "value");
+				break;
+			}
+			case BVM_FLOAT4: {
+				NodeInstance *node = add_node("SET_FLOAT4");
+				add_link(from.first, from.second, node, "value_x");
+				add_link(from.first, from.second, node, "value_y");
+				add_link(from.first, from.second, node, "value_z");
+				add_link(from.first, from.second, node, "value_w");
+				result = SocketPair(node, "value");
+				break;
+			}
+			case BVM_INT: {
+				NodeInstance *node = add_node("FLOAT_TO_INT");
+				add_link(from.first, from.second, node, "value");
+				result = SocketPair(node, "value");
+				break;
+			}
+			default:
+				break;
+		}
+		return result;
+	}
+	
+	SocketPair add_float3_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		switch (to_type) {
+			case BVM_FLOAT4: {
+				NodeInstance *node_x = add_node("GET_ELEM_FLOAT3");
+				node_x->set_input_value("index", 0);
+				add_link(from.first, from.second, node_x, "value");
+				NodeInstance *node_y = add_node("GET_ELEM_FLOAT3");
+				node_y->set_input_value("index", 1);
+				add_link(from.first, from.second, node_y, "value");
+				NodeInstance *node_z = add_node("GET_ELEM_FLOAT3");
+				node_z->set_input_value("index", 2);
+				add_link(from.first, from.second, node_z, "value");
+				
+				NodeInstance *node = add_node("SET_FLOAT4");
+				add_link(node_x, "value", node, "value_x");
+				add_link(node_y, "value", node, "value_y");
+				add_link(node_z, "value", node, "value_z");
+				node->set_input_value("value_w", 1.0f);
+				result = SocketPair(node, "value");
+				break;
+			}
+			default:
+				break;
+		}
+		return result;
+	}
+	
+	SocketPair add_float4_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		switch (to_type) {
+			case BVM_FLOAT3: {
+				NodeInstance *node_x = add_node("GET_ELEM_FLOAT4");
+				node_x->set_input_value("index", 0);
+				add_link(from.first, from.second, node_x, "value");
+				NodeInstance *node_y = add_node("GET_ELEM_FLOAT4");
+				node_y->set_input_value("index", 1);
+				add_link(from.first, from.second, node_y, "value");
+				NodeInstance *node_z = add_node("GET_ELEM_FLOAT4");
+				node_z->set_input_value("index", 2);
+				add_link(from.first, from.second, node_z, "value");
+				
+				NodeInstance *node = add_node("SET_FLOAT3");
+				add_link(node_x, "value", node, "value_x");
+				add_link(node_y, "value", node, "value_y");
+				add_link(node_z, "value", node, "value_z");
+				result = SocketPair(node, "value");
+				break;
+			}
+			default:
+				break;
+		}
+		return result;
+	}
+	
+	SocketPair add_int_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		return result;
+	}
+	
+	SocketPair add_matrix44_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		return result;
+	}
+	
+	SocketPair add_type_converter(const SocketPair &from, BVMType to_type)
+	{
+		SocketPair result(NULL, "");
+		const NodeSocket *from_socket = from.first->type->find_output(from.second);
+		BVMType from_type = from_socket->type;
+		
+		if (from_type == to_type) {
+			result = from;
+		}
+		else {
+			switch (from_type) {
+				case BVM_FLOAT: result = add_float_converter(from, to_type); break;
+				case BVM_FLOAT3: result = add_float3_converter(from, to_type); break;
+				case BVM_FLOAT4: result = add_float4_converter(from, to_type); break;
+				case BVM_INT: result = add_int_converter(from, to_type); break;
+				case BVM_MATRIX44: result = add_matrix44_converter(from, to_type); break;
+				default: break;
+			}
+		}
+		return result;
+	}
+	
+public:
 	NodeInstanceMap nodes;
 	InputList inputs;
 	OutputList outputs;

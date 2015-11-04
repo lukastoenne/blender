@@ -86,6 +86,18 @@ static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex off
 	stack_store_pointer(stack, offset, value);
 }
 
+static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	float f = stack_load_float(stack, offset_from);
+	stack_store_int(stack, offset_to, (int)f);
+}
+
+static void eval_op_int_to_float(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	int i = stack_load_int(stack, offset_from);
+	stack_store_float(stack, offset_to, (float)i);
+}
+
 static void eval_op_pass_float(float *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
@@ -441,6 +453,18 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				PointerRNA value = expr->read_pointer(&instr);
 				StackIndex offset = expr->read_stack_index(&instr);
 				eval_op_value_pointer(stack, value, offset);
+				break;
+			}
+			case OP_FLOAT_TO_INT: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_float_to_int(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_INT_TO_FLOAT: {
+				StackIndex offset_from = expr->read_stack_index(&instr);
+				StackIndex offset_to = expr->read_stack_index(&instr);
+				eval_op_int_to_float(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_FLOAT: {

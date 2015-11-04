@@ -709,6 +709,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	if (node == STRINGIFY(name)) \
 		return OP_##name
 	
+	NODETYPE(FLOAT_TO_INT);
+	NODETYPE(INT_TO_FLOAT);
 	NODETYPE(PASS_FLOAT);
 	NODETYPE(PASS_FLOAT3);
 	NODETYPE(PASS_FLOAT4);
@@ -767,6 +769,14 @@ OpCode get_opcode_from_node_type(const string &node)
 void register_opcode_node_types()
 {
 	NodeType *nt;
+	
+	nt = NodeGraph::add_node_type("FLOAT_TO_INT");
+	nt->add_input("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_INT, 0);
+	
+	nt = NodeGraph::add_node_type("INT_TO_FLOAT");
+	nt->add_input("value", BVM_INT, 0);
+	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
 	nt = NodeGraph::add_node_type("PASS_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f);
