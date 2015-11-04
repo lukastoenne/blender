@@ -402,22 +402,19 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	else if (type == "TextureNodeTexVoronoi") {
 		Tex *tex = (Tex *)bnode->storage;
 		
-		bvm::NodeInstance *node_pos = comp->add_node("TEX_COORD", "TEX_VORONOI_COORD_"+bvm::string(comp->current_node()->name));
-		
 		bvm::NodeInstance *node = comp->add_node("TEX_PROC_VORONOI", "TEX_VORONOI_"+bvm::string(comp->current_node()->name));
 		node->set_input_value("distance_metric", (int)tex->vn_distm);
 		node->set_input_value("color_type", (int)tex->vn_coltype);
 		node->set_input_value("minkowski_exponent", 2.5f);
 		node->set_input_value("nabla", 0.05f);
 		
-		node->set_input_link("position", node_pos, node_pos->type->find_output(0));
-		
-		comp->map_input_socket(2, node, "w1");
-		comp->map_input_socket(3, node, "w2");
-		comp->map_input_socket(4, node, "w3");
-		comp->map_input_socket(5, node, "w4");
-		comp->map_input_socket(6, node, "scale");
-		comp->map_input_socket(7, node, "noise_size");
+		comp->map_input_socket(0, node, "position");
+		comp->map_input_socket(3, node, "w1");
+		comp->map_input_socket(4, node, "w2");
+		comp->map_input_socket(5, node, "w3");
+		comp->map_input_socket(6, node, "w4");
+		comp->map_input_socket(7, node, "scale");
+		comp->map_input_socket(8, node, "noise_size");
 		
 		comp->map_output_socket(0, node, "color");
 		comp->map_output_socket(1, node, "normal");

@@ -53,6 +53,7 @@ static bNodeSocketTemplate outputs_color_only[] = {
 /* Inputs common to all, #defined because nodes will need their own inputs too */
 #define I 2 /* count */
 #define COMMON_INPUTS \
+	{ SOCK_VECTOR, 1, "Vector", 0.0f, 0.0f, 0.0f }, \
 	{ SOCK_RGBA, 1, "Color 1", 0.0f, 0.0f, 0.0f, 1.0f }, \
 	{ SOCK_RGBA, 1, "Color 2", 1.0f, 1.0f, 1.0f, 1.0f }
 
