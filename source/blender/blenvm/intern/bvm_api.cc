@@ -374,6 +374,28 @@ private:
 
 } /* namespace bvm */
 
+static void binary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
+{
+	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	comp->map_input_socket(0, node, "value_a");
+	comp->map_input_socket(1, node, "value_b");
+	comp->map_output_socket(0, node, "value");
+}
+
+static void unary_math_node(bvm::bNodeCompiler *comp, const bvm::string &type)
+{
+	bvm::NodeInstance *node = comp->add_node(type, comp->current_node()->name);
+	bNodeSocket *sock0 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 0);
+	bNodeSocket *sock1 = (bNodeSocket *)BLI_findlink(&comp->current_node()->inputs, 1);
+	bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
+	bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
+	if (sock0_linked || !sock1_linked)
+		comp->map_input_socket(0, node, "value");
+	else
+		comp->map_input_socket(1, node, "value");
+	comp->map_output_socket(0, node, "value");
+}
+
 static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 {
 	bNode *bnode = (bNode *)bnode_ptr->data;
@@ -395,9 +417,67 @@ static void convert_tex_node(bvm::bNodeCompiler *comp, PointerRNA *bnode_ptr)
 			comp->set_graph_output("normal", node, "value");
 		}
 	}
+	else if (type == "TextureNodeDecompose") {
+		{
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM0_" + bvm::string(comp->current_node()->name));
+			node->set_input_value("index", 0);
+			comp->map_input_socket(0, node, "value");
+			comp->map_output_socket(0, node, "value");
+		}
+		{
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM1_" + bvm::string(comp->current_node()->name));
+			node->set_input_value("index", 1);
+			comp->map_input_socket(0, node, "value");
+			comp->map_output_socket(1, node, "value");
+		}
+		{
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM2_" + bvm::string(comp->current_node()->name));
+			node->set_input_value("index", 2);
+			comp->map_input_socket(0, node, "value");
+			comp->map_output_socket(2, node, "value");
+		}
+		{
+			bvm::NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4", "GET_ELEM3_" + bvm::string(comp->current_node()->name));
+			node->set_input_value("index", 3);
+			comp->map_input_socket(0, node, "value");
+			comp->map_output_socket(3, node, "value");
+		}
+	}
+	else if (type == "TextureNodeCompose") {
+		bvm::NodeInstance *node = comp->add_node("SET_FLOAT4", bvm::string(comp->current_node()->name));
+		comp->map_input_socket(0, node, "value_x");
+		comp->map_input_socket(1, node, "value_y");
+		comp->map_input_socket(2, node, "value_z");
+		comp->map_input_socket(3, node, "value_w");
+		comp->map_output_socket(0, node, "value");
+	}
 	else if (type == "TextureNodeCoordinates") {
 		bvm::NodeInstance *node = comp->add_node("TEX_COORD", bvm::string(comp->current_node()->name));
 		comp->map_output_socket(0, node, "value");
+	}
+	else if (type == "TextureNodeMath") {
+		int mode = RNA_enum_get(bnode_ptr, "operation");
+		switch (mode) {
+			case 0: binary_math_node(comp, "ADD_FLOAT"); break;
+			case 1: binary_math_node(comp, "SUB_FLOAT"); break;
+			case 2: binary_math_node(comp, "MUL_FLOAT"); break;
+			case 3: binary_math_node(comp, "DIV_FLOAT"); break;
+			case 4: unary_math_node(comp, "SINE"); break;
+			case 5: unary_math_node(comp, "COSINE"); break;
+			case 6: unary_math_node(comp, "TANGENT"); break;
+			case 7: unary_math_node(comp, "ARCSINE"); break;
+			case 8: unary_math_node(comp, "ARCCOSINE"); break;
+			case 9: unary_math_node(comp, "ARCTANGENT"); break;
+			case 10: binary_math_node(comp, "POWER"); break;
+			case 11: binary_math_node(comp, "LOGARITHM"); break;
+			case 12: binary_math_node(comp, "MINIMUM"); break;
+			case 13: binary_math_node(comp, "MAXIMUM"); break;
+			case 14: unary_math_node(comp, "ROUND"); break;
+			case 15: binary_math_node(comp, "LESS_THAN"); break;
+			case 16: binary_math_node(comp, "GREATER_THAN"); break;
+			case 17: binary_math_node(comp, "MODULO"); break;
+			case 18: unary_math_node(comp, "ABSOLUTE"); break;
+		}
 	}
 	else if (type == "TextureNodeTexVoronoi") {
 		Tex *tex = (Tex *)bnode->storage;

@@ -703,6 +703,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(PASS_POINTER);
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
+	NODETYPE(SET_FLOAT4);
+	NODETYPE(GET_ELEM_FLOAT4);
 	
 	NODETYPE(POINT_POSITION);
 	NODETYPE(POINT_VELOCITY);
@@ -786,6 +788,18 @@ void register_opcode_node_types()
 	nt->add_input("value_y", BVM_FLOAT, 0.0f);
 	nt->add_input("value_z", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT4");
+	nt->add_input("index", BVM_INT, 0, true);
+	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("SET_FLOAT4");
+	nt->add_input("value_x", BVM_FLOAT, 0.0f);
+	nt->add_input("value_y", BVM_FLOAT, 0.0f);
+	nt->add_input("value_z", BVM_FLOAT, 0.0f);
+	nt->add_input("value_w", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_node_type("POINT_POSITION");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
