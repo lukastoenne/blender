@@ -748,6 +748,10 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(ADD_FLOAT3);
 	NODETYPE(SUB_FLOAT3);
+	NODETYPE(MUL_FLOAT3);
+	NODETYPE(DIV_FLOAT3);
+	NODETYPE(MUL_FLOAT3_FLOAT);
+	NODETYPE(DIV_FLOAT3_FLOAT);
 	NODETYPE(AVERAGE_FLOAT3);
 	NODETYPE(DOT_FLOAT3);
 	NODETYPE(CROSS_FLOAT3);
@@ -874,6 +878,26 @@ void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("SUB_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("MUL_FLOAT3");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("DIV_FLOAT3");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("MUL_FLOAT3_FLOAT");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("DIV_FLOAT3_FLOAT");
+	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_node_type("AVERAGE_FLOAT3");

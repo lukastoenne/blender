@@ -44,6 +44,8 @@ extern "C" {
 #include "bvm_eval_common.h"
 #include "bvm_eval_texture.h"
 
+#include "bvm_util_math.h"
+
 namespace bvm {
 
 EvalContext::EvalContext()
@@ -201,7 +203,7 @@ static void eval_op_div_float(float *stack, StackIndex offset_a, StackIndex offs
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
-	stack_store_float(stack, offset_r, b != 0.0f ? a / b : 0.0f);
+	stack_store_float(stack, offset_r, div_safe(a, b));
 }
 
 static void eval_op_sine(float *stack, StackIndex offset, StackIndex offset_r)
@@ -319,6 +321,34 @@ static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex off
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
+}
+
+static void eval_op_mul_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x * b.x, a.y * b.y, a.z * b.z));
+}
+
+static void eval_op_div_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(div_safe(a.x, b.x), div_safe(a.y, b.y), div_safe(a.z, b.z)));
+}
+
+static void eval_op_mul_float3_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(a.x * b, a.y * b, a.z * b));
+}
+
+static void eval_op_div_float3_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	float3 a = stack_load_float3(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	stack_store_float3(stack, offset_r, float3(div_safe(a.x, b), div_safe(a.y, b), div_safe(a.z, b)));
 }
 
 static void eval_op_average_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
@@ -687,6 +717,34 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_b = expr->read_stack_index(&instr);
 				StackIndex offset_r = expr->read_stack_index(&instr);
 				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_FLOAT3: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_mul_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_DIV_FLOAT3: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_div_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_FLOAT3_FLOAT: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_mul_float3_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_DIV_FLOAT3_FLOAT: {
+				StackIndex offset_a = expr->read_stack_index(&instr);
+				StackIndex offset_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_div_float3_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_AVERAGE_FLOAT3: {

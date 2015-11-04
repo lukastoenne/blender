@@ -53,6 +53,7 @@ set(SRC
 
 	util/bvm_util_hash.h
 	util/bvm_util_map.h
+	util/bvm_util_math.h
 	util/bvm_util_string.h
 	util/bvm_util_thread.h
 	util/bvm_util_typedesc.h
