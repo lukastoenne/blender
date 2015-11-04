@@ -32,6 +32,7 @@
 #include <map>
 #include <vector>
 #include <cassert>
+#include <cstdio>
 
 #include "bvm_nodegraph.h"
 #include "bvm_opcode.h"
