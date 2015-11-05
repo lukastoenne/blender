@@ -607,14 +607,14 @@ static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *nod
 		
 		if (i < numin) {
 			string name_in = node->type->inputs[i].name;
-			debug_fprintf(ctx, "<TD PORT=\"%s\" BORDER=\"1\">%s</TD>", name_in.c_str(), name_in.c_str());
+			debug_fprintf(ctx, "<TD PORT=\"%s_%d\" BORDER=\"1\">%s</TD>", name_in.c_str(), i, name_in.c_str());
 		}
 		else
 			debug_fprintf(ctx, "<TD></TD>");
 			
 		if (i < numout) {
 			string name_out = node->type->outputs[i].name;
-			debug_fprintf(ctx, "<TD PORT=\"%s\" BORDER=\"1\">%s</TD>", name_out.c_str(), name_out.c_str());
+			debug_fprintf(ctx, "<TD PORT=\"%s_%d\" BORDER=\"1\">%s</TD>", name_out.c_str(), i, name_out.c_str());
 		}
 		else
 			debug_fprintf(ctx, "<TD></TD>");
@@ -634,6 +634,30 @@ static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *nod
 	debug_fprintf(ctx, NL);
 }
 
+inline static int debug_input_index(const NodeInstance *node, const string &name)
+{
+	int index = 0;
+	for (NodeType::SocketList::const_iterator it = node->type->inputs.begin();
+	     it != node->type->inputs.end();
+	     ++it, ++index) {
+		if ((*it).name == name)
+			return index;
+	}
+	return -1;
+}
+
+inline static int debug_output_index(const NodeInstance *node, const string &name)
+{
+	int index = 0;
+	for (NodeType::SocketList::const_iterator it = node->type->outputs.begin();
+	     it != node->type->outputs.end();
+	     ++it, ++index) {
+		if ((*it).name == name)
+			return index;
+	}
+	return -1;
+}
+
 static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstance *node)
 {
 	for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
@@ -644,18 +668,22 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstanc
 			
 			const NodeInstance *tail = input.link_node;
 			const string &tail_socket = input.link_socket->name;
+			int tail_index = debug_output_index(tail, tail_socket);
 			const NodeInstance *head = node;
 			const string &head_socket = it->first;
+			int head_index = debug_input_index(head, head_socket);
 			debug_fprintf(ctx, "// %s:%s -> %s:%s\n",
 			              tail->name.c_str(), tail_socket.c_str(),
 			              head->name.c_str(), head_socket.c_str());
-			debug_fprintf(ctx, "\"node_%p\":%s", tail, tail_socket.c_str());
+			debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", tail, tail_socket.c_str(), tail_index);
 			debug_fprintf(ctx, " -> ");
-			debug_fprintf(ctx, "\"node_%p\":%s", head, head_socket.c_str());
+			debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", head, head_socket.c_str(), head_index);
 	
 			debug_fprintf(ctx, "[");
 			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-			debug_fprintf(ctx, "id=\"%s\"", (string("A") + head->name.c_str() + "B" + tail->name.c_str()).c_str());
+			debug_fprintf(ctx, "id=\"A%s:%s_%dB%s:%s_%d\"",
+			              head->name.c_str(), head_socket.c_str(), head_index,
+			              tail->name.c_str(), tail_socket.c_str(), tail_index);
 			
 			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
 			debug_fprintf(ctx, "];" NL);
