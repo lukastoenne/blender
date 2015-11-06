@@ -688,6 +688,21 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		comp->map_output_socket(0, SocketPair(node, "color"));
 		comp->map_output_socket(1, SocketPair(node, "normal"));
 	}
+	else if (type == "TextureNodeTexClouds") {
+		Tex *tex = (Tex *)bnode->storage;
+		
+		NodeInstance *node = comp->add_node("TEX_PROC_CLOUDS");
+		node->set_input_value("depth", (int)tex->noisedepth);
+		node->set_input_value("noise_basis", (int)tex->noisebasis);
+		node->set_input_value("noise_hard", (int)(tex->noisetype != TEX_NOISESOFT));
+		node->set_input_value("nabla", 0.05f);
+		
+		comp->map_input_socket(0, SocketPair(node, "position"));
+		comp->map_input_socket(3, SocketPair(node, "size"));
+		
+		comp->map_output_socket(0, SocketPair(node, "color"));
+		comp->map_output_socket(1, SocketPair(node, "normal"));
+	}
 }
 
 } /* namespace bvm */

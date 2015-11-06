@@ -824,6 +824,21 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				                         oIntensity, oColor, oNormal);
 				break;
 			}
+			case OP_TEX_PROC_CLOUDS: {
+				StackIndex iPos = expr->read_stack_index(&instr);
+				StackIndex iNabla = expr->read_stack_index(&instr);
+				StackIndex iSize = expr->read_stack_index(&instr);
+				int iDepth = expr->read_int(&instr);
+				int iNoiseBasis = expr->read_int(&instr);
+				int iNoiseHard = expr->read_int(&instr);
+				StackIndex oIntensity = expr->read_stack_index(&instr);
+				StackIndex oColor = expr->read_stack_index(&instr);
+				StackIndex oNormal = expr->read_stack_index(&instr);
+				eval_op_tex_proc_clouds(stack, iPos, iNabla, iSize,
+				                        iDepth, iNoiseBasis, iNoiseHard,
+				                        oIntensity, oColor, oNormal);
+				break;
+			}
 			
 			case OP_EFFECTOR_OBJECT: {
 				StackIndex offset = expr->read_stack_index(&instr);

@@ -69,8 +69,9 @@ inline void eval_op_tex_proc_voronoi(float *stack, int distance_metric, int colo
 	voronoi(texvec.x, texvec.y, texvec.z, da, pa, mexp, distance_metric);
 	
 	float intensity = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
-
 	float4 color;
+	float3 normal;
+	
 	if (color_type == 0) {
 		color = float4(intensity, intensity, intensity, 1.0f);
 	}
@@ -116,15 +117,51 @@ inline void eval_op_tex_proc_voronoi(float *stack, int distance_metric, int colo
 		color = float4(r, g, b, 1.0f);
 	}
 
-	float offs = nabla / noisesize;	/* also scaling of texvec */
 	/* calculate bumpnormal */
+	{
+		float offs = nabla / noisesize;	/* also scaling of texvec */
+		voronoi(texvec.x + offs, texvec.y, texvec.z, da, pa, mexp,  distance_metric);
+		normal.x = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
+		voronoi(texvec.x, texvec.y + offs, texvec.z, da, pa, mexp,  distance_metric);
+		normal.y = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
+		voronoi(texvec.x, texvec.y, texvec.z + offs, da, pa, mexp,  distance_metric);
+		normal.z = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
+	}
+	
+	stack_store_float(stack, oIntensity, intensity);
+	stack_store_float4(stack, oColor, color);
+	stack_store_float3(stack, oNormal, normal);
+}
+
+inline void eval_op_tex_proc_clouds(float *stack,
+                                    StackIndex iPos, StackIndex iNabla, StackIndex iSize,
+                                    int depth, int noise_basis, int noise_hard,
+                                    StackIndex oIntensity, StackIndex oColor, StackIndex oNormal)
+{
+	float3 texvec = stack_load_float3(stack, iPos);
+	float size = stack_load_float(stack, iSize);
+	float nabla = stack_load_float(stack, iNabla);
+	
+	float intensity = BLI_gTurbulence(size, texvec.x, texvec.y, texvec.z, depth, noise_hard, noise_basis);
+	float4 color;
 	float3 normal;
-	voronoi(texvec.x + offs, texvec.y, texvec.z, da, pa, mexp,  distance_metric);
-	normal.x = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
-	voronoi(texvec.x, texvec.y + offs, texvec.z, da, pa, mexp,  distance_metric);
-	normal.y = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
-	voronoi(texvec.x, texvec.y, texvec.z + offs, da, pa, mexp,  distance_metric);
-	normal.z = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
+
+	/* calculate bumpnormal */
+	{
+		float x = BLI_gTurbulence(size, texvec.x + nabla, texvec.y, texvec.z, depth, noise_hard, noise_basis);
+		float y = BLI_gTurbulence(size, texvec.x, texvec.y + nabla, texvec.z, depth, noise_hard, noise_basis);
+		float z = BLI_gTurbulence(size, texvec.x, texvec.y, texvec.z + nabla, depth, noise_hard, noise_basis);
+		normal = float3(x, y, z);
+	}
+
+	{
+		/* in this case, int. value should really be computed from color,
+		 * and bumpnormal from that, would be too slow, looks ok as is */
+		float r = intensity;
+		float g = BLI_gTurbulence(size, texvec.y, texvec.x, texvec.z, depth, noise_hard, noise_basis);
+		float b = BLI_gTurbulence(size, texvec.y, texvec.z, texvec.x, depth, noise_hard, noise_basis);
+		color = float4(r, g, b, 1.0f);
+	}
 	
 	stack_store_float(stack, oIntensity, intensity);
 	stack_store_float4(stack, oColor, color);

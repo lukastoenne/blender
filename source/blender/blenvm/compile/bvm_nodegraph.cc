@@ -789,6 +789,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(TEX_COORD);
 	NODETYPE(TEX_PROC_VORONOI);
+	NODETYPE(TEX_PROC_CLOUDS);
 	
 	NODETYPE(EFFECTOR_OBJECT);
 	NODETYPE(EFFECTOR_TRANSFORM);
@@ -972,6 +973,17 @@ void register_opcode_node_types()
 	nt->add_input("w3", BVM_FLOAT, 0.0f);
 	nt->add_input("w4", BVM_FLOAT, 0.0f);
 	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("intensity", BVM_FLOAT, 0.0f);
+	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("TEX_PROC_CLOUDS");
+	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", BVM_FLOAT, 0.05f);
+	nt->add_input("size", BVM_FLOAT, 1.0f);
+	nt->add_input("depth", BVM_INT, 2, true);
+	nt->add_input("noise_basis", BVM_INT, 0, true);
+	nt->add_input("noise_hard", BVM_INT, 0, true);
 	nt->add_output("intensity", BVM_FLOAT, 0.0f);
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
