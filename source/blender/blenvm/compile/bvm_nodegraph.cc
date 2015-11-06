@@ -785,6 +785,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(CROSS_FLOAT3);
 	NODETYPE(NORMALIZE_FLOAT3);
 	
+	NODETYPE(MIX_RGB);
+	
 	NODETYPE(TEX_COORD);
 	NODETYPE(TEX_PROC_VORONOI);
 	
@@ -947,6 +949,13 @@ void register_opcode_node_types()
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_node_type("MIX_RGB");
+	nt->add_input("mode", BVM_INT, 0, true);
+	nt->add_input("factor", BVM_FLOAT, 0.0f);
+	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	
 	nt = NodeGraph::add_node_type("TEX_COORD");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));

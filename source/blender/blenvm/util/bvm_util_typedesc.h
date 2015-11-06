@@ -52,6 +52,9 @@ struct float3 {
 	    x(x), y(y), z(z)
 	{}
 	
+	float* data() { return &x; }
+	const float* data() const { return &x; }
+	
 	inline static float3 from_data(const float *values)
 	{
 		float3 f;
@@ -82,6 +85,9 @@ struct float4 {
 	float4(float x, float y, float z, float w) :
 	    x(x), y(y), z(z), w(w)
 	{}
+	
+	float* data() { return &x; }
+	const float* data() const { return &x; }
 	
 	inline static float4 from_data(const float *values)
 	{

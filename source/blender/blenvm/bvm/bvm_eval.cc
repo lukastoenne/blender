@@ -38,6 +38,7 @@ extern "C" {
 
 #include "BKE_bvhutils.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_material.h"
 }
 
 #include "bvm_eval.h"
@@ -380,6 +381,17 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	float3 vec(v.x * f, v.y * f, v.z * f);
 	stack_store_float3(stack, offset_vec, vec);
 	stack_store_float(stack, offset_val, l);
+}
+
+static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, StackIndex offset_col_b, StackIndex offset_fac, StackIndex offset_r)
+{
+	float4 a = stack_load_float4(stack, offset_col_a);
+	float4 b = stack_load_float4(stack, offset_col_b);
+	float f = stack_load_float(stack, offset_fac);
+	
+	ramp_blend(mode, a.data(), f, b.data());
+	
+	stack_store_float4(stack, offset_r, a);
 }
 
 static void eval_op_tex_coord(const EvalData *data, float *stack, StackIndex offset)
@@ -773,6 +785,16 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_vec = expr->read_stack_index(&instr);
 				StackIndex offset_val = expr->read_stack_index(&instr);
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
+				break;
+			}
+			
+			case OP_MIX_RGB: {
+				int mode = expr->read_int(&instr);
+				StackIndex offset_fac = expr->read_stack_index(&instr);
+				StackIndex offset_col_a = expr->read_stack_index(&instr);
+				StackIndex offset_col_b = expr->read_stack_index(&instr);
+				StackIndex offset_r = expr->read_stack_index(&instr);
+				eval_op_mix_rgb(stack, mode, offset_col_a, offset_col_b, offset_fac, offset_r);
 				break;
 			}
 			

@@ -392,6 +392,20 @@ struct bNodeCompiler {
 	
 	/* --------------------------------------------------------------------- */
 	
+	SocketPair node_value_fl(float v)
+	{
+		NodeInstance *node = add_node("PASS_FLOAT");
+		node->set_input_value("value", v);
+		return node->output("value");
+	}
+	
+	SocketPair node_value_v3(float3 v)
+	{
+		NodeInstance *node = add_node("PASS_FLOAT3");
+		node->set_input_value("value", v);
+		return node->output("value");
+	}
+	
 	SocketPair node_one_minus_fl(const SocketPair &a)
 	{
 		NodeInstance *node = add_node("SUB_FLOAT");
@@ -408,43 +422,18 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	SocketPair node_add_fl_fl(const SocketPair &a, const SocketPair &b)
+	SocketPair node_math_binary(const char *mode, const SocketPair &a, const SocketPair &b)
 	{
-		NodeInstance *node = add_node("ADD_FLOAT");
+		NodeInstance *node = add_node(mode);
 		add_link_intern(a, node->input("value_a"));
 		add_link_intern(b, node->input("value_b"));
 		return node->output("value");
 	}
 	
-	SocketPair node_sub_fl_fl(const SocketPair &a, const SocketPair &b)
+	SocketPair node_math_unary(const char *mode, const SocketPair &a)
 	{
-		NodeInstance *node = add_node("SUB_FLOAT");
-		add_link_intern(a, node->input("value_a"));
-		add_link_intern(b, node->input("value_b"));
-		return node->output("value");
-	}
-	
-	SocketPair node_add_v3_v3(const SocketPair &a, const SocketPair &b)
-	{
-		NodeInstance *node = add_node("ADD_FLOAT3");
-		add_link_intern(a, node->input("value_a"));
-		add_link_intern(b, node->input("value_b"));
-		return node->output("value");
-	}
-	
-	SocketPair node_sub_v3_v3(const SocketPair &a, const SocketPair &b)
-	{
-		NodeInstance *node = add_node("SUB_FLOAT3");
-		add_link_intern(a, node->input("value_a"));
-		add_link_intern(b, node->input("value_b"));
-		return node->output("value");
-	}
-	
-	SocketPair node_mul_v3_v3(const SocketPair &a, const SocketPair &b)
-	{
-		NodeInstance *node = add_node("MUL_FLOAT3");
-		add_link_intern(a, node->input("value_a"));
-		add_link_intern(b, node->input("value_b"));
+		NodeInstance *node = add_node(mode);
+		add_link_intern(a, node->input("value"));
 		return node->output("value");
 	}
 	
@@ -461,7 +450,7 @@ struct bNodeCompiler {
 		SocketPair facinv = node_one_minus_fl(fac);
 		SocketPair mul_a = node_mul_v3_fl(a, facinv);
 		SocketPair mul_b = node_mul_v3_fl(b, fac);
-		return node_add_v3_v3(mul_a, mul_b);
+		return node_math_binary("ADD_FLOAT3", mul_a, mul_b);
 	}
 	
 	SocketPair node_compose_v4(const SocketPair &x, const SocketPair &y, const SocketPair &z, const SocketPair &w)
@@ -578,6 +567,33 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		int mode = RNA_enum_get(bnode_ptr, "blend_type");
 		bool use_alpha = RNA_boolean_get(bnode_ptr, "use_alpha");
 		bool use_clamp = RNA_boolean_get(bnode_ptr, "use_clamp");
+		
+		SocketPair fac = comp->add_input_proxy(0);
+		SocketPair col_a = comp->add_input_proxy(1);
+		SocketPair col_b = comp->add_input_proxy(2);
+		if (use_alpha) {
+			SocketPair alpha;
+			comp->node_decompose_v4(col_b, NULL, NULL, NULL, &alpha);
+			fac = comp->node_math_binary("MUL_FLOAT", fac, alpha);
+		}
+		
+		NodeInstance *node = comp->add_node("MIX_RGB");
+		node->set_input_value("mode", mode);
+		comp->add_link_intern(fac, node->input("factor"));
+		comp->add_link_intern(col_a, node->input("color1"));
+		comp->add_link_intern(col_b, node->input("color2"));
+		SocketPair color = node->output("color");
+		
+		if (use_clamp) {
+			// TODO
+		}
+		
+		comp->map_output_socket(0, color);
+		
+		/* TODO converting the blend function into atomic nodes
+		 * should be done eventually
+		 */
+#if 0
 		SocketPair fac = comp->add_input_proxy(0);
 		SocketPair col_a = comp->add_input_proxy(1);
 		SocketPair col_b = comp->add_input_proxy(2);
@@ -589,12 +605,12 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 				break;
 			}
 			case MA_RAMP_ADD: {
-				SocketPair add = comp->node_add_v3_v3(col_a, col_b);
+				SocketPair add = comp->node_math_binary("ADD_FLOAT3", col_a, col_b);
 				result = comp->node_blend(col_a, add, fac);
 				break;
 			}
 			case MA_RAMP_MULT: {
-				SocketPair mul = comp->node_mul_v3_v3(col_a, col_b);
+				SocketPair mul = comp->node_math_binary("MUL_FLOAT3", col_a, col_b);
 				result = comp->node_blend(col_a, mul, fac);
 				break;
 			}
@@ -602,207 +618,31 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 				SocketPair facinv = comp->node_one_minus_fl(fac);
 				SocketPair inv_a = comp->node_one_minus_v3(col_a);
 				SocketPair inv_b = comp->node_one_minus_v3(col_a);
-				SocketPair screen = comp->node_add_v3_v3(facinv, comp->node_mul_v3_fl(inv_b, fac));
-				SocketPair col = comp->node_mul_v3_v3(screen, inv_a);
+				SocketPair screen = comp->node_math_binary("ADD_FLOAT3", facinv, comp->node_mul_v3_fl(inv_b, fac));
+				SocketPair col = comp->node_math_binary("MUL_FLOAT3", screen, inv_a);
 				result = comp->node_one_minus_v3(col);
 				break;
 			}
-			case MA_RAMP_OVERLAY: {
-				SocketPair x, y, z;
-				comp->node_decompose_v4(col_a, &x, &y, &z, NULL);
-				break;
-			}
-#if 0
 			case MA_RAMP_OVERLAY:
-				if (r_col[0] < 0.5f)
-					r_col[0] *= (facm + 2.0f * fac * col[0]);
-				else
-					r_col[0] = 1.0f - (facm + 2.0f * fac * (1.0f - col[0])) * (1.0f - r_col[0]);
-				if (r_col[1] < 0.5f)
-					r_col[1] *= (facm + 2.0f * fac * col[1]);
-				else
-					r_col[1] = 1.0f - (facm + 2.0f * fac * (1.0f - col[1])) * (1.0f - r_col[1]);
-				if (r_col[2] < 0.5f)
-					r_col[2] *= (facm + 2.0f * fac * col[2]);
-				else
-					r_col[2] = 1.0f - (facm + 2.0f * fac * (1.0f - col[2])) * (1.0f - r_col[2]);
-				break;
 			case MA_RAMP_SUB:
-				r_col[0] -= fac * col[0];
-				r_col[1] -= fac * col[1];
-				r_col[2] -= fac * col[2];
-				break;
 			case MA_RAMP_DIV:
-				if (col[0] != 0.0f)
-					r_col[0] = facm * (r_col[0]) + fac * (r_col[0]) / col[0];
-				if (col[1] != 0.0f)
-					r_col[1] = facm * (r_col[1]) + fac * (r_col[1]) / col[1];
-				if (col[2] != 0.0f)
-					r_col[2] = facm * (r_col[2]) + fac * (r_col[2]) / col[2];
-				break;
 			case MA_RAMP_DIFF:
-				r_col[0] = facm * (r_col[0]) + fac * fabsf(r_col[0] - col[0]);
-				r_col[1] = facm * (r_col[1]) + fac * fabsf(r_col[1] - col[1]);
-				r_col[2] = facm * (r_col[2]) + fac * fabsf(r_col[2] - col[2]);
-				break;
 			case MA_RAMP_DARK:
-				r_col[0] = min_ff(r_col[0], col[0]) * fac + r_col[0] * facm;
-				r_col[1] = min_ff(r_col[1], col[1]) * fac + r_col[1] * facm;
-				r_col[2] = min_ff(r_col[2], col[2]) * fac + r_col[2] * facm;
-				break;
 			case MA_RAMP_LIGHT:
-				tmp = fac * col[0];
-				if (tmp > r_col[0]) r_col[0] = tmp;
-				tmp = fac * col[1];
-				if (tmp > r_col[1]) r_col[1] = tmp;
-				tmp = fac * col[2];
-				if (tmp > r_col[2]) r_col[2] = tmp;
-				break;
 			case MA_RAMP_DODGE:
-				if (r_col[0] != 0.0f) {
-					tmp = 1.0f - fac * col[0];
-					if (tmp <= 0.0f)
-						r_col[0] = 1.0f;
-					else if ((tmp = (r_col[0]) / tmp) > 1.0f)
-						r_col[0] = 1.0f;
-					else
-						r_col[0] = tmp;
-				}
-				if (r_col[1] != 0.0f) {
-					tmp = 1.0f - fac * col[1];
-					if (tmp <= 0.0f)
-						r_col[1] = 1.0f;
-					else if ((tmp = (r_col[1]) / tmp) > 1.0f)
-						r_col[1] = 1.0f;
-					else
-						r_col[1] = tmp;
-				}
-				if (r_col[2] != 0.0f) {
-					tmp = 1.0f - fac * col[2];
-					if (tmp <= 0.0f)
-						r_col[2] = 1.0f;
-					else if ((tmp = (r_col[2]) / tmp) > 1.0f)
-						r_col[2] = 1.0f;
-					else
-						r_col[2] = tmp;
-				}
-				break;
 			case MA_RAMP_BURN:
-				tmp = facm + fac * col[0];
-	
-				if (tmp <= 0.0f)
-					r_col[0] = 0.0f;
-				else if ((tmp = (1.0f - (1.0f - (r_col[0])) / tmp)) < 0.0f)
-					r_col[0] = 0.0f;
-				else if (tmp > 1.0f)
-					r_col[0] = 1.0f;
-				else
-					r_col[0] = tmp;
-	
-				tmp = facm + fac * col[1];
-				if (tmp <= 0.0f)
-					r_col[1] = 0.0f;
-				else if ((tmp = (1.0f - (1.0f - (r_col[1])) / tmp)) < 0.0f)
-					r_col[1] = 0.0f;
-				else if (tmp > 1.0f)
-					r_col[1] = 1.0f;
-				else
-					r_col[1] = tmp;
-	
-				tmp = facm + fac * col[2];
-				if (tmp <= 0.0f)
-					r_col[2] = 0.0f;
-				else if ((tmp = (1.0f - (1.0f - (r_col[2])) / tmp)) < 0.0f)
-					r_col[2] = 0.0f;
-				else if (tmp > 1.0f)
-					r_col[2] = 1.0f;
-				else
-					r_col[2] = tmp;
-				break;
 			case MA_RAMP_HUE:
-			{
-				float rH, rS, rV;
-				float colH, colS, colV;
-				float tmpr, tmpg, tmpb;
-				rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
-				if (colS != 0) {
-					rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
-					hsv_to_rgb(colH, rS, rV, &tmpr, &tmpg, &tmpb);
-					r_col[0] = facm * (r_col[0]) + fac * tmpr;
-					r_col[1] = facm * (r_col[1]) + fac * tmpg;
-					r_col[2] = facm * (r_col[2]) + fac * tmpb;
-				}
-				break;
-			}
 			case MA_RAMP_SAT:
-			{
-				float rH, rS, rV;
-				float colH, colS, colV;
-				rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
-				if (rS != 0) {
-					rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
-					hsv_to_rgb(rH, (facm * rS + fac * colS), rV, r_col + 0, r_col + 1, r_col + 2);
-				}
-				break;
-			}
 			case MA_RAMP_VAL:
-			{
-				float rH, rS, rV;
-				float colH, colS, colV;
-				rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
-				rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
-				hsv_to_rgb(rH, rS, (facm * rV + fac * colV), r_col + 0, r_col + 1, r_col + 2);
-				break;
-			}
 			case MA_RAMP_COLOR:
-			{
-				float rH, rS, rV;
-				float colH, colS, colV;
-				float tmpr, tmpg, tmpb;
-				rgb_to_hsv(col[0], col[1], col[2], &colH, &colS, &colV);
-				if (colS != 0) {
-					rgb_to_hsv(r_col[0], r_col[1], r_col[2], &rH, &rS, &rV);
-					hsv_to_rgb(colH, colS, rV, &tmpr, &tmpg, &tmpb);
-					r_col[0] = facm * (r_col[0]) + fac * tmpr;
-					r_col[1] = facm * (r_col[1]) + fac * tmpg;
-					r_col[2] = facm * (r_col[2]) + fac * tmpb;
-				}
-				break;
-			}
 			case MA_RAMP_SOFT:
-			{
-				float scr, scg, scb;
-	
-				/* first calculate non-fac based Screen mix */
-				scr = 1.0f - (1.0f - col[0]) * (1.0f - r_col[0]);
-				scg = 1.0f - (1.0f - col[1]) * (1.0f - r_col[1]);
-				scb = 1.0f - (1.0f - col[2]) * (1.0f - r_col[2]);
-	
-				r_col[0] = facm * (r_col[0]) + fac * (((1.0f - r_col[0]) * col[0] * (r_col[0])) + (r_col[0] * scr));
-				r_col[1] = facm * (r_col[1]) + fac * (((1.0f - r_col[1]) * col[1] * (r_col[1])) + (r_col[1] * scg));
-				r_col[2] = facm * (r_col[2]) + fac * (((1.0f - r_col[2]) * col[2] * (r_col[2])) + (r_col[2] * scb));
-				break;
-			}
 			case MA_RAMP_LINEAR:
-				if (col[0] > 0.5f)
-					r_col[0] = r_col[0] + fac * (2.0f * (col[0] - 0.5f));
-				else
-					r_col[0] = r_col[0] + fac * (2.0f * (col[0]) - 1.0f);
-				if (col[1] > 0.5f)
-					r_col[1] = r_col[1] + fac * (2.0f * (col[1] - 0.5f));
-				else
-					r_col[1] = r_col[1] + fac * (2.0f * (col[1]) - 1.0f);
-				if (col[2] > 0.5f)
-					r_col[2] = r_col[2] + fac * (2.0f * (col[2] - 0.5f));
-				else
-					r_col[2] = r_col[2] + fac * (2.0f * (col[2]) - 1.0f);
-				break;
-#endif
 		}
 		
 		if (result) {
 			comp->map_output_socket(0, result);
 		}
+#endif
 	}
 	else if (type == "TextureNodeMath") {
 		int mode = RNA_enum_get(bnode_ptr, "operation");
