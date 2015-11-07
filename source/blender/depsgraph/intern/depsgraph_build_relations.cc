@@ -1834,12 +1834,29 @@ void DepsgraphRelationBuilder::build_texture(ID *owner, Tex *tex)
 		return;
 	}
 	tex_id->flag |= LIB_DOIT;
-
+	
+	ComponentKey parameters_key(tex_id, DEPSNODE_TYPE_PARAMETERS);
+	
+	OperationKey eval_key(tex_id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_TEXTURE_INIT);
+	OperationKey invalidate_key(tex_id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_TEXTURE_INVALIDATE);
+	add_relation(eval_key, invalidate_key,
+	             DEPSREL_TYPE_OPERATION, "Texture Eval");
+	
 	/* texture itself */
-	build_animdata(tex_id);
-
-	/* texture's nodetree */
-	build_nodetree(owner, tex->nodetree);
+	build_animdata(owner);
+	
+	if (needs_animdata_node(tex_id)) {
+		ComponentKey animation_key(tex_id, DEPSNODE_TYPE_ANIMATION);
+		add_relation(animation_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Texture Parameters");
+	}
+	
+	if (tex->nodetree) {
+		build_nodetree(owner, tex->nodetree);
+		ComponentKey nodetree_key(&tex->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(nodetree_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree->Texture Parameters");
+	}
 }
 
 /* Texture-stack attached to some shading datablock */

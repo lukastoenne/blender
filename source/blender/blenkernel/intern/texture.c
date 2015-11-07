@@ -68,6 +68,9 @@
 #include "BKE_animsys.h"
 #include "BKE_colortools.h"
 #include "BKE_scene.h"
+#include "BKE_depsgraph.h"
+
+#include "BVM_api.h"
 
 #include "RE_shader_ext.h"
 
@@ -1680,3 +1683,12 @@ void BKE_texture_get_value(
 		copy_v3_fl(&texres->tr, texres->tin);
 	}
 }
+
+/* -------------------- */
+/* Depsgraph evaluation */
+
+void BKE_texture_invalidate(EvaluationContext *UNUSED(eval_ctx), Tex *tex)
+{
+	BVM_texture_cache_invalidate(tex);
+}
+

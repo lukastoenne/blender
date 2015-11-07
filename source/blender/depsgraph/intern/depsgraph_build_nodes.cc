@@ -1174,6 +1174,19 @@ void DepsgraphNodeBuilder::build_texture(DepsNode *owner_node, Tex *tex)
 		return;
 	}
 	tex_id->flag |= LIB_DOIT;
+	
+	/* texture itself */
+	add_id_node(tex_id);
+	
+	/* Parameters for drivers. */
+	add_operation_node(tex_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_INIT,
+	                   NULL,
+	                   DEG_OPCODE_TEXTURE_INIT);
+	
+	add_operation_node(tex_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST,
+	                   function_bind(BKE_texture_invalidate, _1, tex),
+	                   DEG_OPCODE_TEXTURE_INVALIDATE);
+	
 	/* texture itself */
 	build_animdata(tex_id);
 	/* texture's nodetree */

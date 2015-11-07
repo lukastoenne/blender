@@ -190,6 +190,9 @@ static void updateDepsgraph(ModifierData *md,
 	if (dmd->texmapping == MOD_DISP_MAP_GLOBAL) {
 		DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
 	}
+	if (dmd->texture) {
+		DEG_add_texture_relation(node, dmd->texture, DEG_OB_TEX_PARAMETERS, "Displace Modifier");
+	}
 }
 
 /* dm must be a CDDerivedMesh */

@@ -139,6 +139,14 @@ DEF_DEG_OPCODE(BONE_CONSTRAINTS)
 DEF_DEG_OPCODE(BONE_READY)
 DEF_DEG_OPCODE(BONE_DONE)
 
+/* Textures ---------------------------------------- */
+
+/* placeholder */
+DEF_DEG_OPCODE(TEXTURE_INIT)
+
+/* invalidate caches, recalculate texture effects */
+DEF_DEG_OPCODE(TEXTURE_INVALIDATE)
+
 /* Particles --------------------------------------- */
 
 /* XXX: placeholder - Particle System eval */

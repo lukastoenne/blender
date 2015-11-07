@@ -41,6 +41,7 @@ struct bNode;
 struct Brush;
 struct ColorBand;
 struct EnvMap;
+struct EvaluationContext;
 struct FreestyleLineStyle;
 struct Lamp;
 struct Main;
@@ -136,6 +137,8 @@ bool    BKE_texture_is_image_user(const struct Tex *tex);
 void BKE_texture_get_value(
         const struct Scene *scene, struct Tex *texture,
         float *tex_co, struct TexResult *texres, bool use_color_management);
+
+void BKE_texture_invalidate(struct EvaluationContext *eval_ctx, struct Tex *tex);
 
 #ifdef __cplusplus
 }

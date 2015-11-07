@@ -131,6 +131,14 @@ static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType c
 	return DEPSNODE_TYPE_UNDEFINED;
 }
 
+static eDepsNode_Type deg_build_texture_component_type(eDepsTextureComponentType component)
+{
+	switch (component) {
+		case DEG_OB_TEX_PARAMETERS:         return DEPSNODE_TYPE_PARAMETERS;
+	}
+	return DEPSNODE_TYPE_UNDEFINED;
+}
+
 void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
 {
 	eDepsNode_Type type = deg_build_scene_component_type(component);
@@ -152,6 +160,13 @@ void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char
 
 	// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
 	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
+}
+
+void DEG_add_texture_relation(DepsNodeHandle *handle, struct Tex *tex, eDepsTextureComponentType component, const char *description)
+{
+	eDepsNode_Type type = deg_build_texture_component_type(component);
+	ComponentKey comp_key(&tex->id, type);
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_STANDARD, description);
 }
 
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)

@@ -105,9 +105,14 @@ typedef enum eDepsObjectComponentType {
 	DEG_OB_COMP_SHADING,           /* Material Shading Component */
 } eDepsObjectComponentType;
 
+typedef enum eDepsTextureComponentType {
+	DEG_OB_TEX_PARAMETERS,        /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+} eDepsTextureComponentType;
+
 void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *description);
 void DEG_add_object_relation(struct DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *description);
 void DEG_add_bone_relation(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description);
+void DEG_add_texture_relation(struct DepsNodeHandle *handle, struct Tex *tex, eDepsTextureComponentType component, const char *description);
 
 /* TODO(sergey): Remove once all geometry update is granular. */
 void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);
