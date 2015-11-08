@@ -932,13 +932,18 @@ static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, BlendThumbnail **t
 
 	/* gets scaled to BLEN_THUMB_SIZE */
 	if (scene->camera) {
-		ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, scene->camera,
-		                                             BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                             IB_rect, OB_SOLID, false, false, false, R_ALPHAPREMUL, NULL, err_out);
+		ibuf = ED_view3d_draw_offscreen_imbuf_simple(
+		        scene, scene->camera,
+		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
+		        IB_rect, OB_SOLID, false, false, false, R_ALPHAPREMUL, 0, NULL,
+		        NULL, err_out);
 	}
 	else {
-		ibuf = ED_view3d_draw_offscreen_imbuf(scene, v3d, ar, BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
-		                                      IB_rect, false, R_ALPHAPREMUL, NULL, err_out);
+		ibuf = ED_view3d_draw_offscreen_imbuf(
+		        scene, v3d, ar,
+		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
+		        IB_rect, false, R_ALPHAPREMUL, 0, NULL,
+		        NULL, err_out);
 	}
 
 	if (ibuf) {
@@ -1309,3 +1314,13 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
 }
 
 /** \} */
+
+void WM_file_tag_modified(const bContext *C)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	if (wm->file_saved) {
+		wm->file_saved = 0;
+		/* notifier that data changed, for save-over warning or header */
+		WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, NULL);
+	}
+}
