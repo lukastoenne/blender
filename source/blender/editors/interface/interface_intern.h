@@ -174,6 +174,9 @@ extern const short ui_radial_dir_to_angle[8];
 /* split numbuts by ':' and align l/r */
 #define USE_NUMBUTS_LR_ALIGN
 
+/* Use new 'align' computation code. */
+#define USE_UIBUT_SPATIAL_ALIGN
+
 /* PieMenuData->flags */
 enum {
 	UI_PIE_DEGREES_RANGE_LARGE  = (1 << 0),  /* pie menu item collision is detected at 90 degrees */
@@ -493,7 +496,6 @@ extern int  ui_but_is_pushed(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
 extern void ui_block_bounds_calc(uiBlock *block);
 extern void ui_block_translate(uiBlock *block, int x, int y);
-extern void ui_block_align_calc(uiBlock *block);
 
 extern struct ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block);
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3]);
@@ -651,6 +653,7 @@ void ui_but_pie_dir_visual(RadialDirection dir, float vec[2]);
 void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 float ui_block_calc_pie_segment(struct uiBlock *block, const float event_xy[2]);
 
+void ui_but_add_shortcut(uiBut *but, const char *key_str, const bool do_strip);
 void ui_but_clipboard_free(void);
 void ui_panel_menu(struct bContext *C, ARegion *ar, Panel *pa);
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new);
@@ -682,6 +685,8 @@ void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *na
 
 #define UI_TEXT_MARGIN_X 0.4f
 #define UI_POPUP_MARGIN (UI_DPI_FAC * 12)
+/* margin at top of screen for popups */
+#define UI_POPUP_MENU_TOP (int)(8 * UI_DPI_FAC)
 
 /* interface_style.c */
 void uiStyleInit(void);
@@ -699,10 +704,12 @@ void ui_resources_free(void);
 
 /* interface_layout.c */
 void ui_layout_add_but(uiLayout *layout, uiBut *but);
-bool ui_but_can_align(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRNA *searchptr, PropertyRNA *searchprop);
-void ui_but_add_shortcut(uiBut *but, const char *key_str, const bool do_strip);
 void ui_layout_list_set_labels_active(uiLayout *layout);
+
+/* interface_align.c */
+bool ui_but_can_align(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
+void ui_block_align_calc(uiBlock *block);
 
 /* interface_anim.c */
 void ui_but_anim_flag(uiBut *but, float cfra);

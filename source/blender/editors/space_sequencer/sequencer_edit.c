@@ -3858,8 +3858,7 @@ static int sequencer_export_subtitles_invoke(bContext *C, wmOperator *op, const 
 static int sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Sequence *seq = BKE_sequencer_active_get(scene);
-	Sequence *seq_next;
+	Sequence *seq, *seq_next;
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	ListBase text_seq = {0};
 	int iter = 0;
@@ -3911,9 +3910,9 @@ static int sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
 		char timecode_str_end[32];
 
 		BLI_timecode_string_from_time(timecode_str_start, sizeof(timecode_str_start),
-									  -2, FRA2TIME(seq->startdisp), FPS, USER_TIMECODE_SUBRIP);
+		                              -2, FRA2TIME(seq->startdisp), FPS, USER_TIMECODE_SUBRIP);
 		BLI_timecode_string_from_time(timecode_str_end, sizeof(timecode_str_end),
-									  -2, FRA2TIME(seq->enddisp), FPS, USER_TIMECODE_SUBRIP);
+		                              -2, FRA2TIME(seq->enddisp), FPS, USER_TIMECODE_SUBRIP);
 
 		fprintf(file, "%d\n%s --> %s\n%s\n\n", iter++, timecode_str_start, timecode_str_end, data->text);
 

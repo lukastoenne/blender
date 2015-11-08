@@ -829,7 +829,7 @@ void view3d_cached_text_draw_add(const float co[3],
 	BLI_LINKS_PREPEND(g_v3d_strings[g_v3d_string_level], vos);
 
 	copy_v3_v3(vos->vec, co);
-	copy_v4_v4_char((char *)vos->col.ub, (const char *)col);
+	copy_v4_v4_uchar(vos->col.ub, col);
 	vos->xoffs = xoffs;
 	vos->flag = flag;
 	vos->str_len = str_len;
@@ -1198,7 +1198,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	Object *ob = base->object;
 	const float pixsize = ED_view3d_pixel_size(rv3d, ob->obmat[3]);
 	Lamp *la = ob->data;
-	float vec[3], lvec[3], vvec[3], circrad, x, y, z;
+	float vec[3], lvec[3], vvec[3], circrad;
 	float lampsize;
 	float imat[4][4];
 
@@ -1344,8 +1344,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	if (is_view) {
 		/* skip drawing extra info */
 	}
-	else if ((la->type == LA_SPOT) || (la->type == LA_YF_PHOTON)) {
-
+	else if (la->type == LA_SPOT) {
+		float x, y, z, z_abs;
 		copy_v3_fl3(lvec, 0.0f, 0.0f, 1.0f);
 		copy_v3_fl3(vvec, rv3d->persmat[0][2], rv3d->persmat[1][2], rv3d->persmat[2][2]);
 		mul_transposed_mat3_m4_v3(ob->obmat, vvec);
@@ -1358,46 +1358,75 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		mul_v3_fl(lvec, x);
 		mul_v3_fl(vvec, x);
 
-		/* draw the angled sides of the cone */
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(vvec);
-		glVertex3fv(vec);
-		glVertex3fv(lvec);
-		glEnd();
-		
 		x *= y;
 
-		/* draw the circle/square at the end of the cone */
-		glTranslatef(0.0, 0.0, x);
+		z_abs = fabsf(z);
+
 		if (la->mode & LA_SQUARE) {
-			float tvec[3];
-			float z_abs = fabsf(z);
+			/* draw pyramid */
+			const float vertices[5][3] = {
+			    /* 5 of vertex coords of pyramid */
+			    {0.0f, 0.0f, 0.0f},
+			    {z_abs, z_abs, x},
+			    {-z_abs, -z_abs, x},
+			    {z_abs, -z_abs, x},
+			    {-z_abs, z_abs, x},
+			};
+			const unsigned char indices[] = {
+			    0, 1, 3,
+			    0, 3, 2,
+			    0, 2, 4,
+			    0, 1, 4,
+			};
 
-			tvec[0] = tvec[1] = z_abs;
-			tvec[2] = 0.0;
+			/* Draw call:
+			 * activate and specify pointer to vertex array */
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, GL_FLOAT, 0, vertices);
+			/* draw the pyramid */
+			glDrawElements(GL_LINE_STRIP, 12, GL_UNSIGNED_BYTE, indices);
 
-			glBegin(GL_LINE_LOOP);
-			glVertex3fv(tvec);
-			tvec[1] = -z_abs; /* neg */
-			glVertex3fv(tvec);
-			tvec[0] = -z_abs; /* neg */
-			glVertex3fv(tvec);
-			tvec[1] = z_abs; /* pos */
-			glVertex3fv(tvec);
-			glEnd();
+			/* deactivate vertex arrays after drawing */
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			glTranslatef(0.0f, 0.0f, x);
+
+			/* draw the square representing spotbl */
+			if (la->type == LA_SPOT) {
+				float blend = z_abs * (1.0f - pow2f(la->spotblend));
+
+				/* hide line if it is zero size or overlaps with outer border,
+				 * previously it adjusted to always to show it but that seems
+				 * confusing because it doesn't show the actual blend size */
+				if (blend != 0.0f && blend != z_abs) {
+					fdrawbox(blend, -blend, -blend, blend);
+				}
+			}
 		}
 		else {
-			circ(0.0, 0.0, fabsf(z));
-		}
 
-		/* draw the circle/square representing spotbl */
-		if (la->type == LA_SPOT) {
-			float spotblcirc = fabsf(z) * (1.0f - pow2f(la->spotblend));
-			/* hide line if it is zero size or overlaps with outer border,
-			 * previously it adjusted to always to show it but that seems
-			 * confusing because it doesn't show the actual blend size */
-			if (spotblcirc != 0 && spotblcirc != fabsf(z))
-				circ(0.0, 0.0, spotblcirc);
+			/* draw the angled sides of the cone */
+			glBegin(GL_LINE_STRIP);
+			glVertex3fv(vvec);
+			glVertex3fv(vec);
+			glVertex3fv(lvec);
+			glEnd();
+
+			/* draw the circle at the end of the cone */
+			glTranslatef(0.0f, 0.0f, x);
+			circ(0.0f, 0.0f, z_abs);
+
+			/* draw the circle representing spotbl */
+			if (la->type == LA_SPOT) {
+				float blend = z_abs * (1.0f - pow2f(la->spotblend));
+
+				/* hide line if it is zero size or overlaps with outer border,
+				* previously it adjusted to always to show it but that seems
+				* confusing because it doesn't show the actual blend size */
+				if (blend != 0.0f && blend != z_abs) {
+					circ(0.0f, 0.0f, blend);
+				}
+			}
 		}
 
 		if (drawcone)
@@ -1538,7 +1567,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	glPopMatrix();
 }
 
-static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
+static void draw_limit_line(float sta, float end, const short dflag, const unsigned char col[3])
 {
 	glBegin(GL_LINES);
 	glVertex3f(0.0, 0.0, -sta);
@@ -1549,7 +1578,7 @@ static void draw_limit_line(float sta, float end, const short dflag, unsigned in
 		glPointSize(3.0);
 		glBegin(GL_POINTS);
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
-			cpack(col);
+			glColor3ubv(col);
 		}
 		glVertex3f(0.0, 0.0, -sta);
 		glVertex3f(0.0, 0.0, -end);
@@ -2055,7 +2084,8 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	float drawsize;
 	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, false);
 
-	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
+	const bool is_active = (ob == v3d->camera);
+	const bool is_view = (rv3d->persp == RV3D_CAMOB && is_active);
 	const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
 	const bool is_stereo3d = drawcamera_is_stereo3d(scene, v3d, ob);
 	const bool is_stereo3d_view = (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
@@ -2147,7 +2177,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	 * for active cameras so the wire can be seen side-on */
 	for (i = 0; i < 2; i++) {
 		if (i == 0) glBegin(GL_LINE_LOOP);
-		else if (i == 1 && (ob == v3d->camera)) glBegin(GL_TRIANGLES);
+		else if (i == 1 && is_active) glBegin(GL_TRIANGLES);
 		else break;
 
 		tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
@@ -2177,15 +2207,20 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			glMultMatrixf(nobmat);
 
 			if (cam->flag & CAM_SHOWLIMITS) {
-				draw_limit_line(cam->clipsta, cam->clipend, dflag, 0x77FFFF);
+				const unsigned char col[3] = {128, 128, 60}, col_hi[3] = {255, 255, 120};
+
+				draw_limit_line(cam->clipsta, cam->clipend, dflag, (is_active ? col_hi : col));
 				/* qdn: was yafray only, now also enabled for Blender to be used with defocus composite node */
 				draw_focus_cross(BKE_camera_object_dof_distance(ob), cam->drawsize);
 			}
 
 			if (cam->flag & CAM_SHOWMIST) {
 				World *world = scene->world;
+				const unsigned char col[3] = {128, 128, 128}, col_hi[3] = {255, 255, 255};
+
 				if (world) {
-					draw_limit_line(world->miststa, world->miststa + world->mistdist, dflag, 0xFFFFFF);
+					draw_limit_line(world->miststa, world->miststa + world->mistdist,
+					                dflag, (is_active ? col_hi : col));
 				}
 			}
 			glPopMatrix();
@@ -7655,7 +7690,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	if (((base->flag & OB_FROMDUPLI) == 0) &&
 	    (md = modifiers_findByType(ob, eModifierType_Smoke)) &&
-	    (modifier_isEnabled(scene, md, eModifierMode_Realtime))) {
+	    (modifier_isEnabled(scene, md, eModifierMode_Realtime)))
+	{
 		smd = (SmokeModifierData *)md;
 
 		if (smd->domain) {

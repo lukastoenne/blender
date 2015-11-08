@@ -79,12 +79,13 @@ void BKE_object_free_modifiers(struct Object *ob);
 void BKE_object_make_proxy(struct Object *ob, struct Object *target, struct Object *gob);
 void BKE_object_copy_proxy_drivers(struct Object *ob, struct Object *target);
 
-void BKE_object_unlink(struct Object *ob);
+void BKE_object_unlink(struct Main *bmain, struct Object *ob);
 bool BKE_object_exists_check(struct Object *obtest);
 bool BKE_object_is_in_editmode(struct Object *ob);
 bool BKE_object_is_in_editmode_vgroup(struct Object *ob);
 bool BKE_object_is_in_wpaint_select_vert(struct Object *ob);
 
+void BKE_object_init(struct Object *ob);
 struct Object *BKE_object_add_only_object(
         struct Main *bmain,
         int type, const char *name)

@@ -368,9 +368,11 @@ static void ui_block_bounds_calc_popup(
         wmWindow *window, uiBlock *block,
         eBlockBoundsCalc bounds_calc, const int xy[2])
 {
-	int startx, starty, endx, endy, width, height, oldwidth, oldheight;
+	int width, height, oldwidth, oldheight;
 	int oldbounds, xmax, ymax;
 	const int margin = UI_SCREEN_MARGIN;
+	rcti rect, rect_bounds;
+	int ofs_dummy[2];
 
 	oldbounds = block->bounds;
 
@@ -405,27 +407,18 @@ static void ui_block_bounds_calc_popup(
 
 	/* offset block based on mouse position, user offset is scaled
 	 * along in case we resized the block in ui_block_bounds_calc_text */
-	startx = xy[0] + block->rect.xmin + (block->mx * width) / oldwidth;
-	starty = xy[1] + block->rect.ymin + (block->my * height) / oldheight;
+	rect.xmin = xy[0] + block->rect.xmin + (block->mx * width) / oldwidth;
+	rect.ymin = xy[1] + block->rect.ymin + (block->my * height) / oldheight;
+	rect.xmax = rect.xmin + width;
+	rect.ymax = rect.ymin + height;
 
-	if (startx < margin)
-		startx = margin;
-	if (starty < margin)
-		starty = margin;
+	rect_bounds.xmin = margin;
+	rect_bounds.ymin = margin;
+	rect_bounds.xmax = xmax - margin;
+	rect_bounds.ymax = ymax - UI_POPUP_MENU_TOP;
 
-	endx = startx + width;
-	endy = starty + height;
-
-	if (endx > xmax) {
-		endx = xmax - margin;
-		startx = endx - width;
-	}
-	if (endy > ymax - margin) {
-		endy = ymax - margin;
-		starty = endy - height;
-	}
-
-	ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+	BLI_rcti_clamp(&rect, &rect_bounds, ofs_dummy);
+	ui_block_translate(block, rect.xmin - block->rect.xmin, rect.ymin - block->rect.ymin);
 
 	/* now recompute bounds and safety */
 	ui_block_bounds_calc(block);
@@ -1100,7 +1093,6 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 			
 			/* check each until one works... */
 			for (i = 0; (i < num_ops) && (ctx_toggle_opnames[i]); i++) {
-				//printf("\t%s\n", ctx_toggle_opnames[i]);
 				if (WM_key_event_operator_string(C, ctx_toggle_opnames[i], WM_OP_INVOKE_REGION_WIN, prop_path, false,
 				                                 buf_len, buf))
 				{
@@ -2100,7 +2092,7 @@ static float ui_get_but_step_unit(uiBut *but, float step_default)
 
 		BLI_assert(step > 0.0);
 
-		step_final = (step / scale_unit) / UI_PRECISION_FLOAT_SCALE;
+		step_final = (step / scale_unit) / (double)UI_PRECISION_FLOAT_SCALE;
 
 		if (step == step_unit) {
 			/* Logic here is to scale by the original 'step_orig'
@@ -2934,198 +2926,9 @@ void UI_block_align_begin(uiBlock *block)
 	/* buttons declared after this call will get this align nr */ // XXX flag?
 }
 
-static bool buts_are_horiz(uiBut *but1, uiBut *but2)
-{
-	float dx, dy;
-
-	/* simple case which can fail if buttons shift apart
-	 * with proportional layouts, see: [#38602] */
-	if ((but1->rect.ymin == but2->rect.ymin) &&
-	    (but1->rect.xmin != but2->rect.xmin))
-	{
-		return true;
-	}
-
-	dx = fabsf(but1->rect.xmax - but2->rect.xmin);
-	dy = fabsf(but1->rect.ymin - but2->rect.ymax);
-	
-	return (dx <= dy);
-}
-
 void UI_block_align_end(uiBlock *block)
 {
 	block->flag &= ~UI_BUT_ALIGN;  /* all 4 flags */
-}
-
-bool ui_but_can_align(uiBut *but)
-{
-	return !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_CHECKBOX, UI_BTYPE_CHECKBOX_N, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE);
-}
-
-static void ui_block_align_calc_but(uiBut *first, short nr)
-{
-	uiBut *prev, *but = NULL, *next;
-	int flag = 0, cols = 0, rows = 0;
-	
-	/* auto align */
-
-	for (but = first; but && but->alignnr == nr; but = but->next) {
-		if (but->next && but->next->alignnr == nr) {
-			if (buts_are_horiz(but, but->next)) cols++;
-			else rows++;
-		}
-	}
-
-	/* rows == 0: 1 row, cols == 0: 1 column */
-	
-	/* note;  how it uses 'flag' in loop below (either set it, or OR it) is confusing */
-	for (but = first, prev = NULL; but && but->alignnr == nr; prev = but, but = but->next) {
-		next = but->next;
-		if (next && next->alignnr != nr)
-			next = NULL;
-
-		/* clear old flag */
-		but->drawflag &= ~UI_BUT_ALIGN;
-			
-		if (flag == 0) {  /* first case */
-			if (next) {
-				if (buts_are_horiz(but, next)) {
-					if (rows == 0)
-						flag = UI_BUT_ALIGN_RIGHT;
-					else 
-						flag = UI_BUT_ALIGN_DOWN | UI_BUT_ALIGN_RIGHT;
-				}
-				else {
-					flag = UI_BUT_ALIGN_DOWN;
-				}
-			}
-		}
-		else if (next == NULL) {  /* last case */
-			if (prev) {
-				if (buts_are_horiz(prev, but)) {
-					if (rows == 0)
-						flag = UI_BUT_ALIGN_LEFT;
-					else
-						flag = UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_LEFT;
-				}
-				else {
-					flag = UI_BUT_ALIGN_TOP;
-				}
-			}
-		}
-		else if (buts_are_horiz(but, next)) {
-			/* check if this is already second row */
-			if (prev && buts_are_horiz(prev, but) == 0) {
-				flag &= ~UI_BUT_ALIGN_LEFT;
-				flag |= UI_BUT_ALIGN_TOP;
-				/* exception case: bottom row */
-				if (rows > 0) {
-					uiBut *bt = but;
-					while (bt && bt->alignnr == nr) {
-						if (bt->next && bt->next->alignnr == nr && buts_are_horiz(bt, bt->next) == 0) {
-							break;
-						}
-						bt = bt->next;
-					}
-					if (bt == NULL || bt->alignnr != nr) flag = UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_RIGHT;
-				}
-			}
-			else {
-				flag |= UI_BUT_ALIGN_LEFT;
-			}
-		}
-		else {
-			if (cols == 0) {
-				flag |= UI_BUT_ALIGN_TOP;
-			}
-			else {  /* next button switches to new row */
-				
-				if (prev && buts_are_horiz(prev, but))
-					flag |= UI_BUT_ALIGN_LEFT;
-				else {
-					flag &= ~UI_BUT_ALIGN_LEFT;
-					flag |= UI_BUT_ALIGN_TOP;
-				}
-				
-				if ((flag & UI_BUT_ALIGN_TOP) == 0) {  /* stil top row */
-					if (prev) {
-						if (next && buts_are_horiz(but, next))
-							flag = UI_BUT_ALIGN_DOWN | UI_BUT_ALIGN_LEFT | UI_BUT_ALIGN_RIGHT;
-						else {
-							/* last button in top row */
-							flag = UI_BUT_ALIGN_DOWN | UI_BUT_ALIGN_LEFT;
-						}
-					}
-					else 
-						flag |= UI_BUT_ALIGN_DOWN;
-				}
-				else 
-					flag |= UI_BUT_ALIGN_TOP;
-			}
-		}
-		
-		but->drawflag |= flag;
-		
-		/* merge coordinates */
-		if (prev) {
-			/* simple cases */
-			if (rows == 0) {
-				but->rect.xmin = (prev->rect.xmax + but->rect.xmin) / 2.0f;
-				prev->rect.xmax = but->rect.xmin;
-			}
-			else if (cols == 0) {
-				but->rect.ymax = (prev->rect.ymin + but->rect.ymax) / 2.0f;
-				prev->rect.ymin = but->rect.ymax;
-			}
-			else {
-				if (buts_are_horiz(prev, but)) {
-					but->rect.xmin = (prev->rect.xmax + but->rect.xmin) / 2.0f;
-					prev->rect.xmax = but->rect.xmin;
-					/* copy height too */
-					but->rect.ymax = prev->rect.ymax;
-				}
-				else if (prev->prev && buts_are_horiz(prev->prev, prev) == 0) {
-					/* the previous button is a single one in its row */
-					but->rect.ymax = (prev->rect.ymin + but->rect.ymax) / 2.0f;
-					prev->rect.ymin = but->rect.ymax;
-					
-					but->rect.xmin = prev->rect.xmin;
-					if (next && buts_are_horiz(but, next) == 0)
-						but->rect.xmax = prev->rect.xmax;
-				}
-				else {
-					/* the previous button is not a single one in its row */
-					but->rect.ymax = prev->rect.ymin;
-				}
-			}
-		}
-	}
-}
-
-void ui_block_align_calc(uiBlock *block)
-{
-	uiBut *but;
-	short nr;
-
-	/* align buttons with same align nr */
-	for (but = block->buttons.first; but; ) {
-		if (but->alignnr) {
-			nr = but->alignnr;
-			ui_block_align_calc_but(but, nr);
-
-			/* skip with same number */
-			for (; but && but->alignnr == nr; but = but->next) {
-				/* pass */
-			}
-
-			if (!but) {
-				break;
-			}
-		}
-		else {
-			but = but->next;
-		}
-	}
 }
 
 struct ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block)
