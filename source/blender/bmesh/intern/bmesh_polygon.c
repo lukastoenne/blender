@@ -38,9 +38,12 @@
 #include "BLI_memarena.h"
 #include "BLI_polyfill2d.h"
 #include "BLI_polyfill2d_beautify.h"
+#include "BLI_linklist.h"
 
 #include "bmesh.h"
 #include "bmesh_tools.h"
+
+#include "BKE_customdata.h"
 
 #include "intern/bmesh_private.h"
 
@@ -765,6 +768,12 @@ bool BM_face_point_inside_test(const BMFace *f, const float co[3])
  * with a length equal to (f->len - 3). It will be filled with the new
  * triangles (not including the original triangle).
  *
+ * \param r_faces_double: When newly created faces are duplicates of existing faces, they're added to this list.
+ * Caller must handle de-duplication.
+ * This is done because its possible _all_ faces exist already,
+ * and in that case we would have to remove all faces including the one passed,
+ * which causes complications adding/removing faces while looking over them.
+ *
  * \note The number of faces is _almost_ always (f->len - 3),
  *       However there may be faces that already occupying the
  *       triangles we would make, so the caller must check \a r_faces_new_tot.
@@ -777,6 +786,7 @@ void BM_face_triangulate(
         int     *r_faces_new_tot,
         BMEdge **r_edges_new,
         int     *r_edges_new_tot,
+        LinkNode **r_faces_double,
         const int quad_method,
         const int ngon_method,
         const bool use_tag,
@@ -785,125 +795,132 @@ void BM_face_triangulate(
         /* use for MOD_TRIANGULATE_NGON_BEAUTY only! */
         struct Heap *pf_heap, struct EdgeHash *pf_ehash)
 {
-	BMLoop *l_iter, *l_first, *l_new;
+	const int cd_loop_mdisp_offset = CustomData_get_offset(&bm->ldata, CD_MDISPS);
+	const bool use_beauty = (ngon_method == MOD_TRIANGULATE_NGON_BEAUTY);
+	BMLoop *l_first, *l_new;
 	BMFace *f_new;
 	int nf_i = 0;
 	int ne_i = 0;
-	bool use_beauty = (ngon_method == MOD_TRIANGULATE_NGON_BEAUTY);
 
 	BLI_assert(BM_face_is_normal_valid(f));
 
 	/* ensure both are valid or NULL */
 	BLI_assert((r_faces_new == NULL) == (r_faces_new_tot == NULL));
 
-	if (f->len == 4) {
-		BMLoop *l_v1, *l_v2;
-		l_first = BM_FACE_FIRST_LOOP(f);
+	BLI_assert(f->len > 3);
 
-		switch (quad_method) {
-			case MOD_TRIANGULATE_QUAD_FIXED:
-			{
-				l_v1 = l_first;
-				l_v2 = l_first->next->next;
-				break;
-			}
-			case MOD_TRIANGULATE_QUAD_ALTERNATE:
-			{
-				l_v1 = l_first->next;
-				l_v2 = l_first->prev;
-				break;
-			}
-			case MOD_TRIANGULATE_QUAD_SHORTEDGE:
-			case MOD_TRIANGULATE_QUAD_BEAUTY:
-			default:
-			{
-				BMLoop *l_v3, *l_v4;
-				bool split_24;
-
-				l_v1 = l_first->next;
-				l_v2 = l_first->next->next;
-				l_v3 = l_first->prev;
-				l_v4 = l_first;
-
-				if (quad_method == MOD_TRIANGULATE_QUAD_SHORTEDGE) {
-					float d1, d2;
-					d1 = len_squared_v3v3(l_v4->v->co, l_v2->v->co);
-					d2 = len_squared_v3v3(l_v1->v->co, l_v3->v->co);
-					split_24 = ((d2 - d1) > 0.0f);
-				}
-				else {
-					/* first check if the quad is concave on either diagonal */
-					const int flip_flag = is_quad_flip_v3(l_v1->v->co, l_v2->v->co, l_v3->v->co, l_v4->v->co);
-					if (UNLIKELY(flip_flag & (1 << 0))) {
-						split_24 = true;
-					}
-					else if (UNLIKELY(flip_flag & (1 << 1))) {
-						split_24 = false;
-					}
-					else {
-						split_24 = (BM_verts_calc_rotate_beauty(l_v1->v, l_v2->v, l_v3->v, l_v4->v, 0, 0) > 0.0f);
-					}
-				}
-
-				/* named confusingly, l_v1 is in fact the second vertex */
-				if (split_24) {
-					l_v1 = l_v4;
-					//l_v2 = l_v2;
-				}
-				else {
-					//l_v1 = l_v1;
-					l_v2 = l_v3;
-				}
-				break;
-			}
-		}
-
-		f_new = BM_face_split(bm, f, l_v1, l_v2, &l_new, NULL, true);
-		copy_v3_v3(f_new->no, f->no);
-
-		if (use_tag) {
-			BM_elem_flag_enable(l_new->e, BM_ELEM_TAG);
-			BM_elem_flag_enable(f_new, BM_ELEM_TAG);
-		}
-
-		if (r_faces_new) {
-			r_faces_new[nf_i++] = f_new;
-		}
-		if (r_edges_new) {
-			r_edges_new[ne_i++] = l_new->e;
-		}
-	}
-	else if (f->len > 4) {
-
-		float axis_mat[3][3];
-		float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+	{
 		BMLoop **loops = BLI_array_alloca(loops, f->len);
 		unsigned int (*tris)[3] = BLI_array_alloca(tris, f->len);
 		const int totfilltri = f->len - 2;
 		const int last_tri = f->len - 3;
 		int i;
+		/* for mdisps */
+		float f_center[3];
 
-		axis_dominant_v3_to_m3_negate(axis_mat, f->no);
+		if (f->len == 4) {
+			/* even though we're not using BLI_polyfill, fill in 'tris' and 'loops'
+			 * so we can share code to handle face creation afterwards. */
+			BMLoop *l_v1, *l_v2;
 
-		for (i = 0, l_iter = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l_iter = l_iter->next) {
-			loops[i] = l_iter;
-			mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
+			l_first = BM_FACE_FIRST_LOOP(f);
+
+			switch (quad_method) {
+				case MOD_TRIANGULATE_QUAD_FIXED:
+				{
+					l_v1 = l_first;
+					l_v2 = l_first->next->next;
+					break;
+				}
+				case MOD_TRIANGULATE_QUAD_ALTERNATE:
+				{
+					l_v1 = l_first->next;
+					l_v2 = l_first->prev;
+					break;
+				}
+				case MOD_TRIANGULATE_QUAD_SHORTEDGE:
+				case MOD_TRIANGULATE_QUAD_BEAUTY:
+				default:
+				{
+					BMLoop *l_v3, *l_v4;
+					bool split_24;
+
+					l_v1 = l_first->next;
+					l_v2 = l_first->next->next;
+					l_v3 = l_first->prev;
+					l_v4 = l_first;
+
+					if (quad_method == MOD_TRIANGULATE_QUAD_SHORTEDGE) {
+						float d1, d2;
+						d1 = len_squared_v3v3(l_v4->v->co, l_v2->v->co);
+						d2 = len_squared_v3v3(l_v1->v->co, l_v3->v->co);
+						split_24 = ((d2 - d1) > 0.0f);
+					}
+					else {
+						/* first check if the quad is concave on either diagonal */
+						const int flip_flag = is_quad_flip_v3(l_v1->v->co, l_v2->v->co, l_v3->v->co, l_v4->v->co);
+						if (UNLIKELY(flip_flag & (1 << 0))) {
+							split_24 = true;
+						}
+						else if (UNLIKELY(flip_flag & (1 << 1))) {
+							split_24 = false;
+						}
+						else {
+							split_24 = (BM_verts_calc_rotate_beauty(l_v1->v, l_v2->v, l_v3->v, l_v4->v, 0, 0) > 0.0f);
+						}
+					}
+
+					/* named confusingly, l_v1 is in fact the second vertex */
+					if (split_24) {
+						l_v1 = l_v4;
+						//l_v2 = l_v2;
+					}
+					else {
+						//l_v1 = l_v1;
+						l_v2 = l_v3;
+					}
+					break;
+				}
+			}
+
+			loops[0] = l_v1;
+			loops[1] = l_v1->next;
+			loops[2] = l_v2;
+			loops[3] = l_v2->next;
+
+			ARRAY_SET_ITEMS(tris[0], 0, 1, 2);
+			ARRAY_SET_ITEMS(tris[1], 0, 2, 3);
+		}
+		else {
+			BMLoop *l_iter;
+			float axis_mat[3][3];
+			float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+
+			axis_dominant_v3_to_m3_negate(axis_mat, f->no);
+
+			for (i = 0, l_iter = BM_FACE_FIRST_LOOP(f); i < f->len; i++, l_iter = l_iter->next) {
+				loops[i] = l_iter;
+				mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
+			}
+
+			BLI_polyfill_calc_arena((const float (*)[2])projverts, f->len, 1, tris,
+			                        pf_arena);
+
+			if (use_beauty) {
+				BLI_polyfill_beautify(
+				        (const float (*)[2])projverts, f->len, tris,
+				        pf_arena, pf_heap, pf_ehash);
+			}
+
+			BLI_memarena_clear(pf_arena);
 		}
 
-		BLI_polyfill_calc_arena((const float (*)[2])projverts, f->len, 1, tris,
-		                        pf_arena);
-
-		if (use_beauty) {
-			BLI_polyfill_beautify(
-			        (const float (*)[2])projverts, f->len, tris,
-			        pf_arena, pf_heap, pf_ehash);
+		if (cd_loop_mdisp_offset != -1) {
+			BM_face_calc_center_mean(f, f_center);
 		}
-
-		BLI_memarena_clear(pf_arena);
 
 		/* loop over calculated triangles and create new geometry */
 		for (i = 0; i < totfilltri; i++) {
-			/* the order is reverse, otherwise the normal is flipped */
 			BMLoop *l_tri[3] = {
 			    loops[tris[i][0]],
 			    loops[tris[i][1]],
@@ -918,6 +935,16 @@ void BM_face_triangulate(
 			l_new = BM_FACE_FIRST_LOOP(f_new);
 
 			BLI_assert(v_tri[0] == l_new->v);
+
+			/* check for duplicate */
+			if (l_new->radial_next != l_new) {
+				BMLoop *l_iter = l_new->radial_next;
+				do {
+					if (UNLIKELY(l_new->prev->v == l_iter->prev->v)) {
+						BLI_linklist_prepend(r_faces_double, l_new->f);
+					}
+				} while ((l_iter = l_iter->radial_next) != l_new);
+			}
 
 			/* copy CD data */
 			BM_elem_attrs_copy(bm, bm, l_tri[0], l_new);
@@ -936,6 +963,8 @@ void BM_face_triangulate(
 
 			if (use_tag || r_edges_new) {
 				/* new faces loops */
+				BMLoop *l_iter;
+
 				l_iter = l_first = l_new;
 				do {
 					BMEdge *e = l_iter->e;
@@ -953,6 +982,12 @@ void BM_face_triangulate(
 					}
 					/* note, never disable tag's */
 				} while ((l_iter = l_iter->next) != l_first);
+			}
+
+			if (cd_loop_mdisp_offset != -1) {
+				float f_new_center[3];
+				BM_face_calc_center_mean(f_new, f_new_center);
+				BM_face_interp_multires_ex(bm, f_new, f, f_new_center, f_center, cd_loop_mdisp_offset);
 			}
 		}
 
