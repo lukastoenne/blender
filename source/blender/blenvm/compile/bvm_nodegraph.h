@@ -396,13 +396,13 @@ protected:
 		return result;
 	}
 	
-	SocketPair add_int_converter(const SocketPair &from, BVMType to_type)
+	SocketPair add_int_converter(const SocketPair &/*from*/, BVMType /*to_type*/)
 	{
 		SocketPair result(NULL, "");
 		return result;
 	}
 	
-	SocketPair add_matrix44_converter(const SocketPair &from, BVMType to_type)
+	SocketPair add_matrix44_converter(const SocketPair &/*from*/, BVMType /*to_type*/)
 	{
 		SocketPair result(NULL, "");
 		return result;

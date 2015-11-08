@@ -734,7 +734,7 @@ static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm:
 }
 
 
-struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex,
+struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex */*tex*/,
                                                  bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
