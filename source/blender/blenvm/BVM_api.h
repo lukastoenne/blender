@@ -47,16 +47,6 @@ struct BVMModule;
 void BVM_init(void);
 void BVM_free(void);
 
-struct BVMModule *BVM_module_create(void);
-void BVM_module_free(struct BVMModule *mod);
-
-struct BVMFunction *BVM_module_create_function(struct BVMModule *mod, const char *name);
-bool BVM_module_delete_function(struct BVMModule *mod, const char *name);
-
-/* ------------------------------------------------------------------------- */
-
-const char *BVM_function_name(const struct BVMFunction *fun);
-
 /* ------------------------------------------------------------------------- */
 
 void BVM_expression_free(struct BVMExpression *expr);

@@ -44,12 +44,6 @@ set(INC_SYS
 
 set(SRC
 	intern/bvm_api.cc
-	intern/bvm_function.cc
-	intern/bvm_function.h
-	intern/bvm_module.cc
-	intern/bvm_module.h
-	intern/bvm_schedule.cc
-	intern/bvm_schedule.h
 
 	util/bvm_util_hash.h
 	util/bvm_util_map.h

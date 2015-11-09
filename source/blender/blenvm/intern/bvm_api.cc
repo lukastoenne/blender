@@ -53,8 +53,6 @@ extern "C" {
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
 #include "bvm_expression.h"
-#include "bvm_function.h"
-#include "bvm_module.h"
 #include "bvm_nodegraph.h"
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
@@ -68,23 +66,6 @@ void BVM_free(void)
 {
 	BVM_texture_cache_clear();
 }
-
-/* ------------------------------------------------------------------------- */
-
-BLI_INLINE bvm::Module *_MOD(struct BVMModule *mod)
-{ return (bvm::Module *)mod; }
-
-struct BVMModule *BVM_module_create(void)
-{ return (struct BVMModule *)(new bvm::Module()); }
-
-void BVM_module_free(BVMModule *mod)
-{ delete _MOD(mod); }
-
-struct BVMFunction *BVM_module_create_function(BVMModule *mod, const char *name)
-{ return (struct BVMFunction *)_MOD(mod)->create_function(name); }
-
-bool BVM_module_delete_function(BVMModule *mod, const char *name)
-{ return _MOD(mod)->remove_function(name); }
 
 /* ------------------------------------------------------------------------- */
 
