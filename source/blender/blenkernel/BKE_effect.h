@@ -105,7 +105,7 @@ typedef struct EffectorCache {
 	float guide_loc[4], guide_dir[3], guide_radius;
 	float velocity[3];
 
-	struct BVMExpression *expression;
+	struct BVMFunction *function;
 
 	float frame;
 	int flag;

@@ -42,7 +42,7 @@ struct Object;
 
 namespace bvm {
 
-struct Expression;
+struct Function;
 
 #define BVM_STACK_SIZE 255
 
@@ -105,10 +105,10 @@ struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_expression(const EvalGlobals *globals, const EvalData *data, const Expression *expr, void **results) const;
+	void eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const;
 	
 protected:
-	void eval_instructions(const EvalGlobals *globals, const EvalData *data, const Expression *expr, float *stack) const;
+	void eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const;
 };
 
 } /* namespace bvm */

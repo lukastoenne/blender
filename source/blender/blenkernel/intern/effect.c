@@ -212,7 +212,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 				
 				if (ff_ntree) {
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->expression = BVM_gen_forcefield_expression(effctx->eval_globals, ff_ntree);
+					eff->function = BVM_gen_forcefield_function(effctx->eval_globals, ff_ntree);
 				}
 				
 				break;
@@ -282,8 +282,8 @@ void pdEndEffectors(EffectorContext *effctx)
 		for (; eff; eff = eff->next) {
 			if (eff->guide_data)
 				MEM_freeN(eff->guide_data);
-			if (eff->expression)
-				BVM_expression_free(eff->expression);
+			if (eff->function)
+				BVM_function_free(eff->function);
 		}
 		
 		BLI_freelistN(&effctx->effectors);
@@ -1024,8 +1024,8 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 		get_effector_tot(eff, &efd, point, &tot, &p, &step);
 
 		for (; p<tot; p+=step) {
-			if (eff->expression) {
-				BVM_eval_forcefield(effctx->eval_globals, eval_context, eff->expression, eff->ob, point, force, impulse);
+			if (eff->function) {
+				BVM_eval_forcefield(effctx->eval_globals, eval_context, eff->function, eff->ob, point, force, impulse);
 			}
 			else if (get_effector_data(eff, &efd, point, 0)) {
 				efd.falloff= effector_falloff(eff, &efd, point, weights);

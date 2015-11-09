@@ -42,8 +42,8 @@ set(SRC
 	bvm_eval.h
 	bvm_eval_common.h
 	bvm_eval_texture.h
-	bvm_expression.cc
-	bvm_expression.h
+	bvm_function.cc
+	bvm_function.h
 	bvm_opcode.h
 )
 

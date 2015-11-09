@@ -1113,12 +1113,12 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
-		struct BVMExpression *expr = BVM_texture_cache_acquire(tex);
+		struct BVMFunction *fn = BVM_texture_cache_acquire(tex);
 		
-		if (expr) {
+		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			
-			BVM_eval_texture(context, expr, texres, texvec, dxt, dyt, osatex, which_output,
+			BVM_eval_texture(context, fn, texres, texvec, dxt, dyt, osatex, which_output,
 			                 R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0);
 			retval = TEX_INT | TEX_RGB | TEX_NOR;
 			

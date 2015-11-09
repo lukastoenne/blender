@@ -39,7 +39,7 @@
 namespace bvm {
 
 BVMCompiler::BVMCompiler() :
-    expr(NULL)
+    fn(NULL)
 {
 	stack_users.resize(BVM_STACK_SIZE, 0);
 }
@@ -83,68 +83,68 @@ StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
 
 void BVMCompiler::push_opcode(OpCode op)
 {
-	expr->add_instruction(op);
+	fn->add_instruction(op);
 }
 
 void BVMCompiler::push_stack_index(StackIndex arg)
 {
 	if (arg != BVM_STACK_INVALID)
-		expr->add_instruction(arg);
+		fn->add_instruction(arg);
 }
 
 void BVMCompiler::push_float(float f)
 {
-	expr->add_instruction(float_to_instruction(f));
+	fn->add_instruction(float_to_instruction(f));
 }
 
 void BVMCompiler::push_float3(float3 f)
 {
-	expr->add_instruction(float_to_instruction(f.x));
-	expr->add_instruction(float_to_instruction(f.y));
-	expr->add_instruction(float_to_instruction(f.z));
+	fn->add_instruction(float_to_instruction(f.x));
+	fn->add_instruction(float_to_instruction(f.y));
+	fn->add_instruction(float_to_instruction(f.z));
 }
 
 void BVMCompiler::push_float4(float4 f)
 {
-	expr->add_instruction(float_to_instruction(f.x));
-	expr->add_instruction(float_to_instruction(f.y));
-	expr->add_instruction(float_to_instruction(f.z));
-	expr->add_instruction(float_to_instruction(f.w));
+	fn->add_instruction(float_to_instruction(f.x));
+	fn->add_instruction(float_to_instruction(f.y));
+	fn->add_instruction(float_to_instruction(f.z));
+	fn->add_instruction(float_to_instruction(f.w));
 }
 
 void BVMCompiler::push_int(int i)
 {
-	expr->add_instruction(int_to_instruction(i));
+	fn->add_instruction(int_to_instruction(i));
 }
 
 void BVMCompiler::push_matrix44(matrix44 m)
 {
-	expr->add_instruction(float_to_instruction(m.data[0][0]));
-	expr->add_instruction(float_to_instruction(m.data[0][1]));
-	expr->add_instruction(float_to_instruction(m.data[0][2]));
-	expr->add_instruction(float_to_instruction(m.data[0][3]));
-	expr->add_instruction(float_to_instruction(m.data[1][0]));
-	expr->add_instruction(float_to_instruction(m.data[1][1]));
-	expr->add_instruction(float_to_instruction(m.data[1][2]));
-	expr->add_instruction(float_to_instruction(m.data[1][3]));
-	expr->add_instruction(float_to_instruction(m.data[2][0]));
-	expr->add_instruction(float_to_instruction(m.data[2][1]));
-	expr->add_instruction(float_to_instruction(m.data[2][2]));
-	expr->add_instruction(float_to_instruction(m.data[2][3]));
-	expr->add_instruction(float_to_instruction(m.data[3][0]));
-	expr->add_instruction(float_to_instruction(m.data[3][1]));
-	expr->add_instruction(float_to_instruction(m.data[3][2]));
-	expr->add_instruction(float_to_instruction(m.data[3][3]));
+	fn->add_instruction(float_to_instruction(m.data[0][0]));
+	fn->add_instruction(float_to_instruction(m.data[0][1]));
+	fn->add_instruction(float_to_instruction(m.data[0][2]));
+	fn->add_instruction(float_to_instruction(m.data[0][3]));
+	fn->add_instruction(float_to_instruction(m.data[1][0]));
+	fn->add_instruction(float_to_instruction(m.data[1][1]));
+	fn->add_instruction(float_to_instruction(m.data[1][2]));
+	fn->add_instruction(float_to_instruction(m.data[1][3]));
+	fn->add_instruction(float_to_instruction(m.data[2][0]));
+	fn->add_instruction(float_to_instruction(m.data[2][1]));
+	fn->add_instruction(float_to_instruction(m.data[2][2]));
+	fn->add_instruction(float_to_instruction(m.data[2][3]));
+	fn->add_instruction(float_to_instruction(m.data[3][0]));
+	fn->add_instruction(float_to_instruction(m.data[3][1]));
+	fn->add_instruction(float_to_instruction(m.data[3][2]));
+	fn->add_instruction(float_to_instruction(m.data[3][3]));
 }
 
 void BVMCompiler::push_pointer(PointerRNA p)
 {
-	expr->add_instruction(pointer_to_instruction_hi(p.id.data));
-	expr->add_instruction(pointer_to_instruction_lo(p.id.data));
-	expr->add_instruction(pointer_to_instruction_hi(p.type));
-	expr->add_instruction(pointer_to_instruction_lo(p.type));
-	expr->add_instruction(pointer_to_instruction_hi(p.data));
-	expr->add_instruction(pointer_to_instruction_lo(p.data));
+	fn->add_instruction(pointer_to_instruction_hi(p.id.data));
+	fn->add_instruction(pointer_to_instruction_lo(p.id.data));
+	fn->add_instruction(pointer_to_instruction_hi(p.type));
+	fn->add_instruction(pointer_to_instruction_lo(p.type));
+	fn->add_instruction(pointer_to_instruction_hi(p.data));
+	fn->add_instruction(pointer_to_instruction_lo(p.data));
 }
 
 StackIndex BVMCompiler::codegen_value(const Value *value)
@@ -306,12 +306,12 @@ static void sort_nodes(const NodeGraph &graph, NodeList &result)
 	}
 }
 
-Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
+Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 {
 	typedef std::pair<const NodeInstance *, const NodeSocket *> SocketPair;
 	typedef std::map<SocketPair, StackIndex> SocketIndexMap;
 	
-	expr = new Expression();
+	fn = new Function();
 	
 	NodeList sorted_nodes;
 	sort_nodes(graph, sorted_nodes);
@@ -375,7 +375,7 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 	     ++it) {
 		const NodeGraphOutput &output = *it;
 		
-		ReturnValue &rval = expr->add_return_value(TypeDesc(output.type), output.name);
+		ReturnValue &rval = fn->add_return_value(TypeDesc(output.type), output.name);
 		
 		if (output.link_node && output.link_socket) {
 			SocketPair link_key(output.link_node, output.link_socket);
@@ -389,8 +389,8 @@ Expression *BVMCompiler::codegen_expression(const NodeGraph &graph)
 	
 	push_opcode(OP_END);
 	
-	Expression *result = expr;
-	expr = NULL;
+	Function *result = fn;
+	fn = NULL;
 	return result;
 }
 

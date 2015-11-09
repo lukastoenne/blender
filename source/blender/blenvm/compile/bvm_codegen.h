@@ -34,13 +34,13 @@
 
 #include <vector>
 
-#include "bvm_expression.h"
+#include "bvm_function.h"
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
 
 namespace bvm {
 
-struct Expression;
+struct Function;
 struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
@@ -66,11 +66,11 @@ struct BVMCompiler {
 	
 	StackIndex codegen_value(const Value *value);
 	void codegen_constant(const Value *value);
-	Expression *codegen_expression(const NodeGraph &graph);
+	Function *codegen_function(const NodeGraph &graph);
 	
 private:
 	StackUsers stack_users;
-	Expression *expr;
+	Function *fn;
 };
 
 } /* namespace bvm */

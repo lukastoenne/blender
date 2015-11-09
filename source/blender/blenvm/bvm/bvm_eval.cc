@@ -451,373 +451,373 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
-void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Expression *expr, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
 {
 	int instr = 0;
 	
 	while (true) {
-		OpCode op = expr->read_opcode(&instr);
+		OpCode op = fn->read_opcode(&instr);
 		
 		switch(op) {
 			case OP_NOOP:
 				break;
 			case OP_VALUE_FLOAT: {
-				float value = expr->read_float(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				float value = fn->read_float(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_float(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_FLOAT3: {
-				float3 value = expr->read_float3(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				float3 value = fn->read_float3(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_float3(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_FLOAT4: {
-				float4 value = expr->read_float4(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				float4 value = fn->read_float4(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_float4(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_INT: {
-				int value = expr->read_int(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				int value = fn->read_int(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_int(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_MATRIX44: {
-				matrix44 value = expr->read_matrix44(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				matrix44 value = fn->read_matrix44(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_matrix44(stack, value, offset);
 				break;
 			}
 			case OP_VALUE_POINTER: {
-				PointerRNA value = expr->read_pointer(&instr);
-				StackIndex offset = expr->read_stack_index(&instr);
+				PointerRNA value = fn->read_pointer(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_pointer(stack, value, offset);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_float_to_int(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_INT_TO_FLOAT: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_int_to_float(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_FLOAT: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_float(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_FLOAT3: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_float3(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_FLOAT4: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_float4(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_INT: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_int(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_MATRIX44: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_matrix44(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_PASS_POINTER: {
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_pointer(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT3: {
-				StackIndex offset_x = expr->read_stack_index(&instr);
-				StackIndex offset_y = expr->read_stack_index(&instr);
-				StackIndex offset_z = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_x = fn->read_stack_index(&instr);
+				StackIndex offset_y = fn->read_stack_index(&instr);
+				StackIndex offset_z = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_set_float3(stack, offset_x, offset_y, offset_z, offset_to);
 				break;
 			}
 			case OP_GET_ELEM_FLOAT3: {
-				int index = expr->read_int(&instr);
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				int index = fn->read_int(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_get_elem_float3(stack, index, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT4: {
-				StackIndex offset_x = expr->read_stack_index(&instr);
-				StackIndex offset_y = expr->read_stack_index(&instr);
-				StackIndex offset_z = expr->read_stack_index(&instr);
-				StackIndex offset_w = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				StackIndex offset_x = fn->read_stack_index(&instr);
+				StackIndex offset_y = fn->read_stack_index(&instr);
+				StackIndex offset_z = fn->read_stack_index(&instr);
+				StackIndex offset_w = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_set_float4(stack, offset_x, offset_y, offset_z, offset_w, offset_to);
 				break;
 			}
 			case OP_GET_ELEM_FLOAT4: {
-				int index = expr->read_int(&instr);
-				StackIndex offset_from = expr->read_stack_index(&instr);
-				StackIndex offset_to = expr->read_stack_index(&instr);
+				int index = fn->read_int(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
 				break;
 			}
 			case OP_POINT_POSITION: {
-				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_point_position(data, stack, offset);
 				break;
 			}
 			case OP_POINT_VELOCITY: {
-				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_point_velocity(data, stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_add_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SUB_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_sub_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MUL_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mul_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_DIV_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_div_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SINE: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_sine(stack, offset, offset_r);
 				break;
 			}
 			case OP_COSINE: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_cosine(stack, offset, offset_r);
 				break;
 			}
 			case OP_TANGENT: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_tangent(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCSINE: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_arcsine(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCCOSINE: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_arccosine(stack, offset, offset_r);
 				break;
 			}
 			case OP_ARCTANGENT: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_arctangent(stack, offset, offset_r);
 				break;
 			}
 			case OP_POWER: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_power(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_LOGARITHM: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_logarithm(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MINIMUM: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_minimum(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MAXIMUM: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_maximum(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_ROUND: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_round(stack, offset, offset_r);
 				break;
 			}
 			case OP_LESS_THAN: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_less_than(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_GREATER_THAN: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_greater_than(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MODULO: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_modulo(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_ABSOLUTE: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_absolute(stack, offset, offset_r);
 				break;
 			}
 			case OP_CLAMP: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_clamp(stack, offset, offset_r);
 				break;
 			}
 			case OP_ADD_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_add_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_SUB_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_sub_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MUL_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mul_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_DIV_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_div_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_MUL_FLOAT3_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mul_float3_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_DIV_FLOAT3_FLOAT: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_div_float3_float(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_AVERAGE_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_average_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_DOT_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_dot_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_CROSS_FLOAT3: {
-				StackIndex offset_a = expr->read_stack_index(&instr);
-				StackIndex offset_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_cross_float3(stack, offset_a, offset_b, offset_r);
 				break;
 			}
 			case OP_NORMALIZE_FLOAT3: {
-				StackIndex offset = expr->read_stack_index(&instr);
-				StackIndex offset_vec = expr->read_stack_index(&instr);
-				StackIndex offset_val = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_vec = fn->read_stack_index(&instr);
+				StackIndex offset_val = fn->read_stack_index(&instr);
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
 				break;
 			}
 			
 			case OP_MIX_RGB: {
-				int mode = expr->read_int(&instr);
-				StackIndex offset_fac = expr->read_stack_index(&instr);
-				StackIndex offset_col_a = expr->read_stack_index(&instr);
-				StackIndex offset_col_b = expr->read_stack_index(&instr);
-				StackIndex offset_r = expr->read_stack_index(&instr);
+				int mode = fn->read_int(&instr);
+				StackIndex offset_fac = fn->read_stack_index(&instr);
+				StackIndex offset_col_a = fn->read_stack_index(&instr);
+				StackIndex offset_col_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mix_rgb(stack, mode, offset_col_a, offset_col_b, offset_fac, offset_r);
 				break;
 			}
 			
 			case OP_TEX_COORD: {
-				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_tex_coord(data, stack, offset);
 				break;
 			}
 			case OP_TEX_PROC_VORONOI: {
-				int distance_metric = expr->read_int(&instr);
-				int color_type = expr->read_int(&instr);
-				StackIndex iMinkowskiExponent = expr->read_stack_index(&instr);
-				StackIndex iScale = expr->read_stack_index(&instr);
-				StackIndex iNoiseSize = expr->read_stack_index(&instr);
-				StackIndex iNabla = expr->read_stack_index(&instr);
-				StackIndex iW1 = expr->read_stack_index(&instr);
-				StackIndex iW2 = expr->read_stack_index(&instr);
-				StackIndex iW3 = expr->read_stack_index(&instr);
-				StackIndex iW4 = expr->read_stack_index(&instr);
-				StackIndex iPos = expr->read_stack_index(&instr);
-				StackIndex oIntensity = expr->read_stack_index(&instr);
-				StackIndex oColor = expr->read_stack_index(&instr);
-				StackIndex oNormal = expr->read_stack_index(&instr);
+				int distance_metric = fn->read_int(&instr);
+				int color_type = fn->read_int(&instr);
+				StackIndex iMinkowskiExponent = fn->read_stack_index(&instr);
+				StackIndex iScale = fn->read_stack_index(&instr);
+				StackIndex iNoiseSize = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iW1 = fn->read_stack_index(&instr);
+				StackIndex iW2 = fn->read_stack_index(&instr);
+				StackIndex iW3 = fn->read_stack_index(&instr);
+				StackIndex iW4 = fn->read_stack_index(&instr);
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oColor = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
 				eval_op_tex_proc_voronoi(stack, distance_metric, color_type,
 				                         iMinkowskiExponent, iScale, iNoiseSize, iNabla,
 				                         iW1, iW2, iW3, iW4, iPos,
@@ -825,15 +825,15 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 			case OP_TEX_PROC_CLOUDS: {
-				StackIndex iPos = expr->read_stack_index(&instr);
-				StackIndex iNabla = expr->read_stack_index(&instr);
-				StackIndex iSize = expr->read_stack_index(&instr);
-				int iDepth = expr->read_int(&instr);
-				int iNoiseBasis = expr->read_int(&instr);
-				int iNoiseHard = expr->read_int(&instr);
-				StackIndex oIntensity = expr->read_stack_index(&instr);
-				StackIndex oColor = expr->read_stack_index(&instr);
-				StackIndex oNormal = expr->read_stack_index(&instr);
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				int iDepth = fn->read_int(&instr);
+				int iNoiseBasis = fn->read_int(&instr);
+				int iNoiseHard = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oColor = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
 				eval_op_tex_proc_clouds(stack, iPos, iNabla, iSize,
 				                        iDepth, iNoiseBasis, iNoiseHard,
 				                        oIntensity, oColor, oNormal);
@@ -841,22 +841,22 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 			}
 			
 			case OP_EFFECTOR_OBJECT: {
-				StackIndex offset = expr->read_stack_index(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_effector_object(data, stack, offset);
 				break;
 			}
 			case OP_EFFECTOR_TRANSFORM: {
-				int object_index = expr->read_int(&instr);
-				StackIndex offset_tfm = expr->read_stack_index(&instr);
+				int object_index = fn->read_int(&instr);
+				StackIndex offset_tfm = fn->read_stack_index(&instr);
 				eval_op_effector_transform(globals, stack, object_index, offset_tfm);
 				break;
 			}
 			case OP_EFFECTOR_CLOSEST_POINT: {
-				StackIndex offset_object = expr->read_stack_index(&instr);
-				StackIndex offset_vector = expr->read_stack_index(&instr);
-				StackIndex offset_position = expr->read_stack_index(&instr);
-				StackIndex offset_normal = expr->read_stack_index(&instr);
-				StackIndex offset_tangent = expr->read_stack_index(&instr);
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_vector = fn->read_stack_index(&instr);
+				StackIndex offset_position = fn->read_stack_index(&instr);
+				StackIndex offset_normal = fn->read_stack_index(&instr);
+				StackIndex offset_tangent = fn->read_stack_index(&instr);
 				eval_op_effector_closest_point(stack, offset_object, offset_vector,
 				                               offset_position, offset_normal, offset_tangent);
 				break;
@@ -870,14 +870,14 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 	}
 }
 
-void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Expression *expr, void **results) const
+void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const
 {
 	float stack[BVM_STACK_SIZE] = {0};
 	
-	eval_instructions(globals, data, expr, stack);
+	eval_instructions(globals, data, fn, stack);
 	
-	for (int i = 0; i < expr->return_values_size(); ++i) {
-		const ReturnValue &rval = expr->return_value(i);
+	for (int i = 0; i < fn->return_values_size(); ++i) {
+		const ReturnValue &rval = fn->return_value(i);
 		float *value = &stack[rval.stack_offset];
 		
 		rval.typedesc.copy_value(results[i], (void *)value);

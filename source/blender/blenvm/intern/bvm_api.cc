@@ -52,7 +52,7 @@ extern "C" {
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
-#include "bvm_expression.h"
+#include "bvm_function.h"
 #include "bvm_nodegraph.h"
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
@@ -69,11 +69,11 @@ void BVM_free(void)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::Expression *_EXPR(struct BVMExpression *expr)
-{ return (bvm::Expression *)expr; }
+BLI_INLINE bvm::Function *_FUNC(struct BVMFunction *fn)
+{ return (bvm::Function *)fn; }
 
-void BVM_expression_free(struct BVMExpression *expr)
-{ delete _EXPR(expr); }
+void BVM_function_free(struct BVMFunction *fn)
+{ delete _FUNC(fn); }
 
 /* ------------------------------------------------------------------------- */
 
@@ -202,7 +202,7 @@ static void parse_py_nodes(CompileContext *_context, bNodeTree *btree, bvm::Node
 	RNA_parameter_list_free(&list);
 }
 
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, bNodeTree *btree)
+struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *globals, bNodeTree *btree)
 {
 	using namespace bvm;
 	
@@ -217,12 +217,12 @@ struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals 
 	parse_py_nodes(&comp, btree, &graph);
 	
 	BVMCompiler compiler;
-	Expression *expr = compiler.codegen_expression(graph);
+	Function *fn = compiler.codegen_function(graph);
 	
-	return (BVMExpression *)expr;
+	return (BVMFunction *)fn;
 }
 
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMExpression *expr,
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
                          struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
 {
 	using namespace bvm;
@@ -233,7 +233,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _EXPR(expr), results);
+	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _FUNC(fn), results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -715,7 +715,7 @@ static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm:
 }
 
 
-struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex */*tex*/,
+struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *globals, struct Tex */*tex*/,
                                                  bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
@@ -735,12 +735,12 @@ struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *gl
 	}
 	
 	BVMCompiler compiler;
-	Expression *expr = compiler.codegen_expression(graph);
+	Function *fn = compiler.codegen_function(graph);
 	
-	return (BVMExpression *)expr;
+	return (BVMFunction *)fn;
 }
 
-void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMExpression *expr,
+void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
                       struct TexResult *target,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int UNUSED(preview))
@@ -761,7 +761,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 	float3 normal;
 	void *results[] = { &color.x, &normal.x };
 	
-	_CTX(ctx)->eval_expression(&globals, &data, _EXPR(expr), results);
+	_CTX(ctx)->eval_expression(&globals, &data, _FUNC(fn), results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -781,29 +781,29 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMExpression *expr,
 /* TODO using shared_ptr or similar here could help relax
  * order of acquire/release/invalidate calls (keep alive as long as used)
  */
-typedef unordered_map<Tex*, bvm::Expression*> ExpressionCache;
+typedef unordered_map<Tex*, bvm::Function*> FunctionCache;
 
-static ExpressionCache bvm_tex_cache;
+static FunctionCache bvm_tex_cache;
 static bvm::mutex bvm_tex_mutex;
 
-struct BVMExpression *BVM_texture_cache_acquire(Tex *tex)
+struct BVMFunction *BVM_texture_cache_acquire(Tex *tex)
 {
 	using namespace bvm;
 	
 	scoped_lock lock(bvm_tex_mutex);
 	
-	ExpressionCache::const_iterator it = bvm_tex_cache.find(tex);
+	FunctionCache::const_iterator it = bvm_tex_cache.find(tex);
 	if (it != bvm_tex_cache.end()) {
-		return (BVMExpression *)it->second;
+		return (BVMFunction *)it->second;
 	}
 	else if (tex->use_nodes && tex->nodetree) {
 		EvalGlobals globals;
 		
-		BVMExpression *expr = BVM_gen_texture_expression((BVMEvalGlobals *)(&globals), tex, tex->nodetree, NULL);
+		BVMFunction *fn = BVM_gen_texture_function((BVMEvalGlobals *)(&globals), tex, tex->nodetree, NULL);
 		
-		bvm_tex_cache[tex] = _EXPR(expr);
+		bvm_tex_cache[tex] = _FUNC(fn);
 		
-		return expr;
+		return fn;
 	}
 	else
 		return NULL;
@@ -820,7 +820,7 @@ void BVM_texture_cache_invalidate(Tex *tex)
 	
 	scoped_lock lock(bvm_tex_mutex);
 	
-	ExpressionCache::iterator it = bvm_tex_cache.find(tex);
+	FunctionCache::iterator it = bvm_tex_cache.find(tex);
 	if (it != bvm_tex_cache.end()) {
 		delete it->second;
 		bvm_tex_cache.erase(it);
@@ -833,7 +833,7 @@ void BVM_texture_cache_clear(void)
 	
 	scoped_lock lock(bvm_tex_mutex);
 	
-	for (ExpressionCache::iterator it = bvm_tex_cache.begin(); it != bvm_tex_cache.end(); ++it) {
+	for (FunctionCache::iterator it = bvm_tex_cache.begin(); it != bvm_tex_cache.end(); ++it) {
 		delete it->second;
 	}
 	bvm_tex_cache.clear();

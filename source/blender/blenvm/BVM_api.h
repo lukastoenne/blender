@@ -40,7 +40,7 @@
 extern "C" {
 #endif
 
-struct BVMExpression;
+struct BVMFunction;
 struct BVMFunction;
 struct BVMModule;
 
@@ -49,7 +49,7 @@ void BVM_free(void);
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_expression_free(struct BVMExpression *expr);
+void BVM_function_free(struct BVMFunction *fn);
 
 /* ------------------------------------------------------------------------- */
 
@@ -97,9 +97,9 @@ struct bNodeTree;
 struct Object;
 struct EffectedPoint;
 
-struct BVMExpression *BVM_gen_forcefield_expression(const struct BVMEvalGlobals *globals, struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *globals, struct bNodeTree *btree);
 
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMExpression *expr,
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
                          struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
@@ -107,15 +107,15 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMExpression *BVM_gen_texture_expression(const struct BVMEvalGlobals *globals, struct Tex *tex,
+struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *globals, struct Tex *tex,
                                                  struct bNodeTree *btree, FILE *debug_file);
 
-void BVM_eval_texture(struct BVMEvalContext *context, struct BVMExpression *expr,
+void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
 
-struct BVMExpression *BVM_texture_cache_acquire(Tex *tex);
+struct BVMFunction *BVM_texture_cache_acquire(Tex *tex);
 void BVM_texture_cache_release(Tex *tex);
 void BVM_texture_cache_invalidate(Tex *tex);
 void BVM_texture_cache_clear(void);

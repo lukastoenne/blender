@@ -33,7 +33,7 @@
  */
 
 #include "bvm_eval.h"
-#include "bvm_expression.h"
+#include "bvm_function.h"
 
 namespace bvm {
 

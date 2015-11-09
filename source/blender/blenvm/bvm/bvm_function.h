@@ -25,10 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_EXPRESSION_H__
-#define __BVM_EXPRESSION_H__
+#ifndef __BVM_FUNCTION_H__
+#define __BVM_FUNCTION_H__
 
-/** \file bvm_expression.h
+/** \file bvm_function.h
  *  \ingroup bvm
  */
 
@@ -107,12 +107,12 @@ struct ReturnValue {
 	StackIndex stack_offset;
 };
 
-struct Expression {
+struct Function {
 	typedef std::vector<ReturnValue> ReturnValueList;
 	typedef std::vector<Instruction> InstructionList;
 	
-	Expression();
-	~Expression();
+	Function();
+	~Function();
 	
 	OpCode read_opcode(int *instr) const
 	{
@@ -212,4 +212,4 @@ private:
 
 } /* namespace bvm */
 
-#endif /* __BVM_EXPRESSION_H__ */
+#endif /* __BVM_FUNCTION_H__ */
