@@ -369,7 +369,7 @@ int TypeDesc::stack_size() const
 void TypeDesc::copy_value(void *to, const void *from) const
 {
 	#define COPY_TYPE(a, b, type) \
-	BaseTypeTraits<type>::copy((typename BaseTypeTraits<type>::POD*)to, (typename BaseTypeTraits<type>::POD const *)from);
+	BaseTypeTraits<type>::copy((BaseTypeTraits<type>::POD*)to, (BaseTypeTraits<type>::POD const *)from);
 	
 	switch (base_type) {
 		case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT); break;
