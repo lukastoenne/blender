@@ -2162,6 +2162,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
 			brush->mask_mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mask_mtex.tex);
 			brush->clone.image = newlibadr_us(fd, brush->id.lib, brush->clone.image);
+			brush->toggle_brush = newlibadr(fd, brush->id.lib, brush->toggle_brush);
 			brush->paint_curve = newlibadr_us(fd, brush->id.lib, brush->paint_curve);
 		}
 	}
@@ -6361,20 +6362,14 @@ static void lib_link_screen(FileData *fd, Main *main)
 /* how to handle user count on pointer restore */
 typedef enum ePointerUserMode {
 	USER_IGNORE = 0,  /* ignore user count */
-	USER_ONE    = 1,  /* ensure at least one user (fake also counts) */
-	USER_REAL   = 2,  /* ensure at least one real user (fake user ignored) */
+	USER_REAL   = 1,  /* ensure at least one real user (fake user ignored) */
 } ePointerUserMode;
 
 static bool restore_pointer(ID *id, ID *newid, ePointerUserMode user)
 {
 	if (STREQ(newid->name + 2, id->name + 2)) {
 		if (newid->lib == id->lib) {
-			if (user == USER_ONE) {
-				if (newid->us == 0) {
-					newid->us++;
-				}
-			}
-			else if (user == USER_REAL) {
+			if (user == USER_REAL) {
 				id_us_ensure_real(newid);
 			}
 			return true;
@@ -6388,7 +6383,6 @@ static bool restore_pointer(ID *id, ID *newid, ePointerUserMode user)
  *
  * user
  * - USER_IGNORE: no usercount change
- * - USER_ONE: ensure a user
  * - USER_REAL: ensure a real user (even if a fake one is set)
  */
 static void *restore_pointer_by_name(Main *mainp, ID *id, ePointerUserMode user)
@@ -6414,7 +6408,7 @@ static void lib_link_seq_clipboard_pt_restore(ID *id, Main *newmain)
 	if (id) {
 		/* clipboard must ensure this */
 		BLI_assert(id->newid != NULL);
-		id->newid = restore_pointer_by_name(newmain, (ID *)id->newid, USER_ONE);
+		id->newid = restore_pointer_by_name(newmain, (ID *)id->newid, USER_REAL);
 	}
 }
 static int lib_link_seq_clipboard_cb(Sequence *seq, void *arg_pt)
@@ -6448,7 +6442,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 	/* first windowmanager */
 	for (wm = newmain->wm.first; wm; wm = wm->id.next) {
 		for (win= wm->windows.first; win; win= win->next) {
-			win->screen = restore_pointer_by_name(newmain, (ID *)win->screen, USER_ONE);
+			win->screen = restore_pointer_by_name(newmain, (ID *)win->screen, USER_REAL);
 			
 			if (win->screen == NULL)
 				win->screen = curscreen;
@@ -6461,7 +6455,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 	for (sc = newmain->screen.first; sc; sc = sc->id.next) {
 		Scene *oldscene = sc->scene;
 		
-		sc->scene= restore_pointer_by_name(newmain, (ID *)sc->scene, USER_ONE);
+		sc->scene= restore_pointer_by_name(newmain, (ID *)sc->scene, USER_REAL);
 		if (sc->scene == NULL)
 			sc->scene = curscene;
 		
@@ -6480,10 +6474,10 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					if (v3d->scenelock)
 						v3d->camera = NULL; /* always get from scene */
 					else
-						v3d->camera = restore_pointer_by_name(newmain, (ID *)v3d->camera, USER_ONE);
+						v3d->camera = restore_pointer_by_name(newmain, (ID *)v3d->camera, USER_REAL);
 					if (v3d->camera == NULL)
 						v3d->camera = sc->scene->camera;
-					v3d->ob_centre = restore_pointer_by_name(newmain, (ID *)v3d->ob_centre, USER_ONE);
+					v3d->ob_centre = restore_pointer_by_name(newmain, (ID *)v3d->ob_centre, USER_REAL);
 					
 					for (bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next) {
 						if ((bgpic->ima = restore_pointer_by_name(newmain, (ID *)bgpic->ima, USER_IGNORE))) {
@@ -6533,7 +6527,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					bDopeSheet *ads = sipo->ads;
 					
 					if (ads) {
-						ads->source = restore_pointer_by_name(newmain, (ID *)ads->source, USER_ONE);
+						ads->source = restore_pointer_by_name(newmain, (ID *)ads->source, USER_REAL);
 						
 						if (ads->filter_grp)
 							ads->filter_grp = restore_pointer_by_name(newmain, (ID *)ads->filter_grp, USER_IGNORE);
@@ -6563,8 +6557,8 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_ACTION) {
 					SpaceAction *saction = (SpaceAction *)sl;
 					
-					saction->action = restore_pointer_by_name(newmain, (ID *)saction->action, USER_ONE);
-					saction->ads.source = restore_pointer_by_name(newmain, (ID *)saction->ads.source, USER_ONE);
+					saction->action = restore_pointer_by_name(newmain, (ID *)saction->action, USER_REAL);
+					saction->ads.source = restore_pointer_by_name(newmain, (ID *)saction->ads.source, USER_REAL);
 					
 					if (saction->ads.filter_grp)
 						saction->ads.filter_grp = restore_pointer_by_name(newmain, (ID *)saction->ads.filter_grp, USER_IGNORE);
@@ -6593,7 +6587,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
 					 * so assume that here we're doing for undo only...
 					 */
-					sima->gpd = restore_pointer_by_name(newmain, (ID *)sima->gpd, USER_ONE);
+					sima->gpd = restore_pointer_by_name(newmain, (ID *)sima->gpd, USER_REAL);
 					sima->mask_info.mask = restore_pointer_by_name(newmain, (ID *)sima->mask_info.mask, USER_REAL);
 				}
 				else if (sl->spacetype == SPACE_SEQ) {
@@ -6602,14 +6596,14 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
 					 * so assume that here we're doing for undo only...
 					 */
-					sseq->gpd = restore_pointer_by_name(newmain, (ID *)sseq->gpd, USER_ONE);
+					sseq->gpd = restore_pointer_by_name(newmain, (ID *)sseq->gpd, USER_REAL);
 				}
 				else if (sl->spacetype == SPACE_NLA) {
 					SpaceNla *snla = (SpaceNla *)sl;
 					bDopeSheet *ads = snla->ads;
 					
 					if (ads) {
-						ads->source = restore_pointer_by_name(newmain, (ID *)ads->source, USER_ONE);
+						ads->source = restore_pointer_by_name(newmain, (ID *)ads->source, USER_REAL);
 						
 						if (ads->filter_grp)
 							ads->filter_grp = restore_pointer_by_name(newmain, (ID *)ads->filter_grp, USER_IGNORE);
@@ -6618,13 +6612,13 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_TEXT) {
 					SpaceText *st = (SpaceText *)sl;
 					
-					st->text = restore_pointer_by_name(newmain, (ID *)st->text, USER_ONE);
+					st->text = restore_pointer_by_name(newmain, (ID *)st->text, USER_REAL);
 					if (st->text == NULL) st->text = newmain->text.first;
 				}
 				else if (sl->spacetype == SPACE_SCRIPT) {
 					SpaceScript *scpt = (SpaceScript *)sl;
 					
-					scpt->script = restore_pointer_by_name(newmain, (ID *)scpt->script, USER_ONE);
+					scpt->script = restore_pointer_by_name(newmain, (ID *)scpt->script, USER_REAL);
 					
 					/*sc->script = NULL; - 2.45 set to null, better re-run the script */
 					if (scpt->script) {
@@ -6662,7 +6656,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					bNodeTree *ntree;
 					
 					/* node tree can be stored locally in id too, link this first */
-					snode->id = restore_pointer_by_name(newmain, snode->id, USER_ONE);
+					snode->id = restore_pointer_by_name(newmain, snode->id, USER_REAL);
 					snode->from = restore_pointer_by_name(newmain, snode->from, USER_IGNORE);
 					
 					ntree = nodetree_from_id(snode->id);
@@ -6711,7 +6705,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_LOGIC) {
 					SpaceLogic *slogic = (SpaceLogic *)sl;
 					
-					slogic->gpd = restore_pointer_by_name(newmain, (ID *)slogic->gpd, USER_ONE);
+					slogic->gpd = restore_pointer_by_name(newmain, (ID *)slogic->gpd, USER_REAL);
 				}
 			}
 		}
@@ -7281,25 +7275,26 @@ static void lib_link_group(FileData *fd, Main *main)
 {
 	Group *group;
 	GroupObject *go;
-	int add_us;
+	bool add_us;
 	
 	for (group = main->group.first; group; group = group->id.next) {
 		if (group->id.flag & LIB_NEED_LINK) {
 			group->id.flag -= LIB_NEED_LINK;
 			
-			add_us = 0;
+			add_us = false;
 			
 			for (go = group->gobject.first; go; go = go->next) {
 				go->ob= newlibadr(fd, group->id.lib, go->ob);
 				if (go->ob) {
 					go->ob->flag |= OB_FROMGROUP;
 					/* if group has an object, it increments user... */
-					add_us = 1;
-					if (go->ob->id.us == 0)
-						go->ob->id.us = 1;
+					add_us = true;
+					id_us_ensure_real(&go->ob->id);
 				}
 			}
-			if (add_us) group->id.us++;
+			if (add_us) {
+				id_us_ensure_real(&group->id);
+			}
 			BKE_group_object_unlink(group, NULL, NULL, NULL);	/* removes NULL entries */
 		}
 	}
@@ -7947,8 +7942,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	/* clear first 8 bits */
 	id->flag = (id->flag & 0xFF00) | flag | LIB_NEED_LINK;
 	id->lib = main->curlib;
-	if (id->flag & LIB_FAKEUSER) id->us= 1;
-	else id->us = 0;
+	id->us = ID_FAKE_USERS(id);
 	id->icon_id = 0;
 	id->flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA | LIB_DOIT | LIB_MISSING);
 	
@@ -9635,7 +9629,7 @@ static ID *create_placeholder(Main *mainvar, const char *idname, const short fla
 	BKE_libblock_init_empty(ph_id);
 	ph_id->lib = mainvar->curlib;
 	ph_id->flag = flag | LIB_MISSING;
-	ph_id->us = (flag & LIB_FAKEUSER) ? 1 : 0;
+	ph_id->us = ID_FAKE_USERS(ph_id);
 	ph_id->icon_id = 0;
 
 	BLI_addtail(lb, ph_id);

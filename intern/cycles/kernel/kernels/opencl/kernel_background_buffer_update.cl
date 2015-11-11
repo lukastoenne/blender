@@ -84,7 +84,6 @@ __kernel void kernel_ocl_path_trace_background_buffer_update(
 #endif
 		enqueue_flag =
 			kernel_background_buffer_update((KernelGlobals *)kg,
-			                                data,
 			                                (ShaderData *)sd,
 			                                per_sample_output_buffers,
 			                                rng_state,
