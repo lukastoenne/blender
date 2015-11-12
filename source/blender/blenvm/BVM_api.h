@@ -41,7 +41,6 @@ extern "C" {
 #endif
 
 struct BVMFunction;
-struct BVMFunction;
 struct BVMModule;
 
 void BVM_init(void);
@@ -119,6 +118,14 @@ struct BVMFunction *BVM_texture_cache_acquire(Tex *tex);
 void BVM_texture_cache_release(Tex *tex);
 void BVM_texture_cache_invalidate(Tex *tex);
 void BVM_texture_cache_clear(void);
+
+/* ------------------------------------------------------------------------- */
+
+struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globals,
+                                              struct Object *ob, struct bNodeTree *btree,
+                                              FILE *debug_file);
+
+void BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn);
 
 /* ------------------------------------------------------------------------- */
 

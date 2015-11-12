@@ -40,6 +40,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -72,6 +73,8 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #endif
 
 #include "BLI_sys_types.h" /* for intptr_t support */
+
+#include "BVM_api.h"
 
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
@@ -1699,6 +1702,27 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 	}
 }
 
+/* XXX this should replace modifier stack eventually */
+static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree *ntree)
+{
+	Mesh *me = ob->data;
+	DerivedMesh *dm = CDDM_from_mesh(me);
+	
+	struct BVMEvalGlobals *globals = BVM_globals_create();
+	
+	struct BVMSchedule *sched = BVM_gen_modifier_function(globals, ob, ntree, NULL);
+	
+	{
+		struct BVMEvalContext *context = BVM_context_create();
+		BVM_eval_modifier(context, sched);
+		BVM_context_free(context);
+	}
+	
+	BVM_globals_free(globals);
+	
+	return dm;
+}
+
 /**
  * new value for useDeform -1  (hack for the gameengine):
  *
@@ -1758,6 +1782,14 @@ static void mesh_calc_modifiers(
 		app_flags |= MOD_APPLY_ALLOW_GPU;
 	if (useDeform)
 		deform_app_flags |= MOD_APPLY_USECACHE;
+
+	if (ob->nodetree) {
+		DerivedMesh *dm = mesh_calc_modifier_nodes(scene, ob, ob->nodetree);
+		*r_final = dm;
+		if (r_deform)
+			*r_deform = CDDM_copy(dm);
+		return;
+	}
 
 	if (!skipVirtualArmature) {
 		firstmd = modifiers_getVirtualModifierList(ob, &virtualModifierData);

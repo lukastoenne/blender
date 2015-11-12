@@ -44,7 +44,6 @@ struct Function;
 struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
-struct ReturnValue;
 
 struct BVMCompiler {
 	typedef std::vector<int> StackUsers;

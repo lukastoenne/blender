@@ -54,6 +54,7 @@ extern "C" {
 #include "bvm_eval.h"
 #include "bvm_function.h"
 #include "bvm_nodegraph.h"
+
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
 
@@ -839,6 +840,29 @@ void BVM_texture_cache_clear(void)
 	bvm_tex_cache.clear();
 }
 
-#undef _GRAPH
+/* ------------------------------------------------------------------------- */
 
-#undef _EXPR
+struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globals,
+                                              struct Object *ob, struct bNodeTree *btree,
+                                              FILE *debug_file)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	CompileContext comp(_GLOBALS(globals));
+//	parse_modifier_nodes(&comp, btree, &graph);
+	
+	if (debug_file) {
+		graph.dump_graphviz(debug_file, "Modifier Schedule Graph");
+	}
+	
+	BVMCompiler compiler;
+	Function *fn = compiler.codegen_function(graph);
+	
+	return (BVMFunction *)fn;
+}
+
+void BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn)
+{
+	
+}

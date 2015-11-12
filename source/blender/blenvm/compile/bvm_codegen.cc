@@ -34,6 +34,7 @@
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
+#include "bvm_function.h"
 #include "bvm_nodegraph.h"
 
 namespace bvm {
