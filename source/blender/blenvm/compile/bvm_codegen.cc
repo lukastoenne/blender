@@ -365,7 +365,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			const NodeSocket &output = node.type->outputs[i];
 			SocketPair key(&node, &output);
 			
-			socket_index[key] = assign_stack_index(TypeDesc(output.type));
+			socket_index[key] = assign_stack_index(output.typedesc);
 			
 			push_stack_index(socket_index[key]);
 		}

@@ -251,6 +251,7 @@ struct TypeDesc {
 	{}
 	
 	inline bool assignable(const TypeDesc &other) const;
+	inline bool is_kernel_type() const;
 	
 	BVMType base_type;
 	
@@ -262,7 +263,7 @@ struct TypeDesc {
 
 struct Value {
 	template <typename T>
-	static Value *create(BVMType type, T data);
+	static Value *create(const TypeDesc &typedesc, T data);
 	
 	virtual ~Value()
 	{}
@@ -318,9 +319,10 @@ private:
 /* ========================================================================= */
 
 template <typename T>
-Value *Value::create(BVMType type, T data)
+Value *Value::create(const TypeDesc &typedesc, T data)
 {
-	switch (type) {
+	/* TODO take extended TypeDesc into account */
+	switch (typedesc.base_type) {
 		case BVM_FLOAT: return new ValueType<BVM_FLOAT>(data);
 		case BVM_FLOAT3: return new ValueType<BVM_FLOAT3>(data);
 		case BVM_FLOAT4: return new ValueType<BVM_FLOAT4>(data);

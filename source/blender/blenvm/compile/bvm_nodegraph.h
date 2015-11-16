@@ -58,11 +58,11 @@ struct NodeType;
 struct NodeInstance;
 
 struct NodeSocket {
-	NodeSocket(const string &name, BVMType type, Value *default_value, bool constant);
+	NodeSocket(const string &name, const TypeDesc &typedesc, Value *default_value, bool constant);
 	~NodeSocket();
 	
 	string name;
-	BVMType type;
+	TypeDesc typedesc;
 	Value *default_value;
 	bool constant;
 };
@@ -185,14 +185,14 @@ struct NodeInstance {
 	bool set_input_value(const string &name, const T &value)
 	{
 		const NodeSocket *socket = type->find_input(name);
-		return socket ? set_input_value(name, Value::create(socket->type, value)) : false;
+		return socket ? set_input_value(name, Value::create(socket->typedesc, value)) : false;
 	}
 	
 	template <typename T>
 	bool set_output_value(const string &name, const T &value)
 	{
 		const NodeSocket *socket = type->find_output(name);
-		return socket ? set_output_value(name, Value::create(socket->type, value)) : false;
+		return socket ? set_output_value(name, Value::create(socket->typedesc, value)) : false;
 	}
 	
 	bool has_input_link(const string &name) const;
@@ -268,7 +268,7 @@ struct NodeGraph {
 			return false;
 		
 		SocketPair converted = (autoconvert) ?
-		                           add_type_converter(SocketPair(from_node, from), to_socket->type) :
+		                           add_type_converter(SocketPair(from_node, from), to_socket->typedesc) :
 		                           SocketPair(from_node, from);
 		if (!converted.node)
 			return false;
@@ -408,11 +408,13 @@ protected:
 		return result;
 	}
 	
-	SocketPair add_type_converter(const SocketPair &from, BVMType to_type)
+	SocketPair add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc)
 	{
 		SocketPair result(NULL, "");
 		const NodeSocket *from_socket = from.node->type->find_output(from.socket);
-		BVMType from_type = from_socket->type;
+		/* TODO only uses base type so far */
+		BVMType to_type = to_typedesc.base_type;
+		BVMType from_type = from_socket->typedesc.base_type;
 		
 		if (from_type == to_type) {
 			result = from;

@@ -40,9 +40,9 @@
 
 namespace bvm {
 
-NodeSocket::NodeSocket(const string &name, BVMType type, Value *default_value, bool constant) :
+NodeSocket::NodeSocket(const string &name, const TypeDesc &typedesc, Value *default_value, bool constant) :
     name(name),
-    type(type),
+    typedesc(typedesc),
     default_value(default_value),
     constant(constant)
 {
