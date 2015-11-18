@@ -36,6 +36,7 @@ struct StripColorBalance;
 struct Editing;
 struct GSet;
 struct GPUOffScreen;
+struct GPUFX;
 struct ImBuf;
 struct Main;
 struct Mask;
@@ -105,7 +106,9 @@ typedef struct SeqRenderData {
 
 	/* special case for OpenGL render */
 	struct GPUOffScreen *gpu_offscreen;
+	struct GPUFX *gpu_fx;
 	int gpu_samples;
+	bool gpu_full_samples;
 } SeqRenderData;
 
 void BKE_sequencer_new_render_data(
@@ -416,8 +419,8 @@ struct Sequence *BKE_sequencer_add_movie_strip(struct bContext *C, ListBase *seq
 typedef struct ImBuf *(*SequencerDrawView)(
         struct Scene *, struct Object *, int, int,
         unsigned int, int, bool, bool, bool,
-        int, int, const char *,
-        struct GPUOffScreen *, char[256]);
+        int, int, bool, const char *,
+        struct GPUFX *, struct GPUOffScreen *, char[256]);
 extern SequencerDrawView sequencer_view3d_cb;
 
 /* copy/paste */

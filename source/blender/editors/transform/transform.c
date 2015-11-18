@@ -1903,7 +1903,14 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 	}
 
 	if ((prop = RNA_struct_find_property(op->ptr, "value"))) {
-		const float *values = (t->flag & T_AUTOVALUES) ? t->auto_values : t->values;
+		float values[4];
+
+		copy_v4_v4(values, (t->flag & T_AUTOVALUES) ? t->auto_values : t->values);
+
+		if (t->con.mode & CON_APPLY) {
+			mul_m3_v3(t->con.imtx, values);
+		}
+
 		if (RNA_property_array_check(prop)) {
 			RNA_property_float_set_array(op->ptr, prop, values);
 		}
@@ -2302,22 +2309,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		return 0;
 	}
 
-	/* overwrite initial values if operator supplied a non-null vector */
-	if ((prop = RNA_struct_find_property(op->ptr, "value")) && RNA_property_is_set(op->ptr, prop)) {
-		float values[4] = {0}; /* in case value isn't length 4, avoid uninitialized memory  */
-
-		if (RNA_property_array_check(prop)) {
-			RNA_float_get_array(op->ptr, "value", values);
-		}
-		else {
-			values[0] = RNA_float_get(op->ptr, "value");
-		}
-
-		copy_v4_v4(t->values, values);
-		copy_v4_v4(t->auto_values, values);
-		t->flag |= T_AUTOVALUES;
-	}
-
 	/* Transformation axis from operator */
 	if ((prop = RNA_struct_find_property(op->ptr, "axis")) && RNA_property_is_set(op->ptr, prop)) {
 		RNA_property_float_get_array(op->ptr, prop, t->axis);
@@ -2346,6 +2337,29 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 			setUserConstraint(t, t->current_orientation, t->con.mode, "%s");
 		}
+	}
+
+	/* overwrite initial values if operator supplied a non-null vector
+	 *
+	 * keep last so we can apply the constraints space.
+	 */
+	if ((prop = RNA_struct_find_property(op->ptr, "value")) && RNA_property_is_set(op->ptr, prop)) {
+		float values[4] = {0}; /* in case value isn't length 4, avoid uninitialized memory  */
+
+		if (RNA_property_array_check(prop)) {
+			RNA_float_get_array(op->ptr, "value", values);
+		}
+		else {
+			values[0] = RNA_float_get(op->ptr, "value");
+		}
+
+		if (t->con.mode & CON_APPLY) {
+			mul_m3_v3(t->con.mtx, values);
+		}
+
+		copy_v4_v4(t->values, values);
+		copy_v4_v4(t->auto_values, values);
+		t->flag |= T_AUTOVALUES;
 	}
 
 	t->context = NULL;
@@ -2650,7 +2664,7 @@ static void constraintob_from_transdata(bConstraintOb *cob, TransData *td)
 		}
 		else if (td->ext->rotOrder == ROT_MODE_AXISANGLE) {
 			/* axis angle */
-			axis_angle_to_mat4(cob->matrix, &td->ext->quat[1], td->ext->quat[0]);
+			axis_angle_to_mat4(cob->matrix, td->ext->rotAxis, *td->ext->rotAngle);
 		}
 		else {
 			/* eulers */
@@ -2716,7 +2730,7 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 			}
 			else if (td->ext->rotOrder == ROT_MODE_AXISANGLE) {
 				/* axis angle */
-				mat4_to_axis_angle(&td->ext->quat[1], &td->ext->quat[0], cob.matrix);
+				mat4_to_axis_angle(td->ext->rotAxis, td->ext->rotAngle, cob.matrix);
 			}
 			else {
 				/* eulers */

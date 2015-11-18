@@ -155,14 +155,6 @@ extern const short ui_radial_dir_to_angle[8];
 #define PNL_GRID    (UI_UNIT_Y / 5) /* 4 default */
 #define PNL_HEADER  (UI_UNIT_Y + 4) /* 24 default */
 
-/* Button text selection:
- * extension direction, selextend, inside ui_do_but_TEX */
-#define EXTEND_LEFT     1
-#define EXTEND_RIGHT    2
-
-/* for scope resize zone */
-#define SCOPE_RESIZE_PAD    9
-
 /* bit button defines */
 /* Bit operations */
 #define UI_BITBUT_TEST(a, b)    ( ( (a) & 1 << (b) ) != 0)
@@ -470,6 +462,7 @@ bool ui_but_is_colorpicker_display_space(struct uiBut *but);
 
 extern void ui_but_string_get_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision) ATTR_NONNULL();
 extern void ui_but_string_get(uiBut *but, char *str, const size_t maxlen) ATTR_NONNULL();
+extern char *ui_but_string_get_dynamic(uiBut *but, int *r_str_size);
 extern void ui_but_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen) ATTR_NONNULL();
 extern bool ui_but_string_set(struct bContext *C, uiBut *but, const char *str) ATTR_NONNULL();
 extern bool ui_but_string_set_eval_num(struct bContext *C, uiBut *but, const char *str, double *value) ATTR_NONNULL();
