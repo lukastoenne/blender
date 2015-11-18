@@ -24,6 +24,24 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 
+###############################################################################
+# Socket Types
+
+class GeometrySocket(NodeSocket):
+    '''Geometry data socket'''
+    bl_idname = 'GeometrySocket'
+    bl_label = 'Geometry'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (1.0, 0.4, 0.216, 1.0)
+
+
+###############################################################################
+
+
 # our own base class with an appropriate poll function,
 # so the categories only show up in our own tree type
 class ObjectNodeCategory(NodeCategory):
@@ -31,6 +49,12 @@ class ObjectNodeCategory(NodeCategory):
     def poll(cls, context):
         tree = context.space_data.edit_tree
         return tree and tree.bl_idname == 'ObjectNodeTree'
+
+class GeometryNodeCategory(NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        tree = context.space_data.edit_tree
+        return tree and tree.bl_idname == 'GeometryNodeTree'
 
 class ForceFieldNodeCategory(NodeCategory):
     @classmethod
@@ -40,23 +64,32 @@ class ForceFieldNodeCategory(NodeCategory):
 
 node_categories = [
     ObjectNodeCategory("COMPONENTS", "Components", items=[
+        NodeItem("GeometryNode"),
         NodeItem("ForceFieldNode"),
         ]),
-    ForceFieldNodeCategory("INPUT", "Input", items=[
+    
+    GeometryNodeCategory("GEO_INPUT", "Input", items=[
+        NodeItem("GeometryMeshNode"),
+        ]),
+    GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
+        NodeItem("GeometryOutputNode"),
+        ]),
+    
+    ForceFieldNodeCategory("FORCE_INPUT", "Input", items=[
         NodeItem("ForcePointDataNode"),
         ]),
     ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
         NodeItem("ForceOutputNode"),
         ]),
-    ForceFieldNodeCategory("CONVERTER", "Converter", items=[
+    ForceFieldNodeCategory("FORCE_CONVERTER", "Converter", items=[
         NodeItem("ObjectSeparateVectorNode"),
         NodeItem("ObjectCombineVectorNode"),
         ]),
-    ForceFieldNodeCategory("MATH", "Math", items=[
+    ForceFieldNodeCategory("FORCE_MATH", "Math", items=[
         NodeItem("ObjectMathNode"),
         NodeItem("ObjectVectorMathNode"),
         ]),
-    ForceFieldNodeCategory("GEOMETRY", "Geometry", items=[
+    ForceFieldNodeCategory("FORCE_GEOMETRY", "Geometry", items=[
         NodeItem("ForceClosestPointNode"),
         ]),
     ]
@@ -158,6 +191,24 @@ class ObjectNodeBase():
         return ntree.bl_idname == 'ObjectNodeTree'
 
 
+class GeometryNode(ObjectNodeBase, ObjectNode):
+    '''Geometry'''
+    bl_idname = 'GeometryNode'
+    bl_label = 'Geometry'
+    bl_icon = 'MESH_DATA'
+
+    bl_id_property_type = 'NODETREE'
+    @classmethod
+    def bl_id_property_poll(cls, ntree):
+        return ntree.bl_idname == 'GeometryNodeTree'
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
+
+    def compile(self, compiler):
+        pass
+
+
 class ForceFieldNode(ObjectNodeBase, ObjectNode):
     '''Force Field'''
     bl_idname = 'ForceFieldNode'
@@ -176,6 +227,51 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
         pass
 
 ###############################################################################
+
+class GeometryNodeTree(NodeTreeBase, NodeTree):
+    '''Geometry nodes'''
+    bl_idname = 'GeometryNodeTree'
+    bl_label = 'Geometry Nodes'
+    bl_icon = 'MESH_DATA'
+
+    # does not show up in the editor header
+    @classmethod
+    def poll(cls, context):
+        return False
+
+
+class GeometryNodeBase():
+    @classmethod
+    def poll(cls, ntree):
+        return ntree.bl_idname == 'GeometryNodeTree'
+
+
+class GeometryOutputNode(GeometryNodeBase, ObjectNode):
+    '''Geometry output'''
+    bl_idname = 'GeometryOutputNode'
+    bl_label = 'Output'
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        pass
+
+
+class GeometryMeshNode(GeometryNodeBase, ObjectNode):
+    '''Mesh object data'''
+    bl_idname = 'GeometryMeshNode'
+    bl_label = 'Mesh'
+
+    def init(self, context):
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        pass
+
+
+###############################################################################
+
 
 class ForceFieldNodeTree(NodeTreeBase, NodeTree):
     '''Force field nodes'''
@@ -470,6 +566,20 @@ class ObjectNodeEdit(Operator):
             space.path.append(node.id, node)
 
         return {'FINISHED'}
+
+
+class GeometryNodesNew(Operator):
+    """Create new geometry node tree"""
+    bl_idname = "object_nodes.geometry_nodes_new"
+    bl_label = "New"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name = StringProperty(
+            name="Name",
+            )
+
+    def execute(self, context):
+        return bpy.ops.node.new_node_tree(type='GeometryNodeTree', name="GeometryNodes")
 
 
 class ForceFieldNodesNew(Operator):
