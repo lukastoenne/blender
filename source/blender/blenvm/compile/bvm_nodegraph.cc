@@ -431,6 +431,7 @@ NodeInstance *NodeGraph::get_node(const string &name)
 NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 {
 	const NodeType *nodetype = find_node_type(type);
+	assert(nodetype);
 	
 	string final = name;
 	if (final.empty()) {
