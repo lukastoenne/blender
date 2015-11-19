@@ -255,7 +255,9 @@ class GeometryOutputNode(GeometryNodeBase, ObjectNode):
         self.inputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        pass
+        node = compiler.add_node("PASS_MESH", self.name)
+        compiler.map_input(0, node, "value")
+        compiler.set_output("mesh", node, "value")
 
 
 class GeometryMeshNode(GeometryNodeBase, ObjectNode):
@@ -267,7 +269,8 @@ class GeometryMeshNode(GeometryNodeBase, ObjectNode):
         self.outputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        pass
+        node = compiler.add_node("MESH_LOAD", self.name)
+        compiler.map_output(0, node, "mesh")
 
 
 ###############################################################################

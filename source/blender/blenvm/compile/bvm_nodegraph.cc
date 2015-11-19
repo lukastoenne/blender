@@ -746,6 +746,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(PASS_INT);
 	NODETYPE(PASS_MATRIX44);
 	NODETYPE(PASS_POINTER);
+	NODETYPE(PASS_MESH);
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
 	NODETYPE(SET_FLOAT4);
@@ -839,6 +840,10 @@ void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("PASS_POINTER");
 	nt->add_input("value", BVM_POINTER, PointerRNA_NULL);
 	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	
+	nt = NodeGraph::add_node_type("PASS_MESH");
+	nt->add_input("value", BVM_MESH, __empty_mesh__);
+	nt->add_output("value", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, true);

@@ -146,6 +146,12 @@ static void eval_op_pass_pointer(float *stack, StackIndex offset_from, StackInde
 	stack_store_pointer(stack, offset_to, p);
 }
 
+static void eval_op_pass_mesh(float *stack, StackIndex offset_from, StackIndex offset_to)
+{
+	mesh_ptr p = stack_load_mesh(stack, offset_from);
+	stack_store_mesh(stack, offset_to, p);
+}
+
 static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
 {
 	float x = stack_load_float(stack, offset_x);
@@ -563,6 +569,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = fn->read_stack_index(&instr);
 				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_pass_pointer(stack, offset_from, offset_to);
+				break;
+			}
+			case OP_PASS_MESH: {
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
+				eval_op_pass_mesh(stack, offset_from, offset_to);
 				break;
 			}
 			case OP_SET_FLOAT3: {
