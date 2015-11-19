@@ -207,6 +207,9 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 			push_stack_index(offset);
 			break;
 		}
+		
+		case BVM_MESH:
+			break;
 	}
 	
 	return offset;
@@ -257,6 +260,9 @@ void BVMCompiler::codegen_constant(const Value *value)
 			push_pointer(p);
 			break;
 		}
+		
+		case BVM_MESH:
+			break;
 	}
 }
 

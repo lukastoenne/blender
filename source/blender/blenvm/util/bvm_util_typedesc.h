@@ -35,6 +35,8 @@
 #include <cassert>
 
 extern "C" {
+#include "BKE_DerivedMesh.h"
+
 #include "RNA_access.h"
 }
 
@@ -167,6 +169,133 @@ struct matrix44 {
 	float data[4][4];
 };
 
+/* generic default deletor, using 'delete' operator */
+template <typename T>
+struct DeleteDestructor {
+	static void destroy(T *data)
+	{
+		delete data;
+	}
+};
+
+/* reference-counted pointer for managing transient data on the stack */
+template <typename T, typename DestructorT = DeleteDestructor<T> >
+struct node_data_ptr {
+	typedef T element_type;
+	typedef node_data_ptr<T> self_type;
+	
+	node_data_ptr() :
+	    m_data(0),
+	    m_refs(0)
+	{}
+	
+	explicit node_data_ptr(element_type *data) :
+	    m_data(data),
+	    m_refs(0)
+	{}
+	
+	~node_data_ptr()
+	{
+	}
+	
+	element_type* get() const { return m_data; }
+	
+	element_type& operator * () const { return *m_data; }
+	element_type* operator -> () const { return m_data; }
+	
+	void set_use_count(size_t use_count)
+	{
+		assert(m_refs == 0);
+		if (use_count > 0)
+			m_refs = create_refs(use_count);
+	}
+	
+	void decrement_use_count()
+	{
+		assert(m_refs != 0 && *m_refs > 0);
+		size_t count = --(*m_refs);
+		if (count == 0) {
+			if (m_data) {
+				DestructorT::destroy(m_data);
+				m_data = 0;
+			}
+			if (m_refs) {
+				destroy_refs(m_refs);
+			}
+		}
+	}
+	
+	void clear_use_count()
+	{
+		if (m_data) {
+			DestructorT::destroy(m_data);
+			m_data = 0;
+		}
+		if (m_refs) {
+			destroy_refs(m_refs);
+		}
+	}
+	
+protected:
+	/* TODO this could be handled by a common memory manager with a mempool */
+	static size_t *create_refs(size_t use_count) { return new size_t(use_count); }
+	static void destroy_refs(size_t *refs) { delete refs; }
+	
+private:
+	T *m_data;
+	size_t *m_refs;
+};
+
+/* TODO THIS IS IMPORTANT!
+ * In the future we will want to manage references to allocated data
+ * on the stack in a 'manager'. This is because when cancelling a
+ * calculation we want to make sure all temporary data is freed cleanly.
+ * The resulting output data from a kernel function must be registered
+ * in the manager and all the active storage can be removed in one go
+ * if the calculation gets cancelled.
+ * 
+ * We don't want to leave this registration to the kernel itself though,
+ * so it has to happen through another instruction. This instruction has
+ * to be placed _before_ the kernel call though, because otherwise canceling
+ * could still happen in between. Since the actual pointer is still set by
+ * the kernel function, this means the manager has to keep a double pointer.
+ */
+#if 0
+template <typename ptr_type>
+struct NodeDataManager {
+	typedef unordered_set
+	
+	NodeDataManager()
+	{
+	}
+	
+	void insert(T *data, size_t use_count)
+	{
+	}
+	
+	void destroy(T *data)
+	{
+	}
+	
+protected:
+	NodeDataManager()
+	{
+	}
+	
+private:
+	
+};
+#endif
+
+struct DerivedMeshDestructor {
+	static void destroy(DerivedMesh *dm)
+	{
+		DM_release(dm);
+	}
+};
+
+typedef node_data_ptr<DerivedMesh, DerivedMeshDestructor> mesh_ptr;
+
 
 template <BVMType type>
 struct BaseTypeTraits;
@@ -177,7 +306,7 @@ struct BaseTypeTraits<BVM_FLOAT> {
 	
 	enum eStackSize { stack_size = 1 };
 	
-	static inline void copy(float *to, const float *from)
+	static inline void copy(POD *to, const POD *from)
 	{
 		*to = *from;
 	}
@@ -237,9 +366,31 @@ struct BaseTypeTraits<BVM_POINTER> {
 	
 	enum eStackSize { stack_size = 6 };
 	
-	static inline void copy(PointerRNA *to, const PointerRNA *from)
+	static inline void copy(POD *to, const POD *from)
 	{
 		*to = *from;
+	}
+};
+
+template <>
+struct BaseTypeTraits<BVM_MESH> {
+	typedef mesh_ptr POD;
+	
+	enum eStackSize { stack_size = 8 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+	
+	static inline void init(POD *data, size_t use_count)
+	{
+		data->set_use_count(use_count);
+	}
+	
+	static inline void release(POD *data)
+	{
+		data->decrement_use_count();
 	}
 };
 
@@ -329,6 +480,8 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 		case BVM_INT: return new ValueType<BVM_INT>(data);
 		case BVM_MATRIX44: return new ValueType<BVM_MATRIX44>(data);
 		case BVM_POINTER: return new ValueType<BVM_POINTER>(data);
+		
+		case BVM_MESH: return new ValueType<BVM_MESH>(data);
 	}
 	return 0;
 }
@@ -343,6 +496,8 @@ bool Value::get(T *data) const
 		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
 		case BVM_MATRIX44: return static_cast< const ValueType<BVM_MATRIX44>* >(this)->get(data);
 		case BVM_POINTER: return static_cast< const ValueType<BVM_POINTER>* >(this)->get(data);
+			
+		case BVM_MESH: return static_cast< const ValueType<BVM_MESH>* >(this)->get(data);
 	}
 	return false;
 }
@@ -364,6 +519,8 @@ int TypeDesc::stack_size() const
 		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 		case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
 		case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
+		
+		case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
 	}
 	return 0;
 }
@@ -380,6 +537,8 @@ void TypeDesc::copy_value(void *to, const void *from) const
 		case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 		case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 		case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
+		
+		case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
 	}
 	
 	#undef COPY_TYPE

@@ -43,6 +43,7 @@ typedef enum BVMType {
 	BVM_INT,
 	BVM_MATRIX44,
 	BVM_POINTER,
+	BVM_MESH,
 } BVMType;
 
 #ifdef __cplusplus
