@@ -392,7 +392,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			rval.stack_offset = socket_index[link_key];
 		}
 		else {
-			rval.stack_offset = assign_stack_index(rval.typedesc);
+			rval.stack_offset = codegen_value(output.default_value);
 		}
 	}
 	
