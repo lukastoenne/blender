@@ -1784,7 +1784,15 @@ static void mesh_calc_modifiers(
 		deform_app_flags |= MOD_APPLY_USECACHE;
 
 	if (ob->nodetree) {
-		DerivedMesh *dm = mesh_calc_modifier_nodes(scene, ob, ob->nodetree);
+		DerivedMesh *result = mesh_calc_modifier_nodes(scene, ob, ob->nodetree);
+		
+		/* XXX this is stupid, but currently required because of
+		 * the unreliability of dm->needsFree ...
+		 * This flag gets set in places to force freeing of meshes, can't expect this to work
+		 */
+		DerivedMesh *dm = CDDM_copy(result);
+		DM_release(result);
+		
 		*r_final = dm;
 		if (r_deform)
 			*r_deform = CDDM_copy(dm);
