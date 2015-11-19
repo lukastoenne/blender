@@ -1706,15 +1706,15 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree *ntree)
 {
 	Mesh *me = ob->data;
-	DerivedMesh *dm = CDDM_from_mesh(me);
+	DerivedMesh *dm;
 	
 	struct BVMEvalGlobals *globals = BVM_globals_create();
 	
-	struct BVMSchedule *sched = BVM_gen_modifier_function(globals, ob, ntree, NULL);
+	struct BVMFunction *fn = BVM_gen_modifier_function(globals, ob, ntree, NULL);
 	
 	{
 		struct BVMEvalContext *context = BVM_context_create();
-		BVM_eval_modifier(context, sched);
+		dm = BVM_eval_modifier(context, fn, me);
 		BVM_context_free(context);
 	}
 	

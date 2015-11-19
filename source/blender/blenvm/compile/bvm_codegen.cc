@@ -209,6 +209,8 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 		}
 		
 		case BVM_MESH:
+			push_opcode(OP_VALUE_MESH);
+			push_stack_index(offset);
 			break;
 	}
 	

@@ -93,12 +93,17 @@ struct TextureEvalData {
 	int osatex;
 };
 
+struct ModifierEvalData {
+	struct Mesh *base_mesh;
+};
+
 struct EvalData {
 	EvalData()
 	{}
 	
 	EffectorEvalData effector;
 	TextureEvalData texture;
+	ModifierEvalData modifier;
 };
 
 struct EvalContext {

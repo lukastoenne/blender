@@ -37,6 +37,7 @@ extern "C" {
 #include "DNA_object_types.h"
 
 #include "BKE_bvhutils.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_material.h"
 }
@@ -87,6 +88,14 @@ static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offs
 static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex offset)
 {
 	stack_store_pointer(stack, offset, value);
+}
+
+/* Note: mesh data is not explicitly stored on the stack,
+ * this function always creates simply an empty mesh.
+ */
+static void eval_op_value_mesh(float *stack, StackIndex offset)
+{
+	stack_store_mesh(stack, offset, __empty_mesh__);
 }
 
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
@@ -451,6 +460,12 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
+static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex offset)
+{
+	DerivedMesh *dm = CDDM_from_mesh(data->modifier.base_mesh);
+	stack_store_mesh(stack, offset, mesh_ptr(dm));
+}
+
 void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
 {
 	int instr = 0;
@@ -495,6 +510,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				PointerRNA value = fn->read_pointer(&instr);
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_pointer(stack, value, offset);
+				break;
+			}
+			case OP_VALUE_MESH: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_value_mesh(stack, offset);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {
@@ -859,6 +879,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_tangent = fn->read_stack_index(&instr);
 				eval_op_effector_closest_point(stack, offset_object, offset_vector,
 				                               offset_position, offset_normal, offset_tangent);
+				break;
+			}
+			case OP_MESH_LOAD: {
+				StackIndex offset_mesh = fn->read_stack_index(&instr);
+				eval_op_mesh_load(data, stack, offset_mesh);
 				break;
 			}
 			case OP_END:

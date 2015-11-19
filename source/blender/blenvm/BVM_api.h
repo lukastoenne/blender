@@ -121,11 +121,14 @@ void BVM_texture_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
 
+struct DerivedMesh;
+struct Mesh;
+
 struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globals,
                                               struct Object *ob, struct bNodeTree *btree,
                                               FILE *debug_file);
 
-void BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn);
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn, struct Mesh *base_mesh);
 
 /* ------------------------------------------------------------------------- */
 

@@ -849,8 +849,10 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	using namespace bvm;
 	
 	NodeGraph graph;
+	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
+	
 	CompileContext comp(_GLOBALS(globals));
-//	parse_modifier_nodes(&comp, btree, &graph);
+	parse_py_nodes(&comp, btree, &graph);
 	
 	if (debug_file) {
 		graph.dump_graphviz(debug_file, "Modifier Schedule Graph");
@@ -862,7 +864,20 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	return (BVMFunction *)fn;
 }
 
-void BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn)
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunction *fn, struct Mesh *base_mesh)
 {
+	using namespace bvm;
 	
+	EvalGlobals globals;
+	
+	EvalData data;
+	ModifierEvalData &moddata = data.modifier;
+	moddata.base_mesh = base_mesh;
+
+	mesh_ptr result;
+	void *results[] = { &result };
+	
+	_CTX(ctx)->eval_expression(&globals, &data, _FUNC(fn), results);
+	
+	return result.get();
 }

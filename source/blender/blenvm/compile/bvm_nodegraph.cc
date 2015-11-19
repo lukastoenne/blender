@@ -795,6 +795,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
+	NODETYPE(MESH_LOAD);
+	
 	#undef NODETYPE
 	
 	assert(!"Invalid node type");
@@ -1001,6 +1003,9 @@ void register_opcode_node_types()
 	nt->add_output("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("tangent", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_node_type("MESH_LOAD");
+	nt->add_output("mesh", BVM_MESH, __empty_mesh__);
 }
 
 } /* namespace bvm */
