@@ -216,6 +216,7 @@ struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *glo
 	
 	CompileContext comp(_GLOBALS(globals));
 	parse_py_nodes(&comp, btree, &graph);
+	graph.finalize();
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.codegen_function(graph);
@@ -730,6 +731,7 @@ struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *global
 	}
 	CompileContext comp(_GLOBALS(globals));
 	parse_tex_nodes(&comp, btree, &graph);
+	graph.finalize();
 	
 	if (debug_file) {
 		graph.dump_graphviz(debug_file, "Texture Expression Graph");
@@ -853,6 +855,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	
 	CompileContext comp(_GLOBALS(globals));
 	parse_py_nodes(&comp, btree, &graph);
+	graph.finalize();
 	
 	if (debug_file) {
 		graph.dump_graphviz(debug_file, "Modifier Schedule Graph");

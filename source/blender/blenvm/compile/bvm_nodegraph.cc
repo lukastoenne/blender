@@ -55,7 +55,8 @@ NodeSocket::~NodeSocket()
 /* ------------------------------------------------------------------------- */
 
 NodeType::NodeType(const string &name) :
-    name(name)
+    name(name),
+    is_pass(false)
 {
 }
 
@@ -517,6 +518,184 @@ void NodeGraph::set_output_link(const string &name, NodeInstance *link_node, con
 	}
 }
 
+/* ------------------------------------------------------------------------- */
+/* Link Type Converters */
+
+SocketPair NodeGraph::add_float_converter(const SocketPair &from, BVMType to_type)
+{
+	SocketPair result(NULL, "");
+	switch (to_type) {
+		case BVM_FLOAT3: {
+			NodeInstance *node = add_node("SET_FLOAT3");
+			add_link(from.node, from.socket, node, "value_x");
+			add_link(from.node, from.socket, node, "value_y");
+			add_link(from.node, from.socket, node, "value_z");
+			result = SocketPair(node, "value");
+			break;
+		}
+		case BVM_FLOAT4: {
+			NodeInstance *node = add_node("SET_FLOAT4");
+			add_link(from.node, from.socket, node, "value_x");
+			add_link(from.node, from.socket, node, "value_y");
+			add_link(from.node, from.socket, node, "value_z");
+			add_link(from.node, from.socket, node, "value_w");
+			result = SocketPair(node, "value");
+			break;
+		}
+		case BVM_INT: {
+			NodeInstance *node = add_node("FLOAT_TO_INT");
+			add_link(from.node, from.socket, node, "value");
+			result = SocketPair(node, "value");
+			break;
+		}
+		default:
+			break;
+	}
+	return result;
+}
+
+SocketPair NodeGraph::add_float3_converter(const SocketPair &from, BVMType to_type)
+{
+	SocketPair result(NULL, "");
+	switch (to_type) {
+		case BVM_FLOAT4: {
+			NodeInstance *node_x = add_node("GET_ELEM_FLOAT3");
+			node_x->set_input_value("index", 0);
+			add_link(from.node, from.socket, node_x, "value");
+			NodeInstance *node_y = add_node("GET_ELEM_FLOAT3");
+			node_y->set_input_value("index", 1);
+			add_link(from.node, from.socket, node_y, "value");
+			NodeInstance *node_z = add_node("GET_ELEM_FLOAT3");
+			node_z->set_input_value("index", 2);
+			add_link(from.node, from.socket, node_z, "value");
+			
+			NodeInstance *node = add_node("SET_FLOAT4");
+			add_link(node_x, "value", node, "value_x");
+			add_link(node_y, "value", node, "value_y");
+			add_link(node_z, "value", node, "value_z");
+			node->set_input_value("value_w", 1.0f);
+			result = SocketPair(node, "value");
+			break;
+		}
+		default:
+			break;
+	}
+	return result;
+}
+
+SocketPair NodeGraph::add_float4_converter(const SocketPair &from, BVMType to_type)
+{
+	SocketPair result(NULL, "");
+	switch (to_type) {
+		case BVM_FLOAT3: {
+			NodeInstance *node_x = add_node("GET_ELEM_FLOAT4");
+			node_x->set_input_value("index", 0);
+			add_link(from.node, from.socket, node_x, "value");
+			NodeInstance *node_y = add_node("GET_ELEM_FLOAT4");
+			node_y->set_input_value("index", 1);
+			add_link(from.node, from.socket, node_y, "value");
+			NodeInstance *node_z = add_node("GET_ELEM_FLOAT4");
+			node_z->set_input_value("index", 2);
+			add_link(from.node, from.socket, node_z, "value");
+			
+			NodeInstance *node = add_node("SET_FLOAT3");
+			add_link(node_x, "value", node, "value_x");
+			add_link(node_y, "value", node, "value_y");
+			add_link(node_z, "value", node, "value_z");
+			result = SocketPair(node, "value");
+			break;
+		}
+		default:
+			break;
+	}
+	return result;
+}
+
+SocketPair NodeGraph::add_int_converter(const SocketPair &/*from*/, BVMType /*to_type*/)
+{
+	SocketPair result(NULL, "");
+	return result;
+}
+
+SocketPair NodeGraph::add_matrix44_converter(const SocketPair &/*from*/, BVMType /*to_type*/)
+{
+	SocketPair result(NULL, "");
+	return result;
+}
+
+SocketPair NodeGraph::add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc)
+{
+	SocketPair result(NULL, "");
+	const NodeSocket *from_socket = from.node->type->find_output(from.socket);
+	/* TODO only uses base type so far */
+	BVMType to_type = to_typedesc.base_type;
+	BVMType from_type = from_socket->typedesc.base_type;
+	
+	if (from_type == to_type) {
+		result = from;
+	}
+	else {
+		switch (from_type) {
+			case BVM_FLOAT: result = add_float_converter(from, to_type); break;
+			case BVM_FLOAT3: result = add_float3_converter(from, to_type); break;
+			case BVM_FLOAT4: result = add_float4_converter(from, to_type); break;
+			case BVM_INT: result = add_int_converter(from, to_type); break;
+			case BVM_MATRIX44: result = add_matrix44_converter(from, to_type); break;
+			default: break;
+		}
+	}
+	return result;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Optimization */
+
+void NodeGraph::skip_pass_nodes()
+{
+	/* redirect links to skip over 'pass'-type nodes */
+	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		NodeInstance &node = it->second;
+		
+		if (node.type->is_pass)
+			continue;
+		
+		for (NodeInstance::InputMap::iterator it_input = node.inputs.begin();
+		     it_input != node.inputs.end();
+		     ++it_input) {
+			NodeInstance::InputInstance &input = it_input->second;
+			
+			NodeInstance *link_node = input.link_node;
+			const NodeSocket *link_socket = input.link_socket;
+			while (link_node && link_node->type->is_pass) {
+				/* note: order of assignment is important here! */
+				link_socket = link_node->find_input_link_socket(0);
+				link_node = link_node->find_input_link_node(0);
+			}
+			input.link_node = link_node;
+			input.link_socket = link_socket;
+		}
+	}
+	/* same for graph outputs */
+	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		NodeGraphOutput &output = *it;
+		
+		NodeInstance *link_node = output.link_node;
+		const NodeSocket *link_socket = output.link_socket;
+		while (link_node && link_node->type->is_pass) {
+			/* note: order of assignment is important here! */
+			link_socket = link_node->find_input_link_socket(0);
+			link_node = link_node->find_input_link_node(0);
+		}
+		output.link_node = link_node;
+		output.link_socket = link_socket;
+	}
+}
+
+void NodeGraph::finalize()
+{
+	skip_pass_nodes();
+}
+
 /* === DEBUGGING === */
 
 #define NL "\r\n"
@@ -740,13 +919,6 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
-	NODETYPE(PASS_FLOAT);
-	NODETYPE(PASS_FLOAT3);
-	NODETYPE(PASS_FLOAT4);
-	NODETYPE(PASS_INT);
-	NODETYPE(PASS_MATRIX44);
-	NODETYPE(PASS_POINTER);
-	NODETYPE(PASS_MESH);
 	NODETYPE(SET_FLOAT3);
 	NODETYPE(GET_ELEM_FLOAT3);
 	NODETYPE(SET_FLOAT4);
@@ -801,7 +973,6 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	#undef NODETYPE
 	
-	assert(!"Invalid node type");
 	return OP_NOOP;
 }
 
@@ -820,30 +991,37 @@ void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("PASS_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_FLOAT4");
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_INT");
 	nt->add_input("value", BVM_INT, 0);
 	nt->add_output("value", BVM_INT, 0);
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
 	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_POINTER");
 	nt->add_input("value", BVM_POINTER, PointerRNA_NULL);
 	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("PASS_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__);
 	nt->add_output("value", BVM_MESH, __empty_mesh__);
+	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, true);

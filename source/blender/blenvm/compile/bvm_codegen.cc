@@ -311,6 +311,10 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	for (NodeList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
+		OpCode op = get_opcode_from_node_type(node.type->name);
+		if (op == OP_NOOP)
+			continue;
+		
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			SocketPair key(&node, &input);
@@ -335,7 +339,6 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			}
 		}
 		
-		OpCode op = get_opcode_from_node_type(node.type->name);
 		push_opcode(op);
 		
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
