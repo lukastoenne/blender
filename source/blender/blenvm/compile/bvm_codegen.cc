@@ -268,25 +268,6 @@ void BVMCompiler::codegen_constant(const Value *value)
 	}
 }
 
-#if 0
-StackIndex BVMCompiler::codegen_link(const TypeDesc &from, StackIndex stack_from,
-                                     const TypeDesc &to, StackIndex stack_to)
-{
-	if (to.assignable(from)) {
-		switch (to.base_type) {
-			case BVM_FLOAT:
-				push_opcode(OP_PASS_FLOAT);
-				break;
-			case BVM_FLOAT3:
-				push_opcode(OP_PASS_FLOAT3);
-				break;
-		}
-		push_stack_index(stack_from);
-		push_stack_index(stack_to);
-	}
-}
-#endif
-
 typedef std::vector<const NodeInstance *> NodeList;
 typedef std::set<const NodeInstance *> NodeSet;
 
