@@ -438,7 +438,6 @@ public:
 	OutputList outputs;
 };
 
-string get_node_type_from_opcode(OpCode op);
 OpCode get_opcode_from_node_type(const string &node);
 void register_opcode_node_types();
 
