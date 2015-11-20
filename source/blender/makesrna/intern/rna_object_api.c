@@ -85,6 +85,7 @@ static EnumPropertyItem space_items[] = {
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
@@ -461,14 +462,27 @@ static void rna_Object_debug_nodes_graphviz(struct Object *ob, const char *filen
 		return;
 	
 	if (ob->nodetree) {
-		struct BVMEvalGlobals *globals;
-		struct BVMFunction *fn;
+		bNodeTree *geotree = NULL;
+		bNode *node;
 		
-		globals = BVM_globals_create();
-		fn = BVM_gen_modifier_function(globals, ob, ob->nodetree, f);
+		for (node = ob->nodetree->nodes.first; node; node = node->next) {
+			if (STREQ(node->idname, "GeometryNode")) {
+				geotree = (bNodeTree *)node->id;
+				break;
+			}
+		}
 		
-		BVM_function_free(fn);
-		BVM_globals_free(globals);
+		if (geotree) {
+			struct BVMEvalGlobals *globals;
+			struct BVMFunction *fn;
+			
+			globals = BVM_globals_create();
+			
+			fn = BVM_gen_modifier_function(globals, ob, geotree, f);
+			BVM_function_free(fn);
+			
+			BVM_globals_free(globals);
+		}
 	}
 	
 	fclose(f);
