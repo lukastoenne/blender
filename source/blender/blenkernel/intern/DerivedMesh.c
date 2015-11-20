@@ -1706,7 +1706,7 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree *ntree)
 {
 	Mesh *me = ob->data;
-	DerivedMesh *dm;
+	DerivedMesh *dm, *result;
 	
 	struct BVMEvalGlobals *globals = BVM_globals_create();
 	
@@ -1720,7 +1720,14 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree
 	
 	BVM_globals_free(globals);
 	
-	return dm;
+	/* XXX this is stupid, but currently required because of
+	 * the unreliability of dm->needsFree ...
+	 * This flag gets set in places to force freeing of meshes, can't expect this to work
+	 */
+	result = CDDM_copy(dm);
+	DM_release(dm);
+	
+	return result;
 }
 
 /**
@@ -1784,14 +1791,26 @@ static void mesh_calc_modifiers(
 		deform_app_flags |= MOD_APPLY_USECACHE;
 
 	if (ob->nodetree) {
-		DerivedMesh *result = mesh_calc_modifier_nodes(scene, ob, ob->nodetree);
+		bNodeTree *geotree = NULL;
+		DerivedMesh *dm = NULL;
 		
-		/* XXX this is stupid, but currently required because of
-		 * the unreliability of dm->needsFree ...
-		 * This flag gets set in places to force freeing of meshes, can't expect this to work
+		/* XXX TODO not nice, we can potentially have multiple geometry
+		 * subtrees and it's not clear yet how these would be combined.
+		 * For the time being just select the first and expect it to be the only one ...
 		 */
-		DerivedMesh *dm = CDDM_copy(result);
-		DM_release(result);
+		{
+			bNode *node;
+			for (node = ob->nodetree->nodes.first; node; node = node->next) {
+				if (STREQ(node->idname, "GeometryNode")) {
+					geotree = (bNodeTree *)node->id;
+					break;
+				}
+			}
+		}
+		
+		if (geotree) {
+			dm = mesh_calc_modifier_nodes(scene, ob, geotree);
+		}
 		
 		*r_final = dm;
 		if (r_deform)
