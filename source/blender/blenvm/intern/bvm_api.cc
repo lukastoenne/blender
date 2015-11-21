@@ -31,8 +31,6 @@
 
 #include <set>
 
-#include "MEM_guardedalloc.h"
-
 extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"

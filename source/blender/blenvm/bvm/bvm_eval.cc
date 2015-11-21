@@ -142,6 +142,20 @@ static void eval_op_get_elem_float4(float *stack, int index, StackIndex offset_f
 	stack_store_float(stack, offset_to, f[index]);
 }
 
+static void eval_op_init_mesh_ptr(float *stack, StackIndex offset, int use_count)
+{
+	mesh_ptr p(NULL);
+	p.set_use_count(use_count);
+	stack_store_mesh(stack, offset, p);
+}
+
+static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
+{
+	mesh_ptr p = stack_load_mesh(stack, offset);
+	p.decrement_use_count();
+	stack_store_mesh(stack, offset, p);
+}
+
 static void eval_op_point_position(const EvalData *data, float *stack, StackIndex offset)
 {
 	stack_store_float3(stack, offset, data->effector.position);
@@ -426,8 +440,10 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 
 static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex offset)
 {
+	mesh_ptr p = stack_load_mesh(stack, offset);
 	DerivedMesh *dm = CDDM_from_mesh(data->modifier.base_mesh);
-	stack_store_mesh(stack, offset, mesh_ptr(dm));
+	p.set(dm);
+	stack_store_mesh(stack, offset, p);
 }
 
 void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
@@ -522,6 +538,17 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = fn->read_stack_index(&instr);
 				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
+				break;
+			}
+			case OP_INIT_MESH_PTR: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				int use_count = fn->read_int(&instr);
+				eval_op_init_mesh_ptr(stack, offset, use_count);
+				break;
+			}
+			case OP_RELEASE_MESH_PTR: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_release_mesh_ptr(stack, offset);
 				break;
 			}
 			case OP_POINT_POSITION: {

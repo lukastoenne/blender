@@ -29,8 +29,6 @@
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "bvm_function.h"
 
 namespace bvm {

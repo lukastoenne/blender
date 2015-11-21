@@ -296,17 +296,92 @@ static void sort_nodes(const NodeGraph &graph, NodeList &result)
 	}
 }
 
+typedef std::map<ConstSocketPair, int> SocketUserMap;
+
+static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
+{
+	users.clear();
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
+		const NodeInstance &node = it->second;
+		for (int i = 0; i < node.outputs.size(); ++i) {
+			ConstSocketPair key(&node, node.type->outputs[i].name);
+			users[key] = 0;
+		}
+	}
+	
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
+		const NodeInstance &node = it->second;
+		
+		/* note: pass nodes are normally removed, but can exist for debugging purposes */
+		if (node.type->is_pass)
+			continue;
+		
+		for (int i = 0; i < node.inputs.size(); ++i) {
+			if (node.has_input_link(i)) {
+				ConstSocketPair key(node.find_input_link_node(i),
+				                    node.find_input_link_socket(i)->name);
+				users[key] += 1;
+			}
+		}
+	}
+	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
+		const NodeGraphOutput &output = *it;
+		
+		if (output.link_node && output.link_socket) {
+			ConstSocketPair key(output.link_node, output.link_socket->name);
+			users[key] += 1;
+		}
+	}
+}
+
+static OpCode ptr_init_opcode(const TypeDesc &typedesc)
+{
+	switch (typedesc.base_type) {
+		case BVM_FLOAT:
+		case BVM_FLOAT3:
+		case BVM_FLOAT4:
+		case BVM_INT:
+		case BVM_MATRIX44:
+		case BVM_POINTER:
+			return OP_NOOP;
+		
+		case BVM_MESH:
+			return OP_INIT_MESH_PTR;
+	}
+	return OP_NOOP;
+}
+
+static OpCode ptr_release_opcode(const TypeDesc &typedesc)
+{
+	switch (typedesc.base_type) {
+		case BVM_FLOAT:
+		case BVM_FLOAT3:
+		case BVM_FLOAT4:
+		case BVM_INT:
+		case BVM_MATRIX44:
+		case BVM_POINTER:
+			return OP_NOOP;
+		
+		case BVM_MESH:
+			return OP_RELEASE_MESH_PTR;
+	}
+	return OP_NOOP;
+}
+
 Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 {
-	typedef std::pair<const NodeInstance *, const NodeSocket *> SocketPair;
-	typedef std::map<SocketPair, StackIndex> SocketIndexMap;
+	typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
 	
 	fn = new Function();
 	
 	NodeList sorted_nodes;
 	sort_nodes(graph, sorted_nodes);
 	
-	SocketIndexMap socket_index;
+	SocketUserMap output_users;
+	count_output_users(graph, output_users);
+	
+	SocketIndexMap input_index;
+	SocketIndexMap output_index;
 	
 	for (NodeList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		const NodeInstance &node = **it;
@@ -315,9 +390,10 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		if (op == OP_NOOP)
 			continue;
 		
+		/* prepare input stack entries */
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
-			SocketPair key(&node, &input);
+			ConstSocketPair key(&node, input.name);
 			
 			if (node.is_input_constant(i)) {
 				/* value is stored directly in the instructions list,
@@ -325,41 +401,75 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 				 */
 			}
 			else if (node.has_input_link(i)) {
-				const NodeInstance *link_node = node.find_input_link_node(i);
-				const NodeSocket *link_socket = node.find_input_link_socket(i);
-				SocketPair link_key(link_node, link_socket);
-				socket_index[key] = socket_index[link_key];
+				ConstSocketPair link_key(node.find_input_link_node(i),
+				                         node.find_input_link_socket(i)->name);
+				input_index[key] = output_index[link_key];
 			}
 			else if (node.has_input_value(i)) {
 				Value *value = node.find_input_value(i);
-				socket_index[key] = codegen_value(value);
+				input_index[key] = codegen_value(value);
 			}
 			else {
-				socket_index[key] = codegen_value(input.default_value);
+				input_index[key] = codegen_value(input.default_value);
 			}
 		}
 		
-		push_opcode(op);
+		/* initialize output data stack entries */
+		for (int i = 0; i < node.type->outputs.size(); ++i) {
+			const NodeSocket &output = node.type->outputs[i];
+			ConstSocketPair key(&node, output.name);
+			
+			output_index[key] = assign_stack_index(output.typedesc);
+			
+			/* if necessary, add a user count initializer */
+			OpCode init_op = ptr_init_opcode(output.typedesc);
+			if (init_op != OP_NOOP) {
+				int users = output_users[key];
+				if (users > 0) {
+					push_opcode(init_op);
+					push_stack_index(output_index[key]);
+					push_int(users);
+				}
+			}
+		}
 		
+		/* write main opcode */
+		push_opcode(op);
+		/* write input stack offsets and constants */
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
-			SocketPair key(&node, &input);
+			ConstSocketPair key(&node, input.name);
 			
 			if (node.is_input_constant(i)) {
 				Value *value = node.find_input_value(i);
 				codegen_constant(value);
 			}
 			else {
-				push_stack_index(socket_index[key]);
+				push_stack_index(input_index[key]);
 			}
 		}
+		/* write output stack offsets */
 		for (int i = 0; i < node.type->outputs.size(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];
-			SocketPair key(&node, &output);
+			ConstSocketPair key(&node, output.name);
 			
-			socket_index[key] = assign_stack_index(output.typedesc);
+			push_stack_index(output_index[key]);
+		}
+		
+		/* release input data stack entries */
+		for (int i = 0; i < node.type->inputs.size(); ++i) {
+			const NodeSocket &input = node.type->inputs[i];
 			
-			push_stack_index(socket_index[key]);
+			if (node.has_input_link(i)) {
+				ConstSocketPair link_key(node.find_input_link_node(i),
+				                         node.find_input_link_socket(i)->name);
+				OpCode release_op = ptr_release_opcode(input.typedesc);
+				
+				if (release_op != OP_NOOP) {
+					push_opcode(release_op);
+					push_stack_index(output_index[link_key]);
+				}
+			}
 		}
 	}
 	
@@ -371,9 +481,9 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		ReturnValue &rval = fn->add_return_value(TypeDesc(output.type), output.name);
 		
 		if (output.link_node && output.link_socket) {
-			SocketPair link_key(output.link_node, output.link_socket);
+			ConstSocketPair link_key(output.link_node, output.link_socket->name);
 			
-			rval.stack_offset = socket_index[link_key];
+			rval.stack_offset = output_index[link_key];
 		}
 		else {
 			rval.stack_offset = codegen_value(output.default_value);

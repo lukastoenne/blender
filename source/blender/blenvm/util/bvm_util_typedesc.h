@@ -200,6 +200,7 @@ struct node_data_ptr {
 	}
 	
 	element_type* get() const { return m_data; }
+	void set(element_type *data) { m_data = data; }
 	
 	element_type& operator * () const { return *m_data; }
 	element_type* operator -> () const { return m_data; }
@@ -291,7 +292,7 @@ private:
 struct DerivedMeshDestructor {
 	static void destroy(DerivedMesh *dm)
 	{
-		DM_release(dm);
+		dm->release(dm);
 	}
 };
 
@@ -395,16 +396,6 @@ struct BaseTypeTraits<BVM_MESH> {
 	static inline void copy(POD *to, const POD *from)
 	{
 		*to = *from;
-	}
-	
-	static inline void init(POD *data, size_t use_count)
-	{
-		data->set_use_count(use_count);
-	}
-	
-	static inline void release(POD *data)
-	{
-		data->decrement_use_count();
 	}
 };
 

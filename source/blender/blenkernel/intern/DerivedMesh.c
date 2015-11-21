@@ -1725,7 +1725,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree
 	 * This flag gets set in places to force freeing of meshes, can't expect this to work
 	 */
 	result = CDDM_copy(dm);
-	DM_release(dm);
+	dm->release(dm);
 	
 	return result;
 }

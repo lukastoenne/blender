@@ -110,6 +110,31 @@ struct NodeType {
 	bool is_pass; /* pass nodes are skipped */
 };
 
+struct ConstSocketPair {
+	ConstSocketPair() :
+	    node(NULL), socket("")
+	{}
+	ConstSocketPair(const NodeInstance *node, const string &socket) :
+	    node(node), socket(socket)
+	{}
+	
+	bool operator < (const ConstSocketPair &other) const
+	{
+		if (node < other.node)
+			return true;
+		else
+			return socket < other.socket;
+	}
+	
+	operator bool() const
+	{
+		return node != NULL && !socket.empty();
+	}
+	
+	const NodeInstance *node;
+	string socket;
+};
+
 struct SocketPair {
 	SocketPair() :
 	    node(NULL), socket("")
@@ -117,6 +142,11 @@ struct SocketPair {
 	SocketPair(NodeInstance *node, const string &socket) :
 	    node(node), socket(socket)
 	{}
+	
+	operator ConstSocketPair()
+	{
+		return ConstSocketPair(node, socket);
+	}
 	
 	bool operator < (const SocketPair &other) const
 	{
