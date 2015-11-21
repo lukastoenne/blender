@@ -3305,12 +3305,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 	const bool own_ofs = (ofs == NULL);
 
 	/* view state */
-	GPUFXSettings fx_settings = {NULL};
+	GPUFXSettings fx_settings = v3d->fx_settings;
 	bool is_ortho = false;
 	float winmat[4][4];
-
-	if (UNLIKELY(v3d == NULL))
-		return NULL;
 
 	if (own_ofs) {
 		/* state changes make normal drawing go weird otherwise */
@@ -3354,8 +3351,6 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 		rctf viewplane;
 		float clipsta, clipend;
 
-		fx_settings = v3d->fx_settings;
-
 		is_ortho = ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend, NULL);
 		if (is_ortho) {
 			orthographic_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, -clipend, clipend);
@@ -3381,7 +3376,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 	}
 	else {
 		/* Multi-pass render, use accumulation buffer & jitter for 'full' oversampling.
-		 * Use becauise OpenGL may use a lower quality MSAA, and only oversample edges. */
+		 * Use because OpenGL may use a lower quality MSAA, and only over-sample edges. */
 		static float jit_ofs[32][2];
 		float winmat_jitter[4][4];
 		/* use imbuf as temp storage, before writing into it from accumulation buffer */

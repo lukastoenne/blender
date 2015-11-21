@@ -24,6 +24,7 @@
 CCL_NAMESPACE_BEGIN
 
 class ImageManager;
+class Scene;
 class Shader;
 
 /* Texture Mapping */
@@ -310,7 +311,10 @@ class GlossyBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(GlossyBsdfNode)
 
-	ustring distribution;
+	void optimize(Scene *scene);
+	bool has_integrator_dependency();
+
+	ustring distribution, distribution_orig;
 	static ShaderEnum distribution_enum;
 };
 
@@ -318,7 +322,10 @@ class GlassBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(GlassBsdfNode)
 
-	ustring distribution;
+	void optimize(Scene *scene);
+	bool has_integrator_dependency();
+
+	ustring distribution, distribution_orig;
 	static ShaderEnum distribution_enum;
 };
 
@@ -326,7 +333,10 @@ class RefractionBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(RefractionBsdfNode)
 
-	ustring distribution;
+	void optimize(Scene *scene);
+	bool has_integrator_dependency();
+
+	ustring distribution, distribution_orig;
 	static ShaderEnum distribution_enum;
 };
 

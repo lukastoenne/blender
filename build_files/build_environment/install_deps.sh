@@ -27,7 +27,7 @@ getopt \
 -o s:i:t:h \
 --long source:,install:,tmp:,info:,threads:,help,no-sudo,with-all,with-opencollada,\
 ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
-force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-osd,\
+force-all,force-python,force-numpy,force-boost,force-ocio,force-openexr,force-oiio,force-llvm,force-osl,force-osd,\
 force-ffmpeg,force-opencollada,\
 skip-python,skip-numpy,skip-boost,skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-osd,\
 skip-ffmpeg,skip-opencollada,\
@@ -228,6 +228,7 @@ _with_built_openexr=false
 
 OIIO_VERSION="1.4.16"
 OIIO_VERSION_MIN="1.4.0"
+OIIO_VERSION_MAX="1.5.0"  # Not supported by current OSL...
 OIIO_FORCE_REBUILD=false
 OIIO_SKIP=false
 
@@ -534,7 +535,7 @@ OSL_SOURCE=( "https://github.com/Nazg-Gul/OpenShadingLanguage/archive/Release-1.
 #~ OSL_SOURCE_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
 #~ OSL_SOURCE_REPO_BRANCH="master"
 OSL_SOURCE_REPO=( "https://github.com/Nazg-Gul/OpenShadingLanguage.git" )
-OSL_SOURCE_REPO_UID="22ee5ea298fd215430dfbd160b5aefd507f06db0"
+OSL_SOURCE_REPO_UID="7d40ff5fe8e47b030042afb92d0e955f5aa96f48"
 OSL_SOURCE_REPO_BRANCH="blender-fixes"
 
 OSD_USE_REPO=true
@@ -624,6 +625,18 @@ version_ge() {
     return 1
   else
     return 0
+  fi
+}
+
+# Return 0 if $3 > $1 >= $2, else 1.
+# $1 and $2 should be version numbers made of numbers only.
+version_ge_lt() {
+  version_ge $1 $3
+  if [ $? -eq 0 ]; then
+    return 1
+  else
+    version_ge $1 $2
+    return $?
   fi
 }
 
@@ -1877,6 +1890,17 @@ check_package_version_ge_DEB() {
   return $?
 }
 
+check_package_version_ge_lt_DEB() {
+  v=`apt-cache policy $1 | grep 'Candidate:' | sed -r 's/.*:\s*([0-9]+:)?(([0-9]+\.?)+).*/\2/'`
+
+  if [ -z "$v" ]; then
+    return 1
+  fi
+
+  version_ge_lt $v $2 $3
+  return $?
+}
+
 install_packages_DEB() {
   if [ ! $SUDO ]; then
     WARNING "--no-sudo enabled, impossible to run apt-get install for $@, you'll have to do it yourself..."
@@ -2159,7 +2183,7 @@ install_DEB() {
   if $OIIO_SKIP; then
     WARNING "Skipping OpenImageIO installation, as requested..."
   else
-    check_package_version_ge_DEB libopenimageio-dev $OIIO_VERSION_MIN
+    check_package_version_ge_lt_DEB libopenimageio-dev $OIIO_VERSION_MIN $OIIO_VERSION_MAX
     if [ $? -eq 0 -a $_with_built_openexr == false ]; then
       install_packages_DEB libopenimageio-dev
       clean_OIIO
@@ -2322,6 +2346,17 @@ check_package_version_ge_RPM() {
   fi
 
   version_ge $v $2
+  return $?
+}
+
+check_package_version_ge_lt_RPM() {
+  v=`get_package_version_RPM $1`
+
+  if [ -z "$v" ]; then
+    return 1
+  fi
+
+  version_ge_lt $v $2 $3
   return $?
 }
 
@@ -2608,7 +2643,7 @@ install_RPM() {
   if $OIIO_SKIP; then
     WARNING "Skipping OpenImageIO installation, as requested..."
   else
-    check_package_version_ge_RPM OpenImageIO-devel $OIIO_VERSION_MIN
+    check_package_version_ge_lt_RPM OpenImageIO-devel $OIIO_VERSION_MIN $OIIO_VERSION_MAX
     if [ $? -eq 0 -a $_with_built_openexr == false ]; then
       install_packages_RPM OpenImageIO-devel
       clean_OIIO
@@ -2745,6 +2780,17 @@ check_package_version_ge_ARCH() {
   fi
 
   version_ge $v $2
+  return $?
+}
+
+check_package_version_ge_lt_ARCH() {
+  v=`get_package_version_ARCH $1`
+
+  if [ -z "$v" ]; then
+    return 1
+  fi
+
+  version_ge_lt $v $2 $3
   return $?
 }
 
@@ -2937,7 +2983,7 @@ install_ARCH() {
   if $OIIO_SKIP; then
     WARNING "Skipping OpenImageIO installation, as requested..."
   else
-    check_package_version_ge_ARCH openimageio $OIIO_VERSION_MIN
+    check_package_version_ge_lt_ARCH openimageio $OIIO_VERSION_MIN $OIIO_VERSION_MAX
     if [ $? -eq 0 ]; then
       install_packages_ARCH openimageio
       clean_OIIO
