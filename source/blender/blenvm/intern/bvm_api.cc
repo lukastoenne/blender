@@ -55,15 +55,30 @@ extern "C" {
 
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
+#include "bvm_util_typedesc.h"
 
 void BVM_init(void)
 {
+	/* note: static variable for DerivedMesh does not work well,
+	 * this needs to be created/freed explicitly
+	 */
+	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
+	dm->needsFree = 0;
+	bvm::__empty_mesh__.set(dm);
+	
 	bvm::register_opcode_node_types();
 }
 
 void BVM_free(void)
 {
 	BVM_texture_cache_clear();
+	
+	/* note: static variable for DerivedMesh does not work well,
+	 * this needs to be created/freed explicitly
+	 */
+	DerivedMesh *dm = bvm::__empty_mesh__.get();
+	dm->needsFree = 1;
+	dm->release(dm);
 }
 
 /* ------------------------------------------------------------------------- */
