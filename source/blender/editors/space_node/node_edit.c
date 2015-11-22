@@ -353,6 +353,14 @@ void snode_notify(bContext *C, SpaceNode *snode)
 		WM_event_add_notifier(C, NC_SCENE | ND_NODES, id);
 	else if (ED_node_is_texture(snode))
 		WM_event_add_notifier(C, NC_TEXTURE | ND_NODES, id);
+	/* XXX tree_idname check below is a hack, the nodes are primarily
+	 * defined in python, but notifiers are not accessible there.
+	 * This should ideally happen through the depsgraph too,
+	 * but for now this is the only real option.
+	 */
+	else if (STREQ(snode->tree_idname, "ObjectNodeTree")) {
+		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, id);
+	}
 }
 
 void ED_node_set_tree_type(SpaceNode *snode, bNodeTreeType *typeinfo)
