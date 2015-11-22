@@ -23,6 +23,7 @@ import nodeitems_utils
 from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
+from mathutils import *
 
 ###############################################################################
 # Socket Types
@@ -69,10 +70,13 @@ node_categories = [
         ]),
     
     GeometryNodeCategory("GEO_INPUT", "Input", items=[
-        NodeItem("GeometryMeshNode"),
+        NodeItem("GeometryMeshLoadNode"),
         ]),
     GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
         NodeItem("GeometryOutputNode"),
+        ]),
+    GeometryNodeCategory("GEO_MODIFIER", "Modifier", items=[
+        NodeItem("GeometryMeshArrayNode"),
         ]),
     
     ForceFieldNodeCategory("FORCE_INPUT", "Input", items=[
@@ -124,8 +128,6 @@ class NodeCompiler:
             node.set_value_float(name, socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketVector):
             node.set_value_float3(name, socket.default_value)
-        elif isinstance(socket, bpy.types.NodeSocketColor):
-            node.set_value_float4(name, socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketColor):
             node.set_value_float4(name, socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketInt):
@@ -260,9 +262,9 @@ class GeometryOutputNode(GeometryNodeBase, ObjectNode):
         compiler.set_output("mesh", node, "value")
 
 
-class GeometryMeshNode(GeometryNodeBase, ObjectNode):
+class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
     '''Mesh object data'''
-    bl_idname = 'GeometryMeshNode'
+    bl_idname = 'GeometryMeshLoadNode'
     bl_label = 'Mesh'
 
     def init(self, context):
@@ -271,6 +273,25 @@ class GeometryMeshNode(GeometryNodeBase, ObjectNode):
     def compile(self, compiler):
         node = compiler.add_node("MESH_LOAD", self.name)
         compiler.map_output(0, node, "mesh")
+
+
+class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
+    '''Make a number of transformed copies of a mesh'''
+    bl_idname = 'GeometryMeshArrayNode'
+    bl_label = 'Array'
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "")
+        self.inputs.new('NodeSocketInt', "Count")
+        self.inputs.new('NodeSocketVector', "Offset")
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MESH_ARRAY", self.name)
+        compiler.map_input(0, node, "mesh_in")
+        compiler.map_input(1, node, "count")
+        node.set_value_matrix44("transform", Matrix.Translation((0.6,0,0)))
+        compiler.map_output(0, node, "mesh_out")
 
 
 ###############################################################################

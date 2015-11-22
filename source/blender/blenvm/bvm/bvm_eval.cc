@@ -44,6 +44,7 @@ extern "C" {
 
 #include "bvm_eval.h"
 #include "bvm_eval_common.h"
+#include "bvm_eval_mesh.h"
 #include "bvm_eval_texture.h"
 
 #include "bvm_util_math.h"
@@ -436,14 +437,6 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 		// TODO
 		stack_store_float3(stack, offset_tangent, float3(0.0f, 0.0f, 0.0f));
 	}
-}
-
-static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex offset)
-{
-	mesh_ptr p = stack_load_mesh(stack, offset);
-	DerivedMesh *dm = CDDM_from_mesh(data->modifier.base_mesh);
-	p.set(dm);
-	stack_store_mesh(stack, offset, p);
 }
 
 void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
@@ -839,6 +832,14 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 			case OP_MESH_LOAD: {
 				StackIndex offset_mesh = fn->read_stack_index(&instr);
 				eval_op_mesh_load(data, stack, offset_mesh);
+				break;
+			}
+			case OP_MESH_ARRAY: {
+				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
+				StackIndex offset_count = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
+				eval_op_mesh_array(stack, offset_mesh_in, offset_mesh_out, offset_count, offset_transform);
 				break;
 			}
 			case OP_END:

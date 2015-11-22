@@ -1063,6 +1063,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
 	NODETYPE(MESH_LOAD);
+	NODETYPE(MESH_ARRAY);
 	
 	#undef NODETYPE
 	
@@ -1283,6 +1284,12 @@ void register_opcode_node_types()
 	
 	nt = NodeGraph::add_node_type("MESH_LOAD");
 	nt->add_output("mesh", BVM_MESH, __empty_mesh__);
+	
+	nt = NodeGraph::add_node_type("MESH_ARRAY");
+	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
+	nt->add_input("count", BVM_INT, 1);
+	nt->add_input("transform", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
 }
 
 } /* namespace bvm */
