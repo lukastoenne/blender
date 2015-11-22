@@ -394,6 +394,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			ConstSocketPair key(&node, input.name);
+			assert(input_index.find(key) == input_index.end());
 			
 			if (node.is_input_constant(i)) {
 				/* value is stored directly in the instructions list,
@@ -418,6 +419,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		for (int i = 0; i < node.type->outputs.size(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];
 			ConstSocketPair key(&node, output.name);
+			assert(output_index.find(key) == output_index.end());
 			
 			output_index[key] = assign_stack_index(output.typedesc);
 			
@@ -439,6 +441,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		for (int i = 0; i < node.type->inputs.size(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			ConstSocketPair key(&node, input.name);
+			assert(input_index.find(key) != input_index.end());
 			
 			if (node.is_input_constant(i)) {
 				Value *value = node.find_input_value(i);
@@ -452,6 +455,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		for (int i = 0; i < node.type->outputs.size(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];
 			ConstSocketPair key(&node, output.name);
+			assert(output_index.find(key) != output_index.end());
 			
 			push_stack_index(output_index[key]);
 		}
@@ -463,6 +467,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
+				assert(output_index.find(link_key) != output_index.end());
+				
 				OpCode release_op = ptr_release_opcode(input.typedesc);
 				
 				if (release_op != OP_NOOP) {
@@ -482,6 +488,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		
 		if (output.link_node && output.link_socket) {
 			ConstSocketPair link_key(output.link_node, output.link_socket->name);
+			assert(output_index.find(link_key) != output_index.end());
 			
 			rval.stack_offset = output_index[link_key];
 		}

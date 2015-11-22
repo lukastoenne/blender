@@ -122,6 +122,8 @@ struct ConstSocketPair {
 	{
 		if (node < other.node)
 			return true;
+		else if (node > other.node)
+			return false;
 		else
 			return socket < other.socket;
 	}
@@ -152,6 +154,8 @@ struct SocketPair {
 	{
 		if (node < other.node)
 			return true;
+		else if (node > other.node)
+			return false;
 		else
 			return socket < other.socket;
 	}
