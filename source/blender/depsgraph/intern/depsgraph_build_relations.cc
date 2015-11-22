@@ -1710,6 +1710,11 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		 */
 		add_relation(animation_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Animation");
 	}
+	
+	if (ob->nodetree) {
+		ComponentKey nodetree_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(nodetree_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
+	}
 }
 
 /* Cameras */
