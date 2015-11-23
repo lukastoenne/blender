@@ -42,10 +42,8 @@ namespace bvm {
 
 static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex offset)
 {
-	mesh_ptr p = stack_load_mesh(stack, offset);
 	DerivedMesh *dm = CDDM_from_mesh(data->modifier.base_mesh);
-	p.set(dm);
-	stack_store_mesh(stack, offset, p);
+	stack_store_mesh(stack, offset, dm);
 }
 
 static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
@@ -154,14 +152,14 @@ static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
 static void eval_op_mesh_array(float *stack, StackIndex offset_mesh_in, StackIndex offset_mesh_out,
                                StackIndex offset_count, StackIndex offset_transform)
 {
-	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in).get();
+	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	int count = stack_load_int(stack, offset_count);
 	CLAMP_MIN(count, 0);
 	matrix44 tfm = stack_load_matrix44(stack, offset_transform);
 	
 	DerivedMesh *result = do_array(dm, count, tfm);
 	
-	stack_store_mesh(stack, offset_mesh_out, mesh_ptr(result));
+	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
 } /* namespace bvm */

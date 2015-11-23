@@ -96,7 +96,7 @@ static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex off
  */
 static void eval_op_value_mesh(float *stack, StackIndex offset)
 {
-	stack_store_mesh(stack, offset, __empty_mesh__);
+	stack_store_mesh_ptr(stack, offset, __empty_mesh__);
 }
 
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
@@ -169,14 +169,14 @@ static void eval_op_init_mesh_ptr(float *stack, StackIndex offset, int use_count
 {
 	mesh_ptr p(NULL);
 	p.set_use_count(use_count);
-	stack_store_mesh(stack, offset, p);
+	stack_store_mesh_ptr(stack, offset, p);
 }
 
 static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
 {
-	mesh_ptr p = stack_load_mesh(stack, offset);
+	mesh_ptr p = stack_load_mesh_ptr(stack, offset);
 	p.decrement_use_count();
-	stack_store_mesh(stack, offset, p);
+	stack_store_mesh_ptr(stack, offset, p);
 }
 
 static void eval_op_point_position(const EvalData *data, float *stack, StackIndex offset)

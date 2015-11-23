@@ -67,9 +67,14 @@ inline static PointerRNA stack_load_pointer(float *stack, StackIndex offset)
 	return *(PointerRNA *)(&stack[offset]);
 }
 
-inline static mesh_ptr stack_load_mesh(float *stack, StackIndex offset)
+inline static mesh_ptr stack_load_mesh_ptr(float *stack, StackIndex offset)
 {
 	return *(mesh_ptr *)(&stack[offset]);
+}
+
+inline static DerivedMesh *stack_load_mesh(float *stack, StackIndex offset)
+{
+	return ((mesh_ptr *)(&stack[offset]))->get();
 }
 
 inline static void stack_store_float(float *stack, StackIndex offset, float f)
@@ -102,9 +107,14 @@ inline static void stack_store_pointer(float *stack, StackIndex offset, PointerR
 	*(PointerRNA *)(&stack[offset]) = p;
 }
 
-inline static void stack_store_mesh(float *stack, StackIndex offset, mesh_ptr p)
+inline static void stack_store_mesh_ptr(float *stack, StackIndex offset, mesh_ptr p)
 {
 	*(mesh_ptr *)(&stack[offset]) = p;
+}
+
+inline static void stack_store_mesh(float *stack, StackIndex offset, DerivedMesh *dm)
+{
+	((mesh_ptr *)(&stack[offset]))->set(dm);
 }
 
 } /* namespace bvm */
