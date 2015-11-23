@@ -287,11 +287,15 @@ class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
         self.outputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        node = compiler.add_node("MESH_ARRAY", self.name)
+        node_tfm = compiler.add_node("LOCROTSCALE_TO_MATRIX44", self.name+"TFM")
+        compiler.map_input(2, node_tfm, "loc")
+
+        node = compiler.add_node("MESH_ARRAY", self.name+"MOD")
         compiler.map_input(0, node, "mesh_in")
         compiler.map_input(1, node, "count")
-        node.set_value_matrix44("transform", Matrix.Translation((0.6,0,0)))
         compiler.map_output(0, node, "mesh_out")
+        
+        compiler.add_link_internal(node_tfm, "matrix", node, "transform")
 
 
 ###############################################################################

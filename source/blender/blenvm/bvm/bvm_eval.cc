@@ -143,6 +143,28 @@ static void eval_op_get_elem_float4(float *stack, int index, StackIndex offset_f
 	stack_store_float(stack, offset_to, f[index]);
 }
 
+static void eval_op_matrix44_to_locrotscale(float *stack, StackIndex offset_from, StackIndex offset_loc,
+                                            StackIndex offset_rot, StackIndex offset_scale)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_from);
+	float loc[3], rot[4], scale[3];
+	mat4_decompose(loc, rot, scale, m.data);
+	stack_store_float3(stack, offset_loc, float3::from_data(loc));
+	stack_store_float4(stack, offset_rot, float4::from_data(rot));
+	stack_store_float3(stack, offset_scale, float3::from_data(scale));
+}
+
+static void eval_op_locrotscale_to_matrix44(float *stack, StackIndex offset_loc, StackIndex offset_rot,
+                                              StackIndex offset_scale, StackIndex offset_to)
+{
+	float3 loc = stack_load_float3(stack, offset_loc);
+	float4 rot = stack_load_float4(stack, offset_rot);
+	float3 scale = stack_load_float3(stack, offset_scale);
+	float mat[4][4];
+	loc_quat_size_to_mat4(mat, loc.data(), rot.data(), scale.data());
+	stack_store_matrix44(stack, offset_to, matrix44::from_data(&mat[0][0]));
+}
+
 static void eval_op_init_mesh_ptr(float *stack, StackIndex offset, int use_count)
 {
 	mesh_ptr p(NULL);
@@ -531,6 +553,22 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_from = fn->read_stack_index(&instr);
 				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
+				break;
+			}
+			case OP_MATRIX44_TO_LOCROTSCALE: {
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_loc = fn->read_stack_index(&instr);
+				StackIndex offset_rot = fn->read_stack_index(&instr);
+				StackIndex offset_scale = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_locrotscale(stack, offset_from, offset_loc, offset_rot, offset_scale);
+				break;
+			}
+			case OP_LOCROTSCALE_TO_MATRIX44: {
+				StackIndex offset_loc = fn->read_stack_index(&instr);
+				StackIndex offset_rot = fn->read_stack_index(&instr);
+				StackIndex offset_scale = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
+				eval_op_locrotscale_to_matrix44(stack, offset_loc, offset_rot, offset_scale, offset_to);
 				break;
 			}
 			case OP_INIT_MESH_PTR: {
