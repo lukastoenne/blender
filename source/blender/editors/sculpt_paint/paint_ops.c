@@ -407,12 +407,9 @@ static Brush *brush_tool_toggle(Main *bmain, Brush *brush_orig, const int tool, 
 		
 		return br;
 	}
-	else if (brush_orig->toggle_brush &&
-	         BLI_findindex(bmain->brush.first, brush_orig->toggle_brush) != -1)
-	{
+	else if (brush_orig->toggle_brush) {
 		/* if current brush is using the desired tool, try to toggle
-		 * back to the previously selected brush (if it was set, and
-		 * if it still exists) */
+		 * back to the previously selected brush. */
 		return brush_orig->toggle_brush;
 	}
 	else
@@ -1270,6 +1267,7 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_cursor", ACTIONMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", DELKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", PADENTER, KM_PRESS, 0, 0);

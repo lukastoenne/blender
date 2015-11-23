@@ -226,7 +226,7 @@ static void rna_Main_objects_remove(Main *bmain, ReportList *reports, PointerRNA
 {
 	Object *object = object_ptr->data;
 	if (ID_REAL_USERS(object) <= 0) {
-		BKE_object_unlink(object); /* needed or ID pointers to this are not cleared */
+		BKE_object_unlink(bmain, object); /* needed or ID pointers to this are not cleared */
 		BKE_libblock_free(bmain, object);
 		RNA_POINTER_INVALIDATE(object_ptr);
 	}
@@ -369,6 +369,7 @@ static Image *rna_Main_images_load(Main *bmain, ReportList *reports, const char 
 		            errno ? strerror(errno) : TIP_("unsupported image format"));
 	}
 
+	id_us_min((ID *)ima);
 	return ima;
 }
 static void rna_Main_images_remove(Main *bmain, ReportList *reports, PointerRNA *image_ptr)
@@ -457,6 +458,7 @@ static VFont *rna_Main_fonts_load(Main *bmain, ReportList *reports, const char *
 		BKE_reportf(reports, RPT_ERROR, "Cannot read '%s': %s", filepath,
 		            errno ? strerror(errno) : TIP_("unsupported font format"));
 
+	id_us_min((ID *)font);
 	return font;
 
 }
@@ -504,6 +506,7 @@ static void rna_Main_brushes_remove(Main *bmain, ReportList *reports, PointerRNA
 {
 	Brush *brush = brush_ptr->data;
 	if (ID_REAL_USERS(brush) <= 0) {
+		BKE_brush_unlink(bmain, brush);
 		BKE_libblock_free(bmain, brush);
 		RNA_POINTER_INVALIDATE(brush_ptr);
 	}
@@ -539,7 +542,7 @@ static Group *rna_Main_groups_new(Main *bmain, const char *name)
 static void rna_Main_groups_remove(Main *bmain, PointerRNA *group_ptr)
 {
 	Group *group = group_ptr->data;
-	BKE_group_unlink(group);
+	BKE_group_unlink(bmain, group);
 	BKE_libblock_free(bmain, group);
 	RNA_POINTER_INVALIDATE(group_ptr);
 }
@@ -638,8 +641,7 @@ static void rna_Main_armatures_remove(Main *bmain, ReportList *reports, PointerR
 static bAction *rna_Main_actions_new(Main *bmain, const char *name)
 {
 	bAction *act = add_empty_action(bmain, name);
-	id_us_min(&act->id);
-	act->id.flag &= ~LIB_FAKEUSER;
+	id_fake_user_clear(&act->id);
 	return act;
 }
 static void rna_Main_actions_remove(Main *bmain, ReportList *reports, PointerRNA *act_ptr)
@@ -710,6 +712,7 @@ static MovieClip *rna_Main_movieclip_load(Main *bmain, ReportList *reports, cons
 		BKE_reportf(reports, RPT_ERROR, "Cannot read '%s': %s", filepath,
 		            errno ? strerror(errno) : TIP_("unable to load movie clip"));
 
+	id_us_min((ID *)clip);
 	return clip;
 }
 

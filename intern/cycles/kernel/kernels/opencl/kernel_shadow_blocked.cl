@@ -69,7 +69,6 @@ __kernel void kernel_ocl_path_trace_shadow_blocked(
 		return;
 
 	kernel_shadow_blocked((KernelGlobals *)kg,
-	                      data,
 	                      (ShaderData *)sd_shadow,
 	                      PathState_coop,
 	                      LightRay_dl_coop,

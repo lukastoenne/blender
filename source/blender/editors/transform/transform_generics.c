@@ -73,6 +73,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
+#include "BKE_library.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
 #include "BKE_paint.h"
@@ -278,7 +279,7 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 					NlaStrip *strip = add_nlastrip_to_stack(adt, adt->action);
 					
 					/* clear reference to action now that we've pushed it onto the stack */
-					adt->action->id.us--;
+					id_us_min(&adt->action->id);
 					adt->action = NULL;
 					
 					/* adjust blending + extend so that they will behave correctly */
@@ -950,7 +951,13 @@ static void recalcData_sequencer(TransInfo *t)
 		Sequence *seq = tdsq->seq;
 
 		if (seq != seq_prev) {
-			BKE_sequence_invalidate_dependent(t->scene, seq);
+			if (BKE_sequence_tx_fullupdate_test(seq)) {
+				/* A few effect strip types need a complete recache on transform. */
+				BKE_sequence_invalidate_cache(t->scene, seq);
+			}
+			else {
+				BKE_sequence_invalidate_dependent(t->scene, seq);
+			}
 		}
 
 		seq_prev = seq;

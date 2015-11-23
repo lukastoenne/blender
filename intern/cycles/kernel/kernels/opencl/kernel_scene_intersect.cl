@@ -66,7 +66,6 @@ __kernel void kernel_ocl_path_trace_scene_intersect(
 	}
 
 	kernel_scene_intersect((KernelGlobals *)kg,
-	                       data,
 	                       rng_coop,
 	                       Ray_coop,
 	                       PathState_coop,
