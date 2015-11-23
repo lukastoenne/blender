@@ -277,7 +277,7 @@ static void sort_nodes_append(const NodeInstance *node, NodeList &result, NodeSe
 		return;
 	visited.insert(node);
 	
-	for (size_t i = 0; i < node->inputs.size(); ++i) {
+	for (size_t i = 0; i < node->num_inputs(); ++i) {
 		const NodeInstance *link_node = node->find_input_link_node(i);
 		if (link_node) {
 			sort_nodes_append(link_node, result, visited);
@@ -303,7 +303,7 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 	users.clear();
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
 		const NodeInstance &node = it->second;
-		for (int i = 0; i < node.outputs.size(); ++i) {
+		for (int i = 0; i < node.num_outputs(); ++i) {
 			ConstSocketPair key(&node, node.type->outputs[i].name);
 			users[key] = 0;
 		}
@@ -316,7 +316,7 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 		if (node.type->is_pass)
 			continue;
 		
-		for (int i = 0; i < node.inputs.size(); ++i) {
+		for (int i = 0; i < node.num_inputs(); ++i) {
 			if (node.has_input_link(i)) {
 				ConstSocketPair key(node.find_input_link_node(i),
 				                    node.find_input_link_socket(i)->name);
@@ -391,7 +391,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			continue;
 		
 		/* prepare input stack entries */
-		for (int i = 0; i < node.type->inputs.size(); ++i) {
+		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			ConstSocketPair key(&node, input.name);
 			assert(input_index.find(key) == input_index.end());
@@ -404,6 +404,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			else if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
+				assert(output_index.find(link_key) != output_index.end());
 				input_index[key] = output_index[link_key];
 			}
 			else if (node.has_input_value(i)) {
@@ -416,7 +417,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		}
 		
 		/* initialize output data stack entries */
-		for (int i = 0; i < node.type->outputs.size(); ++i) {
+		for (int i = 0; i < node.num_outputs(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];
 			ConstSocketPair key(&node, output.name);
 			assert(output_index.find(key) == output_index.end());
@@ -438,7 +439,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		/* write main opcode */
 		push_opcode(op);
 		/* write input stack offsets and constants */
-		for (int i = 0; i < node.type->inputs.size(); ++i) {
+		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			ConstSocketPair key(&node, input.name);
 			assert(input_index.find(key) != input_index.end());
@@ -452,7 +453,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			}
 		}
 		/* write output stack offsets */
-		for (int i = 0; i < node.type->outputs.size(); ++i) {
+		for (int i = 0; i < node.num_outputs(); ++i) {
 			const NodeSocket &output = node.type->outputs[i];
 			ConstSocketPair key(&node, output.name);
 			assert(output_index.find(key) != output_index.end());
@@ -461,7 +462,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		}
 		
 		/* release input data stack entries */
-		for (int i = 0; i < node.type->inputs.size(); ++i) {
+		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			
 			if (node.has_input_link(i)) {

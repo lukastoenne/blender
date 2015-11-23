@@ -200,6 +200,9 @@ struct NodeInstance {
 		return SocketPair(this, name);
 	}
 	
+	int num_inputs() const { return type->inputs.size(); }
+	int num_outputs() const { return type->outputs.size(); }
+	
 	NodeInstance *find_input_link_node(const string &name) const;
 	NodeInstance *find_input_link_node(int index) const;
 	const NodeSocket *find_input_link_socket(const string &name) const;
