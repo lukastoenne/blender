@@ -1122,6 +1122,13 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 					build_nodetree(owner_node, group_ntree);
 				}
 			}
+			/* XXX this is weak */
+			else if (GS(bnode->id->name) == ID_NT) {
+				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
+				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
+					build_nodetree(owner_node, group_ntree);
+				}
+			}
 		}
 	}
 

@@ -1810,6 +1810,20 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 				add_relation(group_parameters_key, parameters_key,
 				             DEPSREL_TYPE_COMPONENT_ORDER, "Group Node");
 			}
+			/* XXX this is weak */
+			else if (GS(bnode->id->name) == ID_NT) {
+				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
+				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
+					build_nodetree(owner, group_ntree);
+					group_ntree->flag |= LIB_DOIT;
+				}
+				OperationKey group_parameters_key(&group_ntree->id,
+				                                  DEPSNODE_TYPE_PARAMETERS,
+				                                  DEG_OPCODE_PLACEHOLDER,
+				                                  "Parameters Eval");
+				add_relation(group_parameters_key, parameters_key,
+				             DEPSREL_TYPE_COMPONENT_ORDER, "Group Node");
+			}
 		}
 	}
 

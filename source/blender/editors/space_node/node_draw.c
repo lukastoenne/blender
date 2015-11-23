@@ -150,6 +150,18 @@ void ED_node_tag_update_id(ID *id)
 		DAG_id_tag_update(id, 0);
 		WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
 	}
+	/* XXX idname check below is a hack, the nodes are primarily
+	 * defined in python, but notifiers are not accessible there.
+	 * This should ideally happen through the depsgraph too,
+	 * but for now this is the only real option.
+	 */
+	else if (STREQ(ntree->idname, "GeometryNodeTree")) {
+		DAG_id_tag_update(id, 0);
+		/* XXX BS notifier, the system is too limited
+		 * to support nested node dependencies properly
+		 */
+		WM_main_add_notifier(NC_MATERIAL | ND_NODES, NULL);
+	}
 	else if (id == &ntree->id) {
 		/* node groups */
 		DAG_id_tag_update(id, 0);
