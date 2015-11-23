@@ -254,7 +254,6 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 	RegionView3D *rv3d = oglrender->rv3d;
 	Object *camera = NULL;
 	ImBuf *ibuf;
-	float *rectf = RE_RenderViewGetById(rr, oglrender->view_id)->rectf;
 	int sizex = oglrender->sizex;
 	int sizey = oglrender->sizey;
 	const short view_context = (v3d != NULL);
@@ -282,34 +281,28 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 		ibuf = BKE_sequencer_give_ibuf(&context, CFRA, chanshown);
 
 		if (ibuf) {
-			ImBuf *linear_ibuf;
-
-			BLI_assert((oglrender->sizex == ibuf->x) && (oglrender->sizey == ibuf->y));
-
-			linear_ibuf = IMB_dupImBuf(ibuf);
+			ImBuf *out = IMB_dupImBuf(ibuf);
 			IMB_freeImBuf(ibuf);
-
-			if (linear_ibuf->rect_float == NULL) {
-				/* internally sequencer working in display space and stores both bytes and float buffers in that space.
-				 * It is possible that byte->float onversion didn't happen in sequencer (e.g. when adding image sequence/movie
-				 * into sequencer) there'll be only byte buffer. Create float buffer from existing byte buffer, making it linear
-				 */
-
-				IMB_float_from_rect(linear_ibuf);
+			/* OpenGL render is considered to be preview and should be
+			 * as fast as possible. So currently we're making sure sequencer
+			 * result is always byte to simplify color management pipeline.
+			 *
+			 * TODO(sergey): In the case of output to float container (EXR)
+			 * it actually makes sense to keep float buffer instead.
+			 */
+			if (out->rect_float != NULL) {
+				IMB_rect_from_float(out);
+				imb_freerectfloatImBuf(out);
 			}
-			else {
-				/* ensure float buffer is in linear space, not in display space */
-				BKE_sequencer_imbuf_from_sequencer_space(scene, linear_ibuf);
-			}
-
-			memcpy(rectf, linear_ibuf->rect_float, sizeof(float) * 4 * oglrender->sizex * oglrender->sizey);
-
-			IMB_freeImBuf(linear_ibuf);
+			BLI_assert((oglrender->sizex == ibuf->x) && (oglrender->sizey == ibuf->y));
+			RE_render_result_rect_from_ibuf(rr, &scene->r, out, oglrender->view_id);
+			IMB_freeImBuf(out);
 		}
 
 		if (gpd) {
 			int i;
 			unsigned char *gp_rect;
+			unsigned char *rect = (unsigned char *)RE_RenderViewGetById(rr, oglrender->view_id)->rect32;
 
 			GPU_offscreen_bind(oglrender->ofs, true);
 
@@ -326,12 +319,8 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 			gp_rect = MEM_mallocN(sizex * sizey * sizeof(unsigned char) * 4, "offscreen rect");
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, gp_rect);
 
-			BLI_assert(rectf != NULL);
-
 			for (i = 0; i < sizex * sizey * 4; i += 4) {
-				float  col_src[4];
-				rgba_uchar_to_float(col_src, &gp_rect[i]);
-				blend_color_mix_float(&rectf[i], &rectf[i], col_src);
+				blend_color_mix_byte(&rect[i], &rect[i], &gp_rect[i]);
 			}
 			GPU_offscreen_unbind(oglrender->ofs, true);
 
@@ -750,8 +739,8 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	rr = RE_AcquireResultRead(oglrender->re);
 
 	if (is_movie) {
-		ok = RE_WriteRenderViewsMovie(oglrender->reports, rr, scene, &scene->r, oglrender->mh, oglrender->sizex,
-		                              oglrender->sizey, oglrender->movie_ctx_arr, oglrender->totvideos, PRVRANGEON != 0);
+		ok = RE_WriteRenderViewsMovie(oglrender->reports, rr, scene, &scene->r, oglrender->mh,
+		                              oglrender->movie_ctx_arr, oglrender->totvideos, PRVRANGEON != 0);
 		if (ok) {
 			printf("Append frame %d", scene->r.cfra);
 			BKE_reportf(op->reports, RPT_INFO, "Appended frame: %d", scene->r.cfra);

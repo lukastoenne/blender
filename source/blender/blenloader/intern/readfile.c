@@ -255,7 +255,7 @@ void blo_reportf_wrap(ReportList *reports, ReportType type, const char *format, 
 	BKE_report(reports, type, fixed_buf);
 	
 	if (G.background == 0) {
-		printf("%s\n", fixed_buf);
+		printf("%s: %s\n", BKE_report_type_str(type), fixed_buf);
 	}
 }
 
@@ -2098,6 +2098,7 @@ static void _IDP_DirectLinkGroup_OrFree(IDProperty **prop, int switch_endian, Fi
 /* stub function */
 static void IDP_LibLinkProperty(IDProperty *UNUSED(prop), int UNUSED(switch_endian), FileData *UNUSED(fd))
 {
+	/* Should we do something here, prop should be ensured to be non-NULL first... */
 }
 
 /* ************ READ IMAGE PREVIEW *************** */
@@ -2678,8 +2679,7 @@ static void lib_link_node_socket(FileData *fd, ID *UNUSED(id), bNodeSocket *sock
 {
 	/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 	 * of library blocks that implement this.*/
-	if (sock->prop)
-		IDP_LibLinkProperty(sock->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+	IDP_LibLinkProperty(sock->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 }
 
 /* singe node tree (also used for material/scene trees), ntree is not NULL */
@@ -2688,15 +2688,14 @@ static void lib_link_ntree(FileData *fd, ID *id, bNodeTree *ntree)
 	bNode *node;
 	bNodeSocket *sock;
 	
-	if (ntree->adt) lib_link_animdata(fd, &ntree->id, ntree->adt);
+	lib_link_animdata(fd, &ntree->id, ntree->adt);
 	
 	ntree->gpd = newlibadr_us(fd, id->lib, ntree->gpd);
 	
 	for (node = ntree->nodes.first; node; node = node->next) {
 		/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 		 * of library blocks that implement this.*/
-		if (node->prop)
-			IDP_LibLinkProperty(node->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+		IDP_LibLinkProperty(node->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		
 		node->id= newlibadr_us(fd, id->lib, node->id);
 
@@ -3242,7 +3241,7 @@ static void lib_link_armature(FileData *fd, Main *main)
 	
 	for (arm = main->armature.first; arm; arm = arm->id.next) {
 		if (arm->id.flag & LIB_NEED_LINK) {
-			if (arm->adt) lib_link_animdata(fd, &arm->id, arm->adt);
+			lib_link_animdata(fd, &arm->id, arm->adt);
 			arm->id.flag -= LIB_NEED_LINK;
 		}
 	}
@@ -3291,7 +3290,7 @@ static void lib_link_camera(FileData *fd, Main *main)
 	
 	for (ca = main->camera.first; ca; ca = ca->id.next) {
 		if (ca->id.flag & LIB_NEED_LINK) {
-			if (ca->adt) lib_link_animdata(fd, &ca->id, ca->adt);
+			lib_link_animdata(fd, &ca->id, ca->adt);
 			
 			ca->ipo = newlibadr_us(fd, ca->id.lib, ca->ipo); // XXX deprecated - old animation system
 			
@@ -3319,7 +3318,7 @@ static void lib_link_lamp(FileData *fd, Main *main)
 	
 	for (la = main->lamp.first; la; la = la->id.next) {
 		if (la->id.flag & LIB_NEED_LINK) {
-			if (la->adt) lib_link_animdata(fd, &la->id, la->adt);
+			lib_link_animdata(fd, &la->id, la->adt);
 			
 			for (a = 0; a < MAX_MTEX; a++) {
 				mtex = la->mtex[a];
@@ -3387,8 +3386,10 @@ static void lib_link_key(FileData *fd, Main *main)
 			blo_do_versions_key_uidgen(key);
 		}
 		
+		BLI_assert((key->id.flag & LIB_EXTERN) == 0);
+
 		if (key->id.flag & LIB_NEED_LINK) {
-			if (key->adt) lib_link_animdata(fd, &key->id, key->adt);
+			lib_link_animdata(fd, &key->id, key->adt);
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
 			key->from = newlibadr(fd, key->id.lib, key->from);
@@ -3455,7 +3456,7 @@ static void lib_link_mball(FileData *fd, Main *main)
 	
 	for (mb = main->mball.first; mb; mb = mb->id.next) {
 		if (mb->id.flag & LIB_NEED_LINK) {
-			if (mb->adt) lib_link_animdata(fd, &mb->id, mb->adt);
+			lib_link_animdata(fd, &mb->id, mb->adt);
 			
 			for (a = 0; a < mb->totcol; a++) 
 				mb->mat[a] = newlibadr_us(fd, mb->id.lib, mb->mat[a]);
@@ -3493,7 +3494,7 @@ static void lib_link_world(FileData *fd, Main *main)
 	
 	for (wrld = main->world.first; wrld; wrld = wrld->id.next) {
 		if (wrld->id.flag & LIB_NEED_LINK) {
-			if (wrld->adt) lib_link_animdata(fd, &wrld->id, wrld->adt);
+			lib_link_animdata(fd, &wrld->id, wrld->adt);
 			
 			wrld->ipo = newlibadr_us(fd, wrld->id.lib, wrld->ipo); // XXX deprecated - old animation system
 			
@@ -3606,7 +3607,7 @@ static void direct_link_text(FileData *fd, Text *text)
 	
 	text->flags = (text->flags) & ~TXT_ISEXT;
 	
-	text->id.us = 1;
+	id_us_ensure_real(&text->id);
 }
 
 /* ************ READ IMAGE ***************** */
@@ -3617,7 +3618,7 @@ static void lib_link_image(FileData *fd, Main *main)
 	
 	for (ima = main->image.first; ima; ima = ima->id.next) {
 		if (ima->id.flag & LIB_NEED_LINK) {
-			if (ima->id.properties) IDP_LibLinkProperty(ima->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			IDP_LibLinkProperty(ima->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 			
 			ima->id.flag -= LIB_NEED_LINK;
 		}
@@ -3685,7 +3686,7 @@ static void lib_link_curve(FileData *fd, Main *main)
 	
 	for (cu = main->curve.first; cu; cu = cu->id.next) {
 		if (cu->id.flag & LIB_NEED_LINK) {
-			if (cu->adt) lib_link_animdata(fd, &cu->id, cu->adt);
+			lib_link_animdata(fd, &cu->id, cu->adt);
 			
 			for (a = 0; a < cu->totcol; a++) 
 				cu->mat[a] = newlibadr_us(fd, cu->id.lib, cu->mat[a]);
@@ -3777,7 +3778,7 @@ static void lib_link_texture(FileData *fd, Main *main)
 	
 	for (tex = main->tex.first; tex; tex = tex->id.next) {
 		if (tex->id.flag & LIB_NEED_LINK) {
-			if (tex->adt) lib_link_animdata(fd, &tex->id, tex->adt);
+			lib_link_animdata(fd, &tex->id, tex->adt);
 			
 			tex->ima = newlibadr_us(fd, tex->id.lib, tex->ima);
 			tex->ipo = newlibadr_us(fd, tex->id.lib, tex->ipo);
@@ -3857,11 +3858,11 @@ static void lib_link_material(FileData *fd, Main *main)
 	
 	for (ma = main->mat.first; ma; ma = ma->id.next) {
 		if (ma->id.flag & LIB_NEED_LINK) {
-			if (ma->adt) lib_link_animdata(fd, &ma->id, ma->adt);
+			lib_link_animdata(fd, &ma->id, ma->adt);
 			
 			/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 			 * of library blocks that implement this.*/
-			if (ma->id.properties) IDP_LibLinkProperty(ma->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			IDP_LibLinkProperty(ma->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 			
 			ma->ipo = newlibadr_us(fd, ma->id.lib, ma->ipo);
 			ma->group = newlibadr_us(fd, ma->id.lib, ma->group);
@@ -4005,7 +4006,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 	
 	for (part = main->particle.first; part; part = part->id.next) {
 		if (part->id.flag & LIB_NEED_LINK) {
-			if (part->adt) lib_link_animdata(fd, &part->id, part->adt);
+			lib_link_animdata(fd, &part->id, part->adt);
 			part->ipo = newlibadr_us(fd, part->id.lib, part->ipo); // XXX deprecated - old animation system
 			
 			part->dup_ob = newlibadr(fd, part->id.lib, part->dup_ob);
@@ -4267,8 +4268,7 @@ static void lib_link_mtface(FileData *fd, Mesh *me, MTFace *mtface, int totface)
 	 * to each image it used. - z0r */
 	for (i = 0; i < totface; i++, tf++) {
 		tf->tpage= newlibadr(fd, me->id.lib, tf->tpage);
-		if (tf->tpage && tf->tpage->id.us==0)
-			tf->tpage->id.us= 1;
+		id_us_ensure_real(&tf->tpage->id);
 	}
 }
 
@@ -4297,9 +4297,7 @@ static void lib_link_customdata_mtpoly(FileData *fd, Mesh *me, CustomData *pdata
 			
 			for (j = 0; j < totface; j++, tf++) {
 				tf->tpage = newlibadr(fd, me->id.lib, tf->tpage);
-				if (tf->tpage && tf->tpage->id.us == 0) {
-					tf->tpage->id.us = 1;
-				}
+				id_us_ensure_real((ID *)tf->tpage);
 			}
 		}
 	}
@@ -4315,8 +4313,8 @@ static void lib_link_mesh(FileData *fd, Main *main)
 			
 			/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 			 * of library blocks that implement this.*/
-			if (me->id.properties) IDP_LibLinkProperty(me->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			if (me->adt) lib_link_animdata(fd, &me->id, me->adt);
+			IDP_LibLinkProperty(me->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			lib_link_animdata(fd, &me->id, me->adt);
 			
 			/* this check added for python created meshes */
 			if (me->mat) {
@@ -4334,9 +4332,10 @@ static void lib_link_mesh(FileData *fd, Main *main)
 			
 			lib_link_customdata_mtface(fd, me, &me->fdata, me->totface);
 			lib_link_customdata_mtpoly(fd, me, &me->pdata, me->totpoly);
-			if (me->mr && me->mr->levels.first)
+			if (me->mr && me->mr->levels.first) {
 				lib_link_customdata_mtface(fd, me, &me->mr->fdata,
-							   ((MultiresLevel*)me->mr->levels.first)->totface);
+				                           ((MultiresLevel*)me->mr->levels.first)->totface);
+			}
 		}
 	}
 
@@ -4591,7 +4590,7 @@ static void lib_link_latt(FileData *fd, Main *main)
 	
 	for (lt = main->latt.first; lt; lt = lt->id.next) {
 		if (lt->id.flag & LIB_NEED_LINK) {
-			if (lt->adt) lib_link_animdata(fd, &lt->id, lt->adt);
+			lib_link_animdata(fd, &lt->id, lt->adt);
 			
 			lt->ipo = newlibadr_us(fd, lt->id.lib, lt->ipo); // XXX deprecated - old animation system
 			lt->key = newlibadr_us(fd, lt->id.lib, lt->key);
@@ -4644,8 +4643,8 @@ static void lib_link_object(FileData *fd, Main *main)
 	
 	for (ob = main->object.first; ob; ob = ob->id.next) {
 		if (ob->id.flag & LIB_NEED_LINK) {
-			if (ob->id.properties) IDP_LibLinkProperty(ob->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			if (ob->adt) lib_link_animdata(fd, &ob->id, ob->adt);
+			IDP_LibLinkProperty(ob->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			lib_link_animdata(fd, &ob->id, ob->adt);
 			
 // XXX deprecated - old animation system <<<
 			ob->ipo = newlibadr_us(fd, ob->id.lib, ob->ipo);
@@ -5552,8 +5551,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 		if (sce->id.flag & LIB_NEED_LINK) {
 			/* Link ID Properties -- and copy this comment EXACTLY for easy finding
 			 * of library blocks that implement this.*/
-			if (sce->id.properties) IDP_LibLinkProperty(sce->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			if (sce->adt) lib_link_animdata(fd, &sce->id, sce->adt);
+			IDP_LibLinkProperty(sce->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			lib_link_animdata(fd, &sce->id, sce->adt);
 			
 			lib_link_keyingsets(fd, &sce->id, &sce->keyingsets);
 			
@@ -5595,7 +5594,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 				base->object = newlibadr_us(fd, sce->id.lib, base->object);
 				
 				if (base->object == NULL) {
-					blo_reportf_wrap(fd->reports, RPT_WARNING, TIP_("LIB ERROR: object lost from scene: '%s'"),
+					blo_reportf_wrap(fd->reports, RPT_WARNING, TIP_("LIB: object lost from scene: '%s'"),
 					                 sce->id.name + 2);
 					BLI_remlink(&sce->base, base);
 					if (base == sce->basact) sce->basact = NULL;
@@ -5811,7 +5810,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	BKE_sound_create_scene(sce);
 	
 	/* set users to one by default, not in lib-link, this will increase it for compo nodes */
-	sce->id.us = 1;
+	id_us_ensure_real(&sce->id);
 	
 	link_list(fd, &(sce->base));
 	
@@ -6032,7 +6031,7 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 {
 	wmWindow *win;
 	
-	wm->id.us = 1;
+	id_us_ensure_real(&wm->id);
 	link_list(fd, &wm->windows);
 	
 	for (win = wm->windows.first; win; win = win->next) {
@@ -6114,8 +6113,7 @@ static void lib_link_gpencil(FileData *fd, Main *main)
 		if (gpd->id.flag & LIB_NEED_LINK) {
 			gpd->id.flag -= LIB_NEED_LINK;
 			
-			if (gpd->adt)
-				lib_link_animdata(fd, &gpd->id, gpd->adt);
+			lib_link_animdata(fd, &gpd->id, gpd->adt);
 		}
 	}
 }
@@ -6165,7 +6163,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 	
 	for (sc = main->screen.first; sc; sc = sc->id.next) {
 		if (sc->id.flag & LIB_NEED_LINK) {
-			sc->id.us = 1;
+			id_us_ensure_real(&sc->id);
 			sc->scene = newlibadr(fd, sc->id.lib, sc->scene);
 
 			/* this should not happen, but apparently it does somehow. Until we figure out the cause,
@@ -7158,7 +7156,7 @@ static void lib_link_library(FileData *UNUSED(fd), Main *main)
 {
 	Library *lib;
 	for (lib = main->library.first; lib; lib = lib->id.next) {
-		lib->id.us = 1;
+		id_us_ensure_real(&lib->id);
 	}
 }
 
@@ -7199,7 +7197,7 @@ static void lib_link_speaker(FileData *fd, Main *main)
 	
 	for (spk = main->speaker.first; spk; spk = spk->id.next) {
 		if (spk->id.flag & LIB_NEED_LINK) {
-			if (spk->adt) lib_link_animdata(fd, &spk->id, spk->adt);
+			lib_link_animdata(fd, &spk->id, spk->adt);
 			
 			spk->sound = newlibadr_us(fd, spk->id.lib, spk->sound);
 			spk->id.flag -= LIB_NEED_LINK;
@@ -7407,8 +7405,7 @@ static void lib_link_movieclip(FileData *fd, Main *main)
 			MovieTracking *tracking = &clip->tracking;
 			MovieTrackingObject *object;
 
-			if (clip->adt)
-				lib_link_animdata(fd, &clip->id, clip->adt);
+			lib_link_animdata(fd, &clip->id, clip->adt);
 			
 			clip->gpd = newlibadr_us(fd, clip->id.lib, clip->gpd);
 			
@@ -7486,8 +7483,7 @@ static void lib_link_mask(FileData *fd, Main *main)
 		if (mask->id.flag & LIB_NEED_LINK) {
 			MaskLayer *masklay;
 
-			if (mask->adt)
-				lib_link_animdata(fd, &mask->id, mask->adt);
+			lib_link_animdata(fd, &mask->id, mask->adt);
 
 			for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 				MaskSpline *spline;
@@ -7528,10 +7524,8 @@ static void lib_link_linestyle(FileData *fd, Main *main)
 		if (linestyle->id.flag & LIB_NEED_LINK) {
 			linestyle->id.flag -= LIB_NEED_LINK;
 
-			if (linestyle->id.properties)
-				IDP_LibLinkProperty(linestyle->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-			if (linestyle->adt)
-				lib_link_animdata(fd, &linestyle->id, linestyle->adt);
+			IDP_LibLinkProperty(linestyle->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			lib_link_animdata(fd, &linestyle->id, linestyle->adt);
 			for (m = linestyle->color_modifiers.first; m; m = m->next) {
 				switch (m->type) {
 				case LS_MODIFIER_DISTANCE_FROM_OBJECT:
@@ -8569,7 +8563,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
 				if (ptr->curlib == NULL) {
 					const char *idname= bhead_id_name(fd, bhead);
 					
-					blo_reportf_wrap(fd->reports, RPT_WARNING, TIP_("LIB ERROR: Data refers to main .blend file: '%s' from %s"),
+					blo_reportf_wrap(fd->reports, RPT_WARNING, TIP_("LIB: Data refers to main .blend file: '%s' from %s"),
 					                 idname, mainvar->curlib->filepath);
 					return;
 				}
@@ -9645,6 +9639,8 @@ static ID *link_named_part(Main *mainl, FileData *fd, const short idcode, const 
 	BHead *bhead = find_bhead_from_code_name(fd, idcode, name);
 	ID *id;
 
+	BLI_assert(BKE_idcode_is_linkable(idcode) && BKE_idcode_is_valid(idcode));
+
 	if (bhead) {
 		id = is_yet_read(fd, mainl, bhead);
 		if (id == NULL) {
@@ -9784,12 +9780,23 @@ ID *BLO_library_link_named_part_ex(
 static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *id, ID **r_id)
 {
 	BHead *bhead = NULL;
+	const bool is_valid = BKE_idcode_is_linkable(GS(id->name)) || ((id->flag & LIB_EXTERN) == 0);
 
 	if (fd) {
 		bhead = find_bhead_from_idname(fd, id->name);
 	}
 
 	id->flag &= ~LIB_READ;
+
+	if (!is_valid) {
+		blo_reportf_wrap(
+		        reports, RPT_ERROR,
+		        TIP_("LIB: %s: '%s' is directly linked from '%s' (parent '%s'), but is a non-linkable data type"),
+		        BKE_idcode_to_name(GS(id->name)),
+		        id->name + 2,
+		        mainvar->curlib->filepath,
+		        library_parent_filepath(mainvar->curlib));
+	}
 
 	if (bhead) {
 		id->flag |= LIB_NEED_EXPAND;
@@ -9799,7 +9806,7 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 	else {
 		blo_reportf_wrap(
 		        reports, RPT_WARNING,
-		        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+		        TIP_("LIB: %s: '%s' missing from '%s', parent '%s'"),
 		        BKE_idcode_to_name(GS(id->name)),
 		        id->name + 2,
 		        mainvar->curlib->filepath,
@@ -9807,7 +9814,7 @@ static void link_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *i
 
 		/* Generate a placeholder for this ID (simplified version of read_libblock actually...). */
 		if (r_id) {
-			*r_id = create_placeholder(mainvar, id->name, id->flag);
+			*r_id = is_valid ? create_placeholder(mainvar, id->name, id->flag) : NULL;
 		}
 	}
 }
@@ -10077,7 +10084,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 							link_id_part(basefd->reports, fd, mainptr, id, &realid);
 
-							BLI_assert(realid != NULL);
+							/* realid shall never be NULL - unless some source file/lib is broken
+							 * (known case: some directly linked shapekey from a missing lib...). */
+							/* BLI_assert(realid != NULL); */
 
 							change_idid_adr(mainlist, basefd, id, realid);
 
@@ -10106,8 +10115,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					BLI_assert(0);
 					BLI_remlink(lbarray[a], id);
 					blo_reportf_wrap(
-					        basefd->reports, RPT_WARNING,
-					        TIP_("LIB ERROR: %s: '%s' unread lib block missing from '%s', parent '%s' - "
+					        basefd->reports, RPT_ERROR,
+					        TIP_("LIB: %s: '%s' unread lib block missing from '%s', parent '%s' - "
 					             "Please file a bug report if you see this message"),
 					        BKE_idcode_to_name(GS(id->name)),
 					        id->name + 2,

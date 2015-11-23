@@ -37,7 +37,7 @@ CCL_NAMESPACE_BEGIN
 #define OBJECT_SIZE 		11
 #define OBJECT_VECTOR_SIZE	6
 #define LIGHT_SIZE			5
-#define FILTER_TABLE_SIZE	256
+#define FILTER_TABLE_SIZE	1024
 #define RAMP_TABLE_SIZE		256
 #define SHUTTER_TABLE_SIZE		256
 #define PARTICLE_SIZE 		5
@@ -183,7 +183,7 @@ CCL_NAMESPACE_BEGIN
 #  define __KERNEL_DEBUG__
 #endif
 
-/* Scene-based selective featrues compilation/ */
+/* Scene-based selective featrues compilation. */
 #ifdef __NO_CAMERA_MOTION__
 #  undef __CAMERA_MOTION__
 #endif
@@ -192,6 +192,12 @@ CCL_NAMESPACE_BEGIN
 #endif
 #ifdef __NO_HAIR__
 #  undef __HAIR__
+#endif
+#ifdef __NO_SUBSURFACE__
+#  undef __SUBSURFACE__
+#endif
+#ifdef __NO_BRANCHED_PATH__
+#  undef __BRANCHED_PATH__
 #endif
 
 /* Random Numbers */

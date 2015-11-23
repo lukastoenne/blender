@@ -361,6 +361,13 @@ typedef void (*uiBlockHandleFunc)(struct bContext *C, void *arg, int event);
 
 typedef void (*uiMenuCreateFunc)(struct bContext *C, struct uiLayout *layout, void *arg1);
 typedef void (*uiMenuHandleFunc)(struct bContext *C, void *arg, int event);
+/**
+ * Used for cycling menu values without opening the menu (Ctrl-Wheel).
+ * \param direction: forward or backwards [1 / -1].
+ * \param arg1: uiBut.poin (as with #uiMenuCreateFunc).
+ * \return true when the button was changed.
+ */
+typedef bool (*uiMenuStepFunc)(struct bContext *C, int direction, void *arg1);
 
 /* Popup Menus
  *
@@ -629,8 +636,7 @@ void UI_but_string_info_get(struct bContext *C, uiBut *but, ...) ATTR_SENTINEL(0
 #define UI_ID_AUTO_NAME     (1 << 7)
 #define UI_ID_FAKE_USER     (1 << 8)
 #define UI_ID_PIN           (1 << 9)
-#define UI_ID_BROWSE_RENDER (1 << 10)
-#define UI_ID_PREVIEWS      (1 << 11)
+#define UI_ID_PREVIEWS      (1 << 10)
 #define UI_ID_FULL          (UI_ID_RENAME | UI_ID_BROWSE | UI_ID_ADD_NEW | UI_ID_OPEN | UI_ID_ALONE | UI_ID_DELETE | UI_ID_LOCAL)
 
 int UI_icon_from_id(struct ID *id);
@@ -693,6 +699,8 @@ void    UI_but_func_drawextra_set(
         uiBlock *block,
         void (*func)(const struct bContext *C, void *, void *, void *, struct rcti *rect),
         void *arg1, void *arg2);
+
+void    UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
 
 void    UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *argN);
 void    UI_but_tooltip_timer_remove(struct bContext *C, uiBut *but);

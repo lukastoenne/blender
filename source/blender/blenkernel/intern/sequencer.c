@@ -3209,7 +3209,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 		int height = (scene->r.ysch * scene->r.size) / 100;
 		const char *viewname = BKE_scene_multiview_render_view_name_get(&scene->r, context->view_id);
 
-		/* for old scened this can be uninitialized,
+		/* for old scene this can be uninitialized,
 		 * should probably be added to do_versions at some point if the functionality stays */
 		if (context->scene->r.seq_prev_type == 0)
 			context->scene->r.seq_prev_type = 3 /* == OB_SOLID */;
@@ -4250,6 +4250,17 @@ void BKE_sequence_single_fix(Sequence *seq)
 bool BKE_sequence_tx_test(Sequence *seq)
 {
 	return !(seq->type & SEQ_TYPE_EFFECT) || (BKE_sequence_effect_get_num_inputs(seq->type) == 0);
+}
+
+/**
+ * Return \a true if given \a seq needs a complete cleanup of its cache when it is transformed.
+ *
+ * Some (effect) strip types need a complete recache of themselves when they are transformed, because
+ * they do not 'contain' anything and do not have any explicit relations to other strips.
+ */
+bool BKE_sequence_tx_fullupdate_test(Sequence *seq)
+{
+	return BKE_sequence_tx_test(seq) && ELEM(seq->type, SEQ_TYPE_ADJUSTMENT, SEQ_TYPE_MULTICAM);
 }
 
 static bool seq_overlap(Sequence *seq1, Sequence *seq2)

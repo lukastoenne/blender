@@ -585,9 +585,7 @@ void BKE_image_make_local(struct Image *ima)
 						for (a = 0; a < me->totface; a++, tface++) {
 							if (tface->tpage == ima) {
 								tface->tpage = ima_new;
-								if (ima_new->id.us == 0) {
-									tface->tpage->id.us = 1;
-								}
+								id_us_ensure_real((ID *)ima_new);
 								id_lib_extern((ID *)ima_new);
 							}
 						}
@@ -606,9 +604,7 @@ void BKE_image_make_local(struct Image *ima)
 						for (a = 0; a < me->totpoly; a++, mtpoly++) {
 							if (mtpoly->tpage == ima) {
 								mtpoly->tpage = ima_new;
-								if (ima_new->id.us == 0) {
-									mtpoly->tpage->id.us = 1;
-								}
+								id_us_ensure_real((ID *)ima_new);
 								id_lib_extern((ID *)ima_new);
 							}
 						}
@@ -2216,6 +2212,7 @@ void BKE_imbuf_write_prepare(ImBuf *ibuf, ImageFormatData *imf)
 		ibuf->ftype = IMB_FTYPE_OPENEXR;
 		if (imf->depth == R_IMF_CHAN_DEPTH_16)
 			ibuf->foptions.flag |= OPENEXR_HALF;
+		ibuf->foptions.flag &= ~OPENEXR_COMPRESS;
 		ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_COMPRESS);
 
 		if (!(imf->flag & R_IMF_FLAG_ZBUF))
