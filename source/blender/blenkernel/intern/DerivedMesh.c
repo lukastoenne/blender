@@ -1811,6 +1811,9 @@ static void mesh_calc_modifiers(
 		if (geotree) {
 			dm = mesh_calc_modifier_nodes(scene, ob, geotree);
 		}
+		else {
+			dm = CDDM_from_mesh(me);
+		}
 		
 		*r_final = dm;
 		if (r_deform)
