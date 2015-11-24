@@ -1220,7 +1220,7 @@ static int image_open_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	const char *path = U.textudir;
 	Image *ima = NULL;
 	Scene *scene = CTX_data_scene(C);
-	PropertyRNA *prop;
+
 	if (sima) {
 		ima = sima->image;
 	}
@@ -1260,6 +1260,7 @@ static int image_open_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	image_open_init(C, op);
 
 	/* show multiview save options only if scene has multiviews */
+	PropertyRNA *prop;
 	prop = RNA_struct_find_property(op->ptr, "show_multiview");
 	RNA_property_boolean_set(op->ptr, prop, (scene->r.scemode & R_MULTIVIEW) != 0);
 
@@ -2300,10 +2301,11 @@ static int image_new_exec(bContext *C, wmOperator *op)
 				SpaceLink *sl;
 				for (sl = sa->spacedata.first; sl; sl = sl->next) {
 					if (sl->spacetype == SPACE_IMAGE) {
-						SpaceImage *sima = (SpaceImage *)sl;
+						SpaceImage *sima_other = (SpaceImage *)sl;
 						
-						if (!sima->pin)
-							ED_space_image_set(sima, scene, scene->obedit, ima);
+						if (!sima_other->pin) {
+							ED_space_image_set(sima_other, scene, scene->obedit, ima);
+						}
 					}
 				}
 			}
@@ -2427,7 +2429,7 @@ void IMAGE_OT_new(wmOperatorType *ot)
 	RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
 	RNA_def_property_float_array_default(prop, default_color);
 	RNA_def_boolean(ot->srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
-	RNA_def_enum(ot->srna, "generated_type", image_generated_type_items, IMA_GENTYPE_BLANK,
+	RNA_def_enum(ot->srna, "generated_type", rna_enum_image_generated_type_items, IMA_GENTYPE_BLANK,
 	             "Generated Type", "Fill the image with a grid for UV map testing");
 	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
 	prop = RNA_def_enum(ot->srna, "gen_context", gen_context_items, 0, "Gen Context", "Generation context");
@@ -2718,7 +2720,7 @@ void IMAGE_OT_unpack(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_enum(ot->srna, "method", unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack");
+	RNA_def_enum(ot->srna, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack");
 	RNA_def_string(ot->srna, "id", NULL, MAX_ID_NAME - 2, "Image Name", "Image datablock name to unpack"); /* XXX, weark!, will fail with library, name collisions */
 }
 
