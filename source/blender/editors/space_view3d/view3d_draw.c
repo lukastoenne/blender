@@ -1360,9 +1360,9 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	/* dithering and AA break color coding, so disable */
 	glDisable(GL_DITHER);
 
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		/* for multisample we use an offscreen FBO. multisample drawing can fail
@@ -1424,7 +1424,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DITHER);
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 
 	if (rv3d->rflag & RV3D_CLIPPING)
 		ED_view3d_clipping_disable();
@@ -3494,11 +3494,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(
 
 	{
 		CameraParams params;
-		Object *camera = BKE_camera_multiview_render(scene, v3d.camera, viewname);
+		Object *view_camera = BKE_camera_multiview_render(scene, v3d.camera, viewname);
 
 		BKE_camera_params_init(&params);
-		BKE_camera_params_from_object(&params, camera);
-		BKE_camera_multiview_params(&scene->r, &params, camera, viewname);
+		BKE_camera_params_from_object(&params, view_camera);
+		BKE_camera_multiview_params(&scene->r, &params, view_camera, viewname);
 		BKE_camera_params_compute_viewplane(&params, width, height, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);
 
@@ -3886,7 +3886,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* enables anti-aliasing for 3D view drawing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	}
 
 	/* main drawing call */
@@ -3899,7 +3899,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 
 	/* Disable back anti-aliasing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 	}
 
 	if (v3d->lay_used != lay_used) { /* happens when loading old files or loading with UI load */

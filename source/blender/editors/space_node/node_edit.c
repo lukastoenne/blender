@@ -791,7 +791,7 @@ static void edit_node_properties(wmOperatorType *ot)
 	/* XXX could node be a context pointer? */
 	RNA_def_string(ot->srna, "node", NULL, MAX_NAME, "Node", "");
 	RNA_def_int(ot->srna, "socket", 0, 0, MAX_SOCKET, "Socket", "", 0, MAX_SOCKET);
-	RNA_def_enum(ot->srna, "in_out", node_socket_in_out_items, SOCK_IN, "Socket Side", "");
+	RNA_def_enum(ot->srna, "in_out", rna_enum_node_socket_in_out_items, SOCK_IN, "Socket Side", "");
 }
 
 static int edit_node_invoke_properties(bContext *C, wmOperator *op)
@@ -2251,7 +2251,7 @@ void NODE_OT_tree_socket_add(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	RNA_def_enum(ot->srna, "in_out", node_socket_in_out_items, SOCK_IN, "Socket Type", "");
+	RNA_def_enum(ot->srna, "in_out", rna_enum_node_socket_in_out_items, SOCK_IN, "Socket Type", "");
 }
 
 /********************** Remove interface socket operator *********************/
@@ -2438,7 +2438,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
 	PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript);
-	bNodeTree *ntree = NULL;
+	bNodeTree *ntree_base = NULL;
 	bNode *node = NULL;
 	RenderEngine *engine;
 	RenderEngineType *type;
@@ -2451,17 +2451,17 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 
 	/* get node */
 	if (nodeptr.data) {
-		ntree = nodeptr.id.data;
+		ntree_base = nodeptr.id.data;
 		node = nodeptr.data;
 	}
 	else if (snode && snode->edittree) {
-		ntree = snode->edittree;
+		ntree_base = snode->edittree;
 		node = nodeGetActive(snode->edittree);
 	}
 
 	if (node) {
 		/* update single node */
-		type->update_script_node(engine, ntree, node);
+		type->update_script_node(engine, ntree_base, node);
 
 		found = true;
 	}

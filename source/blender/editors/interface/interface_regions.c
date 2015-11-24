@@ -238,9 +238,9 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	int i, multisample_enabled;
 
 	/* disable AA, makes widgets too blurry */
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	wmOrtho2_region_ui(ar);
 
@@ -342,7 +342,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	BLF_disable(blf_mono_font, BLF_WORD_WRAP);
 
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 }
 
 static void ui_tooltip_region_free_cb(ARegion *ar)
@@ -1765,7 +1765,6 @@ uiBlock *ui_popup_block_refresh(
 	}
 
 	if (block->flag & UI_BLOCK_RADIAL) {
-		uiBut *but;
 		int win_width = UI_SCREEN_MARGIN;
 		int winx, winy;
 
@@ -1807,9 +1806,9 @@ uiBlock *ui_popup_block_refresh(
 
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
 		if (U.pie_animation_timeout > 0) {
-			for (but = block->buttons.first; but; but = but->next) {
-				if (but->pie_dir != UI_RADIAL_NONE) {
-					BLI_rctf_recenter(&but->rect, UNPACK2(block->pie_data.pie_center_spawned));
+			for (uiBut *but_iter = block->buttons.first; but_iter; but_iter = but_iter->next) {
+				if (but_iter->pie_dir != UI_RADIAL_NONE) {
+					BLI_rctf_recenter(&but_iter->rect, UNPACK2(block->pie_data.pie_center_spawned));
 				}
 			}
 		}
