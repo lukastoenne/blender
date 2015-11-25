@@ -304,7 +304,7 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
 		const NodeInstance *node = it->second;
 		for (int i = 0; i < node->num_outputs(); ++i) {
-			ConstSocketPair key(node, node->type->outputs[i].name);
+			ConstSocketPair key(node, node->type->find_output(i)->name);
 			users[key] = 0;
 		}
 	}
@@ -313,7 +313,7 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 		const NodeInstance *node = it->second;
 		
 		/* note: pass nodes are normally removed, but can exist for debugging purposes */
-		if (node->type->is_pass)
+		if (node->type->is_pass_node())
 			continue;
 		
 		for (int i = 0; i < node->num_inputs(); ++i) {
@@ -387,14 +387,14 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	for (NodeList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
-		OpCode op = get_opcode_from_node_type(node.type->name);
+		OpCode op = get_opcode_from_node_type(node.type->name());
 		if (op == OP_NOOP)
 			continue;
 		
 		/* prepare input stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket &input = node.type->inputs[i];
-			ConstSocketPair key(&node, input.name);
+			const NodeSocket *input = node.type->find_input(i);
+			ConstSocketPair key(&node, input->name);
 			assert(input_index.find(key) == input_index.end());
 			
 			if (node.is_input_constant(i)) {
@@ -413,20 +413,20 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 				input_index[key] = codegen_value(value);
 			}
 			else {
-				input_index[key] = codegen_value(input.default_value);
+				input_index[key] = codegen_value(input->default_value);
 			}
 		}
 		
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket &output = node.type->outputs[i];
-			ConstSocketPair key(&node, output.name);
+			const NodeSocket *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
 			assert(output_index.find(key) == output_index.end());
 			
-			output_index[key] = assign_stack_index(output.typedesc);
+			output_index[key] = assign_stack_index(output->typedesc);
 			
 			/* if necessary, add a user count initializer */
-			OpCode init_op = ptr_init_opcode(output.typedesc);
+			OpCode init_op = ptr_init_opcode(output->typedesc);
 			if (init_op != OP_NOOP) {
 				int users = output_users[key];
 				if (users > 0) {
@@ -441,8 +441,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		push_opcode(op);
 		/* write input stack offsets and constants */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket &input = node.type->inputs[i];
-			ConstSocketPair key(&node, input.name);
+			const NodeSocket *input = node.type->find_input(i);
+			ConstSocketPair key(&node, input->name);
 			
 			if (node.is_input_constant(i)) {
 				Value *value = node.find_input_value(i);
@@ -455,8 +455,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		}
 		/* write output stack offsets */
 		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket &output = node.type->outputs[i];
-			ConstSocketPair key(&node, output.name);
+			const NodeSocket *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
 			assert(output_index.find(key) != output_index.end());
 			
 			push_stack_index(output_index[key]);
@@ -464,14 +464,14 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		
 		/* release input data stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket &input = node.type->inputs[i];
+			const NodeSocket *input = node.type->find_input(i);
 			
 			if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
 				assert(output_index.find(link_key) != output_index.end());
 				
-				OpCode release_op = ptr_release_opcode(input.typedesc);
+				OpCode release_op = ptr_release_opcode(input->typedesc);
 				
 				if (release_op != OP_NOOP) {
 					push_opcode(release_op);

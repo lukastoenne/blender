@@ -81,8 +81,15 @@ struct NodeSocket {
 struct NodeType {
 	typedef std::vector<NodeSocket> SocketList;
 	
-	NodeType(const string &name);
+	NodeType(const string &name, bool is_kernel_node, bool is_pass_node = false);
 	~NodeType();
+	
+	const string &name() const { return m_name; }
+	bool is_kernel_node() const { return m_is_kernel_node; }
+	bool is_pass_node() const { return m_is_pass_node; }
+	
+	int num_inputs() const { return inputs.size(); }
+	int num_outputs() const { return outputs.size(); }
 	
 	const NodeSocket *find_input(int index) const;
 	const NodeSocket *find_output(int index) const;
@@ -125,10 +132,12 @@ struct NodeType {
 		return add_output(name, type, c);
 	}
 	
-	string name;
+private:
+	string m_name;
 	SocketList inputs;
 	SocketList outputs;
-	bool is_pass; /* pass nodes are skipped */
+	bool m_is_pass_node; /* pass nodes are skipped */
+	bool m_is_kernel_node; /* only kernel nodes can have function inputs */
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeType")
 };
@@ -223,8 +232,8 @@ struct NodeInstance {
 		return SocketPair(this, name);
 	}
 	
-	int num_inputs() const { return type->inputs.size(); }
-	int num_outputs() const { return type->outputs.size(); }
+	int num_inputs() const { return type->num_inputs(); }
+	int num_outputs() const { return type->num_outputs(); }
 	
 	NodeInstance *find_input_link_node(const string &name) const;
 	NodeInstance *find_input_link_node(int index) const;
@@ -308,7 +317,9 @@ struct NodeGraph {
 	static NodeTypeMap node_types;
 	
 	static const NodeType *find_node_type(const string &name);
-	static NodeType *add_node_type(const string &name);
+	static NodeType *add_function_node_type(const string &name);
+	static NodeType *add_kernel_node_type(const string &name);
+	static NodeType *add_pass_node_type(const string &name);
 	static void remove_node_type(const string &name);
 	
 	NodeGraph();
@@ -371,6 +382,8 @@ struct NodeGraph {
 	void dump_graphviz(FILE *f, const string &label);
 	
 protected:
+	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
+	
 	SocketPair add_float_converter(const SocketPair &from, BVMType to_type);
 	SocketPair add_float3_converter(const SocketPair &from, BVMType to_type);
 	SocketPair add_float4_converter(const SocketPair &from, BVMType to_type);
