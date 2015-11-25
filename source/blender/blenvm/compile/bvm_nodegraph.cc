@@ -30,6 +30,7 @@
  */
 
 #include <map>
+#include <set>
 #include <vector>
 #include <cassert>
 #include <cstdio>
@@ -701,9 +702,49 @@ void NodeGraph::skip_pass_nodes()
 	}
 }
 
+typedef std::set<NodeInstance *> NodeSet;
+
+static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
+{
+	if (used_nodes.find(node) != used_nodes.end())
+		return;
+	used_nodes.insert(node);
+	
+	for (NodeInstance::InputMap::iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
+		NodeInstance::InputInstance &input = it->second;
+		if (input.link_node) {
+			used_nodes_append(input.link_node, used_nodes);
+		}
+	}
+}
+
+void NodeGraph::remove_unused_nodes()
+{
+	NodeSet used_nodes;
+	for (NodeGraph::OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		NodeGraphOutput &output = *it;
+		if (output.link_node) {
+			used_nodes_append(output.link_node, used_nodes);
+		}
+	}
+	
+	NodeInstanceMap::iterator it = nodes.begin();
+	while (it != nodes.end()) {
+		if (used_nodes.find(it->second) == used_nodes.end()) {
+			/* it_del is invalidated on erase */
+			NodeInstanceMap::iterator it_del = it;
+			++it;
+			nodes.erase(it_del);
+		}
+		else
+			it++;
+	}
+}
+
 void NodeGraph::finalize()
 {
 	skip_pass_nodes();
+	remove_unused_nodes();
 }
 
 /* === DEBUGGING === */

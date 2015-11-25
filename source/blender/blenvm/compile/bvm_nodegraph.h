@@ -355,6 +355,7 @@ protected:
 	
 	void remove_all_nodes();
 	void skip_pass_nodes();
+	void remove_unused_nodes();
 	
 public:
 	NodeInstanceMap nodes;
