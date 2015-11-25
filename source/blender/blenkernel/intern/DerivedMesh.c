@@ -1718,6 +1718,8 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree
 		BVM_context_free(context);
 	}
 	
+	BVM_function_free(fn);
+	
 	BVM_globals_free(globals);
 	
 	/* XXX this is stupid, but currently required because of
