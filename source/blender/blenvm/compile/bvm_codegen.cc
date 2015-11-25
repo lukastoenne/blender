@@ -442,13 +442,13 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeSocket &input = node.type->inputs[i];
 			ConstSocketPair key(&node, input.name);
-			assert(input_index.find(key) != input_index.end());
 			
 			if (node.is_input_constant(i)) {
 				Value *value = node.find_input_value(i);
 				codegen_constant(value);
 			}
 			else {
+				assert(input_index.find(key) != input_index.end());
 				push_stack_index(input_index[key]);
 			}
 		}
