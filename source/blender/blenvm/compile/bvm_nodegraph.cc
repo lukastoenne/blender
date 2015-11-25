@@ -41,11 +41,14 @@
 
 namespace bvm {
 
-NodeSocket::NodeSocket(const string &name, const TypeDesc &typedesc, Value *default_value, bool constant) :
+NodeSocket::NodeSocket(const string &name,
+                       const TypeDesc &typedesc,
+                       Value *default_value,
+                       eNodeSocketValueType value_type) :
     name(name),
     typedesc(typedesc),
     default_value(default_value),
-    constant(constant)
+    value_type(value_type)
 {
 }
 
@@ -184,17 +187,22 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 }
 #endif
 
-const NodeSocket *NodeType::add_input(const string &name, BVMType type, Value *default_value, bool constant)
+const NodeSocket *NodeType::add_input(const string &name,
+                                      BVMType type,
+                                      Value *default_value,
+                                      eNodeSocketValueType value_type)
 {
 	BLI_assert(!find_input(name));
-	inputs.push_back(NodeSocket(name, type, default_value, constant));
+	inputs.push_back(NodeSocket(name, type, default_value, value_type));
 	return &inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const string &name, BVMType type, Value *default_value)
+const NodeSocket *NodeType::add_output(const string &name,
+                                       BVMType type,
+                                       Value *default_value)
 {
 	BLI_assert(!find_output(name));
-	outputs.push_back(NodeSocket(name, type, default_value, false));
+	outputs.push_back(NodeSocket(name, type, default_value, VALUE_VARIABLE));
 	return &outputs.back();
 }
 
@@ -353,13 +361,13 @@ bool NodeInstance::has_input_value(int index) const
 bool NodeInstance::is_input_constant(const string &name) const
 {
 	const NodeSocket *socket = type->find_input(name);
-	return socket ? socket->constant : false;
+	return socket ? socket->value_type == VALUE_CONSTANT : false;
 }
 
 bool NodeInstance::is_input_constant(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
-	return socket ? socket->constant : false;
+	return socket ? socket->value_type == VALUE_CONSTANT : false;
 }
 
 bool NodeInstance::set_output_value(const string &name, Value *value)
@@ -1176,7 +1184,7 @@ static void register_opcode_node_types()
 	nt->is_pass = true;
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT3");
-	nt->add_input("index", BVM_INT, 0, true);
+	nt->add_input("index", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
@@ -1187,7 +1195,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_node_type("GET_ELEM_FLOAT4");
-	nt->add_input("index", BVM_INT, 0, true);
+	nt->add_input("index", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
@@ -1302,7 +1310,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
 	nt = NodeGraph::add_node_type("MIX_RGB");
-	nt->add_input("mode", BVM_INT, 0, true);
+	nt->add_input("mode", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_input("factor", BVM_FLOAT, 0.0f);
 	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -1312,8 +1320,8 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_node_type("TEX_PROC_VORONOI");
-	nt->add_input("distance_metric", BVM_INT, 0, true);
-	nt->add_input("color_type", BVM_INT, 0, true);
+	nt->add_input("distance_metric", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("color_type", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_input("minkowski_exponent", BVM_FLOAT, 2.5f);
 	nt->add_input("scale", BVM_FLOAT, 1.0f);
 	nt->add_input("noise_size", BVM_FLOAT, 1.0f);
@@ -1331,9 +1339,9 @@ static void register_opcode_node_types()
 	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("nabla", BVM_FLOAT, 0.05f);
 	nt->add_input("size", BVM_FLOAT, 1.0f);
-	nt->add_input("depth", BVM_INT, 2, true);
-	nt->add_input("noise_basis", BVM_INT, 0, true);
-	nt->add_input("noise_hard", BVM_INT, 0, true);
+	nt->add_input("depth", BVM_INT, 2, VALUE_CONSTANT);
+	nt->add_input("noise_basis", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("noise_hard", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_output("intensity", BVM_FLOAT, 0.0f);
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
@@ -1342,7 +1350,7 @@ static void register_opcode_node_types()
 	nt->add_output("object", BVM_POINTER, PointerRNA_NULL);
 	
 	nt = NodeGraph::add_node_type("EFFECTOR_TRANSFORM");
-	nt->add_input("object", BVM_INT, 0, true);
+	nt->add_input("object", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_output("transform", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_node_type("EFFECTOR_CLOSEST_POINT");

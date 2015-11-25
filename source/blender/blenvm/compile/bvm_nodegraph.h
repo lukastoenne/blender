@@ -59,14 +59,23 @@ struct NodeGraphInput;
 struct NodeType;
 struct NodeInstance;
 
+enum eNodeSocketValueType {
+	VALUE_CONSTANT,
+	VALUE_VARIABLE,
+	VALUE_FUNCTION
+};
+
 struct NodeSocket {
-	NodeSocket(const string &name, const TypeDesc &typedesc, Value *default_value, bool constant);
+	NodeSocket(const string &name,
+	           const TypeDesc &typedesc,
+	           Value *default_value,
+	           eNodeSocketValueType value_type);
 	~NodeSocket();
 	
 	string name;
 	TypeDesc typedesc;
 	Value *default_value;
-	bool constant;
+	eNodeSocketValueType value_type;
 };
 
 struct NodeType {
@@ -87,19 +96,29 @@ struct NodeType {
 //	                            Module *module, LLVMContext &context, raw_ostream &err);
 //	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
 	
-	const NodeSocket *add_input(const string &name, BVMType type, Value *default_value, bool constant=false);
-	const NodeSocket *add_output(const string &name, BVMType type, Value *default_value);
+	const NodeSocket *add_input(const string &name,
+	                            BVMType type,
+	                            Value *default_value,
+	                            eNodeSocketValueType value_type = VALUE_VARIABLE);
+	const NodeSocket *add_output(const string &name,
+	                             BVMType type,
+	                             Value *default_value);
 	
 	template <typename T>
-	const NodeSocket *add_input(const string &name, BVMType type, T default_value, bool constant=false)
+	const NodeSocket *add_input(const string &name,
+	                            BVMType type,
+	                            T default_value,
+	                            eNodeSocketValueType value_type = VALUE_VARIABLE)
 	{
 		Value *c = Value::create(type, default_value);
 		BLI_assert(c != NULL);
-		return add_input(name, type, c, constant);
+		return add_input(name, type, c, value_type);
 	}
 	
 	template <typename T>
-	const NodeSocket *add_output(const string &name, BVMType type, T default_value)
+	const NodeSocket *add_output(const string &name,
+	                             BVMType type,
+	                             T default_value)
 	{
 		Value *c = Value::create(type, default_value);
 		BLI_assert(c != NULL);
