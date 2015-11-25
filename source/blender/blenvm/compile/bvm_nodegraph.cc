@@ -421,12 +421,13 @@ NodeGraph::NodeGraph()
 
 NodeGraph::~NodeGraph()
 {
+	remove_all_nodes();
 }
 
 NodeInstance *NodeGraph::get_node(const string &name)
 {
 	NodeInstanceMap::iterator it = nodes.find(name);
-	return (it != nodes.end())? &it->second : NULL;
+	return (it != nodes.end())? it->second : NULL;
 }
 
 NodeInstance *NodeGraph::add_node(const string &type, const string &name)
@@ -446,10 +447,11 @@ NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 		final = ss.str();
 	}
 	
+	NodeInstance *node = new NodeInstance(nodetype, final);
 	std::pair<NodeInstanceMap::iterator, bool> result =
-	        nodes.insert(NodeInstanceMapPair(final, NodeInstance(nodetype, final)));
+	        nodes.insert(NodeInstanceMapPair(final, node));
 	
-	return (result.second)? &result.first->second : NULL;
+	return (result.second)? result.first->second : NULL;
 }
 
 const NodeGraphInput *NodeGraph::get_input(int index) const
@@ -650,17 +652,25 @@ SocketPair NodeGraph::add_type_converter(const SocketPair &from, const TypeDesc 
 /* ------------------------------------------------------------------------- */
 /* Optimization */
 
+void NodeGraph::remove_all_nodes()
+{
+	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		delete it->second;
+	}
+	nodes.clear();
+}
+
 void NodeGraph::skip_pass_nodes()
 {
 	/* redirect links to skip over 'pass'-type nodes */
 	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		NodeInstance &node = it->second;
+		NodeInstance *node = it->second;
 		
-		if (node.type->is_pass)
+		if (node->type->is_pass)
 			continue;
 		
-		for (NodeInstance::InputMap::iterator it_input = node.inputs.begin();
-		     it_input != node.inputs.end();
+		for (NodeInstance::InputMap::iterator it_input = node->inputs.begin();
+		     it_input != node->inputs.end();
 		     ++it_input) {
 			NodeInstance::InputInstance &input = it_input->second;
 			
@@ -705,7 +715,7 @@ void NodeGraph::dump(std::ostream &s)
 	s << "NodeGraph\n";
 	
 	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		const NodeInstance *node = &it->second;
+		const NodeInstance *node = it->second;
 		const NodeType *type = node->type;
 		s << "  Node '" << node->name << "'\n";
 		
@@ -973,7 +983,7 @@ void NodeGraph::dump_graphviz(FILE *f, const string &label)
 	debug_fprintf(ctx, "];" NL);
 
 	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		const NodeInstance *node = &it->second;
+		const NodeInstance *node = it->second;
 		debug_graphviz_node(ctx, node);
 	}
 	
@@ -987,7 +997,7 @@ void NodeGraph::dump_graphviz(FILE *f, const string &label)
 	}
 	
 	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		const NodeInstance *node = &it->second;
+		const NodeInstance *node = it->second;
 		debug_graphviz_node_links(ctx, node);
 	}
 	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {

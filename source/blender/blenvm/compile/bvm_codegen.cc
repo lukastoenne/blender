@@ -292,7 +292,7 @@ static void sort_nodes(const NodeGraph &graph, NodeList &result)
 	NodeSet visited;
 	
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
-		sort_nodes_append(&it->second, result, visited);
+		sort_nodes_append(it->second, result, visited);
 	}
 }
 
@@ -302,24 +302,24 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 {
 	users.clear();
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
-		const NodeInstance &node = it->second;
-		for (int i = 0; i < node.num_outputs(); ++i) {
-			ConstSocketPair key(&node, node.type->outputs[i].name);
+		const NodeInstance *node = it->second;
+		for (int i = 0; i < node->num_outputs(); ++i) {
+			ConstSocketPair key(node, node->type->outputs[i].name);
 			users[key] = 0;
 		}
 	}
 	
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
-		const NodeInstance &node = it->second;
+		const NodeInstance *node = it->second;
 		
 		/* note: pass nodes are normally removed, but can exist for debugging purposes */
-		if (node.type->is_pass)
+		if (node->type->is_pass)
 			continue;
 		
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			if (node.has_input_link(i)) {
-				ConstSocketPair key(node.find_input_link_node(i),
-				                    node.find_input_link_socket(i)->name);
+		for (int i = 0; i < node->num_inputs(); ++i) {
+			if (node->has_input_link(i)) {
+				ConstSocketPair key(node->find_input_link_node(i),
+				                    node->find_input_link_socket(i)->name);
 				users[key] += 1;
 			}
 		}

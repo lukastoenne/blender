@@ -277,8 +277,8 @@ struct NodeGraph {
 	
 	typedef std::map<string, NodeType> NodeTypeMap;
 	typedef std::pair<string, NodeType> NodeTypeMapPair;
-	typedef std::map<string, NodeInstance> NodeInstanceMap;
-	typedef std::pair<string, NodeInstance> NodeInstanceMapPair;
+	typedef std::map<string, NodeInstance*> NodeInstanceMap;
+	typedef std::pair<string, NodeInstance*> NodeInstanceMapPair;
 	
 	static NodeTypeMap node_types;
 	
@@ -353,6 +353,7 @@ protected:
 	SocketPair add_matrix44_converter(const SocketPair &/*from*/, BVMType /*to_type*/);
 	SocketPair add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc);
 	
+	void remove_all_nodes();
 	void skip_pass_nodes();
 	
 public:
