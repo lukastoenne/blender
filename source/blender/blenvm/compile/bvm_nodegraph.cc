@@ -733,7 +733,10 @@ void NodeGraph::remove_unused_nodes()
 		if (used_nodes.find(it->second) == used_nodes.end()) {
 			/* it_del is invalidated on erase */
 			NodeInstanceMap::iterator it_del = it;
+			
 			++it;
+			
+			delete it_del->second;
 			nodes.erase(it_del);
 		}
 		else
