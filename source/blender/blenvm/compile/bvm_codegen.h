@@ -34,6 +34,8 @@
 
 #include <vector>
 
+#include "MEM_guardedalloc.h"
+
 #include "bvm_function.h"
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
@@ -70,6 +72,8 @@ struct BVMCompiler {
 private:
 	StackUsers stack_users;
 	Function *fn;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")
 };
 
 } /* namespace bvm */

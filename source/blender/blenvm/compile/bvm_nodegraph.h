@@ -38,6 +38,8 @@
 #include <map>
 #include <vector>
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BLI_utildefines.h"
 #if 0
@@ -108,6 +110,8 @@ struct NodeType {
 	SocketList inputs;
 	SocketList outputs;
 	bool is_pass; /* pass nodes are skipped */
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeType")
 };
 
 struct ConstSocketPair {
@@ -248,6 +252,8 @@ struct NodeInstance {
 	string name;
 	InputMap inputs;
 	OutputMap outputs;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
 
 struct NodeGraphInput {
@@ -361,6 +367,8 @@ public:
 	NodeInstanceMap nodes;
 	InputList inputs;
 	OutputList outputs;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeGraph")
 };
 
 OpCode get_opcode_from_node_type(const string &node);

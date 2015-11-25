@@ -35,6 +35,8 @@
 #include <vector>
 #include <stdint.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
 #include "bvm_util_typedesc.h"
@@ -105,6 +107,8 @@ struct ReturnValue {
 	TypeDesc typedesc;
 	string name;
 	StackIndex stack_offset;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:ReturnValue")
 };
 
 struct Function {
@@ -208,6 +212,8 @@ struct Function {
 private:
 	ReturnValueList return_values;
 	InstructionList instructions;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
 };
 
 } /* namespace bvm */

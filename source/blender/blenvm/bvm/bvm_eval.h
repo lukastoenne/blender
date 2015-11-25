@@ -34,6 +34,8 @@
 
 #include <vector>
 
+#include "MEM_guardedalloc.h"
+
 #include "bvm_util_map.h"
 #include "bvm_util_string.h"
 #include "bvm_util_typedesc.h"
@@ -70,6 +72,8 @@ struct EvalGlobals {
 	typedef std::vector<Object *> ObjectList;
 	
 	ObjectList objects;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };
 
 struct EffectorEvalData {
@@ -104,6 +108,8 @@ struct EvalData {
 	EffectorEvalData effector;
 	TextureEvalData texture;
 	ModifierEvalData modifier;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalData")
 };
 
 struct EvalContext {
@@ -114,6 +120,8 @@ struct EvalContext {
 	
 protected:
 	void eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
 };
 
 } /* namespace bvm */

@@ -31,6 +31,8 @@
 
 #include <set>
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
@@ -166,6 +168,8 @@ struct CompileContext {
 		else
 			return -1;
 	}
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:CompileContext")
 };
 
 inline static CompileContext *_COMP(BVMCompileContext *c)
@@ -460,6 +464,8 @@ private:
 	
 	InputMap m_input_map;
 	OutputMap m_output_map;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:bNodeCompiler")
 };
 
 
