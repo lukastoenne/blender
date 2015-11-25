@@ -58,14 +58,30 @@ extern "C" {
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
 
+namespace bvm {
+static mesh_ptr __empty_mesh__;
+}
+
 void BVM_init(void)
 {
-	bvm::register_opcode_node_types();
+	using namespace bvm;
+	
+	create_empty_mesh(__empty_mesh__);
+	
+	bvm_init();
+	nodes_init();
 }
 
 void BVM_free(void)
 {
+	using namespace bvm;
+	
 	BVM_texture_cache_clear();
+	
+	nodes_free();
+	bvm_free();
+	
+	destroy_empty_mesh(__empty_mesh__);
 }
 
 /* ------------------------------------------------------------------------- */

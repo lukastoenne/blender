@@ -298,18 +298,20 @@ struct DerivedMeshDestructor {
 
 typedef node_data_ptr<DerivedMesh, DerivedMeshDestructor> mesh_ptr;
 
-namespace detail {
-
-static mesh_ptr create_empty_mesh()
+inline void create_empty_mesh(mesh_ptr &p)
 {
 	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
 	dm->needsFree = 0;
-	return mesh_ptr(dm);
+	p.set(dm);
 }
 
+inline void destroy_empty_mesh(mesh_ptr &p)
+{
+	DerivedMesh *dm = p.get();
+	dm->needsFree = 1;
+	dm->release(dm);
+	p.set(NULL);
 }
-
-static const mesh_ptr __empty_mesh__ = detail::create_empty_mesh();
 
 
 template <BVMType type>

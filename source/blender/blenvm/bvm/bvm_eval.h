@@ -124,6 +124,9 @@ protected:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
 };
 
+void bvm_init();
+void bvm_free();
+
 } /* namespace bvm */
 
 #endif /* __BVM_EVAL_H__ */

@@ -61,6 +61,8 @@ EvalContext::~EvalContext()
 
 /* ------------------------------------------------------------------------- */
 
+static mesh_ptr __empty_mesh__;
+
 static void eval_op_value_float(float *stack, float value, StackIndex offset)
 {
 	stack_store_float(stack, offset, value);
@@ -901,6 +903,16 @@ void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *da
 		
 		rval.typedesc.copy_value(results[i], (void *)value);
 	}
+}
+
+void bvm_init()
+{
+	create_empty_mesh(__empty_mesh__);
+}
+
+void bvm_free()
+{
+	destroy_empty_mesh(__empty_mesh__);
 }
 
 } /* namespace bvm */

@@ -372,7 +372,8 @@ public:
 };
 
 OpCode get_opcode_from_node_type(const string &node);
-void register_opcode_node_types();
+void nodes_init();
+void nodes_free();
 
 } /* namespace bvm */
 

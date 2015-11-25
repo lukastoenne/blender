@@ -1126,7 +1126,9 @@ OpCode get_opcode_from_node_type(const string &node)
 	return OP_NOOP;
 }
 
-void register_opcode_node_types()
+static mesh_ptr __empty_mesh__;
+
+static void register_opcode_node_types()
 {
 	NodeType *nt;
 	
@@ -1358,6 +1360,18 @@ void register_opcode_node_types()
 	nt->add_input("count", BVM_INT, 1);
 	nt->add_input("transform", BVM_MATRIX44, matrix44::identity());
 	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
+}
+
+void nodes_init()
+{
+	create_empty_mesh(__empty_mesh__);
+	
+	register_opcode_node_types();
+}
+
+void nodes_free()
+{
+	destroy_empty_mesh(__empty_mesh__);
 }
 
 } /* namespace bvm */
