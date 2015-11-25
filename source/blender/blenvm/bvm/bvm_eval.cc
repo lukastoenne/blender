@@ -465,7 +465,7 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 
 void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
 {
-	int instr = 0;
+	int instr = fn->entry_point();
 	
 	while (true) {
 		OpCode op = fn->read_opcode(&instr);

@@ -373,6 +373,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
 	
 	fn = new Function();
+	int entry_point = 0;
 	
 	NodeList sorted_nodes;
 	sort_nodes(graph, sorted_nodes);
@@ -499,6 +500,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	}
 	
 	push_opcode(OP_END);
+	
+	fn->set_entry_point(entry_point);
 	
 	Function *result = fn;
 	fn = NULL;

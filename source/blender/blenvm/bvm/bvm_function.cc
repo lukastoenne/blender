@@ -33,7 +33,8 @@
 
 namespace bvm {
 
-Function::Function()
+Function::Function() :
+    m_entry_point(0)
 {
 }
 
@@ -43,31 +44,36 @@ Function::~Function()
 
 void Function::add_instruction(Instruction v)
 {
-	instructions.push_back(v);
+	m_instructions.push_back(v);
+}
+
+void Function::set_entry_point(int entry_point)
+{
+	m_entry_point = entry_point;
 }
 
 ReturnValue &Function::add_return_value(const TypeDesc &typedesc, const string &name)
 {
-	return_values.push_back(ReturnValue(typedesc, name));
-	return return_values.back();
+	m_return_values.push_back(ReturnValue(typedesc, name));
+	return m_return_values.back();
 }
 
 size_t Function::return_values_size() const
 {
-	return return_values.size();
+	return m_return_values.size();
 }
 
 const ReturnValue &Function::return_value(size_t index) const
 {
-	return return_values[index];
+	return m_return_values[index];
 }
 
 const ReturnValue &Function::return_value(const string &name) const
 {
-	for (ReturnValueList::const_iterator it = return_values.begin(); it != return_values.end(); ++it)
+	for (ReturnValueList::const_iterator it = m_return_values.begin(); it != m_return_values.end(); ++it)
 		if ((*it).name == name)
 			return *it;
-	return *(return_values.end());
+	return *(m_return_values.end());
 }
 
 } /* namespace bvm */

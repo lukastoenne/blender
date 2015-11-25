@@ -120,21 +120,21 @@ struct Function {
 	
 	OpCode read_opcode(int *instr) const
 	{
-		OpCode op = (OpCode)instructions[*instr];
+		OpCode op = (OpCode)m_instructions[*instr];
 		++(*instr);
 		return op;
 	}
 	
 	StackIndex read_stack_index(int *instr) const
 	{
-		StackIndex index = instructions[*instr];
+		StackIndex index = m_instructions[*instr];
 		++(*instr);
 		return index;
 	}
 	
 	float read_float(int *instr) const
 	{
-		float f = instruction_to_float(instructions[*instr]);
+		float f = instruction_to_float(m_instructions[*instr]);
 		++(*instr);
 		return f;
 	}
@@ -142,9 +142,9 @@ struct Function {
 	float3 read_float3(int *instr) const
 	{
 		float3 f;
-		f.x = instruction_to_float(instructions[*instr + 0]);
-		f.y = instruction_to_float(instructions[*instr + 1]);
-		f.z = instruction_to_float(instructions[*instr + 2]);
+		f.x = instruction_to_float(m_instructions[*instr + 0]);
+		f.y = instruction_to_float(m_instructions[*instr + 1]);
+		f.z = instruction_to_float(m_instructions[*instr + 2]);
 		(*instr) += 3;
 		return f;
 	}
@@ -152,17 +152,17 @@ struct Function {
 	float4 read_float4(int *instr) const
 	{
 		float4 f;
-		f.x = instruction_to_float(instructions[*instr + 0]);
-		f.y = instruction_to_float(instructions[*instr + 1]);
-		f.z = instruction_to_float(instructions[*instr + 2]);
-		f.w = instruction_to_float(instructions[*instr + 3]);
+		f.x = instruction_to_float(m_instructions[*instr + 0]);
+		f.y = instruction_to_float(m_instructions[*instr + 1]);
+		f.z = instruction_to_float(m_instructions[*instr + 2]);
+		f.w = instruction_to_float(m_instructions[*instr + 3]);
 		(*instr) += 4;
 		return f;
 	}
 	
 	int read_int(int *instr) const
 	{
-		int i = instruction_to_int(instructions[*instr]);
+		int i = instruction_to_int(m_instructions[*instr]);
 		++(*instr);
 		return i;
 	}
@@ -170,31 +170,31 @@ struct Function {
 	matrix44 read_matrix44(int *instr) const
 	{
 		matrix44 m;
-		m.data[0][0] = instruction_to_float(instructions[*instr + 0]);
-		m.data[0][1] = instruction_to_float(instructions[*instr + 1]);
-		m.data[0][2] = instruction_to_float(instructions[*instr + 2]);
-		m.data[0][3] = instruction_to_float(instructions[*instr + 3]);
-		m.data[1][0] = instruction_to_float(instructions[*instr + 4]);
-		m.data[1][1] = instruction_to_float(instructions[*instr + 5]);
-		m.data[1][2] = instruction_to_float(instructions[*instr + 6]);
-		m.data[1][3] = instruction_to_float(instructions[*instr + 7]);
-		m.data[2][0] = instruction_to_float(instructions[*instr + 8]);
-		m.data[2][1] = instruction_to_float(instructions[*instr + 9]);
-		m.data[2][2] = instruction_to_float(instructions[*instr + 10]);
-		m.data[2][3] = instruction_to_float(instructions[*instr + 11]);
-		m.data[3][0] = instruction_to_float(instructions[*instr + 12]);
-		m.data[3][1] = instruction_to_float(instructions[*instr + 13]);
-		m.data[3][2] = instruction_to_float(instructions[*instr + 14]);
-		m.data[3][3] = instruction_to_float(instructions[*instr + 15]);
+		m.data[0][0] = instruction_to_float(m_instructions[*instr + 0]);
+		m.data[0][1] = instruction_to_float(m_instructions[*instr + 1]);
+		m.data[0][2] = instruction_to_float(m_instructions[*instr + 2]);
+		m.data[0][3] = instruction_to_float(m_instructions[*instr + 3]);
+		m.data[1][0] = instruction_to_float(m_instructions[*instr + 4]);
+		m.data[1][1] = instruction_to_float(m_instructions[*instr + 5]);
+		m.data[1][2] = instruction_to_float(m_instructions[*instr + 6]);
+		m.data[1][3] = instruction_to_float(m_instructions[*instr + 7]);
+		m.data[2][0] = instruction_to_float(m_instructions[*instr + 8]);
+		m.data[2][1] = instruction_to_float(m_instructions[*instr + 9]);
+		m.data[2][2] = instruction_to_float(m_instructions[*instr + 10]);
+		m.data[2][3] = instruction_to_float(m_instructions[*instr + 11]);
+		m.data[3][0] = instruction_to_float(m_instructions[*instr + 12]);
+		m.data[3][1] = instruction_to_float(m_instructions[*instr + 13]);
+		m.data[3][2] = instruction_to_float(m_instructions[*instr + 14]);
+		m.data[3][3] = instruction_to_float(m_instructions[*instr + 15]);
 		(*instr) += 16;
 		return m;
 	}
 	
 	PointerRNA read_pointer(int *instr) const
 	{
-		ID *id = (ID *)instruction_to_pointer(instructions[*instr + 0], instructions[*instr + 1]);
-		StructRNA *type = (StructRNA *)instruction_to_pointer(instructions[*instr + 2], instructions[*instr + 3]);
-		void *data = instruction_to_pointer(instructions[*instr + 4], instructions[*instr + 5]);
+		ID *id = (ID *)instruction_to_pointer(m_instructions[*instr + 0], m_instructions[*instr + 1]);
+		StructRNA *type = (StructRNA *)instruction_to_pointer(m_instructions[*instr + 2], m_instructions[*instr + 3]);
+		void *data = instruction_to_pointer(m_instructions[*instr + 4], m_instructions[*instr + 5]);
 		(*instr) += 6;
 		
 		PointerRNA ptr;
@@ -204,14 +204,18 @@ struct Function {
 	
 	void add_instruction(Instruction v);
 	
+	int entry_point() const { return m_entry_point; }
+	void set_entry_point(int m_entry_point);
+	
 	ReturnValue &add_return_value(const TypeDesc &typedesc, const string &name = "");
 	size_t return_values_size() const;
 	const ReturnValue &return_value(size_t index) const;
 	const ReturnValue &return_value(const string &name) const;
 	
 private:
-	ReturnValueList return_values;
-	InstructionList instructions;
+	ReturnValueList m_return_values;
+	InstructionList m_instructions;
+	int m_entry_point;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
 };
