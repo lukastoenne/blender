@@ -220,6 +220,30 @@ NodeInstance::~NodeInstance()
 {
 }
 
+SocketPair NodeInstance::input(const string &name)
+{
+	assert(type->find_input(name) != NULL);
+	return SocketPair(this, name);
+}
+
+SocketPair NodeInstance::output(const string &name)
+{
+	assert(type->find_output(name) != NULL);
+	return SocketPair(this, name);
+}
+
+SocketPair NodeInstance::input(int index)
+{
+	assert(type->find_input(index) != NULL);
+	return SocketPair(this, type->find_input(index)->name);
+}
+
+SocketPair NodeInstance::output(int index)
+{
+	assert(type->find_output(index) != NULL);
+	return SocketPair(this, type->find_output(index)->name);
+}
+
 NodeInstance *NodeInstance::find_input_link_node(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
@@ -242,18 +266,6 @@ const NodeSocket *NodeInstance::find_input_link_socket(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
 	return socket ? find_input_link_socket(socket->name) : NULL;
-}
-
-const NodeGraphInput *NodeInstance::find_input_extern(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	return (it != inputs.end()) ? it->second.graph_input : NULL;
-}
-
-const NodeGraphInput *NodeInstance::find_input_extern(int index) const
-{
-	const NodeSocket *socket = type->find_input(index);
-	return socket ? find_input_extern(socket->name) : NULL;
 }
 
 Value *NodeInstance::find_input_value(const string &name) const
@@ -300,16 +312,6 @@ bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, c
 	return true;
 }
 
-bool NodeInstance::set_input_extern(const string &name, const NodeGraphInput *graph_input)
-{
-	InputInstance &input = inputs[name];
-	if (input.graph_input)
-		return false;
-	
-	input.graph_input = graph_input;
-	return true;
-}
-
 bool NodeInstance::has_input_link(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
@@ -325,23 +327,6 @@ bool NodeInstance::has_input_link(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
 	return socket ? has_input_link(socket->name) : false;
-}
-
-bool NodeInstance::has_input_extern(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	if (it != inputs.end()) {
-		const InputInstance &input = it->second;
-		return (input.graph_input);
-	}
-	else
-		return false;
-}
-
-bool NodeInstance::has_input_extern(int index) const
-{
-	const NodeSocket *socket = type->find_input(index);
-	return socket ? has_input_extern(socket->name) : false;
 }
 
 bool NodeInstance::has_input_value(const string &name) const
@@ -485,19 +470,19 @@ NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 	return (result.second)? result.first->second : NULL;
 }
 
-const NodeGraphInput *NodeGraph::get_input(int index) const
+const NodeGraph::Input *NodeGraph::get_input(int index) const
 {
 	BLI_assert(index >= 0 && index < inputs.size());
 	return &inputs[index];
 }
 
-const NodeGraphOutput *NodeGraph::get_output(int index) const
+const NodeGraph::Output *NodeGraph::get_output(int index) const
 {
 	BLI_assert(index >= 0 && index < outputs.size());
 	return &outputs[index];
 }
 
-const NodeGraphInput *NodeGraph::get_input(const string &name) const
+const NodeGraph::Input *NodeGraph::get_input(const string &name) const
 {
 	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		if (it->name == name)
@@ -506,7 +491,7 @@ const NodeGraphInput *NodeGraph::get_input(const string &name) const
 	return NULL;
 }
 
-const NodeGraphOutput *NodeGraph::get_output(const string &name) const
+const NodeGraph::Output *NodeGraph::get_output(const string &name) const
 {
 	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		if (it->name == name)
@@ -515,40 +500,23 @@ const NodeGraphOutput *NodeGraph::get_output(const string &name) const
 	return NULL;
 }
 
-const NodeGraphInput *NodeGraph::add_input(const string &name, BVMType type)
+const NodeGraph::Input *NodeGraph::add_input(const string &name, BVMType type)
 {
 	BLI_assert(!get_input(name));
-	inputs.push_back(NodeGraphInput(name, type));
+	/* XXX these proxies (noop nodes) should be replaced by dedicated
+	 * 'argument' nodes, which ensure that we have a place on the stack
+	 * for writing input arguments to.
+	 * This also enables direct input->output connections.
+	 */
+	inputs.push_back(Input(name, add_proxy(TypeDesc(type))));
 	return &inputs.back();
 }
 
-const NodeGraphOutput *NodeGraph::add_output(const string &name, BVMType type, Value *default_value)
+const NodeGraph::Output *NodeGraph::add_output(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!get_output(name));
-	outputs.push_back(NodeGraphOutput(name, type, default_value));
+	outputs.push_back(Output(name, add_proxy(TypeDesc(type), default_value)));
 	return &outputs.back();
-}
-
-void NodeGraph::set_input_argument(const string &name, Value *value)
-{
-	for (InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
-		NodeGraphInput &input = *it;
-		if (input.name == name) {
-			input.value = value;
-		}
-	}
-}
-
-void NodeGraph::set_output_link(const string &name, NodeInstance *link_node, const string &link_socket)
-{
-	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		NodeGraphOutput &output = *it;
-		if (output.name == name) {
-			output.link_node = link_node;
-			output.link_socket = link_node->type->find_output(link_socket);
-			BLI_assert(output.link_node && output.link_socket);
-		}
-	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -680,6 +648,23 @@ SocketPair NodeGraph::add_type_converter(const SocketPair &from, const TypeDesc 
 	return result;
 }
 
+SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
+{
+	NodeInstance *node = NULL;
+	switch (typedesc.base_type) {
+		case BVM_FLOAT: node = add_node("PASS_FLOAT"); break;
+		case BVM_FLOAT3: node = add_node("PASS_FLOAT3"); break;
+		case BVM_FLOAT4: node = add_node("PASS_FLOAT4"); break;
+		case BVM_INT: node = add_node("PASS_INT"); break;
+		case BVM_MATRIX44: node = add_node("PASS_MATRIX44"); break;
+		case BVM_MESH: node = add_node("PASS_MESH"); break;
+		case BVM_POINTER: node = add_node("PASS_POINTER"); break;
+	}
+	if (node && default_value)
+		node->set_input_value("value", default_value);
+	return SocketPair(node, "value");
+}
+
 /* ------------------------------------------------------------------------- */
 /* Optimization */
 
@@ -716,19 +701,20 @@ void NodeGraph::skip_pass_nodes()
 			input.link_socket = link_socket;
 		}
 	}
-	/* same for graph outputs */
-	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		NodeGraphOutput &output = *it;
+	
+	/* move output references upstream as well */
+	for (OutputList::iterator it_output = outputs.begin(); it_output != outputs.end(); ++it_output) {
+		Output &output = *it_output;
 		
-		NodeInstance *link_node = output.link_node;
-		const NodeSocket *link_socket = output.link_socket;
+		NodeInstance *link_node = output.key.node;
+		const NodeSocket *link_socket = link_node->type->find_output(output.key.socket);
 		while (link_node && link_node->type->is_pass_node()) {
 			/* note: order of assignment is important here! */
 			link_socket = link_node->find_input_link_socket(0);
 			link_node = link_node->find_input_link_node(0);
 		}
-		output.link_node = link_node;
-		output.link_socket = link_socket;
+		assert(link_node && link_socket);
+		output.key = SocketPair(link_node, link_socket->name);
 	}
 }
 
@@ -752,10 +738,8 @@ void NodeGraph::remove_unused_nodes()
 {
 	NodeSet used_nodes;
 	for (NodeGraph::OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		NodeGraphOutput &output = *it;
-		if (output.link_node) {
-			used_nodes_append(output.link_node, used_nodes);
-		}
+		Output &output = *it;
+		used_nodes_append(output.key.node, used_nodes);
 	}
 	
 	NodeInstanceMap::iterator it = nodes.begin();
@@ -889,14 +873,14 @@ static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *nod
 		
 		if (i < numin) {
 			string name_in = node->type->find_input(i)->name;
-			debug_fprintf(ctx, "<TD PORT=\"%s_%d\" BORDER=\"1\">%s</TD>", name_in.c_str(), i, name_in.c_str());
+			debug_fprintf(ctx, "<TD PORT=\"I%s_%d\" BORDER=\"1\">%s</TD>", name_in.c_str(), i, name_in.c_str());
 		}
 		else
 			debug_fprintf(ctx, "<TD></TD>");
 			
 		if (i < numout) {
 			string name_out = node->type->find_output(i)->name;
-			debug_fprintf(ctx, "<TD PORT=\"%s_%d\" BORDER=\"1\">%s</TD>", name_out.c_str(), i, name_out.c_str());
+			debug_fprintf(ctx, "<TD PORT=\"O%s_%d\" BORDER=\"1\">%s</TD>", name_out.c_str(), i, name_out.c_str());
 		}
 		else
 			debug_fprintf(ctx, "<TD></TD>");
@@ -917,65 +901,85 @@ static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *nod
 }
 
 static void debug_graphviz_input_output(const DebugContext &ctx,
-                                        const NodeGraphInput *input,
-                                        const NodeGraphOutput *output)
+                                        const NodeGraph::Input *input,
+                                        const NodeGraph::Output *output)
 {
-	const char *shape = "box";
-	const char *style = "filled,rounded";
-	const char *color = "black";
-	const char *fillcolor = input ? "steelblue" : "orange";
-	float penwidth = 1.0f;
 	string name = input ? input->name : output->name;
+	string id = input ? "input" : "output";
 	void *ptr = input ? (void *)input : (void *)output;
-	
-	debug_fprintf(ctx, "// %s\n", name.c_str());
-	if (input)
-		debug_fprintf(ctx, "\"input_%p\"", ptr);
-	else
-		debug_fprintf(ctx, "\"output_%p\"", ptr);
-	debug_fprintf(ctx, "[");
-	
-	/* html label including rows for input/output sockets
-	 * http://www.graphviz.org/doc/info/shapes.html#html
-	 */
-	debug_fprintf(ctx, "label=\"%s\"", name.c_str());
-	debug_fprintf(ctx, ",fontname=\"%s\"", debug_graphviz_fontname);
-	debug_fprintf(ctx, ",fontsize=\"%f\"", debug_graphviz_node_label_size);
-	debug_fprintf(ctx, ",shape=\"%s\"", shape);
-	debug_fprintf(ctx, ",style=\"%s\"", style);
-	debug_fprintf(ctx, ",color=\"%s\"", color);
-	debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
-	debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-	debug_fprintf(ctx, "];" NL);
-	debug_fprintf(ctx, NL);
-}
-
-static void debug_graphviz_output_links(const DebugContext &ctx,
-                                        const NodeGraphOutput *output)
-{
-	float penwidth = 2.0f;
-	
-	if (output->link_node && output->link_socket) {
-		const NodeInstance *tail = output->link_node;
-		const string &tail_socket = output->link_socket->name;
-		int tail_index = debug_output_index(tail, tail_socket);
-		const NodeGraphOutput *head = output;
-		debug_fprintf(ctx, "// %s:%s -> %s\n",
-		              tail->name.c_str(), tail_socket.c_str(),
-		              head->name.c_str());
-		debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", tail, tail_socket.c_str(), tail_index);
-		debug_fprintf(ctx, " -> ");
-		debug_fprintf(ctx, "\"output_%p\"", head);
-
-		debug_fprintf(ctx, "[");
-		/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-		debug_fprintf(ctx, "id=\"A%sB%s:%s_%d\"",
-		              head->name.c_str(),
-		              tail->name.c_str(), tail_socket.c_str(), tail_index);
+	const SocketPair &key = input ? input->key : output->key;
+	{
+		const char *shape = "box";
+		const char *style = "filled,rounded";
+		const char *color = "black";
+		const char *fillcolor = input ? "steelblue" : "orange";
+		float penwidth = 1.0f;
 		
+		debug_fprintf(ctx, "// %s\n", name.c_str());
+		debug_fprintf(ctx, "\"%s_%p\"", id.c_str(), ptr);
+		debug_fprintf(ctx, "[");
+		
+		/* html label including rows for input/output sockets
+		 * http://www.graphviz.org/doc/info/shapes.html#html
+		 */
+		debug_fprintf(ctx, "label=\"%s\"", name.c_str());
+		debug_fprintf(ctx, ",fontname=\"%s\"", debug_graphviz_fontname);
+		debug_fprintf(ctx, ",fontsize=\"%f\"", debug_graphviz_node_label_size);
+		debug_fprintf(ctx, ",shape=\"%s\"", shape);
+		debug_fprintf(ctx, ",style=\"%s\"", style);
+		debug_fprintf(ctx, ",color=\"%s\"", color);
+		debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
 		debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
 		debug_fprintf(ctx, "];" NL);
 		debug_fprintf(ctx, NL);
+	}
+
+	if (key.node) {
+		const float penwidth = 2.0f;
+		if (input) {
+			const NodeGraph::Input *tail = input;
+			const NodeInstance *head = key.node;
+			const string &head_socket = key.socket;
+			int head_index = debug_input_index(head, head_socket);
+			debug_fprintf(ctx, "// %s:%s -> %s\n",
+			              tail->name.c_str(),
+			              head->name.c_str(), head_socket.c_str());
+			debug_fprintf(ctx, "\"input_%p\"", tail);
+			debug_fprintf(ctx, " -> ");
+			debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", head, head_socket.c_str(), head_index);
+			
+			debug_fprintf(ctx, "[");
+			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+			debug_fprintf(ctx, "id=\"A%s:O%s_%dB%s\"",
+			              head->name.c_str(), head_socket.c_str(), head_index,
+			              tail->name.c_str());
+			
+			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+			debug_fprintf(ctx, "];" NL);
+			debug_fprintf(ctx, NL);
+		}
+		else {
+			const NodeInstance *tail = key.node;
+			const string &tail_socket = key.socket;
+			int tail_index = debug_output_index(tail, tail_socket);
+			const NodeGraph::Output *head = output;
+			debug_fprintf(ctx, "// %s:%s -> %s\n",
+			              tail->name.c_str(), tail_socket.c_str(),
+			              head->name.c_str());
+			debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
+			debug_fprintf(ctx, " -> ");
+			debug_fprintf(ctx, "\"output_%p\"", head);
+			
+			debug_fprintf(ctx, "[");
+			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+			debug_fprintf(ctx, "id=\"A%sB%s:O%s_%d\"",
+			              head->name.c_str(),
+			              tail->name.c_str(), tail_socket.c_str(), tail_index);
+			
+			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+			debug_fprintf(ctx, "];" NL);
+			debug_fprintf(ctx, NL);
+		}
 	}
 }
 
@@ -996,37 +1000,15 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstanc
 			debug_fprintf(ctx, "// %s:%s -> %s:%s\n",
 			              tail->name.c_str(), tail_socket.c_str(),
 			              head->name.c_str(), head_socket.c_str());
-			debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", tail, tail_socket.c_str(), tail_index);
+			debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
 			debug_fprintf(ctx, " -> ");
-			debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", head, head_socket.c_str(), head_index);
+			debug_fprintf(ctx, "\"node_%p\":\"I%s_%d\"", head, head_socket.c_str(), head_index);
 	
 			debug_fprintf(ctx, "[");
 			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-			debug_fprintf(ctx, "id=\"A%s:%s_%dB%s:%s_%d\"",
+			debug_fprintf(ctx, "id=\"A%s:O%s_%dB%s:O%s_%d\"",
 			              head->name.c_str(), head_socket.c_str(), head_index,
 			              tail->name.c_str(), tail_socket.c_str(), tail_index);
-			
-			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-			debug_fprintf(ctx, "];" NL);
-			debug_fprintf(ctx, NL);
-		}
-		else if (input.graph_input) {
-			const NodeGraphInput *tail = input.graph_input;
-			const NodeInstance *head = node;
-			const string &head_socket = it->first;
-			int head_index = debug_input_index(head, head_socket);
-			debug_fprintf(ctx, "// %s -> %s:%s\n",
-			              tail->name.c_str(),
-			              head->name.c_str(), head_socket.c_str());
-			debug_fprintf(ctx, "\"input_%p\"", tail);
-			debug_fprintf(ctx, " -> ");
-			debug_fprintf(ctx, "\"node_%p\":\"%s_%d\"", head, head_socket.c_str(), head_index);
-	
-			debug_fprintf(ctx, "[");
-			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-			debug_fprintf(ctx, "id=\"A%s:%s_%dB%s\"",
-			              head->name.c_str(), head_socket.c_str(), head_index,
-			              tail->name.c_str());
 			
 			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
 			debug_fprintf(ctx, "];" NL);
@@ -1056,21 +1038,17 @@ void NodeGraph::dump_graphviz(FILE *f, const string &label)
 	}
 	
 	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
-		const NodeGraphInput *input = &(*it);
+		const NodeGraph::Input *input = &(*it);
 		debug_graphviz_input_output(ctx, input, NULL);
 	}
 	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const NodeGraphOutput *output = &(*it);
+		const NodeGraph::Output *output = &(*it);
 		debug_graphviz_input_output(ctx, NULL, output);
 	}
 	
 	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance *node = it->second;
 		debug_graphviz_node_links(ctx, node);
-	}
-	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const NodeGraphOutput *output = &(*it);
-		debug_graphviz_output_links(ctx, output);
 	}
 
 //	deg_debug_graphviz_legend(ctx);

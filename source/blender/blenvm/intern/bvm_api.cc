@@ -112,10 +112,12 @@ void BVM_nodegraph_add_link(BVMNodeGraph *graph,
 	                        autoconvert);
 }
 
-void BVM_nodegraph_set_output_link(struct BVMNodeGraph *graph,
-                                   const char *name, struct BVMNodeInstance *node, const char *socket)
+void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
+                              struct BVMNodeInstance **node, const char **socket)
 {
-	_GRAPH(graph)->set_output_link(name, _NODE(node), socket);
+	const bvm::NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
+	if (node) *node = (BVMNodeInstance *)output->key.node;
+	if (socket) *socket = output->key.socket.c_str();
 }
 
 
@@ -342,11 +344,6 @@ struct bNodeCompiler {
 		m_output_map[bSocketPair(m_current_bnode, boutput)] = socket;
 	}
 	
-	void set_graph_output(const string &graph_output_name, const SocketPair &socket)
-	{
-		m_graph->set_output_link(graph_output_name, socket.node, socket.socket);
-	}
-	
 	void map_all_sockets(NodeInstance *node)
 	{
 		bNodeSocket *bsock;
@@ -359,6 +356,16 @@ struct bNodeCompiler {
 			const NodeSocket *output = node->type->find_output(i);
 			map_output_socket(i, SocketPair(node, output->name));
 		}
+	}
+	
+	SocketPair get_graph_input(const string &name)
+	{
+		return m_graph->get_input(name)->key;
+	}
+	
+	SocketPair get_graph_output(const string &name)
+	{
+		return m_graph->get_output(name)->key;
 	}
 	
 	void add_link(bNodeLink *blink, bool autoconvert=true)
@@ -517,7 +524,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 			comp->map_input_socket(0, SocketPair(node, "value"));
 			comp->map_output_socket(0, SocketPair(node, "value"));
 			
-			comp->set_graph_output("color", SocketPair(node, "value"));
+			comp->add_link_intern(node->output(0), comp->get_graph_output("color"));
 		}
 		
 		{
@@ -525,7 +532,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 			comp->map_input_socket(1, SocketPair(node, "value"));
 			comp->map_output_socket(0, SocketPair(node, "value"));
 			
-			comp->set_graph_output("normal", SocketPair(node, "value"));
+			comp->add_link_intern(node->output(0), comp->get_graph_output("normal"));
 		}
 	}
 	else if (type == "TextureNodeDecompose") {

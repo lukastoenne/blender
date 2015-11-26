@@ -55,7 +55,6 @@ extern "C" {
 namespace bvm {
 
 struct NodeGraph;
-struct NodeGraphInput;
 struct NodeType;
 struct NodeInstance;
 
@@ -203,7 +202,6 @@ struct SocketPair {
 
 struct NodeInstance {
 	struct InputInstance {
-		const NodeGraphInput *graph_input;
 		NodeInstance *link_node;
 		const NodeSocket *link_socket;
 		Value *value;
@@ -221,16 +219,10 @@ struct NodeInstance {
 	NodeInstance(const NodeType *type, const string &name);
 	~NodeInstance();
 	
-	SocketPair input(const string &name)
-	{
-		assert(type->find_input(name) != NULL);
-		return SocketPair(this, name);
-	}
-	SocketPair output(const string &name)
-	{
-		assert(type->find_output(name) != NULL);
-		return SocketPair(this, name);
-	}
+	SocketPair input(const string &name);
+	SocketPair input(int index);
+	SocketPair output(const string &name);
+	SocketPair output(int index);
 	
 	int num_inputs() const { return type->num_inputs(); }
 	int num_outputs() const { return type->num_outputs(); }
@@ -239,8 +231,6 @@ struct NodeInstance {
 	NodeInstance *find_input_link_node(int index) const;
 	const NodeSocket *find_input_link_socket(const string &name) const;
 	const NodeSocket *find_input_link_socket(int index) const;
-	const NodeGraphInput *find_input_extern(const string &name) const;
-	const NodeGraphInput *find_input_extern(int index) const;
 	Value *find_input_value(const string &name) const;
 	Value *find_input_value(int index) const;
 	Value *find_output_value(const string &name) const;
@@ -248,7 +238,6 @@ struct NodeInstance {
 	
 	bool set_input_value(const string &name, Value *value);
 	bool set_input_link(const string &name, NodeInstance *from_node, const NodeSocket *from_socket);
-	bool set_input_extern(const string &name, const NodeGraphInput *graph_input);
 	bool set_output_value(const string &name, Value *value);
 	
 	template <typename T>
@@ -267,8 +256,6 @@ struct NodeInstance {
 	
 	bool has_input_link(const string &name) const;
 	bool has_input_link(int index) const;
-	bool has_input_extern(const string &name) const;
-	bool has_input_extern(int index) const;
 	bool has_input_value(const string &name) const;
 	bool has_input_value(int index) const;
 	bool is_input_constant(const string &name) const;
@@ -284,30 +271,19 @@ struct NodeInstance {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
 
-struct NodeGraphInput {
-	NodeGraphInput(const string &name, BVMType type) : name(name), type(type), value(NULL)
-	{}
-	string name;
-	BVMType type;
-	
-	Value *value;
-};
-
-struct NodeGraphOutput {
-	NodeGraphOutput(const string &name, BVMType type, Value *default_value) :
-	    name(name), type(type), default_value(default_value), link_node(NULL), link_socket(NULL)
-	{}
-	string name;
-	BVMType type;
-	Value *default_value;
-	
-	NodeInstance *link_node;
-	const NodeSocket *link_socket;
-};
-
 struct NodeGraph {
-	typedef std::vector<NodeGraphInput> InputList;
-	typedef std::vector<NodeGraphOutput> OutputList;
+	struct Input {
+		Input(const string &name, const SocketPair &key) : name(name), key(key) {}
+		string name;
+		SocketPair key;
+	};
+	struct Output {
+		Output(const string &name, const SocketPair &key) : name(name), key(key) {}
+		string name;
+		SocketPair key;
+	};
+	typedef std::vector<Input> InputList;
+	typedef std::vector<Output> OutputList;
 	
 	typedef std::map<string, NodeType> NodeTypeMap;
 	typedef std::pair<string, NodeType> NodeTypeMapPair;
@@ -361,17 +337,16 @@ struct NodeGraph {
 		return add_link(get_node(from_node), from, get_node(to_node), to, autoconvert);
 	}
 	
-	const NodeGraphInput *get_input(int index) const;
-	const NodeGraphOutput *get_output(int index) const;
-	const NodeGraphInput *get_input(const string &name) const;
-	const NodeGraphOutput *get_output(const string &name) const;
-	const NodeGraphInput *add_input(const string &name, BVMType type);
-	const NodeGraphOutput *add_output(const string &name, BVMType type, Value *default_value);
-	void set_input_argument(const string &name, Value *value);
-	void set_output_link(const string &name, NodeInstance *link_node, const string &link_socket);
+	const Input *get_input(int index) const;
+	const Input *get_input(const string &name) const;
+	const Output *get_output(int index) const;
+	const Output *get_output(const string &name) const;
+	
+	const Input *add_input(const string &name, BVMType type);
+	const Output *add_output(const string &name, BVMType type, Value *default_value);
 	
 	template <typename T>
-	const NodeGraphOutput *add_output(const string &name, BVMType type, const T &default_value)
+	const Output *add_output(const string &name, BVMType type, const T &default_value)
 	{
 		return add_output(name, type, Value::create(type, default_value));
 	}
@@ -390,6 +365,8 @@ protected:
 	SocketPair add_int_converter(const SocketPair &/*from*/, BVMType /*to_type*/);
 	SocketPair add_matrix44_converter(const SocketPair &/*from*/, BVMType /*to_type*/);
 	SocketPair add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc);
+	
+	SocketPair add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
 	
 	void remove_all_nodes();
 	void skip_pass_nodes();

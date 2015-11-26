@@ -324,14 +324,6 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 			}
 		}
 	}
-	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
-		const NodeGraphOutput &output = *it;
-		
-		if (output.link_node && output.link_socket) {
-			ConstSocketPair key(output.link_node, output.link_socket->name);
-			users[key] += 1;
-		}
-	}
 }
 
 static OpCode ptr_init_opcode(const TypeDesc &typedesc)
@@ -484,19 +476,12 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin();
 	     it != graph.outputs.end();
 	     ++it) {
-		const NodeGraphOutput &output = *it;
+		const NodeGraph::Output &output = *it;
 		
-		ReturnValue &rval = fn->add_return_value(TypeDesc(output.type), output.name);
+		const NodeSocket *socket = output.key.node->type->find_input(output.key.socket);
+		ReturnValue &rval = fn->add_return_value(socket->typedesc, output.name);
 		
-		if (output.link_node && output.link_socket) {
-			ConstSocketPair link_key(output.link_node, output.link_socket->name);
-			assert(output_index.find(link_key) != output_index.end());
-			
-			rval.stack_offset = output_index[link_key];
-		}
-		else {
-			rval.stack_offset = codegen_value(output.default_value);
-		}
+		rval.stack_offset = input_index[output.key.node->input(0)];
 	}
 	
 	push_opcode(OP_END);
