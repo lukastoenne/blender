@@ -478,7 +478,7 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 	     ++it) {
 		const NodeGraph::Output &output = *it;
 		
-		const NodeSocket *socket = output.key.node->type->find_input(output.key.socket);
+		const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
 		ReturnValue &rval = fn->add_return_value(socket->typedesc, output.name);
 		
 		rval.stack_offset = input_index[output.key.node->input(0)];

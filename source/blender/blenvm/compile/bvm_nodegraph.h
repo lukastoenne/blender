@@ -367,8 +367,10 @@ protected:
 	SocketPair add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc);
 	
 	SocketPair add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
+	SocketPair add_value_node(Value *value);
 	
 	void remove_all_nodes();
+	SocketPair find_root(const SocketPair &key);
 	void skip_pass_nodes();
 	void remove_unused_nodes();
 	
