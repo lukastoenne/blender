@@ -160,7 +160,8 @@ class NodeCompiler:
         self.graph.add_link(from_node, from_name, to_node, to_name)
 
     def set_output(self, name, node, socket):
-        self.graph.set_output(name, node, socket)
+        out_node, out_socket = self.graph.get_output(name)
+        self.graph.add_link(node, socket, out_node, out_socket)
 
 
 class NodeTreeBase():
