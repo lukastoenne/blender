@@ -324,6 +324,13 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 			}
 		}
 	}
+	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
+		const NodeGraph::Output &output = *it;
+		
+		if (output.key.node) {
+			users[output.key] += 1;
+		}
+	}
 }
 
 static OpCode ptr_init_opcode(const TypeDesc &typedesc)
@@ -481,7 +488,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
 		ReturnValue &rval = fn->add_return_value(socket->typedesc, output.name);
 		
-		rval.stack_offset = input_index[output.key.node->input(0)];
+		assert(output_index.find(output.key) != output_index.end());
+		rval.stack_offset = output_index[output.key];
 	}
 	
 	push_opcode(OP_END);

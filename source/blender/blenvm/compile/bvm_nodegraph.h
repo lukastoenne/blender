@@ -176,7 +176,7 @@ struct SocketPair {
 	    node(node), socket(socket)
 	{}
 	
-	operator ConstSocketPair()
+	operator ConstSocketPair() const
 	{
 		return ConstSocketPair(node, socket);
 	}
