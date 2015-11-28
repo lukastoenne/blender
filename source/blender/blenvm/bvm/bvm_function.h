@@ -98,10 +98,10 @@ static inline void *instruction_to_pointer(Instruction hi, Instruction lo)
 }
 
 struct ReturnValue {
-	ReturnValue(const TypeDesc &typedesc, const string &name) :
+	ReturnValue(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :
 	    typedesc(typedesc),
 	    name(name),
-	    stack_offset(BVM_STACK_INVALID)
+	    stack_offset(stack_offset)
 	{}
 	
 	TypeDesc typedesc;
@@ -207,7 +207,7 @@ struct Function {
 	int entry_point() const { return m_entry_point; }
 	void set_entry_point(int m_entry_point);
 	
-	ReturnValue &add_return_value(const TypeDesc &typedesc, const string &name = "");
+	void add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
 	size_t return_values_size() const;
 	const ReturnValue &return_value(size_t index) const;
 	const ReturnValue &return_value(const string &name) const;

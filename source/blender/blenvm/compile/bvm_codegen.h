@@ -32,11 +32,13 @@
  *  \ingroup bvm
  */
 
+#include <set>
 #include <vector>
 
 #include "MEM_guardedalloc.h"
 
 #include "bvm_function.h"
+#include "bvm_nodegraph.h"
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
 
@@ -46,6 +48,11 @@ struct Function;
 struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
+
+typedef std::vector<const NodeInstance *> NodeList;
+typedef std::set<const NodeInstance *> NodeSet;
+typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
+typedef std::map<ConstSocketPair, int> SocketUserMap;
 
 struct BVMCompiler {
 	typedef std::vector<int> StackUsers;
@@ -67,6 +74,9 @@ struct BVMCompiler {
 	
 	StackIndex codegen_value(const Value *value);
 	void codegen_constant(const Value *value);
+	void codegen_subgraph(const NodeList &nodes,
+	                      const SocketUserMap &output_users,
+	                      SocketIndexMap &output_index);
 	Function *codegen_function(const NodeGraph &graph);
 	
 private:

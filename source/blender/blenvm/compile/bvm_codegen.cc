@@ -268,9 +268,6 @@ void BVMCompiler::codegen_constant(const Value *value)
 	}
 }
 
-typedef std::vector<const NodeInstance *> NodeList;
-typedef std::set<const NodeInstance *> NodeSet;
-
 static void sort_nodes_append(const NodeInstance *node, NodeList &result, NodeSet &visited)
 {
 	if (visited.find(node) != visited.end())
@@ -296,9 +293,8 @@ static void sort_nodes(const NodeGraph &graph, NodeList &result)
 	}
 }
 
-typedef std::map<ConstSocketPair, int> SocketUserMap;
-
-static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
+static void count_output_users(const NodeGraph &graph,
+                               SocketUserMap &users)
 {
 	users.clear();
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
@@ -324,12 +320,15 @@ static void count_output_users(const NodeGraph &graph, SocketUserMap &users)
 			}
 		}
 	}
+	/* inputs are defined externally, they should be retained during evaluation */
+	for (NodeGraph::InputList::const_iterator it = graph.inputs.begin(); it != graph.inputs.end(); ++it) {
+		const NodeGraph::Input &input = *it;
+		users[input.key] += 1;
+	}
+	/* outputs are passed on to the caller, which is responsible for freeing them */
 	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
 		const NodeGraph::Output &output = *it;
-		
-		if (output.key.node) {
-			users[output.key] += 1;
-		}
+		users[output.key] += 1;
 	}
 }
 
@@ -367,23 +366,13 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 	return OP_NOOP;
 }
 
-Function *BVMCompiler::codegen_function(const NodeGraph &graph)
+void BVMCompiler::codegen_subgraph(const NodeList &nodes,
+                                   const SocketUserMap &output_users,
+                                   SocketIndexMap &output_index)
 {
-	typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
-	
-	fn = new Function();
-	int entry_point = 0;
-	
-	NodeList sorted_nodes;
-	sort_nodes(graph, sorted_nodes);
-	
-	SocketUserMap output_users;
-	count_output_users(graph, output_users);
-	
 	SocketIndexMap input_index;
-	SocketIndexMap output_index;
 	
-	for (NodeList::const_iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
+	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
 		OpCode op = get_opcode_from_node_type(node.type->name());
@@ -427,7 +416,8 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 			/* if necessary, add a user count initializer */
 			OpCode init_op = ptr_init_opcode(output->typedesc);
 			if (init_op != OP_NOOP) {
-				int users = output_users[key];
+				assert(output_users.find(key) != output_users.end());
+				int users = output_users.find(key)->second;
 				if (users > 0) {
 					push_opcode(init_op);
 					push_stack_index(output_index[key]);
@@ -480,21 +470,33 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		}
 	}
 	
-	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin();
-	     it != graph.outputs.end();
-	     ++it) {
-		const NodeGraph::Output &output = *it;
-		
-		const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
-		ReturnValue &rval = fn->add_return_value(socket->typedesc, output.name);
-		
-		assert(output_index.find(output.key) != output_index.end());
-		rval.stack_offset = output_index[output.key];
-	}
-	
 	push_opcode(OP_END);
+}
+
+Function *BVMCompiler::codegen_function(const NodeGraph &graph)
+{
+	fn = new Function();
+	int entry_point = 0;
+	
+	NodeList sorted_nodes;
+	sort_nodes(graph, sorted_nodes);
+	
+	SocketUserMap output_users;
+	count_output_users(graph, output_users);
+	
+	SocketIndexMap output_index;
+	codegen_subgraph(sorted_nodes, output_users, output_index);
 	
 	fn->set_entry_point(entry_point);
+	
+	/* store final stack indices for outputs, so we can return results to the caller */
+	for (size_t i = 0; i < graph.outputs.size(); ++i) {
+		const NodeGraph::Output &output = graph.outputs[i];
+		const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
+		assert(output_index.find(output.key) != output_index.end());
+		StackIndex offset = output_index[output.key];
+		fn->add_return_value(socket->typedesc, output.name, offset);
+	}
 	
 	Function *result = fn;
 	fn = NULL;

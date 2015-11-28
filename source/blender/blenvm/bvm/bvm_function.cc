@@ -52,10 +52,9 @@ void Function::set_entry_point(int entry_point)
 	m_entry_point = entry_point;
 }
 
-ReturnValue &Function::add_return_value(const TypeDesc &typedesc, const string &name)
+void Function::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
 {
-	m_return_values.push_back(ReturnValue(typedesc, name));
-	return m_return_values.back();
+	m_return_values.push_back(ReturnValue(typedesc, name, stack_offset));
 }
 
 size_t Function::return_values_size() const
