@@ -109,12 +109,9 @@ static struct GPUGlobal {
 	GLint maxtexsize;
 	GLint maxtextures;
 	GLuint currentfb;
-	int glslsupport;
-	int extdisabled;
+	bool extdisabled;
 	int colordepth;
 	int samples_color_texture_max;
-	int npotdisabled; /* ATI 3xx-5xx (and more) chipsets support NPoT partially (== not enough) */
-	int dlistsdisabled; /* Legacy ATI driver does not support display lists well */
 	GPUDeviceType device;
 	GPUOSType os;
 	GPUDriverType driver;
@@ -148,7 +145,7 @@ bool GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver)
 
 void GPU_extensions_disable(void)
 {
-	GG.extdisabled = 1;
+	GG.extdisabled = true;
 }
 
 int GPU_max_texture_size(void)
@@ -163,9 +160,6 @@ void GPU_get_dfdy_factors(float fac[2])
 
 void gpu_extensions_init(void)
 {
-	GLint r, g, b;
-	const char *vendor, *renderer, *version;
-
 	/* BLI_assert(GLEW_VERSION_2_1); */
 	/* ^-- maybe a bit extreme? */
 
@@ -173,8 +167,7 @@ void gpu_extensions_init(void)
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
-	GG.glslsupport = 1;
-
+	GLint r, g, b;
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
 	glGetIntegerv(GL_BLUE_BITS, &b);
@@ -184,9 +177,9 @@ void gpu_extensions_init(void)
 		glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES , &GG.samples_color_texture_max);
 	}
 
-	vendor = (const char *)glGetString(GL_VENDOR);
-	renderer = (const char *)glGetString(GL_RENDERER);
-	version = (const char *)glGetString(GL_VERSION);
+	const char *vendor = (const char *)glGetString(GL_VENDOR);
+	const char *renderer = (const char *)glGetString(GL_RENDERER);
+	const char *version = (const char *)glGetString(GL_VERSION);
 
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
@@ -274,18 +267,23 @@ void gpu_extensions_exit(void)
 
 bool GPU_glsl_support(void)
 {
-	return GG.glslsupport;
+	/* always supported, still queried by game engine */
+	return true;
 }
 
 bool GPU_non_power_of_two_support(void)
 {
-	/* still relevant for OpenGL ES */
-	return !GG.npotdisabled;
+	/* always supported on full GL but still relevant for OpenGL ES */
+	return true;
 }
 
 bool GPU_display_list_support(void)
 {
-	return !GG.dlistsdisabled;
+	/* deprecated in GL 3
+	 * supported on older GL and compatibility profile
+	 * still queried by game engine
+	 */
+	return true;
 }
 
 bool GPU_bicubic_bump_support(void)
@@ -703,17 +701,15 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const f
 GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data, double time, int mipmap)
 {
 	GPUTexture *tex;
-	GLint w, h, border, lastbindcode, bindcode;
-
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
+	GLint w, h, border, bindcode;
 
 	GPU_update_image_time(ima, time);
-	/* this binds a texture, so that's why to restore it with lastbindcode */
+	/* this binds a texture, so that's why to restore it to 0 */
 	bindcode = GPU_verify_image(ima, iuser, 0, 0, mipmap, is_data);
 
 	if (ima->gputexture) {
 		ima->gputexture->bindcode = bindcode;
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		glBindTexture(GL_TEXTURE_2D, 0);
 		return ima->gputexture;
 	}
 
@@ -740,7 +736,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data,
 		tex->h = tex->h_orig = h - border;
 	}
 
-	glBindTexture(GL_TEXTURE_2D, lastbindcode);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return tex;
 }
@@ -748,21 +744,19 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data,
 GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 {
 	GPUTexture *tex = prv->gputexture[0];
-	GLint w, h, lastbindcode;
+	GLint w, h;
 	GLuint bindcode = 0;
-	
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
 	
 	if (tex)
 		bindcode = tex->bindcode;
 	
-	/* this binds a texture, so that's why to restore it */
+	/* this binds a texture, so that's why we restore it to 0 */
 	if (bindcode == 0) {
 		GPU_create_gl_tex(&bindcode, prv->rect[0], NULL, prv->w[0], prv->h[0], mipmap, 0, NULL);
 	}
 	if (tex) {
 		tex->bindcode = bindcode;
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
+		glBindTexture(GL_TEXTURE_2D, 0);
 		return tex;
 	}
 
@@ -787,7 +781,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		tex->h = tex->h_orig = h;
 	}
 	
-	glBindTexture(GL_TEXTURE_2D, lastbindcode);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	
 	return tex;
 
