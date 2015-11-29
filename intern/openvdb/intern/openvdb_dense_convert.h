@@ -28,12 +28,11 @@
 #ifndef __OPENVDB_DENSE_CONVERT_H__
 #define __OPENVDB_DENSE_CONVERT_H__
 
-#include <openvdb/openvdb.h>
-#include <openvdb/tools/Clip.h>
-#include <openvdb/tools/Dense.h>
-
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
+
+#include <openvdb/tools/Clip.h>
+#include <openvdb/tools/Dense.h>
 
 #define TOLERANCE 1e-3f
 
