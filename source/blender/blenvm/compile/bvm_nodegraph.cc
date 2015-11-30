@@ -226,22 +226,46 @@ SocketPair NodeInstance::input(const string &name)
 	return SocketPair(this, name);
 }
 
-SocketPair NodeInstance::output(const string &name)
-{
-	assert(type->find_output(name) != NULL);
-	return SocketPair(this, name);
-}
-
 SocketPair NodeInstance::input(int index)
 {
 	assert(type->find_input(index) != NULL);
 	return SocketPair(this, type->find_input(index)->name);
 }
 
+SocketPair NodeInstance::output(const string &name)
+{
+	assert(type->find_output(name) != NULL);
+	return SocketPair(this, name);
+}
+
 SocketPair NodeInstance::output(int index)
 {
 	assert(type->find_output(index) != NULL);
 	return SocketPair(this, type->find_output(index)->name);
+}
+
+ConstSocketPair NodeInstance::input(const string &name) const
+{
+	assert(type->find_input(name) != NULL);
+	return ConstSocketPair(this, name);
+}
+
+ConstSocketPair NodeInstance::input(int index) const
+{
+	assert(type->find_input(index) != NULL);
+	return ConstSocketPair(this, type->find_input(index)->name);
+}
+
+ConstSocketPair NodeInstance::output(const string &name) const
+{
+	assert(type->find_output(name) != NULL);
+	return ConstSocketPair(this, name);
+}
+
+ConstSocketPair NodeInstance::output(int index) const
+{
+	assert(type->find_output(index) != NULL);
+	return ConstSocketPair(this, type->find_output(index)->name);
 }
 
 NodeInstance *NodeInstance::find_input_link_node(const string &name) const
@@ -266,6 +290,20 @@ const NodeSocket *NodeInstance::find_input_link_socket(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
 	return socket ? find_input_link_socket(socket->name) : NULL;
+}
+
+SocketPair NodeInstance::link(const string &name) const
+{
+	InputMap::const_iterator it = inputs.find(name);
+	return (it != inputs.end()) ?
+	            SocketPair(it->second.link_node, it->second.link_socket->name) :
+	            SocketPair(NULL, "");
+}
+
+SocketPair NodeInstance::link(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? link(socket->name) : SocketPair(NULL, "");
 }
 
 Value *NodeInstance::find_input_value(const string &name) const
@@ -356,6 +394,18 @@ bool NodeInstance::is_input_constant(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
 	return socket ? socket->value_type == VALUE_CONSTANT : false;
+}
+
+bool NodeInstance::is_input_function(const string &name) const
+{
+	const NodeSocket *socket = type->find_input(name);
+	return socket ? socket->value_type == VALUE_FUNCTION : false;
+}
+
+bool NodeInstance::is_input_function(int index) const
+{
+	const NodeSocket *socket = type->find_input(index);
+	return socket ? socket->value_type == VALUE_FUNCTION : false;
 }
 
 bool NodeInstance::set_output_value(const string &name, Value *value)
@@ -1416,7 +1466,7 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
 	nt->add_input("count", BVM_INT, 1);
-	nt->add_input("transform", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), VALUE_FUNCTION);
 	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
 }
 

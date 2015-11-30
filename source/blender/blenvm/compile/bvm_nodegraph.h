@@ -221,14 +221,20 @@ struct NodeInstance {
 	
 	SocketPair input(const string &name);
 	SocketPair input(int index);
+	ConstSocketPair input(const string &name) const;
+	ConstSocketPair input(int index) const;
 	SocketPair output(const string &name);
 	SocketPair output(int index);
+	ConstSocketPair output(const string &name) const;
+	ConstSocketPair output(int index) const;
 	
 	int num_inputs() const { return type->num_inputs(); }
 	int num_outputs() const { return type->num_outputs(); }
 	
 	NodeInstance *find_input_link_node(const string &name) const;
 	NodeInstance *find_input_link_node(int index) const;
+	SocketPair link(const string &name) const;
+	SocketPair link(int index) const;
 	const NodeSocket *find_input_link_socket(const string &name) const;
 	const NodeSocket *find_input_link_socket(int index) const;
 	Value *find_input_value(const string &name) const;
@@ -260,6 +266,8 @@ struct NodeInstance {
 	bool has_input_value(int index) const;
 	bool is_input_constant(const string &name) const;
 	bool is_input_constant(int index) const;
+	bool is_input_function(const string &name) const;
+	bool is_input_function(int index) const;
 	bool has_output_value(const string &name) const;
 	bool has_output_value(int index) const;
 	

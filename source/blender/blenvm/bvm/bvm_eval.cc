@@ -877,9 +877,10 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 			case OP_MESH_ARRAY: {
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
 				StackIndex offset_count = fn->read_stack_index(&instr);
+				int fn_transform = fn->read_jump_address(&instr);
 				StackIndex offset_transform = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
-				eval_op_mesh_array(stack, offset_mesh_in, offset_mesh_out, offset_count, offset_transform);
+				eval_op_mesh_array(stack, offset_mesh_in, offset_mesh_out, offset_count, fn_transform, offset_transform);
 				break;
 			}
 			case OP_END:

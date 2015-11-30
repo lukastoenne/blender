@@ -150,7 +150,7 @@ static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
 }
 
 static void eval_op_mesh_array(float *stack, StackIndex offset_mesh_in, StackIndex offset_mesh_out,
-                               StackIndex offset_count, StackIndex offset_transform)
+                               StackIndex offset_count, int fn_transform, StackIndex offset_transform)
 {
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	int count = stack_load_int(stack, offset_count);

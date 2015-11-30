@@ -51,10 +51,24 @@ struct TypeDesc;
 
 typedef std::vector<const NodeInstance *> NodeList;
 typedef std::set<const NodeInstance *> NodeSet;
-typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
+struct SubgraphOutput {
+	SubgraphOutput(const ConstSocketPair &key, Value *default_value) :
+	    key(key), value(default_value), stack_index(BVM_STACK_INVALID)
+	{}
+	ConstSocketPair key;
+	Value *value;
+	StackIndex stack_index;
+};
+typedef std::vector<SubgraphOutput> SubgraphOutputList;
 typedef std::map<ConstSocketPair, int> SocketUserMap;
 
 struct BVMCompiler {
+	struct FunctionInfo {
+		FunctionInfo() : entry_point(0), return_index(BVM_STACK_INVALID) {}
+		int entry_point;
+		StackIndex return_index;
+	};
+	typedef std::map<ConstSocketPair, FunctionInfo> FunctionEntryMap;
 	typedef std::vector<int> StackUsers;
 	
 	BVMCompiler();
@@ -65,6 +79,8 @@ struct BVMCompiler {
 	
 	void push_opcode(OpCode op);
 	void push_stack_index(StackIndex arg);
+	void push_jump_address(int address);
+	
 	void push_float(float f);
 	void push_float3(float3 f);
 	void push_float4(float4 f);
@@ -74,12 +90,17 @@ struct BVMCompiler {
 	
 	StackIndex codegen_value(const Value *value);
 	void codegen_constant(const Value *value);
-	void codegen_subgraph(const NodeList &nodes,
-	                      const SocketUserMap &output_users,
-	                      SocketIndexMap &output_index);
+	int codegen_subgraph(const NodeList &nodes,
+	                     const SocketUserMap &socket_users,
+	                     SubgraphOutputList &outputs);
 	Function *codegen_function(const NodeGraph &graph);
 	
+protected:
+	void graph_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
+	void sort_graph_nodes(const NodeGraph &graph, NodeList &sorted_nodes);
+	
 private:
+	FunctionEntryMap func_entry_map;
 	StackUsers stack_users;
 	Function *fn;
 

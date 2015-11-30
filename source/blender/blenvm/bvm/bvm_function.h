@@ -132,6 +132,13 @@ struct Function {
 		return index;
 	}
 	
+	int read_jump_address(int *instr) const
+	{
+		int address = m_instructions[*instr];
+		++(*instr);
+		return address;
+	}
+	
 	float read_float(int *instr) const
 	{
 		float f = instruction_to_float(m_instructions[*instr]);
@@ -203,9 +210,10 @@ struct Function {
 	}
 	
 	void add_instruction(Instruction v);
+	int get_instruction_count() const { return m_instructions.size(); }
 	
 	int entry_point() const { return m_entry_point; }
-	void set_entry_point(int m_entry_point);
+	void set_entry_point(int entry_point);
 	
 	void add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
 	size_t return_values_size() const;

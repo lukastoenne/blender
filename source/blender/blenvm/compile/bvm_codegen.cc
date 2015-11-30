@@ -93,6 +93,11 @@ void BVMCompiler::push_stack_index(StackIndex arg)
 		fn->add_instruction(arg);
 }
 
+void BVMCompiler::push_jump_address(int address)
+{
+	fn->add_instruction(int_to_instruction(address));
+}
+
 void BVMCompiler::push_float(float f)
 {
 	fn->add_instruction(float_to_instruction(f));
@@ -268,8 +273,212 @@ void BVMCompiler::codegen_constant(const Value *value)
 	}
 }
 
-static void sort_nodes_append(const NodeInstance *node, NodeList &result, NodeSet &visited)
+static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 {
+	switch (typedesc.base_type) {
+		case BVM_FLOAT:
+		case BVM_FLOAT3:
+		case BVM_FLOAT4:
+		case BVM_INT:
+		case BVM_MATRIX44:
+		case BVM_POINTER:
+			return OP_NOOP;
+		
+		case BVM_MESH:
+			return OP_INIT_MESH_PTR;
+	}
+	return OP_NOOP;
+}
+
+static OpCode ptr_release_opcode(const TypeDesc &typedesc)
+{
+	switch (typedesc.base_type) {
+		case BVM_FLOAT:
+		case BVM_FLOAT3:
+		case BVM_FLOAT4:
+		case BVM_INT:
+		case BVM_MATRIX44:
+		case BVM_POINTER:
+			return OP_NOOP;
+		
+		case BVM_MESH:
+			return OP_RELEASE_MESH_PTR;
+	}
+	return OP_NOOP;
+}
+
+int BVMCompiler::codegen_subgraph(const NodeList &nodes,
+                                  const SocketUserMap &socket_users,
+                                  SubgraphOutputList &outputs)
+{
+	typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
+	
+	int entry_point = fn->get_instruction_count();
+	
+	SocketIndexMap output_index;
+	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance &node = **it;
+		
+		OpCode op = get_opcode_from_node_type(node.type->name());
+		if (op == OP_NOOP)
+			continue;
+		
+		/* prepare input stack entries */
+		SocketIndexMap input_index;
+		for (int i = 0; i < node.num_inputs(); ++i) {
+			const NodeSocket *input = node.type->find_input(i);
+			ConstSocketPair key(&node, input->name);
+			assert(input_index.find(key) == input_index.end());
+			
+			if (node.is_input_constant(i) || node.is_input_function(i)) {
+				/* stored directly in the instructions list after creating values */
+			}
+			else if (node.has_input_link(i)) {
+				ConstSocketPair link_key(node.find_input_link_node(i),
+				                         node.find_input_link_socket(i)->name);
+				assert(output_index.find(link_key) != output_index.end());
+				input_index[key] = output_index[link_key];
+			}
+			else if (node.has_input_value(i)) {
+				Value *value = node.find_input_value(i);
+				input_index[key] = codegen_value(value);
+			}
+			else {
+				input_index[key] = codegen_value(input->default_value);
+			}
+		}
+		
+		/* initialize output data stack entries */
+		for (int i = 0; i < node.num_outputs(); ++i) {
+			const NodeSocket *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
+			
+			output_index[key] = assign_stack_index(output->typedesc);
+			
+			/* if necessary, add a user count initializer */
+			OpCode init_op = ptr_init_opcode(output->typedesc);
+			if (init_op != OP_NOOP) {
+				assert(socket_users.find(key) != socket_users.end());
+				int users = socket_users.find(key)->second;
+				if (users > 0) {
+					push_opcode(init_op);
+					push_stack_index(output_index[key]);
+					push_int(users);
+				}
+			}
+		}
+		
+		/* write main opcode */
+		push_opcode(op);
+		/* write input stack offsets and constants */
+		for (int i = 0; i < node.num_inputs(); ++i) {
+			const NodeSocket *input = node.type->find_input(i);
+			ConstSocketPair key(&node, input->name);
+			
+			if (node.is_input_constant(i)) {
+				Value *value = node.find_input_value(i);
+				codegen_constant(value);
+			}
+			else if (node.is_input_function(i)) {
+				assert(func_entry_map.find(key) != func_entry_map.end());
+				FunctionInfo &func = func_entry_map[key];
+				push_jump_address(func.entry_point);
+				push_stack_index(func.return_index);
+			}
+			else {
+				assert(input_index.find(key) != input_index.end());
+				push_stack_index(input_index[key]);
+			}
+		}
+		/* write output stack offsets */
+		for (int i = 0; i < node.num_outputs(); ++i) {
+			const NodeSocket *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
+			assert(output_index.find(key) != output_index.end());
+			
+			push_stack_index(output_index[key]);
+		}
+		
+		/* release input data stack entries */
+		for (int i = 0; i < node.num_inputs(); ++i) {
+			const NodeSocket *input = node.type->find_input(i);
+			
+			if (node.is_input_constant(i) || node.is_input_function(i)) {
+				/* pass */
+			}
+			else if (node.has_input_link(i)) {
+				ConstSocketPair link_key(node.find_input_link_node(i),
+				                         node.find_input_link_socket(i)->name);
+				assert(output_index.find(link_key) != output_index.end());
+				
+				OpCode release_op = ptr_release_opcode(input->typedesc);
+				
+				if (release_op != OP_NOOP) {
+					push_opcode(release_op);
+					push_stack_index(output_index[link_key]);
+				}
+			}
+		}
+	}
+	
+	push_opcode(OP_END);
+	
+	for (SubgraphOutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		SubgraphOutput &output = *it;
+		
+		if (output.key.node) {
+			assert(output_index.find(output.key) != output_index.end());
+			output.stack_index = output_index[output.key];
+		}
+		else {
+			output.stack_index = codegen_value(output.value);
+		}
+	}
+	
+	return entry_point;
+}
+
+void BVMCompiler::graph_node_append(const NodeInstance *node,
+                                    NodeList &sorted_nodes,
+                                    NodeSet &visited)
+{
+	if (visited.find(node) != visited.end())
+		return;
+	visited.insert(node);
+	
+	for (size_t i = 0; i < node->num_inputs(); ++i) {
+		const NodeSocket *socket = node->type->find_input(i);
+		if (socket->value_type == VALUE_FUNCTION) {
+			func_entry_map[node->input(i)] = FunctionInfo();
+		}
+		else {
+			const NodeInstance *link_node = node->find_input_link_node(i);
+			if (link_node) {
+				graph_node_append(link_node, sorted_nodes, visited);
+			}
+		}
+	}
+	
+	sorted_nodes.push_back(node);
+}
+
+void BVMCompiler::sort_graph_nodes(const NodeGraph &graph,
+                                   NodeList &sorted_nodes)
+{
+	NodeSet visited;
+	
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
+		graph_node_append(it->second, sorted_nodes, visited);
+	}
+}
+
+static void expression_node_append(const NodeInstance *node,
+                                   NodeList &sorted_nodes,
+                                   NodeSet &visited)
+{
+	if (node->type->is_kernel_node())
+		return;
+	
 	if (visited.find(node) != visited.end())
 		return;
 	visited.insert(node);
@@ -277,19 +486,21 @@ static void sort_nodes_append(const NodeInstance *node, NodeList &result, NodeSe
 	for (size_t i = 0; i < node->num_inputs(); ++i) {
 		const NodeInstance *link_node = node->find_input_link_node(i);
 		if (link_node) {
-			sort_nodes_append(link_node, result, visited);
+			expression_node_append(link_node, sorted_nodes, visited);
 		}
 	}
 	
-	result.push_back(node);
+	sorted_nodes.push_back(node);
 }
 
-static void sort_nodes(const NodeGraph &graph, NodeList &result)
+static void sort_expression_nodes(const ConstSocketPair &key,
+                                  NodeList &sorted_nodes)
 {
 	NodeSet visited;
 	
-	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
-		sort_nodes_append(it->second, result, visited);
+	if (key.node->has_input_link(key.socket)) {
+		const NodeInstance *link_node = key.node->find_input_link_node(key.socket);
+		expression_node_append(link_node, sorted_nodes, visited);
 	}
 }
 
@@ -332,170 +543,57 @@ static void count_output_users(const NodeGraph &graph,
 	}
 }
 
-static OpCode ptr_init_opcode(const TypeDesc &typedesc)
-{
-	switch (typedesc.base_type) {
-		case BVM_FLOAT:
-		case BVM_FLOAT3:
-		case BVM_FLOAT4:
-		case BVM_INT:
-		case BVM_MATRIX44:
-		case BVM_POINTER:
-			return OP_NOOP;
-		
-		case BVM_MESH:
-			return OP_INIT_MESH_PTR;
-	}
-	return OP_NOOP;
-}
-
-static OpCode ptr_release_opcode(const TypeDesc &typedesc)
-{
-	switch (typedesc.base_type) {
-		case BVM_FLOAT:
-		case BVM_FLOAT3:
-		case BVM_FLOAT4:
-		case BVM_INT:
-		case BVM_MATRIX44:
-		case BVM_POINTER:
-			return OP_NOOP;
-		
-		case BVM_MESH:
-			return OP_RELEASE_MESH_PTR;
-	}
-	return OP_NOOP;
-}
-
-void BVMCompiler::codegen_subgraph(const NodeList &nodes,
-                                   const SocketUserMap &output_users,
-                                   SocketIndexMap &output_index)
-{
-	SocketIndexMap input_index;
-	
-	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		const NodeInstance &node = **it;
-		
-		OpCode op = get_opcode_from_node_type(node.type->name());
-		if (op == OP_NOOP)
-			continue;
-		
-		/* prepare input stack entries */
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
-			ConstSocketPair key(&node, input->name);
-			assert(input_index.find(key) == input_index.end());
-			
-			if (node.is_input_constant(i)) {
-				/* value is stored directly in the instructions list,
-				 * after the opcode
-				 */
-			}
-			else if (node.has_input_link(i)) {
-				ConstSocketPair link_key(node.find_input_link_node(i),
-				                         node.find_input_link_socket(i)->name);
-				assert(output_index.find(link_key) != output_index.end());
-				input_index[key] = output_index[link_key];
-			}
-			else if (node.has_input_value(i)) {
-				Value *value = node.find_input_value(i);
-				input_index[key] = codegen_value(value);
-			}
-			else {
-				input_index[key] = codegen_value(input->default_value);
-			}
-		}
-		
-		/* initialize output data stack entries */
-		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
-			assert(output_index.find(key) == output_index.end());
-			
-			output_index[key] = assign_stack_index(output->typedesc);
-			
-			/* if necessary, add a user count initializer */
-			OpCode init_op = ptr_init_opcode(output->typedesc);
-			if (init_op != OP_NOOP) {
-				assert(output_users.find(key) != output_users.end());
-				int users = output_users.find(key)->second;
-				if (users > 0) {
-					push_opcode(init_op);
-					push_stack_index(output_index[key]);
-					push_int(users);
-				}
-			}
-		}
-		
-		/* write main opcode */
-		push_opcode(op);
-		/* write input stack offsets and constants */
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
-			ConstSocketPair key(&node, input->name);
-			
-			if (node.is_input_constant(i)) {
-				Value *value = node.find_input_value(i);
-				codegen_constant(value);
-			}
-			else {
-				assert(input_index.find(key) != input_index.end());
-				push_stack_index(input_index[key]);
-			}
-		}
-		/* write output stack offsets */
-		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
-			assert(output_index.find(key) != output_index.end());
-			
-			push_stack_index(output_index[key]);
-		}
-		
-		/* release input data stack entries */
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
-			
-			if (node.has_input_link(i)) {
-				ConstSocketPair link_key(node.find_input_link_node(i),
-				                         node.find_input_link_socket(i)->name);
-				assert(output_index.find(link_key) != output_index.end());
-				
-				OpCode release_op = ptr_release_opcode(input->typedesc);
-				
-				if (release_op != OP_NOOP) {
-					push_opcode(release_op);
-					push_stack_index(output_index[link_key]);
-				}
-			}
-		}
-	}
-	
-	push_opcode(OP_END);
-}
-
 Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 {
-	fn = new Function();
-	int entry_point = 0;
-	
-	NodeList sorted_nodes;
-	sort_nodes(graph, sorted_nodes);
-	
 	SocketUserMap output_users;
 	count_output_users(graph, output_users);
 	
-	SocketIndexMap output_index;
-	codegen_subgraph(sorted_nodes, output_users, output_index);
+	NodeList main_nodes;
+	sort_graph_nodes(graph, main_nodes);
 	
-	fn->set_entry_point(entry_point);
+	fn = new Function();
 	
-	/* store final stack indices for outputs, so we can return results to the caller */
-	for (size_t i = 0; i < graph.outputs.size(); ++i) {
-		const NodeGraph::Output &output = graph.outputs[i];
-		const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
-		assert(output_index.find(output.key) != output_index.end());
-		StackIndex offset = output_index[output.key];
-		fn->add_return_value(socket->typedesc, output.name, offset);
+	/* first generate separate kernel functions */
+	for (FunctionEntryMap::iterator it = func_entry_map.begin(); it != func_entry_map.end(); ++it) {
+		const ConstSocketPair &key = it->first;
+		FunctionInfo &func = it->second;
+		
+		NodeList expr_nodes;
+		sort_expression_nodes(key, expr_nodes);
+		
+		/* TODO loading values from top-level nodes
+		 * will not work at this point (input stack indices are unknown).
+		 * for that the stack index instructions will have to be
+		 * updated _after_ the main function is generated.
+		 */
+		
+		SubgraphOutputList outputs;
+		ConstSocketPair link_key = key.node->link(key.socket);
+		Value *value = key.node->type->find_input(key.socket)->default_value;
+		outputs.push_back(SubgraphOutput(link_key, value));
+		
+		func.entry_point = codegen_subgraph(expr_nodes, output_users, outputs);
+		func.return_index = outputs[0].stack_index;
+	}
+	
+	/* now generate the main function */
+	{
+		SubgraphOutputList outputs;
+		for (size_t i = 0; i < graph.outputs.size(); ++i) {
+			const NodeGraph::Output &output = graph.outputs[i];
+			Value *value = output.key.node->type->find_output(output.key.socket)->default_value;
+			outputs.push_back(SubgraphOutput(output.key, value));
+		}
+		int entry_point = codegen_subgraph(main_nodes, output_users, outputs);
+		fn->set_entry_point(entry_point);
+		
+		/* store final stack indices for outputs, so we can return results to the caller */
+		for (size_t i = 0; i < graph.outputs.size(); ++i) {
+			const NodeGraph::Output &output = graph.outputs[i];
+			const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
+			
+			fn->add_return_value(socket->typedesc, output.name, outputs[i].stack_index);
+		}
 	}
 	
 	Function *result = fn;
