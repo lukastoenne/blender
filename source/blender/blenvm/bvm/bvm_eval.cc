@@ -463,9 +463,12 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
-void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const
 {
-	int instr = fn->entry_point();
+	EvalKernelData kd;
+	kd.context = this;
+	kd.function = fn;
+	int instr = entry_point;
 	
 	while (true) {
 		OpCode op = fn->read_opcode(&instr);
@@ -880,7 +883,8 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				int fn_transform = fn->read_jump_address(&instr);
 				StackIndex offset_transform = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
-				eval_op_mesh_array(stack, offset_mesh_in, offset_mesh_out, offset_count, fn_transform, offset_transform);
+				eval_op_mesh_array(globals, data, &kd, stack,
+				                   offset_mesh_in, offset_mesh_out, offset_count, fn_transform, offset_transform);
 				break;
 			}
 			case OP_END:
@@ -892,11 +896,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 	}
 }
 
-void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const
+void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const
 {
 	float stack[BVM_STACK_SIZE] = {0};
 	
-	eval_instructions(globals, data, fn, stack);
+	eval_instructions(globals, data, fn, fn->entry_point(), stack);
 	
 	for (int i = 0; i < fn->return_values_size(); ++i) {
 		const ReturnValue &rval = fn->return_value(i);
@@ -904,6 +908,11 @@ void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *da
 		
 		rval.typedesc.copy_value(results[i], (void *)value);
 	}
+}
+
+void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const
+{
+	eval_instructions(globals, data, fn, entry_point, stack);
 }
 
 void bvm_init()

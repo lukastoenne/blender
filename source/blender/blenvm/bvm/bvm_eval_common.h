@@ -37,6 +37,13 @@
 
 namespace bvm {
 
+struct EvalContext;
+
+struct EvalKernelData {
+	const EvalContext *context;
+	const Function *function;
+};
+
 inline static float stack_load_float(float *stack, StackIndex offset)
 {
 	return *(float *)(&stack[offset]);

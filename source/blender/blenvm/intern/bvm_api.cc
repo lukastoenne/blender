@@ -255,7 +255,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_expression(_GLOBALS(globals), &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(_GLOBALS(globals), &data, _FUNC(fn), results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -791,7 +791,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	float3 normal;
 	void *results[] = { &color.x, &normal.x };
 	
-	_CTX(ctx)->eval_expression(&globals, &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -907,7 +907,7 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunc
 	mesh_ptr result;
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_expression(&globals, &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), results);
 	
 	return result.get();
 }

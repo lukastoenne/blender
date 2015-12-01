@@ -46,7 +46,8 @@ static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex off
 	stack_store_mesh(stack, offset, dm);
 }
 
-static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
+static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, const EvalKernelData *kernel_data, float *stack,
+                             DerivedMesh *dm, int count, int fn_transform, StackIndex offset_transform)
 {
 	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS);
 	
@@ -87,12 +88,7 @@ static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
 	}
 #endif
 
-	float offset[4][4];
-	transpose_m4_m4(offset, (float (*)[4])tfm.data);
-	float current_offset[4][4];
-	unit_m4(current_offset);
-	
-	for (int c = 1; c < count; c++) {
+	for (int c = 0; c < count; c++) {
 		/* copy customdata to new geometry */
 		DM_copy_vert_data(result, result, 0, c * chunk_nverts, chunk_nverts);
 		DM_copy_edge_data(result, result, 0, c * chunk_nedges, chunk_nedges);
@@ -102,18 +98,21 @@ static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
 		MVert *mv_prev = result_dm_verts;
 		MVert *mv = mv_prev + c * chunk_nverts;
 
-		/* recalculate cumulative offset here */
-		mul_m4_m4m4(current_offset, current_offset, offset);
+		/* calculate transform for the copy */
+		kernel_data->context->eval_expression(globals, data, kernel_data->function, fn_transform, stack);
+		matrix44 tfm = stack_load_matrix44(stack, offset_transform);
+		float mat[4][4];
+		transpose_m4_m4(mat, (float (*)[4])tfm.data);
 
 		/* apply offset to all new verts */
 		for (int i = 0; i < chunk_nverts; i++, mv++, mv_prev++) {
-			mul_m4_v3(current_offset, mv->co);
+			mul_m4_v3(mat, mv->co);
 
 			/* We have to correct normals too, if we do not tag them as dirty! */
 			if (!use_recalc_normals) {
 				float no[3];
 				normal_short_to_float_v3(no, mv->no);
-				mul_mat3_m4_v3(current_offset, no);
+				mul_mat3_m4_v3(mat, no);
 				normalize_v3(no);
 				normal_float_to_short_v3(mv->no, no);
 			}
@@ -149,15 +148,15 @@ static DerivedMesh *do_array(DerivedMesh *dm, int count, const matrix44 &tfm)
 	return result;
 }
 
-static void eval_op_mesh_array(float *stack, StackIndex offset_mesh_in, StackIndex offset_mesh_out,
+static void eval_op_mesh_array(const EvalGlobals *globals, const EvalData *data, const EvalKernelData *kernel_data, float *stack,
+                               StackIndex offset_mesh_in, StackIndex offset_mesh_out,
                                StackIndex offset_count, int fn_transform, StackIndex offset_transform)
 {
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	int count = stack_load_int(stack, offset_count);
 	CLAMP_MIN(count, 0);
-	matrix44 tfm = stack_load_matrix44(stack, offset_transform);
 	
-	DerivedMesh *result = do_array(dm, count, tfm);
+	DerivedMesh *result = do_array(globals, data, kernel_data, stack, dm, count, fn_transform, offset_transform);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
