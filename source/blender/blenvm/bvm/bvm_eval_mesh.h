@@ -156,9 +156,10 @@ static void eval_op_mesh_array(const EvalGlobals *globals, const EvalData *data,
 {
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	int count = stack_load_int(stack, offset_count);
-	CLAMP_MIN(count, 0);
 	
-	DerivedMesh *result = do_array(globals, data, kernel_data, stack, dm, count, fn_transform, offset_transform);
+	DerivedMesh *result = (count > 0) ?
+	                          do_array(globals, data, kernel_data, stack, dm, count, fn_transform, offset_transform) :
+	                          CDDM_new(0, 0, 0, 0, 0);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
