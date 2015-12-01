@@ -406,6 +406,11 @@ static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, Sta
 	stack_store_float4(stack, offset_r, a);
 }
 
+static void eval_op_iteration(const EvalData *data, float *stack, StackIndex offset)
+{
+	stack_store_int(stack, offset, data->iteration);
+}
+
 static void eval_op_tex_coord(const EvalData *data, float *stack, StackIndex offset)
 {
 	stack_store_float3(stack, offset, data->texture.co);
@@ -806,6 +811,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_col_b = fn->read_stack_index(&instr);
 				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mix_rgb(stack, mode, offset_col_a, offset_col_b, offset_fac, offset_r);
+				break;
+			}
+				
+			case OP_ITERATION: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_iteration(data, stack, offset);
 				break;
 			}
 			

@@ -662,9 +662,42 @@ SocketPair NodeGraph::add_float4_converter(const SocketPair &from, BVMType to_ty
 	return result;
 }
 
-SocketPair NodeGraph::add_int_converter(const SocketPair &/*from*/, BVMType /*to_type*/)
+SocketPair NodeGraph::add_int_converter(const SocketPair &from, BVMType to_type)
 {
 	SocketPair result(NULL, "");
+	switch (to_type) {
+		case BVM_FLOAT: {
+			NodeInstance *node = add_node("INT_TO_FLOAT");
+			add_link(from.node, from.socket, node, "value");
+			result = SocketPair(node, "value");
+			break;
+		}
+		case BVM_FLOAT3: {
+			NodeInstance *fnode = add_node("INT_TO_FLOAT");
+			add_link(from.node, from.socket, fnode, "value");
+			
+			NodeInstance *node = add_node("SET_FLOAT3");
+			add_link(fnode, "value", node, "value_x");
+			add_link(fnode, "value", node, "value_y");
+			add_link(fnode, "value", node, "value_z");
+			result = SocketPair(node, "value");
+			break;
+		}
+		case BVM_FLOAT4: {
+			NodeInstance *fnode = add_node("INT_TO_FLOAT");
+			add_link(from.node, from.socket, fnode, "value");
+			
+			NodeInstance *node = add_node("SET_FLOAT4");
+			add_link(fnode, "value", node, "value_x");
+			add_link(fnode, "value", node, "value_y");
+			add_link(fnode, "value", node, "value_z");
+			add_link(fnode, "value", node, "value_w");
+			result = SocketPair(node, "value");
+			break;
+		}
+		default:
+			break;
+	}
 	return result;
 }
 
@@ -1197,6 +1230,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(MIX_RGB);
 	
+	NODETYPE(ITERATION);
+	
 	NODETYPE(TEX_COORD);
 	NODETYPE(TEX_PROC_VORONOI);
 	NODETYPE(TEX_PROC_CLOUDS);
@@ -1415,6 +1450,9 @@ static void register_opcode_node_types()
 	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	
+	nt = NodeGraph::add_function_node_type("ITERATION");
+	nt->add_output("value", BVM_INT, 0);
 	
 	nt = NodeGraph::add_function_node_type("TEX_COORD");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));

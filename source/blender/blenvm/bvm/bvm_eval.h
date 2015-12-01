@@ -91,6 +91,13 @@ struct EffectorEvalData {
 };
 
 struct TextureEvalData {
+	TextureEvalData() :
+	    co(float3(0.0f, 0.0f, 0.0f)),
+	    dxt(float3(0.0f, 0.0f, 0.0f)),
+	    dyt(float3(0.0f, 0.0f, 0.0f)),
+	    cfra(0),
+	    osatex(0)
+	{}
 	float3 co;
 	float3 dxt, dyt;
 	int cfra;
@@ -98,16 +105,21 @@ struct TextureEvalData {
 };
 
 struct ModifierEvalData {
+	ModifierEvalData() :
+	    base_mesh(NULL)
+	{}
 	struct Mesh *base_mesh;
 };
 
 struct EvalData {
-	EvalData()
+	EvalData() :
+	    iteration(0)
 	{}
 	
 	EffectorEvalData effector;
 	TextureEvalData texture;
 	ModifierEvalData modifier;
+	int iteration;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalData")
 };

@@ -50,6 +50,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
                              DerivedMesh *dm, int count, int fn_transform, StackIndex offset_transform)
 {
 	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS);
+	EvalData iter_data = *data;
 	
 	int chunk_nverts = dm->getNumVerts(dm);
 	int chunk_nedges = dm->getNumEdges(dm);
@@ -63,6 +64,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
 	int result_npolys = chunk_npolys * count;
 
 	/* Initialize a result dm */
+	MVert *orig_dm_verts = dm->getVertArray(dm);
 	DerivedMesh *result = CDDM_from_template(dm, result_nverts, result_nedges, 0, result_nloops, result_npolys);
 	MVert *result_dm_verts = CDDM_get_verts(result);
 
@@ -95,18 +97,18 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
 		DM_copy_loop_data(result, result, 0, c * chunk_nloops, chunk_nloops);
 		DM_copy_poly_data(result, result, 0, c * chunk_npolys, chunk_npolys);
 
-		MVert *mv_prev = result_dm_verts;
-		MVert *mv = mv_prev + c * chunk_nverts;
-
 		/* calculate transform for the copy */
-		kernel_data->context->eval_expression(globals, data, kernel_data->function, fn_transform, stack);
+		iter_data.iteration = c;
+		kernel_data->context->eval_expression(globals, &iter_data, kernel_data->function, fn_transform, stack);
 		matrix44 tfm = stack_load_matrix44(stack, offset_transform);
 		float mat[4][4];
 		transpose_m4_m4(mat, (float (*)[4])tfm.data);
 
 		/* apply offset to all new verts */
-		for (int i = 0; i < chunk_nverts; i++, mv++, mv_prev++) {
-			mul_m4_v3(mat, mv->co);
+		MVert *mv_orig = orig_dm_verts;
+		MVert *mv = result_dm_verts + c * chunk_nverts;
+		for (int i = 0; i < chunk_nverts; i++, mv++, mv_orig++) {
+			mul_v3_m4v3(mv->co, mat, mv_orig->co);
 
 			/* We have to correct normals too, if we do not tag them as dirty! */
 			if (!use_recalc_normals) {

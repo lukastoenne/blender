@@ -70,6 +70,7 @@ node_categories = [
         ]),
     
     GeometryNodeCategory("GEO_INPUT", "Input", items=[
+        NodeItem("ObjectIterationNode"),
         NodeItem("GeometryMeshLoadNode"),
         ]),
     GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
@@ -184,12 +185,24 @@ class NodeTreeBase():
 ###############################################################################
 # Generic Nodes
 
-class MathNodeBase():
+class CommonNodeBase():
     @classmethod
     def poll(cls, ntree):
         return isinstance(ntree, NodeTreeBase)
 
-class MathNode(MathNodeBase, ObjectNode):
+class IterationNode(CommonNodeBase, ObjectNode):
+    '''Iteration number'''
+    bl_idname = 'ObjectIterationNode'
+    bl_label = 'Iteration'
+
+    def init(self, context):
+        self.outputs.new('NodeSocketInt', "N")
+
+    def compile(self, compiler):
+        node = compiler.add_node("ITERATION", self.name)
+        compiler.map_output(0, node, "value")
+
+class MathNode(CommonNodeBase, ObjectNode):
     '''Math '''
     bl_idname = 'ObjectMathNode'
     bl_label = 'Math'
@@ -252,7 +265,7 @@ class MathNode(MathNodeBase, ObjectNode):
         compiler.map_output(0, node, "value")
 
 
-class VectorMathNode(MathNodeBase, ObjectNode):
+class VectorMathNode(CommonNodeBase, ObjectNode):
     '''Vector Math '''
     bl_idname = 'ObjectVectorMathNode'
     bl_label = 'Vector Math'
@@ -310,7 +323,7 @@ class VectorMathNode(MathNodeBase, ObjectNode):
             compiler.map_output(1, node, "value")
 
 
-class SeparateVectorNode(MathNodeBase, ObjectNode):
+class SeparateVectorNode(CommonNodeBase, ObjectNode):
     '''Separate vector into elements'''
     bl_idname = 'ObjectSeparateVectorNode'
     bl_label = 'Separate Vector'
@@ -338,7 +351,7 @@ class SeparateVectorNode(MathNodeBase, ObjectNode):
         compiler.map_output(2, node, "value")
 
 
-class CombineVectorNode(MathNodeBase, ObjectNode):
+class CombineVectorNode(CommonNodeBase, ObjectNode):
     '''Combine vector from component values'''
     bl_idname = 'ObjectCombineVectorNode'
     bl_label = 'Combine Vector'
