@@ -44,7 +44,7 @@ namespace bvm {
 NodeSocket::NodeSocket(const string &name,
                        const TypeDesc &typedesc,
                        Value *default_value,
-                       eNodeSocketValueType value_type) :
+                       BVMValueType value_type) :
     name(name),
     typedesc(typedesc),
     default_value(default_value),
@@ -191,7 +191,7 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 const NodeSocket *NodeType::add_input(const string &name,
                                       BVMType type,
                                       Value *default_value,
-                                      eNodeSocketValueType value_type)
+                                      BVMValueType value_type)
 {
 	BLI_assert(!find_input(name));
 	/* function inputs only allowed for kernel nodes */

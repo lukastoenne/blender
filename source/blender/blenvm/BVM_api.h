@@ -55,6 +55,9 @@ void BVM_function_free(struct BVMFunction *fn);
 struct BVMCompileContext;
 struct BVMNodeGraph;
 struct BVMNodeInstance;
+struct BVMNodeInput;
+struct BVMNodeOutput;
+struct BVMTypeDesc;
 
 int BVM_compile_get_object_index(struct BVMCompileContext *context, struct Object *ob);
 
@@ -67,16 +70,25 @@ void BVM_nodegraph_add_link(struct BVMNodeGraph *graph,
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket);
 
-void BVM_node_set_input_value_float(struct BVMNodeInstance *node,
-                                    const char *socket, float value);
-void BVM_node_set_input_value_float3(struct BVMNodeInstance *node,
-                                     const char *socket, const float value[3]);
-void BVM_node_set_input_value_float4(struct BVMNodeInstance *node,
-                                     const char *socket, const float value[4]);
-void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node,
-                                       const char *socket, float value[4][4]);
-void BVM_node_set_input_value_int(struct BVMNodeInstance *node,
-                                  const char *socket, int value);
+int BVM_node_num_inputs(struct BVMNodeInstance *node);
+int BVM_node_num_outputs(struct BVMNodeInstance *node);
+struct BVMNodeInput *BVM_node_get_input(struct BVMNodeInstance *node, const char *name);
+struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int index);
+struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name);
+struct BVMNodeOutput *BVM_node_get_output_n(struct BVMNodeInstance *node, int index);
+void BVM_node_set_input_value_float(struct BVMNodeInstance *node, struct BVMNodeInput *input, float value);
+void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, struct BVMNodeInput *input, const float value[3]);
+void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, struct BVMNodeInput *input, const float value[4]);
+void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, struct BVMNodeInput *input, float value[4][4]);
+void BVM_node_set_input_value_int(struct BVMNodeInstance *node, struct BVMNodeInput *input, int value);
+
+const char *BVM_node_input_name(struct BVMNodeInput *input);
+struct BVMTypeDesc *BVM_node_input_typedesc(struct BVMNodeInput *input);
+BVMValueType BVM_node_input_value_type(struct BVMNodeInput *input);
+const char *BVM_node_output_name(struct BVMNodeOutput *output);
+struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output);
+
+BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc);
 
 /* ------------------------------------------------------------------------- */
 
@@ -115,9 +127,9 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
 
-struct BVMFunction *BVM_texture_cache_acquire(Tex *tex);
-void BVM_texture_cache_release(Tex *tex);
-void BVM_texture_cache_invalidate(Tex *tex);
+struct BVMFunction *BVM_texture_cache_acquire(struct Tex *tex);
+void BVM_texture_cache_release(struct Tex *tex);
+void BVM_texture_cache_invalidate(struct Tex *tex);
 void BVM_texture_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */

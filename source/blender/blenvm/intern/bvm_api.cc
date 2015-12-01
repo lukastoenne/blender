@@ -98,6 +98,12 @@ BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
 { return (bvm::NodeGraph *)graph; }
 BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
 { return (bvm::NodeInstance *)node; }
+BLI_INLINE bvm::NodeSocket *_INPUT(struct BVMNodeInput *input)
+{ return (bvm::NodeSocket *)input; }
+BLI_INLINE bvm::NodeSocket *_OUTPUT(struct BVMNodeOutput *output)
+{ return (bvm::NodeSocket *)output; }
+BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
+{ return (bvm::TypeDesc *)typedesc; }
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
@@ -121,25 +127,71 @@ void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
 }
 
 
-void BVM_node_set_input_value_float(struct BVMNodeInstance *node, const char *socket,
+int BVM_node_num_inputs(struct BVMNodeInstance *node)
+{ return _NODE(node)->num_inputs(); }
+
+int BVM_node_num_outputs(struct BVMNodeInstance *node)
+{ return _NODE(node)->num_outputs(); }
+
+struct BVMNodeInput *BVM_node_get_input(struct BVMNodeInstance *node, const char *name)
+{ return (struct BVMNodeInput *)_NODE(node)->type->find_input(name); }
+
+struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int index)
+{
+	if (index >= 0 && index < _NODE(node)->num_inputs())
+		return (struct BVMNodeInput *)_NODE(node)->type->find_input(index);
+	else
+		return NULL;
+}
+
+struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name)
+{ return (struct BVMNodeOutput *)_NODE(node)->type->find_output(name); }
+
+struct BVMNodeOutput *BVM_node_get_output_n(struct BVMNodeInstance *node, int index)
+{
+	if (index >= 0 && index < _NODE(node)->num_outputs())
+		return (struct BVMNodeOutput *)_NODE(node)->type->find_output(index);
+	else
+		return NULL;
+}
+
+void BVM_node_set_input_value_float(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                     float value)
-{ _NODE(node)->set_input_value(socket, value); }
+{ _NODE(node)->set_input_value(_INPUT(input)->name, value); }
 
-void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, const char *socket,
+void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[3])
-{ _NODE(node)->set_input_value(socket, bvm::float3::from_data(value)); }
+{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::float3::from_data(value)); }
 
-void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, const char *socket,
+void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[4])
-{ _NODE(node)->set_input_value(socket, bvm::float4::from_data(value)); }
+{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::float4::from_data(value)); }
 
-void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, const char *socket,
+void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                        float value[4][4])
-{ _NODE(node)->set_input_value(socket, bvm::matrix44::from_data(&value[0][0])); }
+{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::matrix44::from_data(&value[0][0])); }
 
-void BVM_node_set_input_value_int(struct BVMNodeInstance *node, const char *socket,
+void BVM_node_set_input_value_int(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                   int value)
-{ _NODE(node)->set_input_value(socket, value); }
+{ _NODE(node)->set_input_value(_INPUT(input)->name, value); }
+
+const char *BVM_node_input_name(struct BVMNodeInput *input)
+{ return _INPUT(input)->name.c_str(); }
+
+struct BVMTypeDesc *BVM_node_input_typedesc(struct BVMNodeInput *input)
+{ return (struct BVMTypeDesc *)(&_INPUT(input)->typedesc); }
+
+BVMValueType BVM_node_input_value_type(struct BVMNodeInput *input)
+{ return _INPUT(input)->value_type; }
+
+const char *BVM_node_output_name(struct BVMNodeOutput *output)
+{ return _OUTPUT(output)->name.c_str(); }
+
+struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output)
+{ return (struct BVMTypeDesc *)(&_OUTPUT(output)->typedesc); }
+
+BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc)
+{ return _TYPEDESC(typedesc)->base_type; }
 
 /* ------------------------------------------------------------------------- */
 

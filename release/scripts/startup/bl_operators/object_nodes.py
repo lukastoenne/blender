@@ -135,13 +135,13 @@ class NodeCompiler:
         pairs.add((node, name))
 
         if isinstance(socket, bpy.types.NodeSocketFloat):
-            node.set_value_float(name, socket.default_value)
+            node.set_value_float(node.inputs[name], socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketVector):
-            node.set_value_float3(name, socket.default_value)
+            node.set_value_float3(node.inputs[name], socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketColor):
-            node.set_value_float4(name, socket.default_value)
+            node.set_value_float4(node.inputs[name], socket.default_value)
         elif isinstance(socket, bpy.types.NodeSocketInt):
-            node.set_value_int(name, socket.default_value)
+            node.set_value_int(node.inputs[name], socket.default_value)
 
     def map_output(self, index, node, name):
         socket = self.current_node.outputs[index]

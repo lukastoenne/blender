@@ -46,6 +46,12 @@ typedef enum BVMType {
 	BVM_MESH,
 } BVMType;
 
+typedef enum BVMValueType {
+	VALUE_CONSTANT,
+	VALUE_VARIABLE,
+	VALUE_FUNCTION
+} BVMValueType;
+
 #ifdef __cplusplus
 }
 #endif
