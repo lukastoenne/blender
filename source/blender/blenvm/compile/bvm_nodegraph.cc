@@ -341,13 +341,16 @@ bool NodeInstance::set_input_value(const string &name, Value *value)
 
 bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, const NodeSocket *from_socket)
 {
+	const NodeSocket *socket = type->find_input(name);
 	InputInstance &input = inputs[name];
-	if (input.link_node && input.link_socket)
-		return false;
 	
-	input.link_node = from_node;
-	input.link_socket = from_socket;
-	return true;
+	if (socket->typedesc.assignable(from_socket->typedesc)) {
+		input.link_node = from_node;
+		input.link_socket = from_socket;
+		return true;
+	}
+	else
+		return false;
 }
 
 bool NodeInstance::has_input_link(const string &name) const
