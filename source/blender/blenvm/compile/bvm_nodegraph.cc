@@ -295,9 +295,14 @@ const NodeSocket *NodeInstance::find_input_link_socket(int index) const
 SocketPair NodeInstance::link(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
-	return (it != inputs.end()) ?
-	            SocketPair(it->second.link_node, it->second.link_socket->name) :
-	            SocketPair(NULL, "");
+	if (it != inputs.end()) {
+		const NodeInstance::InputInstance &input = it->second;
+		return input.link_node && input.link_socket ?
+		            SocketPair(input.link_node, input.link_socket->name) :
+		            SocketPair(NULL, "");
+	}
+	else
+		return SocketPair(NULL, "");
 }
 
 SocketPair NodeInstance::link(int index) const

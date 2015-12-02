@@ -129,13 +129,45 @@ class StringDict(OrderedDict):
 # RNA does not allow collections of temporary (node,socket) pairs,
 # so we use python wrappers to pass them around as a single object
 
+def convert_sockets(compiler, from_typedesc, to_typedesc):
+    from_type = from_typedesc.base_type
+    to_type = to_typedesc.base_type
+
+    if to_type == from_type:
+        node = compiler.add_node("PASS_%s" % to_type)
+        return {node.inputs[0]}, node.outputs[0]
+
+    if to_type == 'FLOAT':
+        if from_type == 'INT':
+            node = compiler.add_node("INT_TO_FLOAT")
+            return {node.inputs[0]}, node.outputs[0]
+        elif from_type == 'FLOAT3':
+            node = compiler.add_node("SET_FLOAT3")
+            return {node.inputs[0], node.inputs[1], node.inputs[2]}, node.outputs[0]
+        elif from_type == 'FLOAT4':
+            node = compiler.add_node("SET_FLOAT4")
+            return {node.inputs[0], node.inputs[1], node.inputs[2], node.inputs[3]}, node.outputs[0]
+    
+    elif to_type == 'FLOAT3':
+        pass
+    
+    elif to_type == 'FLOAT4':
+        pass
+    
+    elif to_type == 'INT':
+        if from_type == 'FLOAT':
+            node = compiler.add_node("FLOAT_TO_INT")
+            return {node.inputs[0]}, node.outputs[0]
+    
+    elif to_type == 'MATRIX44':
+        pass
+
+    return set(), None
+
 class InputWrapper:
     def __init__(self, gnode, ginput):
         self.gnode = gnode
         self.ginput = ginput
-
-    def link(self, from_output):
-        self.gnode.set_input_link(self.ginput, from_output.gnode, from_output.goutput)
 
     def set_value(self, value):
         base_type = self.ginput.typedesc.base_type
@@ -180,15 +212,25 @@ class NodeCompiler:
         out_node, out_socket = self.graph.get_output(name)
         return InputWrapper(out_node, out_node.inputs[out_socket])
 
+    def link(self, from_output, to_input, autoconvert=True):
+        if autoconvert:
+            cin, cout = convert_sockets(self, from_output.goutput.typedesc, to_input.ginput.typedesc)
+            if cout:
+                to_input.gnode.set_input_link(to_input.ginput, cout.gnode, cout.goutput)
+            for i in cin:
+                i.gnode.set_input_link(i.ginput, from_output.gnode, from_output.goutput)
+        else:
+            to_input.gnode.set_input_link(to_input.ginput, from_output.gnode, from_output.goutput)
+
     def map_input(self, key, socket):
         if key not in self.bnode_inputs:
             raise KeyError("Input %r not found in node %r" % (key, self.bnode))
-        socket.link(self.bnode_inputs[key])
+        self.link(self.bnode_inputs[key], socket)
 
     def map_output(self, key, socket):
         if key not in self.bnode_outputs:
             raise KeyError("Output %r not found in node %r" % (key, self.bnode))
-        self.bnode_outputs[key].link(socket)
+        self.link(socket, self.bnode_outputs[key])
 
 class NodeTreeBase():
     def bvm_compile(self, context, graph):
@@ -248,7 +290,7 @@ class NodeTreeBase():
 
             src = (blink.from_node, blink.from_socket)
             dst = (blink.to_node, blink.to_socket)
-            input_map[dst].link(output_map[src])
+            comp.link(output_map[src], input_map[dst])
 
 ###############################################################################
 # Generic Nodes
@@ -555,7 +597,7 @@ class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
         node = compiler.add_node("MESH_ARRAY", self.name+"MOD")
         node_tfm = compiler.add_node("LOCROTSCALE_TO_MATRIX44", self.name+"TFM")
 
-        node.inputs["transform"].link(node_tfm.outputs[0])
+        compiler.link(node_tfm.outputs[0], node.inputs["transform"])
 
         compiler.map_input(0, node.inputs["mesh_in"])
         compiler.map_input(1, node.inputs["count"])
@@ -631,7 +673,7 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
         node = compiler.add_node("EFFECTOR_CLOSEST_POINT", self.name+"N")
         obnode = compiler.add_node("EFFECTOR_OBJECT", self.name+"O")
         
-        node.inputs["object"].link(obnode.outputs[0])
+        compiler.link(obnode.outputs[0], node.inputs["object"])
 
         compiler.map_input(0, node.inputs["vector"])
         compiler.map_output(0, node.outputs["position"])

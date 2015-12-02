@@ -290,6 +290,7 @@ static void rna_def_bvm_typedesc(BlenderRNA *brna)
 	    {BVM_FLOAT3, "FLOAT3", 0, "Float3", "3D vector"},
 	    {BVM_FLOAT4, "FLOAT4", 0, "Float4", "4D vector"},
 	    {BVM_INT, "INT", 0, "Int", "Integer number"},
+	    {BVM_MATRIX44, "MATRIX44", 0, "Matrix44", "4x4 matrix"},
 	    {BVM_MESH, "MESH", 0, "Mesh", "Mesh data"},
 	    {0, NULL, 0, NULL, NULL}
 	};
