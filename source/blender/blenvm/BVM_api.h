@@ -62,10 +62,6 @@ struct BVMTypeDesc;
 int BVM_compile_get_object_index(struct BVMCompileContext *context, struct Object *ob);
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
-void BVM_nodegraph_add_link(struct BVMNodeGraph *graph,
-                            struct BVMNodeInstance *from_node, const char *from_socket,
-                            struct BVMNodeInstance *to_node, const char *to_socket,
-                            bool autoconvert);
 
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket);
@@ -76,6 +72,10 @@ struct BVMNodeInput *BVM_node_get_input(struct BVMNodeInstance *node, const char
 struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int index);
 struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name);
 struct BVMNodeOutput *BVM_node_get_output_n(struct BVMNodeInstance *node, int index);
+
+bool BVM_node_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
+                             struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output);
+
 void BVM_node_set_input_value_float(struct BVMNodeInstance *node, struct BVMNodeInput *input, float value);
 void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, struct BVMNodeInput *input, const float value[3]);
 void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, struct BVMNodeInput *input, const float value[4]);

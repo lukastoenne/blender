@@ -54,14 +54,6 @@ static struct BVMNodeInstance *rna_BVMNodeGraph_add_node(struct BVMNodeGraph *gr
 	return BVM_nodegraph_add_node(graph, type, name);
 }
 
-static void rna_BVMNodeGraph_add_link(struct BVMNodeGraph *graph,
-                                    struct BVMNodeInstance *from_node, const char *from_socket,
-                                    struct BVMNodeInstance *to_node, const char *to_socket,
-                                    int autoconvert)
-{
-	return BVM_nodegraph_add_link(graph, from_node, from_socket, to_node, to_socket, autoconvert);
-}
-
 static void rna_BVMNodeGraph_get_output(struct BVMNodeGraph *graph, const char *name,
                                         struct BVMNodeInstance **node, const char **socket)
 {
@@ -233,6 +225,12 @@ int rna_BVMNodeInstance_outputs_lookupstring(PointerRNA *ptr, const char *key, P
 	return output != NULL;
 }
 
+static int rna_BVMNodeInstance_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
+                                              struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output)
+{
+	return BVM_node_set_input_link(node, input, from_node, from_output);
+}
+
 static void rna_BVMNodeInstance_set_value_float(struct BVMNodeInstance *node, struct BVMNodeInput *input, float value)
 {
 	BVM_node_set_input_value_float(node, input, value);
@@ -390,6 +388,17 @@ static void rna_def_bvm_node_instance(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "BVMNodeOutput");
 	RNA_def_property_ui_text(prop, "Outputs", "Output sockets of the node");
 	
+	func = RNA_def_function(srna, "set_input_link", "rna_BVMNodeInstance_set_input_link");
+	RNA_def_function_ui_description(func, "Add a new node connection");
+	parm = RNA_def_pointer(func, "input", "BVMNodeInput", "Input", "Input to connect");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "from_node", "BVMNodeInstance", "Source Node", "");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "from_output", "BVMNodeOutput", "Source Output", "");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_boolean(func, "result", true, "Result", "True if adding the connection succeeded");
+	RNA_def_function_return(func, parm);
+	
 	func = RNA_def_function(srna, "set_value_float", "rna_BVMNodeInstance_set_value_float");
 	RNA_def_function_ui_description(func, "Set an input value constant");
 	parm = RNA_def_pointer(func, "input", "BVMNodeInput", "Input", "Set value for this input");
@@ -436,16 +445,6 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 	RNA_def_string(func, "name", NULL, 0, "Name", "Name of the node");
 	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
 	RNA_def_function_return(func, parm);
-	
-	func = RNA_def_function(srna, "add_link", "rna_BVMNodeGraph_add_link");
-	RNA_def_function_ui_description(func, "Add a new node connection");
-	parm = RNA_def_pointer(func, "from_node", "BVMNodeInstance", "Source Node", "");
-	RNA_def_property_flag(parm, PROP_NEVER_NULL);
-	RNA_def_string(func, "from_socket", NULL, 0, "Source Socket", "Source socket name");
-	parm = RNA_def_pointer(func, "to_node", "BVMNodeInstance", "Target Node", "");
-	RNA_def_property_flag(parm, PROP_NEVER_NULL);
-	RNA_def_string(func, "to_socket", NULL, 0, "Target Socket", "Target socket name");
-	RNA_def_boolean(func, "autoconvert", true, "Autoconvert", "Add datatype converters where applicable");
 	
 	func = RNA_def_function(srna, "get_output", "rna_BVMNodeGraph_get_output");
 	RNA_def_function_ui_description(func, "Get a node/socket pair used as output of the graph");

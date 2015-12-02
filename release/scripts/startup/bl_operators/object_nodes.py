@@ -24,6 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
+from collections import OrderedDict
 
 ###############################################################################
 # Socket Types
@@ -108,79 +109,146 @@ node_categories = [
     ]
 
 ###############################################################################
-# Compiler class for converting nodes
 
+# Utility dict type that works like RNA collections,
+# i.e. accepts both string keys and integer indices
+class StringDict(OrderedDict):
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return super().__getitem__(list(super().keys())[key])
+        else:
+            return super().__getitem__(key)
+
+    def __contains__(self, key):
+        if isinstance(key, int):
+            return super().__contains__(list(super().keys())[key])
+        else:
+            return super().__contains__(key)
+
+# Wrapper classes to make constructing node graphs as convenient as possible
+# RNA does not allow collections of temporary (node,socket) pairs,
+# so we use python wrappers to pass them around as a single object
+
+class InputWrapper:
+    def __init__(self, gnode, ginput):
+        self.gnode = gnode
+        self.ginput = ginput
+
+    def link(self, from_output):
+        self.gnode.set_input_link(self.ginput, from_output.gnode, from_output.goutput)
+
+    def set_value(self, value):
+        base_type = self.ginput.typedesc.base_type
+        if base_type == 'FLOAT':
+            self.gnode.set_value_float(self.ginput, value)
+        elif base_type == 'FLOAT3':
+            self.gnode.set_value_float3(self.ginput, value)
+        elif base_type == 'FLOAT4':
+            self.gnode.set_value_float4(self.ginput, value)
+        elif base_type == 'INT':
+            self.gnode.set_value_int(self.ginput, value)
+        elif base_type == 'MATRIX44':
+            self.gnode.set_value_matrix44(self.ginput, value)
+
+class OutputWrapper:
+    def __init__(self, gnode, goutput):
+        self.gnode = gnode
+        self.goutput = goutput
+
+class NodeWrapper:
+    def __init__(self, gnode):
+        self.gnode = gnode
+        self.inputs = StringDict([ (i.name, InputWrapper(self.gnode, i)) for i in self.gnode.inputs ])
+        self.outputs = StringDict([ (o.name, OutputWrapper(self.gnode, o)) for o in self.gnode.outputs ])
+
+# Compiler class for converting nodes
 class NodeCompiler:
     def __init__(self, context, graph):
         self.context = context
         self.graph = graph
-        self.current_node = None
-        self.input_map = dict()
-        self.output_map = dict()
+        self.bnode = None
+        self.bnode_inputs = None
+        self.bnode_outputs = None
 
-    def add_node(self, type, name):
+    def add_node(self, type, name=""):
         node = self.graph.add_node(type, name)
         if node is None:
             raise Exception("Can not add node of type %r" % type)
-        return node
+        return NodeWrapper(node)
 
-    def map_input(self, index, node, name):
-        socket = self.current_node.inputs[index]
-        key = (self.current_node, socket)
-        if key not in self.input_map:
-            pairs = set()
-            self.input_map[key] = pairs
-        else:
-            pairs = self.input_map[key]
-        pairs.add((node, name))
-
-        if isinstance(socket, bpy.types.NodeSocketFloat):
-            node.set_value_float(node.inputs[name], socket.default_value)
-        elif isinstance(socket, bpy.types.NodeSocketVector):
-            node.set_value_float3(node.inputs[name], socket.default_value)
-        elif isinstance(socket, bpy.types.NodeSocketColor):
-            node.set_value_float4(node.inputs[name], socket.default_value)
-        elif isinstance(socket, bpy.types.NodeSocketInt):
-            node.set_value_int(node.inputs[name], socket.default_value)
-
-    def map_output(self, index, node, name):
-        socket = self.current_node.outputs[index]
-        key = (self.current_node, socket)
-        if key in self.output_map:
-            raise KeyError("Node output {}:{} is already mapped".format(self.current_node.name, socket.name))
-        self.output_map[key] = (node, name)
-
-    def add_link(self, blink):
-        (from_node, from_socket) = self.output_map.get((blink.from_node, blink.from_socket), (None, None))
-        to_set = self.input_map.get((blink.to_node, blink.to_socket), set())
-        if from_node and from_socket:
-            for (to_node, to_socket) in to_set:
-                self.graph.add_link(from_node, from_socket, to_node, to_socket)
-
-    def add_link_internal(self, from_node, from_name, to_node, to_name):
-        self.graph.add_link(from_node, from_name, to_node, to_name)
-
-    def set_output(self, name, node, socket):
+    def graph_output(self, name):
         out_node, out_socket = self.graph.get_output(name)
-        self.graph.add_link(node, socket, out_node, out_socket)
+        return InputWrapper(out_node, out_node.inputs[out_socket])
 
+    def map_input(self, key, socket):
+        if key not in self.bnode_inputs:
+            raise KeyError("Input %r not found in node %r" % (key, self.bnode))
+        socket.link(self.bnode_inputs[key])
+
+    def map_output(self, key, socket):
+        if key not in self.bnode_outputs:
+            raise KeyError("Output %r not found in node %r" % (key, self.bnode))
+        self.bnode_outputs[key].link(socket)
 
 class NodeTreeBase():
     def bvm_compile(self, context, graph):
+        def socket_type_to_bvm(socket):
+            if isinstance(socket, bpy.types.NodeSocketFloat):
+                return 'FLOAT'
+            elif isinstance(socket, bpy.types.NodeSocketVector):
+                return 'FLOAT3'
+            elif isinstance(socket, bpy.types.NodeSocketColor):
+                return 'FLOAT4'
+            elif isinstance(socket, bpy.types.NodeSocketInt):
+                return 'INT'
+            elif isinstance(socket, bpy.types.GeometrySocket):
+                return 'MESH'
+
         comp = NodeCompiler(context, graph)
+
+        input_map = dict()
+        output_map = dict()
 
         for bnode in self.nodes:
             if not bnode.is_registered_node_type():
                 continue
-            comp.current_node = bnode
+
+            # proxies for inputs/outputs
+            bnode_inputs = StringDict()
+            for binput in bnode.inputs:
+                itype = socket_type_to_bvm(binput)
+                
+                proxy = comp.add_node("PASS_%s" % itype)
+                bnode_inputs[binput.identifier] = proxy.outputs[0]
+                input_map[(bnode, binput)] = proxy.inputs[0]
+
+                if hasattr(binput, "default_value"):
+                    proxy.inputs[0].set_value(binput.default_value)
+            
+            bnode_outputs = StringDict()
+            for boutput in bnode.outputs:
+                otype = socket_type_to_bvm(boutput)
+                
+                proxy = comp.add_node("PASS_%s" % otype)
+                bnode_outputs[boutput.identifier] = proxy.inputs[0]
+                output_map[(bnode, boutput)] = proxy.outputs[0]
+
+            comp.bnode = bnode
+            comp.bnode_inputs = bnode_inputs
+            comp.bnode_outputs = bnode_outputs
             bnode.compile(comp)
-        comp.current_node = None
+
+        comp.bnode = None
+        comp.bnode_inputs = None
+        comp.bnode_outputs = None
 
         for blink in self.links:
             if not blink.is_valid:
                 continue
 
-            comp.add_link(blink)
+            src = (blink.from_node, blink.from_socket)
+            dst = (blink.to_node, blink.to_socket)
+            input_map[dst].link(output_map[src])
 
 ###############################################################################
 # Generic Nodes
@@ -200,7 +268,7 @@ class IterationNode(CommonNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("ITERATION", self.name)
-        compiler.map_output(0, node, "value")
+        compiler.map_output(0, node.outputs[0])
 
 class MathNode(CommonNodeBase, ObjectNode):
     '''Math '''
@@ -249,8 +317,8 @@ class MathNode(CommonNodeBase, ObjectNode):
 
         if is_binary:
             # binary mode
-            compiler.map_input(0, node, "value_a")
-            compiler.map_input(1, node, "value_b")
+            compiler.map_input(0, node.inputs[0])
+            compiler.map_input(1, node.inputs[1])
         else:
             # unary mode
             socket_a = self.inputs[0]
@@ -258,11 +326,11 @@ class MathNode(CommonNodeBase, ObjectNode):
             linked_a = (not socket_a.hide) and socket_a.is_linked
             linked_b = (not socket_a.hide) and socket_a.is_linked
             if linked_a or (not linked_b):
-                compiler.map_input(0, node, "value")
+                compiler.map_input(0, node.inputs[0])
             else:
-                compiler.map_input(1, node, "value")
+                compiler.map_input(1, node.inputs[0])
 
-        compiler.map_output(0, node, "value")
+        compiler.map_output(0, node.outputs[0])
 
 
 class VectorMathNode(CommonNodeBase, ObjectNode):
@@ -301,8 +369,8 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
 
         if is_binary:
             # binary node
-            compiler.map_input(0, node, "value_a")
-            compiler.map_input(1, node, "value_b")
+            compiler.map_input(0, node.inputs[0])
+            compiler.map_input(1, node.inputs[1])
         else:
             # unary node
             socket_a = self.inputs[0]
@@ -310,17 +378,17 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
             linked_a = (not socket_a.hide) and socket_a.is_linked
             linked_b = (not socket_a.hide) and socket_a.is_linked
             if linked_a or (not linked_b):
-                compiler.map_input(0, node, "value")
+                compiler.map_input(0, node.inputs[0])
             else:
-                compiler.map_input(1, node, "value")
+                compiler.map_input(1, node.inputs[0])
 
         if has_vector_out and has_value_out:
-            compiler.map_output(0, node, "vector")
-            compiler.map_output(1, node, "value")
+            compiler.map_output(0, node.outputs[0])
+            compiler.map_output(1, node.outputs[1])
         elif has_vector_out:
-            compiler.map_output(0, node, "value")
+            compiler.map_output(0, node.outputs[0])
         elif has_value_out:
-            compiler.map_output(1, node, "value")
+            compiler.map_output(1, node.outputs[0])
 
 
 class SeparateVectorNode(CommonNodeBase, ObjectNode):
@@ -336,19 +404,19 @@ class SeparateVectorNode(CommonNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"X")
-        node.set_value_int("index", 0)
-        compiler.map_input(0, node, "value")
-        compiler.map_output(0, node, "value")
+        node.inputs["index"].set_value(0)
+        compiler.map_input(0, node.inputs["value"])
+        compiler.map_output(0, node.outputs["value"])
         
         node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Y")
-        node.set_value_int("index", 1)
-        compiler.map_input(0, node, "value")
-        compiler.map_output(1, node, "value")
+        node.inputs["index"].set_value(1)
+        compiler.map_input(0, node.inputs["value"])
+        compiler.map_output(1, node.outputs["value"])
         
         node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Z")
-        node.set_value_int("index", 2)
-        compiler.map_input(0, node, "value")
-        compiler.map_output(2, node, "value")
+        node.inputs["index"].set_value(2)
+        compiler.map_input(0, node.inputs["value"])
+        compiler.map_output(2, node.outputs["value"])
 
 
 class CombineVectorNode(CommonNodeBase, ObjectNode):
@@ -364,10 +432,10 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("SET_FLOAT3", self.name+"N")
-        compiler.map_input(0, node, "value_x")
-        compiler.map_input(1, node, "value_y")
-        compiler.map_input(2, node, "value_z")
-        compiler.map_output(0, node, "value")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_input(1, node.inputs[1])
+        compiler.map_input(2, node.inputs[2])
+        compiler.map_output(0, node.outputs[0])
 
 ###############################################################################
 
@@ -456,9 +524,7 @@ class GeometryOutputNode(GeometryNodeBase, ObjectNode):
         self.inputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        node = compiler.add_node("PASS_MESH", self.name)
-        compiler.map_input(0, node, "value")
-        compiler.set_output("mesh", node, "value")
+        compiler.map_input(0, compiler.graph_output("mesh"))
 
 
 class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
@@ -471,7 +537,7 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("MESH_LOAD", self.name)
-        compiler.map_output(0, node, "mesh")
+        compiler.map_output(0, node.outputs[0])
 
 
 class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
@@ -486,15 +552,15 @@ class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
         self.outputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        node_tfm = compiler.add_node("LOCROTSCALE_TO_MATRIX44", self.name+"TFM")
-        compiler.map_input(2, node_tfm, "loc")
-
         node = compiler.add_node("MESH_ARRAY", self.name+"MOD")
-        compiler.map_input(0, node, "mesh_in")
-        compiler.map_input(1, node, "count")
-        compiler.map_output(0, node, "mesh_out")
-        
-        compiler.add_link_internal(node_tfm, "matrix", node, "transform")
+        node_tfm = compiler.add_node("LOCROTSCALE_TO_MATRIX44", self.name+"TFM")
+
+        node.inputs["transform"].link(node_tfm.outputs[0])
+
+        compiler.map_input(0, node.inputs["mesh_in"])
+        compiler.map_input(1, node.inputs["count"])
+        compiler.map_input(2, node_tfm.inputs["loc"])
+        compiler.map_output(0, node.outputs["mesh_out"])
 
 
 ###############################################################################
@@ -529,13 +595,8 @@ class ForceOutputNode(ForceNodeBase, ObjectNode):
         self.inputs.new('NodeSocketVector', "Impulse")
 
     def compile(self, compiler):
-        node = compiler.add_node("PASS_FLOAT3", self.name+"FORCE")
-        compiler.map_input(0, node, "value")
-        compiler.set_output("force", node, "value")
-        
-        node = compiler.add_node("PASS_FLOAT3", self.name+"IMPULSE")
-        compiler.map_input(1, node, "value")
-        compiler.set_output("impulse", node, "value")
+        compiler.map_input(0, compiler.graph_output("force"))
+        compiler.map_input(1, compiler.graph_output("impulse"))
 
 
 class PointDataNode(ForceNodeBase, ObjectNode):
@@ -549,9 +610,9 @@ class PointDataNode(ForceNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("POINT_POSITION", self.name+"P")
-        compiler.map_output(0, node, "value")
+        compiler.map_output(0, node.outputs[0])
         node = compiler.add_node("POINT_VELOCITY", self.name+"V")
-        compiler.map_output(1, node, "value")
+        compiler.map_output(1, node.outputs[0])
 
 
 class ForceClosestPointNode(ForceNodeBase, ObjectNode):
@@ -567,13 +628,15 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Tangent")
 
     def compile(self, compiler):
-        obnode = compiler.add_node("EFFECTOR_OBJECT", self.name+"O")
         node = compiler.add_node("EFFECTOR_CLOSEST_POINT", self.name+"N")
-        compiler.add_link_internal(obnode, "object", node, "object")
-        compiler.map_input(0, node, "vector")
-        compiler.map_output(0, node, "position")
-        compiler.map_output(1, node, "normal")
-        compiler.map_output(2, node, "tangent")
+        obnode = compiler.add_node("EFFECTOR_OBJECT", self.name+"O")
+        
+        node.inputs["object"].link(obnode.outputs[0])
+
+        compiler.map_input(0, node.inputs["vector"])
+        compiler.map_output(0, node.outputs["position"])
+        compiler.map_output(1, node.outputs["normal"])
+        compiler.map_output(2, node.outputs["tangent"])
 
 ###############################################################################
 

@@ -108,16 +108,6 @@ BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
 
-void BVM_nodegraph_add_link(BVMNodeGraph *graph,
-                            struct BVMNodeInstance *from_node, const char *from_socket,
-                            struct BVMNodeInstance *to_node, const char *to_socket,
-                            bool autoconvert)
-{
-	_GRAPH(graph)->add_link(_NODE(from_node), bvm::string(from_socket),
-	                        _NODE(to_node), bvm::string(to_socket),
-	                        autoconvert);
-}
-
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket)
 {
@@ -142,6 +132,12 @@ struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int inde
 		return (struct BVMNodeInput *)_NODE(node)->type->find_input(index);
 	else
 		return NULL;
+}
+
+bool BVM_node_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
+                             struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output)
+{
+	return _NODE(node)->set_input_link(_INPUT(input)->name, _NODE(from_node), _OUTPUT(from_output));
 }
 
 struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name)
@@ -420,7 +416,7 @@ struct bNodeCompiler {
 		return m_graph->get_output(name)->key;
 	}
 	
-	void add_link(bNodeLink *blink, bool autoconvert=true)
+	void add_link(bNodeLink *blink)
 	{
 		OutputMap::const_iterator it_from = m_output_map.find(bSocketPair(blink->fromnode, blink->fromsock));
 		InputMap::const_iterator it_to_set = m_input_map.find(bSocketPair(blink->tonode, blink->tosock));
@@ -431,8 +427,9 @@ struct bNodeCompiler {
 			for (SocketSet::const_iterator it_to = to_set.begin(); it_to != to_set.end(); ++it_to) {
 				const SocketPair &to_pair = *it_to;
 				
-				m_graph->add_link(from_pair.node, from_pair.socket,
-				                  to_pair.node, to_pair.socket, autoconvert);
+				to_pair.node->set_input_link(to_pair.socket,
+				                             from_pair.node,
+				                             from_pair.node->type->find_output(from_pair.socket));
 			}
 		}
 		else {
@@ -444,10 +441,9 @@ struct bNodeCompiler {
 	}
 	
 	void add_link_intern(const SocketPair &from,
-	                     const SocketPair &to,
-	                     bool autoconvert=true)
+	                     const SocketPair &to)
 	{
-		m_graph->add_link(from.node, from.socket, to.node, to.socket, autoconvert);
+		to.node->set_input_link(to.socket, from.node, from.node->type->find_output(from.socket));
 	}
 	
 	/* --------------------------------------------------------------------- */

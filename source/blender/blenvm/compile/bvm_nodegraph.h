@@ -306,39 +306,6 @@ struct NodeGraph {
 	NodeInstance *get_node(const string &name);
 	NodeInstance *add_node(const string &type, const string &name = "");
 	
-	template <typename FromT, typename ToT>
-	bool add_link(NodeInstance *from_node, FromT from,
-	              NodeInstance *to_node, ToT to,
-	              bool autoconvert=true)
-	{
-		if (!to_node || !from_node)
-			return false;
-		
-		const NodeSocket *from_socket = from_node->type->find_output(from);
-		const NodeSocket *to_socket = to_node->type->find_input(to);
-		if (!from_socket || !to_socket)
-			return false;
-		
-		SocketPair converted = (autoconvert) ?
-		                           add_type_converter(SocketPair(from_node, from), to_socket->typedesc) :
-		                           SocketPair(from_node, from);
-		if (!converted.node)
-			return false;
-		
-		const NodeSocket *conv_socket = converted.node->type->find_output(converted.socket);
-		to_node->set_input_link(to_socket->name, converted.node, conv_socket);
-		
-		return true;
-	}
-	
-	template <typename FromT, typename ToT>
-	bool add_link(const string &from_node, FromT from,
-	              const string &to_node, ToT to,
-	              bool autoconvert=true)
-	{
-		return add_link(get_node(from_node), from, get_node(to_node), to, autoconvert);
-	}
-	
 	const Input *get_input(int index) const;
 	const Input *get_input(const string &name) const;
 	const Output *get_output(int index) const;
@@ -360,13 +327,6 @@ struct NodeGraph {
 	
 protected:
 	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
-	
-	SocketPair add_float_converter(const SocketPair &from, BVMType to_type);
-	SocketPair add_float3_converter(const SocketPair &from, BVMType to_type);
-	SocketPair add_float4_converter(const SocketPair &from, BVMType to_type);
-	SocketPair add_int_converter(const SocketPair &/*from*/, BVMType /*to_type*/);
-	SocketPair add_matrix44_converter(const SocketPair &/*from*/, BVMType /*to_type*/);
-	SocketPair add_type_converter(const SocketPair &from, const TypeDesc &to_typedesc);
 	
 	SocketPair add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
 	SocketPair add_value_node(Value *value);
