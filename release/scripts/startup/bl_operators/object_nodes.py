@@ -254,6 +254,8 @@ class NodeTreeBase():
         for bnode in self.nodes:
             if not bnode.is_registered_node_type():
                 continue
+            if not hasattr(bnode, "compile"):
+                continue
 
             # proxies for inputs/outputs
             bnode_inputs = StringDict()
