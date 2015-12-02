@@ -779,11 +779,24 @@ void NodeGraph::remove_all_nodes()
 SocketPair NodeGraph::find_root(const SocketPair &key)
 {
 	SocketPair root = key;
+	/* value is used to create a valid root node if necessary */
+	Value *value = NULL;
 	while (root.node && root.node->type->is_pass_node()) {
+		value = root.node->has_input_value(0) ?
+		            root.node->find_input_value(0) :
+		            root.node->type->find_input(0)->default_value;
+		
 		NodeInstance *link_node = root.node->find_input_link_node(0);
 		const NodeSocket *link_socket = root.node->find_input_link_socket(0);
 		root = SocketPair(link_node, link_socket ? link_socket->name : "");
 	}
+	
+	/* create a value node as valid root if necessary */
+	if (!root.node) {
+		assert(value != NULL);
+		root = add_value_node(value);
+	}
+	
 	return root;
 }
 
@@ -813,18 +826,7 @@ void NodeGraph::skip_pass_nodes()
 	for (OutputList::iterator it_output = outputs.begin(); it_output != outputs.end(); ++it_output) {
 		Output &output = *it_output;
 		assert(output.key.node);
-		
-		SocketPair root_key = find_root(output.key);
-		
-		/* if the output only has NOOP inputs,
-		 * create a value node as valid root
-		 */
-		if (!root_key.node) {
-			Value *value = output.key.node->find_input_value(output.key.socket);
-			root_key = add_value_node(value);
-		}
-		
-		output.key = root_key;
+		output.key = find_root(output.key);
 	}
 }
 
