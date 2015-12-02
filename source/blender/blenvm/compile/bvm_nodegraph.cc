@@ -1091,6 +1091,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
 	NODETYPE(MESH_LOAD);
+	NODETYPE(MESH_COMBINE);
 	NODETYPE(MESH_ARRAY);
 	
 	#undef NODETYPE
@@ -1350,6 +1351,11 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
 	nt->add_output("mesh", BVM_MESH, __empty_mesh__);
+	
+	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");
+	nt->add_input("mesh_a", BVM_MESH, __empty_mesh__);
+	nt->add_input("mesh_b", BVM_MESH, __empty_mesh__);
+	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);

@@ -83,6 +83,7 @@ node_categories = [
     GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
         NodeItem("ObjectSeparateVectorNode"),
         NodeItem("ObjectCombineVectorNode"),
+        NodeItem("GeometryMeshCombineNode"),
         ]),
     GeometryNodeCategory("GEO_MATH", "Math", items=[
         NodeItem("ObjectMathNode"),
@@ -581,6 +582,23 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("MESH_LOAD", self.name)
+        compiler.map_output(0, node.outputs[0])
+
+
+class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
+    '''Combine multiple meshes into one'''
+    bl_idname = 'GeometryMeshCombineNode'
+    bl_label = 'Combine Meshes'
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "A")
+        self.inputs.new('GeometrySocket', "B")
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MESH_COMBINE", self.name)
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_input(1, node.inputs[1])
         compiler.map_output(0, node.outputs[0])
 
 

@@ -46,6 +46,111 @@ static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex off
 	stack_store_mesh(stack, offset, dm);
 }
 
+static void dm_insert(
+        DerivedMesh *result, DerivedMesh *dm,
+        int ofs_verts, int ofs_edges, int ofs_loops, int ofs_polys)
+{
+	int *index_orig;
+	int i;
+	MVert *mv;
+	MEdge *me;
+	MLoop *ml;
+	MPoly *mp;
+
+	/* needed for subsurf so arrays are allocated */
+	dm->getVertArray(dm);
+	dm->getEdgeArray(dm);
+	dm->getLoopArray(dm);
+	dm->getPolyArray(dm);
+
+	int cap_nverts = dm->getNumVerts(dm);
+	int cap_nedges = dm->getNumEdges(dm);
+	int cap_nloops = dm->getNumLoops(dm);
+	int cap_npolys = dm->getNumPolys(dm);
+
+	DM_copy_vert_data(dm, result, 0, ofs_verts, cap_nverts);
+	DM_copy_edge_data(dm, result, 0, ofs_edges, cap_nedges);
+	DM_copy_loop_data(dm, result, 0, ofs_loops, cap_nloops);
+	DM_copy_poly_data(dm, result, 0, ofs_polys, cap_npolys);
+
+	mv = CDDM_get_verts(result) + ofs_verts;
+
+	for (i = 0; i < cap_nverts; i++, mv++) {
+		/* Reset MVert flags for caps */
+		mv->flag = mv->bweight = 0;
+	}
+
+	/* adjust cap edge vertex indices */
+	me = CDDM_get_edges(result) + ofs_edges;
+	for (i = 0; i < cap_nedges; i++, me++) {
+		me->v1 += ofs_verts;
+		me->v2 += ofs_verts;
+	}
+
+	/* adjust cap poly loopstart indices */
+	mp = CDDM_get_polys(result) + ofs_polys;
+	for (i = 0; i < cap_npolys; i++, mp++) {
+		mp->loopstart += ofs_loops;
+	}
+
+	/* adjust cap loop vertex and edge indices */
+	ml = CDDM_get_loops(result) + ofs_loops;
+	for (i = 0; i < cap_nloops; i++, ml++) {
+		ml->v += ofs_verts;
+		ml->e += ofs_edges;
+	}
+
+	/* set origindex */
+	index_orig = (int *)result->getVertDataArray(result, CD_ORIGINDEX);
+	if (index_orig) {
+		copy_vn_i(index_orig + ofs_verts, cap_nverts, ORIGINDEX_NONE);
+	}
+
+	index_orig = (int *)result->getEdgeDataArray(result, CD_ORIGINDEX);
+	if (index_orig) {
+		copy_vn_i(index_orig + ofs_edges, cap_nedges, ORIGINDEX_NONE);
+	}
+
+	index_orig = (int *)result->getPolyDataArray(result, CD_ORIGINDEX);
+	if (index_orig) {
+		copy_vn_i(index_orig + ofs_polys, cap_npolys, ORIGINDEX_NONE);
+	}
+
+	index_orig = (int *)result->getLoopDataArray(result, CD_ORIGINDEX);
+	if (index_orig) {
+		copy_vn_i(index_orig + ofs_loops, cap_nloops, ORIGINDEX_NONE);
+	}
+}
+
+static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, float *stack,
+                                 StackIndex offset_mesh_a, StackIndex offset_mesh_b, StackIndex offset_mesh_out)
+{
+	DerivedMesh *dm_a = stack_load_mesh(stack, offset_mesh_a);
+	DerivedMesh *dm_b = stack_load_mesh(stack, offset_mesh_b);
+	
+	int numVertsA = dm_a->getNumVerts(dm_a);
+	int numEdgesA = dm_a->getNumEdges(dm_a);
+	int numTessFacesA = dm_a->getNumTessFaces(dm_a);
+	int numLoopsA = dm_a->getNumLoops(dm_a);
+	int numPolysA = dm_a->getNumPolys(dm_a);
+	int numVertsB = dm_b->getNumVerts(dm_b);
+	int numEdgesB = dm_b->getNumEdges(dm_b);
+	int numTessFacesB = dm_b->getNumTessFaces(dm_b);
+	int numLoopsB = dm_b->getNumLoops(dm_b);
+	int numPolysB = dm_b->getNumPolys(dm_b);
+	
+	DerivedMesh *result = CDDM_new(numVertsA + numVertsB,
+	                               numEdgesA + numEdgesB,
+	                               numTessFacesA + numTessFacesB,
+	                               numLoopsA + numLoopsB,
+	                               numPolysA + numPolysB);
+	
+	dm_insert(result, dm_a, 0, 0, 0, 0);
+	dm_insert(result, dm_b, numVertsA, numEdgesA, numLoopsA, numPolysA);
+	
+	stack_store_mesh(stack, offset_mesh_out, result);
+}
+
 static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, const EvalKernelData *kernel_data, float *stack,
                              DerivedMesh *dm, int count, int fn_transform, StackIndex offset_transform)
 {

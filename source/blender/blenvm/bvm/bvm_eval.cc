@@ -886,6 +886,13 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_mesh_load(data, stack, offset_mesh);
 				break;
 			}
+			case OP_MESH_COMBINE: {
+				StackIndex offset_mesh_a = fn->read_stack_index(&instr);
+				StackIndex offset_mesh_b = fn->read_stack_index(&instr);
+				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
+				eval_op_mesh_combine(&kd, stack, offset_mesh_a, offset_mesh_b, offset_mesh_out);
+				break;
+			}
 			case OP_MESH_ARRAY: {
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
 				StackIndex offset_count = fn->read_stack_index(&instr);
