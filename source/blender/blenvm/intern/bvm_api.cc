@@ -68,7 +68,6 @@ void BVM_init(void)
 	
 	create_empty_mesh(__empty_mesh__);
 	
-	bvm_init();
 	nodes_init();
 }
 
@@ -79,7 +78,6 @@ void BVM_free(void)
 	BVM_texture_cache_clear();
 	
 	nodes_free();
-	bvm_free();
 	
 	destroy_empty_mesh(__empty_mesh__);
 }

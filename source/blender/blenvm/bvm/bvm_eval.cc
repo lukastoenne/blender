@@ -61,8 +61,6 @@ EvalContext::~EvalContext()
 
 /* ------------------------------------------------------------------------- */
 
-static mesh_ptr __empty_mesh__;
-
 static void eval_op_value_float(float *stack, float value, StackIndex offset)
 {
 	stack_store_float(stack, offset, value);
@@ -98,7 +96,7 @@ static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex off
  */
 static void eval_op_value_mesh(float *stack, StackIndex offset)
 {
-	stack_store_mesh_ptr(stack, offset, __empty_mesh__);
+	stack_store_mesh(stack, offset, CDDM_new(0, 0, 0, 0, 0));
 }
 
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
@@ -924,16 +922,6 @@ void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data
 void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const
 {
 	eval_instructions(globals, data, fn, entry_point, stack);
-}
-
-void bvm_init()
-{
-	create_empty_mesh(__empty_mesh__);
-}
-
-void bvm_free()
-{
-	destroy_empty_mesh(__empty_mesh__);
 }
 
 } /* namespace bvm */
