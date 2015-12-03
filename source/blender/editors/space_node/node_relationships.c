@@ -668,10 +668,6 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], bool det
 					
 					BLI_addtail(&nldrag->links, linkdata);
 					nodeRemLink(snode->edittree, link);
-					
-					/* send changed event to original link->tonode */
-					if (node)
-						snode_update(snode, node);
 				}
 			}
 		}

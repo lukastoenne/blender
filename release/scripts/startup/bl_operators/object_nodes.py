@@ -34,11 +34,15 @@ class GeometrySocket(NodeSocket):
     bl_idname = 'GeometrySocket'
     bl_label = 'Geometry'
 
+    is_placeholder = BoolProperty(name="Is Placeholder",
+                                  default=False)
+
     def draw(self, context, layout, node, text):
         layout.label(text)
 
     def draw_color(self, context, node):
-        return (1.0, 0.4, 0.216, 1.0)
+        alpha = 0.4 if self.is_placeholder else 1.0
+        return (1.0, 0.4, 0.216, alpha)
 
 
 ###############################################################################
@@ -590,16 +594,57 @@ class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
     bl_idname = 'GeometryMeshCombineNode'
     bl_label = 'Combine Meshes'
 
+    def add_extender(self):
+        socket = self.inputs.new('GeometrySocket', "")
+        socket.is_placeholder = True
+        return socket
+
     def init(self, context):
-        self.inputs.new('GeometrySocket', "A")
-        self.inputs.new('GeometrySocket', "B")
+        self.add_extender()
         self.outputs.new('GeometrySocket', "")
 
+    def update(self):
+        ntree = self.id_data
+        num_inputs = len(self.inputs)
+
+        # build map of connected inputs
+        input_links = dict()
+        for link in ntree.links:
+            if link.to_node == self:
+                input_links[link.to_socket] = link
+
+        # move links upward to fill gaps
+        last = 0
+        for i, socket in enumerate(self.inputs):
+            if socket not in input_links:
+                continues
+            
+            link = input_links[socket]
+            from_socket = link.from_socket
+            to_socket = self.inputs[last]
+            to_socket.is_placeholder = False
+            if i > last:
+                ntree.links.remove(link)
+                ntree.links.new(from_socket, to_socket)
+            
+            last += 1
+
+        if last >= num_inputs:
+            # add a placeholder socket if needed
+            self.add_extender()
+        else:
+            # remove empty sockets at the end
+            for i in range(last, num_inputs-1):
+                self.inputs.remove(self.inputs[i])
+            # make last socket into placeholder
+            self.inputs[-1].is_placeholder = True
+
     def compile(self, compiler):
-        node = compiler.add_node("MESH_COMBINE", self.name)
-        compiler.map_input(0, node.inputs[0])
-        compiler.map_input(1, node.inputs[1])
-        compiler.map_output(0, node.outputs[0])
+        #node = compiler.add_node("MESH_COMBINE", self.name)
+        #compiler.map_input(0, node.inputs[0])
+        #compiler.map_input(1, node.inputs[1])
+        #compiler.map_output(0, node.outputs[0])
+        pass
 
 
 class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
