@@ -1182,6 +1182,24 @@ static void rna_Node_update_reg(bNodeTree *ntree, bNode *node)
 	RNA_parameter_list_free(&list);
 }
 
+static void rna_Node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+{
+	extern FunctionRNA rna_Node_insert_link_func;
+
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+
+	RNA_pointer_create((ID *)ntree, node->typeinfo->ext.srna, node, &ptr);
+	func = &rna_Node_insert_link_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "link", &link);
+	node->typeinfo->ext.call(NULL, &ptr, func, &list);
+
+	RNA_parameter_list_free(&list);
+}
+
 static void rna_Node_init(const bContext *C, PointerRNA *ptr)
 {
 	extern FunctionRNA rna_Node_init_func;
@@ -1384,12 +1402,13 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	nt->poll = (have_function[0]) ? rna_Node_poll : NULL;
 	nt->poll_instance = (have_function[1]) ? rna_Node_poll_instance : rna_Node_poll_instance_default;
 	nt->updatefunc = (have_function[2]) ? rna_Node_update_reg : NULL;
-	nt->initfunc_api = (have_function[3]) ? rna_Node_init : NULL;
-	nt->copyfunc_api = (have_function[4]) ? rna_Node_copy : NULL;
-	nt->freefunc_api = (have_function[5]) ? rna_Node_free : NULL;
-	nt->draw_buttons = (have_function[6]) ? rna_Node_draw_buttons : NULL;
-	nt->draw_buttons_ex = (have_function[7]) ? rna_Node_draw_buttons_ext : NULL;
-	nt->labelfunc = (have_function[8]) ? rna_Node_draw_label : NULL;
+	nt->insert_link = (have_function[3]) ? rna_Node_insert_link : NULL;
+	nt->initfunc_api = (have_function[4]) ? rna_Node_init : NULL;
+	nt->copyfunc_api = (have_function[5]) ? rna_Node_copy : NULL;
+	nt->freefunc_api = (have_function[6]) ? rna_Node_free : NULL;
+	nt->draw_buttons = (have_function[7]) ? rna_Node_draw_buttons : NULL;
+	nt->draw_buttons_ex = (have_function[8]) ? rna_Node_draw_buttons_ext : NULL;
+	nt->labelfunc = (have_function[9]) ? rna_Node_draw_label : NULL;
 	
 	/* sanitize size values in case not all have been registered */
 	if (nt->maxwidth < nt->minwidth)
@@ -3070,6 +3089,39 @@ static int point_density_color_source_from_shader(NodeShaderTexPointDensity *sha
 	}
 }
 
+void rna_ShaderNodePointDensity_density_cache(bNode *self,
+                                              Scene *scene,
+                                              int settings)
+{
+	NodeShaderTexPointDensity *shader_point_density = self->storage;
+	PointDensity *pd = &shader_point_density->pd;
+	if (scene == NULL) {
+		return;
+	}
+
+	/* Create PointDensity structure from node for sampling. */
+	memset(pd, 0, sizeof(*pd));
+	BKE_texture_pointdensity_init_data(pd);
+	pd->object = (Object *)self->id;
+	pd->radius = shader_point_density->radius;
+	if (shader_point_density->point_source == SHD_POINTDENSITY_SOURCE_PSYS) {
+		pd->source = TEX_PD_PSYS;
+		pd->psys = shader_point_density->particle_system;
+		pd->psys_cache_space = TEX_PD_OBJECTSPACE;
+	}
+	else {
+		BLI_assert(shader_point_density->point_source == SHD_POINTDENSITY_SOURCE_OBJECT);
+		pd->source = TEX_PD_OBJECT;
+		pd->ob_cache_space = TEX_PD_OBJECTSPACE;
+	}
+	pd->color_source = point_density_color_source_from_shader(shader_point_density);
+
+	/* Single-threaded sampling of the voxel domain. */
+	RE_cache_point_density(scene,
+	                       pd,
+	                       settings == 1);
+}
+
 void rna_ShaderNodePointDensity_density_calc(bNode *self,
                                              Scene *scene,
                                              int settings,
@@ -3077,7 +3129,7 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
                                              float **values)
 {
 	NodeShaderTexPointDensity *shader_point_density = self->storage;
-	PointDensity pd;
+	PointDensity *pd = &shader_point_density->pd;
 
 	if (scene == NULL) {
 		*length = 0;
@@ -3092,30 +3144,14 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
 		*values = MEM_mallocN(sizeof(float) * (*length), "point density dynamic array");
 	}
 
-	/* Create PointDensity structure from node for sampling. */
-	BKE_texture_pointdensity_init_data(&pd);
-	pd.object = (Object *)self->id;
-	pd.radius = shader_point_density->radius;
-	if (shader_point_density->point_source == SHD_POINTDENSITY_SOURCE_PSYS) {
-		pd.source = TEX_PD_PSYS;
-		pd.psys = shader_point_density->particle_system;
-		pd.psys_cache_space = TEX_PD_OBJECTSPACE;
-	}
-	else {
-		BLI_assert(shader_point_density->point_source == SHD_POINTDENSITY_SOURCE_OBJECT);
-		pd.source = TEX_PD_OBJECT;
-		pd.ob_cache_space = TEX_PD_OBJECTSPACE;
-	}
-	pd.color_source = point_density_color_source_from_shader(shader_point_density);
-
 	/* Single-threaded sampling of the voxel domain. */
-	RE_sample_point_density(scene, &pd,
+	RE_sample_point_density(scene, pd,
 	                        shader_point_density->resolution,
 	                        settings == 1,
 	                        *values);
 
 	/* We're done, time to clean up. */
-	BKE_texture_pointdensity_free_data(&pd);
+	BKE_texture_pointdensity_free_data(pd);
 }
 
 #else
@@ -4046,6 +4082,11 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	RNA_def_property_enum_items(prop, color_source_items);
 	RNA_def_property_ui_text(prop, "Color Source", "Data to derive color results from");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
+
+	func = RNA_def_function(srna, "cache_point_density", "rna_ShaderNodePointDensity_density_cache");
+	RNA_def_function_ui_description(func, "Cache point density data for later calculation");
+	RNA_def_pointer(func, "scene", "Scene", "", "");
+	RNA_def_enum(func, "settings", calc_mode_items, 1, "", "Calculate density for rendering");
 
 	func = RNA_def_function(srna, "calc_point_density", "rna_ShaderNodePointDensity_density_calc");
 	RNA_def_function_ui_description(func, "Calculate point density");
@@ -7774,6 +7815,13 @@ static void rna_def_node(BlenderRNA *brna)
 	func = RNA_def_function(srna, "update", NULL);
 	RNA_def_function_ui_description(func, "Update on editor changes");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	
+	/* insert_link */
+	func = RNA_def_function(srna, "insert_link", NULL);
+	RNA_def_function_ui_description(func, "Handle creation of a link to or from the node");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_REGISTER_OPTIONAL);
+	parm = RNA_def_pointer(func, "link", "NodeLink", "Link", "Node link that will be inserted");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	
 	/* init */
 	func = RNA_def_function(srna, "init", NULL);

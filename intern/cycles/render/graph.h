@@ -197,7 +197,15 @@ public:
 	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;
-	virtual void optimize(Scene * /*scene*/) {};
+
+	/* ** Node optimization ** */
+	/* Check whether the node can be replaced with single constant. */
+	virtual bool constant_fold(ShaderOutput * /*socket*/, float3 * /*optimized_value*/) { return false; }
+
+	/* Simplify settings used by artists to the ones which are simpler to
+	 * evaluate in the kernel but keep the final result unchanged.
+	 */
+	virtual void simplify_settings(Scene * /*scene*/) {};
 
 	virtual bool has_surface_emission() { return false; }
 	virtual bool has_surface_transparent() { return false; }
@@ -254,6 +262,18 @@ public:
 	virtual void compile(SVMCompiler& compiler); \
 	virtual void compile(OSLCompiler& compiler); \
 
+class ShaderNodeIDComparator
+{
+public:
+	bool operator()(const ShaderNode *n1, const ShaderNode *n2) const
+	{
+		return n1->id < n2->id;
+	}
+};
+
+typedef set<ShaderNode*, ShaderNodeIDComparator> ShaderNodeSet;
+typedef map<ShaderNode*, ShaderNode*, ShaderNodeIDComparator> ShaderNodeMap;
+
 /* Graph
  *
  * Shader graph of nodes. Also does graph manipulations for default inputs,
@@ -290,12 +310,13 @@ public:
 protected:
 	typedef pair<ShaderNode* const, ShaderNode*> NodePair;
 
-	void find_dependencies(set<ShaderNode*>& dependencies, ShaderInput *input);
-	void copy_nodes(set<ShaderNode*>& nodes, map<ShaderNode*, ShaderNode*>& nnodemap);
+	void find_dependencies(ShaderNodeSet& dependencies, ShaderInput *input);
+	void copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap);
 
 	void break_cycles(ShaderNode *node, vector<bool>& visited, vector<bool>& on_stack);
 	void clean(Scene *scene);
-	void simplify_nodes(Scene *scene);
+	void simplify_settings(Scene *scene);
+	void constant_fold();
 	void bump_from_displacement();
 	void refine_bump_nodes();
 	void default_inputs(bool do_osl);

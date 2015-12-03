@@ -752,6 +752,33 @@ typedef struct PathState {
 #endif
 } PathState;
 
+/* Subsurface */
+
+/* Struct to gather multiple SSS hits. */
+struct SubsurfaceIntersection
+{
+	Ray ray;
+	float3 weight[BSSRDF_MAX_HITS];
+
+	int num_hits;
+	struct Intersection hits[BSSRDF_MAX_HITS];
+	float3 Ng[BSSRDF_MAX_HITS];
+};
+
+/* Struct to gather SSS indirect rays and delay tracing them. */
+struct SubsurfaceIndirectRays
+{
+	bool need_update_volume_stack;
+	bool tracing;
+	PathState state[BSSRDF_MAX_HITS];
+	struct PathRadiance direct_L;
+
+	int num_rays;
+	struct Ray rays[BSSRDF_MAX_HITS];
+	float3 throughputs[BSSRDF_MAX_HITS];
+	struct PathRadiance L[BSSRDF_MAX_HITS];
+};
+
 /* Constant Kernel Data
  *
  * These structs are passed from CPU to various devices, and the struct layout

@@ -267,6 +267,10 @@ if(NOT WITH_AUDASPACE)
 endif()
 
 option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
+if(UNIX AND NOT APPLE)
+	option(WITH_OPENMP_STATIC "Link OpenMP statically (only used by the release environment)" OFF)
+	mark_as_advanced(WITH_OPENMP_STATIC)
+endif()
 
 if(WITH_X11)
 	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  ON)
@@ -810,14 +814,14 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 # For alternate Python locations the commandline can be used to override detected/default cache settings, e.g:
 # On Unix:
 #   cmake ../blender \
-#         -D PYTHON_VERSION=3.4 \
-#         -D PYTHON_INCLUDE_DIR=/opt/py34/include/python3.4d \
-#         -D PYTHON_LIBRARY=/opt/py34/lib/libpython3.4d.so
+#         -D PYTHON_VERSION=3.5 \
+#         -D PYTHON_INCLUDE_DIR=/opt/py35/include/python3.5d \
+#         -D PYTHON_LIBRARY=/opt/py35/lib/libpython3.5d.so
 #
 # On Macs:
 #   cmake ../blender \
-#         -D PYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/3.4/include/python3.4 \
-#         -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/3.4/lib/python3.4/config \
+#         -D PYTHON_INCLUDE_DIR=/System/Library/Frameworks/Python.framework/Versions/3.5/include/python3.5 \
+#         -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/3.5/lib/python3.5/config \
 #         -G Xcode
 #
 # When changing any of this remember to update the notes in doc/build_systems/cmake.txt
@@ -865,13 +869,9 @@ endif()
 if(UNIX AND NOT APPLE)
 	macro(find_package_wrapper)
 		if(WITH_STATIC_LIBS)
-			set(_cmake_find_library_suffixes_back ${CMAKE_FIND_LIBRARY_SUFFIXES})
-			set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-		endif()
-		find_package(${ARGV})
-		if(WITH_STATIC_LIBS)
-			set(CMAKE_FIND_LIBRARY_SUFFIXES ${_cmake_find_library_suffixes_back})
-			unset(_cmake_find_library_suffixes_back)
+			find_package_static(${ARGV})
+		else()
+			find_package(${ARGV})
 		endif()
 	endmacro()
 
@@ -896,10 +896,10 @@ if(UNIX AND NOT APPLE)
 	# else values are set below for all platforms
 
 	if(WITH_PYTHON)
-		# No way to set py34. remove for now.
+		# No way to set py35, remove for now.
 		# find_package(PythonLibs)
 
-		# Use our own instead, since wothout py is such a rare case,
+		# Use our own instead, since without py is such a rare case,
 		# require this package
 		# XXX Linking errors with debian static python :/
 #		find_package_wrapper(PythonLibsUnix REQUIRED)
@@ -1734,7 +1734,7 @@ elseif(WIN32)
 
 		if(WITH_PYTHON)
 			# normally cached but not since we include them with blender
-			set(PYTHON_VERSION 3.4) #  CACHE STRING)
+			set(PYTHON_VERSION 3.5) #  CACHE STRING)
 			string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}")  # CACHE PATH)
 			set(PYTHON_LIBRARY "${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}mw.lib")  # CACHE FILEPATH)
@@ -1939,8 +1939,8 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_PYTHON)
-		# we use precompiled libraries for py 3.4 and up by default
-		set(PYTHON_VERSION 3.4)
+		# we use precompiled libraries for py 3.5 and up by default
+		set(PYTHON_VERSION 3.5)
 		if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 			# normally cached but not since we include them with blender
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
@@ -2458,8 +2458,18 @@ endif()
 if(WITH_OPENMP)
 	find_package(OpenMP)
 	if(OPENMP_FOUND)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+		if(NOT WITH_OPENMP_STATIC)
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+		else()
+			# Typically avoid adding flags as defines but we can't
+			# ass OpenMP flags to the linker for static builds, meaning
+			# we can't add any OpenMP related flags to CFLAGS variables
+			# since they're passed to the linker as well.
+			add_definitions("${OpenMP_C_FLAGS}")
+
+			find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
+		endif()
 	else()
 		set(WITH_OPENMP OFF)
 	endif()
