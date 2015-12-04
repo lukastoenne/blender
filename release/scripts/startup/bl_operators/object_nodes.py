@@ -603,47 +603,85 @@ class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
         self.add_extender()
         self.outputs.new('GeometrySocket', "")
 
-    def update(self):
+    def update_inputs(self, insert=None):
         ntree = self.id_data
-        num_inputs = len(self.inputs)
 
         # build map of connected inputs
         input_links = dict()
         for link in ntree.links:
             if link.to_node == self:
-                input_links[link.to_socket] = link
+                input_links[link.to_socket] = (link, link.from_socket)
 
-        # move links upward to fill gaps
+        # map input indices to a compacted list
+        input_map = []
         last = 0
         for i, socket in enumerate(self.inputs):
-            if socket not in input_links:
-                continues
-            
-            link = input_links[socket]
-            from_socket = link.from_socket
-            to_socket = self.inputs[last]
-            to_socket.is_placeholder = False
-            if i > last:
-                ntree.links.remove(link)
-                ntree.links.new(from_socket, to_socket)
-            
-            last += 1
+            if socket == insert:
+                last += 1
+            input_map.append(last)
+            if socket in input_links:
+                last += 1
+        # add one for placeholder socket
+        input_map.append(last)
+        
+        # ensure correct number of sockets
+        num_inputs = len(self.inputs)
+        # remove unused sockets at the end ...
+        for i in range(last+1, num_inputs):
+            self.inputs.remove(self.inputs[i])
+        # ... or add sockets if necessary
+        for i in range(num_inputs, last+1):
+            self.inputs.new('GeometrySocket', "")
+        # set socket 'placeholder' flag
+        for socket in self.inputs[:-1]:
+            socket.is_placeholder = False
+        self.inputs[-1].is_placeholder = True
 
-        if last >= num_inputs:
-            # add a placeholder socket if needed
-            self.add_extender()
-        else:
-            # remove empty sockets at the end
-            for i in range(last, num_inputs-1):
-                self.inputs.remove(self.inputs[i])
-            # make last socket into placeholder
-            self.inputs[-1].is_placeholder = True
+        # remove invalid links
+        for i, socket in enumerate(self.inputs):
+            if input_map[i] != i:
+                link, from_socket = input_links.get(socket, (None, None))
+                if link:
+                    ntree.links.remove(link)
+
+        # add corrected links
+        for i, socket in enumerate(self.inputs):
+            if input_map[i] != i:
+                to_socket = self.inputs[input_map[i]]
+                link, from_socket = input_links.get(socket, (None, None))
+                if from_socket:
+                    ntree.links.new(from_socket, to_socket)
+
+    def update(self):
+        self.update_inputs()
+
+    def insert_link(self, link):
+        self.update_inputs(link.to_socket)
 
     def compile(self, compiler):
-        #node = compiler.add_node("MESH_COMBINE", self.name)
-        #compiler.map_input(0, node.inputs[0])
-        #compiler.map_input(1, node.inputs[1])
-        #compiler.map_output(0, node.outputs[0])
+        ntree = self.id_data
+
+        # list of connected inputs
+        used_inputs = set()
+        for link in ntree.links:
+            if link.to_node == self:
+                used_inputs.add(link.to_socket)
+        # make a sorted index list
+        used_inputs = [ i for i,socket in enumerate(self.inputs) if socket in used_inputs ]
+
+        if len(used_inputs) > 0:
+            node = compiler.add_node("PASS_MESH")
+            compiler.map_input(used_inputs[0], node.inputs[0])
+            result = node.outputs[0]
+        
+            for index in used_inputs[1:]:
+                node = compiler.add_node("MESH_COMBINE")
+                compiler.link(result, node.inputs[0])
+                compiler.map_input(index, node.inputs[1])
+                
+                result = node.outputs[0]
+
+            compiler.map_output(0, result)
         pass
 
 
