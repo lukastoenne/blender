@@ -612,45 +612,27 @@ class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
             if link.to_node == self:
                 input_links[link.to_socket] = (link, link.from_socket)
 
-        # map input indices to a compacted list
-        input_map = []
-        last = 0
-        for i, socket in enumerate(self.inputs):
-            if socket == insert:
-                last += 1
-            input_map.append(last)
-            if socket in input_links:
-                last += 1
-        # add one for placeholder socket
-        input_map.append(last)
-        
-        # ensure correct number of sockets
-        num_inputs = len(self.inputs)
-        # remove unused sockets at the end ...
-        for i in range(last+1, num_inputs):
-            self.inputs.remove(self.inputs[i])
-        # ... or add sockets if necessary
-        for i in range(num_inputs, last+1):
+        # remove unconnected sockets
+        for socket in self.inputs:
+            if socket not in input_links and socket != insert:
+                self.inputs.remove(socket)
+            else:
+                socket.is_placeholder = False
+
+        # shift sockets to make room for a new link
+        if insert is not None:
             self.inputs.new('GeometrySocket', "")
-        # set socket 'placeholder' flag
-        for socket in self.inputs[:-1]:
-            socket.is_placeholder = False
-        self.inputs[-1].is_placeholder = True
-
-        # remove invalid links
-        for i, socket in enumerate(self.inputs):
-            if input_map[i] != i:
+            nsocket = self.inputs[-1]
+            for socket in reversed(self.inputs[:-1]):
                 link, from_socket = input_links.get(socket, (None, None))
-                if link:
+                if link is not None:
                     ntree.links.remove(link)
+                    ntree.links.new(from_socket, nsocket)
+                nsocket = socket
+                if socket == insert:
+                    break
 
-        # add corrected links
-        for i, socket in enumerate(self.inputs):
-            if input_map[i] != i:
-                to_socket = self.inputs[input_map[i]]
-                link, from_socket = input_links.get(socket, (None, None))
-                if from_socket:
-                    ntree.links.new(from_socket, to_socket)
+        self.add_extender()
 
     def update(self):
         self.update_inputs()
