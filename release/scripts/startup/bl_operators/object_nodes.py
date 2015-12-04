@@ -664,7 +664,6 @@ class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
                 result = node.outputs[0]
 
             compiler.map_output(0, result)
-        pass
 
 
 class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
