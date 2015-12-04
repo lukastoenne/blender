@@ -24,35 +24,14 @@ if "bpy" in locals():
         reload(val)
     del reload
 _modules = [
-    "add_mesh_torus",
-    "anim",
-    "clip",
-    "console",
-    "file",
-    "image",
-    "mask",
-    "mesh",
-    "node",
-    "object_align",
-    "object",
-    "object_randomize_transform",
-    "object_quick_effects",
-    "presets",
-    "rigidbody",
-    "screen_play_rendered_anim",
-    "sequencer",
-    "uvcalc_follow_active",
-    "uvcalc_lightmap",
-    "uvcalc_smart_project",
-    "vertexpaint_dirt",
-    "view3d",
-    "wm",
+    "common_nodes",
+    "forcefield_nodes",
+    "geometry_nodes",
+    "object_nodes",
 ]
 
 import bpy
 
-if bpy.app.build_options.freestyle:
-    _modules.append("freestyle")
 __import__(name=__name__, fromlist=_modules)
 _namespace = globals()
 _modules_loaded = {name: _namespace[name] for name in _modules if name != "bpy"}
@@ -60,6 +39,7 @@ del _namespace
 
 
 def register():
+    print("REGISTER!")
     bpy.utils.register_module(__name__)
 
 

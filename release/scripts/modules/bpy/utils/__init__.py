@@ -69,7 +69,7 @@ import sys as _sys
 import addon_utils as _addon_utils
 
 _user_preferences = _bpy.context.user_preferences
-_script_module_dirs = "startup", "modules"
+_script_module_dirs = "startup", "modules", "nodes"
 
 
 def _test_import(module_name, loaded_modules):
