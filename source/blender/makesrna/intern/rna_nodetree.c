@@ -6806,7 +6806,7 @@ static void rna_def_object_node(BlenderRNA *brna)
 	/* poll */
 	func = RNA_def_function(srna, "bl_id_property_poll", NULL);
 	RNA_def_function_ui_description(func, "If non-null output is returned, the id pointer can be used in the node");
-	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_REGISTER_OPTIONAL);
 	RNA_def_function_return(func, RNA_def_boolean(func, "result", false, "", ""));
 	parm = RNA_def_pointer(func, "id", "ID", "ID", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);

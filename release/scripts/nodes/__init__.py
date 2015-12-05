@@ -39,7 +39,6 @@ del _namespace
 
 
 def register():
-    print("REGISTER!")
     bpy.utils.register_module(__name__)
 
 

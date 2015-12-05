@@ -73,8 +73,7 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
     bl_icon = 'MESH_DATA'
 
     bl_id_property_type = 'NODETREE'
-    @classmethod
-    def bl_id_property_poll(cls, ntree):
+    def bl_id_property_poll(self, ntree):
         return ntree.bl_idname == 'GeometryNodeTree'
 
     def draw_buttons(self, context, layout):
@@ -91,8 +90,7 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
     bl_icon = 'FORCE_FORCE'
 
     bl_id_property_type = 'NODETREE'
-    @classmethod
-    def bl_id_property_poll(cls, ntree):
+    def bl_id_property_poll(self, ntree):
         return ntree.bl_idname == 'ForceFieldNodeTree'
 
     def draw_buttons(self, context, layout):
