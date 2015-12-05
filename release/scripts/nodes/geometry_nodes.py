@@ -25,6 +25,7 @@ from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
 from common_nodes import NodeTreeBase
+import group_nodes
 
 ###############################################################################
 # Socket Types
@@ -55,28 +56,6 @@ class GeometryNodeCategory(NodeCategory):
     def poll(cls, context):
         tree = context.space_data.edit_tree
         return tree and tree.bl_idname == 'GeometryNodeTree'
-
-node_categories = [
-    GeometryNodeCategory("GEO_INPUT", "Input", items=[
-        NodeItem("ObjectIterationNode"),
-        NodeItem("GeometryMeshLoadNode"),
-        ]),
-    GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
-        NodeItem("GeometryOutputNode"),
-        ]),
-    GeometryNodeCategory("GEO_MODIFIER", "Modifier", items=[
-        NodeItem("GeometryMeshArrayNode"),
-        ]),
-    GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
-        NodeItem("ObjectSeparateVectorNode"),
-        NodeItem("ObjectCombineVectorNode"),
-        NodeItem("GeometryMeshCombineNode"),
-        ]),
-    GeometryNodeCategory("GEO_MATH", "Math", items=[
-        NodeItem("ObjectMathNode"),
-        NodeItem("ObjectVectorMathNode"),
-        ]),
-    ]
 
 ###############################################################################
 
@@ -241,7 +220,34 @@ class GeometryNodesNew(Operator):
 
 def register():
     bpy.utils.register_module(__name__)
+    gnode, ginput, goutput = group_nodes.make_node_group_types("Geometry", GeometryNodeTree, GeometryNodeBase)
 
+    node_categories = [
+        GeometryNodeCategory("GEO_INPUT", "Input", items=[
+            NodeItem("ObjectIterationNode"),
+            NodeItem("GeometryMeshLoadNode"),
+            NodeItem(ginput.bl_idname),
+            ]),
+        GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
+            NodeItem("GeometryOutputNode"),
+            NodeItem(goutput.bl_idname),
+            ]),
+        GeometryNodeCategory("GEO_MODIFIER", "Modifier", items=[
+            NodeItem("GeometryMeshArrayNode"),
+            ]),
+        GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
+            NodeItem("ObjectSeparateVectorNode"),
+            NodeItem("ObjectCombineVectorNode"),
+            NodeItem("GeometryMeshCombineNode"),
+            ]),
+        GeometryNodeCategory("GEO_MATH", "Math", items=[
+            NodeItem("ObjectMathNode"),
+            NodeItem("ObjectVectorMathNode"),
+            ]),
+        GeometryNodeCategory("GEO_GROUP", "Group", items=[
+            NodeItem(gnode.bl_idname),
+            ]),
+        ]
     nodeitems_utils.register_node_categories("GEOMETRY_NODES", node_categories)
 
 def unregister():

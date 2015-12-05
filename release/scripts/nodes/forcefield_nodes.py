@@ -36,26 +36,6 @@ class ForceFieldNodeCategory(NodeCategory):
         tree = context.space_data.edit_tree
         return tree and tree.bl_idname == 'ForceFieldNodeTree'
 
-node_categories = [
-    ForceFieldNodeCategory("FORCE_INPUT", "Input", items=[
-        NodeItem("ForcePointDataNode"),
-        ]),
-    ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
-        NodeItem("ForceOutputNode"),
-        ]),
-    ForceFieldNodeCategory("FORCE_CONVERTER", "Converter", items=[
-        NodeItem("ObjectSeparateVectorNode"),
-        NodeItem("ObjectCombineVectorNode"),
-        ]),
-    ForceFieldNodeCategory("FORCE_MATH", "Math", items=[
-        NodeItem("ObjectMathNode"),
-        NodeItem("ObjectVectorMathNode"),
-        ]),
-    ForceFieldNodeCategory("FORCE_GEOMETRY", "Geometry", items=[
-        NodeItem("ForceClosestPointNode"),
-        ]),
-    ]
-
 ###############################################################################
 
 class ForceFieldNodeTree(NodeTreeBase, NodeTree):
@@ -151,6 +131,25 @@ class ForceFieldNodesNew(Operator):
 def register():
     bpy.utils.register_module(__name__)
 
+    node_categories = [
+        ForceFieldNodeCategory("FORCE_INPUT", "Input", items=[
+            NodeItem("ForcePointDataNode"),
+            ]),
+        ForceFieldNodeCategory("FORCE_OUTPUT", "Output", items=[
+            NodeItem("ForceOutputNode"),
+            ]),
+        ForceFieldNodeCategory("FORCE_CONVERTER", "Converter", items=[
+            NodeItem("ObjectSeparateVectorNode"),
+            NodeItem("ObjectCombineVectorNode"),
+            ]),
+        ForceFieldNodeCategory("FORCE_MATH", "Math", items=[
+            NodeItem("ObjectMathNode"),
+            NodeItem("ObjectVectorMathNode"),
+            ]),
+        ForceFieldNodeCategory("FORCE_GEOMETRY", "Geometry", items=[
+            NodeItem("ForceClosestPointNode"),
+            ]),
+        ]
     nodeitems_utils.register_node_categories("FORCEFIELD_NODES", node_categories)
 
 def unregister():

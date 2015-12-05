@@ -36,13 +36,6 @@ class ObjectNodeCategory(NodeCategory):
         tree = context.space_data.edit_tree
         return tree and tree.bl_idname == 'ObjectNodeTree'
 
-node_categories = [
-    ObjectNodeCategory("COMPONENTS", "Components", items=[
-        NodeItem("GeometryNode"),
-        NodeItem("ForceFieldNode"),
-        ]),
-    ]
-
 ###############################################################################
 
 class ObjectNodeTree(NodeTreeBase, NodeTree):
@@ -112,7 +105,7 @@ class ObjectNodesNew(Operator):
             )
 
     def execute(self, context):
-    	return bpy.ops.node.new_node_tree(type='ObjectNodeTree', name="ObjectNodes")
+        return bpy.ops.node.new_node_tree(type='ObjectNodeTree', name="ObjectNodes")
 
 
 class ObjectNodeEdit(Operator):
@@ -160,6 +153,12 @@ keymaps = []
 def register():
     bpy.utils.register_module(__name__)
 
+    node_categories = [
+        ObjectNodeCategory("COMPONENTS", "Components", items=[
+            NodeItem("GeometryNode"),
+            NodeItem("ForceFieldNode"),
+            ]),
+        ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
 
     # create keymap

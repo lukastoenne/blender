@@ -27,6 +27,7 @@ _modules = [
     "common_nodes",
     "forcefield_nodes",
     "geometry_nodes",
+    "group_nodes",
     "object_nodes",
 ]
 
