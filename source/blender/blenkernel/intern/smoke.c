@@ -2765,7 +2765,7 @@ static void smokeModifier_process_pointcache(SmokeModifierData *smd, Scene *scen
 static void smokeModifier_process_openvdb(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, bool for_render)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
 	int startframe, endframe, framenr;
 
 	framenr = scene->r.cfra;
