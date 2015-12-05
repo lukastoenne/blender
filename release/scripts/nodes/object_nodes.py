@@ -130,19 +130,22 @@ class ObjectNodeEdit(Operator):
         if hasattr(context, "node"):
             return context.node
         else:
-            return context.active_node
+            return getattr(context, "active_node", None)
 
     @classmethod
     def poll(cls, context):
         space = context.space_data
         if space.type != 'NODE_EDITOR':
             return False
+        treetype = getattr(bpy.types, space.tree_type)
+        if not issubclass(treetype, NodeTreeBase):
+            return False
         return True
 
     def execute(self, context):
         space = context.space_data
         node = self.get_node(context)
-        has_tree = node and hasattr(node, "id") and node.id and isinstance(node.id, bpy.types.NodeTree)
+        has_tree = node and node.id and isinstance(node.id, NodeTreeBase)
         exit = self.exit or not has_tree
 
         if exit:
