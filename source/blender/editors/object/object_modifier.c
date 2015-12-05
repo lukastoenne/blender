@@ -2502,14 +2502,13 @@ static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache, *cache_new;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds), *cache_new;
 
 	if (cache) {
 		cache->flags &= ~OPENVDB_CACHE_CURRENT;
@@ -2546,14 +2545,14 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache, *cache_prev = NULL, *cache_next = NULL;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache_prev = NULL, *cache_next = NULL;
 
 	if (cache) {
 		cache_prev = cache->prev;
@@ -2600,15 +2599,14 @@ static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	int direction = RNA_enum_get(op->ptr, "direction");
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	int direction = RNA_enum_get(op->ptr, "direction");
 
 	if (direction == VDB_CACHE_MOVE_UP) {
 		if (cache->prev) {
@@ -2652,17 +2650,16 @@ static int openvdb_cache_free_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	const char *relbase = modifier_path_relbase(ob);
-	char filename[FILE_MAX];
-	int fr;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+	int fr;
 
 	if ((cache->flags & OPENVDB_CACHE_BAKED) != 0) {
 		for (fr = cache->startframe; fr <= cache->endframe; fr++) {
