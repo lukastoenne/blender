@@ -167,6 +167,7 @@ def register():
     km = wm.keyconfigs.default.keymaps.new(name="Node Generic", space_type='NODE_EDITOR')
     
     kmi = km.keymap_items.new(bpy.types.OBJECT_NODES_OT_node_edit.bl_idname, 'TAB', 'PRESS')
+    kmi.properties.exit = False
     
     kmi = km.keymap_items.new(bpy.types.OBJECT_NODES_OT_node_edit.bl_idname, 'TAB', 'PRESS', ctrl=True)
     kmi.properties.exit = True
