@@ -20,8 +20,127 @@
 
 import bpy
 import nodeitems_utils
-from bpy.types import Operator, NodeTree, Node, NodeSocket, ObjectNode
+from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
+
+###############################################################################
+# Group Interface
+
+def make_node_group_interface(prefix, treetype):
+    _base_type_items = [ (t.identifier, t.name, t.description, t.icon, t.value) \
+                         for t in BVMTypeDesc.bl_rna.properties['base_type'].enum_items ]
+    _in_out_items = [('IN', "In", "Input"), ('OUT', "Out", "Output")]
+
+    prop_name = StringProperty(name="Name", default="Value")
+    prop_base_type = EnumProperty(name="Base Type", items=_base_type_items, default='FLOAT')
+    prop_in_out = EnumProperty(name="In/Out", items=_in_out_items, default='IN')
+
+    # XXX PropertyGroup does not have a bl_idname,
+    # so we can only construct a dynamic type name
+    # through the python 'type()' function
+    d = { "name" : prop_name,
+          "base_type" : prop_base_type,
+        }
+    item_type = type("%sNodeGroupItem" % prefix, (PropertyGroup,), d)
+
+    bpy.utils.register_class(item_type)
+
+    treetype.inputs = CollectionProperty(type=item_type)
+    treetype.outputs = CollectionProperty(type=item_type)
+
+    class OperatorBase():
+        @classmethod
+        def poll(cls, context):
+            space = context.space_data
+            if space.type != 'NODE_EDITOR':
+                return False
+            ntree = space.edit_tree
+            if not (ntree and isinstance(ntree, treetype)):
+                return False
+            return True
+
+    class NodeGroupItemAdd(OperatorBase, Operator):
+        """Add a node group interface socket"""
+        bl_idname = "object_nodes.%s_nodegroup_item_add" % prefix.lower()
+        bl_label = "Add Socket"
+        bl_options = {'REGISTER', 'UNDO'}
+
+        name = prop_name
+        base_type = prop_base_type
+        in_out = prop_in_out
+
+        def execute(self, context):
+            ntree = context.space_data.edit_tree
+            sockets = ntree.inputs if self.in_out == 'IN' else ntree.outputs
+            item = sockets.add()
+            item.name = self.name
+            item.base_type = self.base_type
+            return {'FINISHED'}
+
+    class NodeGroupItemRemove(OperatorBase, Operator):
+        """Remove a node group interface socket"""
+        bl_idname = "object_nodes.%s_nodegroup_item_remove" % prefix.lower()
+        bl_label = "Remove Socket"
+        bl_options = {'REGISTER', 'UNDO'}
+
+        index = IntProperty(name="Index")
+
+        def execute(self, context):
+            ntree = context.space_data.edit_tree
+            ntree.inputs.remove(self.index)
+            ntree.outputs.remove(self.index)
+            return {'FINISHED'}
+
+    bpy.utils.register_class(NodeGroupItemAdd)
+    bpy.utils.register_class(NodeGroupItemRemove)
+
+    class NodeGroupItemList(UIList):
+        bl_idname = "OBJECT_NODES_UL_%s_nodegroup_inputs" % prefix.lower()
+
+        def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index, flt_flag):
+            layout.prop(item, "name", text="", emboss=False)
+            layout.prop(item, "base_type", text="")
+            props = layout.operator(NodeGroupItemRemove.bl_idname, text="", icon='X')
+            props.index = index
+
+    bpy.utils.register_class(NodeGroupItemList)
+
+    class NodeGroupInterfacePanel(Panel):
+        """Interface setup of a node group tree"""
+        bl_label = "Interface"
+        bl_idname = "OBJECT_NODES_PT_%s_nodegroup_interface" % prefix.lower()
+        bl_space_type = 'NODE_EDITOR'
+        bl_region_type = 'UI'
+
+        @classmethod
+        def poll(cls, context):
+            space = context.space_data
+            if space.type != 'NODE_EDITOR':
+                return False
+            ntree = space.edit_tree
+            if not (ntree and isinstance(ntree, treetype)):
+                return False
+            return True
+
+        def draw(self, context):
+            ntree = context.space_data.edit_tree
+            layout = self.layout
+
+            row = layout.row()
+
+            col = row.column(align=True)
+            col.template_list(NodeGroupItemList.bl_idname, "inputs", ntree, "inputs", ntree, "active_input")
+            props = col.operator(NodeGroupItemAdd.bl_idname, text="", icon='ZOOMIN')
+            props.in_out = 'IN'
+
+            col = row.column(align=True)
+            col.template_list(NodeGroupItemList.bl_idname, "outputs", ntree, "outputs", ntree, "active_output")
+            props = col.operator(NodeGroupItemAdd.bl_idname, text="", icon='ZOOMIN')
+            props.in_out = 'OUT'
+
+    bpy.utils.register_class(NodeGroupInterfacePanel)
+
+###############################################################################
 
 def make_node_group_types(prefix, treetype, node_base):
     ntree_idname = treetype.bl_idname
@@ -106,6 +225,8 @@ def make_node_group_types(prefix, treetype, node_base):
         def compile(self, compiler):
             # TODO
             pass
+
+    make_node_group_interface(prefix, treetype)
 
     bpy.utils.register_class(NodeGroupNew)
     bpy.utils.register_class(GroupNode)
