@@ -72,6 +72,41 @@ def socket_type_to_bvm(socket):
     elif isinstance(socket, bpy.types.GeometrySocket):
         return 'MESH'
 
+def convert_sockets(compiler, from_typedesc, to_typedesc):
+    from_type = from_typedesc.base_type
+    to_type = to_typedesc.base_type
+
+    if to_type == from_type:
+        node = compiler.add_node("PASS_%s" % to_type)
+        return {node.inputs[0]}, node.outputs[0]
+
+    if to_type == 'FLOAT':
+        if from_type == 'INT':
+            node = compiler.add_node("INT_TO_FLOAT")
+            return {node.inputs[0]}, node.outputs[0]
+        elif from_type == 'FLOAT3':
+            node = compiler.add_node("SET_FLOAT3")
+            return {node.inputs[0], node.inputs[1], node.inputs[2]}, node.outputs[0]
+        elif from_type == 'FLOAT4':
+            node = compiler.add_node("SET_FLOAT4")
+            return {node.inputs[0], node.inputs[1], node.inputs[2], node.inputs[3]}, node.outputs[0]
+    
+    elif to_type == 'FLOAT3':
+        pass
+    
+    elif to_type == 'FLOAT4':
+        pass
+    
+    elif to_type == 'INT':
+        if from_type == 'FLOAT':
+            node = compiler.add_node("FLOAT_TO_INT")
+            return {node.inputs[0]}, node.outputs[0]
+    
+    elif to_type == 'MATRIX44':
+        pass
+
+    return set(), None
+
 ###############################################################################
 
 def register():
