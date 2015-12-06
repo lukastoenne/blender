@@ -19,6 +19,7 @@
 # <pep8-80 compliant>
 
 from collections import OrderedDict
+from socket_types import socket_type_to_bvm
 
 # Utility dict type that works like RNA collections,
 # i.e. accepts both string keys and integer indices
@@ -110,7 +111,23 @@ class NodeCompiler:
         self.graph = graph
         self.bnode_stack = []
 
-    def push(self, bnode, bnode_inputs, bnode_outputs):
+    def push(self, bnode, input_map, output_map):
+        # proxies for inputs/outputs
+        bnode_inputs = StringDict()
+        for binput in bnode.inputs:
+            proxy = self.add_proxy(socket_type_to_bvm(binput))
+            bnode_inputs[binput.identifier] = proxy.outputs[0]
+            input_map[(bnode, binput)] = proxy.inputs[0]
+
+            if hasattr(binput, "default_value"):
+                proxy.inputs[0].set_value(binput.default_value)
+        
+        bnode_outputs = StringDict()
+        for boutput in bnode.outputs:
+            proxy = self.add_proxy(socket_type_to_bvm(boutput))
+            bnode_outputs[boutput.identifier] = proxy.inputs[0]
+            output_map[(bnode, boutput)] = proxy.outputs[0]
+
         self.bnode_stack.append((bnode, bnode_inputs, bnode_outputs))
 
     def pop(self):

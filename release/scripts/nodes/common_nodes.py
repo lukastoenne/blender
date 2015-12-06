@@ -20,10 +20,9 @@
 
 import bpy
 import nodeitems_utils
-from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
+from bpy.types import Operator, ObjectNode
 from bpy.props import *
-from node_compiler import NodeCompiler, NodeWrapper, InputWrapper, OutputWrapper, StringDict
-from socket_types import socket_type_to_bvm
+from node_compiler import NodeCompiler, NodeWrapper, InputWrapper, OutputWrapper
 
 class NodeTreeBase():
     def bvm_compile(self, context, graph):
@@ -40,23 +39,7 @@ class NodeTreeBase():
             if not hasattr(bnode, "compile"):
                 continue
 
-            # proxies for inputs/outputs
-            bnode_inputs = StringDict()
-            for binput in bnode.inputs:
-                proxy = compiler.add_proxy(socket_type_to_bvm(binput))
-                bnode_inputs[binput.identifier] = proxy.outputs[0]
-                input_map[(bnode, binput)] = proxy.inputs[0]
-
-                if hasattr(binput, "default_value"):
-                    proxy.inputs[0].set_value(binput.default_value)
-            
-            bnode_outputs = StringDict()
-            for boutput in bnode.outputs:
-                proxy = compiler.add_proxy(socket_type_to_bvm(boutput))
-                bnode_outputs[boutput.identifier] = proxy.inputs[0]
-                output_map[(bnode, boutput)] = proxy.outputs[0]
-
-            compiler.push(bnode, bnode_inputs, bnode_outputs)
+            compiler.push(bnode, input_map, output_map)
             bnode.compile(compiler)
             compiler.pop()
 
