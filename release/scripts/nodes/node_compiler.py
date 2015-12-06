@@ -108,9 +108,13 @@ class NodeCompiler:
     def __init__(self, context, graph):
         self.context = context
         self.graph = graph
-        self.bnode = None
-        self.bnode_inputs = None
-        self.bnode_outputs = None
+        self.bnode_stack = []
+
+    def push(self, bnode, bnode_inputs, bnode_outputs):
+        self.bnode_stack.append((bnode, bnode_inputs, bnode_outputs))
+
+    def pop(self):
+        self.bnode_stack.pop()
 
     def add_node(self, type, name=""):
         node = self.graph.add_node(type, name)
@@ -133,14 +137,16 @@ class NodeCompiler:
             to_input.gnode.set_input_link(to_input.ginput, from_output.gnode, from_output.goutput)
 
     def map_input(self, key, socket):
-        if key not in self.bnode_inputs:
-            raise KeyError("Input %r not found in node %r" % (key, self.bnode))
-        self.link(self.bnode_inputs[key], socket)
+        bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-1]
+        if key not in bnode_inputs:
+            raise KeyError("Input %r not found in node %r" % (key, bnode))
+        self.link(bnode_inputs[key], socket)
 
     def map_output(self, key, socket):
-        if key not in self.bnode_outputs:
-            raise KeyError("Output %r not found in node %r" % (key, self.bnode))
-        self.link(socket, self.bnode_outputs[key])
+        bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-1]
+        if key not in bnode_outputs:
+            raise KeyError("Output %r not found in node %r" % (key, bnode))
+        self.link(socket, bnode_outputs[key])
 
 ###############################################################################
 

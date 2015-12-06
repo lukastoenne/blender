@@ -56,8 +56,10 @@ def socket_type_to_bvm(socket):
 
 class NodeTreeBase():
     def bvm_compile(self, context, graph):
-        comp = NodeCompiler(context, graph)
+        compiler = NodeCompiler(context, graph)
+        self.compile_nodes(compiler)
 
+    def compile_nodes(self, compiler):
         input_map = dict()
         output_map = dict()
 
@@ -72,7 +74,7 @@ class NodeTreeBase():
             for binput in bnode.inputs:
                 itype = socket_type_to_bvm(binput)
                 
-                proxy = comp.add_node("PASS_%s" % itype)
+                proxy = compiler.add_node("PASS_%s" % itype)
                 bnode_inputs[binput.identifier] = proxy.outputs[0]
                 input_map[(bnode, binput)] = proxy.inputs[0]
 
@@ -83,18 +85,13 @@ class NodeTreeBase():
             for boutput in bnode.outputs:
                 otype = socket_type_to_bvm(boutput)
                 
-                proxy = comp.add_node("PASS_%s" % otype)
+                proxy = compiler.add_node("PASS_%s" % otype)
                 bnode_outputs[boutput.identifier] = proxy.inputs[0]
                 output_map[(bnode, boutput)] = proxy.outputs[0]
 
-            comp.bnode = bnode
-            comp.bnode_inputs = bnode_inputs
-            comp.bnode_outputs = bnode_outputs
-            bnode.compile(comp)
-
-        comp.bnode = None
-        comp.bnode_inputs = None
-        comp.bnode_outputs = None
+            compiler.push(bnode, bnode_inputs, bnode_outputs)
+            bnode.compile(compiler)
+            compiler.pop()
 
         for blink in self.links:
             if not blink.is_valid:
@@ -102,7 +99,7 @@ class NodeTreeBase():
 
             src = (blink.from_node, blink.from_socket)
             dst = (blink.to_node, blink.to_socket)
-            comp.link(output_map[src], input_map[dst])
+            compiler.link(output_map[src], input_map[dst])
 
 ###############################################################################
 # Generic Nodes
