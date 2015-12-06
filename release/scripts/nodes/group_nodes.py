@@ -26,9 +26,25 @@ from bpy.props import *
 ###############################################################################
 # Group Interface
 
+_base_type_items = [
+    ("FLOAT", "Float", "Floating point number", 0, 0),
+    ("INT", "Int", "Integer number", 0, 1),
+    ("VECTOR", "Vector", "3D vector", 0, 2),
+    ("COLOR", "Color", "RGBA color", 0, 3),
+    ("MESH", "Mesh", "Mesh data", 0, 4),
+    ]
+
+def _base_type_to_socket(base_type):
+    types = {
+        "FLOAT" : bpy.types.NodeSocketFloat,
+        "INT" : bpy.types.NodeSocketInt,
+        "VECTOR" : bpy.types.NodeSocketVector,
+        "COLOR" : bpy.types.NodeSocketColor,
+        "MESH" : bpy.types.GeometrySocket,
+        }
+    return types.get(base_type, None)
+
 def make_node_group_interface(prefix, treetype, tree_items_update):
-    _base_type_items = [ (t.identifier, t.name, t.description, t.icon, t.value) \
-                         for t in BVMTypeDesc.bl_rna.properties['base_type'].enum_items ]
     _in_out_items = [('IN', "In", "Input"), ('OUT', "Out", "Output")]
 
     prop_name = StringProperty(name="Name", default="Value", update=tree_items_update)
@@ -212,6 +228,49 @@ def make_node_group_types(prefix, treetype, node_base):
                     if node.id == gtree:
                         node.update()
 
+    def node_sockets_sync(sockets, items):
+        free_sockets = set(s for s in sockets)
+        free_items = set(i for i in items)
+        
+        def find_match(s):
+            for i in free_items:
+                if i.name == s.name and isinstance(s, _base_type_to_socket(i.base_type)):
+                    return i
+
+        def socket_index(s):
+            for k, ts in enumerate(sockets):
+                if ts == s:
+                    return k
+
+        # match up current sockets with items
+        match = dict()
+        for s in sockets:
+            i = find_match(s)
+            if i is not None:
+                free_items.remove(i)
+                free_sockets.remove(s)
+                match[i] = s
+
+        # nothing to do if perfect match
+        if not (free_items or free_sockets):
+            return
+
+        # remove unmatched sockets
+        for s in free_sockets:
+            sockets.remove(s)
+
+        # fix socket list
+        for k, i in enumerate(items):
+            s = match.get(i, None)
+            if s is None:
+                # add socket for unmatched item
+                stype = _base_type_to_socket(i.base_type)
+                s = sockets.new(stype.bl_rna.identifier, i.name)
+
+            index = socket_index(s)
+            if index != k:
+                sockets.move(index, k)
+
     def internal_group_nodes(ntree, visited=None):
         if ntree is None:
             return
@@ -233,8 +292,12 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_idname = groupnode_idname
         bl_label = 'Group'
         bl_ntree_idname = ntree_idname
-
         bl_id_property_type = 'NODETREE'
+
+        # XXX used to prevent reentrant updates due to RNA calls
+        # this should be fixed in future by avoiding low-level update recursion on the RNA side
+        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
+
         def bl_id_property_poll(self, ntree):
             if not isinstance(ntree, treetype):
                 return False
@@ -257,7 +320,13 @@ def make_node_group_types(prefix, treetype, node_base):
             layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
 
         def update(self):
-            print("UPDATE NODE %s" % self.name)
+            if not self.is_updating_nodegroup:
+                self.is_updating_nodegroup = True
+                gtree = self.id
+                if gtree:
+                    node_sockets_sync(self.inputs, gtree.inputs)
+                    node_sockets_sync(self.outputs, gtree.outputs)
+                self.is_updating_nodegroup = False
 
         def compile(self, compiler):
             # TODO
@@ -268,8 +337,16 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_idname = '%sGroupInputNode' % prefix
         bl_label = 'Group Inputs'
 
+        # XXX used to prevent reentrant updates due to RNA calls
+        # this should be fixed in future by avoiding low-level update recursion on the RNA side
+        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
+
         def update(self):
-            print("UPDATE NODE %s" % self.name)
+            if not self.is_updating_nodegroup:
+                self.is_updating_nodegroup = True
+                node_sockets_sync(self.outputs, self.id_data.inputs)
+                self.is_updating_nodegroup = False
+            pass
 
         def compile(self, compiler):
             # TODO
@@ -280,8 +357,16 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_idname = '%sGroupOutputNode' % prefix
         bl_label = 'Group Outputs'
 
+        # XXX used to prevent reentrant updates due to RNA calls
+        # this should be fixed in future by avoiding low-level update recursion on the RNA side
+        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
+
         def update(self):
-            print("UPDATE NODE %s" % self.name)
+            if not self.is_updating_nodegroup:
+                self.is_updating_nodegroup = True
+                node_sockets_sync(self.inputs, self.id_data.outputs)
+                self.is_updating_nodegroup = False
+            pass
 
         def compile(self, compiler):
             # TODO
