@@ -42,7 +42,7 @@ class GeometrySocket(NodeSocket):
 
 ###############################################################################
 
-bvm_type_items = [
+socket_type_items = [
     ("FLOAT", "Float", "Floating point number", 0, 0),
     ("INT", "Int", "Integer number", 0, 1),
     ("VECTOR", "Vector", "3D vector", 0, 2),
@@ -50,7 +50,7 @@ bvm_type_items = [
     ("MESH", "Mesh", "Mesh data", 0, 4),
     ]
 
-def bvm_type_to_socket(base_type):
+def socket_type_to_rna(base_type):
     types = {
         "FLOAT" : bpy.types.NodeSocketFloat,
         "INT" : bpy.types.NodeSocketInt,
@@ -60,7 +60,7 @@ def bvm_type_to_socket(base_type):
         }
     return types.get(base_type, None)
 
-def socket_type_to_bvm(socket):
+def socket_to_bvm_type(socket):
     if isinstance(socket, bpy.types.NodeSocketFloat):
         return 'FLOAT'
     elif isinstance(socket, bpy.types.NodeSocketVector):

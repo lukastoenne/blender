@@ -19,7 +19,7 @@
 # <pep8-80 compliant>
 
 from collections import OrderedDict
-from socket_types import socket_type_to_bvm, convert_sockets
+from socket_types import socket_to_bvm_type, convert_sockets
 
 # Utility dict type that works like RNA collections,
 # i.e. accepts both string keys and integer indices
@@ -80,7 +80,7 @@ class NodeCompiler:
         # proxies for inputs/outputs
         bnode_inputs = StringDict()
         for binput in bnode.inputs:
-            proxy = self.add_proxy(socket_type_to_bvm(binput))
+            proxy = self.add_proxy(socket_to_bvm_type(binput))
             bnode_inputs[binput.identifier] = proxy
             input_map[(bnode, binput)] = proxy.inputs[0]
 
@@ -89,7 +89,7 @@ class NodeCompiler:
         
         bnode_outputs = StringDict()
         for boutput in bnode.outputs:
-            proxy = self.add_proxy(socket_type_to_bvm(boutput))
+            proxy = self.add_proxy(socket_to_bvm_type(boutput))
             bnode_outputs[boutput.identifier] = proxy
             output_map[(bnode, boutput)] = proxy.outputs[0]
 

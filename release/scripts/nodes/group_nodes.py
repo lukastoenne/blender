@@ -22,7 +22,7 @@ import bpy
 import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
-from socket_types import bvm_type_items, bvm_type_to_socket
+from socket_types import socket_type_items, socket_type_to_rna
 
 ###############################################################################
 # Group Interface
@@ -31,7 +31,7 @@ def make_node_group_interface(prefix, treetype, tree_items_update):
     _in_out_items = [('IN', "In", "Input"), ('OUT', "Out", "Output")]
 
     prop_name = StringProperty(name="Name", default="Value", update=tree_items_update)
-    prop_base_type = EnumProperty(name="Base Type", items=bvm_type_items, default='FLOAT', update=tree_items_update)
+    prop_base_type = EnumProperty(name="Base Type", items=socket_type_items, default='FLOAT', update=tree_items_update)
     prop_in_out = EnumProperty(name="In/Out", items=_in_out_items, default='IN')
 
     # XXX PropertyGroup does not have a bl_idname,
@@ -217,7 +217,7 @@ def make_node_group_types(prefix, treetype, node_base):
         
         def find_match(s):
             for i in free_items:
-                if i.name == s.name and isinstance(s, bvm_type_to_socket(i.base_type)):
+                if i.name == s.name and isinstance(s, socket_type_to_rna(i.base_type)):
                     return i
 
         def socket_index(s):
@@ -247,7 +247,7 @@ def make_node_group_types(prefix, treetype, node_base):
             s = match.get(i, None)
             if s is None:
                 # add socket for unmatched item
-                stype = bvm_type_to_socket(i.base_type)
+                stype = socket_type_to_rna(i.base_type)
                 s = sockets.new(stype.bl_rna.identifier, i.name)
 
             index = socket_index(s)
