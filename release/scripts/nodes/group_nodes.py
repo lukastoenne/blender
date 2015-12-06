@@ -22,33 +22,16 @@ import bpy
 import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
+from common_nodes import bvm_type_items, bvm_type_to_socket
 
 ###############################################################################
 # Group Interface
-
-_base_type_items = [
-    ("FLOAT", "Float", "Floating point number", 0, 0),
-    ("INT", "Int", "Integer number", 0, 1),
-    ("VECTOR", "Vector", "3D vector", 0, 2),
-    ("COLOR", "Color", "RGBA color", 0, 3),
-    ("MESH", "Mesh", "Mesh data", 0, 4),
-    ]
-
-def _base_type_to_socket(base_type):
-    types = {
-        "FLOAT" : bpy.types.NodeSocketFloat,
-        "INT" : bpy.types.NodeSocketInt,
-        "VECTOR" : bpy.types.NodeSocketVector,
-        "COLOR" : bpy.types.NodeSocketColor,
-        "MESH" : bpy.types.GeometrySocket,
-        }
-    return types.get(base_type, None)
 
 def make_node_group_interface(prefix, treetype, tree_items_update):
     _in_out_items = [('IN', "In", "Input"), ('OUT', "Out", "Output")]
 
     prop_name = StringProperty(name="Name", default="Value", update=tree_items_update)
-    prop_base_type = EnumProperty(name="Base Type", items=_base_type_items, default='FLOAT', update=tree_items_update)
+    prop_base_type = EnumProperty(name="Base Type", items=bvm_type_items, default='FLOAT', update=tree_items_update)
     prop_in_out = EnumProperty(name="In/Out", items=_in_out_items, default='IN')
 
     # XXX PropertyGroup does not have a bl_idname,
@@ -234,7 +217,7 @@ def make_node_group_types(prefix, treetype, node_base):
         
         def find_match(s):
             for i in free_items:
-                if i.name == s.name and isinstance(s, _base_type_to_socket(i.base_type)):
+                if i.name == s.name and isinstance(s, bvm_type_to_socket(i.base_type)):
                     return i
 
         def socket_index(s):
@@ -264,7 +247,7 @@ def make_node_group_types(prefix, treetype, node_base):
             s = match.get(i, None)
             if s is None:
                 # add socket for unmatched item
-                stype = _base_type_to_socket(i.base_type)
+                stype = bvm_type_to_socket(i.base_type)
                 s = sockets.new(stype.bl_rna.identifier, i.name)
 
             index = socket_index(s)
