@@ -72,9 +72,7 @@ class NodeTreeBase():
             # proxies for inputs/outputs
             bnode_inputs = StringDict()
             for binput in bnode.inputs:
-                itype = socket_type_to_bvm(binput)
-                
-                proxy = compiler.add_node("PASS_%s" % itype)
+                proxy = compiler.add_proxy(socket_type_to_bvm(binput))
                 bnode_inputs[binput.identifier] = proxy.outputs[0]
                 input_map[(bnode, binput)] = proxy.inputs[0]
 
@@ -83,9 +81,7 @@ class NodeTreeBase():
             
             bnode_outputs = StringDict()
             for boutput in bnode.outputs:
-                otype = socket_type_to_bvm(boutput)
-                
-                proxy = compiler.add_node("PASS_%s" % otype)
+                proxy = compiler.add_proxy(socket_type_to_bvm(boutput))
                 bnode_outputs[boutput.identifier] = proxy.inputs[0]
                 output_map[(bnode, boutput)] = proxy.outputs[0]
 

@@ -122,6 +122,9 @@ class NodeCompiler:
             raise Exception("Can not add node of type %r" % type)
         return NodeWrapper(node)
 
+    def add_proxy(self, type):
+        return self.add_node("PASS_%s" % type)
+
     def graph_output(self, name):
         out_node, out_socket = self.graph.get_output(name)
         return InputWrapper(out_node, out_node.inputs[out_socket])
