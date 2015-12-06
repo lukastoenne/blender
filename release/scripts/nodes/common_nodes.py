@@ -23,36 +23,7 @@ import nodeitems_utils
 from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from node_compiler import NodeCompiler, NodeWrapper, InputWrapper, OutputWrapper, StringDict
-
-bvm_type_items = [
-    ("FLOAT", "Float", "Floating point number", 0, 0),
-    ("INT", "Int", "Integer number", 0, 1),
-    ("VECTOR", "Vector", "3D vector", 0, 2),
-    ("COLOR", "Color", "RGBA color", 0, 3),
-    ("MESH", "Mesh", "Mesh data", 0, 4),
-    ]
-
-def bvm_type_to_socket(base_type):
-    types = {
-        "FLOAT" : bpy.types.NodeSocketFloat,
-        "INT" : bpy.types.NodeSocketInt,
-        "VECTOR" : bpy.types.NodeSocketVector,
-        "COLOR" : bpy.types.NodeSocketColor,
-        "MESH" : bpy.types.GeometrySocket,
-        }
-    return types.get(base_type, None)
-
-def socket_type_to_bvm(socket):
-    if isinstance(socket, bpy.types.NodeSocketFloat):
-        return 'FLOAT'
-    elif isinstance(socket, bpy.types.NodeSocketVector):
-        return 'FLOAT3'
-    elif isinstance(socket, bpy.types.NodeSocketColor):
-        return 'FLOAT4'
-    elif isinstance(socket, bpy.types.NodeSocketInt):
-        return 'INT'
-    elif isinstance(socket, bpy.types.GeometrySocket):
-        return 'MESH'
+from socket_types import socket_type_to_bvm
 
 class NodeTreeBase():
     def bvm_compile(self, context, graph):

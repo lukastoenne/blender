@@ -20,31 +20,12 @@
 
 import bpy
 import nodeitems_utils
-from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
+from bpy.types import Operator, ObjectNode, NodeTree, Node
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
 from common_nodes import NodeTreeBase
 import group_nodes
-
-###############################################################################
-# Socket Types
-
-class GeometrySocket(NodeSocket):
-    '''Geometry data socket'''
-    bl_idname = 'GeometrySocket'
-    bl_label = 'Geometry'
-
-    is_placeholder = BoolProperty(name="Is Placeholder",
-                                  default=False)
-
-    def draw(self, context, layout, node, text):
-        layout.label(text)
-
-    def draw_color(self, context, node):
-        alpha = 0.4 if self.is_placeholder else 1.0
-        return (1.0, 0.4, 0.216, alpha)
-
 
 ###############################################################################
 

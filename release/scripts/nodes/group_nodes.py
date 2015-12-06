@@ -22,7 +22,7 @@ import bpy
 import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
-from common_nodes import bvm_type_items, bvm_type_to_socket
+from socket_types import bvm_type_items, bvm_type_to_socket
 
 ###############################################################################
 # Group Interface
