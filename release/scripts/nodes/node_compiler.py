@@ -116,7 +116,7 @@ class NodeCompiler:
         bnode_inputs = StringDict()
         for binput in bnode.inputs:
             proxy = self.add_proxy(socket_type_to_bvm(binput))
-            bnode_inputs[binput.identifier] = proxy.outputs[0]
+            bnode_inputs[binput.identifier] = proxy
             input_map[(bnode, binput)] = proxy.inputs[0]
 
             if hasattr(binput, "default_value"):
@@ -125,7 +125,7 @@ class NodeCompiler:
         bnode_outputs = StringDict()
         for boutput in bnode.outputs:
             proxy = self.add_proxy(socket_type_to_bvm(boutput))
-            bnode_outputs[boutput.identifier] = proxy.inputs[0]
+            bnode_outputs[boutput.identifier] = proxy
             output_map[(bnode, boutput)] = proxy.outputs[0]
 
         self.bnode_stack.append((bnode, bnode_inputs, bnode_outputs))
@@ -160,13 +160,29 @@ class NodeCompiler:
         bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-1]
         if key not in bnode_inputs:
             raise KeyError("Input %r not found in node %r" % (key, bnode))
-        self.link(bnode_inputs[key], socket)
+        self.link(bnode_inputs[key].outputs[0], socket)
 
     def map_output(self, key, socket):
         bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-1]
         if key not in bnode_outputs:
             raise KeyError("Output %r not found in node %r" % (key, bnode))
-        self.link(socket, bnode_outputs[key])
+        self.link(socket, bnode_outputs[key].inputs[0])
+
+    def map_input_external(self, key, socket):
+        if len(self.bnode_stack) < 2:
+            return
+        bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-2]
+        if key not in bnode_inputs:
+            raise KeyError("Input %r not found in node %r" % (key, bnode))
+        self.link(bnode_inputs[key].outputs[0], socket)
+
+    def map_output_external(self, key, socket):
+        if len(self.bnode_stack) < 2:
+            return
+        bnode, bnode_inputs, bnode_outputs = self.bnode_stack[-2]
+        if key not in bnode_outputs:
+            raise KeyError("Output %r not found in node %r" % (key, bnode))
+        self.link(socket, bnode_outputs[key].inputs[0])
 
 ###############################################################################
 

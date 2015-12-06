@@ -312,8 +312,8 @@ def make_node_group_types(prefix, treetype, node_base):
                 self.is_updating_nodegroup = False
 
         def compile(self, compiler):
-            # TODO
-            pass
+            if self.id is not None:
+                self.id.compile_nodes(compiler)
 
     class GroupInputNode(node_base, ObjectNode):
         '''Inputs of the node group inside the tree'''
@@ -332,8 +332,11 @@ def make_node_group_types(prefix, treetype, node_base):
             pass
 
         def compile(self, compiler):
-            # TODO
-            pass
+            gtree = self.id_data
+            for i, item in enumerate(gtree.inputs):
+                proxy = compiler.add_proxy(item.base_type)
+                compiler.map_output(i, proxy.outputs[0])
+                compiler.map_input_external(i, proxy.inputs[0])
 
     class GroupOutputNode(node_base, ObjectNode):
         '''Outputs of the node group inside the tree'''
@@ -352,8 +355,11 @@ def make_node_group_types(prefix, treetype, node_base):
             pass
 
         def compile(self, compiler):
-            # TODO
-            pass
+            gtree = self.id_data
+            for i, item in enumerate(gtree.outputs):
+                proxy = compiler.add_proxy(item.base_type)
+                compiler.map_input(i, proxy.inputs[0])
+                compiler.map_output_external(i, proxy.outputs[0])
 
     make_node_group_interface(prefix, treetype, tree_items_update)
 
