@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase
+from common_nodes import NodeTreeBase, NodeBase
 import group_nodes
 
 ###############################################################################
@@ -52,7 +52,7 @@ class GeometryNodeTree(NodeTreeBase, NodeTree):
         return False
 
 
-class GeometryNodeBase():
+class GeometryNodeBase(NodeBase):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'GeometryNodeTree'
@@ -94,39 +94,45 @@ class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
         return socket
 
     def init(self, context):
-        self.add_extender()
-        self.outputs.new('GeometrySocket', "")
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.add_extender()
+            self.outputs.new('GeometrySocket', "")
 
     def update_inputs(self, insert=None):
-        ntree = self.id_data
+        if self.is_updating:
+            return
+        with self.update_lock():
+            ntree = self.id_data
 
-        # build map of connected inputs
-        input_links = dict()
-        for link in ntree.links:
-            if link.to_node == self:
-                input_links[link.to_socket] = (link, link.from_socket)
+            # build map of connected inputs
+            input_links = dict()
+            for link in ntree.links:
+                if link.to_node == self:
+                    input_links[link.to_socket] = (link, link.from_socket)
 
-        # remove unconnected sockets
-        for socket in self.inputs:
-            if socket not in input_links and socket != insert:
-                self.inputs.remove(socket)
-            else:
-                socket.is_placeholder = False
+            # remove unconnected sockets
+            for socket in self.inputs:
+                if socket not in input_links and socket != insert:
+                    self.inputs.remove(socket)
+                else:
+                    socket.is_placeholder = False
 
-        # shift sockets to make room for a new link
-        if insert is not None:
-            self.inputs.new('GeometrySocket', "")
-            nsocket = self.inputs[-1]
-            for socket in reversed(self.inputs[:-1]):
-                link, from_socket = input_links.get(socket, (None, None))
-                if link is not None:
-                    ntree.links.remove(link)
-                    ntree.links.new(from_socket, nsocket)
-                nsocket = socket
-                if socket == insert:
-                    break
+            # shift sockets to make room for a new link
+            if insert is not None:
+                self.inputs.new('GeometrySocket', "")
+                nsocket = self.inputs[-1]
+                for socket in reversed(self.inputs[:-1]):
+                    link, from_socket = input_links.get(socket, (None, None))
+                    if link is not None:
+                        ntree.links.remove(link)
+                        ntree.links.new(from_socket, nsocket)
+                    nsocket = socket
+                    if socket == insert:
+                        break
 
-        self.add_extender()
+            self.add_extender()
 
     def update(self):
         self.update_inputs()

@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase
+from common_nodes import NodeTreeBase, NodeBase
 
 ###############################################################################
 
@@ -50,7 +50,7 @@ class ForceFieldNodeTree(NodeTreeBase, NodeTree):
         return False
 
 
-class ForceNodeBase():
+class ForceNodeBase(NodeBase):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'ForceFieldNodeTree'

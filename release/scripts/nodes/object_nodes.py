@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase
+from common_nodes import NodeTreeBase, NodeBase
 
 ###############################################################################
 
@@ -53,7 +53,7 @@ class ObjectNodeTree(NodeTreeBase, NodeTree):
             return None, None, None
 
 
-class ObjectNodeBase():
+class ObjectNodeBase(NodeBase):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'ObjectNodeTree'

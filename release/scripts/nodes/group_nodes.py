@@ -277,10 +277,6 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_ntree_idname = ntree_idname
         bl_id_property_type = 'NODETREE'
 
-        # XXX used to prevent reentrant updates due to RNA calls
-        # this should be fixed in future by avoiding low-level update recursion on the RNA side
-        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
-
         def bl_id_property_poll(self, ntree):
             if not isinstance(ntree, treetype):
                 return False
@@ -303,13 +299,13 @@ def make_node_group_types(prefix, treetype, node_base):
             layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
 
         def update(self):
-            if not self.is_updating_nodegroup:
-                self.is_updating_nodegroup = True
+            if self.is_updating:
+                return
+            with self.update_lock():
                 gtree = self.id
                 if gtree:
                     node_sockets_sync(self.inputs, gtree.inputs)
                     node_sockets_sync(self.outputs, gtree.outputs)
-                self.is_updating_nodegroup = False
 
         def compile(self, compiler):
             if self.id is not None:
@@ -320,16 +316,11 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_idname = '%sGroupInputNode' % prefix
         bl_label = 'Group Inputs'
 
-        # XXX used to prevent reentrant updates due to RNA calls
-        # this should be fixed in future by avoiding low-level update recursion on the RNA side
-        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
-
         def update(self):
-            if not self.is_updating_nodegroup:
-                self.is_updating_nodegroup = True
+            if self.is_updating:
+                return
+            with self.update_lock():
                 node_sockets_sync(self.outputs, self.id_data.inputs)
-                self.is_updating_nodegroup = False
-            pass
 
         def compile(self, compiler):
             gtree = self.id_data
@@ -343,16 +334,11 @@ def make_node_group_types(prefix, treetype, node_base):
         bl_idname = '%sGroupOutputNode' % prefix
         bl_label = 'Group Outputs'
 
-        # XXX used to prevent reentrant updates due to RNA calls
-        # this should be fixed in future by avoiding low-level update recursion on the RNA side
-        is_updating_nodegroup = BoolProperty(options={'HIDDEN'})
-
         def update(self):
-            if not self.is_updating_nodegroup:
-                self.is_updating_nodegroup = True
+            if self.is_updating:
+                return
+            with self.update_lock():
                 node_sockets_sync(self.inputs, self.id_data.outputs)
-                self.is_updating_nodegroup = False
-            pass
 
         def compile(self, compiler):
             gtree = self.id_data

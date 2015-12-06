@@ -18,7 +18,7 @@
 
 # <pep8-80 compliant>
 
-import bpy
+import bpy, contextlib
 import nodeitems_utils
 from bpy.types import Operator, ObjectNode
 from bpy.props import *
@@ -51,10 +51,24 @@ class NodeTreeBase():
             dst = (blink.to_node, blink.to_socket)
             compiler.link(output_map[src], input_map[dst])
 
+class NodeBase():
+    # XXX used to prevent reentrant updates due to RNA calls
+    # this should be fixed in future by avoiding low-level update recursion on the RNA side
+    is_updating = BoolProperty(options={'HIDDEN'})
+
+    @contextlib.contextmanager
+    def update_lock(self):
+        self.is_updating = True
+        try:
+            yield
+        finally:
+            self.is_updating = False
+
+
 ###############################################################################
 # Generic Nodes
 
-class CommonNodeBase():
+class CommonNodeBase(NodeBase):
     @classmethod
     def poll(cls, ntree):
         return isinstance(ntree, NodeTreeBase)
