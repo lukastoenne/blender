@@ -268,6 +268,111 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	stack_store_float(stack, offset_val, l);
 }
 
+static void eval_op_add_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	matrix44 b = stack_load_matrix44(stack, offset_b);
+	matrix44 r;
+	add_m4_m4m4(r.data, a.data, b.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_sub_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	matrix44 b = stack_load_matrix44(stack, offset_b);
+	matrix44 r;
+	sub_m4_m4m4(r.data, a.data, b.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_mul_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	matrix44 b = stack_load_matrix44(stack, offset_b);
+	matrix44 r;
+	mul_m4_m4m4(r.data, a.data, b.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_mul_matrix44_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	matrix44 r;
+	copy_m4_m4(r.data, a.data);
+	mul_m4_fl(r.data, b);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_div_matrix44_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	float b = stack_load_float(stack, offset_b);
+	matrix44 r;
+	copy_m4_m4(r.data, a.data);
+	mul_m4_fl(r.data, div_safe(1.0, b));
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_negate_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	matrix44 m = stack_load_matrix44(stack, offset);
+	matrix44 r;
+	copy_m4_m4(r.data, m.data);
+	negate_m4(r.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_transpose_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	matrix44 m = stack_load_matrix44(stack, offset);
+	matrix44 r;
+	transpose_m4_m4(r.data, m.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_invert_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	matrix44 m = stack_load_matrix44(stack, offset);
+	matrix44 r;
+	invert_m4_m4_safe(r.data, m.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_adjoint_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	matrix44 m = stack_load_matrix44(stack, offset);
+	matrix44 r;
+	adjoint_m4_m4(r.data, m.data);
+	stack_store_matrix44(stack, offset_r, r);
+}
+
+static void eval_op_determinant_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+{
+	matrix44 m = stack_load_matrix44(stack, offset);
+	float d = determinant_m4(m.data);
+	stack_store_float(stack, offset_r, d);
+}
+
+static void eval_op_mul_matrix44_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	float3 b = stack_load_float3(stack, offset_b);
+	float3 r;
+	mul_v3_m4v3(r.data(), a.data, b.data());
+	stack_store_float3(stack, offset_r, r);
+}
+
+static void eval_op_mul_matrix44_float4(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+{
+	matrix44 a = stack_load_matrix44(stack, offset_a);
+	float4 b = stack_load_float4(stack, offset_b);
+	float4 r;
+	mul_v4_m4v4(r.data(), a.data, b.data());
+	stack_store_float4(stack, offset_r, r);
+}
+
 } /* namespace bvm */
 
 #endif /* __BVM_EVAL_MATH_H__ */

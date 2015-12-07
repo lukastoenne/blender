@@ -574,6 +574,85 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
 				break;
 			}
+			case OP_ADD_MATRIX44: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_add_matrix44(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_SUB_MATRIX44: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_sub_matrix44(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_MATRIX44: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_mul_matrix44(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_MATRIX44_FLOAT: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_mul_matrix44_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_DIV_MATRIX44_FLOAT: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_div_matrix44_float(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_NEGATE_MATRIX44: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_negate_matrix44(stack, offset, offset_r);
+				break;
+			}
+			case OP_TRANSPOSE_MATRIX44: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_transpose_matrix44(stack, offset, offset_r);
+				break;
+			}
+			case OP_INVERT_MATRIX44: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_invert_matrix44(stack, offset, offset_r);
+				break;
+			}
+			case OP_ADJOINT_MATRIX44: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_adjoint_matrix44(stack, offset, offset_r);
+				break;
+			}
+			case OP_DETERMINANT_MATRIX44: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_determinant_matrix44(stack, offset, offset_r);
+				break;
+			}
+			case OP_MUL_MATRIX44_FLOAT3: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_mul_matrix44_float3(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MUL_MATRIX44_FLOAT4: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_b = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_mul_matrix44_float4(stack, offset_a, offset_b, offset_r);
+				break;
+			}
 			
 			case OP_MIX_RGB: {
 				int mode = fn->read_int(&instr);

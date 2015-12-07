@@ -1078,6 +1078,20 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(CROSS_FLOAT3);
 	NODETYPE(NORMALIZE_FLOAT3);
 	
+	NODETYPE(ADD_MATRIX44);
+	NODETYPE(SUB_MATRIX44);
+	NODETYPE(MUL_MATRIX44);
+	NODETYPE(MUL_MATRIX44_FLOAT);
+	NODETYPE(DIV_MATRIX44_FLOAT);
+	NODETYPE(NEGATE_MATRIX44);
+	NODETYPE(TRANSPOSE_MATRIX44);
+	NODETYPE(INVERT_MATRIX44);
+	NODETYPE(ADJOINT_MATRIX44);
+	NODETYPE(DETERMINANT_MATRIX44);
+	
+	NODETYPE(MUL_MATRIX44_FLOAT3);
+	NODETYPE(MUL_MATRIX44_FLOAT4);
+	
 	NODETYPE(MIX_RGB);
 	
 	NODETYPE(ITERATION);
@@ -1362,6 +1376,61 @@ static void register_opcode_node_types()
 	nt->add_input("count", BVM_INT, 1);
 	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), VALUE_FUNCTION);
 	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
+	
+	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("SUB_MATRIX44");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("MUL_MATRIX44");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("DIV_MATRIX44_FLOAT");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_FLOAT, 1.0f);
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("NEGATE_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("TRANSPOSE_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("INVERT_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("ADJOINT_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("DETERMINANT_MATRIX44");
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT3");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT4");
+	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("value_b", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 void nodes_init()
