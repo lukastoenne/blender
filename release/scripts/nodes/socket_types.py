@@ -34,7 +34,7 @@ class TransformSocket(NodeSocket):
         layout.label(text)
 
     def draw_color(self, context, node):
-        return (0.59, 0.67, 0.00, 1.00)
+        return (0.59, 0.00, 0.67, 1.00)
 
 class GeometrySocket(NodeSocket):
     '''Geometry data socket'''
