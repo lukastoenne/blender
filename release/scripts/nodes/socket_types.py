@@ -73,19 +73,22 @@ def socket_type_to_rna(base_type):
         }
     return types.get(base_type, None)
 
-def socket_to_bvm_type(socket):
-    if isinstance(socket, bpy.types.NodeSocketFloat):
+def rna_to_bvm_type(cls):
+    if issubclass(cls, bpy.types.NodeSocketFloat):
         return 'FLOAT'
-    elif isinstance(socket, bpy.types.NodeSocketVector):
+    elif issubclass(cls, bpy.types.NodeSocketVector):
         return 'FLOAT3'
-    elif isinstance(socket, bpy.types.NodeSocketColor):
+    elif issubclass(cls, bpy.types.NodeSocketColor):
         return 'FLOAT4'
-    elif isinstance(socket, bpy.types.NodeSocketInt):
+    elif issubclass(cls, bpy.types.NodeSocketInt):
         return 'INT'
-    elif isinstance(socket, bpy.types.GeometrySocket):
+    elif issubclass(cls, bpy.types.GeometrySocket):
         return 'MESH'
-    elif isinstance(socket, bpy.types.TransformSocket):
+    elif issubclass(cls, bpy.types.TransformSocket):
         return 'MATRIX44'
+
+def socket_type_to_bvm_type(base_type):
+    return rna_to_bvm_type(socket_type_to_rna(base_type))
 
 # determines if a conversion is necessary and possible
 # and returns a new input socket to link

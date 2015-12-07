@@ -22,7 +22,7 @@ import bpy
 import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
-from socket_types import socket_type_items, socket_type_to_rna
+from socket_types import socket_type_items, socket_type_to_rna, socket_type_to_bvm_type
 
 ###############################################################################
 # Group Interface
@@ -325,7 +325,7 @@ def make_node_group_types(prefix, treetype, node_base):
         def compile(self, compiler):
             gtree = self.id_data
             for i, item in enumerate(gtree.inputs):
-                proxy = compiler.add_proxy(item.base_type)
+                proxy = compiler.add_proxy(socket_type_to_bvm_type(item.base_type))
                 compiler.map_output(i, proxy.outputs[0])
                 compiler.map_input_external(i, proxy.inputs[0])
 
@@ -343,7 +343,7 @@ def make_node_group_types(prefix, treetype, node_base):
         def compile(self, compiler):
             gtree = self.id_data
             for i, item in enumerate(gtree.outputs):
-                proxy = compiler.add_proxy(item.base_type)
+                proxy = compiler.add_proxy(socket_type_to_bvm_type(item.base_type))
                 compiler.map_input(i, proxy.inputs[0])
                 compiler.map_output_external(i, proxy.outputs[0])
 
