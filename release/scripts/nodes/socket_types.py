@@ -72,40 +72,94 @@ def socket_to_bvm_type(socket):
     elif isinstance(socket, bpy.types.GeometrySocket):
         return 'MESH'
 
-def convert_sockets(compiler, from_typedesc, to_typedesc):
-    from_type = from_typedesc.base_type
-    to_type = to_typedesc.base_type
+# determines if a conversion is necessary and possible
+# and returns a new input socket to link
+def convert_sockets(compiler, from_socket, to_socket):
+    from_type = from_socket.typedesc.base_type
+    to_type = to_socket.typedesc.base_type
 
-    if to_type == from_type:
-        node = compiler.add_node("PASS_%s" % to_type)
-        return {node.inputs[0]}, node.outputs[0]
+    if from_type == to_type:
+        return from_socket
+
+    def int_to_float(from_socket):
+        node = compiler.add_node("INT_TO_FLOAT")
+        compiler.link(from_socket, node.inputs[0])
+        return node.outputs[0]
+    def float_to_int(from_socket):
+        node = compiler.add_node("FLOAT_TO_INT")
+        compiler.link(from_socket, node.inputs[0])
+        return node.outputs[0]
+    def get_elem_float3(from_socket, index):
+        node = compiler.add_node("GET_ELEM_FLOAT3")
+        node.inputs[0].set_value(index)
+        compiler.link(from_socket, node.inputs[1])
+        return node.outputs[0]
+    def get_elem_float4(from_socket, index):
+        node = compiler.add_node("GET_ELEM_FLOAT4")
+        node.inputs[0].set_value(index)
+        compiler.link(from_socket, node.inputs[1])
+        return node.outputs[0]
+    def set_float3(from_socket):
+        node = compiler.add_node("SET_FLOAT3")
+        compiler.link(from_socket, node.inputs[0])
+        compiler.link(from_socket, node.inputs[1])
+        compiler.link(from_socket, node.inputs[2])
+        return node.outputs[0]
+    def set_float4(from_socket):
+        node = compiler.add_node("SET_FLOAT4")
+        compiler.link(from_socket, node.inputs[0])
+        compiler.link(from_socket, node.inputs[1])
+        compiler.link(from_socket, node.inputs[2])
+        compiler.link(from_socket, node.inputs[3])
+        return node.outputs[0]
+    def float3_to_float4(from_socket):
+        node = compiler.add_node("SET_FLOAT4")
+        compiler.link(get_elem_float3(from_socket, 0), node.inputs[0])
+        compiler.link(get_elem_float3(from_socket, 1), node.inputs[1])
+        compiler.link(get_elem_float3(from_socket, 2), node.inputs[2])
+        node.inputs[3].set_value(1.0)
+        return node.outputs[0]
+    def float4_to_float3(from_socket):
+        node = compiler.add_node("SET_FLOAT3")
+        compiler.link(get_elem_float4(from_socket, 0), node.inputs[0])
+        compiler.link(get_elem_float4(from_socket, 1), node.inputs[1])
+        compiler.link(get_elem_float4(from_socket, 2), node.inputs[2])
+        return node.outputs[0]
 
     if to_type == 'FLOAT':
         if from_type == 'INT':
-            node = compiler.add_node("INT_TO_FLOAT")
-            return {node.inputs[0]}, node.outputs[0]
+            return int_to_float(from_socket)
         elif from_type == 'FLOAT3':
-            node = compiler.add_node("SET_FLOAT3")
-            return {node.inputs[0], node.inputs[1], node.inputs[2]}, node.outputs[0]
+            return get_elem_float3(from_socket, 0)
         elif from_type == 'FLOAT4':
-            node = compiler.add_node("SET_FLOAT4")
-            return {node.inputs[0], node.inputs[1], node.inputs[2], node.inputs[3]}, node.outputs[0]
+            return get_elem_float4(from_socket, 0)
     
     elif to_type == 'FLOAT3':
-        pass
+        if from_type == 'FLOAT':
+            return set_float3(from_socket)
+        elif from_type == 'FLOAT4':
+            return float4_to_float3(from_socket)
+        elif from_type == 'INT':
+            return set_float3(int_to_float(from_socket))
     
     elif to_type == 'FLOAT4':
-        pass
+        if from_type == 'FLOAT':
+            return set_float4(from_socket)
+        elif from_type == 'FLOAT3':
+            return float3_to_float4(from_socket)
+        elif from_type == 'INT':
+            return set_float4(int_to_float(from_socket))
     
     elif to_type == 'INT':
         if from_type == 'FLOAT':
-            node = compiler.add_node("FLOAT_TO_INT")
-            return {node.inputs[0]}, node.outputs[0]
+            return float_to_int(from_socket)
+        if from_type == 'FLOAT3':
+            return float_to_int(get_elem_float3(from_socket, 0))
+        if from_type == 'FLOAT4':
+            return float_to_int(get_elem_float4(from_socket, 0))
     
     elif to_type == 'MATRIX44':
         pass
-
-    return set(), None
 
 ###############################################################################
 

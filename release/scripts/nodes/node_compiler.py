@@ -45,6 +45,10 @@ class InputWrapper:
         self.gnode = gnode
         self.ginput = ginput
 
+    @property
+    def typedesc(self):
+        return self.ginput.typedesc
+
     def set_value(self, value):
         base_type = self.ginput.typedesc.base_type
         if base_type == 'FLOAT':
@@ -62,6 +66,10 @@ class OutputWrapper:
     def __init__(self, gnode, goutput):
         self.gnode = gnode
         self.goutput = goutput
+
+    @property
+    def typedesc(self):
+        return self.goutput.typedesc
 
 class NodeWrapper:
     def __init__(self, gnode):
@@ -113,12 +121,8 @@ class NodeCompiler:
 
     def link(self, from_output, to_input, autoconvert=True):
         if autoconvert:
-            cin, cout = convert_sockets(self, from_output.goutput.typedesc, to_input.ginput.typedesc)
-            if cout:
-                to_input.gnode.set_input_link(to_input.ginput, cout.gnode, cout.goutput)
-            for i in cin:
-                i.gnode.set_input_link(i.ginput, from_output.gnode, from_output.goutput)
-        else:
+            from_output = convert_sockets(self, from_output, to_input)
+        if from_output is not None:
             to_input.gnode.set_input_link(to_input.ginput, from_output.gnode, from_output.goutput)
 
     def map_input(self, key, socket):
