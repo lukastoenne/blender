@@ -25,6 +25,17 @@ from bpy.props import *
 ###############################################################################
 # Socket Types
 
+class TransformSocket(NodeSocket):
+    '''Affine 3D transformation'''
+    bl_idname = 'TransformSocket'
+    bl_label = 'Transform'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.59, 0.67, 0.00, 1.00)
+
 class GeometrySocket(NodeSocket):
     '''Geometry data socket'''
     bl_idname = 'GeometrySocket'
@@ -48,6 +59,7 @@ socket_type_items = [
     ("VECTOR", "Vector", "3D vector", 0, 2),
     ("COLOR", "Color", "RGBA color", 0, 3),
     ("MESH", "Mesh", "Mesh data", 0, 4),
+    ("TRANSFORM", "Transform", "Affine transformation", 0, 5),
     ]
 
 def socket_type_to_rna(base_type):
@@ -57,6 +69,7 @@ def socket_type_to_rna(base_type):
         "VECTOR" : bpy.types.NodeSocketVector,
         "COLOR" : bpy.types.NodeSocketColor,
         "MESH" : bpy.types.GeometrySocket,
+        "TRANSFORM" : bpy.types.TransformSocket,
         }
     return types.get(base_type, None)
 
@@ -71,6 +84,8 @@ def socket_to_bvm_type(socket):
         return 'INT'
     elif isinstance(socket, bpy.types.GeometrySocket):
         return 'MESH'
+    elif isinstance(socket, bpy.types.TransformSocket):
+        return 'MATRIX44'
 
 # determines if a conversion is necessary and possible
 # and returns a new input socket to link
