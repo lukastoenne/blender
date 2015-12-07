@@ -174,18 +174,14 @@ class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
     def init(self, context):
         self.inputs.new('GeometrySocket', "")
         self.inputs.new('NodeSocketInt', "Count")
-        self.inputs.new('NodeSocketVector', "Offset")
+        self.inputs.new('TransformSocket', "Transform")
         self.outputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        node = compiler.add_node("MESH_ARRAY", self.name+"MOD")
-        node_tfm = compiler.add_node("LOCROTSCALE_TO_MATRIX44", self.name+"TFM")
-
-        compiler.link(node_tfm.outputs[0], node.inputs["transform"])
-
+        node = compiler.add_node("MESH_ARRAY")
         compiler.map_input(0, node.inputs["mesh_in"])
         compiler.map_input(1, node.inputs["count"])
-        compiler.map_input(2, node_tfm.inputs["loc"])
+        compiler.map_input(2, node.inputs["transform"])
         compiler.map_output(0, node.outputs["mesh_out"])
 
 ###############################################################################
@@ -230,6 +226,7 @@ def register():
         GeometryNodeCategory("GEO_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
+            NodeItem("ObjectTranslationTransformNode"),
             ]),
         GeometryNodeCategory("GEO_GROUP", "Group", items=[
             NodeItem(gnode.bl_idname),

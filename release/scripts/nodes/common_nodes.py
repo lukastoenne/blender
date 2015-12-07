@@ -149,7 +149,7 @@ class MathNode(CommonNodeBase, ObjectNode):
 
 
 class VectorMathNode(CommonNodeBase, ObjectNode):
-    '''Vector Math '''
+    '''Vector Math'''
     bl_idname = 'ObjectVectorMathNode'
     bl_label = 'Vector Math'
 
@@ -251,6 +251,27 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
         compiler.map_input(1, node.inputs[1])
         compiler.map_input(2, node.inputs[2])
         compiler.map_output(0, node.outputs[0])
+
+
+class TranslationTransformNode(CommonNodeBase, ObjectNode):
+    '''Translation'''
+    bl_idname = 'ObjectTranslationTransformNode'
+    bl_label = 'Translation'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('TransformSocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("LOCROTSCALE_TO_MATRIX44")
+        compiler.map_input(1, node.inputs["loc"])
+        
+        node_mul = compiler.add_node("MUL_MATRIX44")
+        compiler.map_input(0, node_mul.inputs[0])
+        compiler.link(node.outputs[0], node_mul.inputs[1])
+        compiler.map_output(0, node_mul.outputs[0])
+
 
 ###############################################################################
 
