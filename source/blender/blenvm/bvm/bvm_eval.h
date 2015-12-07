@@ -46,7 +46,7 @@ namespace bvm {
 
 struct Function;
 
-#define BVM_STACK_SIZE 255
+#define BVM_STACK_SIZE 4095
 
 #if 0
 struct EvalResult {
