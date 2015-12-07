@@ -206,20 +206,18 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
 		iter_data.iteration = c;
 		kernel_data->context->eval_expression(globals, &iter_data, kernel_data->function, fn_transform, stack);
 		matrix44 tfm = stack_load_matrix44(stack, offset_transform);
-		float mat[4][4];
-		transpose_m4_m4(mat, (float (*)[4])tfm.data);
 
 		/* apply offset to all new verts */
 		MVert *mv_orig = orig_dm_verts;
 		MVert *mv = result_dm_verts + c * chunk_nverts;
 		for (int i = 0; i < chunk_nverts; i++, mv++, mv_orig++) {
-			mul_v3_m4v3(mv->co, mat, mv_orig->co);
+			mul_v3_m4v3(mv->co, tfm.data, mv_orig->co);
 
 			/* We have to correct normals too, if we do not tag them as dirty! */
 			if (!use_recalc_normals) {
 				float no[3];
 				normal_short_to_float_v3(no, mv->no);
-				mul_mat3_m4_v3(mat, no);
+				mul_mat3_m4_v3(tfm.data, no);
 				normalize_v3(no);
 				normal_float_to_short_v3(mv->no, no);
 			}

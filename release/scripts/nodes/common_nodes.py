@@ -254,9 +254,9 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
 
 
 class TranslationTransformNode(CommonNodeBase, ObjectNode):
-    '''Translation'''
+    '''Create translation from a vector'''
     bl_idname = 'ObjectTranslationTransformNode'
-    bl_label = 'Translation'
+    bl_label = 'Translation Transform'
 
     def init(self, context):
         self.inputs.new('TransformSocket', "")
@@ -264,14 +264,159 @@ class TranslationTransformNode(CommonNodeBase, ObjectNode):
         self.outputs.new('TransformSocket', "")
 
     def compile(self, compiler):
-        node = compiler.add_node("LOCROTSCALE_TO_MATRIX44")
-        compiler.map_input(1, node.inputs["loc"])
+        node = compiler.add_node("LOC_TO_MATRIX44")
+        compiler.map_input(1, node.inputs[0])
         
         node_mul = compiler.add_node("MUL_MATRIX44")
         compiler.map_input(0, node_mul.inputs[0])
         compiler.link(node.outputs[0], node_mul.inputs[1])
         compiler.map_output(0, node_mul.outputs[0])
 
+
+class GetTranslationNode(CommonNodeBase, ObjectNode):
+    '''Get translation vector from a transform'''
+    bl_idname = 'ObjectGetTranslationNode'
+    bl_label = 'Get Translation'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.outputs.new('NodeSocketVector', "Vector")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MATRIX44_TO_LOC")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
+
+
+_euler_order_items = [
+    ('XYZ', "XYZ", "", 0, 1),
+    ('XZY', "XZY", "", 0, 2),
+    ('YXZ', "YXZ", "", 0, 3),
+    ('YZX', "YZX", "", 0, 4),
+    ('ZXY', "ZXY", "", 0, 5),
+    ('ZYX', "ZYX", "", 0, 6),
+    ]
+_prop_euler_order = EnumProperty(name="Euler Order", items=_euler_order_items, default='XYZ')
+
+class EulerTransformNode(CommonNodeBase, ObjectNode):
+    '''Create rotation from Euler angles'''
+    bl_idname = 'ObjectEulerTransformNode'
+    bl_label = 'Euler Transform'
+
+    euler_order = _prop_euler_order
+    @property
+    def euler_order_value(self):
+        return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.inputs.new('NodeSocketVector', "Euler Angles")
+        self.outputs.new('TransformSocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("EULER_TO_MATRIX44")
+        node.inputs[0].set_value(self.euler_order_value)
+        compiler.map_input(1, node.inputs[1])
+        
+        node_mul = compiler.add_node("MUL_MATRIX44")
+        compiler.map_input(0, node_mul.inputs[0])
+        compiler.link(node.outputs[0], node_mul.inputs[1])
+        compiler.map_output(0, node_mul.outputs[0])
+
+
+class GetEulerNode(CommonNodeBase, ObjectNode):
+    '''Get euler angles from a transform'''
+    bl_idname = 'ObjectGetEulerNode'
+    bl_label = 'Get Euler Angles'
+
+    euler_order = _prop_euler_order
+    @property
+    def euler_order_value(self):
+        return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.outputs.new('NodeSocketVector', "Euler Angles")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MATRIX44_TO_EULER")
+        node.inputs[0].set_value(self.euler_order_value)
+        compiler.map_input(0, node.inputs[1])
+        compiler.map_output(0, node.outputs[0])
+
+
+class AxisAngleTransformNode(CommonNodeBase, ObjectNode):
+    '''Create rotation from axis and angle'''
+    bl_idname = 'ObjectAxisAngleTransformNode'
+    bl_label = 'Axis/Angle Transform'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.inputs.new('NodeSocketVector', "Axis")
+        self.inputs.new('NodeSocketFloat', "Angle")
+        self.outputs.new('TransformSocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("AXISANGLE_TO_MATRIX44")
+        compiler.map_input(1, node.inputs[0])
+        compiler.map_input(2, node.inputs[1])
+        
+        node_mul = compiler.add_node("MUL_MATRIX44")
+        compiler.map_input(0, node_mul.inputs[0])
+        compiler.link(node.outputs[0], node_mul.inputs[1])
+        compiler.map_output(0, node_mul.outputs[0])
+
+
+class GetAxisAngleNode(CommonNodeBase, ObjectNode):
+    '''Get axis and angle from a transform'''
+    bl_idname = 'ObjectGetAxisAngleNode'
+    bl_label = 'Get Axis/Angle'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.outputs.new('NodeSocketVector', "Axis")
+        self.outputs.new('NodeSocketFloat', "Angle")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MATRIX44_TO_AXISANGLE")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
+        compiler.map_output(1, node.outputs[1])
+
+
+class ScaleTransformNode(CommonNodeBase, ObjectNode):
+    '''Create transform from a scaling vector'''
+    bl_idname = 'ObjectScaleTransformNode'
+    bl_label = 'Scale Transform'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.inputs.new('NodeSocketVector', "Scale")
+        self.outputs.new('TransformSocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("SCALE_TO_MATRIX44")
+        compiler.map_input(1, node.inputs[0])
+        
+        node_mul = compiler.add_node("MUL_MATRIX44")
+        compiler.map_input(0, node_mul.inputs[0])
+        compiler.link(node.outputs[0], node_mul.inputs[1])
+        compiler.map_output(0, node_mul.outputs[0])
+
+
+class GetScaleNode(CommonNodeBase, ObjectNode):
+    '''Get scale from a transform'''
+    bl_idname = 'ObjectGetScaleNode'
+    bl_label = 'Get Scale'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "")
+        self.outputs.new('NodeSocketVector', "Scale")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MATRIX44_TO_SCALE")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
 
 ###############################################################################
 

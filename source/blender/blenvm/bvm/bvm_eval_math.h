@@ -42,26 +42,71 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_matrix44_to_locrotscale(float *stack, StackIndex offset_from, StackIndex offset_loc,
-                                            StackIndex offset_rot, StackIndex offset_scale)
+static void eval_op_matrix44_to_loc(float *stack, StackIndex offset_mat, StackIndex offset_loc)
 {
-	matrix44 m = stack_load_matrix44(stack, offset_from);
-	float loc[3], rot[4], scale[3];
-	mat4_decompose(loc, rot, scale, m.data);
-	stack_store_float3(stack, offset_loc, float3::from_data(loc));
-	stack_store_float4(stack, offset_rot, float4::from_data(rot));
-	stack_store_float3(stack, offset_scale, float3::from_data(scale));
+	matrix44 m = stack_load_matrix44(stack, offset_mat);
+	float3 loc;
+	copy_v3_v3(loc.data(), m.data[3]);
+	stack_store_float3(stack, offset_loc, loc);
 }
 
-static void eval_op_locrotscale_to_matrix44(float *stack, StackIndex offset_loc, StackIndex offset_rot,
-                                              StackIndex offset_scale, StackIndex offset_to)
+static void eval_op_matrix44_to_euler(float *stack, int order, StackIndex offset_mat, StackIndex offset_euler)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_mat);
+	float3 euler;
+	mat4_to_eulO(euler.data(), (short)order, m.data);
+	stack_store_float3(stack, offset_euler, euler);
+}
+
+static void eval_op_matrix44_to_axisangle(float *stack, StackIndex offset_mat, StackIndex offset_axis, StackIndex offset_angle)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_mat);
+	float3 axis;
+	float angle;
+	mat4_to_axis_angle(axis.data(), &angle, m.data);
+	stack_store_float3(stack, offset_axis, axis);
+	stack_store_float(stack, offset_angle, angle);
+}
+
+static void eval_op_matrix44_to_scale(float *stack, StackIndex offset_mat, StackIndex offset_scale)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_mat);
+	float3 scale;
+	mat4_to_size(scale.data(), m.data);
+	stack_store_float3(stack, offset_scale, scale);
+}
+
+static void eval_op_loc_to_matrix44(float *stack, StackIndex offset_loc, StackIndex offset_mat)
 {
 	float3 loc = stack_load_float3(stack, offset_loc);
-	float4 rot = stack_load_float4(stack, offset_rot);
+	matrix44 m = matrix44::identity();
+	copy_v3_v3(m.data[3], loc.data());
+	stack_store_matrix44(stack, offset_mat, m);
+}
+
+static void eval_op_euler_to_matrix44(float *stack, int order, StackIndex offset_euler, StackIndex offset_mat)
+{
+	float3 euler = stack_load_float3(stack, offset_euler);
+	matrix44 m = matrix44::identity();
+	eulO_to_mat4(m.data, euler.data(), (short)order);
+	stack_store_matrix44(stack, offset_mat, m);
+}
+
+static void eval_op_axisangle_to_matrix44(float *stack, StackIndex offset_axis, StackIndex offset_angle, StackIndex offset_mat)
+{
+	float3 axis = stack_load_float3(stack, offset_axis);
+	float angle = stack_load_float(stack, offset_angle);
+	matrix44 m = matrix44::identity();
+	axis_angle_to_mat4(m.data, axis.data(), angle);
+	stack_store_matrix44(stack, offset_mat, m);
+}
+
+static void eval_op_scale_to_matrix44(float *stack, StackIndex offset_scale, StackIndex offset_mat)
+{
 	float3 scale = stack_load_float3(stack, offset_scale);
-	float mat[4][4];
-	loc_quat_size_to_mat4(mat, loc.data(), rot.data(), scale.data());
-	stack_store_matrix44(stack, offset_to, matrix44::from_data(&mat[0][0]));
+	matrix44 m = matrix44::identity();
+	size_to_mat4(m.data, scale.data());
+	stack_store_matrix44(stack, offset_mat, m);
 }
 
 static void eval_op_add_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)

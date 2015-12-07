@@ -336,22 +336,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
 				break;
 			}
-			case OP_MATRIX44_TO_LOCROTSCALE: {
-				StackIndex offset_from = fn->read_stack_index(&instr);
-				StackIndex offset_loc = fn->read_stack_index(&instr);
-				StackIndex offset_rot = fn->read_stack_index(&instr);
-				StackIndex offset_scale = fn->read_stack_index(&instr);
-				eval_op_matrix44_to_locrotscale(stack, offset_from, offset_loc, offset_rot, offset_scale);
-				break;
-			}
-			case OP_LOCROTSCALE_TO_MATRIX44: {
-				StackIndex offset_loc = fn->read_stack_index(&instr);
-				StackIndex offset_rot = fn->read_stack_index(&instr);
-				StackIndex offset_scale = fn->read_stack_index(&instr);
-				StackIndex offset_to = fn->read_stack_index(&instr);
-				eval_op_locrotscale_to_matrix44(stack, offset_loc, offset_rot, offset_scale, offset_to);
-				break;
-			}
 			case OP_INIT_MESH_PTR: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				int use_count = fn->read_int(&instr);
@@ -651,6 +635,58 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				StackIndex offset_b = fn->read_stack_index(&instr);
 				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_mul_matrix44_float4(stack, offset_a, offset_b, offset_r);
+				break;
+			}
+			case OP_MATRIX44_TO_LOC: {
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				StackIndex offset_loc = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_loc(stack, offset_mat, offset_loc);
+				break;
+			}
+			case OP_MATRIX44_TO_EULER: {
+				int order = fn->read_int(&instr);
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				StackIndex offset_euler = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_euler(stack, order, offset_mat, offset_euler);
+				break;
+			}
+			case OP_MATRIX44_TO_AXISANGLE: {
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				StackIndex offset_axis = fn->read_stack_index(&instr);
+				StackIndex offset_angle = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_axisangle(stack, offset_mat, offset_axis, offset_angle);
+				break;
+			}
+			case OP_MATRIX44_TO_SCALE: {
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				StackIndex offset_scale = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_scale(stack, offset_mat, offset_scale);
+				break;
+			}
+			case OP_LOC_TO_MATRIX44: {
+				StackIndex offset_loc = fn->read_stack_index(&instr);
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				eval_op_loc_to_matrix44(stack, offset_loc, offset_mat);
+				break;
+			}
+			case OP_EULER_TO_MATRIX44: {
+				int order = fn->read_int(&instr);
+				StackIndex offset_euler = fn->read_stack_index(&instr);
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				eval_op_euler_to_matrix44(stack, order, offset_euler, offset_mat);
+				break;
+			}
+			case OP_AXISANGLE_TO_MATRIX44: {
+				StackIndex offset_axis = fn->read_stack_index(&instr);
+				StackIndex offset_angle = fn->read_stack_index(&instr);
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				eval_op_axisangle_to_matrix44(stack, offset_axis, offset_angle, offset_mat);
+				break;
+			}
+			case OP_SCALE_TO_MATRIX44: {
+				StackIndex offset_scale = fn->read_stack_index(&instr);
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				eval_op_scale_to_matrix44(stack, offset_scale, offset_mat);
 				break;
 			}
 			

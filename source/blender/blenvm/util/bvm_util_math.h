@@ -32,7 +32,22 @@
  *  \ingroup bvm
  */
 
+extern "C" {
+#include "BLI_math.h"
+}
+
 namespace bvm {
+
+typedef enum eEulerRotationOrders {
+	EULER_ORDER_DEFAULT = ::EULER_ORDER_DEFAULT, /* blender classic = XYZ */
+	EULER_ORDER_XYZ = ::EULER_ORDER_XYZ,
+	EULER_ORDER_XZY = ::EULER_ORDER_XZY,
+	EULER_ORDER_YXZ = ::EULER_ORDER_YXZ,
+	EULER_ORDER_YZX = ::EULER_ORDER_YZX,
+	EULER_ORDER_ZXY = ::EULER_ORDER_ZXY,
+	EULER_ORDER_ZYX = ::EULER_ORDER_ZYX,
+	/* there are 6 more entries with dulpicate entries included */
+} eEulerRotationOrders;
 
 inline static float div_safe(float a, float b)
 {

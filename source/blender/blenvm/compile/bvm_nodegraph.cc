@@ -39,6 +39,8 @@
 #include "bvm_nodegraph.h"
 #include "bvm_opcode.h"
 
+#include "bvm_util_math.h"
+
 namespace bvm {
 
 NodeSocket::NodeSocket(const string &name,
@@ -1040,8 +1042,14 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(GET_ELEM_FLOAT3);
 	NODETYPE(SET_FLOAT4);
 	NODETYPE(GET_ELEM_FLOAT4);
-	NODETYPE(MATRIX44_TO_LOCROTSCALE);
-	NODETYPE(LOCROTSCALE_TO_MATRIX44);
+	NODETYPE(MATRIX44_TO_LOC);
+	NODETYPE(MATRIX44_TO_EULER);
+	NODETYPE(MATRIX44_TO_AXISANGLE);
+	NODETYPE(MATRIX44_TO_SCALE);
+	NODETYPE(LOC_TO_MATRIX44);
+	NODETYPE(EULER_TO_MATRIX44);
+	NODETYPE(AXISANGLE_TO_MATRIX44);
+	NODETYPE(SCALE_TO_MATRIX44);
 	
 	NODETYPE(POINT_POSITION);
 	NODETYPE(POINT_VELOCITY);
@@ -1205,18 +1213,6 @@ static void register_opcode_node_types()
 	nt->add_input("value_z", BVM_FLOAT, 0.0f);
 	nt->add_input("value_w", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	
-	nt = NodeGraph::add_function_node_type("MATRIX44_TO_LOCROTSCALE");
-	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("rot", BVM_FLOAT4, float4(1.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("scale", BVM_FLOAT3, float3(1.0f, 1.0f, 1.0f));
-	
-	nt = NodeGraph::add_function_node_type("LOCROTSCALE_TO_MATRIX44");
-	nt->add_input("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("rot", BVM_FLOAT4, float4(1.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_input("scale", BVM_FLOAT3, float3(1.0f, 1.0f, 1.0f));
-	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_function_node_type("POINT_POSITION");
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
@@ -1431,6 +1427,42 @@ static void register_opcode_node_types()
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("MATRIX44_TO_LOC");
+	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("MATRIX44_TO_EULER");
+	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, VALUE_CONSTANT);
+	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("MATRIX44_TO_AXISANGLE");
+	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("axis", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("angle", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_function_node_type("MATRIX44_TO_SCALE");
+	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("scale", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("LOC_TO_MATRIX44");
+	nt->add_input("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("EULER_TO_MATRIX44");
+	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, VALUE_CONSTANT);
+	nt->add_input("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("AXISANGLE_TO_MATRIX44");
+	nt->add_input("axis", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("angle", BVM_FLOAT, 0.0f);
+	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("SCALE_TO_MATRIX44");
+	nt->add_input("scale", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
 }
 
 void nodes_init()

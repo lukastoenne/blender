@@ -227,6 +227,13 @@ def register():
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
             NodeItem("ObjectTranslationTransformNode"),
+            NodeItem("ObjectEulerTransformNode"),
+            NodeItem("ObjectAxisAngleTransformNode"),
+            NodeItem("ObjectScaleTransformNode"),
+            NodeItem("ObjectGetTranslationNode"),
+            NodeItem("ObjectGetEulerNode"),
+            NodeItem("ObjectGetAxisAngleNode"),
+            NodeItem("ObjectGetScaleNode"),
             ]),
         GeometryNodeCategory("GEO_GROUP", "Group", items=[
             NodeItem(gnode.bl_idname),
