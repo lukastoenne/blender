@@ -51,15 +51,7 @@ struct TypeDesc;
 
 typedef std::vector<const NodeInstance *> NodeList;
 typedef std::set<const NodeInstance *> NodeSet;
-struct SubgraphOutput {
-	SubgraphOutput(const ConstSocketPair &key, Value *default_value) :
-	    key(key), value(default_value), stack_index(BVM_STACK_INVALID)
-	{}
-	ConstSocketPair key;
-	Value *value;
-	StackIndex stack_index;
-};
-typedef std::vector<SubgraphOutput> SubgraphOutputList;
+typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
 typedef std::map<ConstSocketPair, int> SocketUserMap;
 
 struct BVMCompiler {
@@ -92,7 +84,7 @@ struct BVMCompiler {
 	void codegen_constant(const Value *value);
 	int codegen_subgraph(const NodeList &nodes,
 	                     const SocketUserMap &socket_users,
-	                     SubgraphOutputList &outputs);
+	                     SocketIndexMap &output_index);
 	Function *codegen_function(const NodeGraph &graph);
 	
 protected:

@@ -309,13 +309,10 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 
 int BVMCompiler::codegen_subgraph(const NodeList &nodes,
                                   const SocketUserMap &socket_users,
-                                  SubgraphOutputList &outputs)
+                                  SocketIndexMap &output_index)
 {
-	typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
-	
 	int entry_point = fn->get_instruction_count();
 	
-	SocketIndexMap output_index;
 	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
@@ -422,18 +419,6 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 	}
 	
 	push_opcode(OP_END);
-	
-	for (SubgraphOutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		SubgraphOutput &output = *it;
-		
-		if (output.key.node) {
-			assert(output_index.find(output.key) != output_index.end());
-			output.stack_index = output_index[output.key];
-		}
-		else {
-			output.stack_index = codegen_value(output.value);
-		}
-	}
 	
 	return entry_point;
 }
@@ -567,32 +552,42 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		 * updated _after_ the main function is generated.
 		 */
 		
-		SubgraphOutputList outputs;
-		ConstSocketPair link_key = key.node->link(key.socket);
-		Value *value = key.node->type->find_input(key.socket)->default_value;
-		outputs.push_back(SubgraphOutput(link_key, value));
+		SocketIndexMap output_index;
+		func.entry_point = codegen_subgraph(expr_nodes, output_users, output_index);
 		
-		func.entry_point = codegen_subgraph(expr_nodes, output_users, outputs);
-		func.return_index = outputs[0].stack_index;
+		ConstSocketPair link_key = key.node->link(key.socket);
+		StackIndex stack_index;
+		if (link_key.node) {
+			assert(output_index.find(link_key) != output_index.end());
+			stack_index = output_index[link_key];
+		}
+		else {
+			Value *value = key.node->type->find_input(key.socket)->default_value;
+			stack_index = codegen_value(value);
+		}
+		func.return_index = stack_index;
 	}
 	
 	/* now generate the main function */
 	{
-		SubgraphOutputList outputs;
-		for (size_t i = 0; i < graph.outputs.size(); ++i) {
-			const NodeGraph::Output &output = graph.outputs[i];
-			Value *value = output.key.node->type->find_output(output.key.socket)->default_value;
-			outputs.push_back(SubgraphOutput(output.key, value));
-		}
-		int entry_point = codegen_subgraph(main_nodes, output_users, outputs);
+		SocketIndexMap output_index;
+		int entry_point = codegen_subgraph(main_nodes, output_users, output_index);
 		fn->set_entry_point(entry_point);
 		
-		/* store final stack indices for outputs, so we can return results to the caller */
 		for (size_t i = 0; i < graph.outputs.size(); ++i) {
 			const NodeGraph::Output &output = graph.outputs[i];
 			const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
 			
-			fn->add_return_value(socket->typedesc, output.name, outputs[i].stack_index);
+			StackIndex stack_index;
+			if (output.key.node) {
+				assert(output_index.find(output.key) != output_index.end());
+				stack_index = output_index[output.key];
+			}
+			else {
+				Value *value = output.key.node->type->find_output(output.key.socket)->default_value;
+				stack_index = codegen_value(value);
+			}
+			fn->add_return_value(socket->typedesc, output.name, stack_index);
 		}
 	}
 	
