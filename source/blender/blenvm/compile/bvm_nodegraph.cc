@@ -563,14 +563,16 @@ const NodeGraph::Output *NodeGraph::get_output(const string &name) const
 const NodeGraph::Input *NodeGraph::add_input(const string &name, BVMType type)
 {
 	BLI_assert(!get_input(name));
-	inputs.push_back(Input(name, add_argument_node(TypeDesc(type))));
+	TypeDesc typedesc(type);
+	inputs.push_back(Input(name, typedesc, add_argument_node(typedesc)));
 	return &inputs.back();
 }
 
 const NodeGraph::Output *NodeGraph::add_output(const string &name, BVMType type, Value *default_value)
 {
 	BLI_assert(!get_output(name));
-	outputs.push_back(Output(name, add_proxy(TypeDesc(type), default_value)));
+	TypeDesc typedesc(type);
+	outputs.push_back(Output(name, typedesc, add_proxy(typedesc, default_value)));
 	return &outputs.back();
 }
 

@@ -275,13 +275,17 @@ struct NodeInstance {
 
 struct NodeGraph {
 	struct Input {
-		Input(const string &name, const SocketPair &key) : name(name), key(key) {}
+		Input(const string &name, const TypeDesc &typedesc, const SocketPair &key) :
+		    name(name), typedesc(typedesc), key(key) {}
 		string name;
+		TypeDesc typedesc;
 		SocketPair key;
 	};
 	struct Output {
-		Output(const string &name, const SocketPair &key) : name(name), key(key) {}
+		Output(const string &name, const TypeDesc &typedesc, const SocketPair &key) :
+		    name(name), typedesc(typedesc), key(key) {}
 		string name;
+		TypeDesc typedesc;
 		SocketPair key;
 	};
 	typedef std::vector<Input> InputList;
