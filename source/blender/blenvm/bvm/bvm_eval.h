@@ -128,7 +128,7 @@ struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const;
+	void eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, const void *arguments[], void *results[]) const;
 	void eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const;
 	
 protected:

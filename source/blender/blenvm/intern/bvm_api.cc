@@ -283,6 +283,10 @@ struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *glo
 	
 	NodeGraph graph;
 	{
+		graph.add_input("effector.object", BVM_POINTER);
+		graph.add_input("effector.position", BVM_FLOAT3);
+		graph.add_input("effector.velocity", BVM_FLOAT3);
+		
 		float zero[3] = {0.0f, 0.0f, 0.0f};
 		graph.add_output("force", BVM_FLOAT3, zero);
 		graph.add_output("impulse", BVM_FLOAT3, zero);
@@ -304,12 +308,14 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	using namespace bvm;
 	
 	EvalData data;
-	RNA_id_pointer_create((ID *)effob, &data.effector.object);
-	data.effector.position = float3(point->loc[0], point->loc[1], point->loc[2]);
-	data.effector.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
+	EffectorEvalData &effdata = data.effector;
+	RNA_id_pointer_create((ID *)effob, &effdata.object);
+	effdata.position = float3(point->loc[0], point->loc[1], point->loc[2]);
+	effdata.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
+	const void *args[] = { &effdata.object, point->loc, point->vel };
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_function(_GLOBALS(globals), &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(_GLOBALS(globals), &data, _FUNC(fn), args, results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -805,6 +811,12 @@ struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *global
 	
 	NodeGraph graph;
 	{
+		graph.add_input("texture.co", BVM_FLOAT3);
+		graph.add_input("texture.dxt", BVM_FLOAT3);
+		graph.add_input("texture.dyt", BVM_FLOAT3);
+		graph.add_input("texture.cfra", BVM_INT);
+		graph.add_input("texture.osatex", BVM_INT);
+		
 		float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 		float N[3] = {0.0f, 0.0f, 0.0f};
 		graph.add_output("color", BVM_FLOAT4, C);
@@ -843,9 +855,10 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 
 	float4 color;
 	float3 normal;
+	const void *args[] = { coord, dxt, dyt, &cfra, &osatex };
 	void *results[] = { &color.x, &normal.x };
 	
-	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), args, results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -932,6 +945,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	using namespace bvm;
 	
 	NodeGraph graph;
+	graph.add_input("modifier.base_mesh", BVM_POINTER);
 	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
 	
 	CompileContext comp(_GLOBALS(globals));
@@ -958,10 +972,13 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunc
 	ModifierEvalData &moddata = data.modifier;
 	moddata.base_mesh = base_mesh;
 
+	PointerRNA base_mesh_ptr;
+	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
 	mesh_ptr result;
+	const void *args[] = { &base_mesh_ptr };
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), results);
+	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), args, results);
 	
 	return result.get();
 }

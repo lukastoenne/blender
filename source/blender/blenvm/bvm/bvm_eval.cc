@@ -800,7 +800,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 	}
 }
 
-void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, void **results) const
+void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, const void *arguments[], void *results[]) const
 {
 	float stack[BVM_STACK_SIZE] = {0};
 	
