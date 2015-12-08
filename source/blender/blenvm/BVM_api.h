@@ -86,7 +86,7 @@ void BVM_node_set_input_value_int(struct BVMNodeInstance *node, struct BVMNodeIn
 
 const char *BVM_node_input_name(struct BVMNodeInput *input);
 struct BVMTypeDesc *BVM_node_input_typedesc(struct BVMNodeInput *input);
-BVMValueType BVM_node_input_value_type(struct BVMNodeInput *input);
+BVMInputValueType BVM_node_input_value_type(struct BVMNodeInput *input);
 const char *BVM_node_output_name(struct BVMNodeOutput *output);
 struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output);
 

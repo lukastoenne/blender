@@ -317,9 +317,9 @@ static void rna_def_bvm_node_input(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem value_type_items[] = {
-	    {VALUE_CONSTANT, "CONSTANT", 0, "Constant", "Fixed value that must be defined at compile time"},
-	    {VALUE_VARIABLE, "VARIABLE", 0, "Variable", "Variable value from another node can be used"},
-	    {VALUE_FUNCTION, "FUNCTION", 0, "Function", "Value is calculated for each element"},
+	    {INPUT_CONSTANT, "CONSTANT", 0, "Constant", "Fixed value that must be defined at compile time"},
+	    {INPUT_VARIABLE, "VARIABLE", 0, "Variable", "Variable value from another node can be used"},
+	    {INPUT_FUNCTION, "FUNCTION", 0, "Function", "Value is calculated for each element"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	

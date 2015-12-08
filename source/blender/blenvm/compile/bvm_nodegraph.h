@@ -62,13 +62,13 @@ struct NodeSocket {
 	NodeSocket(const string &name,
 	           const TypeDesc &typedesc,
 	           Value *default_value,
-	           BVMValueType value_type);
+	           BVMInputValueType value_type);
 	~NodeSocket();
 	
 	string name;
 	TypeDesc typedesc;
 	Value *default_value;
-	BVMValueType value_type;
+	BVMInputValueType value_type;
 };
 
 struct NodeType {
@@ -99,7 +99,7 @@ struct NodeType {
 	const NodeSocket *add_input(const string &name,
 	                            BVMType type,
 	                            Value *default_value,
-	                            BVMValueType value_type = VALUE_VARIABLE);
+	                            BVMInputValueType value_type = INPUT_VARIABLE);
 	const NodeSocket *add_output(const string &name,
 	                             BVMType type,
 	                             Value *default_value);
@@ -108,7 +108,7 @@ struct NodeType {
 	const NodeSocket *add_input(const string &name,
 	                            BVMType type,
 	                            T default_value,
-	                            BVMValueType value_type = VALUE_VARIABLE)
+	                            BVMInputValueType value_type = INPUT_VARIABLE)
 	{
 		Value *c = Value::create(type, default_value);
 		BLI_assert(c != NULL);

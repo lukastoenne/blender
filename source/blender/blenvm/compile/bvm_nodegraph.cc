@@ -46,7 +46,7 @@ namespace bvm {
 NodeSocket::NodeSocket(const string &name,
                        const TypeDesc &typedesc,
                        Value *default_value,
-                       BVMValueType value_type) :
+                       BVMInputValueType value_type) :
     name(name),
     typedesc(typedesc),
     default_value(default_value),
@@ -193,11 +193,11 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 const NodeSocket *NodeType::add_input(const string &name,
                                       BVMType type,
                                       Value *default_value,
-                                      BVMValueType value_type)
+                                      BVMInputValueType value_type)
 {
 	BLI_assert(!find_input(name));
 	/* function inputs only allowed for kernel nodes */
-	BLI_assert(m_is_kernel_node || value_type != VALUE_FUNCTION);
+	BLI_assert(m_is_kernel_node || value_type != INPUT_FUNCTION);
 	inputs.push_back(NodeSocket(name, type, default_value, value_type));
 	return &inputs.back();
 }
@@ -207,7 +207,7 @@ const NodeSocket *NodeType::add_output(const string &name,
                                        Value *default_value)
 {
 	BLI_assert(!find_output(name));
-	outputs.push_back(NodeSocket(name, type, default_value, VALUE_VARIABLE));
+	outputs.push_back(NodeSocket(name, type, default_value, INPUT_VARIABLE));
 	return &outputs.back();
 }
 
@@ -397,25 +397,25 @@ bool NodeInstance::has_input_value(int index) const
 bool NodeInstance::is_input_constant(const string &name) const
 {
 	const NodeSocket *socket = type->find_input(name);
-	return socket ? socket->value_type == VALUE_CONSTANT : false;
+	return socket ? socket->value_type == INPUT_CONSTANT : false;
 }
 
 bool NodeInstance::is_input_constant(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
-	return socket ? socket->value_type == VALUE_CONSTANT : false;
+	return socket ? socket->value_type == INPUT_CONSTANT : false;
 }
 
 bool NodeInstance::is_input_function(const string &name) const
 {
 	const NodeSocket *socket = type->find_input(name);
-	return socket ? socket->value_type == VALUE_FUNCTION : false;
+	return socket ? socket->value_type == INPUT_FUNCTION : false;
 }
 
 bool NodeInstance::is_input_function(int index) const
 {
 	const NodeSocket *socket = type->find_input(index);
-	return socket ? socket->value_type == VALUE_FUNCTION : false;
+	return socket ? socket->value_type == INPUT_FUNCTION : false;
 }
 
 bool NodeInstance::set_output_value(const string &name, Value *value)
@@ -1198,35 +1198,35 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT");
-	nt->add_input("value", BVM_FLOAT, 0.0f, VALUE_CONSTANT);
+	nt->add_input("value", BVM_FLOAT, 0.0f, INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT3");
-	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f), VALUE_CONSTANT);
+	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT4");
-	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f), VALUE_CONSTANT);
+	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_INT");
-	nt->add_input("value", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("value", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("value", BVM_INT, 0);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_MATRIX44");
-	nt->add_input("value", BVM_MATRIX44, matrix44::identity(), VALUE_CONSTANT);
+	nt->add_input("value", BVM_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
 	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_POINTER");
-	nt->add_input("value", BVM_POINTER, PointerRNA_NULL, VALUE_CONSTANT);
+	nt->add_input("value", BVM_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
 	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_MESH");
-	nt->add_input("value", BVM_MESH, __empty_mesh__, VALUE_CONSTANT);
+	nt->add_input("value", BVM_MESH, __empty_mesh__, INPUT_CONSTANT);
 	nt->add_output("value", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
-	nt->add_input("index", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
@@ -1237,7 +1237,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT4");
-	nt->add_input("index", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
@@ -1334,15 +1334,15 @@ static void register_opcode_node_types()
 	nt->add_output("value", BVM_FLOAT, 0.0f);
 	
 	nt = NodeGraph::add_function_node_type("MIX_RGB");
-	nt->add_input("mode", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("mode", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("factor", BVM_FLOAT, 0.0f);
 	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_VORONOI");
-	nt->add_input("distance_metric", BVM_INT, 0, VALUE_CONSTANT);
-	nt->add_input("color_type", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("distance_metric", BVM_INT, 0, INPUT_CONSTANT);
+	nt->add_input("color_type", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("minkowski_exponent", BVM_FLOAT, 2.5f);
 	nt->add_input("scale", BVM_FLOAT, 1.0f);
 	nt->add_input("noise_size", BVM_FLOAT, 1.0f);
@@ -1360,15 +1360,15 @@ static void register_opcode_node_types()
 	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("nabla", BVM_FLOAT, 0.05f);
 	nt->add_input("size", BVM_FLOAT, 1.0f);
-	nt->add_input("depth", BVM_INT, 2, VALUE_CONSTANT);
-	nt->add_input("noise_basis", BVM_INT, 0, VALUE_CONSTANT);
-	nt->add_input("noise_hard", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("depth", BVM_INT, 2, INPUT_CONSTANT);
+	nt->add_input("noise_basis", BVM_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("intensity", BVM_FLOAT, 0.0f);
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
-	nt->add_input("object", BVM_INT, 0, VALUE_CONSTANT);
+	nt->add_input("object", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("transform", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_CLOSEST_POINT");
@@ -1390,7 +1390,7 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
 	nt->add_input("count", BVM_INT, 1);
-	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), VALUE_FUNCTION);
+	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), INPUT_FUNCTION);
 	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
@@ -1453,7 +1453,7 @@ static void register_opcode_node_types()
 	nt->add_output("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_EULER");
-	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, VALUE_CONSTANT);
+	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
 	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
 	nt->add_output("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
@@ -1471,7 +1471,7 @@ static void register_opcode_node_types()
 	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
 	
 	nt = NodeGraph::add_function_node_type("EULER_TO_MATRIX44");
-	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, VALUE_CONSTANT);
+	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
 	nt->add_input("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
 	

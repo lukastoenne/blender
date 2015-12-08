@@ -195,7 +195,7 @@ const char *BVM_node_input_name(struct BVMNodeInput *input)
 struct BVMTypeDesc *BVM_node_input_typedesc(struct BVMNodeInput *input)
 { return (struct BVMTypeDesc *)(&_INPUT(input)->typedesc); }
 
-BVMValueType BVM_node_input_value_type(struct BVMNodeInput *input)
+BVMInputValueType BVM_node_input_value_type(struct BVMNodeInput *input)
 { return _INPUT(input)->value_type; }
 
 const char *BVM_node_output_name(struct BVMNodeOutput *output)

@@ -432,7 +432,7 @@ void BVMCompiler::graph_node_append(const NodeInstance *node,
 	
 	for (size_t i = 0; i < node->num_inputs(); ++i) {
 		const NodeSocket *socket = node->type->find_input(i);
-		if (socket->value_type == VALUE_FUNCTION) {
+		if (socket->value_type == INPUT_FUNCTION) {
 			func_entry_map[node->input(i)] = FunctionInfo();
 		}
 		else {
