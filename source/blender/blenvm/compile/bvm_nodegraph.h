@@ -330,6 +330,7 @@ protected:
 	
 	SocketPair add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
 	SocketPair add_value_node(Value *value);
+	SocketPair add_argument_node(const TypeDesc &typedesc);
 	
 	void remove_all_nodes();
 	SocketPair find_root(const SocketPair &key);

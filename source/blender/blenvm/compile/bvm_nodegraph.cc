@@ -563,12 +563,7 @@ const NodeGraph::Output *NodeGraph::get_output(const string &name) const
 const NodeGraph::Input *NodeGraph::add_input(const string &name, BVMType type)
 {
 	BLI_assert(!get_input(name));
-	/* XXX these proxies (noop nodes) should be replaced by dedicated
-	 * 'argument' nodes, which ensure that we have a place on the stack
-	 * for writing input arguments to.
-	 * This also enables direct input->output connections.
-	 */
-	inputs.push_back(Input(name, add_proxy(TypeDesc(type))));
+	inputs.push_back(Input(name, add_argument_node(TypeDesc(type))));
 	return &inputs.back();
 }
 
@@ -612,6 +607,21 @@ SocketPair NodeGraph::add_value_node(Value *value)
 	}
 	if (node)
 		node->set_input_value("value", value);
+	return SocketPair(node, "value");
+}
+
+SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
+{
+	NodeInstance *node = NULL;
+	switch (typedesc.base_type) {
+		case BVM_FLOAT: node = add_node("ARG_FLOAT"); break;
+		case BVM_FLOAT3: node = add_node("ARG_FLOAT3"); break;
+		case BVM_FLOAT4: node = add_node("ARG_FLOAT4"); break;
+		case BVM_INT: node = add_node("ARG_INT"); break;
+		case BVM_MATRIX44: node = add_node("ARG_MATRIX44"); break;
+		case BVM_MESH: node = add_node("ARG_MESH"); break;
+		case BVM_POINTER: node = add_node("ARG_POINTER"); break;
+	}
 	return SocketPair(node, "value");
 }
 
@@ -1161,6 +1171,27 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__);
+	nt->add_output("value", BVM_MESH, __empty_mesh__);
+	
+	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
+	nt->add_output("value", BVM_FLOAT, 0.0f);
+	
+	nt = NodeGraph::add_function_node_type("ARG_FLOAT3");
+	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("ARG_FLOAT4");
+	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	
+	nt = NodeGraph::add_function_node_type("ARG_INT");
+	nt->add_output("value", BVM_INT, 0);
+	
+	nt = NodeGraph::add_function_node_type("ARG_MATRIX44");
+	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	
+	nt = NodeGraph::add_function_node_type("ARG_POINTER");
+	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	
+	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT");
