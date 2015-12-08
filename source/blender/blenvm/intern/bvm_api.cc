@@ -110,16 +110,28 @@ void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
                              struct BVMNodeInstance **node, const char **socket)
 {
 	const bvm::NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
-	if (node) *node = (BVMNodeInstance *)input->key.node;
-	if (socket) *socket = input->key.socket.c_str();
+	if (input) {
+		if (node) *node = (BVMNodeInstance *)input->key.node;
+		if (socket) *socket = input->key.socket.c_str();
+	}
+	else {
+		if (node) *node = NULL;
+		if (socket) *socket = "";
+	}
 }
 
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket)
 {
 	const bvm::NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
-	if (node) *node = (BVMNodeInstance *)output->key.node;
-	if (socket) *socket = output->key.socket.c_str();
+	if (output) {
+		if (node) *node = (BVMNodeInstance *)output->key.node;
+		if (socket) *socket = output->key.socket.c_str();
+	}
+	else {
+		if (node) *node = NULL;
+		if (socket) *socket = "";
+	}
 }
 
 

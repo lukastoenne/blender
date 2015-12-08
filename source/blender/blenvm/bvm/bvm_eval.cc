@@ -804,8 +804,19 @@ void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data
 {
 	float stack[BVM_STACK_SIZE] = {0};
 	
+	/* initialize input arguments */
+	for (int i = 0; i < fn->num_arguments(); ++i) {
+		const Argument &arg = fn->argument(i);
+		if (arg.stack_offset != BVM_STACK_INVALID) {
+			float *value = &stack[arg.stack_offset];
+			
+			arg.typedesc.copy_value((void *)value, arguments[i]);
+		}
+	}
+	
 	eval_instructions(globals, data, fn, fn->entry_point(), stack);
 	
+	/* read out return values */
 	for (int i = 0; i < fn->num_return_values(); ++i) {
 		const Argument &rval = fn->return_value(i);
 		float *value = &stack[rval.stack_offset];

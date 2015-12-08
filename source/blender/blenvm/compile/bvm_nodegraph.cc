@@ -711,9 +711,17 @@ static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
 void NodeGraph::remove_unused_nodes()
 {
 	NodeSet used_nodes;
+	/* all output nodes and their inputs subgraphs are used */
 	for (NodeGraph::OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
 		Output &output = *it;
 		used_nodes_append(output.key.node, used_nodes);
+	}
+	/* make sure unused inputs don't leave dangling node pointers */
+	for (NodeGraph::InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
+		Input &input = *it;
+		if (used_nodes.find(input.key.node) == used_nodes.end()) {
+			input.key = SocketPair();
+		}
 	}
 	
 	NodeInstanceMap::iterator it = nodes.begin();

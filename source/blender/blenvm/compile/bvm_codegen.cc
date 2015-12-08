@@ -316,10 +316,6 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
-		OpCode op = get_opcode_from_node_type(node.type->name());
-		if (op == OP_NOOP)
-			continue;
-		
 		/* prepare input stack entries */
 		SocketIndexMap input_index;
 		for (int i = 0; i < node.num_inputs(); ++i) {
@@ -365,35 +361,38 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 			}
 		}
 		
-		/* write main opcode */
-		push_opcode(op);
-		/* write input stack offsets and constants */
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
-			ConstSocketPair key(&node, input->name);
-			
-			if (node.is_input_constant(i)) {
-				Value *value = node.find_input_value(i);
-				codegen_constant(value);
+		OpCode op = get_opcode_from_node_type(node.type->name());
+		if (op != OP_NOOP) {
+			/* write main opcode */
+			push_opcode(op);
+			/* write input stack offsets and constants */
+			for (int i = 0; i < node.num_inputs(); ++i) {
+				const NodeSocket *input = node.type->find_input(i);
+				ConstSocketPair key(&node, input->name);
+				
+				if (node.is_input_constant(i)) {
+					Value *value = node.find_input_value(i);
+					codegen_constant(value);
+				}
+				else if (node.is_input_function(i)) {
+					assert(func_entry_map.find(key) != func_entry_map.end());
+					FunctionInfo &func = func_entry_map[key];
+					push_jump_address(func.entry_point);
+					push_stack_index(func.return_index);
+				}
+				else {
+					assert(input_index.find(key) != input_index.end());
+					push_stack_index(input_index[key]);
+				}
 			}
-			else if (node.is_input_function(i)) {
-				assert(func_entry_map.find(key) != func_entry_map.end());
-				FunctionInfo &func = func_entry_map[key];
-				push_jump_address(func.entry_point);
-				push_stack_index(func.return_index);
+			/* write output stack offsets */
+			for (int i = 0; i < node.num_outputs(); ++i) {
+				const NodeSocket *output = node.type->find_output(i);
+				ConstSocketPair key(&node, output->name);
+				assert(output_index.find(key) != output_index.end());
+				
+				push_stack_index(output_index[key]);
 			}
-			else {
-				assert(input_index.find(key) != input_index.end());
-				push_stack_index(input_index[key]);
-			}
-		}
-		/* write output stack offsets */
-		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
-			assert(output_index.find(key) != output_index.end());
-			
-			push_stack_index(output_index[key]);
 		}
 		
 		/* release input data stack entries */
@@ -574,20 +573,30 @@ Function *BVMCompiler::codegen_function(const NodeGraph &graph)
 		int entry_point = codegen_subgraph(main_nodes, output_users, output_index);
 		fn->set_entry_point(entry_point);
 		
-		for (size_t i = 0; i < graph.outputs.size(); ++i) {
-			const NodeGraph::Output &output = graph.outputs[i];
-			const NodeSocket *socket = output.key.node->type->find_output(output.key.socket);
+		/* store stack indices for inputs/outputs, to store arguments from and return results to the caller */
+		for (size_t i = 0; i < graph.inputs.size(); ++i) {
+			const NodeGraph::Input &input = graph.inputs[i];
 			
 			StackIndex stack_index;
-			if (output.key.node) {
-				assert(output_index.find(output.key) != output_index.end());
-				stack_index = output_index[output.key];
+			if (input.key.node) {
+				assert(output_index.find(input.key) != output_index.end());
+				stack_index = output_index[input.key];
 			}
 			else {
-				Value *value = output.key.node->type->find_output(output.key.socket)->default_value;
-				stack_index = codegen_value(value);
+				stack_index = BVM_STACK_INVALID;
 			}
-			fn->add_return_value(socket->typedesc, output.name, stack_index);
+			
+			fn->add_argument(input.typedesc, input.name, stack_index);
+		}
+		for (size_t i = 0; i < graph.outputs.size(); ++i) {
+			const NodeGraph::Output &output = graph.outputs[i];
+			
+			/* every output must map to a node */
+			assert(output.key.node);
+			assert(output_index.find(output.key) != output_index.end());
+			
+			StackIndex stack_index = output_index[output.key];
+			fn->add_return_value(output.typedesc, output.name, stack_index);
 		}
 	}
 	
