@@ -89,6 +89,7 @@ struct BVMTypeDesc *BVM_node_input_typedesc(struct BVMNodeInput *input);
 BVMInputValueType BVM_node_input_value_type(struct BVMNodeInput *input);
 const char *BVM_node_output_name(struct BVMNodeOutput *output);
 struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output);
+BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output);
 
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc);
 

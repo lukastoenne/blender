@@ -220,6 +220,8 @@ const NodeOutput *NodeType::add_output(const string &name,
                                        BVMOutputValueType value_type)
 {
 	BLI_assert(!find_output(name));
+	/* local outputs only allowed for kernel nodes */
+	BLI_assert(m_is_kernel_node || value_type != OUTPUT_LOCAL);
 	m_outputs.push_back(NodeOutput(name, type, value_type));
 	return &m_outputs.back();
 }
@@ -1405,6 +1407,7 @@ static void register_opcode_node_types()
 	nt->add_input("count", BVM_INT, 1);
 	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), INPUT_FUNCTION);
 	nt->add_output("mesh_out", BVM_MESH);
+	nt->add_output("iteration", BVM_INT, OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());

@@ -109,6 +109,11 @@ static PointerRNA rna_BVMNodeOutput_typedesc_get(PointerRNA *ptr)
 	return r_ptr;
 }
 
+static int rna_BVMNodeOutput_value_type_get(PointerRNA *ptr)
+{
+	return BVM_node_output_value_type(ptr->data);
+}
+
 static void rna_BVMNodeInstance_inputs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	struct BVMNodeInstance *node = ptr->data;
@@ -350,6 +355,12 @@ static void rna_def_bvm_node_output(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
+	static EnumPropertyItem value_type_items[] = {
+	    {OUTPUT_VARIABLE, "VARIABLE", 0, "Variable", "Variable value that can be used by other nodes"},
+	    {OUTPUT_LOCAL, "LOCAL", 0, "Local", "Local value that is only used internally"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	srna = RNA_def_struct(brna, "BVMNodeOutput", NULL);
 	RNA_def_struct_ui_text(srna, "Node Output", "Output of a node");
 	
@@ -364,6 +375,12 @@ static void rna_def_bvm_node_output(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "BVMTypeDesc");
 	RNA_def_property_pointer_funcs(prop, "rna_BVMNodeOutput_typedesc_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Type Descriptor", "Type of data accepted by the input");
+	
+	prop = RNA_def_property(srna, "value_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_enum_items(prop, value_type_items);
+	RNA_def_property_enum_funcs(prop, "rna_BVMNodeOutput_value_type_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Value Type", "Limits the data connections the output allows");
 }
 
 static void rna_def_bvm_node_instance(BlenderRNA *brna)

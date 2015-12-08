@@ -54,6 +54,7 @@ typedef enum BVMInputValueType {
 
 typedef enum BVMOutputValueType {
 	OUTPUT_VARIABLE,
+	OUTPUT_LOCAL,
 } BVMOutputValueType;
 
 #ifdef __cplusplus

@@ -204,6 +204,9 @@ const char *BVM_node_output_name(struct BVMNodeOutput *output)
 struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output)
 { return (struct BVMTypeDesc *)(&_OUTPUT(output)->typedesc); }
 
+BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output)
+{ return _OUTPUT(output)->value_type; }
+
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc)
 { return _TYPEDESC(typedesc)->base_type; }
 

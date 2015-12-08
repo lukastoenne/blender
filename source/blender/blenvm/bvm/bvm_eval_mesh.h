@@ -159,7 +159,8 @@ static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, float *s
 }
 
 static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
-                             DerivedMesh *dm, int count, int fn_transform, StackIndex offset_transform)
+                             DerivedMesh *dm, int count,
+                             int fn_transform, StackIndex offset_transform, StackIndex offset_iteration)
 {
 	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS);
 	
@@ -209,6 +210,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *k
 		DM_copy_poly_data(result, result, 0, c * chunk_npolys, chunk_npolys);
 
 		/* calculate transform for the copy */
+		stack_store_int(stack, offset_iteration, c);
 		kernel_data->context->eval_expression(globals, kernel_data->function, fn_transform, stack);
 		matrix44 tfm = stack_load_matrix44(stack, offset_transform);
 
@@ -259,14 +261,14 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *k
 }
 
 static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
-                               StackIndex offset_mesh_in, StackIndex offset_mesh_out,
-                               StackIndex offset_count, int fn_transform, StackIndex offset_transform)
+                               StackIndex offset_mesh_in, StackIndex offset_mesh_out, StackIndex offset_count,
+                               int fn_transform, StackIndex offset_transform, StackIndex offset_iteration)
 {
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	int count = stack_load_int(stack, offset_count);
 	
 	DerivedMesh *result = (count > 0) ?
-	                          do_array(globals, kernel_data, stack, dm, count, fn_transform, offset_transform) :
+	                          do_array(globals, kernel_data, stack, dm, count, fn_transform, offset_transform, offset_iteration) :
 	                          CDDM_new(0, 0, 0, 0, 0);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);
