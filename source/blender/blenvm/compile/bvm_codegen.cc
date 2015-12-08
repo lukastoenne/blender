@@ -319,7 +319,7 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 		/* prepare input stack entries */
 		SocketIndexMap input_index;
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
+			const NodeInput *input = node.type->find_input(i);
 			ConstSocketPair key(&node, input->name);
 			assert(input_index.find(key) == input_index.end());
 			
@@ -343,7 +343,7 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 		
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeSocket *output = node.type->find_output(i);
+			const NodeOutput *output = node.type->find_output(i);
 			ConstSocketPair key(&node, output->name);
 			
 			output_index[key] = assign_stack_index(output->typedesc);
@@ -367,7 +367,7 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 			push_opcode(op);
 			/* write input stack offsets and constants */
 			for (int i = 0; i < node.num_inputs(); ++i) {
-				const NodeSocket *input = node.type->find_input(i);
+				const NodeInput *input = node.type->find_input(i);
 				ConstSocketPair key(&node, input->name);
 				
 				if (node.is_input_constant(i)) {
@@ -387,7 +387,7 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 			}
 			/* write output stack offsets */
 			for (int i = 0; i < node.num_outputs(); ++i) {
-				const NodeSocket *output = node.type->find_output(i);
+				const NodeOutput *output = node.type->find_output(i);
 				ConstSocketPair key(&node, output->name);
 				assert(output_index.find(key) != output_index.end());
 				
@@ -397,7 +397,7 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 		
 		/* release input data stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeSocket *input = node.type->find_input(i);
+			const NodeInput *input = node.type->find_input(i);
 			
 			if (node.is_input_constant(i) || node.is_input_function(i)) {
 				/* pass */
@@ -431,7 +431,7 @@ void BVMCompiler::graph_node_append(const NodeInstance *node,
 	visited.insert(node);
 	
 	for (size_t i = 0; i < node->num_inputs(); ++i) {
-		const NodeSocket *socket = node->type->find_input(i);
+		const NodeInput *socket = node->type->find_input(i);
 		if (socket->value_type == INPUT_FUNCTION) {
 			func_entry_map[node->input(i)] = FunctionInfo();
 		}

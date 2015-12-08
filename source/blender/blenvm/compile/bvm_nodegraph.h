@@ -58,12 +58,12 @@ struct NodeGraph;
 struct NodeType;
 struct NodeInstance;
 
-struct NodeSocket {
-	NodeSocket(const string &name,
+struct NodeInput {
+	NodeInput(const string &name,
 	           const TypeDesc &typedesc,
 	           Value *default_value,
 	           BVMInputValueType value_type);
-	~NodeSocket();
+	~NodeInput();
 	
 	string name;
 	TypeDesc typedesc;
@@ -71,8 +71,20 @@ struct NodeSocket {
 	BVMInputValueType value_type;
 };
 
+struct NodeOutput {
+	NodeOutput(const string &name,
+	           const TypeDesc &typedesc,
+	           BVMOutputValueType value_type);
+	~NodeOutput();
+	
+	string name;
+	TypeDesc typedesc;
+	BVMOutputValueType value_type;
+};
+
 struct NodeType {
-	typedef std::vector<NodeSocket> SocketList;
+	typedef std::vector<NodeInput> InputList;
+	typedef std::vector<NodeOutput> OutputList;
 	
 	NodeType(const string &name, bool is_kernel_node, bool is_pass_node = false);
 	~NodeType();
@@ -81,54 +93,44 @@ struct NodeType {
 	bool is_kernel_node() const { return m_is_kernel_node; }
 	bool is_pass_node() const { return m_is_pass_node; }
 	
-	int num_inputs() const { return inputs.size(); }
-	int num_outputs() const { return outputs.size(); }
+	int num_inputs() const { return m_inputs.size(); }
+	int num_outputs() const { return m_outputs.size(); }
 	
-	const NodeSocket *find_input(int index) const;
-	const NodeSocket *find_output(int index) const;
-	const NodeSocket *find_input(const string &name) const;
-	const NodeSocket *find_output(const string &name) const;
+	const NodeInput *find_input(int index) const;
+	const NodeOutput *find_output(int index) const;
+	const NodeInput *find_input(const string &name) const;
+	const NodeOutput *find_output(const string &name) const;
 	/* stub implementation in case socket is passed directly */
-	const NodeSocket *find_input(const NodeSocket *socket) const;
-	const NodeSocket *find_output(const NodeSocket *socket) const;
+	const NodeInput *find_input(const NodeInput *socket) const;
+	const NodeOutput *find_output(const NodeOutput *socket) const;
 	
 //	bool verify_argument_socket(NodeSocket &socket, Type *type, int index,
 //	                            Module *module, LLVMContext &context, raw_ostream &err);
 //	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
 	
-	const NodeSocket *add_input(const string &name,
-	                            BVMType type,
-	                            Value *default_value,
-	                            BVMInputValueType value_type = INPUT_VARIABLE);
-	const NodeSocket *add_output(const string &name,
+	const NodeInput *add_input(const string &name,
+	                           BVMType type,
+	                           Value *default_value,
+	                           BVMInputValueType value_type = INPUT_VARIABLE);
+	const NodeOutput *add_output(const string &name,
 	                             BVMType type,
-	                             Value *default_value);
+	                             BVMOutputValueType value_type = OUTPUT_VARIABLE);
 	
 	template <typename T>
-	const NodeSocket *add_input(const string &name,
-	                            BVMType type,
-	                            T default_value,
-	                            BVMInputValueType value_type = INPUT_VARIABLE)
+	const NodeInput *add_input(const string &name,
+	                           BVMType type,
+	                           T default_value,
+	                           BVMInputValueType value_type = INPUT_VARIABLE)
 	{
 		Value *c = Value::create(type, default_value);
 		BLI_assert(c != NULL);
 		return add_input(name, type, c, value_type);
 	}
 	
-	template <typename T>
-	const NodeSocket *add_output(const string &name,
-	                             BVMType type,
-	                             T default_value)
-	{
-		Value *c = Value::create(type, default_value);
-		BLI_assert(c != NULL);
-		return add_output(name, type, c);
-	}
-	
 private:
 	string m_name;
-	SocketList inputs;
-	SocketList outputs;
+	InputList m_inputs;
+	OutputList m_outputs;
 	bool m_is_pass_node; /* pass nodes are skipped */
 	bool m_is_kernel_node; /* only kernel nodes can have function inputs */
 
@@ -197,7 +199,7 @@ struct SocketPair {
 struct NodeInstance {
 	struct InputInstance {
 		NodeInstance *link_node;
-		const NodeSocket *link_socket;
+		const NodeOutput *link_socket;
 		Value *value;
 	};
 	
@@ -229,28 +231,28 @@ struct NodeInstance {
 	NodeInstance *find_input_link_node(int index) const;
 	SocketPair link(const string &name) const;
 	SocketPair link(int index) const;
-	const NodeSocket *find_input_link_socket(const string &name) const;
-	const NodeSocket *find_input_link_socket(int index) const;
+	const NodeOutput *find_input_link_socket(const string &name) const;
+	const NodeOutput *find_input_link_socket(int index) const;
 	Value *find_input_value(const string &name) const;
 	Value *find_input_value(int index) const;
 	Value *find_output_value(const string &name) const;
 	Value *find_output_value(int index) const;
 	
 	bool set_input_value(const string &name, Value *value);
-	bool set_input_link(const string &name, NodeInstance *from_node, const NodeSocket *from_socket);
+	bool set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket);
 	bool set_output_value(const string &name, Value *value);
 	
 	template <typename T>
 	bool set_input_value(const string &name, const T &value)
 	{
-		const NodeSocket *socket = type->find_input(name);
+		const NodeInput *socket = type->find_input(name);
 		return socket ? set_input_value(name, Value::create(socket->typedesc, value)) : false;
 	}
 	
 	template <typename T>
 	bool set_output_value(const string &name, const T &value)
 	{
-		const NodeSocket *socket = type->find_output(name);
+		const NodeInput *socket = type->find_output(name);
 		return socket ? set_output_value(name, Value::create(socket->typedesc, value)) : false;
 	}
 	

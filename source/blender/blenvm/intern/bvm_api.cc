@@ -96,10 +96,10 @@ BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
 { return (bvm::NodeGraph *)graph; }
 BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
 { return (bvm::NodeInstance *)node; }
-BLI_INLINE bvm::NodeSocket *_INPUT(struct BVMNodeInput *input)
-{ return (bvm::NodeSocket *)input; }
-BLI_INLINE bvm::NodeSocket *_OUTPUT(struct BVMNodeOutput *output)
-{ return (bvm::NodeSocket *)output; }
+BLI_INLINE bvm::NodeInput *_INPUT(struct BVMNodeInput *input)
+{ return (bvm::NodeInput *)input; }
+BLI_INLINE bvm::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
+{ return (bvm::NodeOutput *)output; }
 BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
 { return (bvm::TypeDesc *)typedesc; }
 
@@ -418,11 +418,11 @@ struct bNodeCompiler {
 		bNodeSocket *bsock;
 		int i;
 		for (bsock = (bNodeSocket *)m_current_bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
-			const NodeSocket *input = node->type->find_input(i);
+			const NodeInput *input = node->type->find_input(i);
 			map_input_socket(i, SocketPair(node, input->name));
 		}
 		for (bsock = (bNodeSocket *)m_current_bnode->outputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
-			const NodeSocket *output = node->type->find_output(i);
+			const NodeOutput *output = node->type->find_output(i);
 			map_output_socket(i, SocketPair(node, output->name));
 		}
 	}

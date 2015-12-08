@@ -43,10 +43,10 @@
 
 namespace bvm {
 
-NodeSocket::NodeSocket(const string &name,
-                       const TypeDesc &typedesc,
-                       Value *default_value,
-                       BVMInputValueType value_type) :
+NodeInput::NodeInput(const string &name,
+                     const TypeDesc &typedesc,
+                     Value *default_value,
+                     BVMInputValueType value_type) :
     name(name),
     typedesc(typedesc),
     default_value(default_value),
@@ -54,7 +54,20 @@ NodeSocket::NodeSocket(const string &name,
 {
 }
 
-NodeSocket::~NodeSocket()
+NodeInput::~NodeInput()
+{
+}
+
+NodeOutput::NodeOutput(const string &name,
+                       const TypeDesc &typedesc,
+                       BVMOutputValueType value_type) :
+    name(name),
+    typedesc(typedesc),
+    value_type(value_type)
+{
+}
+
+NodeOutput::~NodeOutput()
 {
 }
 
@@ -71,32 +84,32 @@ NodeType::~NodeType()
 {
 }
 
-const NodeSocket *NodeType::find_input(int index) const
+const NodeInput *NodeType::find_input(int index) const
 {
-	BLI_assert(index >= 0 && index < inputs.size());
-	return &inputs[index];
+	BLI_assert(index >= 0 && index < m_inputs.size());
+	return &m_inputs[index];
 }
 
-const NodeSocket *NodeType::find_output(int index) const
+const NodeOutput *NodeType::find_output(int index) const
 {
-	BLI_assert(index >= 0 && index < outputs.size());
-	return &outputs[index];
+	BLI_assert(index >= 0 && index < m_outputs.size());
+	return &m_outputs[index];
 }
 
-const NodeSocket *NodeType::find_input(const string &name) const
+const NodeInput *NodeType::find_input(const string &name) const
 {
-	for (SocketList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
-		const NodeSocket &socket = *it;
+	for (InputList::const_iterator it = m_inputs.begin(); it != m_inputs.end(); ++it) {
+		const NodeInput &socket = *it;
 		if (socket.name == name)
 			return &socket;
 	}
 	return NULL;
 }
 
-const NodeSocket *NodeType::find_output(const string &name) const
+const NodeOutput *NodeType::find_output(const string &name) const
 {
-	for (SocketList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const NodeSocket &socket = *it;
+	for (OutputList::const_iterator it = m_outputs.begin(); it != m_outputs.end(); ++it) {
+		const NodeOutput &socket = *it;
 		if (socket.name == name)
 			return &socket;
 	}
@@ -104,12 +117,12 @@ const NodeSocket *NodeType::find_output(const string &name) const
 }
 
 /* stub implementation in case socket is passed directly */
-const NodeSocket *NodeType::find_input(const NodeSocket *socket) const
+const NodeInput *NodeType::find_input(const NodeInput *socket) const
 {
 	return socket;
 }
 
-const NodeSocket *NodeType::find_output(const NodeSocket *socket) const
+const NodeOutput *NodeType::find_output(const NodeOutput *socket) const
 {
 	return socket;
 }
@@ -190,25 +203,25 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 }
 #endif
 
-const NodeSocket *NodeType::add_input(const string &name,
-                                      BVMType type,
-                                      Value *default_value,
-                                      BVMInputValueType value_type)
+const NodeInput *NodeType::add_input(const string &name,
+                                     BVMType type,
+                                     Value *default_value,
+                                     BVMInputValueType value_type)
 {
 	BLI_assert(!find_input(name));
 	/* function inputs only allowed for kernel nodes */
 	BLI_assert(m_is_kernel_node || value_type != INPUT_FUNCTION);
-	inputs.push_back(NodeSocket(name, type, default_value, value_type));
-	return &inputs.back();
+	m_inputs.push_back(NodeInput(name, type, default_value, value_type));
+	return &m_inputs.back();
 }
 
-const NodeSocket *NodeType::add_output(const string &name,
+const NodeOutput *NodeType::add_output(const string &name,
                                        BVMType type,
-                                       Value *default_value)
+                                       BVMOutputValueType value_type)
 {
 	BLI_assert(!find_output(name));
-	outputs.push_back(NodeSocket(name, type, default_value, INPUT_VARIABLE));
-	return &outputs.back();
+	m_outputs.push_back(NodeOutput(name, type, value_type));
+	return &m_outputs.back();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -278,19 +291,19 @@ NodeInstance *NodeInstance::find_input_link_node(const string &name) const
 
 NodeInstance *NodeInstance::find_input_link_node(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? find_input_link_node(socket->name) : NULL;
 }
 
-const NodeSocket *NodeInstance::find_input_link_socket(const string &name) const
+const NodeOutput *NodeInstance::find_input_link_socket(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.link_socket : NULL;
 }
 
-const NodeSocket *NodeInstance::find_input_link_socket(int index) const
+const NodeOutput *NodeInstance::find_input_link_socket(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? find_input_link_socket(socket->name) : NULL;
 }
 
@@ -309,7 +322,7 @@ SocketPair NodeInstance::link(const string &name) const
 
 SocketPair NodeInstance::link(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? link(socket->name) : SocketPair(NULL, "");
 }
 
@@ -321,7 +334,7 @@ Value *NodeInstance::find_input_value(const string &name) const
 
 Value *NodeInstance::find_input_value(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? find_input_value(socket->name) : NULL;
 }
 
@@ -333,7 +346,7 @@ Value *NodeInstance::find_output_value(const string &name) const
 
 Value *NodeInstance::find_output_value(int index) const
 {
-	const NodeSocket *socket = type->find_output(index);
+	const NodeOutput *socket = type->find_output(index);
 	return socket ? find_output_value(socket->name) : NULL;
 }
 
@@ -346,9 +359,9 @@ bool NodeInstance::set_input_value(const string &name, Value *value)
 	return true;
 }
 
-bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, const NodeSocket *from_socket)
+bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket)
 {
-	const NodeSocket *socket = type->find_input(name);
+	const NodeInput *socket = type->find_input(name);
 	InputInstance &input = inputs[name];
 	
 	if (socket->typedesc.assignable(from_socket->typedesc)) {
@@ -373,7 +386,7 @@ bool NodeInstance::has_input_link(const string &name) const
 
 bool NodeInstance::has_input_link(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? has_input_link(socket->name) : false;
 }
 
@@ -390,31 +403,31 @@ bool NodeInstance::has_input_value(const string &name) const
 
 bool NodeInstance::has_input_value(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? has_input_value(socket->name) : false;
 }
 
 bool NodeInstance::is_input_constant(const string &name) const
 {
-	const NodeSocket *socket = type->find_input(name);
+	const NodeInput *socket = type->find_input(name);
 	return socket ? socket->value_type == INPUT_CONSTANT : false;
 }
 
 bool NodeInstance::is_input_constant(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? socket->value_type == INPUT_CONSTANT : false;
 }
 
 bool NodeInstance::is_input_function(const string &name) const
 {
-	const NodeSocket *socket = type->find_input(name);
+	const NodeInput *socket = type->find_input(name);
 	return socket ? socket->value_type == INPUT_FUNCTION : false;
 }
 
 bool NodeInstance::is_input_function(int index) const
 {
-	const NodeSocket *socket = type->find_input(index);
+	const NodeInput *socket = type->find_input(index);
 	return socket ? socket->value_type == INPUT_FUNCTION : false;
 }
 
@@ -440,7 +453,7 @@ bool NodeInstance::has_output_value(const string &name) const
 
 bool NodeInstance::has_output_value(int index) const
 {
-	const NodeSocket *socket = type->find_output(index);
+	const NodeOutput *socket = type->find_output(index);
 	return socket ? has_output_value(socket->name) : false;
 }
 
@@ -649,7 +662,7 @@ SocketPair NodeGraph::find_root(const SocketPair &key)
 		            root.node->type->find_input(0)->default_value;
 		
 		NodeInstance *link_node = root.node->find_input_link_node(0);
-		const NodeSocket *link_socket = root.node->find_input_link_socket(0);
+		const NodeOutput *link_socket = root.node->find_input_link_socket(0);
 		root = SocketPair(link_node, link_socket ? link_socket->name : "");
 	}
 	
@@ -760,11 +773,11 @@ void NodeGraph::dump(std::ostream &s)
 		s << "  Node '" << node->name << "'\n";
 		
 		for (int i = 0; i < type->num_inputs(); ++i) {
-			const NodeSocket *socket = type->find_input(i);
+			const NodeInput *socket = type->find_input(i);
 			
 			s << "    Input '" << socket->name << "'";
 			NodeInstance *link_node = node->find_input_link_node(i);
-			const NodeSocket *link_socket = node->find_input_link_socket(i);
+			const NodeOutput *link_socket = node->find_input_link_socket(i);
 //			Value *value = node->find_input_value(i);
 			
 			BLI_assert((bool)link_node == (bool)link_socket);
@@ -783,7 +796,7 @@ void NodeGraph::dump(std::ostream &s)
 		}
 		
 		for (int i = 0; i < type->num_outputs(); ++i) {
-			const NodeSocket *socket = type->find_output(i);
+			const NodeOutput *socket = type->find_output(i);
 			
 			s << "    Output '" << socket->name << "'";
 //			Value *value = node->find_output_value(i);
@@ -1142,122 +1155,122 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_function_node_type("FLOAT_TO_INT");
 	nt->add_input("value", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_INT, 0);
+	nt->add_output("value", BVM_INT);
 	
 	nt = NodeGraph::add_function_node_type("INT_TO_FLOAT");
 	nt->add_input("value", BVM_INT, 0);
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT4");
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_INT");
 	nt->add_input("value", BVM_INT, 0);
-	nt->add_output("value", BVM_INT, 0);
+	nt->add_output("value", BVM_INT);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER");
 	nt->add_input("value", BVM_POINTER, PointerRNA_NULL);
-	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	nt->add_output("value", BVM_POINTER);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__);
-	nt->add_output("value", BVM_MESH, __empty_mesh__);
+	nt->add_output("value", BVM_MESH);
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT3");
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT4");
-	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4);
 	
 	nt = NodeGraph::add_function_node_type("ARG_INT");
-	nt->add_output("value", BVM_INT, 0);
+	nt->add_output("value", BVM_INT);
 	
 	nt = NodeGraph::add_function_node_type("ARG_MATRIX44");
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("ARG_POINTER");
-	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	nt->add_output("value", BVM_POINTER);
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
-	nt->add_output("value", BVM_MESH, __empty_mesh__);
+	nt->add_output("value", BVM_MESH);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f, INPUT_CONSTANT);
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT4");
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
-	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_INT");
 	nt->add_input("value", BVM_INT, 0, INPUT_CONSTANT);
-	nt->add_output("value", BVM_INT, 0);
+	nt->add_output("value", BVM_INT);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_POINTER");
 	nt->add_input("value", BVM_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
-	nt->add_output("value", BVM_POINTER, PointerRNA_NULL);
+	nt->add_output("value", BVM_POINTER);
 	
 	nt = NodeGraph::add_pass_node_type("VALUE_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__, INPUT_CONSTANT);
-	nt->add_output("value", BVM_MESH, __empty_mesh__);
+	nt->add_output("value", BVM_MESH);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("SET_FLOAT3");
 	nt->add_input("value_x", BVM_FLOAT, 0.0f);
 	nt->add_input("value_y", BVM_FLOAT, 0.0f);
 	nt->add_input("value_z", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT4");
 	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("SET_FLOAT4");
 	nt->add_input("value_x", BVM_FLOAT, 0.0f);
 	nt->add_input("value_y", BVM_FLOAT, 0.0f);
 	nt->add_input("value_z", BVM_FLOAT, 0.0f);
 	nt->add_input("value_w", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4);
 	
 	#define BINARY_MATH_NODE(name) \
 	nt = NodeGraph::add_function_node_type(STRINGIFY(name)); \
 	nt->add_input("value_a", BVM_FLOAT, 0.0f); \
 	nt->add_input("value_b", BVM_FLOAT, 0.0f); \
-	nt->add_output("value", BVM_FLOAT, 0.0f)
+	nt->add_output("value", BVM_FLOAT)
 	
 	#define UNARY_MATH_NODE(name) \
 	nt = NodeGraph::add_function_node_type(STRINGIFY(name)); \
 	nt->add_input("value", BVM_FLOAT, 0.0f); \
-	nt->add_output("value", BVM_FLOAT, 0.0f)
+	nt->add_output("value", BVM_FLOAT)
 	
 	BINARY_MATH_NODE(ADD_FLOAT);
 	BINARY_MATH_NODE(SUB_FLOAT);
@@ -1286,59 +1299,59 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("ADD_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("SUB_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("MUL_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("DIV_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("MUL_FLOAT3_FLOAT");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("DIV_FLOAT3_FLOAT");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("AVERAGE_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("DOT_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("CROSS_FLOAT3");
 	nt->add_input("value_a", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("NORMALIZE_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("vector", BVM_FLOAT3);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("MIX_RGB");
 	nt->add_input("mode", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("factor", BVM_FLOAT, 0.0f);
 	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
-	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_output("color", BVM_FLOAT4);
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_VORONOI");
 	nt->add_input("distance_metric", BVM_INT, 0, INPUT_CONSTANT);
@@ -1352,9 +1365,9 @@ static void register_opcode_node_types()
 	nt->add_input("w3", BVM_FLOAT, 0.0f);
 	nt->add_input("w4", BVM_FLOAT, 0.0f);
 	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("intensity", BVM_FLOAT, 0.0f);
-	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
-	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("intensity", BVM_FLOAT);
+	nt->add_output("color", BVM_FLOAT4);
+	nt->add_output("normal", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_CLOUDS");
 	nt->add_input("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
@@ -1363,126 +1376,126 @@ static void register_opcode_node_types()
 	nt->add_input("depth", BVM_INT, 2, INPUT_CONSTANT);
 	nt->add_input("noise_basis", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_input("noise_hard", BVM_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", BVM_FLOAT, 0.0f);
-	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
-	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("intensity", BVM_FLOAT);
+	nt->add_output("color", BVM_FLOAT4);
+	nt->add_output("normal", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", BVM_INT, 0, INPUT_CONSTANT);
-	nt->add_output("transform", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("transform", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_CLOSEST_POINT");
 	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
 	nt->add_input("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("position", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("tangent", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("position", BVM_FLOAT3);
+	nt->add_output("normal", BVM_FLOAT3);
+	nt->add_output("tangent", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
 	nt->add_input("base_mesh", BVM_POINTER, PointerRNA_NULL);
-	nt->add_output("mesh", BVM_MESH, __empty_mesh__);
+	nt->add_output("mesh", BVM_MESH);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");
 	nt->add_input("mesh_a", BVM_MESH, __empty_mesh__);
 	nt->add_input("mesh_b", BVM_MESH, __empty_mesh__);
-	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
+	nt->add_output("mesh_out", BVM_MESH);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
 	nt->add_input("count", BVM_INT, 1);
 	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), INPUT_FUNCTION);
-	nt->add_output("mesh_out", BVM_MESH, __empty_mesh__);
+	nt->add_output("mesh_out", BVM_MESH);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("SUB_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_FLOAT, 0.0f);
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("DIV_MATRIX44_FLOAT");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_FLOAT, 1.0f);
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("NEGATE_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("TRANSPOSE_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("INVERT_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("ADJOINT_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("value", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("DETERMINANT_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("value", BVM_FLOAT, 0.0f);
+	nt->add_output("value", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT3");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT4");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("value_b", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", BVM_FLOAT4);
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_LOC");
 	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("loc", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_EULER");
 	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
 	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("euler", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_AXISANGLE");
 	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("axis", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("angle", BVM_FLOAT, 0.0f);
+	nt->add_output("axis", BVM_FLOAT3);
+	nt->add_output("angle", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_SCALE");
 	nt->add_input("matrix", BVM_MATRIX44, matrix44::identity());
-	nt->add_output("scale", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("scale", BVM_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("LOC_TO_MATRIX44");
 	nt->add_input("loc", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("matrix", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("EULER_TO_MATRIX44");
 	nt->add_input("order", BVM_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
 	nt->add_input("euler", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("matrix", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("AXISANGLE_TO_MATRIX44");
 	nt->add_input("axis", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_input("angle", BVM_FLOAT, 0.0f);
-	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("matrix", BVM_MATRIX44);
 	
 	nt = NodeGraph::add_function_node_type("SCALE_TO_MATRIX44");
 	nt->add_input("scale", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", BVM_MATRIX44, matrix44::identity());
+	nt->add_output("matrix", BVM_MATRIX44);
 }
 
 void nodes_init()
