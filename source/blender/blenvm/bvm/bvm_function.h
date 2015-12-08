@@ -97,8 +97,8 @@ static inline void *instruction_to_pointer(Instruction hi, Instruction lo)
 	return u.v;
 }
 
-struct ReturnValue {
-	ReturnValue(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :
+struct Argument {
+	Argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :
 	    typedesc(typedesc),
 	    name(name),
 	    stack_offset(stack_offset)
@@ -112,7 +112,7 @@ struct ReturnValue {
 };
 
 struct Function {
-	typedef std::vector<ReturnValue> ReturnValueList;
+	typedef std::vector<Argument> ArgumentList;
 	typedef std::vector<Instruction> InstructionList;
 	
 	Function();
@@ -215,13 +215,19 @@ struct Function {
 	int entry_point() const { return m_entry_point; }
 	void set_entry_point(int entry_point);
 	
+	size_t num_return_values() const;
+	const Argument &return_value(size_t index) const;
+	const Argument &return_value(const string &name) const;
+	size_t num_arguments() const;
+	const Argument &argument(size_t index) const;
+	const Argument &argument(const string &name) const;
+	
+	void add_argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
 	void add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
-	size_t return_values_size() const;
-	const ReturnValue &return_value(size_t index) const;
-	const ReturnValue &return_value(const string &name) const;
 	
 private:
-	ReturnValueList m_return_values;
+	ArgumentList m_arguments;
+	ArgumentList m_return_values;
 	InstructionList m_instructions;
 	int m_entry_point;
 

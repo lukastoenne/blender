@@ -52,27 +52,50 @@ void Function::set_entry_point(int entry_point)
 	m_entry_point = entry_point;
 }
 
-void Function::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
+size_t Function::num_arguments() const
 {
-	m_return_values.push_back(ReturnValue(typedesc, name, stack_offset));
+	return m_arguments.size();
 }
 
-size_t Function::return_values_size() const
+const Argument &Function::argument(size_t index) const
+{
+	return m_arguments[index];
+}
+
+const Argument &Function::argument(const string &name) const
+{
+	for (ArgumentList::const_iterator it = m_arguments.begin(); it != m_arguments.end(); ++it)
+		if ((*it).name == name)
+			return *it;
+	return *(m_arguments.end());
+}
+
+size_t Function::num_return_values() const
 {
 	return m_return_values.size();
 }
 
-const ReturnValue &Function::return_value(size_t index) const
+const Argument &Function::return_value(size_t index) const
 {
 	return m_return_values[index];
 }
 
-const ReturnValue &Function::return_value(const string &name) const
+const Argument &Function::return_value(const string &name) const
 {
-	for (ReturnValueList::const_iterator it = m_return_values.begin(); it != m_return_values.end(); ++it)
+	for (ArgumentList::const_iterator it = m_return_values.begin(); it != m_return_values.end(); ++it)
 		if ((*it).name == name)
 			return *it;
 	return *(m_return_values.end());
+}
+
+void Function::add_argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
+{
+	m_arguments.push_back(Argument(typedesc, name, stack_offset));
+}
+
+void Function::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
+{
+	m_return_values.push_back(Argument(typedesc, name, stack_offset));
 }
 
 } /* namespace bvm */

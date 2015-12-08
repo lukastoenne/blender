@@ -806,8 +806,8 @@ void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data
 	
 	eval_instructions(globals, data, fn, fn->entry_point(), stack);
 	
-	for (int i = 0; i < fn->return_values_size(); ++i) {
-		const ReturnValue &rval = fn->return_value(i);
+	for (int i = 0; i < fn->num_return_values(); ++i) {
+		const Argument &rval = fn->return_value(i);
 		float *value = &stack[rval.stack_offset];
 		
 		rval.typedesc.copy_value(results[i], (void *)value);
