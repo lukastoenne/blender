@@ -81,10 +81,8 @@ class PointDataNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Velocity")
 
     def compile(self, compiler):
-        node = compiler.add_node("POINT_POSITION", self.name+"P")
-        compiler.map_output(0, node.outputs[0])
-        node = compiler.add_node("POINT_VELOCITY", self.name+"V")
-        compiler.map_output(1, node.outputs[0])
+        compiler.map_output(0, compiler.graph_input("effector.position"))
+        compiler.map_output(1, compiler.graph_input("effector.velocity"))
 
 
 class ForceClosestPointNode(ForceNodeBase, ObjectNode):
@@ -101,9 +99,8 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
 
     def compile(self, compiler):
         node = compiler.add_node("EFFECTOR_CLOSEST_POINT", self.name+"N")
-        obnode = compiler.add_node("EFFECTOR_OBJECT", self.name+"O")
         
-        compiler.link(obnode.outputs[0], node.inputs["object"])
+        compiler.link(compiler.graph_input("effector.object"), node.inputs["object"])
 
         compiler.map_input(0, node.inputs["vector"])
         compiler.map_output(0, node.outputs["position"])

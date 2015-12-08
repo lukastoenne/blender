@@ -319,15 +319,12 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 {
 	using namespace bvm;
 	
-	EvalData data;
-	EffectorEvalData &effdata = data.effector;
-	RNA_id_pointer_create((ID *)effob, &effdata.object);
-	effdata.position = float3(point->loc[0], point->loc[1], point->loc[2]);
-	effdata.velocity = float3(point->vel[0], point->vel[1], point->vel[2]);
-	const void *args[] = { &effdata.object, point->loc, point->vel };
+	PointerRNA object_ptr;
+	RNA_id_pointer_create((ID *)effob, &object_ptr);
+	const void *args[] = { &object_ptr, point->loc, point->vel };
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_function(_GLOBALS(globals), &data, _FUNC(fn), args, results);
+	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -591,21 +588,8 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	bNode *bnode = (bNode *)bnode_ptr->data;
 	string type = string(bnode->typeinfo->idname);
 	if (type == "TextureNodeOutput") {
-		{
-			NodeInstance *node = comp->add_node("PASS_FLOAT4");
-			comp->map_input_socket(0, SocketPair(node, "value"));
-			comp->map_output_socket(0, SocketPair(node, "value"));
-			
-			comp->add_link_intern(node->output(0), comp->get_graph_output("color"));
-		}
-		
-		{
-			NodeInstance *node = comp->add_node("PASS_FLOAT3");
-			comp->map_input_socket(1, SocketPair(node, "value"));
-			comp->map_output_socket(0, SocketPair(node, "value"));
-			
-			comp->add_link_intern(node->output(0), comp->get_graph_output("normal"));
-		}
+		comp->map_input_socket(0, comp->get_graph_output("color"));
+		comp->map_input_socket(1, comp->get_graph_output("normal"));
 	}
 	else if (type == "TextureNodeDecompose") {
 		{
@@ -642,8 +626,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		comp->map_output_socket(0, SocketPair(node, "value"));
 	}
 	else if (type == "TextureNodeCoordinates") {
-		NodeInstance *node = comp->add_node("TEX_COORD");
-		comp->map_output_socket(0, SocketPair(node, "value"));
+		comp->map_output_socket(0, comp->get_graph_input("texture.co"));
 	}
 	else if (type == "TextureNodeMixRGB") {
 		int mode = RNA_enum_get(bnode_ptr, "blend_type");
@@ -857,20 +840,12 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	
 	EvalGlobals globals;
 	
-	EvalData data;
-	TextureEvalData &texdata = data.texture;
-	texdata.co = float3::from_data(coord);
-	texdata.dxt = dxt ? float3::from_data(dxt) : float3(0.0f, 0.0f, 0.0f);
-	texdata.dyt = dyt ? float3::from_data(dyt) : float3(0.0f, 0.0f, 0.0f);
-	texdata.cfra = cfra;
-	texdata.osatex = osatex;
-
 	float4 color;
 	float3 normal;
 	const void *args[] = { coord, dxt, dyt, &cfra, &osatex };
 	void *results[] = { &color.x, &normal.x };
 	
-	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), args, results);
+	_CTX(ctx)->eval_function(&globals, _FUNC(fn), args, results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -957,6 +932,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	using namespace bvm;
 	
 	NodeGraph graph;
+	graph.add_input("iteration", BVM_INT);
 	graph.add_input("modifier.base_mesh", BVM_POINTER);
 	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
 	
@@ -979,18 +955,15 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunc
 	using namespace bvm;
 	
 	EvalGlobals globals;
-	
-	EvalData data;
-	ModifierEvalData &moddata = data.modifier;
-	moddata.base_mesh = base_mesh;
 
 	PointerRNA base_mesh_ptr;
 	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
+	int iteration = 0;
 	mesh_ptr result;
-	const void *args[] = { &base_mesh_ptr };
+	const void *args[] = { &iteration, &base_mesh_ptr };
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_function(&globals, &data, _FUNC(fn), args, results);
+	_CTX(ctx)->eval_function(&globals, _FUNC(fn), args, results);
 	
 	return result.get();
 }

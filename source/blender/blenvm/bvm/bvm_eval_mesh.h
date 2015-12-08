@@ -40,10 +40,17 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_mesh_load(const EvalData *data, float *stack, StackIndex offset)
+static void eval_op_mesh_load(float *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
 {
-	DerivedMesh *dm = CDDM_from_mesh(data->modifier.base_mesh);
-	stack_store_mesh(stack, offset, dm);
+	PointerRNA ptr = stack_load_pointer(stack, offset_base_mesh);
+	DerivedMesh *dm;
+	if (ptr.data && RNA_struct_is_a(&RNA_Mesh, ptr.type)) {
+		dm = CDDM_from_mesh((Mesh *)ptr.data);
+	}
+	else {
+		dm = CDDM_new(0, 0, 0, 0, 0);
+	}
+	stack_store_mesh(stack, offset_mesh, dm);
 }
 
 static void dm_insert(
@@ -151,11 +158,10 @@ static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, float *s
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
-static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, const EvalKernelData *kernel_data, float *stack,
+static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
                              DerivedMesh *dm, int count, int fn_transform, StackIndex offset_transform)
 {
 	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS);
-	EvalData iter_data = *data;
 	
 	int chunk_nverts = dm->getNumVerts(dm);
 	int chunk_nedges = dm->getNumEdges(dm);
@@ -203,8 +209,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
 		DM_copy_poly_data(result, result, 0, c * chunk_npolys, chunk_npolys);
 
 		/* calculate transform for the copy */
-		iter_data.iteration = c;
-		kernel_data->context->eval_expression(globals, &iter_data, kernel_data->function, fn_transform, stack);
+		kernel_data->context->eval_expression(globals, kernel_data->function, fn_transform, stack);
 		matrix44 tfm = stack_load_matrix44(stack, offset_transform);
 
 		/* apply offset to all new verts */
@@ -253,7 +258,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalData *data, c
 	return result;
 }
 
-static void eval_op_mesh_array(const EvalGlobals *globals, const EvalData *data, const EvalKernelData *kernel_data, float *stack,
+static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
                                StackIndex offset_mesh_in, StackIndex offset_mesh_out,
                                StackIndex offset_count, int fn_transform, StackIndex offset_transform)
 {
@@ -261,7 +266,7 @@ static void eval_op_mesh_array(const EvalGlobals *globals, const EvalData *data,
 	int count = stack_load_int(stack, offset_count);
 	
 	DerivedMesh *result = (count > 0) ?
-	                          do_array(globals, data, kernel_data, stack, dm, count, fn_transform, offset_transform) :
+	                          do_array(globals, kernel_data, stack, dm, count, fn_transform, offset_transform) :
 	                          CDDM_new(0, 0, 0, 0, 0);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);

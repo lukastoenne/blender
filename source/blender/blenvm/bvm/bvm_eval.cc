@@ -156,16 +156,6 @@ static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
 	stack_store_mesh_ptr(stack, offset, p);
 }
 
-static void eval_op_point_position(const EvalData *data, float *stack, StackIndex offset)
-{
-	stack_store_float3(stack, offset, data->effector.position);
-}
-
-static void eval_op_point_velocity(const EvalData *data, float *stack, StackIndex offset)
-{
-	stack_store_float3(stack, offset, data->effector.velocity);
-}
-
 static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, StackIndex offset_col_b, StackIndex offset_fac, StackIndex offset_r)
 {
 	float4 a = stack_load_float4(stack, offset_col_a);
@@ -175,21 +165,6 @@ static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, Sta
 	ramp_blend(mode, a.data(), f, b.data());
 	
 	stack_store_float4(stack, offset_r, a);
-}
-
-static void eval_op_iteration(const EvalData *data, float *stack, StackIndex offset)
-{
-	stack_store_int(stack, offset, data->iteration);
-}
-
-static void eval_op_tex_coord(const EvalData *data, float *stack, StackIndex offset)
-{
-	stack_store_float3(stack, offset, data->texture.co);
-}
-
-static void eval_op_effector_object(const EvalData *data, float *stack, StackIndex offset)
-{
-	stack_store_pointer(stack, offset, data->effector.object);
 }
 
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
@@ -239,7 +214,7 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
-void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
 {
 	EvalKernelData kd;
 	kd.context = this;
@@ -345,16 +320,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 			case OP_RELEASE_MESH_PTR: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_release_mesh_ptr(stack, offset);
-				break;
-			}
-			case OP_POINT_POSITION: {
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_point_position(data, stack, offset);
-				break;
-			}
-			case OP_POINT_VELOCITY: {
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_point_velocity(data, stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {
@@ -700,17 +665,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 				
-			case OP_ITERATION: {
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_iteration(data, stack, offset);
-				break;
-			}
-			
-			case OP_TEX_COORD: {
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_tex_coord(data, stack, offset);
-				break;
-			}
 			case OP_TEX_PROC_VORONOI: {
 				int distance_metric = fn->read_int(&instr);
 				int color_type = fn->read_int(&instr);
@@ -748,11 +702,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 			
-			case OP_EFFECTOR_OBJECT: {
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_effector_object(data, stack, offset);
-				break;
-			}
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = fn->read_int(&instr);
 				StackIndex offset_tfm = fn->read_stack_index(&instr);
@@ -770,8 +719,9 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				break;
 			}
 			case OP_MESH_LOAD: {
+				StackIndex offset_base_mesh = fn->read_stack_index(&instr);
 				StackIndex offset_mesh = fn->read_stack_index(&instr);
-				eval_op_mesh_load(data, stack, offset_mesh);
+				eval_op_mesh_load(stack, offset_base_mesh, offset_mesh);
 				break;
 			}
 			case OP_MESH_COMBINE: {
@@ -787,7 +737,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 				int fn_transform = fn->read_jump_address(&instr);
 				StackIndex offset_transform = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
-				eval_op_mesh_array(globals, data, &kd, stack,
+				eval_op_mesh_array(globals, &kd, stack,
 				                   offset_mesh_in, offset_mesh_out, offset_count, fn_transform, offset_transform);
 				break;
 			}
@@ -800,7 +750,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const EvalData *
 	}
 }
 
-void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, const void *arguments[], void *results[]) const
+void EvalContext::eval_function(const EvalGlobals *globals, const Function *fn, const void *arguments[], void *results[]) const
 {
 	float stack[BVM_STACK_SIZE] = {0};
 	
@@ -814,7 +764,7 @@ void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data
 		}
 	}
 	
-	eval_instructions(globals, data, fn, fn->entry_point(), stack);
+	eval_instructions(globals, fn, fn->entry_point(), stack);
 	
 	/* read out return values */
 	for (int i = 0; i < fn->num_return_values(); ++i) {
@@ -825,9 +775,9 @@ void EvalContext::eval_function(const EvalGlobals *globals, const EvalData *data
 	}
 }
 
-void EvalContext::eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const
+void EvalContext::eval_expression(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
 {
-	eval_instructions(globals, data, fn, entry_point, stack);
+	eval_instructions(globals, fn, entry_point, stack);
 }
 
 } /* namespace bvm */

@@ -1071,9 +1071,6 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(AXISANGLE_TO_MATRIX44);
 	NODETYPE(SCALE_TO_MATRIX44);
 	
-	NODETYPE(POINT_POSITION);
-	NODETYPE(POINT_VELOCITY);
-	
 	NODETYPE(ADD_FLOAT);
 	NODETYPE(SUB_FLOAT);
 	NODETYPE(MUL_FLOAT);
@@ -1122,13 +1119,9 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(MIX_RGB);
 	
-	NODETYPE(ITERATION);
-	
-	NODETYPE(TEX_COORD);
 	NODETYPE(TEX_PROC_VORONOI);
 	NODETYPE(TEX_PROC_CLOUDS);
 	
-	NODETYPE(EFFECTOR_OBJECT);
 	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
@@ -1255,12 +1248,6 @@ static void register_opcode_node_types()
 	nt->add_input("value_w", BVM_FLOAT, 0.0f);
 	nt->add_output("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_function_node_type("POINT_POSITION");
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	
-	nt = NodeGraph::add_function_node_type("POINT_VELOCITY");
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	
 	#define BINARY_MATH_NODE(name) \
 	nt = NodeGraph::add_function_node_type(STRINGIFY(name)); \
 	nt->add_input("value_a", BVM_FLOAT, 0.0f); \
@@ -1353,12 +1340,6 @@ static void register_opcode_node_types()
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	
-	nt = NodeGraph::add_function_node_type("ITERATION");
-	nt->add_output("value", BVM_INT, 0);
-	
-	nt = NodeGraph::add_function_node_type("TEX_COORD");
-	nt->add_output("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_VORONOI");
 	nt->add_input("distance_metric", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_input("color_type", BVM_INT, 0, VALUE_CONSTANT);
@@ -1386,9 +1367,6 @@ static void register_opcode_node_types()
 	nt->add_output("color", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("normal", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
-	nt = NodeGraph::add_function_node_type("EFFECTOR_OBJECT");
-	nt->add_output("object", BVM_POINTER, PointerRNA_NULL);
-	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", BVM_INT, 0, VALUE_CONSTANT);
 	nt->add_output("transform", BVM_MATRIX44, matrix44::identity());
@@ -1401,6 +1379,7 @@ static void register_opcode_node_types()
 	nt->add_output("tangent", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
+	nt->add_input("base_mesh", BVM_POINTER, PointerRNA_NULL);
 	nt->add_output("mesh", BVM_MESH, __empty_mesh__);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");

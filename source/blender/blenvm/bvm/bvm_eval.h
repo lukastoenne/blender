@@ -128,11 +128,11 @@ struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_function(const EvalGlobals *globals, const EvalData *data, const Function *fn, const void *arguments[], void *results[]) const;
-	void eval_expression(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const;
+	void eval_function(const EvalGlobals *globals, const Function *fn, const void *arguments[], void *results[]) const;
+	void eval_expression(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const;
 	
 protected:
-	void eval_instructions(const EvalGlobals *globals, const EvalData *data, const Function *fn, int entry_point, float *stack) const;
+	void eval_instructions(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
 };

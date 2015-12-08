@@ -82,8 +82,7 @@ class IterationNode(CommonNodeBase, ObjectNode):
         self.outputs.new('NodeSocketInt', "N")
 
     def compile(self, compiler):
-        node = compiler.add_node("ITERATION", self.name)
-        compiler.map_output(0, node.outputs[0])
+        compiler.map_output(0, compiler.graph_input("iteration"))
 
 class MathNode(CommonNodeBase, ObjectNode):
     '''Math '''
