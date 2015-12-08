@@ -115,6 +115,10 @@ class NodeCompiler:
     def add_proxy(self, type):
         return self.add_node("PASS_%s" % type)
 
+    def graph_input(self, name):
+        in_node, in_socket = self.graph.get_input(name)
+        return OutputWrapper(in_node, in_node.outputs[in_socket])
+
     def graph_output(self, name):
         out_node, out_socket = self.graph.get_output(name)
         return InputWrapper(out_node, out_node.inputs[out_socket])

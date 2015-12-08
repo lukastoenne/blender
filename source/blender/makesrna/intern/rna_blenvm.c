@@ -54,10 +54,16 @@ static struct BVMNodeInstance *rna_BVMNodeGraph_add_node(struct BVMNodeGraph *gr
 	return BVM_nodegraph_add_node(graph, type, name);
 }
 
+static void rna_BVMNodeGraph_get_input(struct BVMNodeGraph *graph, const char *name,
+                                       struct BVMNodeInstance **node, const char **socket)
+{
+	BVM_nodegraph_get_input(graph, name, node, socket);
+}
+
 static void rna_BVMNodeGraph_get_output(struct BVMNodeGraph *graph, const char *name,
                                         struct BVMNodeInstance **node, const char **socket)
 {
-	return BVM_nodegraph_get_output(graph, name, node, socket);
+	BVM_nodegraph_get_output(graph, name, node, socket);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -446,6 +452,14 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 	RNA_def_string(func, "name", NULL, 0, "Name", "Name of the node");
 	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
 	RNA_def_function_return(func, parm);
+	
+	func = RNA_def_function(srna, "get_input", "rna_BVMNodeGraph_get_input");
+	RNA_def_function_ui_description(func, "Get a node/socket pair used as input of the graph");
+	RNA_def_string(func, "name", NULL, 0, "Name", "Input slot name");
+	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_string(func, "socket", NULL, 0, "Socket", "Socket name");
+	RNA_def_function_output(func, parm);
 	
 	func = RNA_def_function(srna, "get_output", "rna_BVMNodeGraph_get_output");
 	RNA_def_function_ui_description(func, "Get a node/socket pair used as output of the graph");

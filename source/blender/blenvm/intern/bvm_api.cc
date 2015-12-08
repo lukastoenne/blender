@@ -106,6 +106,14 @@ BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
 
+void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
+                             struct BVMNodeInstance **node, const char **socket)
+{
+	const bvm::NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
+	if (node) *node = (BVMNodeInstance *)input->key.node;
+	if (socket) *socket = input->key.socket.c_str();
+}
+
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket)
 {
