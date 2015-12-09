@@ -1703,7 +1703,7 @@ static void dm_ensure_display_normals(DerivedMesh *dm)
 }
 
 /* XXX this should replace modifier stack eventually */
-static DerivedMesh *mesh_calc_modifier_nodes(Scene *scene, Object *ob, bNodeTree *ntree)
+static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, bNodeTree *ntree)
 {
 	Mesh *me = ob->data;
 	DerivedMesh *dm, *result;
@@ -1794,7 +1794,7 @@ static void mesh_calc_modifiers(
 
 	if (ob->nodetree) {
 		bNodeTree *geotree = NULL;
-		DerivedMesh *dm = NULL;
+		DerivedMesh *node_dm = NULL;
 		
 		/* XXX TODO not nice, we can potentially have multiple geometry
 		 * subtrees and it's not clear yet how these would be combined.
@@ -1811,16 +1811,16 @@ static void mesh_calc_modifiers(
 		}
 		
 		if (geotree) {
-			dm = mesh_calc_modifier_nodes(scene, ob, geotree);
-			DM_ensure_normals(dm);
+			node_dm = mesh_calc_modifier_nodes(scene, ob, geotree);
+			DM_ensure_normals(node_dm);
 		}
 		else {
-			dm = CDDM_from_mesh(me);
+			node_dm = CDDM_from_mesh(me);
 		}
 		
-		*r_final = dm;
+		*r_final = node_dm;
 		if (r_deform)
-			*r_deform = CDDM_copy(dm);
+			*r_deform = CDDM_copy(node_dm);
 		return;
 	}
 
