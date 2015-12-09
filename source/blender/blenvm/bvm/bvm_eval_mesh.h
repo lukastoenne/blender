@@ -278,8 +278,6 @@ static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData
                         DerivedMesh *dm, int fn_vector, StackIndex offset_vector,
                         StackIndex offset_elem_index, StackIndex offset_elem_loc)
 {
-	const bool use_recalc_normals = (dm->dirty & DM_DIRTY_NORMALS);
-	
 	DerivedMesh *result = CDDM_copy(dm);
 	MVert *orig_mv, *orig_mverts = dm->getVertArray(dm);
 	MVert *mv, *mverts = result->getVertArray(result);
@@ -295,9 +293,7 @@ static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData
 		add_v3_v3v3(mv->co, orig_mv->co, dco.data());
 	}
 	
-	if (use_recalc_normals) {
-		result->dirty = (DMDirtyFlag)(result->dirty | (int)DM_DIRTY_NORMALS);
-	}
+	result->dirty = (DMDirtyFlag)(result->dirty | (int)DM_DIRTY_NORMALS);
 	
 	return result;
 }
