@@ -1812,6 +1812,7 @@ static void mesh_calc_modifiers(
 		
 		if (geotree) {
 			dm = mesh_calc_modifier_nodes(scene, ob, geotree);
+			DM_ensure_normals(dm);
 		}
 		else {
 			dm = CDDM_from_mesh(me);
