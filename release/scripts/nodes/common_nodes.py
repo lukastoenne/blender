@@ -438,6 +438,89 @@ class GetScaleNode(CommonNodeBase, ObjectNode):
         compiler.map_input(0, node.inputs[0])
         compiler.map_output(0, node.outputs[0])
 
+
+class TextureCloudsNode(CommonNodeBase, ObjectNode):
+    '''Clouds texture'''
+    bl_idname = 'ObjectTextureCloudsNode'
+    bl_label = 'Clouds'
+
+    depth = IntProperty(name="Depth", default=2)
+    noise_basis = enum_property_copy(bpy.types.CloudsTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    noise_hard = enum_property_copy(bpy.types.CloudsTexture, 'noise_type')
+    noise_hard_value = enum_property_value_prop('noise_hard')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "depth")
+        layout.prop(self, "noise_basis")
+        layout.prop(self, "noise_hard")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketColor', "Color")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_CLOUDS")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        node.inputs["depth"].set_value(self.depth)
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        node.inputs["noise_hard"].set_value(self.noise_hard_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["color"])
+        compiler.map_output(2, node.outputs["normal"])
+
+
+class TextureVoronoiNode(CommonNodeBase, ObjectNode):
+    '''Voronoi texture'''
+    bl_idname = 'ObjectTextureVoronoiNode'
+    bl_label = 'Voronoi'
+
+    distance_metric = enum_property_copy(bpy.types.VoronoiTexture, 'distance_metric')
+    distance_metric_value = enum_property_value_prop('distance_metric')
+    color_type = enum_property_copy(bpy.types.VoronoiTexture, 'color_mode')
+    color_type_value = enum_property_value_prop('color_type')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "distance_metric")
+        layout.prop(self, "color_type")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Minkowski Exponent")
+        self.inputs.new('NodeSocketFloat', "Weight 1")
+        self.inputs.new('NodeSocketFloat', "Weight 2")
+        self.inputs.new('NodeSocketFloat', "Weight 3")
+        self.inputs.new('NodeSocketFloat', "Weight 4")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketColor', "Color")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_VORONOI")
+        # XXX TODO use of scale factors is inconsistent in BLI ...
+        #compiler.map_input(0, node.inputs["position"])
+        #compiler.map_input(1, node.inputs["noise_size"])
+        node_scale = compiler.add_node("DIV_FLOAT3")
+        compiler.map_input(0, node_scale.inputs[0])
+        compiler.map_input(1, node_scale.inputs[1])
+        compiler.link(node_scale.outputs[0], node.inputs["position"])
+        
+        compiler.map_input(2, node.inputs["minkowski_exponent"])
+        compiler.map_input(3, node.inputs["w1"])
+        compiler.map_input(4, node.inputs["w2"])
+        compiler.map_input(5, node.inputs["w3"])
+        compiler.map_input(6, node.inputs["w4"])
+        node.inputs["color_type"].set_value(self.color_type_value)
+        node.inputs["distance_metric"].set_value(self.distance_metric_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["color"])
+        compiler.map_output(2, node.outputs["normal"])
+
 ###############################################################################
 
 def register():

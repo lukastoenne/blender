@@ -269,6 +269,10 @@ def register():
             NodeItem("ObjectGetAxisAngleNode"),
             NodeItem("ObjectGetScaleNode"),
             ]),
+        GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
+            NodeItem("ObjectTextureCloudsNode"),
+            NodeItem("ObjectTextureVoronoiNode"),
+            ]),
         GeometryNodeCategory("GEO_GROUP", "Group", items=[
             NodeItem(gnode.bl_idname),
             ]),
