@@ -172,10 +172,12 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
     _mode_items = [
         ('ADD_FLOAT3', 'Add', '', 'NONE', 0),
         ('SUB_FLOAT3', 'Subtract', '', 'NONE', 1),
-        ('AVERAGE_FLOAT3', 'Average', '', 'NONE', 2),
-        ('DOT_FLOAT3', 'Dot Product', '', 'NONE', 3),
-        ('CROSS_FLOAT3', 'Cross Product', '', 'NONE', 4),
-        ('NORMALIZE_FLOAT3', 'Normalize', '', 'NONE', 5),
+        ('MUL_FLOAT3', 'Multiply', '', 'NONE', 2),
+        ('DIV_FLOAT3', 'Divide', '', 'NONE', 3),
+        ('AVERAGE_FLOAT3', 'Average', '', 'NONE', 4),
+        ('DOT_FLOAT3', 'Dot Product', '', 'NONE', 5),
+        ('CROSS_FLOAT3', 'Cross Product', '', 'NONE', 6),
+        ('NORMALIZE_FLOAT3', 'Normalize', '', 'NONE', 7),
     ]
     mode = EnumProperty(name="Mode",
                         items=_mode_items)
@@ -192,10 +194,10 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
     def compile(self, compiler):
         node = compiler.add_node(self.mode, self.name+"N")
 
-        is_binary = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'AVERAGE_FLOAT3',
-                                  'DOT_FLOAT3', 'CROSS_FLOAT3'}
-        has_vector_out = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'AVERAGE_FLOAT3',
-                                       'CROSS_FLOAT3', 'NORMALIZE_FLOAT3'}
+        is_binary = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'MUL_FLOAT3', 'DIV_FLOAT3',
+                                  'AVERAGE_FLOAT3', 'DOT_FLOAT3', 'CROSS_FLOAT3'}
+        has_vector_out = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'MUL_FLOAT3', 'DIV_FLOAT3',
+                                       'AVERAGE_FLOAT3', 'CROSS_FLOAT3', 'NORMALIZE_FLOAT3'}
         has_value_out = self.mode in {'DOT_FLOAT3', 'NORMALIZE_FLOAT3'}
 
         if is_binary:
