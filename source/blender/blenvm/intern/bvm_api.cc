@@ -936,6 +936,8 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	
 	NodeGraph graph;
 	graph.add_input("iteration", BVM_INT);
+	graph.add_input("element.index", BVM_INT);
+	graph.add_input("element.location", BVM_FLOAT3);
 	graph.add_input("modifier.base_mesh", BVM_POINTER);
 	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
 	
@@ -962,8 +964,10 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunc
 	PointerRNA base_mesh_ptr;
 	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
 	int iteration = 0;
+	int elem_index = 0;
+	float3 elem_loc(0.0f, 0.0f, 0.0f);
 	mesh_ptr result;
-	const void *args[] = { &iteration, &base_mesh_ptr };
+	const void *args[] = { &iteration, &elem_index, &elem_loc, &base_mesh_ptr };
 	void *results[] = { &result };
 	
 	_CTX(ctx)->eval_function(&globals, _FUNC(fn), args, results);

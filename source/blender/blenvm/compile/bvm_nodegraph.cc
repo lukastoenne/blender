@@ -1143,6 +1143,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(MESH_LOAD);
 	NODETYPE(MESH_COMBINE);
 	NODETYPE(MESH_ARRAY);
+	NODETYPE(MESH_DISPLACE);
 	
 	#undef NODETYPE
 	
@@ -1408,6 +1409,13 @@ static void register_opcode_node_types()
 	nt->add_input("transform", BVM_MATRIX44, matrix44::identity(), INPUT_FUNCTION);
 	nt->add_output("mesh_out", BVM_MESH);
 	nt->add_output("iteration", BVM_INT, OUTPUT_LOCAL);
+	
+	nt = NodeGraph::add_kernel_node_type("MESH_DISPLACE");
+	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
+	nt->add_input("vector", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_FUNCTION);
+	nt->add_output("mesh_out", BVM_MESH);
+	nt->add_output("element.index", BVM_FLOAT3, OUTPUT_LOCAL);
+	nt->add_output("element.location", BVM_FLOAT3, OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());

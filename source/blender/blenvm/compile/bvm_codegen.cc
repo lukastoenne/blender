@@ -106,6 +106,7 @@ void BVMCompiler::resolve_function_symbols(const NodeGraph &graph, BVMCompiler::
 			if (output->value_type == OUTPUT_LOCAL) {
 				const NodeGraph::Input *graph_input = graph.get_input(output->name);
 				
+				assert(graph_input);
 				if (graph_input->key.node) {
 					local_input_index[graph_input->key] = stack_index;
 				}

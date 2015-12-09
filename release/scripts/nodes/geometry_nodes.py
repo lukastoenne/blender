@@ -70,6 +70,20 @@ class GeometryOutputNode(GeometryNodeBase, ObjectNode):
         compiler.map_input(0, compiler.graph_output("mesh"))
 
 
+class GeometryElementInfoNode(GeometryNodeBase, ObjectNode):
+    '''Properties of the current geometry element'''
+    bl_idname = 'GeometryElementInfoNode'
+    bl_label = 'Element Info'
+
+    def init(self, context):
+        self.outputs.new('NodeSocketInt', "Index")
+        self.outputs.new('NodeSocketVector', "Location")
+
+    def compile(self, compiler):
+        compiler.map_output(0, compiler.graph_input("element.index"))
+        compiler.map_output(1, compiler.graph_input("element.location"))
+
+
 class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
     '''Mesh object data'''
     bl_idname = 'GeometryMeshLoadNode'
@@ -185,6 +199,23 @@ class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
         compiler.map_input(2, node.inputs["transform"])
         compiler.map_output(0, node.outputs["mesh_out"])
 
+
+class GeometryMeshDisplaceNode(GeometryNodeBase, ObjectNode):
+    '''Add an offset vector to each vertex location'''
+    bl_idname = 'GeometryMeshDisplaceNode'
+    bl_label = 'Displace'
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MESH_DISPLACE")
+        compiler.map_input(0, node.inputs["mesh_in"])
+        compiler.map_input(1, node.inputs["vector"])
+        compiler.map_output(0, node.outputs["mesh_out"])
+
 ###############################################################################
 
 class GeometryNodesNew(Operator):
@@ -211,6 +242,7 @@ def register():
             NodeItem("ObjectIterationNode"),
             NodeItem("GeometryMeshLoadNode"),
             NodeItem(ginput.bl_idname),
+            NodeItem("GeometryElementInfoNode"),
             ]),
         GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
             NodeItem("GeometryOutputNode"),
@@ -218,6 +250,7 @@ def register():
             ]),
         GeometryNodeCategory("GEO_MODIFIER", "Modifier", items=[
             NodeItem("GeometryMeshArrayNode"),
+            NodeItem("GeometryMeshDisplaceNode"),
             ]),
         GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),

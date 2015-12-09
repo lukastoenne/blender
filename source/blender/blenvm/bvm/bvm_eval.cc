@@ -743,6 +743,18 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                   fn_transform, offset_transform, offset_iteration);
 				break;
 			}
+			case OP_MESH_DISPLACE: {
+				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
+				int fn_vector = fn->read_jump_address(&instr);
+				StackIndex offset_vector = fn->read_stack_index(&instr);
+				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
+				StackIndex offset_elem_index = fn->read_stack_index(&instr);
+				StackIndex offset_elem_loc = fn->read_stack_index(&instr);
+				eval_op_mesh_displace(globals, &kd, stack,
+				                      offset_mesh_in, offset_mesh_out, fn_vector, offset_vector,
+				                      offset_elem_index, offset_elem_loc);
+				break;
+			}
 			case OP_END:
 				return;
 			default:
