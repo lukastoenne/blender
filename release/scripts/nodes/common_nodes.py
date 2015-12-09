@@ -307,6 +307,9 @@ class EulerTransformNode(CommonNodeBase, ObjectNode):
     def euler_order_value(self):
         return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
 
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "euler_order")
+
     def init(self, context):
         self.inputs.new('TransformSocket', "")
         self.inputs.new('NodeSocketVector', "Euler Angles")
@@ -332,6 +335,9 @@ class GetEulerNode(CommonNodeBase, ObjectNode):
     @property
     def euler_order_value(self):
         return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "euler_order")
 
     def init(self, context):
         self.inputs.new('TransformSocket', "")
