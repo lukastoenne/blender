@@ -24,6 +24,23 @@ from bpy.types import Operator, ObjectNode
 from bpy.props import *
 from node_compiler import NodeCompiler, NodeWrapper, InputWrapper, OutputWrapper
 
+
+def enum_property_copy(bpy_type, name):
+    prop = bpy_type.bl_rna.properties[name]
+    items = [(i.identifier, i.name, i.description, i.icon, i.value) for i in prop.enum_items]
+    return EnumProperty(name=prop.name,
+                        description=prop.description,
+                        default=prop.default,
+                        items=items)
+
+def enum_property_value_prop(name):
+    def fget(self):
+        return self.bl_rna.properties[name].enum_items[getattr(self, name)].value
+    return property(fget=fget)
+
+
+###############################################################################
+
 class NodeTreeBase():
     def bvm_compile(self, context, graph):
         compiler = NodeCompiler(context, graph)
@@ -303,9 +320,7 @@ class EulerTransformNode(CommonNodeBase, ObjectNode):
     bl_label = 'Euler Transform'
 
     euler_order = _prop_euler_order
-    @property
-    def euler_order_value(self):
-        return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
+    euler_order_value = enum_property_value_prop('euler_order')
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "euler_order")
@@ -332,9 +347,7 @@ class GetEulerNode(CommonNodeBase, ObjectNode):
     bl_label = 'Get Euler Angles'
 
     euler_order = _prop_euler_order
-    @property
-    def euler_order_value(self):
-        return self.bl_rna.properties['euler_order'].enum_items[self.euler_order].value
+    euler_order_value = enum_property_value_prop('euler_order')
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "euler_order")
