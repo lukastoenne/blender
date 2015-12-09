@@ -312,7 +312,7 @@ struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *glo
 	graph.finalize();
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.codegen_function(graph);
+	Function *fn = compiler.compile_function(graph);
 	
 	return (BVMFunction *)fn;
 }
@@ -829,7 +829,7 @@ struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *global
 	}
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.codegen_function(graph);
+	Function *fn = compiler.compile_function(graph);
 	
 	return (BVMFunction *)fn;
 }
@@ -948,7 +948,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	}
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.codegen_function(graph);
+	Function *fn = compiler.compile_function(graph);
 	
 	return (BVMFunction *)fn;
 }

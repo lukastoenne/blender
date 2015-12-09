@@ -82,35 +82,35 @@ StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void BVMCompiler::push_opcode(OpCode op)
+void BVMCompiler::push_opcode(OpCode op) const
 {
 	fn->add_instruction(op);
 }
 
-void BVMCompiler::push_stack_index(StackIndex arg)
+void BVMCompiler::push_stack_index(StackIndex arg) const
 {
 	if (arg != BVM_STACK_INVALID)
 		fn->add_instruction(arg);
 }
 
-void BVMCompiler::push_jump_address(int address)
+void BVMCompiler::push_jump_address(int address) const
 {
 	fn->add_instruction(int_to_instruction(address));
 }
 
-void BVMCompiler::push_float(float f)
+void BVMCompiler::push_float(float f) const
 {
 	fn->add_instruction(float_to_instruction(f));
 }
 
-void BVMCompiler::push_float3(float3 f)
+void BVMCompiler::push_float3(float3 f) const
 {
 	fn->add_instruction(float_to_instruction(f.x));
 	fn->add_instruction(float_to_instruction(f.y));
 	fn->add_instruction(float_to_instruction(f.z));
 }
 
-void BVMCompiler::push_float4(float4 f)
+void BVMCompiler::push_float4(float4 f) const
 {
 	fn->add_instruction(float_to_instruction(f.x));
 	fn->add_instruction(float_to_instruction(f.y));
@@ -118,12 +118,12 @@ void BVMCompiler::push_float4(float4 f)
 	fn->add_instruction(float_to_instruction(f.w));
 }
 
-void BVMCompiler::push_int(int i)
+void BVMCompiler::push_int(int i) const
 {
 	fn->add_instruction(int_to_instruction(i));
 }
 
-void BVMCompiler::push_matrix44(matrix44 m)
+void BVMCompiler::push_matrix44(matrix44 m) const
 {
 	fn->add_instruction(float_to_instruction(m.data[0][0]));
 	fn->add_instruction(float_to_instruction(m.data[0][1]));
@@ -143,7 +143,7 @@ void BVMCompiler::push_matrix44(matrix44 m)
 	fn->add_instruction(float_to_instruction(m.data[3][3]));
 }
 
-void BVMCompiler::push_pointer(PointerRNA p)
+void BVMCompiler::push_pointer(PointerRNA p) const
 {
 	fn->add_instruction(pointer_to_instruction_hi(p.id.data));
 	fn->add_instruction(pointer_to_instruction_lo(p.id.data));
@@ -153,10 +153,59 @@ void BVMCompiler::push_pointer(PointerRNA p)
 	fn->add_instruction(pointer_to_instruction_lo(p.data));
 }
 
-StackIndex BVMCompiler::codegen_value(const Value *value)
+void BVMCompiler::push_constant(const Value *value) const
 {
-	StackIndex offset = assign_stack_index(value->typedesc());
-	
+	switch (value->typedesc().base_type) {
+		case BVM_FLOAT: {
+			float f = 0.0f;
+			value->get(&f);
+			
+			push_float(f);
+			break;
+		}
+		case BVM_FLOAT3: {
+			float3 f = float3(0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_float3(f);
+			break;
+		}
+		case BVM_FLOAT4: {
+			float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
+			value->get(&f);
+			
+			push_float4(f);
+			break;
+		}
+		case BVM_INT: {
+			int i = 0;
+			value->get(&i);
+			
+			push_int(i);
+			break;
+		}
+		case BVM_MATRIX44: {
+			matrix44 m = matrix44::identity();
+			value->get(&m);
+			
+			push_matrix44(m);
+			break;
+		}
+		case BVM_POINTER: {
+			PointerRNA p = PointerRNA_NULL;
+			value->get(&p);
+			
+			push_pointer(p);
+			break;
+		}
+		
+		case BVM_MESH:
+			break;
+	}
+}
+
+void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
+{
 	switch (value->typedesc().base_type) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
@@ -218,59 +267,6 @@ StackIndex BVMCompiler::codegen_value(const Value *value)
 			push_stack_index(offset);
 			break;
 	}
-	
-	return offset;
-}
-
-void BVMCompiler::codegen_constant(const Value *value)
-{
-	switch (value->typedesc().base_type) {
-		case BVM_FLOAT: {
-			float f = 0.0f;
-			value->get(&f);
-			
-			push_float(f);
-			break;
-		}
-		case BVM_FLOAT3: {
-			float3 f = float3(0.0f, 0.0f, 0.0f);
-			value->get(&f);
-			
-			push_float3(f);
-			break;
-		}
-		case BVM_FLOAT4: {
-			float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
-			value->get(&f);
-			
-			push_float4(f);
-			break;
-		}
-		case BVM_INT: {
-			int i = 0;
-			value->get(&i);
-			
-			push_int(i);
-			break;
-		}
-		case BVM_MATRIX44: {
-			matrix44 m = matrix44::identity();
-			value->get(&m);
-			
-			push_matrix44(m);
-			break;
-		}
-		case BVM_POINTER: {
-			PointerRNA p = PointerRNA_NULL;
-			value->get(&p);
-			
-			push_pointer(p);
-			break;
-		}
-		
-		case BVM_MESH:
-			break;
-	}
 }
 
 static OpCode ptr_init_opcode(const TypeDesc &typedesc)
@@ -307,17 +303,14 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 	return OP_NOOP;
 }
 
-int BVMCompiler::codegen_subgraph(const NodeList &nodes,
-                                  const SocketUserMap &socket_users,
-                                  SocketIndexMap &output_index)
+void BVMCompiler::resolve_subgraph_symbols(const NodeList &nodes,
+                                           SocketIndexMap &input_index,
+                                           SocketIndexMap &output_index)
 {
-	int entry_point = fn->get_instruction_count();
-	
 	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
 		/* prepare input stack entries */
-		SocketIndexMap input_index;
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeInput *input = node.type->find_input(i);
 			ConstSocketPair key(&node, input->name);
@@ -332,12 +325,8 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 				assert(output_index.find(link_key) != output_index.end());
 				input_index[key] = output_index[link_key];
 			}
-			else if (node.has_input_value(i)) {
-				Value *value = node.find_input_value(i);
-				input_index[key] = codegen_value(value);
-			}
 			else {
-				input_index[key] = codegen_value(input->default_value);
+				input_index[key] = assign_stack_index(input->typedesc);
 			}
 		}
 		
@@ -347,15 +336,49 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 			ConstSocketPair key(&node, output->name);
 			
 			output_index[key] = assign_stack_index(output->typedesc);
+		}
+	}
+}
+
+int BVMCompiler::codegen_subgraph(const NodeList &nodes,
+                                  const SocketUserMap &socket_users,
+                                  const SocketIndexMap &input_index,
+                                  const SocketIndexMap &output_index) const
+{
+	int entry_point = fn->get_instruction_count();
+	
+	for (NodeList::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance &node = **it;
+		
+		/* store values for unconnected inputs */
+		for (int i = 0; i < node.num_inputs(); ++i) {
+			const NodeInput *input = node.type->find_input(i);
+			ConstSocketPair key(&node, input->name);
+			
+			if (node.is_input_constant(i) || node.is_input_function(i)) {
+				/* stored directly in instructions */
+			}
+			else if (node.has_input_link(i)) {
+				/* uses linked output value on the stack */
+			}
+			else {
+				/* create a value node for the input */
+				Value *value = (node.has_input_value(i)) ? node.find_input_value(i) : input->default_value;
+				codegen_value(value, input_index.at(key));
+			}
+		}
+		/* initialize output data stack entries */
+		for (int i = 0; i < node.num_outputs(); ++i) {
+			const NodeOutput *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
 			
 			/* if necessary, add a user count initializer */
 			OpCode init_op = ptr_init_opcode(output->typedesc);
 			if (init_op != OP_NOOP) {
-				assert(socket_users.find(key) != socket_users.end());
 				int users = socket_users.find(key)->second;
 				if (users > 0) {
 					push_opcode(init_op);
-					push_stack_index(output_index[key]);
+					push_stack_index(output_index.at(key));
 					push_int(users);
 				}
 			}
@@ -372,26 +395,23 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 				
 				if (node.is_input_constant(i)) {
 					Value *value = node.find_input_value(i);
-					codegen_constant(value);
+					push_constant(value);
 				}
 				else if (node.is_input_function(i)) {
-					assert(func_entry_map.find(key) != func_entry_map.end());
-					FunctionInfo &func = func_entry_map[key];
+					const FunctionInfo &func = func_entry_map.at(key);
 					push_jump_address(func.entry_point);
 					push_stack_index(func.return_index);
 				}
 				else {
-					assert(input_index.find(key) != input_index.end());
-					push_stack_index(input_index[key]);
+					push_stack_index(input_index.at(key));
 				}
 			}
 			/* write output stack offsets */
 			for (int i = 0; i < node.num_outputs(); ++i) {
 				const NodeOutput *output = node.type->find_output(i);
 				ConstSocketPair key(&node, output->name);
-				assert(output_index.find(key) != output_index.end());
 				
-				push_stack_index(output_index[key]);
+				push_stack_index(output_index.at(key));
 			}
 		}
 		
@@ -405,13 +425,12 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 			else if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
-				assert(output_index.find(link_key) != output_index.end());
 				
 				OpCode release_op = ptr_release_opcode(input->typedesc);
 				
 				if (release_op != OP_NOOP) {
 					push_opcode(release_op);
-					push_stack_index(output_index[link_key]);
+					push_stack_index(output_index.at(link_key));
 				}
 			}
 		}
@@ -422,43 +441,9 @@ int BVMCompiler::codegen_subgraph(const NodeList &nodes,
 	return entry_point;
 }
 
-void BVMCompiler::graph_node_append(const NodeInstance *node,
-                                    NodeList &sorted_nodes,
-                                    NodeSet &visited)
-{
-	if (visited.find(node) != visited.end())
-		return;
-	visited.insert(node);
-	
-	for (size_t i = 0; i < node->num_inputs(); ++i) {
-		const NodeInput *socket = node->type->find_input(i);
-		if (socket->value_type == INPUT_FUNCTION) {
-			func_entry_map[node->input(i)] = FunctionInfo();
-		}
-		else {
-			const NodeInstance *link_node = node->find_input_link_node(i);
-			if (link_node) {
-				graph_node_append(link_node, sorted_nodes, visited);
-			}
-		}
-	}
-	
-	sorted_nodes.push_back(node);
-}
-
-void BVMCompiler::sort_graph_nodes(const NodeGraph &graph,
-                                   NodeList &sorted_nodes)
-{
-	NodeSet visited;
-	
-	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
-		graph_node_append(it->second, sorted_nodes, visited);
-	}
-}
-
-static void expression_node_append(const NodeInstance *node,
-                                   NodeList &sorted_nodes,
-                                   NodeSet &visited)
+void BVMCompiler::expression_node_append(const NodeInstance *node,
+                                         NodeList &sorted_nodes,
+                                         NodeSet &visited)
 {
 	if (node->type->is_kernel_node())
 		return;
@@ -477,14 +462,42 @@ static void expression_node_append(const NodeInstance *node,
 	sorted_nodes.push_back(node);
 }
 
-static void sort_expression_nodes(const ConstSocketPair &key,
-                                  NodeList &sorted_nodes)
+void BVMCompiler::graph_node_append(const NodeInstance *node,
+                                    NodeList &sorted_nodes,
+                                    NodeSet &visited)
+{
+	if (visited.find(node) != visited.end())
+		return;
+	visited.insert(node);
+	
+	for (size_t i = 0; i < node->num_inputs(); ++i) {
+		const NodeInput *socket = node->type->find_input(i);
+		const NodeInstance *link_node = node->find_input_link_node(i);
+		
+		if (socket->value_type == INPUT_FUNCTION) {
+			FunctionInfo &func = func_entry_map[node->input(i)];
+			
+			if (link_node) {
+				NodeSet func_visited;
+				expression_node_append(link_node, func.nodes, func_visited);
+			}
+		}
+		else {
+			if (link_node) {
+				graph_node_append(link_node, sorted_nodes, visited);
+			}
+		}
+	}
+	
+	sorted_nodes.push_back(node);
+}
+
+void BVMCompiler::sort_graph_nodes(const NodeGraph &graph)
 {
 	NodeSet visited;
 	
-	if (key.node->has_input_link(key.socket)) {
-		const NodeInstance *link_node = key.node->find_input_link_node(key.socket);
-		expression_node_append(link_node, sorted_nodes, visited);
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
+		graph_node_append(it->second, main_nodes, visited);
 	}
 }
 
@@ -527,81 +540,101 @@ static void count_output_users(const NodeGraph &graph,
 	}
 }
 
-Function *BVMCompiler::codegen_function(const NodeGraph &graph)
+void BVMCompiler::resolve_symbols(const NodeGraph &graph)
 {
-	SocketUserMap output_users;
-	count_output_users(graph, output_users);
+	main_nodes.clear();
+	main_input_index.clear();
+	main_output_index.clear();
+	func_entry_map.clear();
 	
-	NodeList main_nodes;
-	sort_graph_nodes(graph, main_nodes);
+	sort_graph_nodes(graph);
 	
-	fn = new Function();
-	
-	/* first generate separate kernel functions */
 	for (FunctionEntryMap::iterator it = func_entry_map.begin(); it != func_entry_map.end(); ++it) {
 		const ConstSocketPair &key = it->first;
 		FunctionInfo &func = it->second;
 		
-		NodeList expr_nodes;
-		sort_expression_nodes(key, expr_nodes);
-		
-		/* TODO loading values from top-level nodes
-		 * will not work at this point (input stack indices are unknown).
-		 * for that the stack index instructions will have to be
-		 * updated _after_ the main function is generated.
-		 */
-		
-		SocketIndexMap output_index;
-		func.entry_point = codegen_subgraph(expr_nodes, output_users, output_index);
+		resolve_subgraph_symbols(func.nodes, func.input_index, func.output_index);
 		
 		ConstSocketPair link_key = key.node->link(key.socket);
 		StackIndex stack_index;
 		if (link_key.node) {
-			assert(output_index.find(link_key) != output_index.end());
-			stack_index = output_index[link_key];
+			stack_index = func.output_index.at(link_key);
 		}
 		else {
-			Value *value = key.node->type->find_input(key.socket)->default_value;
-			stack_index = codegen_value(value);
+			const NodeInput *input = key.node->type->find_input(key.socket);
+			stack_index = assign_stack_index(input->typedesc);
 		}
 		func.return_index = stack_index;
 	}
 	
-	/* now generate the main function */
-	{
-		SocketIndexMap output_index;
-		int entry_point = codegen_subgraph(main_nodes, output_users, output_index);
-		fn->set_entry_point(entry_point);
+	resolve_subgraph_symbols(main_nodes, main_input_index, main_output_index);
+}
+
+Function *BVMCompiler::codegen(const NodeGraph &graph)
+{
+	Function *result = new Function();
+	fn = result;
+	
+	SocketUserMap output_users;
+	count_output_users(graph, output_users);
+	
+	/* first generate expression functions */
+	for (FunctionEntryMap::iterator it = func_entry_map.begin(); it != func_entry_map.end(); ++it) {
+		const ConstSocketPair &key = it->first;
+		FunctionInfo &func = it->second;
 		
-		/* store stack indices for inputs/outputs, to store arguments from and return results to the caller */
-		for (size_t i = 0; i < graph.inputs.size(); ++i) {
-			const NodeGraph::Input &input = graph.inputs[i];
-			
-			StackIndex stack_index;
-			if (input.key.node) {
-				assert(output_index.find(input.key) != output_index.end());
-				stack_index = output_index[input.key];
-			}
-			else {
-				stack_index = BVM_STACK_INVALID;
-			}
-			
-			fn->add_argument(input.typedesc, input.name, stack_index);
+		func.entry_point = codegen_subgraph(func.nodes, output_users, func.input_index, func.output_index);
+		
+		ConstSocketPair link_key = key.node->link(key.socket);
+		if (link_key.node) {
+			/* uses output value from the stack */
 		}
-		for (size_t i = 0; i < graph.outputs.size(); ++i) {
-			const NodeGraph::Output &output = graph.outputs[i];
-			
-			/* every output must map to a node */
-			assert(output.key.node);
-			assert(output_index.find(output.key) != output_index.end());
-			
-			StackIndex stack_index = output_index[output.key];
-			fn->add_return_value(output.typedesc, output.name, stack_index);
+		else {
+			const NodeInput *input = key.node->type->find_input(key.socket);
+			Value *value = input->default_value;
+			codegen_value(value, func.return_index);
 		}
 	}
 	
-	Function *result = fn;
+	/* now generate the main function */
+	int entry_point = codegen_subgraph(main_nodes, output_users, main_input_index, main_output_index);
+	fn->set_entry_point(entry_point);
+	
 	fn = NULL;
+	
+	return result;
+}
+
+Function *BVMCompiler::compile_function(const NodeGraph &graph)
+{
+	resolve_symbols(graph);
+	
+	Function *result = codegen(graph);
+	
+	/* store stack indices for inputs/outputs, to store arguments from and return results to the caller */
+	for (size_t i = 0; i < graph.inputs.size(); ++i) {
+		const NodeGraph::Input &input = graph.inputs[i];
+		
+		StackIndex stack_index;
+		if (input.key.node) {
+			stack_index = main_output_index.at(input.key);
+		}
+		else {
+			stack_index = BVM_STACK_INVALID;
+		}
+		
+		result->add_argument(input.typedesc, input.name, stack_index);
+	}
+	for (size_t i = 0; i < graph.outputs.size(); ++i) {
+		const NodeGraph::Output &output = graph.outputs[i];
+		
+		/* every output must map to a node */
+		assert(output.key.node);
+		
+		StackIndex stack_index = main_output_index.at(output.key);
+		result->add_return_value(output.typedesc, output.name, stack_index);
+	}
+	
 	return result;
 }
 
