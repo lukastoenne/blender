@@ -69,8 +69,14 @@ struct BVMCompiler {
 	BVMCompiler();
 	~BVMCompiler();
 	
+	Function *compile_function(const NodeGraph &graph);
+	
+protected:
 	StackIndex find_stack_index(int size) const;
 	StackIndex assign_stack_index(const TypeDesc &typedesc);
+	
+	void resolve_function_symbols(FunctionInfo &func);
+	void resolve_symbols(const NodeGraph &graph);
 	
 	void push_opcode(OpCode op) const;
 	void push_stack_index(StackIndex arg) const;
@@ -86,28 +92,16 @@ struct BVMCompiler {
 	void push_constant(const Value *value) const;
 	
 	void codegen_value(const Value *value, StackIndex offset) const;
-	int codegen_subgraph(const NodeList &nodes,
-	                     const SocketUserMap &socket_users,
-	                     const SocketIndexMap &input_index,
-	                     const SocketIndexMap &output_index) const;
+	int codegen_function(const FunctionInfo &func,
+	                     const SocketUserMap &socket_users) const;
 	Function *codegen(const NodeGraph &graph);
 	
-	void resolve_subgraph_symbols(const NodeList &nodes,
-	                              SocketIndexMap &input_index,
-	                              SocketIndexMap &output_index);
-	void resolve_symbols(const NodeGraph &graph);
-	
-	Function *compile_function(const NodeGraph &graph);
-	
-protected:
 	void expression_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
 	void graph_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
 	void sort_graph_nodes(const NodeGraph &graph);
 	
 private:
-	NodeList main_nodes;
-	SocketIndexMap main_input_index;
-	SocketIndexMap main_output_index;
+	FunctionInfo main;
 	FunctionEntryMap func_entry_map;
 	StackUsers stack_users;
 	Function *fn;
