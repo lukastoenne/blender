@@ -82,10 +82,35 @@ StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void BVMCompiler::resolve_function_symbols(BVMCompiler::FunctionInfo &func)
+void BVMCompiler::resolve_function_symbols(const NodeGraph &graph, BVMCompiler::FunctionInfo &func)
 {
 	for (NodeList::const_iterator it = func.nodes.begin(); it != func.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
+		
+		/* local arguments for expression inputs */
+		SocketIndexMap local_input_index;
+		
+		/* initialize output data stack entries */
+		for (int i = 0; i < node.num_outputs(); ++i) {
+			const NodeOutput *output = node.type->find_output(i);
+			ConstSocketPair key(&node, output->name);
+			
+			StackIndex stack_index;
+			if (func.output_index.find(key) == func.output_index.end()) {
+				stack_index = assign_stack_index(output->typedesc);
+				func.output_index[key] = stack_index;
+			}
+			else
+				stack_index = func.output_index.at(key);
+			
+			if (output->value_type == OUTPUT_LOCAL) {
+				const NodeGraph::Input *graph_input = graph.get_input(output->name);
+				
+				if (graph_input->key.node) {
+					local_input_index[graph_input->key] = stack_index;
+				}
+			}
+		}
 		
 		/* prepare input stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
@@ -93,26 +118,34 @@ void BVMCompiler::resolve_function_symbols(BVMCompiler::FunctionInfo &func)
 			ConstSocketPair key(&node, input->name);
 			assert(func.input_index.find(key) == func.input_index.end());
 			
-			if (node.is_input_constant(i) || node.is_input_function(i)) {
+			if (node.is_input_constant(i)) {
 				/* stored directly in the instructions list after creating values */
+			}
+			else if (node.is_input_function(i)) {
+				FunctionInfo &subfunc = func_entry_map.at(key);
+				
+				/* initialize local arguments */
+				subfunc.output_index.insert(local_input_index.begin(), local_input_index.end());
+				
+				resolve_function_symbols(graph, subfunc);
+				
+				ConstSocketPair link_key = key.node->link(key.socket);
+				if (link_key.node) {
+					subfunc.return_index = subfunc.output_index.at(link_key);
+				}
+				else {
+					subfunc.return_index = assign_stack_index(input->typedesc);
+				}
+				func.input_index[key] = subfunc.return_index;
 			}
 			else if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
-				assert(func.output_index.find(link_key) != func.output_index.end());
-				func.input_index[key] = func.output_index[link_key];
+				func.input_index[key] = func.output_index.at(link_key);
 			}
 			else {
 				func.input_index[key] = assign_stack_index(input->typedesc);
 			}
-		}
-		
-		/* initialize output data stack entries */
-		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeOutput *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
-			
-			func.output_index[key] = assign_stack_index(output->typedesc);
 		}
 	}
 }
@@ -182,27 +215,11 @@ void BVMCompiler::resolve_symbols(const NodeGraph &graph)
 	main = FunctionInfo();
 	func_entry_map.clear();
 	
+	/* recursively sort node lists for functions */
 	sort_graph_nodes(graph);
 	
-	for (FunctionEntryMap::iterator it = func_entry_map.begin(); it != func_entry_map.end(); ++it) {
-		const ConstSocketPair &key = it->first;
-		FunctionInfo &func = it->second;
-		
-		resolve_function_symbols(func);
-		
-		ConstSocketPair link_key = key.node->link(key.socket);
-		StackIndex stack_index;
-		if (link_key.node) {
-			stack_index = func.output_index.at(link_key);
-		}
-		else {
-			const NodeInput *input = key.node->type->find_input(key.socket);
-			stack_index = assign_stack_index(input->typedesc);
-		}
-		func.return_index = stack_index;
-	}
-	
-	resolve_function_symbols(main);
+	/* recursively resolve all stack assignments */
+	resolve_function_symbols(graph, main);
 }
 
 void BVMCompiler::push_opcode(OpCode op) const
@@ -520,12 +537,12 @@ int BVMCompiler::codegen_function(const BVMCompiler::FunctionInfo &func,
 					Value *value = node.find_input_value(i);
 					push_constant(value);
 				}
-				else if (node.is_input_function(i)) {
-					const FunctionInfo &func = func_entry_map.at(key);
-					push_jump_address(func.entry_point);
-					push_stack_index(func.return_index);
-				}
 				else {
+					if (node.is_input_function(i)) {
+						const FunctionInfo &func = func_entry_map.at(key);
+						push_jump_address(func.entry_point);
+					}
+					
 					push_stack_index(func.input_index.at(key));
 				}
 			}

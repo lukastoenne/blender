@@ -75,7 +75,7 @@ protected:
 	StackIndex find_stack_index(int size) const;
 	StackIndex assign_stack_index(const TypeDesc &typedesc);
 	
-	void resolve_function_symbols(FunctionInfo &func);
+	void resolve_function_symbols(const NodeGraph &graph, FunctionInfo &func);
 	void resolve_symbols(const NodeGraph &graph);
 	
 	void push_opcode(OpCode op) const;
