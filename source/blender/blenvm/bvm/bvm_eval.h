@@ -56,54 +56,6 @@ struct EvalGlobals {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };
 
-struct EffectorEvalData {
-	EffectorEvalData() :
-	    position(0.0f, 0.0f, 0.0f),
-	    velocity(0.0f, 0.0f, 0.0f)
-	{}
-	
-	/* context */
-	PointerRNA object;
-	
-	/* point */
-	float3 position;
-	float3 velocity;
-};
-
-struct TextureEvalData {
-	TextureEvalData() :
-	    co(float3(0.0f, 0.0f, 0.0f)),
-	    dxt(float3(0.0f, 0.0f, 0.0f)),
-	    dyt(float3(0.0f, 0.0f, 0.0f)),
-	    cfra(0),
-	    osatex(0)
-	{}
-	float3 co;
-	float3 dxt, dyt;
-	int cfra;
-	int osatex;
-};
-
-struct ModifierEvalData {
-	ModifierEvalData() :
-	    base_mesh(NULL)
-	{}
-	struct Mesh *base_mesh;
-};
-
-struct EvalData {
-	EvalData() :
-	    iteration(0)
-	{}
-	
-	EffectorEvalData effector;
-	TextureEvalData texture;
-	ModifierEvalData modifier;
-	int iteration;
-
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalData")
-};
-
 struct EvalContext {
 	EvalContext();
 	~EvalContext();
