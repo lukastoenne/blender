@@ -227,7 +227,10 @@ void BVM_globals_free(struct BVMEvalGlobals *globals)
 { delete _GLOBALS(globals); }
 
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob)
-{ _GLOBALS(globals)->objects.push_back(ob); }
+{ _GLOBALS(globals)->add_object(ob); }
+
+int BVM_get_id_key(struct ID *id)
+{ return bvm::EvalGlobals::get_id_key(id); }
 
 struct BVMEvalContext *BVM_context_create(void)
 { return (BVMEvalContext *)(new bvm::EvalContext()); }

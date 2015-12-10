@@ -48,6 +48,8 @@
 #include "BKE_image.h"
 #include "BKE_texture.h"
 
+#include "DEG_depsgraph_build.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -1600,6 +1602,13 @@ static void rna_Node_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
 	ED_node_tag_update_nodetree(bmain, ntree);
+}
+
+static void rna_ObjectNode_id_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	rna_Node_update(bmain, scene, ptr);
+	
+	DEG_relations_tag_update(bmain);
 }
 
 static void rna_Node_socket_value_update(ID *id, bNode *UNUSED(node), bContext *C)
@@ -6818,7 +6827,7 @@ static void rna_def_object_node(BlenderRNA *brna)
 	RNA_def_property_editable_func(prop, "rna_ObjectNode_id_editable");
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_ObjectNode_id_typef", "rna_ObjectNode_id_poll");
 	RNA_def_property_ui_text(prop, "ID", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ObjectNode_id_update");
 }
 
 /* -------------------------------------------------------------------------- */

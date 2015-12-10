@@ -100,6 +100,8 @@ void BVM_globals_free(struct BVMEvalGlobals *globals);
 
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob);
 
+int BVM_get_id_key(struct ID *id);
+
 struct BVMEvalContext *BVM_context_create(void);
 void BVM_context_free(struct BVMEvalContext *context);
 

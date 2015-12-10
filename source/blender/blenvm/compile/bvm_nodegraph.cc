@@ -854,6 +854,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(MESH_ARRAY);
 	NODETYPE(MESH_DISPLACE);
 	
+	NODETYPE(CURVE_PATH);
+	
 	#undef NODETYPE
 	
 	return OP_NOOP;
@@ -1104,6 +1106,10 @@ static void register_opcode_node_types()
 	nt->add_output("color", BVM_FLOAT4);
 	nt->add_output("normal", BVM_FLOAT3);
 	
+	nt = NodeGraph::add_function_node_type("OBJECT_LOOKUP");
+	nt->add_input("key", BVM_INT, 0, INPUT_CONSTANT);
+	nt->add_output("object", BVM_POINTER);
+	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("transform", BVM_MATRIX44);
@@ -1137,6 +1143,16 @@ static void register_opcode_node_types()
 	nt->add_output("mesh_out", BVM_MESH);
 	nt->add_output("element.index", BVM_FLOAT3, OUTPUT_LOCAL);
 	nt->add_output("element.location", BVM_FLOAT3, OUTPUT_LOCAL);
+	
+	nt = NodeGraph::add_function_node_type("CURVE_PATH");
+	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
+	nt->add_input("parameter", BVM_FLOAT, 0.0f);
+	nt->add_output("location", BVM_FLOAT3);
+	nt->add_output("direction", BVM_FLOAT3);
+	nt->add_output("normal", BVM_FLOAT3);
+	nt->add_output("rotation", BVM_MATRIX44);
+	nt->add_output("radius", BVM_FLOAT);
+	nt->add_output("weight", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());

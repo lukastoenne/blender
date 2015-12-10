@@ -218,6 +218,52 @@ class GeometryMeshDisplaceNode(GeometryNodeBase, ObjectNode):
 
 ###############################################################################
 
+class CurveNodeBase(NodeBase):
+    @classmethod
+    def poll(cls, ntree):
+        return isinstance(ntree, NodeTreeBase)
+
+class CurvePathNode(CurveNodeBase, ObjectNode):
+    '''Get curve geometry values'''
+    bl_idname = 'CurvePathNode'
+    bl_label = 'Curve Path'
+
+    bl_id_property_type = 'OBJECT'
+    def bl_id_property_poll(self, ob):
+        return ob.type == 'CURVE'
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketFloat', "Parameter")
+        self.outputs.new('NodeSocketVector', "Location")
+        self.outputs.new('NodeSocketVector', "Direction")
+        self.outputs.new('NodeSocketVector', "Normal")
+        self.outputs.new('TransformSocket', "Rotation")
+        self.outputs.new('NodeSocketFloat', "Radius")
+        self.outputs.new('NodeSocketFloat', "Weight")
+
+    def compile(self, compiler):
+        if self.id is None:
+            return
+        obkey = compiler.get_id_key(self.id)
+        obnode = compiler.add_node("OBJECT_LOOKUP")
+        node = compiler.add_node("CURVE_PATH")
+
+        obnode.inputs[0].set_value(obkey)
+        compiler.link(obnode.outputs[0], node.inputs[0])
+        compiler.map_input(0, node.inputs[1])
+        
+        compiler.map_output(0, node.outputs[0])
+        compiler.map_output(1, node.outputs[1])
+        compiler.map_output(2, node.outputs[2])
+        compiler.map_output(3, node.outputs[3])
+        compiler.map_output(4, node.outputs[4])
+        compiler.map_output(5, node.outputs[5])
+
+###############################################################################
+
 class GeometryNodesNew(Operator):
     """Create new geometry node tree"""
     bl_idname = "object_nodes.geometry_nodes_new"
@@ -277,6 +323,9 @@ def register():
         GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureVoronoiNode"),
+            ]),
+        GeometryNodeCategory("GEO_CURVE", "Curve", items=[
+            NodeItem("CurvePathNode"),
             ]),
         GeometryNodeCategory("GEO_GROUP", "Group", items=[
             NodeItem(gnode.bl_idname),

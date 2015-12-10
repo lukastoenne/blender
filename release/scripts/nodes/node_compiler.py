@@ -156,6 +156,9 @@ class NodeCompiler:
             raise KeyError("Output %r not found in node %r" % (key, bnode))
         self.link(socket, bnode_outputs[key].inputs[0])
 
+    def get_id_key(self, id_data):
+        return self.graph.get_id_key(id_data)
+
 ###############################################################################
 
 def register():

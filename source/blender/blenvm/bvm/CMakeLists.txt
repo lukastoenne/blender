@@ -41,6 +41,7 @@ set(SRC
 	bvm_eval.cc
 	bvm_eval.h
 	bvm_eval_common.h
+	bvm_eval_curve.h
 	bvm_eval_math.h
 	bvm_eval_mesh.h
 	bvm_eval_texture.h

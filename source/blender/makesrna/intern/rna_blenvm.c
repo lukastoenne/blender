@@ -61,6 +61,11 @@ static void rna_BVMNodeGraph_get_output(struct BVMNodeGraph *graph, const char *
 	BVM_nodegraph_get_output(graph, name, node, socket);
 }
 
+static int rna_BVMNodeGraph_get_id_key(ID *id)
+{
+	return BVM_get_id_key(id);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static void rna_BVMNodeInput_name_get(PointerRNA *ptr, char *value)
@@ -463,6 +468,14 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 	parm = RNA_def_string(func, "socket", NULL, 0, "Socket", "Socket name");
 	RNA_def_function_output(func, parm);
+	
+	func = RNA_def_function(srna, "get_id_key", "rna_BVMNodeGraph_get_id_key");
+	RNA_def_function_flag(func, FUNC_NO_SELF);
+	RNA_def_function_ui_description(func, "Get a key value to look up the object during evaluation");
+	parm = RNA_def_pointer(func, "id_data", "ID", "ID", "ID datablock");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	parm = RNA_def_int(func, "key", 0, INT_MIN, INT_MAX, "Key", "Key value for this datablock", INT_MIN, INT_MAX);
+	RNA_def_function_return(func, parm);
 }
 
 void RNA_def_blenvm(BlenderRNA *brna)

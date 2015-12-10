@@ -33,7 +33,9 @@
 
 extern "C" {
 #include "BLI_math.h"
+#include "BLI_ghash.h"
 
+#include "DNA_ID.h"
 #include "DNA_object_types.h"
 
 #include "BKE_bvhutils.h"
@@ -44,11 +46,44 @@ extern "C" {
 
 #include "bvm_eval.h"
 #include "bvm_eval_common.h"
+#include "bvm_eval_curve.h"
 #include "bvm_eval_math.h"
 #include "bvm_eval_mesh.h"
 #include "bvm_eval_texture.h"
 
+#include "bvm_util_hash.h"
+
 namespace bvm {
+
+int EvalGlobals::get_id_key(ID *id)
+{
+	int hash = BLI_ghashutil_strhash(id->name);
+	if (id->lib) {
+		hash = hash_combine(hash, BLI_ghashutil_strhash(id->lib->name));
+	}
+	return hash;
+}
+
+void EvalGlobals::add_object(Object *ob)
+{
+	int key = get_id_key((ID *)ob);
+	m_objects[key] = ob;
+}
+
+PointerRNA EvalGlobals::lookup_object(int key) const
+{
+	ObjectMap::const_iterator it = m_objects.find(key);
+	if (it != m_objects.end()) {
+		PointerRNA ptr;
+		RNA_id_pointer_create((ID *)it->second, &ptr);
+		return ptr;
+	}
+	else {
+		return PointerRNA_NULL;
+	}
+}
+
+/* ------------------------------------------------------------------------- */
 
 EvalContext::EvalContext()
 {
@@ -170,11 +205,22 @@ static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, Sta
 	stack_store_float4(stack, offset_r, a);
 }
 
+static void eval_op_object_lookup(const EvalGlobals *globals, float *stack, int key, StackIndex offset_object)
+{
+	PointerRNA ptr = globals->lookup_object(key);
+	stack_store_pointer(stack, offset_object, ptr);
+}
+
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
 {
-	Object *ob = globals->objects[object_index];
-	matrix44 m = matrix44::from_data(&ob->obmat[0][0], matrix44::COL_MAJOR);
-	stack_store_matrix44(stack, offset_tfm, m);
+	// TODO the way objects are stored in globals has changed a lot, this needs updating
+	(void)globals;
+	(void)stack;
+	(void)object_index;
+	(void)offset_tfm;
+//	Object *ob = globals->objects[object_index];
+//	matrix44 m = matrix44::from_data(&ob->obmat[0][0], matrix44::COL_MAJOR);
+//	stack_store_matrix44(stack, offset_tfm, m);
 }
 
 static void eval_op_effector_closest_point(float *stack, StackIndex offset_object, StackIndex offset_vector,
@@ -721,6 +767,13 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				break;
 			}
 			
+			case OB_OBJECT_LOOKUP: {
+				int key = fn->read_int(&instr);
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				eval_op_object_lookup(globals, stack, key, offset_object);
+				break;
+			}
+			
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = fn->read_int(&instr);
 				StackIndex offset_tfm = fn->read_stack_index(&instr);
@@ -774,6 +827,22 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                      offset_elem_index, offset_elem_loc);
 				break;
 			}
+			
+			case OP_CURVE_PATH: {
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_param = fn->read_stack_index(&instr);
+				StackIndex offset_loc = fn->read_stack_index(&instr);
+				StackIndex offset_dir = fn->read_stack_index(&instr);
+				StackIndex offset_nor = fn->read_stack_index(&instr);
+				StackIndex offset_rot = fn->read_stack_index(&instr);
+				StackIndex offset_radius = fn->read_stack_index(&instr);
+				StackIndex offset_weight = fn->read_stack_index(&instr);
+				eval_op_curve_path(stack, offset_object, offset_param,
+				                   offset_loc, offset_dir, offset_nor,
+				                   offset_rot, offset_radius, offset_weight);
+				break;
+			}
+			
 			case OP_END:
 				return;
 			default:

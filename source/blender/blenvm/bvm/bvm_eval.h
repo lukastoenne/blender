@@ -40,6 +40,7 @@
 #include "bvm_util_string.h"
 #include "bvm_util_typedesc.h"
 
+struct ID;
 struct Object;
 
 namespace bvm {
@@ -49,9 +50,15 @@ struct Function;
 #define BVM_STACK_SIZE 4095
 
 struct EvalGlobals {
-	typedef std::vector<Object *> ObjectList;
+	typedef unordered_map<int, Object *> ObjectMap;
 	
-	ObjectList objects;
+	static int get_id_key(ID *id);
+	
+	void add_object(Object *ob);
+	PointerRNA lookup_object(int key) const;
+	
+private:
+	ObjectMap m_objects;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };

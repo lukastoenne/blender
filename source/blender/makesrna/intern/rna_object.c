@@ -2524,7 +2524,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for object components");
-	RNA_def_property_update(prop, 0, "rna_Object_internal_update_data");
+	RNA_def_property_update(prop, 0, "rna_Object_dependency_update");
 
 	/* game engine */
 	prop = RNA_def_property(srna, "game", PROP_POINTER, PROP_NONE);
