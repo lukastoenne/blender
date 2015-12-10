@@ -41,11 +41,17 @@ VolumeManager::VolumeManager()
 VolumeManager::~VolumeManager()
 {
 #ifdef WITH_OPENVDB
+	for(size_t i = 0; i < float_volumes.size(); ++i) {
+		delete float_volumes[i];
+	}
+
+	for(size_t i = 0; i < float3_volumes.size(); ++i) {
+		delete float3_volumes[i];
+	}
+
 	scalar_grids.clear();
 	vector_grids.clear();
 	current_grids.clear();
-	float_volumes.clear();
-	float3_volumes.clear();
 #endif
 }
 
