@@ -48,26 +48,6 @@ struct Function;
 
 #define BVM_STACK_SIZE 4095
 
-#if 0
-struct EvalResult {
-	typedef unordered_map<string, Value> ValueMap;
-	
-	template <typename T>
-	bool get(const string &name, T data) const
-	{
-		ValueMap::const_iterator it = m_values.find(name);
-		if (it == m_values.end())
-			return false;
-		
-		const Value *value = it->second;
-		return value->get<T>(data);
-	}
-	
-private:
-	ValueMap m_values;
-};
-#endif
-
 struct EvalGlobals {
 	typedef std::vector<Object *> ObjectList;
 	
