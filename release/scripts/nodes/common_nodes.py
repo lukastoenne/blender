@@ -42,8 +42,8 @@ def enum_property_value_prop(name):
 ###############################################################################
 
 class NodeTreeBase():
-    def bvm_compile(self, context, graph):
-        compiler = NodeCompiler(context, graph)
+    def bvm_compile(self, graph):
+        compiler = NodeCompiler(graph)
         self.compile_nodes(compiler)
 
     def compile_nodes(self, compiler):

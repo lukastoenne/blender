@@ -237,47 +237,11 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
-struct CompileContext {
-	typedef std::map<struct Object *, int> ObjectPtrMap;
-	
-	ObjectPtrMap obmap;
-	
-	CompileContext(const bvm::EvalGlobals *globals)
-	{
-		for (int i = 0; i < globals->objects.size(); ++i)
-			obmap[globals->objects[i]] = i;
-	}
-	
-	int get_object_index(Object *ob)
-	{
-		ObjectPtrMap::const_iterator it = obmap.find(ob);
-		if (it != obmap.end())
-			return it->second;
-		else
-			return -1;
-	}
-
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:CompileContext")
-};
-
-inline static CompileContext *_COMP(BVMCompileContext *c)
-{
-	return (CompileContext *)c;
-}
-
-int BVM_compile_get_object_index(BVMCompileContext *context, Object *ob)
-{
-	return _COMP(context)->get_object_index(ob);
-}
-
-/* ------------------------------------------------------------------------- */
-
-static void parse_py_nodes(CompileContext *_context, bNodeTree *btree, bvm::NodeGraph *graph)
+static void parse_py_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 {
 	PointerRNA ptr;
 	ParameterList list;
 	FunctionRNA *func;
-	BVMCompileContext *context = (BVMCompileContext *)_context;
 	
 	RNA_id_pointer_create((ID *)btree, &ptr);
 	
@@ -286,14 +250,13 @@ static void parse_py_nodes(CompileContext *_context, bNodeTree *btree, bvm::Node
 		return;
 	
 	RNA_parameter_list_create(&list, &ptr, func);
-	RNA_parameter_set_lookup(&list, "context", &context);
 	RNA_parameter_set_lookup(&list, "graph", &graph);
 	btree->typeinfo->ext.call(NULL, &ptr, func, &list);
 	
 	RNA_parameter_list_free(&list);
 }
 
-struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *globals, bNodeTree *btree)
+struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
 	
@@ -308,9 +271,12 @@ struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *glo
 		graph.add_output("impulse", BVM_FLOAT3, zero);
 	}
 	
-	CompileContext comp(_GLOBALS(globals));
-	parse_py_nodes(&comp, btree, &graph);
+	parse_py_nodes(btree, &graph);
 	graph.finalize();
+	
+	if (debug_file) {
+		debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
+	}
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
@@ -776,7 +742,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 
 } /* namespace bvm */
 
-static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm::NodeGraph *graph)
+static void parse_tex_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 {
 	using namespace bvm;
 	
@@ -803,8 +769,7 @@ static void parse_tex_nodes(CompileContext */*_context*/, bNodeTree *btree, bvm:
 }
 
 
-struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *globals, struct Tex */*tex*/,
-                                                 bNodeTree *btree, FILE *debug_file)
+struct BVMFunction *BVM_gen_texture_function(struct Tex */*tex*/, bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
 	
@@ -821,8 +786,7 @@ struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *global
 		graph.add_output("color", BVM_FLOAT4, C);
 		graph.add_output("normal", BVM_FLOAT3, N);
 	}
-	CompileContext comp(_GLOBALS(globals));
-	parse_tex_nodes(&comp, btree, &graph);
+	parse_tex_nodes(btree, &graph);
 	graph.finalize();
 	
 	if (debug_file) {
@@ -885,9 +849,7 @@ struct BVMFunction *BVM_texture_cache_acquire(Tex *tex)
 		return (BVMFunction *)it->second;
 	}
 	else if (tex->use_nodes && tex->nodetree) {
-		EvalGlobals globals;
-		
-		BVMFunction *fn = BVM_gen_texture_function((BVMEvalGlobals *)(&globals), tex, tex->nodetree, NULL);
+		BVMFunction *fn = BVM_gen_texture_function(tex, tex->nodetree, NULL);
 		
 		bvm_tex_cache[tex] = _FUNC(fn);
 		
@@ -929,9 +891,7 @@ void BVM_texture_cache_clear(void)
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globals,
-                                              struct Object *ob, struct bNodeTree *btree,
-                                              FILE *debug_file)
+struct BVMFunction *BVM_gen_modifier_function(struct Object */*ob*/, struct bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
 	
@@ -942,8 +902,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	graph.add_input("modifier.base_mesh", BVM_POINTER);
 	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
 	
-	CompileContext comp(_GLOBALS(globals));
-	parse_py_nodes(&comp, btree, &graph);
+	parse_py_nodes(btree, &graph);
 	graph.finalize();
 	
 	if (debug_file) {
@@ -956,11 +915,9 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	return (BVMFunction *)fn;
 }
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunction *fn, struct Mesh *base_mesh)
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn, struct Mesh *base_mesh)
 {
 	using namespace bvm;
-	
-	EvalGlobals globals;
 
 	PointerRNA base_mesh_ptr;
 	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
@@ -971,7 +928,7 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *ctx, struct BVMFunc
 	const void *args[] = { &iteration, &elem_index, &elem_loc, &base_mesh_ptr };
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_function(&globals, _FUNC(fn), args, results);
+	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 	
 	return result.get();
 }

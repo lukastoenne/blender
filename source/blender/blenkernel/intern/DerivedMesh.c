@@ -1708,19 +1708,17 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	Mesh *me = ob->data;
 	DerivedMesh *dm, *result;
 	
-	struct BVMEvalGlobals *globals = BVM_globals_create();
-	
-	struct BVMFunction *fn = BVM_gen_modifier_function(globals, ob, ntree, NULL);
+	struct BVMFunction *fn = BVM_gen_modifier_function(ob, ntree, NULL);
 	
 	{
+		struct BVMEvalGlobals *globals = BVM_globals_create();
 		struct BVMEvalContext *context = BVM_context_create();
-		dm = BVM_eval_modifier(context, fn, me);
+		dm = BVM_eval_modifier(globals, context, fn, me);
 		BVM_context_free(context);
+		BVM_globals_free(globals);
 	}
 	
 	BVM_function_free(fn);
-	
-	BVM_globals_free(globals);
 	
 	/* XXX this is stupid, but currently required because of
 	 * the unreliability of dm->needsFree ...

@@ -90,14 +90,11 @@ static void rna_Texture_debug_nodes_graphviz(struct Tex *tex, const char *filena
 		return;
 	
 	if (tex->nodetree && tex->use_nodes) {
-		struct BVMEvalGlobals *globals;
 		struct BVMFunction *fn;
 		
-		globals = BVM_globals_create();
-		fn = BVM_gen_texture_function(globals, tex, tex->nodetree, f);
+		fn = BVM_gen_texture_function(tex, tex->nodetree, f);
 		
 		BVM_function_free(fn);
-		BVM_globals_free(globals);
 	}
 	
 	fclose(f);

@@ -8179,8 +8179,6 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	func = RNA_def_function(srna, "bvm_compile", NULL);
 	RNA_def_function_ui_description(func, "Convert node settings to blenvm instructions");
 	RNA_def_function_flag(func, FUNC_REGISTER);
-	parm = RNA_def_pointer(func, "context", "BVMCompileContext", "Context", "");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	parm = RNA_def_pointer(func, "graph", "BVMNodeGraph", "Graph", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 }

@@ -79,8 +79,7 @@ class NodeWrapper:
 
 # Compiler class for converting nodes
 class NodeCompiler:
-    def __init__(self, context, graph):
-        self.context = context
+    def __init__(self, graph):
         self.graph = graph
         self.bnode_stack = []
 

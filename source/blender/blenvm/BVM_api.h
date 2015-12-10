@@ -52,14 +52,11 @@ void BVM_function_free(struct BVMFunction *fn);
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMCompileContext;
 struct BVMNodeGraph;
 struct BVMNodeInstance;
 struct BVMNodeInput;
 struct BVMNodeOutput;
 struct BVMTypeDesc;
-
-int BVM_compile_get_object_index(struct BVMCompileContext *context, struct Object *ob);
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
 
@@ -112,7 +109,7 @@ struct bNodeTree;
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunction *BVM_gen_forcefield_function(const struct BVMEvalGlobals *globals, struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_forcefield_function(struct bNodeTree *btree, FILE *debug_file);
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
                          struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
@@ -122,8 +119,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *globals, struct Tex *tex,
-                                                 struct bNodeTree *btree, FILE *debug_file);
+struct BVMFunction *BVM_gen_texture_function(struct Tex *tex, struct bNodeTree *btree, FILE *debug_file);
 
 void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
@@ -140,11 +136,9 @@ void BVM_texture_cache_clear(void);
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globals,
-                                              struct Object *ob, struct bNodeTree *btree,
-                                              FILE *debug_file);
+struct BVMFunction *BVM_gen_modifier_function(struct Object *ob, struct bNodeTree *btree, FILE *debug_file);
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalContext *context, struct BVMFunction *fn, struct Mesh *base_mesh);
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn, struct Mesh *base_mesh);
 
 /* ------------------------------------------------------------------------- */
 

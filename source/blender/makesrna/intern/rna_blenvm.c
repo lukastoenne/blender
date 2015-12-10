@@ -44,11 +44,6 @@
 
 #include "WM_api.h"
 
-static int rna_BVMCompileContext_get_object_index(struct BVMCompileContext *context, struct Object *ob)
-{
-	return BVM_compile_get_object_index(context, ob);
-}
-
 static struct BVMNodeInstance *rna_BVMNodeGraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name)
 {
 	return BVM_nodegraph_add_node(graph, type, name);
@@ -274,23 +269,6 @@ static int rna_BVMTypeDesc_base_type_get(PointerRNA *ptr)
 
 #else
 
-static void rna_def_bvm_compile_context(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	FunctionRNA *func;
-	PropertyRNA *parm;
-	
-	srna = RNA_def_struct(brna, "BVMCompileContext", NULL);
-	RNA_def_struct_ui_text(srna, "Compile Context", "Context information for compiling a node tree");
-	
-	func = RNA_def_function(srna, "get_object_index", "rna_BVMCompileContext_get_object_index");
-	RNA_def_function_ui_description(func, "Get the index for an object to use in compiled code");
-	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
-	RNA_def_property_flag(parm, PROP_NEVER_NULL);
-	parm = RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index used for the object in compiled code", -1, INT_MAX);
-	RNA_def_function_return(func, parm);
-}
-
 static void rna_def_bvm_typedesc(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -489,7 +467,6 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 
 void RNA_def_blenvm(BlenderRNA *brna)
 {
-	rna_def_bvm_compile_context(brna);
 	rna_def_bvm_typedesc(brna);
 	rna_def_bvm_node_input(brna);
 	rna_def_bvm_node_output(brna);

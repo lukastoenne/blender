@@ -489,15 +489,10 @@ static void rna_Object_debug_nodes_graphviz(struct Object *ob, const char *filen
 		}
 		
 		if (geotree) {
-			struct BVMEvalGlobals *globals;
 			struct BVMFunction *fn;
 			
-			globals = BVM_globals_create();
-			
-			fn = BVM_gen_modifier_function(globals, ob, geotree, f);
+			fn = BVM_gen_modifier_function(ob, geotree, f);
 			BVM_function_free(fn);
-			
-			BVM_globals_free(globals);
 		}
 	}
 	
