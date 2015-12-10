@@ -1068,8 +1068,6 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_FLOAT4);
 	NODETYPE(VALUE_INT);
 	NODETYPE(VALUE_MATRIX44);
-	NODETYPE(VALUE_POINTER);
-	NODETYPE(VALUE_MESH);
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
@@ -1235,14 +1233,6 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("VALUE_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
 	nt->add_output("value", BVM_MATRIX44);
-	
-	nt = NodeGraph::add_function_node_type("VALUE_POINTER");
-	nt->add_input("value", BVM_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
-	nt->add_output("value", BVM_POINTER);
-	
-	nt = NodeGraph::add_function_node_type("VALUE_MESH");
-	nt->add_input("value", BVM_MESH, __empty_mesh__, INPUT_CONSTANT);
-	nt->add_output("value", BVM_MESH);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);

@@ -85,9 +85,12 @@ static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offs
 	stack_store_matrix44(stack, offset, value);
 }
 
-static void eval_op_value_pointer(float *stack, PointerRNA value, StackIndex offset)
+/* Note: pointer data is not explicitly stored on the stack,
+ * this function always creates simply a NULL pointer.
+ */
+static void eval_op_value_pointer(float *stack, StackIndex offset)
 {
-	stack_store_pointer(stack, offset, value);
+	stack_store_pointer(stack, offset, PointerRNA_NULL);
 }
 
 /* Note: mesh data is not explicitly stored on the stack,
@@ -258,9 +261,8 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				break;
 			}
 			case OP_VALUE_POINTER: {
-				PointerRNA value = fn->read_pointer(&instr);
 				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_value_pointer(stack, value, offset);
+				eval_op_value_pointer(stack, offset);
 				break;
 			}
 			case OP_VALUE_MESH: {

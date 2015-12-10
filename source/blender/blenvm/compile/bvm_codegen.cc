@@ -284,16 +284,6 @@ void BVMCompiler::push_matrix44(matrix44 m) const
 	fn->add_instruction(float_to_instruction(m.data[3][3]));
 }
 
-void BVMCompiler::push_pointer(PointerRNA p) const
-{
-	fn->add_instruction(pointer_to_instruction_hi(p.id.data));
-	fn->add_instruction(pointer_to_instruction_lo(p.id.data));
-	fn->add_instruction(pointer_to_instruction_hi(p.type));
-	fn->add_instruction(pointer_to_instruction_lo(p.type));
-	fn->add_instruction(pointer_to_instruction_hi(p.data));
-	fn->add_instruction(pointer_to_instruction_lo(p.data));
-}
-
 void BVMCompiler::push_constant(const Value *value) const
 {
 	switch (value->typedesc().base_type) {
@@ -333,14 +323,12 @@ void BVMCompiler::push_constant(const Value *value) const
 			break;
 		}
 		case BVM_POINTER: {
-			PointerRNA p = PointerRNA_NULL;
-			value->get(&p);
-			
-			push_pointer(p);
+			BLI_assert(!"POINTER type can not be stored as a constant!");
 			break;
 		}
 		
 		case BVM_MESH:
+			BLI_assert(!"MESH type can not be stored as a constant!");
 			break;
 	}
 }
@@ -394,11 +382,7 @@ void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
 			break;
 		}
 		case BVM_POINTER: {
-			PointerRNA p = PointerRNA_NULL;
-			value->get(&p);
-			
 			push_opcode(OP_VALUE_POINTER);
-			push_pointer(p);
 			push_stack_index(offset);
 			break;
 		}

@@ -61,20 +61,6 @@ static inline Instruction int_to_instruction(int v)
 	return u.i;
 }
 
-static inline Instruction pointer_to_instruction_lo(void *v)
-{
-	union { uint32_t i[2]; void *v; } u;
-	u.v = v;
-	return u.i[1];
-}
-
-static inline Instruction pointer_to_instruction_hi(void *v)
-{
-	union { uint32_t i[2]; void *v; } u;
-	u.v = v;
-	return u.i[0];
-}
-
 static inline float instruction_to_float(Instruction i)
 {
 	union { uint32_t i; float f; } u;
@@ -86,14 +72,6 @@ static inline int instruction_to_int(Instruction i)
 {
 	union { uint32_t i; int v; } u;
 	u.i = i;
-	return u.v;
-}
-
-static inline void *instruction_to_pointer(Instruction hi, Instruction lo)
-{
-	union { uint32_t i[2]; void *v; } u;
-	u.i[0] = hi;
-	u.i[1] = lo;
 	return u.v;
 }
 
@@ -195,18 +173,6 @@ struct Function {
 		m.data[3][3] = instruction_to_float(m_instructions[*instr + 15]);
 		(*instr) += 16;
 		return m;
-	}
-	
-	PointerRNA read_pointer(int *instr) const
-	{
-		ID *id = (ID *)instruction_to_pointer(m_instructions[*instr + 0], m_instructions[*instr + 1]);
-		StructRNA *type = (StructRNA *)instruction_to_pointer(m_instructions[*instr + 2], m_instructions[*instr + 3]);
-		void *data = instruction_to_pointer(m_instructions[*instr + 4], m_instructions[*instr + 5]);
-		(*instr) += 6;
-		
-		PointerRNA ptr;
-		RNA_pointer_create(id, type, data, &ptr);
-		return ptr;
 	}
 	
 	void add_instruction(Instruction v);
