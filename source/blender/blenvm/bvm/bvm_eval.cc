@@ -664,7 +664,24 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_mix_rgb(stack, mode, offset_col_a, offset_col_b, offset_fac, offset_r);
 				break;
 			}
-				
+			
+			case OP_INT_TO_RANDOM: {
+				int seed = fn->read_int(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_irandom = fn->read_stack_index(&instr);
+				StackIndex offset_frandom = fn->read_stack_index(&instr);
+				eval_op_int_to_random(stack, (uint64_t)seed, offset, offset_irandom, offset_frandom);
+				break;
+			}
+			case OP_FLOAT_TO_RANDOM: {
+				int seed = fn->read_int(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_irandom = fn->read_stack_index(&instr);
+				StackIndex offset_frandom = fn->read_stack_index(&instr);
+				eval_op_float_to_random(stack, (uint64_t)seed, offset, offset_irandom, offset_frandom);
+				break;
+			}
+			
 			case OP_TEX_PROC_VORONOI: {
 				int distance_metric = fn->read_int(&instr);
 				int color_type = fn->read_int(&instr);

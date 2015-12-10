@@ -1134,6 +1134,9 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(MIX_RGB);
 	
+	NODETYPE(INT_TO_RANDOM);
+	NODETYPE(FLOAT_TO_RANDOM);
+	
 	NODETYPE(TEX_PROC_VORONOI);
 	NODETYPE(TEX_PROC_CLOUDS);
 	
@@ -1355,6 +1358,18 @@ static void register_opcode_node_types()
 	nt->add_input("color1", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_input("color2", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
 	nt->add_output("color", BVM_FLOAT4);
+	
+	nt = NodeGraph::add_function_node_type("INT_TO_RANDOM");
+	nt->add_input("seed", BVM_INT, 0, INPUT_CONSTANT);
+	nt->add_input("value", BVM_INT, 0);
+	nt->add_output("irandom", BVM_INT);
+	nt->add_output("frandom", BVM_FLOAT);
+	
+	nt = NodeGraph::add_function_node_type("FLOAT_TO_RANDOM");
+	nt->add_input("seed", BVM_INT, 0, INPUT_CONSTANT);
+	nt->add_input("value", BVM_FLOAT, 0);
+	nt->add_output("irandom", BVM_INT);
+	nt->add_output("frandom", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_VORONOI");
 	nt->add_input("distance_metric", BVM_INT, 0, INPUT_CONSTANT);

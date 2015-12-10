@@ -268,6 +268,7 @@ def register():
             NodeItem("ObjectGetEulerNode"),
             NodeItem("ObjectGetAxisAngleNode"),
             NodeItem("ObjectGetScaleNode"),
+            NodeItem("ObjectRandomNode"),
             ]),
         GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),

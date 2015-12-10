@@ -34,10 +34,12 @@
 
 extern "C" {
 #include "BLI_math.h"
+#include "BLI_rand.h"
 }
 
 #include "bvm_eval_common.h"
 
+#include "bvm_util_hash.h"
 #include "bvm_util_math.h"
 
 namespace bvm {
@@ -416,6 +418,28 @@ static void eval_op_mul_matrix44_float4(float *stack, StackIndex offset_a, Stack
 	float4 r;
 	mul_v4_m4v4(r.data(), a.data, b.data());
 	stack_store_float4(stack, offset_r, r);
+}
+
+static void eval_op_int_to_random(float *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
+{
+	union { uint32_t u; int x; } c;
+	c.x = stack_load_int(stack, offset);
+	
+	uint32_t r = BLI_hash_rand(hash_combine(c.u, seed));
+	
+	stack_store_int(stack, offset_irandom, (int)r);
+	stack_store_float(stack, offset_frandom, (float)r / (0xFFFFFFFF));
+}
+
+static void eval_op_float_to_random(float *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
+{
+	union { uint32_t u; float x; } c;
+	c.x = stack_load_float(stack, offset);
+	
+	uint32_t r = BLI_hash_rand(hash_combine(c.u, seed));
+	
+	stack_store_int(stack, offset_irandom, (int)r);
+	stack_store_float(stack, offset_frandom, (float)r / (0xFFFFFFFF));
 }
 
 } /* namespace bvm */

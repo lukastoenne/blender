@@ -439,6 +439,52 @@ class GetScaleNode(CommonNodeBase, ObjectNode):
         compiler.map_output(0, node.outputs[0])
 
 
+class RandomNode(CommonNodeBase, ObjectNode):
+    '''Produce random values'''
+    bl_idname = 'ObjectRandomNode'
+    bl_label = 'Random'
+
+    def _enable_input(self, index):
+        for i, s in enumerate(self.inputs):
+            s.enabled = (i == index)
+
+    seed = IntProperty(name="Seed", default=0, subtype='UNSIGNED')
+
+    _mode_items = [
+        ('INT', 'Integer', 'Use integer input', 0, 0),
+        ('FLOAT', 'Float', 'Use floating point input', 0, 1),
+        ]
+    def _mode_update(self, context):
+        if self.mode == 'INT':
+            self._enable_input(0)
+        elif self.mode == 'FLOAT':
+            self._enable_input(1)
+    mode = EnumProperty(name="Mode", description="Type of input value", items=_mode_items,
+                        default='INT', update=_mode_update)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
+        layout.prop(self, "seed")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketInt', "Value")
+        self.inputs.new('NodeSocketFloat', "Value")
+        self.outputs.new('NodeSocketInt', "Random")
+        self.outputs.new('NodeSocketFloat', "Random")
+        self._enable_input(0)
+
+    def compile(self, compiler):
+        if self.mode == 'INT':
+            node = compiler.add_node("INT_TO_RANDOM")
+            compiler.map_input(0, node.inputs[1])
+        elif self.mode == 'FLOAT':
+            node = compiler.add_node("FLOAT_TO_RANDOM")
+            compiler.map_input(1, node.inputs[1])
+        node.inputs[0].set_value(self.seed)
+        compiler.map_output(0, node.outputs[0])
+        compiler.map_output(1, node.outputs[1])
+
+
 class TextureCloudsNode(CommonNodeBase, ObjectNode):
     '''Clouds texture'''
     bl_idname = 'ObjectTextureCloudsNode'
@@ -509,7 +555,7 @@ class TextureVoronoiNode(CommonNodeBase, ObjectNode):
         compiler.map_input(0, node_scale.inputs[0])
         compiler.map_input(1, node_scale.inputs[1])
         compiler.link(node_scale.outputs[0], node.inputs["position"])
-        
+
         compiler.map_input(2, node.inputs["minkowski_exponent"])
         compiler.map_input(3, node.inputs["w1"])
         compiler.map_input(4, node.inputs["w2"])

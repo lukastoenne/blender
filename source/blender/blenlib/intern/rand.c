@@ -245,6 +245,14 @@ void BLI_frand_unit_v3(float v[3])
 	BLI_rng_get_float_unit_v3(&theBLI_rng, v);
 }
 
+int BLI_hash_rand(unsigned int seed)
+{
+	RNG rng;
+
+	BLI_rng_srandom(&rng, seed);
+	return BLI_rng_get_int(&rng);
+}
+
 float BLI_hash_frand(unsigned int seed)
 {
 	RNG rng;
