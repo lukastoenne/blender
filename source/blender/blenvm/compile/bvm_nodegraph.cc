@@ -1216,31 +1216,31 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", BVM_MESH);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT");
+	nt = NodeGraph::add_function_node_type("VALUE_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f, INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT3");
+	nt = NodeGraph::add_function_node_type("VALUE_FLOAT3");
 	nt->add_input("value", BVM_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT3);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_FLOAT4");
+	nt = NodeGraph::add_function_node_type("VALUE_FLOAT4");
 	nt->add_input("value", BVM_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
 	nt->add_output("value", BVM_FLOAT4);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_INT");
+	nt = NodeGraph::add_function_node_type("VALUE_INT");
 	nt->add_input("value", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("value", BVM_INT);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_MATRIX44");
+	nt = NodeGraph::add_function_node_type("VALUE_MATRIX44");
 	nt->add_input("value", BVM_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
 	nt->add_output("value", BVM_MATRIX44);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_POINTER");
+	nt = NodeGraph::add_function_node_type("VALUE_POINTER");
 	nt->add_input("value", BVM_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
 	nt->add_output("value", BVM_POINTER);
 	
-	nt = NodeGraph::add_pass_node_type("VALUE_MESH");
+	nt = NodeGraph::add_function_node_type("VALUE_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__, INPUT_CONSTANT);
 	nt->add_output("value", BVM_MESH);
 	
