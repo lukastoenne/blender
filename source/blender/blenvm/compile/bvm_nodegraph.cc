@@ -813,6 +813,11 @@ void NodeGraph::dump(std::ostream &s)
 static const char *debug_graphviz_fontname = "helvetica";
 static float debug_graphviz_graph_label_size = 20.0f;
 static float debug_graphviz_node_label_size = 14.0f;
+static const char *debug_graphviz_node_color_function = "gainsboro";
+static const char *debug_graphviz_node_color_kernel = "lightsalmon1";
+static const char *debug_graphviz_node_color_pass = "gray96";
+static const char *debug_graphviz_node_color_argument = "steelblue";
+static const char *debug_graphviz_node_color_return_value = "orange";
 
 struct DebugContext {
 	FILE *file;
@@ -850,7 +855,10 @@ static void debug_graphviz_node(const DebugContext &ctx, const NodeInstance *nod
 	const char *shape = "box";
 	const char *style = "filled,rounded";
 	const char *color = "black";
-	const char *fillcolor = "gainsboro";
+	const char *fillcolor =
+	        (node->type->is_pass_node()) ? debug_graphviz_node_color_pass :
+	        (node->type->is_kernel_node()) ? debug_graphviz_node_color_kernel :
+	        debug_graphviz_node_color_function;
 	float penwidth = 1.0f;
 	string name = node->type->name();
 	
@@ -909,7 +917,9 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 		const char *shape = "box";
 		const char *style = "filled,rounded";
 		const char *color = "black";
-		const char *fillcolor = input ? "steelblue" : "orange";
+		const char *fillcolor = input ?
+		                            debug_graphviz_node_color_argument :
+		                            debug_graphviz_node_color_return_value;
 		float penwidth = 1.0f;
 		
 		debug_fprintf(ctx, "// %s\n", name.c_str());
@@ -979,9 +989,10 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 	}
 }
 
-static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstance *node)
+static void debug_graphviz_node_links(const DebugContext &ctx, const NodeGraph *graph, const NodeInstance *node)
 {
 	float penwidth = 2.0f;
+	const char *localarg_color = "gray50";
 	
 	for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
 		const NodeInstance::InputInstance &input = it->second;
@@ -1009,6 +1020,43 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeInstanc
 			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
 			debug_fprintf(ctx, "];" NL);
 			debug_fprintf(ctx, NL);
+		}
+	}
+
+	/* local argument outputs */
+	for (int i = 0; i < node->num_outputs(); ++i) {
+		ConstSocketPair key = node->output(i);
+		const NodeOutput *output = node->type->find_output(i);
+		
+		if (output->value_type == OUTPUT_LOCAL) {
+			const NodeGraph::Input *graph_input = graph->get_input(output->name);
+			
+			assert(graph_input);
+			if (graph_input->key.node) {
+				const NodeInstance *tail = key.node;
+				const string &tail_socket = key.socket;
+				int tail_index = debug_output_index(tail, tail_socket);
+				const NodeGraph::Input *head = graph_input;
+				debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
+				debug_fprintf(ctx, " -> ");
+				debug_fprintf(ctx, "\"input_%p\"", head);
+				
+				debug_fprintf(ctx, "[");
+				/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+				debug_fprintf(ctx, "id=\"A%sB%s:O%s_%d\"",
+				              head->name.c_str(),
+				              tail->name.c_str(), tail_socket.c_str(), tail_index);
+				
+				debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+				/* this lets us link back to argument nodes
+				 * without disturbing other nodes' placement
+				 */
+				debug_fprintf(ctx, ",constraint=false");
+				debug_fprintf(ctx, ",style=dashed");
+				debug_fprintf(ctx, ",color=%s", localarg_color);
+				debug_fprintf(ctx, "];" NL);
+				debug_fprintf(ctx, NL);
+			}
 		}
 	}
 }
@@ -1044,7 +1092,7 @@ void NodeGraph::dump_graphviz(FILE *f, const string &label)
 	
 	for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance *node = it->second;
-		debug_graphviz_node_links(ctx, node);
+		debug_graphviz_node_links(ctx, this, node);
 	}
 
 //	deg_debug_graphviz_legend(ctx);
