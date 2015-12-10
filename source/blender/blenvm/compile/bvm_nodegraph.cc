@@ -937,18 +937,17 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 			const NodeGraph::Input *tail = input;
 			const NodeInstance *head = key.node;
 			const string &head_socket = key.socket;
-			int head_index = debug_input_index(head, head_socket);
 			debug_fprintf(ctx, "// %s:%s -> %s\n",
 			              tail->name.c_str(),
 			              head->name.c_str(), head_socket.c_str());
 			debug_fprintf(ctx, "\"input_%p\"", tail);
 			debug_fprintf(ctx, " -> ");
-			debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", head, head_socket.c_str(), head_index);
+			debug_fprintf(ctx, "\"node_%p\"", head);
 			
 			debug_fprintf(ctx, "[");
 			/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-			debug_fprintf(ctx, "id=\"A%s:O%s_%dB%s\"",
-			              head->name.c_str(), head_socket.c_str(), head_index,
+			debug_fprintf(ctx, "id=\"A%sB%s\"",
+			              head->name.c_str(),
 			              tail->name.c_str());
 			
 			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
