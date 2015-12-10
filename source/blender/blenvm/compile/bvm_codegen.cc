@@ -323,12 +323,12 @@ void BVMCompiler::push_constant(const Value *value) const
 			break;
 		}
 		case BVM_POINTER: {
-			BLI_assert(!"POINTER type can not be stored as a constant!");
+			/* POINTER type can not be stored as a constant */
 			break;
 		}
 		
 		case BVM_MESH:
-			BLI_assert(!"MESH type can not be stored as a constant!");
+			/* MESH type can not be stored as a constant */
 			break;
 	}
 }
