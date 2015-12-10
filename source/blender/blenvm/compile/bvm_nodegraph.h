@@ -328,9 +328,6 @@ struct NodeGraph {
 	
 	void finalize();
 	
-	void dump(std::ostream &stream = std::cout);
-	void dump_graphviz(FILE *f, const string &label);
-	
 protected:
 	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
 	

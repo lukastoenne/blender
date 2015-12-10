@@ -55,6 +55,7 @@ extern "C" {
 #include "bvm_function.h"
 #include "bvm_nodegraph.h"
 
+#include "bvm_util_debug.h"
 #include "bvm_util_map.h"
 #include "bvm_util_thread.h"
 
@@ -825,7 +826,7 @@ struct BVMFunction *BVM_gen_texture_function(const struct BVMEvalGlobals *global
 	graph.finalize();
 	
 	if (debug_file) {
-		graph.dump_graphviz(debug_file, "Texture Expression Graph");
+		debug::dump_graphviz(debug_file, &graph, "Texture Expression Graph");
 	}
 	
 	BVMCompiler compiler;
@@ -946,7 +947,7 @@ struct BVMFunction *BVM_gen_modifier_function(const struct BVMEvalGlobals *globa
 	graph.finalize();
 	
 	if (debug_file) {
-		graph.dump_graphviz(debug_file, "Modifier Schedule Graph");
+		debug::dump_graphviz(debug_file, &graph, "Modifier Schedule Graph");
 	}
 	
 	BVMCompiler compiler;
