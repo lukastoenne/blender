@@ -90,6 +90,81 @@ class CommonNodeBase(NodeBase):
     def poll(cls, ntree):
         return isinstance(ntree, NodeTreeBase)
 
+class ValueFloatNode(CommonNodeBase, ObjectNode):
+    '''Floating point number'''
+    bl_idname = 'ObjectValueFloatNode'
+    bl_label = 'Float'
+
+    value = FloatProperty(name="Value", default=0.0)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "value", text="")
+
+    def init(self, context):
+        self.outputs.new('NodeSocketFloat', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_proxy("FLOAT")
+        node.inputs[0].set_value(self.value)
+        compiler.map_output(0, node.outputs[0])
+
+class ValueIntNode(CommonNodeBase, ObjectNode):
+    '''Integer number'''
+    bl_idname = 'ObjectValueIntNode'
+    bl_label = 'Integer'
+
+    value = IntProperty(name="Value", default=0)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "value", text="")
+
+    def init(self, context):
+        self.outputs.new('NodeSocketInt', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_proxy("INT")
+        node.inputs[0].set_value(self.value)
+        compiler.map_output(0, node.outputs[0])
+
+class ValueVectorNode(CommonNodeBase, ObjectNode):
+    '''3D vector'''
+    bl_idname = 'ObjectValueVectorNode'
+    bl_label = 'Vector'
+
+    value = FloatVectorProperty(name="Value", size=3, default=(0.0, 0.0, 0.0))
+
+    def draw_buttons(self, context, layout):
+        col = layout.column(align=True)
+        col.prop(self, "value", text="")
+
+    def init(self, context):
+        self.outputs.new('NodeSocketVector', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_proxy("FLOAT3")
+        node.inputs[0].set_value(self.value)
+        compiler.map_output(0, node.outputs[0])
+
+class ValueColorNode(CommonNodeBase, ObjectNode):
+    '''RGBA color'''
+    bl_idname = 'ObjectValueColorNode'
+    bl_label = 'Color'
+
+    value = FloatVectorProperty(name="Value", size=4, subtype='COLOR',
+                                default=(0.0, 0.0, 0.0, 1.0), min=0.0, max=1.0)
+
+    def draw_buttons(self, context, layout):
+        layout.template_color_picker(self, "value", value_slider=True)
+
+    def init(self, context):
+        self.outputs.new('NodeSocketColor', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_proxy("FLOAT4")
+        node.inputs[0].set_value(self.value)
+        compiler.map_output(0, node.outputs[0])
+
+
 class IterationNode(CommonNodeBase, ObjectNode):
     '''Iteration number'''
     bl_idname = 'ObjectIterationNode'
@@ -100,6 +175,7 @@ class IterationNode(CommonNodeBase, ObjectNode):
 
     def compile(self, compiler):
         compiler.map_output(0, compiler.graph_input("iteration"))
+
 
 class MathNode(CommonNodeBase, ObjectNode):
     '''Math '''

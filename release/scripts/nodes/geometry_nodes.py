@@ -243,6 +243,10 @@ def register():
             NodeItem("GeometryMeshLoadNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("GeometryElementInfoNode"),
+            NodeItem("ObjectValueFloatNode"),
+            NodeItem("ObjectValueIntNode"),
+            NodeItem("ObjectValueVectorNode"),
+            NodeItem("ObjectValueColorNode"),
             ]),
         GeometryNodeCategory("GEO_OUTPUT", "Output", items=[
             NodeItem("GeometryOutputNode"),
