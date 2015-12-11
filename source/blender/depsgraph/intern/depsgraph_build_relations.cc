@@ -1835,8 +1835,6 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 				add_relation(group_parameters_key, parameters_key,
 				             DEPSREL_TYPE_COMPONENT_ORDER, "Group Node");
 			}
-			
-#if 0
 			/* XXX this is weak - include it in rna update! */
 			else if (GS(bnode->id->name) == ID_NT) {
 				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
@@ -1851,7 +1849,6 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 				add_relation(group_parameters_key, parameters_key,
 				             DEPSREL_TYPE_COMPONENT_ORDER, "Group Node");
 			}
-#endif
 		}
 	}
 
