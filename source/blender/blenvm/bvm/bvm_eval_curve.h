@@ -52,6 +52,9 @@ static void eval_op_curve_path(float *stack, StackIndex offset_object, StackInde
 	PointerRNA ptr = stack_load_pointer(stack, offset_object);
 	float t = stack_load_float(stack, offset_param);
 	
+	/* where_on_path is touchy about 0 > t > 1 */
+	CLAMP(t, 0.0f, 1.0f);
+	
 	float3 loc(0, 0, 0), dir(0, 0, 0), nor(0, 0, 0);
 	matrix44 rot = matrix44::identity();
 	float radius=0.0f, weight=0.0f, tilt=0.0f;
