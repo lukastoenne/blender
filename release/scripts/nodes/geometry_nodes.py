@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase, NodeBase
+from common_nodes import NodeTreeBase, NodeBase, enum_property_copy, enum_property_value_prop
 import group_nodes
 
 ###############################################################################
@@ -216,6 +216,68 @@ class GeometryMeshDisplaceNode(GeometryNodeBase, ObjectNode):
         compiler.map_input(1, node.inputs["vector"])
         compiler.map_output(0, node.outputs["mesh_out"])
 
+
+class GeometryBooleanNode(GeometryNodeBase, ObjectNode):
+    '''Boolean operation with another mesh'''
+    bl_idname = 'GeometryBooleanNode'
+    bl_label = 'Boolean'
+
+    bl_id_property_type = 'OBJECT'
+    def bl_id_property_poll(self, ob):
+        return ob.type == 'MESH'
+
+    operation = enum_property_copy(bpy.types.BooleanModifier, "operation")
+    operation_value = enum_property_value_prop("operation")
+
+    use_separate = BoolProperty(name="Separate",
+                                description="Keep edges separate",
+                                default=False)
+    use_dissolve = BoolProperty(name="Dissolve",
+                                description="Dissolve verts created from tessellated intersection",
+                                default=True)
+    use_connect_regions = BoolProperty(name="Calculate Holes",
+                                       description="Connect regions (needed for hole filling)",
+                                       default=True)
+    threshold = FloatProperty(name="Threshold",
+                              default=0.0,
+                              min=0.0,
+                              max=1.0)
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id")
+        layout.prop(self, "operation")
+        layout.prop(self, "use_separate")
+        layout.prop(self, "use_dissolve")
+        layout.prop(self, "use_connect_regions")
+        layout.prop(self, "threshold")
+
+    def relations_update(self, depsnode):
+        if self.id is not None:
+            depsnode.add_object_relation(self.id, 'TRANSFORM')
+            depsnode.add_object_relation(self.id, 'GEOMETRY')
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "")
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        if self.id is None:
+            return
+        
+        obkey = compiler.get_id_key(self.id)
+        obnode = compiler.add_node("OBJECT_LOOKUP")
+        obnode.inputs[0].set_value(obkey)
+        
+        node = compiler.add_node("MESH_BOOLEAN")
+        compiler.map_input(0, node.inputs[0])
+        compiler.link(obnode.outputs[0], node.inputs[1])
+        node.inputs[2].set_value(self.operation_value)
+        node.inputs[3].set_value(self.use_separate)
+        node.inputs[4].set_value(self.use_dissolve)
+        node.inputs[5].set_value(self.use_connect_regions)
+        node.inputs[6].set_value(self.threshold)
+        compiler.map_output(0, node.outputs[0])
+
 ###############################################################################
 
 class CurveNodeBase(NodeBase):
@@ -308,6 +370,7 @@ def register():
         GeometryNodeCategory("GEO_MODIFIER", "Modifier", items=[
             NodeItem("GeometryMeshArrayNode"),
             NodeItem("GeometryMeshDisplaceNode"),
+            NodeItem("GeometryBooleanNode"),
             ]),
         GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),

@@ -855,6 +855,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(MESH_COMBINE);
 	NODETYPE(MESH_ARRAY);
 	NODETYPE(MESH_DISPLACE);
+	NODETYPE(MESH_BOOLEAN);
 	
 	NODETYPE(CURVE_PATH);
 	
@@ -1145,6 +1146,16 @@ static void register_opcode_node_types()
 	nt->add_output("mesh_out", BVM_MESH);
 	nt->add_output("element.index", BVM_FLOAT3, OUTPUT_LOCAL);
 	nt->add_output("element.location", BVM_FLOAT3, OUTPUT_LOCAL);
+	
+	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
+	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
+	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
+	nt->add_input("operation", BVM_INT, -1);
+	nt->add_input("separate", BVM_INT, 0);
+	nt->add_input("dissolve", BVM_INT, 1);
+	nt->add_input("connect_regions", BVM_INT, 1);
+	nt->add_input("threshold", BVM_FLOAT, 0.0f);
+	nt->add_output("mesh_out", BVM_MESH);
 	
 	nt = NodeGraph::add_function_node_type("CURVE_PATH");
 	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);

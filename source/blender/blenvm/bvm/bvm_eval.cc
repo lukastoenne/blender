@@ -826,6 +826,21 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                      offset_elem_index, offset_elem_loc);
 				break;
 			}
+			case OP_MESH_BOOLEAN: {
+				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_operation = fn->read_stack_index(&instr);
+				StackIndex offset_separate = fn->read_stack_index(&instr);
+				StackIndex offset_dissolve = fn->read_stack_index(&instr);
+				StackIndex offset_connect_regions = fn->read_stack_index(&instr);
+				StackIndex offset_threshold = fn->read_stack_index(&instr);
+				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
+				eval_op_mesh_boolean(globals, &kd, stack, offset_mesh_in,
+				                     offset_object, offset_operation,
+				                     offset_separate, offset_dissolve, offset_connect_regions,
+				                     offset_threshold, offset_mesh_out);
+				break;
+			}
 			
 			case OP_CURVE_PATH: {
 				StackIndex offset_object = fn->read_stack_index(&instr);

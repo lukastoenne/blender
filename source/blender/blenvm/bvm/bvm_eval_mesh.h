@@ -34,6 +34,12 @@
 
 extern "C" {
 #include "BLI_math.h"
+
+#include "DNA_object_types.h"
+
+#include "bmesh.h"
+#include "bmesh_tools.h"
+#include "tools/bmesh_intersect.h"
 }
 
 #include "bvm_eval_common.h"
@@ -308,6 +314,168 @@ static void eval_op_mesh_displace(const EvalGlobals *globals, const EvalKernelDa
 	DerivedMesh *result = do_displace(globals, kernel_data, stack,
 	                                  dm, fn_vector, offset_vector,
 	                                  offset_elem_index, offset_elem_loc);
+	
+	stack_store_mesh(stack, offset_mesh_out, result);
+}
+
+#if 0
+static DerivedMesh *boolean_get_quick_derivedMesh(DerivedMesh *derivedData, DerivedMesh *dm, int operation)
+{
+	DerivedMesh *result = NULL;
+
+	if (derivedData->getNumPolys(derivedData) == 0 || dm->getNumPolys(dm) == 0) {
+		switch (operation) {
+			case eBooleanModifierOp_Intersect:
+				result = CDDM_new(0, 0, 0, 0, 0);
+				break;
+
+			case eBooleanModifierOp_Union:
+				if (derivedData->getNumPolys(derivedData)) result = derivedData;
+				else result = CDDM_copy(dm);
+
+				break;
+
+			case eBooleanModifierOp_Difference:
+				result = derivedData;
+				break;
+		}
+	}
+
+	return result;
+}
+#endif
+
+/* has no meaning for faces, do this so we can tell which face is which */
+#define BM_FACE_TAG BM_ELEM_DRAW
+
+/**
+ * Compare selected/unselected.
+ */
+static int bm_face_isect_pair(BMFace *f, void *UNUSED(user_data))
+{
+	return BM_elem_flag_test(f, BM_FACE_TAG) ? 1 : 0;
+}
+
+static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 &omat,
+                               bool separate, bool dissolve, bool connect_regions,
+                               int boolean_mode, float threshold)
+{
+	DerivedMesh *result = NULL;
+	BMesh *bm;
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_DM(dm, dm_other);
+
+//	TIMEIT_START(boolean_bmesh);
+	bm = BM_mesh_create(&allocsize);
+
+	DM_to_bmesh_ex(dm_other, bm, true);
+	DM_to_bmesh_ex(dm, bm, true);
+
+	if (1) {
+		/* create tessface & intersect */
+		const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
+		int tottri;
+		BMLoop *(*looptris)[3];
+
+		looptris = (BMLoop *(*)[3])MEM_mallocN(sizeof(*looptris) * looptris_tot, __func__);
+
+		BM_bmesh_calc_tessellation(bm, looptris, &tottri);
+
+		/* postpone this until after tessellating
+		 * so we can use the original normals before the vertex are moved */
+		{
+			BMIter iter;
+			int i;
+			const int i_verts_end = dm_other->getNumVerts(dm_other);
+			const int i_faces_end = dm_other->getNumPolys(dm_other);
+
+			BMVert *eve;
+			i = 0;
+			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+				mul_m4_v3(omat.data, eve->co);
+				if (++i == i_verts_end) {
+					break;
+				}
+			}
+
+			/* we need face normals because of 'BM_face_split_edgenet'
+			 * we could calculate on the fly too (before calling split). */
+			float nmat[4][4];
+			invert_m4_m4(nmat, omat.data);
+
+			BMFace *efa;
+			i = 0;
+			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+				mul_transposed_mat3_m4_v3(nmat, efa->no);
+				normalize_v3(efa->no);
+				BM_elem_flag_enable(efa, BM_FACE_TAG);  /* temp tag to test which side split faces are from */
+				if (++i == i_faces_end) {
+					break;
+				}
+			}
+		}
+
+		/* not needed, but normals for 'dm' will be invalid,
+		 * currently this is ok for 'BM_mesh_intersect' */
+		// BM_mesh_normals_update(bm);
+
+		BM_mesh_intersect(
+		        bm,
+		        looptris, tottri,
+		        bm_face_isect_pair, NULL,
+		        false,
+		        separate,
+		        dissolve,
+		        connect_regions,
+		        boolean_mode,
+		        threshold);
+
+		MEM_freeN(looptris);
+	}
+
+	result = CDDM_from_bmesh(bm, true);
+
+	BM_mesh_free(bm);
+
+	result->dirty = (DMDirtyFlag)((int)result->dirty | DM_DIRTY_NORMALS);
+
+//	TIMEIT_END(boolean_bmesh);
+
+	return result;
+}
+
+#undef BM_FACE_TAG
+
+static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals), const EvalKernelData *UNUSED(kernel_data), float *stack,
+                                 StackIndex offset_mesh_in, StackIndex offset_object, StackIndex offset_operation,
+                                 StackIndex offset_separate, StackIndex offset_dissolve,
+                                 StackIndex offset_connect_regions, StackIndex offset_threshold,
+                                 StackIndex offset_mesh_out)
+{
+	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
+	
+	DerivedMesh *result = NULL;
+	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
+		Object *ob = (Object *)ptr.data;
+		DerivedMesh *dm_other = ob->derivedFinal;
+		if (dm_other && dm_other->getNumPolys(dm_other) > 0) {
+			int operation = stack_load_int(stack, offset_operation);
+			bool separate = stack_load_int(stack, offset_separate);
+			bool dissolve = stack_load_int(stack, offset_dissolve);
+			bool connect_regions = stack_load_int(stack, offset_connect_regions);
+			float threshold = stack_load_float(stack, offset_threshold);
+			
+			matrix44 omat = matrix44::identity(); // TODO
+//			float imat[4][4];
+//			float omat[4][4];
+//			invert_m4_m4(imat, ob->obmat);
+//			mul_m4_m4m4(omat, imat, bmd->object->obmat);
+			
+			result = do_boolean(dm, dm_other, omat, separate, dissolve, connect_regions, operation, threshold);
+		}
+	}
+	if (!result)
+		result = CDDM_new(0, 0, 0, 0, 0);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
