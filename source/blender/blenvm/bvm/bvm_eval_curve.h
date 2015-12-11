@@ -46,21 +46,27 @@ namespace bvm {
 
 static void eval_op_curve_path(float *stack, StackIndex offset_object, StackIndex offset_param,
                                StackIndex offset_loc, StackIndex offset_dir, StackIndex offset_nor,
-                               StackIndex offset_rot, StackIndex offset_radius, StackIndex offset_weight)
+                               StackIndex offset_rot, StackIndex offset_radius, StackIndex offset_weight,
+                               StackIndex offset_tilt)
 {
 	PointerRNA ptr = stack_load_pointer(stack, offset_object);
 	float t = stack_load_float(stack, offset_param);
 	
 	float3 loc(0, 0, 0), dir(0, 0, 0), nor(0, 0, 0);
 	matrix44 rot = matrix44::identity();
-	float radius=0.0f, weight=0.0f;
+	float radius=0.0f, weight=0.0f, tilt=0.0f;
 	
 	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
 		Object *ob = (Object *)ptr.data;
-		float qt[4];
 		
 		/* XXX normal (curvature) is not yet defined! */
-		where_on_path(ob, t, loc.data(), dir.data(), qt, &radius, &weight);
+		/* XXX where_on_path expects a vec[4], and uses the last
+		 * element for storing tilt ...
+		 */
+		float vec[4], qt[4];
+		where_on_path(ob, t, vec, dir.data(), qt, &radius, &weight);
+		copy_v3_v3(loc.data(), vec);
+		tilt = vec[3];
 		quat_to_mat4(rot.data, qt);
 	}
 	
@@ -70,6 +76,7 @@ static void eval_op_curve_path(float *stack, StackIndex offset_object, StackInde
 	stack_store_matrix44(stack, offset_rot, rot);
 	stack_store_float(stack, offset_radius, radius);
 	stack_store_float(stack, offset_weight, weight);
+	stack_store_float(stack, offset_tilt, tilt);
 }
 
 } /* namespace bvm */

@@ -846,6 +846,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(TEX_PROC_VORONOI);
 	NODETYPE(TEX_PROC_CLOUDS);
 	
+	NODETYPE(OBJECT_LOOKUP);
+	
 	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
 	
@@ -1153,6 +1155,7 @@ static void register_opcode_node_types()
 	nt->add_output("rotation", BVM_MATRIX44);
 	nt->add_output("radius", BVM_FLOAT);
 	nt->add_output("weight", BVM_FLOAT);
+	nt->add_output("tilt", BVM_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", BVM_MATRIX44, matrix44::identity());

@@ -235,6 +235,11 @@ class CurvePathNode(CurveNodeBase, ObjectNode):
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id")
 
+    def relations_update(self, depsnode):
+        if self.id is not None:
+            depsnode.add_object_relation(self.id, 'TRANSFORM')
+            depsnode.add_object_relation(self.id, 'GEOMETRY')
+
     def init(self, context):
         self.inputs.new('NodeSocketFloat', "Parameter")
         self.outputs.new('NodeSocketVector', "Location")
@@ -243,6 +248,7 @@ class CurvePathNode(CurveNodeBase, ObjectNode):
         self.outputs.new('TransformSocket', "Rotation")
         self.outputs.new('NodeSocketFloat', "Radius")
         self.outputs.new('NodeSocketFloat', "Weight")
+        self.outputs.new('NodeSocketFloat', "Tilt")
 
     def compile(self, compiler):
         if self.id is None:
@@ -261,6 +267,7 @@ class CurvePathNode(CurveNodeBase, ObjectNode):
         compiler.map_output(3, node.outputs[3])
         compiler.map_output(4, node.outputs[4])
         compiler.map_output(5, node.outputs[5])
+        compiler.map_output(6, node.outputs[6])
 
 ###############################################################################
 

@@ -298,6 +298,11 @@ def make_node_group_types(prefix, treetype, node_base):
         def draw_buttons(self, context, layout):
             layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
 
+        def relations_update(self, depsnode):
+            if self.id:
+                for node in self.id.nodes:
+                    node.relations_update(depsnode)
+
         def update(self):
             if self.is_updating:
                 return

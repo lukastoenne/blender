@@ -41,7 +41,9 @@ struct Depsgraph;
 /* ------------------------------------------------ */
 
 struct Main;
+struct Object;
 struct Scene;
+struct Tex;
 
 struct PointerRNA;
 struct PropertyRNA;

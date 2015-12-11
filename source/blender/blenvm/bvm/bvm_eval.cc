@@ -64,9 +64,8 @@ int EvalGlobals::get_id_key(ID *id)
 	return hash;
 }
 
-void EvalGlobals::add_object(Object *ob)
+void EvalGlobals::add_object(int key, Object *ob)
 {
-	int key = get_id_key((ID *)ob);
 	m_objects[key] = ob;
 }
 
@@ -767,7 +766,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				break;
 			}
 			
-			case OB_OBJECT_LOOKUP: {
+			case OP_OBJECT_LOOKUP: {
 				int key = fn->read_int(&instr);
 				StackIndex offset_object = fn->read_stack_index(&instr);
 				eval_op_object_lookup(globals, stack, key, offset_object);
@@ -837,9 +836,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				StackIndex offset_rot = fn->read_stack_index(&instr);
 				StackIndex offset_radius = fn->read_stack_index(&instr);
 				StackIndex offset_weight = fn->read_stack_index(&instr);
+				StackIndex offset_tilt = fn->read_stack_index(&instr);
 				eval_op_curve_path(stack, offset_object, offset_param,
 				                   offset_loc, offset_dir, offset_nor,
-				                   offset_rot, offset_radius, offset_weight);
+				                   offset_rot, offset_radius, offset_weight,
+				                   offset_tilt);
 				break;
 			}
 			

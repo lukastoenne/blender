@@ -20,7 +20,7 @@
 
 import bpy, contextlib
 import nodeitems_utils
-from bpy.types import Operator, ObjectNode
+from bpy.types import Operator, ObjectNode, BVMEvalGlobals
 from bpy.props import *
 from node_compiler import NodeCompiler, NodeWrapper, InputWrapper, OutputWrapper
 
@@ -41,7 +41,38 @@ def enum_property_value_prop(name):
 
 ###############################################################################
 
+# Utility class with the same API as DepsNode, to gather needed ID datablocks
+class GlobalsBuilder():
+    def __init__(self, eval_globals):
+        self.eval_globals = eval_globals
+
+    @staticmethod
+    def get_id_key(id_data):
+        return BVMEvalGlobals.get_id_key(id_data)
+
+    def add_scene_relation(self, scene, component='PARAMETERS', description=""):
+        pass
+
+    def add_object_relation(self, ob, component='PARAMETERS', description=""):
+        self.eval_globals.add_object(self.get_id_key(ob), ob)
+
+    def add_bone_relation(self, ob, bone, component='PARAMETERS', description=""):
+        self.eval_globals.add_object(self.get_id_key(ob), ob)
+
+    def add_texture_relation(self, tex, component='PARAMETERS', description=""):
+        pass
+
+
 class NodeTreeBase():
+    def depsgraph_update(self, depsnode):
+        for node in self.nodes:
+            node.relations_update(depsnode)
+
+    def bvm_globals_update(self, eval_globals):
+        builder = GlobalsBuilder(eval_globals)
+        for node in self.nodes:
+            node.relations_update(builder)
+
     def bvm_compile(self, graph):
         compiler = NodeCompiler(graph)
         self.compile_nodes(compiler)
@@ -80,6 +111,9 @@ class NodeBase():
             yield
         finally:
             self.is_updating = False
+
+    def relations_update(self, depsnode):
+        pass
 
 
 ###############################################################################

@@ -18,6 +18,7 @@
 
 # <pep8-80 compliant>
 
+from bpy.types import BVMEvalGlobals
 from collections import OrderedDict
 from socket_types import rna_to_bvm_type, convert_sockets
 
@@ -156,8 +157,9 @@ class NodeCompiler:
             raise KeyError("Output %r not found in node %r" % (key, bnode))
         self.link(socket, bnode_outputs[key].inputs[0])
 
-    def get_id_key(self, id_data):
-        return self.graph.get_id_key(id_data)
+    @staticmethod
+    def get_id_key(id_data):
+        return BVMEvalGlobals.get_id_key(id_data)
 
 ###############################################################################
 

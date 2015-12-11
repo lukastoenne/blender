@@ -226,8 +226,33 @@ struct BVMEvalGlobals *BVM_globals_create(void)
 void BVM_globals_free(struct BVMEvalGlobals *globals)
 { delete _GLOBALS(globals); }
 
-void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob)
-{ _GLOBALS(globals)->add_object(ob); }
+void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob)
+{ _GLOBALS(globals)->add_object(key, ob); }
+
+static void rna_globals_update(bNodeTree *ntree, bvm::EvalGlobals *globals)
+{
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	if (!ntree->typeinfo->ext.call)
+		return;
+	
+	RNA_id_pointer_create((ID *)ntree, &ptr);
+	
+	func = RNA_struct_find_function(ptr.type, "bvm_globals_update");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "eval_globals", &globals);
+	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, bNodeTree *ntree)
+{ rna_globals_update(ntree, _GLOBALS(globals)); }
 
 int BVM_get_id_key(struct ID *id)
 { return bvm::EvalGlobals::get_id_key(id); }

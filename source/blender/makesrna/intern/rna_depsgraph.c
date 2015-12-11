@@ -38,11 +38,39 @@
 
 #include "BKE_depsgraph.h"
 
+#include "DEG_depsgraph_build.h"
+
 #ifdef RNA_RUNTIME
 
 #include "BKE_report.h"
 
 #include "DEG_depsgraph_debug.h"
+
+static void rna_DepsNode_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene,
+                                            int component, const char *description)
+{
+	DEG_add_scene_relation(node, scene, component, description);
+}
+
+static void rna_DepsNode_add_object_relation(struct DepsNodeHandle *node, struct Object *ob,
+                                             int component, const char *description)
+{
+	DEG_add_object_relation(node, ob, component, description);
+}
+
+static void rna_DepsNode_add_bone_relation(struct DepsNodeHandle *node, struct Object *ob, const char *bone_name,
+                                           int component, const char *description)
+{
+	DEG_add_bone_relation(node, ob, bone_name, component, description);
+}
+
+static void rna_DepsNode_add_texture_relation(struct DepsNodeHandle *node, struct Tex *tex,
+                                              int component, const char *description)
+{
+	DEG_add_texture_relation(node, tex, component, description);
+}
+
+/* ------------------------------------------------------------------------- */
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 {
@@ -81,6 +109,72 @@ static void rna_Depsgraph_debug_stats(Depsgraph *graph, ReportList *reports)
 
 #else
 
+static void rna_def_depsnode(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+	
+	static EnumPropertyItem scene_component_items[] = {
+	    {DEG_SCENE_COMP_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {DEG_SCENE_COMP_ANIMATION, "ANIMATION", ICON_NONE, "Animation", ""},
+	    {DEG_SCENE_COMP_SEQUENCER, "SEQUENCER", ICON_NONE, "Sequencer", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem object_component_items[] = {
+	    {DEG_OB_COMP_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {DEG_OB_COMP_PROXY, "PROXY", ICON_NONE, "Proxy", ""},
+	    {DEG_OB_COMP_ANIMATION, "ANIMATION", ICON_NONE, "Animation", ""},
+	    {DEG_OB_COMP_TRANSFORM, "TRANSFORM", ICON_NONE, "Transform", ""},
+	    {DEG_OB_COMP_GEOMETRY, "GEOMETRY", ICON_NONE, "Geometry", ""},
+	    {DEG_OB_COMP_EVAL_POSE, "EVAL_POSE", ICON_NONE, "Pose", ""},
+	    {DEG_OB_COMP_BONE, "BONE", ICON_NONE, "Bone", ""},
+	    {DEG_OB_COMP_EVAL_PARTICLES, "PARTICLES", ICON_NONE, "Particles", ""},
+	    {DEG_OB_COMP_SHADING, "SHADING", ICON_NONE, "Shading", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem texture_component_items[] = {
+	    {DEG_OB_TEX_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	srna = RNA_def_struct(brna, "DepsNode", NULL);
+	RNA_def_struct_sdna(srna, "DepsNodeHandle");
+	RNA_def_struct_ui_text(srna, "Depsgraph Node", "");
+	
+	func = RNA_def_function(srna, "add_scene_relation", "rna_DepsNode_add_scene_relation");
+	parm = RNA_def_pointer(func, "scene", "Scene", "Scene", "Scene the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_enum(func, "component", scene_component_items, DEG_SCENE_COMP_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+	
+	func = RNA_def_function(srna, "add_object_relation", "rna_DepsNode_add_object_relation");
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_enum(func, "component", object_component_items, DEG_OB_COMP_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+	
+	func = RNA_def_function(srna, "add_bone_relation", "rna_DepsNode_add_bone_relation");
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_string(func, "bone", NULL, 0, "Bone", "Name of the bone the node depends on");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_enum(func, "component", object_component_items, DEG_OB_COMP_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+	
+	func = RNA_def_function(srna, "add_texture_relation", "rna_DepsNode_add_texture_relation");
+	parm = RNA_def_pointer(func, "texture", "Texture", "Texture", "Texture the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_enum(func, "component", texture_component_items, DEG_OB_TEX_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+}
+
 static void rna_def_depsgraph(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -106,6 +200,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 
 void RNA_def_depsgraph(BlenderRNA *brna)
 {
+	rna_def_depsnode(brna);
 	rna_def_depsgraph(brna);
 }
 

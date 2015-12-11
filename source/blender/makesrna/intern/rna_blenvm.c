@@ -61,11 +61,6 @@ static void rna_BVMNodeGraph_get_output(struct BVMNodeGraph *graph, const char *
 	BVM_nodegraph_get_output(graph, name, node, socket);
 }
 
-static int rna_BVMNodeGraph_get_id_key(ID *id)
-{
-	return BVM_get_id_key(id);
-}
-
 /* ------------------------------------------------------------------------- */
 
 static void rna_BVMNodeInput_name_get(PointerRNA *ptr, char *value)
@@ -272,6 +267,18 @@ static int rna_BVMTypeDesc_base_type_get(PointerRNA *ptr)
 	return BVM_typedesc_base_type(ptr->data);
 }
 
+/* ------------------------------------------------------------------------- */
+
+static void rna_BVMEvalGlobals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob)
+{
+	BVM_globals_add_object(globals, key, ob);
+}
+
+static int rna_BVMEvalGlobals_get_id_key(struct ID *id)
+{
+	return BVM_get_id_key(id);
+}
+
 #else
 
 static void rna_def_bvm_typedesc(BlenderRNA *brna)
@@ -468,12 +475,29 @@ static void rna_def_bvm_node_graph(BlenderRNA *brna)
 	RNA_def_function_output(func, parm);
 	parm = RNA_def_string(func, "socket", NULL, 0, "Socket", "Socket name");
 	RNA_def_function_output(func, parm);
+}
+
+static void rna_def_bvm_eval_globals(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 	
-	func = RNA_def_function(srna, "get_id_key", "rna_BVMNodeGraph_get_id_key");
+	srna = RNA_def_struct(brna, "BVMEvalGlobals", NULL);
+	RNA_def_struct_ui_text(srna, "Globals", "Global data used during node evaluation");
+	
+	func = RNA_def_function(srna, "add_object", "rna_BVMEvalGlobals_add_object");
+	RNA_def_function_ui_description(func, "Register a used object");
+	parm = RNA_def_int(func, "key", 0, INT_MIN, INT_MAX, "Key", "Unique key of the object", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "object", "Object", "Object", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	
+	func = RNA_def_function(srna, "get_id_key", "rna_BVMEvalGlobals_get_id_key");
 	RNA_def_function_flag(func, FUNC_NO_SELF);
 	RNA_def_function_ui_description(func, "Get a key value to look up the object during evaluation");
 	parm = RNA_def_pointer(func, "id_data", "ID", "ID", "ID datablock");
-	RNA_def_property_flag(parm, PROP_NEVER_NULL);
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	parm = RNA_def_int(func, "key", 0, INT_MIN, INT_MAX, "Key", "Key value for this datablock", INT_MIN, INT_MAX);
 	RNA_def_function_return(func, parm);
 }
@@ -485,6 +509,7 @@ void RNA_def_blenvm(BlenderRNA *brna)
 	rna_def_bvm_node_output(brna);
 	rna_def_bvm_node_instance(brna);
 	rna_def_bvm_node_graph(brna);
+	rna_def_bvm_eval_globals(brna);
 }
 
 #endif

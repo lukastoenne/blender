@@ -203,7 +203,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 	if (ob->nodetree) {
 		bNode *node;
 		
-		BVM_globals_add_object(effctx->eval_globals, ob);
+		BVM_globals_add_object(effctx->eval_globals, BVM_get_id_key((ID *)ob), ob);
 		
 		/* XXX TODO This is a placeholder for future component nodes design! */
 		
@@ -212,6 +212,8 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 				bNodeTree *ff_ntree = (bNodeTree *)node->id;
 				
 				if (ff_ntree) {
+					BVM_globals_add_nodetree_relations(effctx->eval_globals, ff_ntree);
+					
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
 					eff->function = BVM_gen_forcefield_function(ff_ntree, NULL);
 				}
@@ -231,7 +233,7 @@ EffectorContext *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *p
 	unsigned int layer= ob_src->lay;
 	
 	effctx->eval_globals = BVM_globals_create();
-	BVM_globals_add_object(effctx->eval_globals, ob_src);
+	BVM_globals_add_object(effctx->eval_globals, BVM_get_id_key((ID *)ob_src), ob_src);
 	
 	if (weights->group) {
 		GroupObject *go;

@@ -54,7 +54,7 @@ struct EvalGlobals {
 	
 	static int get_id_key(ID *id);
 	
-	void add_object(Object *ob);
+	void add_object(int key, Object *ob);
 	PointerRNA lookup_object(int key) const;
 	
 private:

@@ -95,10 +95,13 @@ BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc);
 struct BVMEvalGlobals;
 struct BVMEvalContext;
 
+struct bNodeTree;
+
 struct BVMEvalGlobals *BVM_globals_create(void);
 void BVM_globals_free(struct BVMEvalGlobals *globals);
 
-void BVM_globals_add_object(struct BVMEvalGlobals *globals, struct Object *ob);
+void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob);
+void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, struct bNodeTree *ntree);
 
 int BVM_get_id_key(struct ID *id);
 
@@ -107,7 +110,6 @@ void BVM_context_free(struct BVMEvalContext *context);
 
 /* ------------------------------------------------------------------------- */
 
-struct bNodeTree;
 struct Object;
 struct EffectedPoint;
 

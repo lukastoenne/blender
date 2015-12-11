@@ -8184,6 +8184,20 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "result_3", "ID", "From ID", "Original ID data block selected from the context");
 	RNA_def_function_output(func, parm);
 	
+	/* Depsgraph Update Callback */
+	func = RNA_def_function(srna, "depsgraph_update", NULL);
+	RNA_def_function_ui_description(func, "Update depsgraph relations");
+	RNA_def_function_flag(func, FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "depsnode", "DepsNode", "Depsgraph Node", "Node in the dependency graph");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	
+	/* EvalGlobals Update Callback */
+	func = RNA_def_function(srna, "bvm_globals_update", NULL);
+	RNA_def_function_ui_description(func, "Update global variables for evaluation");
+	RNA_def_function_flag(func, FUNC_REGISTER);
+	parm = RNA_def_pointer(func, "eval_globals", "BVMEvalGlobals", "Globals", "Global data for node evaluation");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	
 	/* BlenVM compile */
 	func = RNA_def_function(srna, "bvm_compile", NULL);
 	RNA_def_function_ui_description(func, "Convert node settings to blenvm instructions");
