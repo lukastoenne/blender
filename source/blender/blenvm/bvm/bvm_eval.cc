@@ -210,6 +210,20 @@ static void eval_op_object_lookup(const EvalGlobals *globals, float *stack, int 
 	stack_store_pointer(stack, offset_object, ptr);
 }
 
+static void eval_op_object_transform(float *stack, StackIndex offset_object, StackIndex offset_transform)
+{
+	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	matrix44 obmat;
+	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
+		Object *ob = (Object *)ptr.data;
+		copy_m4_m4(obmat.data, ob->obmat);
+	}
+	else
+		obmat = matrix44::identity();
+	
+	stack_store_matrix44(stack, offset_transform, obmat);
+}
+
 static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
 {
 	// TODO the way objects are stored in globals has changed a lot, this needs updating
@@ -772,6 +786,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_object_lookup(globals, stack, key, offset_object);
 				break;
 			}
+			case OP_OBJECT_TRANSFORM: {
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				eval_op_object_transform(stack, offset_object, offset_transform);
+				break;
+			}
 			
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = fn->read_int(&instr);
@@ -829,6 +849,8 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			case OP_MESH_BOOLEAN: {
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
 				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				StackIndex offset_invtransform = fn->read_stack_index(&instr);
 				StackIndex offset_operation = fn->read_stack_index(&instr);
 				StackIndex offset_separate = fn->read_stack_index(&instr);
 				StackIndex offset_dissolve = fn->read_stack_index(&instr);
@@ -836,7 +858,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				StackIndex offset_threshold = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
 				eval_op_mesh_boolean(globals, &kd, stack, offset_mesh_in,
-				                     offset_object, offset_operation,
+				                     offset_object, offset_transform, offset_invtransform, offset_operation,
 				                     offset_separate, offset_dissolve, offset_connect_regions,
 				                     offset_threshold, offset_mesh_out);
 				break;
@@ -844,6 +866,8 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			
 			case OP_CURVE_PATH: {
 				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				StackIndex offset_invtransform = fn->read_stack_index(&instr);
 				StackIndex offset_param = fn->read_stack_index(&instr);
 				StackIndex offset_loc = fn->read_stack_index(&instr);
 				StackIndex offset_dir = fn->read_stack_index(&instr);
@@ -852,8 +876,8 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				StackIndex offset_radius = fn->read_stack_index(&instr);
 				StackIndex offset_weight = fn->read_stack_index(&instr);
 				StackIndex offset_tilt = fn->read_stack_index(&instr);
-				eval_op_curve_path(stack, offset_object, offset_param,
-				                   offset_loc, offset_dir, offset_nor,
+				eval_op_curve_path(stack, offset_object, offset_transform, offset_invtransform,
+				                   offset_param, offset_loc, offset_dir, offset_nor,
 				                   offset_rot, offset_radius, offset_weight,
 				                   offset_tilt);
 				break;

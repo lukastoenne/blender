@@ -356,7 +356,7 @@ static int bm_face_isect_pair(BMFace *f, void *UNUSED(user_data))
 	return BM_elem_flag_test(f, BM_FACE_TAG) ? 1 : 0;
 }
 
-static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 &omat,
+static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 &omat, matrix44 &imat,
                                bool separate, bool dissolve, bool connect_regions,
                                int boolean_mode, float threshold)
 {
@@ -399,13 +399,10 @@ static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 
 
 			/* we need face normals because of 'BM_face_split_edgenet'
 			 * we could calculate on the fly too (before calling split). */
-			float nmat[4][4];
-			invert_m4_m4(nmat, omat.data);
-
 			BMFace *efa;
 			i = 0;
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-				mul_transposed_mat3_m4_v3(nmat, efa->no);
+				mul_transposed_mat3_m4_v3(imat.data, efa->no);
 				normalize_v3(efa->no);
 				BM_elem_flag_enable(efa, BM_FACE_TAG);  /* temp tag to test which side split faces are from */
 				if (++i == i_faces_end) {
@@ -445,10 +442,18 @@ static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 
 
 #undef BM_FACE_TAG
 
-static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals), const EvalKernelData *UNUSED(kernel_data), float *stack,
-                                 StackIndex offset_mesh_in, StackIndex offset_object, StackIndex offset_operation,
-                                 StackIndex offset_separate, StackIndex offset_dissolve,
-                                 StackIndex offset_connect_regions, StackIndex offset_threshold,
+static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
+                                 const EvalKernelData *UNUSED(kernel_data),
+                                 float *stack,
+                                 StackIndex offset_mesh_in,
+                                 StackIndex offset_object,
+                                 StackIndex offset_transform,
+                                 StackIndex offset_invtransform,
+                                 StackIndex offset_operation,
+                                 StackIndex offset_separate,
+                                 StackIndex offset_dissolve,
+                                 StackIndex offset_connect_regions,
+                                 StackIndex offset_threshold,
                                  StackIndex offset_mesh_out)
 {
 	PointerRNA ptr = stack_load_pointer(stack, offset_object);
@@ -459,19 +464,15 @@ static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals), const EvalK
 		Object *ob = (Object *)ptr.data;
 		DerivedMesh *dm_other = ob->derivedFinal;
 		if (dm_other && dm_other->getNumPolys(dm_other) > 0) {
+			matrix44 omat = stack_load_matrix44(stack, offset_transform);
+			matrix44 imat = stack_load_matrix44(stack, offset_invtransform);
 			int operation = stack_load_int(stack, offset_operation);
 			bool separate = stack_load_int(stack, offset_separate);
 			bool dissolve = stack_load_int(stack, offset_dissolve);
 			bool connect_regions = stack_load_int(stack, offset_connect_regions);
 			float threshold = stack_load_float(stack, offset_threshold);
 			
-			matrix44 omat = matrix44::identity(); // TODO
-//			float imat[4][4];
-//			float omat[4][4];
-//			invert_m4_m4(imat, ob->obmat);
-//			mul_m4_m4m4(omat, imat, bmd->object->obmat);
-			
-			result = do_boolean(dm, dm_other, omat, separate, dissolve, connect_regions, operation, threshold);
+			result = do_boolean(dm, dm_other, omat, imat, separate, dissolve, connect_regions, operation, threshold);
 		}
 	}
 	if (!result)

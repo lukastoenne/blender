@@ -927,6 +927,7 @@ struct BVMFunction *BVM_gen_modifier_function(struct Object */*ob*/, struct bNod
 	graph.add_input("iteration", BVM_INT);
 	graph.add_input("element.index", BVM_INT);
 	graph.add_input("element.location", BVM_FLOAT3);
+	graph.add_input("modifier.object", BVM_POINTER);
 	graph.add_input("modifier.base_mesh", BVM_POINTER);
 	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
 	
@@ -943,17 +944,22 @@ struct BVMFunction *BVM_gen_modifier_function(struct Object */*ob*/, struct bNod
 	return (BVMFunction *)fn;
 }
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn, struct Mesh *base_mesh)
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
+                                      struct BVMEvalContext *ctx,
+                                      struct BVMFunction *fn,
+                                      struct Object *object,
+                                      struct Mesh *base_mesh)
 {
 	using namespace bvm;
 
-	PointerRNA base_mesh_ptr;
+	PointerRNA object_ptr, base_mesh_ptr;
+	RNA_id_pointer_create((ID *)object, &object_ptr);
 	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
 	int iteration = 0;
 	int elem_index = 0;
 	float3 elem_loc(0.0f, 0.0f, 0.0f);
 	mesh_ptr result;
-	const void *args[] = { &iteration, &elem_index, &elem_loc, &base_mesh_ptr };
+	const void *args[] = { &iteration, &elem_index, &elem_loc, &object_ptr, &base_mesh_ptr };
 	void *results[] = { &result };
 	
 	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);

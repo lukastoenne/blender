@@ -1715,7 +1715,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 		BVM_globals_add_nodetree_relations(globals, ntree);
 		
 		struct BVMEvalContext *context = BVM_context_create();
-		dm = BVM_eval_modifier(globals, context, fn, me);
+		dm = BVM_eval_modifier(globals, context, fn, ob, me);
 		BVM_context_free(context);
 		
 		BVM_globals_free(globals);

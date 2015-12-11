@@ -44,9 +44,17 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_curve_path(float *stack, StackIndex offset_object, StackIndex offset_param,
-                               StackIndex offset_loc, StackIndex offset_dir, StackIndex offset_nor,
-                               StackIndex offset_rot, StackIndex offset_radius, StackIndex offset_weight,
+static void eval_op_curve_path(float *stack,
+                               StackIndex offset_object,
+                               StackIndex offset_transform,
+                               StackIndex offset_invtransform,
+                               StackIndex offset_param,
+                               StackIndex offset_loc,
+                               StackIndex offset_dir,
+                               StackIndex offset_nor,
+                               StackIndex offset_rot,
+                               StackIndex offset_radius,
+                               StackIndex offset_weight,
                                StackIndex offset_tilt)
 {
 	PointerRNA ptr = stack_load_pointer(stack, offset_object);
@@ -61,16 +69,23 @@ static void eval_op_curve_path(float *stack, StackIndex offset_object, StackInde
 	
 	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
 		Object *ob = (Object *)ptr.data;
+		matrix44 omat = stack_load_matrix44(stack, offset_transform);
+		matrix44 imat = stack_load_matrix44(stack, offset_invtransform);
 		
 		/* XXX normal (curvature) is not yet defined! */
 		/* XXX where_on_path expects a vec[4], and uses the last
 		 * element for storing tilt ...
 		 */
-		float vec[4], qt[4];
+		float vec[4], qt[4], qtm[3][3];
 		where_on_path(ob, t, vec, dir.data(), qt, &radius, &weight);
-		copy_v3_v3(loc.data(), vec);
+		
+		mul_v3_m4v3(loc.data(), omat.data, vec);
+		mul_mat3_m4_v3(omat.data, dir.data());
+		mul_mat3_m4_v3(omat.data, nor.data());
+		quat_to_mat3(qtm, qt);
+		mul_m4_m3m4(rot.data, qtm, imat.data);
+		mul_m4_m4m4(rot.data, omat.data, rot.data);
 		tilt = vec[3];
-		quat_to_mat4(rot.data, qt);
 	}
 	
 	stack_store_float3(stack, offset_loc, loc);

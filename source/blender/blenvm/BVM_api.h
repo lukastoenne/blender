@@ -142,7 +142,11 @@ struct Mesh;
 
 struct BVMFunction *BVM_gen_modifier_function(struct Object *ob, struct bNodeTree *btree, FILE *debug_file);
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn, struct Mesh *base_mesh);
+struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
+                                      struct BVMEvalContext *context,
+                                      struct BVMFunction *fn,
+                                      struct Object *ob,
+                                      struct Mesh *base_mesh);
 
 /* ------------------------------------------------------------------------- */
 

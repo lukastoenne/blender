@@ -58,6 +58,43 @@ class GeometryNodeBase(NodeBase):
         return ntree.bl_idname == 'GeometryNodeTree'
 
 
+def compile_object_transform(compiler, ob):
+    node = compiler.add_node("OBJECT_TRANSFORM")
+    compiler.link(ob, node.inputs[0])
+    return node.outputs[0]
+
+def compile_matrix_inverse(compiler, mat):
+    node = compiler.add_node("INVERT_MATRIX44")
+    compiler.link(mat, node.inputs[0])
+    return node.outputs[0]
+
+def compile_matrix_multiply(compiler, mat1, mat2):
+    node = compiler.add_node("MUL_MATRIX44")
+    compiler.link(mat1, node.inputs[0])
+    compiler.link(mat2, node.inputs[1])
+    return node.outputs[0]
+
+def compile_object(compiler, ptr):
+    key = compiler.get_id_key(ptr)
+    node = compiler.add_node("OBJECT_LOOKUP")
+    node.inputs[0].set_value(key)
+    return node.outputs[0]
+
+# typical inputs of a modifier node:
+# (object, transform, inverse transform)
+def compile_modifier_inputs(compiler, obptr):
+    ptfm = compile_object_transform(compiler, compiler.graph_input("modifier.object"))
+    pitfm = compile_matrix_inverse(compiler, ptfm)
+
+    ob = compile_object(compiler, obptr)
+    obtfm = compile_object_transform(compiler, ob)
+
+    tfm = compile_matrix_multiply(compiler, pitfm, obtfm)
+    itfm = compile_matrix_inverse(compiler, tfm)
+
+    return ob, tfm, itfm
+
+
 class GeometryOutputNode(GeometryNodeBase, ObjectNode):
     '''Geometry output'''
     bl_idname = 'GeometryOutputNode'
@@ -263,19 +300,19 @@ class GeometryBooleanNode(GeometryNodeBase, ObjectNode):
     def compile(self, compiler):
         if self.id is None:
             return
-        
-        obkey = compiler.get_id_key(self.id)
-        obnode = compiler.add_node("OBJECT_LOOKUP")
-        obnode.inputs[0].set_value(obkey)
-        
+        ob, tfm, itfm = compile_modifier_inputs(compiler, self.id)
+
         node = compiler.add_node("MESH_BOOLEAN")
         compiler.map_input(0, node.inputs[0])
-        compiler.link(obnode.outputs[0], node.inputs[1])
-        node.inputs[2].set_value(self.operation_value)
-        node.inputs[3].set_value(self.use_separate)
-        node.inputs[4].set_value(self.use_dissolve)
-        node.inputs[5].set_value(self.use_connect_regions)
-        node.inputs[6].set_value(self.threshold)
+        compiler.link(ob, node.inputs[1])
+        compiler.link(tfm, node.inputs[2])
+        compiler.link(itfm, node.inputs[3])
+        node.inputs[4].set_value(self.operation_value)
+        node.inputs[5].set_value(self.use_separate)
+        node.inputs[6].set_value(self.use_dissolve)
+        node.inputs[7].set_value(self.use_connect_regions)
+        node.inputs[8].set_value(self.threshold)
+        
         compiler.map_output(0, node.outputs[0])
 
 ###############################################################################
@@ -315,13 +352,13 @@ class CurvePathNode(CurveNodeBase, ObjectNode):
     def compile(self, compiler):
         if self.id is None:
             return
-        obkey = compiler.get_id_key(self.id)
-        obnode = compiler.add_node("OBJECT_LOOKUP")
+        ob, tfm, itfm = compile_modifier_inputs(compiler, self.id)
+        
         node = compiler.add_node("CURVE_PATH")
-
-        obnode.inputs[0].set_value(obkey)
-        compiler.link(obnode.outputs[0], node.inputs[0])
-        compiler.map_input(0, node.inputs[1])
+        compiler.link(ob, node.inputs[0])
+        compiler.link(tfm, node.inputs[1])
+        compiler.link(itfm, node.inputs[2])
+        compiler.map_input(0, node.inputs[3])
         
         compiler.map_output(0, node.outputs[0])
         compiler.map_output(1, node.outputs[1])

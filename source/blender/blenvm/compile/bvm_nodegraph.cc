@@ -847,6 +847,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(TEX_PROC_CLOUDS);
 	
 	NODETYPE(OBJECT_LOOKUP);
+	NODETYPE(OBJECT_TRANSFORM);
 	
 	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
@@ -1113,6 +1114,10 @@ static void register_opcode_node_types()
 	nt->add_input("key", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("object", BVM_POINTER);
 	
+	nt = NodeGraph::add_function_node_type("OBJECT_TRANSFORM");
+	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
+	nt->add_output("transform", BVM_MATRIX44);
+	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", BVM_INT, 0, INPUT_CONSTANT);
 	nt->add_output("transform", BVM_MATRIX44);
@@ -1150,6 +1155,8 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
 	nt->add_input("mesh_in", BVM_MESH, __empty_mesh__);
 	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
+	nt->add_input("transform", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("inverse_transform", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("operation", BVM_INT, -1);
 	nt->add_input("separate", BVM_INT, 0);
 	nt->add_input("dissolve", BVM_INT, 1);
@@ -1159,6 +1166,8 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_function_node_type("CURVE_PATH");
 	nt->add_input("object", BVM_POINTER, PointerRNA_NULL);
+	nt->add_input("transform", BVM_MATRIX44, matrix44::identity());
+	nt->add_input("inverse_transform", BVM_MATRIX44, matrix44::identity());
 	nt->add_input("parameter", BVM_FLOAT, 0.0f);
 	nt->add_output("location", BVM_FLOAT3);
 	nt->add_output("direction", BVM_FLOAT3);
