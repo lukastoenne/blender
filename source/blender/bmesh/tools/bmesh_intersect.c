@@ -1554,7 +1554,12 @@ bool BM_mesh_intersect(
 				BMFace *f = ftable[groups_array[fg]];
 				float co[3];
 				int hits;
-				int side = test_fn(f, user_data) == 0;
+				int side = test_fn(f, user_data);
+
+				if (side == -1) {
+					continue;
+				}
+				BLI_assert(ELEM(side, 0, 1));
 
 				// BM_face_calc_center_mean(f, co);
 				BM_face_calc_point_in_face(f, co);
@@ -1647,7 +1652,7 @@ bool BM_mesh_intersect(
 	}
 
 	if (boolean_mode != BMESH_ISECT_BOOLEAN_NONE) {
-		MEM_freeN(looptri_coords);
+		MEM_freeN((void *)looptri_coords);
 
 		/* no booleans, just free immediate */
 		BLI_bvhtree_free(tree_a);
