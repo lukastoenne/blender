@@ -401,6 +401,18 @@ struct BaseTypeTraits<BVM_MESH> {
 	}
 };
 
+template <>
+struct BaseTypeTraits<BVM_STRING> {
+	typedef const char* POD;
+	
+	enum eStackSize { stack_size = 2 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
 /* ------------------------------------------------------------------------- */
 
 struct TypeDesc {
@@ -487,8 +499,8 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 		case BVM_INT: return new ValueType<BVM_INT>(data);
 		case BVM_MATRIX44: return new ValueType<BVM_MATRIX44>(data);
 		case BVM_POINTER: return new ValueType<BVM_POINTER>(data);
-		
 		case BVM_MESH: return new ValueType<BVM_MESH>(data);
+		case BVM_STRING: return new ValueType<BVM_STRING>(data);
 	}
 	return 0;
 }
@@ -503,8 +515,8 @@ bool Value::get(T *data) const
 		case BVM_INT: return static_cast< const ValueType<BVM_INT>* >(this)->get(data);
 		case BVM_MATRIX44: return static_cast< const ValueType<BVM_MATRIX44>* >(this)->get(data);
 		case BVM_POINTER: return static_cast< const ValueType<BVM_POINTER>* >(this)->get(data);
-			
 		case BVM_MESH: return static_cast< const ValueType<BVM_MESH>* >(this)->get(data);
+		case BVM_STRING: return static_cast< const ValueType<BVM_STRING>* >(this)->get(data);
 	}
 	return false;
 }
@@ -526,8 +538,8 @@ int TypeDesc::stack_size() const
 		case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 		case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
 		case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
-		
 		case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
+		case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
 	}
 	return 0;
 }
@@ -544,8 +556,8 @@ void TypeDesc::copy_value(void *to, const void *from) const
 		case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 		case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 		case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
-		
 		case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
+		case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 	}
 	
 	#undef COPY_TYPE

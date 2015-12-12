@@ -44,6 +44,7 @@ typedef enum BVMType {
 	BVM_MATRIX44,
 	BVM_POINTER,
 	BVM_MESH,
+	BVM_STRING,
 } BVMType;
 
 typedef enum BVMInputValueType {

@@ -84,6 +84,11 @@ inline static DerivedMesh *stack_load_mesh(float *stack, StackIndex offset)
 	return ((mesh_ptr *)(&stack[offset]))->get();
 }
 
+inline static const char *stack_load_string(float *stack, StackIndex offset)
+{
+	return *(const char **)(&stack[offset]);
+}
+
 inline static void stack_store_float(float *stack, StackIndex offset, float f)
 {
 	*(float *)(&stack[offset]) = f;
@@ -122,6 +127,11 @@ inline static void stack_store_mesh_ptr(float *stack, StackIndex offset, mesh_pt
 inline static void stack_store_mesh(float *stack, StackIndex offset, DerivedMesh *dm)
 {
 	((mesh_ptr *)(&stack[offset]))->set(dm);
+}
+
+inline static void stack_store_string(float *stack, StackIndex offset, const char *s)
+{
+	*(const char **)(&stack[offset]) = s;
 }
 
 } /* namespace bvm */

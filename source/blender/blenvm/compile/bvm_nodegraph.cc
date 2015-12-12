@@ -604,6 +604,7 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 		case BVM_MATRIX44: node = add_node("PASS_MATRIX44"); break;
 		case BVM_MESH: node = add_node("PASS_MESH"); break;
 		case BVM_POINTER: node = add_node("PASS_POINTER"); break;
+		case BVM_STRING: node = add_node("PASS_STRING"); break;
 	}
 	if (node && default_value)
 		node->set_input_value("value", default_value);
@@ -619,8 +620,9 @@ SocketPair NodeGraph::add_value_node(Value *value)
 		case BVM_FLOAT4: node = add_node("VALUE_FLOAT4"); break;
 		case BVM_INT: node = add_node("VALUE_INT"); break;
 		case BVM_MATRIX44: node = add_node("VALUE_MATRIX44"); break;
-		case BVM_MESH: node = add_node("VALUE_MESH"); break;
 		case BVM_POINTER: node = add_node("VALUE_POINTER"); break;
+		case BVM_MESH: node = add_node("VALUE_MESH"); break;
+		case BVM_STRING: node = add_node("VALUE_STRING"); break;
 	}
 	if (node)
 		node->set_input_value("value", value);
@@ -636,8 +638,9 @@ SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
 		case BVM_FLOAT4: node = add_node("ARG_FLOAT4"); break;
 		case BVM_INT: node = add_node("ARG_INT"); break;
 		case BVM_MATRIX44: node = add_node("ARG_MATRIX44"); break;
-		case BVM_MESH: node = add_node("ARG_MESH"); break;
 		case BVM_POINTER: node = add_node("ARG_POINTER"); break;
+		case BVM_MESH: node = add_node("ARG_MESH"); break;
+		case BVM_STRING: node = add_node("ARG_STRING"); break;
 	}
 	return SocketPair(node, "value");
 }
@@ -776,6 +779,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_MATRIX44);
 	NODETYPE(VALUE_POINTER);
 	NODETYPE(VALUE_MESH);
+	NODETYPE(VALUE_STRING);
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
@@ -907,6 +911,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", BVM_MESH, __empty_mesh__);
 	nt->add_output("value", BVM_MESH);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_STRING");
+	nt->add_input("value", BVM_STRING, "");
+	nt->add_output("value", BVM_STRING);
+	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
 	nt->add_output("value", BVM_FLOAT);
 	
@@ -927,6 +935,9 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", BVM_MESH);
+	
+	nt = NodeGraph::add_function_node_type("ARG_STRING");
+	nt->add_output("value", BVM_STRING);
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT");
 	nt->add_input("value", BVM_FLOAT, 0.0f, INPUT_CONSTANT);
@@ -955,6 +966,10 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("VALUE_MESH");
 	nt->add_input("value", BVM_MESH, __empty_mesh__, INPUT_CONSTANT);
 	nt->add_output("value", BVM_MESH);
+	
+	nt = NodeGraph::add_function_node_type("VALUE_STRING");
+	nt->add_input("value", BVM_STRING, "", INPUT_CONSTANT);
+	nt->add_output("value", BVM_STRING);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", BVM_INT, 0, INPUT_CONSTANT);

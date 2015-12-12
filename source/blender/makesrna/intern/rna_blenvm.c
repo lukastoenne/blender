@@ -293,6 +293,7 @@ static void rna_def_bvm_typedesc(BlenderRNA *brna)
 	    {BVM_INT, "INT", 0, "Int", "Integer number"},
 	    {BVM_MATRIX44, "MATRIX44", 0, "Matrix44", "4x4 matrix"},
 	    {BVM_MESH, "MESH", 0, "Mesh", "Mesh data"},
+	    {BVM_STRING, "STRING", 0, "String", "Character string"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	

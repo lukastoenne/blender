@@ -175,6 +175,19 @@ struct Function {
 		return m;
 	}
 	
+	const char *read_string(int *instr) const
+	{
+		const char *s = (const char *)(&m_instructions[*instr]);
+		const char *c = s;
+		while (true) {
+			++(*instr);
+			if (c[0]=='\0' || c[1]=='\0' || c[2]=='\0' || c[3]=='\0')
+				break;
+			c += 4;
+		}
+		return s;
+	}
+	
 	void add_instruction(Instruction v);
 	int get_instruction_count() const { return m_instructions.size(); }
 	

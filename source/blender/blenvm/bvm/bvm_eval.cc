@@ -119,6 +119,11 @@ static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offs
 	stack_store_matrix44(stack, offset, value);
 }
 
+static void eval_op_value_string(float *stack, const char *value, StackIndex offset)
+{
+	stack_store_string(stack, offset, value);
+}
+
 /* Note: pointer data is not explicitly stored on the stack,
  * this function always creates simply a NULL pointer.
  */
@@ -327,6 +332,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			case OP_VALUE_MESH: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_mesh(stack, offset);
+				break;
+			}
+			case OP_VALUE_STRING: {
+				const char *value = fn->read_string(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_value_string(stack, value, offset);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {

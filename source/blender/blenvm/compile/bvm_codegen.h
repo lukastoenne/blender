@@ -88,6 +88,7 @@ protected:
 	void push_int(int i) const;
 	void push_matrix44(matrix44 m) const;
 	void push_pointer(PointerRNA p) const;
+	void push_string(const char *s) const;
 	
 	void push_constant(const Value *value) const;
 	
