@@ -859,10 +859,11 @@ static void raycast_callback(void *userdata,
 
 	if (
 #ifdef USE_KDOPBVH_WATERTIGHT
-		isect_ray_tri_watertight_v3(ray->origin, &isect_precalc_x, v0, v1, v2, &dist, NULL))
+	    isect_ray_tri_watertight_v3(ray->origin, &isect_precalc_x, v0, v1, v2, &dist, NULL)
 #else
-	    isect_ray_tri_epsilon_v3(ray->origin, ray->direction, v0, v1, v2, &dist, NULL, FLT_EPSILON))
+	    isect_ray_tri_epsilon_v3(ray->origin, ray->direction, v0, v1, v2, &dist, NULL, FLT_EPSILON)
 #endif
+	    )
 	{
 		if (dist >= 0.0f) {
 #ifdef USE_DUMP
@@ -956,6 +957,7 @@ static int isect_bvhtree_point_v3(
  *
  * \param test_fn Return value: -1: skip, 0: tree_a, 1: tree_b (use_self == false)
  * \param boolean_mode -1: no-boolean, 0: intersection... see #BMESH_ISECT_BOOLEAN_ISECT.
+ * \return true if the mesh is changed (intersections cut or faces removed from boolean).
  */
 bool BM_mesh_intersect(
         BMesh *bm,
@@ -1515,7 +1517,7 @@ bool BM_mesh_intersect(
 #endif  /* USE_SEPARATE */
 
 	if ((boolean_mode != BMESH_ISECT_BOOLEAN_NONE)) {
-			BVHTree *tree_pair[2] = {tree_a, tree_b};
+		BVHTree *tree_pair[2] = {tree_a, tree_b};
 
 		/* group vars */
 		int *groups_array;
@@ -1560,6 +1562,7 @@ bool BM_mesh_intersect(
 					continue;
 				}
 				BLI_assert(ELEM(side, 0, 1));
+				side = !side;
 
 				// BM_face_calc_center_mean(f, co);
 				BM_face_calc_point_in_face(f, co);
@@ -1672,5 +1675,5 @@ bool BM_mesh_intersect(
 
 	BLI_memarena_free(s.mem_arena);
 
-	return has_isect;
+	return has_isect || (totface_orig != bm->totface);
 }
