@@ -100,8 +100,6 @@ static bNodeTree *node_tree_from_ID(ID *id)
 		switch (idtype) {
 			case ID_NT:
 				return (bNodeTree *)id;
-			case ID_OB:
-				return ((Object *)id)->nodetree;
 			case ID_MA:
 				return ((Material *)id)->nodetree;
 			case ID_LA:
@@ -156,10 +154,6 @@ void ED_node_tag_update_id(ID *id)
 	 * but for now this is the only real option.
 	 */
 	else if (STREQ(ntree->idname, "GeometryNodeTree")) {
-		DAG_id_tag_update(id, 0);
-		/* XXX BS notifier, the system is too limited
-		 * to support nested node dependencies properly
-		 */
 		WM_main_add_notifier(NC_MATERIAL | ND_NODES, NULL);
 	}
 	else if (id == &ntree->id) {
