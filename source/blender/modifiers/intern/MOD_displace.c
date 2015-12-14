@@ -191,7 +191,7 @@ static void updateDepsgraph(ModifierData *md,
 		DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
 	}
 	if (dmd->texture) {
-		DEG_add_texture_relation(node, dmd->texture, DEG_OB_TEX_PARAMETERS, "Displace Modifier");
+		DEG_add_texture_relation(node, dmd->texture, DEG_TEX_COMP_PARAMETERS, "Displace Modifier");
 	}
 }
 

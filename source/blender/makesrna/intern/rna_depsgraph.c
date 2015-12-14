@@ -70,6 +70,12 @@ static void rna_DepsNode_add_texture_relation(struct DepsNodeHandle *node, struc
 	DEG_add_texture_relation(node, tex, component, description);
 }
 
+static void rna_DepsNode_add_nodetree_relation(struct DepsNodeHandle *node, struct bNodeTree *ntree,
+                                               int component, const char *description)
+{
+	DEG_add_nodetree_relation(node, ntree, component, description);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
@@ -136,7 +142,12 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	};
 	
 	static EnumPropertyItem texture_component_items[] = {
-	    {DEG_OB_TEX_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {DEG_TEX_COMP_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
+	static EnumPropertyItem nodetree_component_items[] = {
+	    {DEG_NTREE_COMP_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	
@@ -170,7 +181,14 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	func = RNA_def_function(srna, "add_texture_relation", "rna_DepsNode_add_texture_relation");
 	parm = RNA_def_pointer(func, "texture", "Texture", "Texture", "Texture the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", texture_component_items, DEG_OB_TEX_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", texture_component_items, DEG_TEX_COMP_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+	
+	func = RNA_def_function(srna, "add_nodetree_relation", "rna_DepsNode_add_nodetree_relation");
+	parm = RNA_def_pointer(func, "node_tree", "NodeTree", "Node Tree", "Node tree the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_enum(func, "component", nodetree_component_items, DEG_NTREE_COMP_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 }

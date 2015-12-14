@@ -299,9 +299,8 @@ def make_node_group_types(prefix, treetype, node_base):
             layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
 
         def relations_update(self, depsnode):
-            if self.id:
-                for node in self.id.nodes:
-                    node.relations_update(depsnode)
+            if self.id is not None:
+                depsnode.add_nodetree_relation(self.id)
 
         def update(self):
             if self.is_updating:

@@ -237,6 +237,10 @@ OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
 	return comp_node->has_operation(opcode, description);
 }
 
+DepsNodeHandle DepsgraphNodeBuilder::create_node_handle()
+{
+	return DepsNodeHandle(this);
+}
 
 /* **** Build functions for entity nodes **** */
 
@@ -1095,7 +1099,7 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
 {
-	if (!ntree)
+	if (!ntree || (ntree->id.flag & LIB_DOIT) != 0)
 		return;
 
 	/* nodetree itself */
@@ -1106,6 +1110,9 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 	/* Parameters for drivers. */
 	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+
+	DepsNodeHandle handle = create_node_handle();
+	deg_build_nodetree_rna(ntree, &handle);
 
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
@@ -1118,16 +1125,7 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 			}
 			else if (bnode->type == NODE_GROUP) {
 				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
-				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
-					build_nodetree(owner_node, group_ntree);
-				}
-			}
-			/* XXX this is weak */
-			else if (GS(bnode->id->name) == ID_NT) {
-				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
-				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
-					build_nodetree(owner_node, group_ntree);
-				}
+				build_nodetree(owner_node, group_ntree);
 			}
 		}
 	}

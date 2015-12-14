@@ -62,6 +62,9 @@ class GlobalsBuilder():
     def add_texture_relation(self, tex, component='PARAMETERS', description=""):
         pass
 
+    def add_nodetree_relation(self, ntree, component='PARAMETERS', description=""):
+        pass
+
 
 class NodeTreeBase():
     def depsgraph_update(self, depsnode):

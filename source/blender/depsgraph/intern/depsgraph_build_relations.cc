@@ -1774,32 +1774,11 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 	build_texture_stack(lamp_id, la->mtex);
 }
 
-static void rna_nodetree_build(bNodeTree *ntree, DepsNodeHandle *handle)
-{
-	PointerRNA ptr;
-	ParameterList list;
-	FunctionRNA *func;
-	
-	if (!ntree->typeinfo->ext.call)
-		return;
-	
-	RNA_id_pointer_create((ID *)ntree, &ptr);
-	
-	func = RNA_struct_find_function(ptr.type, "depsgraph_update");
-	if (!func)
-		return;
-	
-	RNA_parameter_list_create(&list, &ptr, func);
-	RNA_parameter_set_lookup(&list, "depsnode", &handle);
-	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
-	
-	RNA_parameter_list_free(&list);
-}
-
 void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 {
-	if (!ntree)
+	if (!ntree || (ntree->id.flag & LIB_DOIT) != 0)
 		return;
+	ntree->id.flag |= LIB_DOIT;
 
 	ID *ntree_id = &ntree->id;
 
@@ -1811,7 +1790,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	                            "Parameters Eval");
 
 	DepsNodeHandle handle = create_node_handle(parameters_key);
-	rna_nodetree_build(ntree, &handle);
+	deg_build_nodetree_rna(ntree, &handle);
 
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
@@ -1824,24 +1803,9 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 			}
 			else if (bnode->type == NODE_GROUP) {
 				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
-				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
-					build_nodetree(owner, group_ntree);
-					group_ntree->flag |= LIB_DOIT;
-				}
-				OperationKey group_parameters_key(&group_ntree->id,
-				                                  DEPSNODE_TYPE_PARAMETERS,
-				                                  DEG_OPCODE_PLACEHOLDER,
-				                                  "Parameters Eval");
-				add_relation(group_parameters_key, parameters_key,
-				             DEPSREL_TYPE_COMPONENT_ORDER, "Group Node");
-			}
-			/* XXX this is weak - include it in rna update! */
-			else if (GS(bnode->id->name) == ID_NT) {
-				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
-				if ((group_ntree->id.flag & LIB_DOIT) == 0) {
-					build_nodetree(owner, group_ntree);
-					group_ntree->flag |= LIB_DOIT;
-				}
+				
+				build_nodetree(owner, group_ntree);
+				
 				OperationKey group_parameters_key(&group_ntree->id,
 				                                  DEPSNODE_TYPE_PARAMETERS,
 				                                  DEG_OPCODE_PLACEHOLDER,

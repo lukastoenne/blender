@@ -44,6 +44,7 @@ struct Main;
 struct Object;
 struct Scene;
 struct Tex;
+struct bNodeTree;
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -108,13 +109,18 @@ typedef enum eDepsObjectComponentType {
 } eDepsObjectComponentType;
 
 typedef enum eDepsTextureComponentType {
-	DEG_OB_TEX_PARAMETERS,        /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+	DEG_TEX_COMP_PARAMETERS,         /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
 } eDepsTextureComponentType;
+
+typedef enum eDepsNodeTreeComponentType {
+	DEG_NTREE_COMP_PARAMETERS,    /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+} eDepsNodeTreeComponentType;
 
 void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *description);
 void DEG_add_object_relation(struct DepsNodeHandle *node, struct Object *ob, eDepsObjectComponentType component, const char *description);
 void DEG_add_bone_relation(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description);
 void DEG_add_texture_relation(struct DepsNodeHandle *handle, struct Tex *tex, eDepsTextureComponentType component, const char *description);
+void DEG_add_nodetree_relation(struct DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType component, const char *description);
 
 /* TODO(sergey): Remove once all geometry update is granular. */
 void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);

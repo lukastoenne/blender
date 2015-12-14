@@ -127,6 +127,9 @@ struct DepsgraphNodeBuilder {
 	void build_compositor(Scene *scene);
 	void build_gpencil(bGPdata *gpd);
 
+protected:
+	DepsNodeHandle create_node_handle();
+
 private:
 	Main *m_bmain;
 	Depsgraph *m_graph;
@@ -305,15 +308,25 @@ private:
 
 struct DepsNodeHandle
 {
+	DepsNodeHandle(DepsgraphNodeBuilder *builder) :
+	    node_builder(builder),
+	    relation_builder(NULL),
+	    node(NULL),
+	    default_name("")
+	{
+	}
+	
 	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
-	    builder(builder),
+	    node_builder(NULL),
+	    relation_builder(builder),
 	    node(node),
 	    default_name(default_name)
 	{
 		BLI_assert(node != NULL);
 	}
 
-	DepsgraphRelationBuilder *builder;
+	DepsgraphNodeBuilder *node_builder;
+	DepsgraphRelationBuilder *relation_builder;
 	OperationDepsNode *node;
 	const string &default_name;
 };
@@ -404,5 +417,7 @@ DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(const KeyType &key,
 {
 	return DepsNodeHandle(this, find_node(key), default_name);
 }
+
+void deg_build_nodetree_rna(bNodeTree *ntree, DepsNodeHandle *handle);
 
 #endif  /* __DEPSGRAPH_BUILD_H__ */
