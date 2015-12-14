@@ -35,6 +35,7 @@
 
 extern "C" {
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
 #include "DNA_node_types.h"
@@ -76,7 +77,7 @@ void BVM_free(void)
 {
 	using namespace bvm;
 	
-	BVM_texture_cache_clear();
+	BVM_function_cache_clear();
 	
 	nodes_free();
 	
@@ -90,6 +91,111 @@ BLI_INLINE bvm::Function *_FUNC(struct BVMFunction *fn)
 
 void BVM_function_free(struct BVMFunction *fn)
 { delete _FUNC(fn); }
+
+namespace bvm {
+
+typedef unordered_map<BVMFunctionKey, Function*> FunctionCache;
+typedef std::pair<BVMFunctionKey, Function*> FunctionCachePair;
+
+static FunctionCache bvm_function_cache;
+static mutex bvm_function_cache_mutex;
+static spin_lock bvm_function_cache_lock = spin_lock(bvm_function_cache_mutex);
+
+} /* namespace bvm */
+
+struct BVMFunction *BVM_function_cache_acquire(BVMFunctionKey key)
+{
+	using namespace bvm;
+	
+	bvm_function_cache_lock.lock();
+	FunctionCache::const_iterator it = bvm_function_cache.find(key);
+	Function *fn = NULL;
+	if (it != bvm_function_cache.end()) {
+		fn = it->second;
+		Function::retain(fn);
+	}
+	bvm_function_cache_lock.unlock();
+	return (BVMFunction *)fn;
+}
+
+void BVM_function_release(BVMFunction *_fn)
+{
+	using namespace bvm;
+	Function *fn = _FUNC(_fn);
+	
+	if (!fn)
+		return;
+	
+	Function::release(&fn);
+	
+	if (fn == NULL) {
+		bvm_function_cache_lock.lock();
+		FunctionCache::iterator it = bvm_function_cache.begin();
+		while (it != bvm_function_cache.end()) {
+			if (it->second == fn) {
+				FunctionCache::iterator it_del = it++;
+				bvm_function_cache.erase(it_del);
+			}
+			else
+				++it;
+		}
+		bvm_function_cache_lock.unlock();
+	}
+}
+
+void BVM_function_cache_set(BVMFunctionKey key, BVMFunction *_fn)
+{
+	using namespace bvm;
+	Function *fn = _FUNC(_fn);
+	
+	bvm_function_cache_lock.lock();
+	if (fn) {
+		FunctionCache::iterator it = bvm_function_cache.find(key);
+		if (it == bvm_function_cache.end()) {
+			Function::retain(fn);
+			bvm_function_cache.insert(FunctionCachePair(key, fn));
+		}
+		else if (fn != it->second) {
+			Function::release(&it->second);
+			Function::retain(fn);
+			it->second = fn;
+		}
+	}
+	else {
+		FunctionCache::iterator it = bvm_function_cache.find(key);
+		if (it != bvm_function_cache.end()) {
+			Function::release(&it->second);
+			bvm_function_cache.erase(it);
+		}
+	}
+	bvm_function_cache_lock.unlock();
+}
+
+void BVM_function_cache_remove(BVMFunctionKey key)
+{
+	using namespace bvm;
+	
+	bvm_function_cache_lock.lock();
+	FunctionCache::iterator it = bvm_function_cache.find(key);
+	if (it != bvm_function_cache.end()) {
+		Function::release(&it->second);
+		
+		bvm_function_cache.erase(it);
+	}
+	bvm_function_cache_lock.unlock();
+}
+
+void BVM_function_cache_clear(void)
+{
+	using namespace bvm;
+	
+	bvm_function_cache_lock.lock();
+	for (FunctionCache::iterator it = bvm_function_cache.begin(); it != bvm_function_cache.end(); ++it) {
+		Function::release(&it->second);
+	}
+	bvm_function_cache.clear();
+	bvm_function_cache_lock.unlock();
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -308,6 +414,7 @@ struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree, FILE *debug_fi
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
+	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
 }
@@ -823,6 +930,7 @@ struct BVMFunction *BVM_gen_texture_function(struct Tex */*tex*/, bNodeTree *btr
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
+	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
 }
@@ -858,63 +966,9 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	}
 }
 
-/* TODO using shared_ptr or similar here could help relax
- * order of acquire/release/invalidate calls (keep alive as long as used)
- */
-typedef unordered_map<Tex*, bvm::Function*> FunctionCache;
-
-static FunctionCache bvm_tex_cache;
-static bvm::mutex bvm_tex_mutex;
-
-struct BVMFunction *BVM_texture_cache_acquire(Tex *tex)
+BVMFunctionKey BVM_texture_key(struct Tex *tex)
 {
-	using namespace bvm;
-	
-	scoped_lock lock(bvm_tex_mutex);
-	
-	FunctionCache::const_iterator it = bvm_tex_cache.find(tex);
-	if (it != bvm_tex_cache.end()) {
-		return (BVMFunction *)it->second;
-	}
-	else if (tex->use_nodes && tex->nodetree) {
-		BVMFunction *fn = BVM_gen_texture_function(tex, tex->nodetree, NULL);
-		
-		bvm_tex_cache[tex] = _FUNC(fn);
-		
-		return fn;
-	}
-	else
-		return NULL;
-}
-
-void BVM_texture_cache_release(Tex *tex)
-{
-	(void)tex;
-}
-
-void BVM_texture_cache_invalidate(Tex *tex)
-{
-	using namespace bvm;
-	
-	scoped_lock lock(bvm_tex_mutex);
-	
-	FunctionCache::iterator it = bvm_tex_cache.find(tex);
-	if (it != bvm_tex_cache.end()) {
-		delete it->second;
-		bvm_tex_cache.erase(it);
-	}
-}
-
-void BVM_texture_cache_clear(void)
-{
-	using namespace bvm;
-	
-	scoped_lock lock(bvm_tex_mutex);
-	
-	for (FunctionCache::iterator it = bvm_tex_cache.begin(); it != bvm_tex_cache.end(); ++it) {
-		delete it->second;
-	}
-	bvm_tex_cache.clear();
+	return BLI_ghashutil_ptrhash(tex);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -940,6 +994,7 @@ struct BVMFunction *BVM_gen_modifier_function(struct Object */*ob*/, struct bNod
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
+	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
 }

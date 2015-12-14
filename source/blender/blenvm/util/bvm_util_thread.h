@@ -77,6 +77,33 @@ private:
 	mutex *m;
 };
 
+struct spin_lock {
+	spin_lock(mutex &m_) :
+	    m(&m_)
+	{
+		BLI_spin_init(&m_lock);
+	}
+	
+	~spin_lock()
+	{
+		BLI_spin_end(&m_lock);
+	}
+	
+	void lock()
+	{
+		BLI_spin_lock(&m_lock);
+	}
+	
+	void unlock()
+	{
+		BLI_spin_unlock(&m_lock);
+	}
+	
+private:
+	mutex *m;
+	SpinLock m_lock;
+};
+
 } /* namespace bvm */
 
 #endif /* __BVM_UTIL_THREAD_H__ */

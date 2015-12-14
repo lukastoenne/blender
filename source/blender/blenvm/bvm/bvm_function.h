@@ -39,6 +39,7 @@
 
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
+#include "bvm_util_thread.h"
 #include "bvm_util_typedesc.h"
 
 namespace bvm {
@@ -95,6 +96,9 @@ struct Function {
 	
 	Function();
 	~Function();
+	
+	static void retain(Function *fn);
+	static void release(Function **fn);
 	
 	OpCode read_opcode(int *instr) const
 	{
@@ -209,7 +213,12 @@ private:
 	ArgumentList m_return_values;
 	InstructionList m_instructions;
 	int m_entry_point;
-
+	
+	int m_users;
+	
+	static mutex users_mutex;
+	static spin_lock users_lock;
+	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
 };
 

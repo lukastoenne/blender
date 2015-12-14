@@ -33,13 +33,40 @@
 
 namespace bvm {
 
+mutex Function::users_mutex = mutex();
+spin_lock Function::users_lock = spin_lock(Function::users_mutex);
+
 Function::Function() :
-    m_entry_point(0)
+    m_entry_point(0),
+    m_users(0)
 {
 }
 
 Function::~Function()
 {
+}
+
+void Function::retain(Function *fn)
+{
+	if (fn) {
+		users_lock.lock();
+		++fn->m_users;
+		users_lock.unlock();
+	}
+}
+
+void Function::release(Function **fn)
+{
+	if (*fn) {
+		users_lock.lock();
+		assert((*fn)->m_users > 0);
+		--(*fn)->m_users;
+		if ((*fn)->m_users == 0) {
+			delete *fn;
+			*fn = NULL;
+		}
+		users_lock.unlock();
+	}
 }
 
 void Function::add_instruction(Instruction v)

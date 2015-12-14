@@ -48,7 +48,15 @@ void BVM_free(void);
 
 /* ------------------------------------------------------------------------- */
 
+typedef unsigned int BVMFunctionKey;
+
 void BVM_function_free(struct BVMFunction *fn);
+
+struct BVMFunction *BVM_function_cache_acquire(BVMFunctionKey key);
+void BVM_function_release(struct BVMFunction *_fn);
+void BVM_function_cache_set(BVMFunctionKey key, struct BVMFunction *_fn);
+void BVM_function_cache_remove(BVMFunctionKey key);
+void BVM_function_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
 
@@ -130,10 +138,7 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
 
-struct BVMFunction *BVM_texture_cache_acquire(struct Tex *tex);
-void BVM_texture_cache_release(struct Tex *tex);
-void BVM_texture_cache_invalidate(struct Tex *tex);
-void BVM_texture_cache_clear(void);
+BVMFunctionKey BVM_texture_key(struct Tex *tex);
 
 /* ------------------------------------------------------------------------- */
 
@@ -147,8 +152,6 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct BVMFunction *fn,
                                       struct Object *ob,
                                       struct Mesh *base_mesh);
-
-/* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus
 }
