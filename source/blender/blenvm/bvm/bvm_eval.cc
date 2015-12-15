@@ -790,6 +790,16 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                        oIntensity, oColor, oNormal);
 				break;
 			}
+			case OP_TEX_PROC_BLEND:
+			case OP_TEX_PROC_MAGIC:
+			case OP_TEX_PROC_MARBLE:
+			case OP_TEX_PROC_WOOD:
+			case OP_TEX_PROC_MUSGRAVE:
+			case OP_TEX_PROC_NOISE:
+			case OP_TEX_PROC_STUCCI:
+			case OP_TEX_PROC_DISTNOISE:
+				// TODO
+				break;
 			
 			case OP_OBJECT_LOOKUP: {
 				int key = fn->read_int(&instr);
@@ -895,9 +905,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			}
 			
 			case OP_END:
-				return;
-			default:
-				assert(!"Unknown opcode");
 				return;
 		}
 	}
