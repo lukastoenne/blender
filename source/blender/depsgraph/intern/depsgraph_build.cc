@@ -350,7 +350,7 @@ void DEG_scene_graph_free(Scene *scene)
 	}
 }
 
-void deg_build_nodetree_rna(bNodeTree *ntree, DepsNodeHandle *handle)
+void deg_nodetree_bvm_compile_deps(bNodeTree *ntree, DepsNodeHandle *handle)
 {
 	PointerRNA ptr;
 	ParameterList list;
@@ -361,7 +361,29 @@ void deg_build_nodetree_rna(bNodeTree *ntree, DepsNodeHandle *handle)
 	
 	RNA_id_pointer_create((ID *)ntree, &ptr);
 	
-	func = RNA_struct_find_function(ptr.type, "depsgraph_update");
+	func = RNA_struct_find_function(ptr.type, "bvm_compile_dependencies");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "depsnode", &handle);
+	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+void deg_nodetree_bvm_eval_deps(bNodeTree *ntree, DepsNodeHandle *handle)
+{
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	if (!ntree->typeinfo->ext.call)
+		return;
+	
+	RNA_id_pointer_create((ID *)ntree, &ptr);
+	
+	func = RNA_struct_find_function(ptr.type, "bvm_eval_dependencies");
 	if (!func)
 		return;
 	

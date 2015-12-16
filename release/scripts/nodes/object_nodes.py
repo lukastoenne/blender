@@ -69,9 +69,15 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
     def bl_id_property_poll(self, ntree):
         return ntree.bl_idname == 'GeometryNodeTree'
 
-    def relations_update(self, depsnode):
-        if self.id is not None:
-            depsnode.add_nodetree_relation(self.id)
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
 
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
@@ -90,9 +96,15 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
     def bl_id_property_poll(self, ntree):
         return ntree.bl_idname == 'ForceFieldNodeTree'
 
-    def relations_update(self, depsnode):
-        if self.id is not None:
-            depsnode.add_nodetree_relation(self.id)
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
 
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")

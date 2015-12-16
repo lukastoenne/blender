@@ -44,6 +44,8 @@ extern "C" {
 #include "BKE_effect.h"
 #include "BKE_node.h"
 
+#include "DEG_depsgraph_build.h"
+
 #include "RE_shader_ext.h"
 
 #include "BVM_api.h"
@@ -94,8 +96,8 @@ void BVM_function_free(struct BVMFunction *fn)
 
 namespace bvm {
 
-typedef unordered_map<BVMFunctionKey, Function*> FunctionCache;
-typedef std::pair<BVMFunctionKey, Function*> FunctionCachePair;
+typedef unordered_map<void*, Function*> FunctionCache;
+typedef std::pair<void*, Function*> FunctionCachePair;
 
 static FunctionCache bvm_function_cache;
 static mutex bvm_function_cache_mutex;
@@ -103,7 +105,7 @@ static spin_lock bvm_function_cache_lock = spin_lock(bvm_function_cache_mutex);
 
 } /* namespace bvm */
 
-struct BVMFunction *BVM_function_cache_acquire(BVMFunctionKey key)
+struct BVMFunction *BVM_function_cache_acquire(void *key)
 {
 	using namespace bvm;
 	
@@ -143,7 +145,7 @@ void BVM_function_release(BVMFunction *_fn)
 	}
 }
 
-void BVM_function_cache_set(BVMFunctionKey key, BVMFunction *_fn)
+void BVM_function_cache_set(void *key, BVMFunction *_fn)
 {
 	using namespace bvm;
 	Function *fn = _FUNC(_fn);
@@ -171,7 +173,7 @@ void BVM_function_cache_set(BVMFunctionKey key, BVMFunction *_fn)
 	bvm_function_cache_lock.unlock();
 }
 
-void BVM_function_cache_remove(BVMFunctionKey key)
+void BVM_function_cache_remove(void *key)
 {
 	using namespace bvm;
 	
@@ -335,8 +337,38 @@ void BVM_globals_free(struct BVMEvalGlobals *globals)
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob)
 { _GLOBALS(globals)->add_object(key, ob); }
 
+namespace bvm {
+
+struct EvalGlobalsHandle
+{
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsObjectComponentType /*component*/, const char */*description*/)
+	{
+		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
+		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
+	}
+	
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char */*bone_name*/, eDepsObjectComponentType /*component*/, const char */*description*/)
+	{
+		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
+		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
+	}
+	
+	EvalGlobalsHandle(EvalGlobals *globals) :
+	    handle({0}),
+	    globals(globals)
+	{
+		handle.add_object_relation = add_object_relation;
+		handle.add_bone_relation = add_bone_relation;
+	}
+	
+	DepsNodeHandle handle;
+	EvalGlobals *globals;
+};
+
 static void rna_globals_update(bNodeTree *ntree, bvm::EvalGlobals *globals)
 {
+	EvalGlobalsHandle handle(globals);
+	DepsNodeHandle *phandle = &handle.handle;
 	PointerRNA ptr;
 	ParameterList list;
 	FunctionRNA *func;
@@ -346,16 +378,18 @@ static void rna_globals_update(bNodeTree *ntree, bvm::EvalGlobals *globals)
 	
 	RNA_id_pointer_create((ID *)ntree, &ptr);
 	
-	func = RNA_struct_find_function(ptr.type, "bvm_globals_update");
+	func = RNA_struct_find_function(ptr.type, "bvm_eval_dependencies");
 	if (!func)
 		return;
 	
 	RNA_parameter_list_create(&list, &ptr, func);
-	RNA_parameter_set_lookup(&list, "eval_globals", &globals);
+	RNA_parameter_set_lookup(&list, "depsnode", &phandle);
 	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
 	
 	RNA_parameter_list_free(&list);
 }
+
+} /* namespace bvm */
 
 void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, bNodeTree *ntree)
 { rna_globals_update(ntree, _GLOBALS(globals)); }
@@ -964,11 +998,6 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 		target->nor[1] = normal.y;
 		target->nor[2] = normal.z;
 	}
-}
-
-BVMFunctionKey BVM_texture_key(struct Tex *tex)
-{
-	return BLI_ghashutil_ptrhash(tex);
 }
 
 /* ------------------------------------------------------------------------- */

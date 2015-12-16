@@ -151,3 +151,8 @@ DEF_DEG_OPCODE(TEXTURE_INVALIDATE)
 
 /* XXX: placeholder - Particle System eval */
 DEF_DEG_OPCODE(PSYS_EVAL)
+
+/* NodeTree ---------------------------------------- */
+
+/* invalidate cached bvm function */
+DEF_DEG_OPCODE(NTREE_BVM_FUNCTION_INVALIDATE)

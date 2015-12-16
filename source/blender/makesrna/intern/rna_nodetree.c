@@ -8184,18 +8184,17 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "result_3", "ID", "From ID", "Original ID data block selected from the context");
 	RNA_def_function_output(func, parm);
 	
-	/* Depsgraph Update Callback */
-	func = RNA_def_function(srna, "depsgraph_update", NULL);
-	RNA_def_function_ui_description(func, "Update depsgraph relations");
+	/* Depsgraph Update Callbacks */
+	func = RNA_def_function(srna, "bvm_compile_dependencies", NULL);
+	RNA_def_function_ui_description(func, "Dependencies that require a recompile");
 	RNA_def_function_flag(func, FUNC_REGISTER);
 	parm = RNA_def_pointer(func, "depsnode", "DepsNode", "Depsgraph Node", "Node in the dependency graph");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	
-	/* EvalGlobals Update Callback */
-	func = RNA_def_function(srna, "bvm_globals_update", NULL);
-	RNA_def_function_ui_description(func, "Update global variables for evaluation");
+	func = RNA_def_function(srna, "bvm_eval_dependencies", NULL);
+	RNA_def_function_ui_description(func, "Dependencies that require evaluation");
 	RNA_def_function_flag(func, FUNC_REGISTER);
-	parm = RNA_def_pointer(func, "eval_globals", "BVMEvalGlobals", "Globals", "Global data for node evaluation");
+	parm = RNA_def_pointer(func, "depsnode", "DepsNode", "Depsgraph Node", "Node in the dependency graph");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	
 	/* BlenVM compile */

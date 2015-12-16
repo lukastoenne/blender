@@ -288,10 +288,11 @@ class GeometryBooleanNode(GeometryNodeBase, ObjectNode):
         layout.prop(self, "use_connect_regions")
         layout.prop(self, "threshold")
 
-    def relations_update(self, depsnode):
-        if self.id is not None:
-            depsnode.add_object_relation(self.id, 'TRANSFORM')
-            depsnode.add_object_relation(self.id, 'GEOMETRY')
+    def eval_dependencies(self, depsnode):
+        curveob = self.id
+        if curveob:
+            depsnode.add_object_relation(curveob, 'TRANSFORM')
+            depsnode.add_object_relation(curveob, 'GEOMETRY')
 
     def init(self, context):
         self.inputs.new('GeometrySocket', "")
@@ -334,10 +335,11 @@ class CurvePathNode(CurveNodeBase, ObjectNode):
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id")
 
-    def relations_update(self, depsnode):
-        if self.id is not None:
-            depsnode.add_object_relation(self.id, 'TRANSFORM')
-            depsnode.add_object_relation(self.id, 'GEOMETRY')
+    def eval_dependencies(self, depsnode):
+        curveob = self.id
+        if curveob:
+            depsnode.add_object_relation(curveob, 'TRANSFORM')
+            depsnode.add_object_relation(curveob, 'GEOMETRY')
 
     def init(self, context):
         self.inputs.new('NodeSocketFloat', "Parameter")

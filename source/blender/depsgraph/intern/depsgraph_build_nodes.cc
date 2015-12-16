@@ -90,6 +90,8 @@ extern "C" {
 #include "BKE_tracking.h"
 #include "BKE_world.h"
 
+#include "BVM_api.h"
+
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
@@ -1132,9 +1134,6 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
-	DepsgraphNodeBuilderHandle handle(this);
-	deg_build_nodetree_rna(ntree, &handle.handle);
-
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
 		if (bnode->id) {
@@ -1150,8 +1149,12 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 			}
 		}
 	}
-
 	// TODO: link from nodetree to owner_component?
+	
+	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, function_bind(BVM_function_cache_remove, ntree),
+	                   DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
+	DepsgraphNodeBuilderHandle handle(this);
+	deg_nodetree_bvm_compile_deps(ntree, &handle.handle);
 }
 
 /* Recursively build graph for material */

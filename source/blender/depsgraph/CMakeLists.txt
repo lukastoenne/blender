@@ -29,6 +29,7 @@ set(INC
 	util
 	../blenkernel
 	../blenlib
+	../blenvm
 	../bmesh
 	../makesdna
 	../makesrna

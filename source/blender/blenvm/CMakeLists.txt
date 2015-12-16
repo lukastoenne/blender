@@ -33,6 +33,7 @@ set(INC
 	util
 	../blenkernel
 	../blenlib
+	../depsgraph
 	../makesdna
 	../makesrna
 	../render/extern/include

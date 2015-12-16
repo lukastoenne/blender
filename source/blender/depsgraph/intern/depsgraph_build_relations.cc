@@ -1779,8 +1779,16 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 	}
 	
 	if (ob->nodetree) {
-		ComponentKey nodetree_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
-		add_relation(nodetree_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
+		/* XXX this is not quite correct:
+		 * the geometry eval should depend only on the internal geometry node trees,
+		 * not the overall object node tree!
+		 * Currently there is no good way of accessing these internal nodes.
+		 */
+		OperationKey bvm_invalidate_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS,
+		                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
+		add_relation(bvm_invalidate_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
+		DepsgraphRelationBuilderHandle handle(this, find_node(obdata_geom_eval_key));
+		deg_nodetree_bvm_eval_deps(ob->nodetree, &handle.handle);
 	}
 }
 
@@ -1856,9 +1864,6 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	                            DEG_OPCODE_PLACEHOLDER,
 	                            "Parameters Eval");
 
-	DepsgraphRelationBuilderHandle handle(this, find_node(parameters_key));
-	deg_build_nodetree_rna(ntree, &handle.handle);
-
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
 		if (bnode->id) {
@@ -1888,7 +1893,14 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		add_relation(animation_key, parameters_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Parameters");
 	}
-
+	
+	OperationKey bvm_invalidate_key(ntree_id,
+	                                DEPSNODE_TYPE_PARAMETERS,
+	                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE,
+	                                "BVM function invalidate");
+	DepsgraphRelationBuilderHandle handle(this, find_node(bvm_invalidate_key));
+	deg_nodetree_bvm_compile_deps(ntree, &handle.handle);
+	
 	// TODO: link from nodetree to owner_component?
 }
 

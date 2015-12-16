@@ -380,6 +380,7 @@ void DepsgraphRelationBuilder::add_node_relation(const KeyType &key_from,
 	}
 }
 
-void deg_build_nodetree_rna(bNodeTree *ntree, DepsNodeHandle *handle);
+void deg_nodetree_bvm_compile_deps(bNodeTree *ntree, DepsNodeHandle *handle);
+void deg_nodetree_bvm_eval_deps(bNodeTree *ntree, DepsNodeHandle *handle);
 
 #endif  /* __DEPSGRAPH_BUILD_H__ */

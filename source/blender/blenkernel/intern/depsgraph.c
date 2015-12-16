@@ -2649,7 +2649,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 
 		if (ELEM(idtype, ID_TE)) {
 			Tex *tex = (Tex *)id;
-			BVM_function_cache_remove(BVM_texture_key(tex));
+			BVM_function_cache_remove(tex->nodetree);
 		}
 
 		if (idtype == ID_MC) {

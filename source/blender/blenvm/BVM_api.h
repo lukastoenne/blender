@@ -48,14 +48,12 @@ void BVM_free(void);
 
 /* ------------------------------------------------------------------------- */
 
-typedef unsigned int BVMFunctionKey;
-
 void BVM_function_free(struct BVMFunction *fn);
 
-struct BVMFunction *BVM_function_cache_acquire(BVMFunctionKey key);
+struct BVMFunction *BVM_function_cache_acquire(void *key);
 void BVM_function_release(struct BVMFunction *_fn);
-void BVM_function_cache_set(BVMFunctionKey key, struct BVMFunction *_fn);
-void BVM_function_cache_remove(BVMFunctionKey key);
+void BVM_function_cache_set(void *key, struct BVMFunction *_fn);
+void BVM_function_cache_remove(void *key);
 void BVM_function_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
@@ -137,8 +135,6 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
-
-BVMFunctionKey BVM_texture_key(struct Tex *tex);
 
 /* ------------------------------------------------------------------------- */
 
