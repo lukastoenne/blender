@@ -105,103 +105,36 @@ extern "C" {
 /* ****************** */
 /* External Build API */
 
-static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
-{
-	switch (component) {
-		case DEG_SCENE_COMP_PARAMETERS:     return DEPSNODE_TYPE_PARAMETERS;
-		case DEG_SCENE_COMP_ANIMATION:      return DEPSNODE_TYPE_ANIMATION;
-		case DEG_SCENE_COMP_SEQUENCER:      return DEPSNODE_TYPE_SEQUENCER;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType component)
-{
-	switch (component) {
-		case DEG_OB_COMP_PARAMETERS:        return DEPSNODE_TYPE_PARAMETERS;
-		case DEG_OB_COMP_PROXY:             return DEPSNODE_TYPE_PROXY;
-		case DEG_OB_COMP_ANIMATION:         return DEPSNODE_TYPE_ANIMATION;
-		case DEG_OB_COMP_TRANSFORM:         return DEPSNODE_TYPE_TRANSFORM;
-		case DEG_OB_COMP_GEOMETRY:          return DEPSNODE_TYPE_GEOMETRY;
-		case DEG_OB_COMP_EVAL_POSE:         return DEPSNODE_TYPE_EVAL_POSE;
-		case DEG_OB_COMP_BONE:              return DEPSNODE_TYPE_BONE;
-		case DEG_OB_COMP_EVAL_PARTICLES:    return DEPSNODE_TYPE_EVAL_PARTICLES;
-		case DEG_OB_COMP_SHADING:           return DEPSNODE_TYPE_SHADING;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-static eDepsNode_Type deg_build_texture_component_type(eDepsTextureComponentType component)
-{
-	switch (component) {
-		case DEG_TEX_COMP_PARAMETERS:          return DEPSNODE_TYPE_PARAMETERS;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-static eDepsNode_Type deg_build_nodetree_component_type(eDepsNodeTreeComponentType component)
-{
-	switch (component) {
-		case DEG_NTREE_COMP_PARAMETERS:     return DEPSNODE_TYPE_PARAMETERS;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
 void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
 {
-	if (handle->relation_builder) {
-		eDepsNode_Type type = deg_build_scene_component_type(component);
-		ComponentKey comp_key(&scene->id, type);
-		handle->relation_builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
-	}
+	if (handle->add_scene_relation)
+		handle->add_scene_relation(handle, scene, component, description);
 }
 
 void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
 {
-	if (handle->relation_builder) {
-		eDepsNode_Type type = deg_build_object_component_type(component);
-		ComponentKey comp_key(&ob->id, type);
-		handle->relation_builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
-	}
+	if (handle->add_object_relation)
+		handle->add_object_relation(handle, ob, component, description);
 }
 
 void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description)
 {
-	if (handle->relation_builder) {
-		eDepsNode_Type type = deg_build_object_component_type(component);
-		ComponentKey comp_key(&ob->id, type, bone_name);
-		
-		// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
-		handle->relation_builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
-	}
+	if (handle->add_bone_relation)
+		handle->add_bone_relation(handle, ob, bone_name, component, description);
 }
 
 void DEG_add_texture_relation(DepsNodeHandle *handle, struct Tex *tex, eDepsTextureComponentType component, const char *description)
 {
-	if (handle->node_builder) {
-		handle->node_builder->build_texture(NULL, tex);
-	}
-	if (handle->relation_builder) {
-		eDepsNode_Type type = deg_build_texture_component_type(component);
-		ComponentKey comp_key(&tex->id, type);
-		handle->relation_builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_STANDARD, description);
-	}
+	if (handle->add_texture_relation)
+		handle->add_texture_relation(handle, tex, component, description);
 }
 
 void DEG_add_nodetree_relation(DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType component, const char *description)
 {
-	if (handle->node_builder) {
-		handle->node_builder->build_nodetree(NULL, ntree);
-	}
-	if (handle->relation_builder) {
-		eDepsNode_Type type = deg_build_nodetree_component_type(component);
-		ComponentKey comp_key(&ntree->id, type);
-		
-		handle->relation_builder->build_nodetree(NULL, ntree);
-		
-		handle->relation_builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_STANDARD, description);
-	}
+	if (handle->add_nodetree_relation)
+		handle->add_nodetree_relation(handle, ntree, component, description);
 }
+
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
 {
 	if (graph == NULL) {

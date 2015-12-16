@@ -106,6 +106,73 @@ extern "C" {
 /* ***************** */
 /* Relations Builder */
 
+struct DepsgraphRelationBuilderHandle
+{
+	static void add_scene_relation(DepsNodeHandle *_handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		eDepsNode_Type type = deg_build_scene_component_type(component);
+		ComponentKey comp_key(&scene->id, type);
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
+	}
+	
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		eDepsNode_Type type = deg_build_object_component_type(component);
+		ComponentKey comp_key(&ob->id, type);
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
+	}
+	
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		eDepsNode_Type type = deg_build_object_component_type(component);
+		ComponentKey comp_key(&ob->id, type, bone_name);
+		
+		// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
+	}
+	
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsTextureComponentType component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		eDepsNode_Type type = deg_build_texture_component_type(component);
+		ComponentKey comp_key(&tex->id, type);
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
+	}
+	
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		eDepsNode_Type type = deg_build_nodetree_component_type(component);
+		ComponentKey comp_key(&ntree->id, type);
+		
+		handle->builder->build_nodetree(NULL, ntree);
+		
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
+	}
+	
+	DepsgraphRelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
+	    handle({0}),
+	    builder(builder),
+	    node(node),
+	    default_name(default_name)
+	{
+		BLI_assert(node != NULL);
+		handle.add_scene_relation = add_scene_relation;
+		handle.add_object_relation = add_object_relation;
+		handle.add_bone_relation = add_bone_relation;
+		handle.add_texture_relation = add_texture_relation;
+		handle.add_nodetree_relation = add_nodetree_relation;
+	}
+	
+	DepsNodeHandle handle;
+	DepsgraphRelationBuilder *builder;
+	OperationDepsNode *node;
+	const string &default_name;
+};
+
 /* **** General purpose functions ****  */
 
 RNAPathKey::RNAPathKey(ID *id, const char *path) :
@@ -1573,8 +1640,8 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 			}
 
 			if (mti->updateDepsgraph) {
-				DepsNodeHandle handle = create_node_handle(mod_key);
-				mti->updateDepsgraph(md, bmain, scene, ob, &handle);
+				DepsgraphRelationBuilderHandle handle(this, find_node(mod_key));
+				mti->updateDepsgraph(md, bmain, scene, ob, &handle.handle);
 			}
 
 			if (BKE_object_modifier_use_time(ob, md)) {
@@ -1789,8 +1856,8 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	                            DEG_OPCODE_PLACEHOLDER,
 	                            "Parameters Eval");
 
-	DepsNodeHandle handle = create_node_handle(parameters_key);
-	deg_build_nodetree_rna(ntree, &handle);
+	DepsgraphRelationBuilderHandle handle(this, find_node(parameters_key));
+	deg_build_nodetree_rna(ntree, &handle.handle);
 
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {

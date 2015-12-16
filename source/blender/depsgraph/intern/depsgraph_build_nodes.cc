@@ -107,6 +107,32 @@ extern "C" {
 /* ************ */
 /* Node Builder */
 
+struct DepsgraphNodeBuilderHandle
+{
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsTextureComponentType /*component*/, const char */*description*/)
+	{
+		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		handle->builder->build_texture(NULL, tex);
+	}
+	
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType /*component*/, const char */*description*/)
+	{
+		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		handle->builder->build_nodetree(NULL, ntree);
+	}
+	
+	DepsgraphNodeBuilderHandle(DepsgraphNodeBuilder *builder) :
+	    handle({0}),
+	    builder(builder)
+	{
+		handle.add_texture_relation = add_texture_relation;
+		handle.add_nodetree_relation = add_nodetree_relation;
+	}
+	
+	DepsNodeHandle handle;
+	DepsgraphNodeBuilder *builder;
+};
+
 /* **** General purpose functions **** */
 
 DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph) :
@@ -235,11 +261,6 @@ OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
 	return comp_node->has_operation(opcode, description);
-}
-
-DepsNodeHandle DepsgraphNodeBuilder::create_node_handle()
-{
-	return DepsNodeHandle(this);
 }
 
 /* **** Build functions for entity nodes **** */
@@ -1111,8 +1132,8 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
-	DepsNodeHandle handle = create_node_handle();
-	deg_build_nodetree_rna(ntree, &handle);
+	DepsgraphNodeBuilderHandle handle(this);
+	deg_build_nodetree_rna(ntree, &handle.handle);
 
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {

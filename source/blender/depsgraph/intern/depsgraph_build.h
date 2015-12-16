@@ -127,9 +127,6 @@ struct DepsgraphNodeBuilder {
 	void build_compositor(Scene *scene);
 	void build_gpencil(bGPdata *gpd);
 
-protected:
-	DepsNodeHandle create_node_handle();
-
 private:
 	Main *m_bmain;
 	Depsgraph *m_graph;
@@ -256,8 +253,8 @@ struct DepsgraphRelationBuilder
 	                  eDepsRelation_Type type, const char *description);
 
 	template <typename KeyType>
-	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
-	                              eDepsRelation_Type type, const char *description);
+	void add_node_relation(const KeyType &key_from, DepsNode *node,
+	                       eDepsRelation_Type type, const char *description);
 
 	void build_scene(Main *bmain, Scene *scene);
 	void build_group(Main *bmain, Scene *scene, Object *object, Group *group);
@@ -297,38 +294,10 @@ protected:
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
 	                            eDepsRelation_Type type, const char *description);
 
-	template <typename KeyType>
-	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
-
 	bool needs_animdata_node(ID *id);
 
 private:
 	Depsgraph *m_graph;
-};
-
-struct DepsNodeHandle
-{
-	DepsNodeHandle(DepsgraphNodeBuilder *builder) :
-	    node_builder(builder),
-	    relation_builder(NULL),
-	    node(NULL),
-	    default_name("")
-	{
-	}
-	
-	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
-	    node_builder(NULL),
-	    relation_builder(builder),
-	    node(node),
-	    default_name(default_name)
-	{
-		BLI_assert(node != NULL);
-	}
-
-	DepsgraphNodeBuilder *node_builder;
-	DepsgraphRelationBuilder *relation_builder;
-	OperationDepsNode *node;
-	const string &default_name;
 };
 
 /* Utilities for Builders ----------------------------------------------------- */
@@ -390,14 +359,14 @@ void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from,
 }
 
 template <typename KeyType>
-void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
-                                                        const DepsNodeHandle *handle,
-                                                        eDepsRelation_Type type,
-                                                        const char *description)
+void DepsgraphRelationBuilder::add_node_relation(const KeyType &key_from,
+                                                 DepsNode *node,
+                                                 eDepsRelation_Type type,
+                                                 const char *description)
 {
 	DepsNode *node_from = find_node(key_from);
 	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;
-	OperationDepsNode *op_to = handle->node->get_entry_operation();
+	OperationDepsNode *op_to = node->get_entry_operation();
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
 	}
@@ -409,13 +378,6 @@ void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
 			/* XXX TODO handle as error or report if needed */
 		}
 	}
-}
-
-template <typename KeyType>
-DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(const KeyType &key,
-                                                            const string &default_name)
-{
-	return DepsNodeHandle(this, find_node(key), default_name);
 }
 
 void deg_build_nodetree_rna(bNodeTree *ntree, DepsNodeHandle *handle);
