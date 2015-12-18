@@ -1710,7 +1710,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	
 	struct BVMFunction *fn = BVM_function_cache_acquire(ntree);
 	if (!fn) {
-		fn = BVM_gen_modifier_function(ob, ntree, NULL);
+		fn = BVM_gen_modifier_function(ntree, NULL);
 		BVM_function_cache_set(ntree, fn);
 	}
 	

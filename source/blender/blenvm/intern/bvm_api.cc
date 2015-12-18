@@ -1002,7 +1002,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMFunction *BVM_gen_modifier_function(struct Object */*ob*/, struct bNodeTree *btree, FILE *debug_file)
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, FILE *debug_file)
 {
 	using namespace bvm;
 	

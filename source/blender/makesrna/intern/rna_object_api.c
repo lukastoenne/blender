@@ -491,7 +491,7 @@ static void rna_Object_debug_nodes_graphviz(struct Object *ob, const char *filen
 		if (geotree) {
 			struct BVMFunction *fn;
 			
-			fn = BVM_gen_modifier_function(ob, geotree, f);
+			fn = BVM_gen_modifier_function(geotree, f);
 			BVM_function_free(fn);
 		}
 	}
