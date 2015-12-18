@@ -226,6 +226,8 @@ typedef struct Object {
 	float step_height;
 	float jump_speed;
 	float fall_speed;
+	unsigned char max_jumps;
+	char pad2[7];
 
 	/** Collision mask settings */
 	unsigned short col_group, col_mask;
@@ -681,6 +683,7 @@ typedef enum ObjectMode {
 	OB_MODE_TEXTURE_PAINT = 1 << 4,
 	OB_MODE_PARTICLE_EDIT = 1 << 5,
 	OB_MODE_POSE          = 1 << 6,
+	OB_MODE_GPENCIL       = 1 << 7,  /* NOTE: Just a dummy to make the UI nicer */
 } ObjectMode;
 
 /* any mode where the brush system is used */

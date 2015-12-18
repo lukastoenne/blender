@@ -91,8 +91,14 @@ char *BLI_current_working_dir(char *dir, const size_t maxncpy)
 {
 	const char *pwd = getenv("PWD");
 	if (pwd) {
-		BLI_strncpy(dir, pwd, maxncpy);
-		return dir;
+		size_t srclen = BLI_strnlen(pwd, maxncpy);
+		if (srclen != maxncpy) {
+			memcpy(dir, pwd, srclen + 1);
+			return dir;
+		}
+		else {
+			return NULL;
+		}
 	}
 
 	return getcwd(dir, maxncpy);
@@ -280,6 +286,39 @@ bool BLI_is_file(const char *path)
 	const int mode = BLI_exists(path);
 	return (mode && !S_ISDIR(mode));
 }
+
+void *BLI_file_read_as_mem(const char *filepath, size_t pad_bytes, size_t *r_size)
+{
+	FILE *fp = BLI_fopen(filepath, "r");
+	void *mem = NULL;
+
+	if (fp) {
+		fseek(fp, 0L, SEEK_END);
+		const long int filelen = ftell(fp);
+		if (filelen == -1) {
+			goto finally;
+		}
+		fseek(fp, 0L, SEEK_SET);
+
+		mem = MEM_mallocN(filelen + pad_bytes, __func__);
+		if (mem == NULL) {
+			goto finally;
+		}
+
+		if (fread(mem, 1, filelen, fp) != filelen) {
+			MEM_freeN(mem);
+			mem = NULL;
+			goto finally;
+		}
+
+		*r_size = filelen;
+	}
+
+finally:
+	fclose(fp);
+	return mem;
+}
+
 
 /**
  * Reads the contents of a text file and returns the lines in a linked list.

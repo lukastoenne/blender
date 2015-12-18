@@ -174,7 +174,6 @@ class USERPREF_PT_interface(Panel):
         if sys.platform[:3] == "win":
             col.label("Warnings")
             col.prop(view, "use_quit_dialog")
-            col.prop(view, "use_gl_warn_support")
 
         row.separator()
         row.separator()
@@ -452,16 +451,14 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "use_gpu_mipmap")
         col.prop(system, "use_16bit_textures")
 
-        if system.is_occlusion_query_supported():
-            col.separator()
-            col.label(text="Selection")
-            col.prop(system, "select_method", text="")
+        col.separator()
+        col.label(text="Selection")
+        col.prop(system, "select_method", text="")
 
         col.separator()
 
         col.label(text="Anisotropic Filtering")
         col.prop(system, "anisotropic_filter", text="")
-        col.prop(system, "use_vertex_buffer_objects")
 
         col.separator()
 
@@ -530,6 +527,7 @@ class USERPREF_PT_system(Panel):
 
         column.separator()
         column.prop(system, "font_path_ui")
+        column.prop(system, "font_path_ui_mono")
 
         if bpy.app.build_options.international:
             column.prop(system, "use_international_fonts")
@@ -1180,7 +1178,7 @@ class USERPREF_MT_addons_dev_guides(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("wm.url_open", text="API Concepts", icon='URL').url = "http://wiki.blender.org/index.php/Dev:2.5/Py/API/Intro"
+        layout.operator("wm.url_open", text="API Concepts", icon='URL').url = bpy.types.WM_OT_doc_view._prefix + "/info_quickstart.html"
         layout.operator("wm.url_open", text="Addon Guidelines", icon='URL').url = "http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Guidelines/Addons"
         layout.operator("wm.url_open", text="How to share your addon", icon='URL').url = "http://wiki.blender.org/index.php/Dev:Py/Sharing"
 

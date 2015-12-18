@@ -64,6 +64,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -139,7 +140,7 @@ void free_partdeflect(PartDeflect *pd)
 		return;
 
 	if (pd->tex)
-		pd->tex->id.us--;
+		id_us_min(&pd->tex->id);
 
 	if (pd->rng)
 		BLI_rng_free(pd->rng);
@@ -687,10 +688,10 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 }
 static void get_effector_tot(EffectorCache *eff, EffectorData *efd, EffectedPoint *point, int *tot, int *p, int *step)
 {
-	if (eff->pd->shape == PFIELD_SHAPE_POINTS) {
-		efd->index = p;
+	*p = 0;
+	efd->index = p;
 
-		*p = 0;
+	if (eff->pd->shape == PFIELD_SHAPE_POINTS) {
 		*tot = eff->ob->derivedFinal ? eff->ob->derivedFinal->numVertData : 1;
 
 		if (*tot && eff->pd->forcefield == PFIELD_HARMONIC && point->index >= 0) {
@@ -699,9 +700,6 @@ static void get_effector_tot(EffectorCache *eff, EffectorData *efd, EffectedPoin
 		}
 	}
 	else if (eff->psys) {
-		efd->index = p;
-
-		*p = 0;
 		*tot = eff->psys->totpart;
 		
 		if (eff->pd->forcefield == PFIELD_CHARGE) {
@@ -727,7 +725,6 @@ static void get_effector_tot(EffectorCache *eff, EffectorData *efd, EffectedPoin
 		}
 	}
 	else {
-		*p = 0;
 		*tot = 1;
 	}
 }
