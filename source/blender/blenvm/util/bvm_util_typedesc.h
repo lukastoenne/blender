@@ -421,7 +421,6 @@ struct TypeDesc {
 	{}
 	
 	inline bool assignable(const TypeDesc &other) const;
-	inline bool is_kernel_type() const;
 	
 	BVMType base_type;
 	
