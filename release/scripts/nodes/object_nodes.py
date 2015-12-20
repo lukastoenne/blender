@@ -86,6 +86,33 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
         pass
 
 
+class InstancingNode(ObjectNodeBase, ObjectNode):
+    '''Instancing'''
+    bl_idname = 'InstancingNode'
+    bl_label = 'Instancing'
+    bl_icon = 'EMPTY_DATA'
+
+    bl_id_property_type = 'NODETREE'
+    def bl_id_property_poll(self, ntree):
+        return ntree.bl_idname == 'InstancingNodeTree'
+
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id", new="object_nodes.instancing_nodes_new")
+
+    def compile(self, compiler):
+        pass
+
+
 class ForceFieldNode(ObjectNodeBase, ObjectNode):
     '''Force Field'''
     bl_idname = 'ForceFieldNode'
@@ -177,6 +204,7 @@ def register():
         ObjectNodeCategory("COMPONENTS", "Components", items=[
             NodeItem("GeometryNode"),
             NodeItem("ForceFieldNode"),
+            NodeItem("InstancingNode"),
             ]),
         ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)

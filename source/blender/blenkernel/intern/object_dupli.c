@@ -44,6 +44,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
@@ -61,6 +62,8 @@
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
 #include "BKE_anim.h"
+
+#include "BVM_api.h"
 
 
 #include "BLI_strict_flags.h"
@@ -88,8 +91,14 @@ typedef struct DupliContext {
 	ListBase *duplilist; /* legacy doubly-linked list */
 } DupliContext;
 
+static struct DupliContainer *get_dupli_container(const DupliContext *ctx)
+{
+	/* note: DupliContainer is a dummy type, used only to clarify the API */
+	return (struct DupliContainer *)ctx;
+}
+
 typedef struct DupliGenerator {
-	short type;				/* dupli type */
+	int type;				/* dupli type */
 	void (*make_duplis)(const DupliContext *ctx);
 } DupliGenerator;
 
@@ -1137,6 +1146,57 @@ const DupliGenerator gen_dupli_particles = {
     make_duplis_particles           /* make_duplis */
 };
 
+
+/* OB_DUPLINODES */
+
+static void make_duplis_nodetree(struct bNodeTree *ntree, const DupliContext *dupctx)
+{
+	struct BVMFunction *fn = BVM_function_cache_acquire(ntree);
+	if (!fn) {
+		fn = BVM_gen_dupli_function(ntree, NULL);
+		BVM_function_cache_set(ntree, fn);
+	}
+	
+	{
+		struct BVMEvalGlobals *globals = BVM_globals_create();
+		BVM_globals_add_nodetree_relations(globals, ntree);
+		
+		struct BVMEvalContext *context = BVM_context_create();
+		BVM_eval_dupli(globals, context, fn, dupctx->object, get_dupli_container(dupctx));
+		BVM_context_free(context);
+		
+		BVM_globals_free(globals);
+	}
+	
+	BVM_function_release(fn);
+}
+
+static void make_duplis_nodes(const DupliContext *ctx)
+{
+	Object *ob = ctx->object;
+
+	if (ob->nodetree) {
+		bNodeTree *duplitree = NULL;
+		
+		{
+			bNode *node;
+			for (node = ob->nodetree->nodes.first; node; node = node->next) {
+				if (STREQ(node->idname, "InstancingNode")) {
+					duplitree = (bNodeTree *)node->id;
+					
+					if (duplitree)
+						make_duplis_nodetree(duplitree, ctx);
+				}
+			}
+		}
+	}
+}
+
+const DupliGenerator gen_dupli_nodes = {
+    OB_DUPLINODES,                  /* type */
+    make_duplis_nodes               /* make_duplis */
+};
+
 /* ------------- */
 
 /* select dupli generator from given context */
@@ -1173,10 +1233,30 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 	else if (transflag & OB_DUPLIGROUP) {
 		return &gen_dupli_group;
 	}
+	else if (transflag & OB_DUPLINODES) {
+		return &gen_dupli_nodes;
+	}
 
 	return NULL;
 }
 
+/* API wrapper for make_dupli using the DupliContainer type */
+void BKE_dupli_add_instance(struct DupliContainer *cont,
+                            Object *ob, float mat[4][4], int index,
+                            bool animated, bool hide, bool recursive)
+{
+	const DupliContext *ctx = (const DupliContext *)cont;
+	float dobmat[4][4], imat[4][4], space_mat[4][4];
+	
+	mul_m4_m4m4(dobmat, ctx->object->obmat, mat);
+	invert_m4_m4(imat, ob->obmat);
+	mul_m4_m4m4(space_mat, dobmat, imat);
+	
+	make_dupli(ctx, ob, dobmat, index, animated, hide);
+	
+	if (recursive)
+		make_recursive_duplis(ctx, ob, space_mat, index, animated);
+}
 
 /* ---- ListBase dupli container implementation ---- */
 

@@ -149,6 +149,18 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct Object *ob,
                                       struct Mesh *base_mesh);
 
+/* ------------------------------------------------------------------------- */
+
+struct DupliContainer;
+
+struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_file);
+
+void BVM_eval_dupli(struct BVMEvalGlobals *globals,
+                    struct BVMEvalContext *context,
+                    struct BVMFunction *fn,
+                    struct Object *object,
+                    struct DupliContainer *duplicont);
+
 #ifdef __cplusplus
 }
 #endif

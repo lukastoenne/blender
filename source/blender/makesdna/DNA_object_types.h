@@ -180,7 +180,8 @@ typedef struct Object {
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated, use 'matbits' */
 	
-	short transflag, protectflag;	/* transformation settings and transform locks  */
+	int transflag;				/* transformation settings */
+	int protectflag;			/* transform locks */
 	short trackflag, upflag;
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
 	short scaflag;				/* ui state for game logic */
@@ -189,7 +190,7 @@ typedef struct Object {
 
 	/* did last modifier stack generation need mapping support? */
 	char lastNeedMapping;  /* bool */
-	char pad;
+	char pad[5];
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
@@ -327,7 +328,8 @@ typedef struct DupliObject {
 	float mat[4][4];
 	float orco[3], uv[2];
 
-	short type; /* from Object.transflag */
+	int type; /* from Object.transflag */
+	short pad[3];
 	char no_draw, animated;
 
 	/* persistent identifier for a dupli object, for inter-frame matching of
@@ -415,8 +417,9 @@ enum {
 	OB_RENDER_DUPLI     = 1 << 12,
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
+	OB_DUPLINODES       = 1 << 15,
 
-	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
+	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS | OB_DUPLINODES,
 };
 
 /* (short) trackflag / upflag */

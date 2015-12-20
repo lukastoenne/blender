@@ -41,6 +41,7 @@ extern "C" {
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_effect.h"
 #include "BKE_node.h"
 
@@ -1049,4 +1050,45 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 	
 	return result.get();
+}
+
+/* ------------------------------------------------------------------------- */
+
+struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_file)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	graph.add_input("dupli.object", BVM_POINTER);
+	graph.add_input("dupli.container", BVM_POINTER);
+	
+	parse_py_nodes(btree, &graph);
+	graph.finalize();
+	
+	if (debug_file) {
+		debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
+	}
+	
+	BVMCompiler compiler;
+	Function *fn = compiler.compile_function(graph);
+	Function::retain(fn);
+	
+	return (BVMFunction *)fn;
+}
+
+void BVM_eval_dupli(struct BVMEvalGlobals *globals,
+                    struct BVMEvalContext *ctx,
+                    struct BVMFunction *fn,
+                    struct Object *object,
+                    struct DupliContainer *duplicont)
+{
+	using namespace bvm;
+
+	PointerRNA object_ptr, duplicont_ptr;
+	RNA_id_pointer_create((ID *)object, &object_ptr);
+	RNA_pointer_create((ID *)object, &RNA_DupliContainer, duplicont, &duplicont_ptr);
+	const void *args[] = { &object_ptr, &duplicont_ptr };
+	void *results[] = {};
+	
+	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 }

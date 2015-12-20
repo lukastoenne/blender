@@ -65,6 +65,14 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
+/* opaque API for storing dupli instances */
+struct DupliContainer;
+
+/* API wrapper for make_dupli using the DupliContainer type */
+void BKE_dupli_add_instance(struct DupliContainer *cont,
+                            struct Object *ob, float mat[4][4], int index,
+                            bool animated, bool hide, bool recursive);
+
 struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
 struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
 void free_object_duplilist(struct ListBase *lb);

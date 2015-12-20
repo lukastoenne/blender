@@ -103,6 +103,7 @@ static EnumPropertyItem dupli_items[] = {
 	{OB_DUPLIVERTS, "VERTS", 0, "Verts", "Duplicate child objects on all vertices"},
 	{OB_DUPLIFACES, "FACES", 0, "Faces", "Duplicate child objects on all faces"},
 	{OB_DUPLIGROUP, "GROUP", 0, "Group", "Enable group instancing"},
+	{OB_DUPLINODES, "NODES", 0, "Nodes", "Make instances using object nodes"},
 	{0, NULL, 0, NULL, NULL}
 };
 #endif
