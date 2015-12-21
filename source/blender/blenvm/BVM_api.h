@@ -95,6 +95,7 @@ struct BVMTypeDesc *BVM_node_output_typedesc(struct BVMNodeOutput *output);
 BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output);
 
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc);
+BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc);
 
 /* ------------------------------------------------------------------------- */
 

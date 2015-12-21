@@ -320,6 +320,9 @@ BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output)
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc)
 { return _TYPEDESC(typedesc)->base_type; }
 
+BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc)
+{ return _TYPEDESC(typedesc)->buffer_type; }
+
 /* ------------------------------------------------------------------------- */
 
 BLI_INLINE bvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
@@ -431,13 +434,13 @@ struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree, FILE *debug_fi
 	
 	NodeGraph graph;
 	{
-		graph.add_input("effector.object", BVM_POINTER);
-		graph.add_input("effector.position", BVM_FLOAT3);
-		graph.add_input("effector.velocity", BVM_FLOAT3);
+		graph.add_input("effector.object", TYPE_POINTER);
+		graph.add_input("effector.position", TYPE_FLOAT3);
+		graph.add_input("effector.velocity", TYPE_FLOAT3);
 		
 		float zero[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("force", BVM_FLOAT3, zero);
-		graph.add_output("impulse", BVM_FLOAT3, zero);
+		graph.add_output("force", TYPE_FLOAT3, zero);
+		graph.add_output("impulse", TYPE_FLOAT3, zero);
 	}
 	
 	parse_py_nodes(btree, &graph);
@@ -946,16 +949,16 @@ struct BVMFunction *BVM_gen_texture_function(struct Tex */*tex*/, bNodeTree *btr
 	
 	NodeGraph graph;
 	{
-		graph.add_input("texture.co", BVM_FLOAT3);
-		graph.add_input("texture.dxt", BVM_FLOAT3);
-		graph.add_input("texture.dyt", BVM_FLOAT3);
-		graph.add_input("texture.cfra", BVM_INT);
-		graph.add_input("texture.osatex", BVM_INT);
+		graph.add_input("texture.co", TYPE_FLOAT3);
+		graph.add_input("texture.dxt", TYPE_FLOAT3);
+		graph.add_input("texture.dyt", TYPE_FLOAT3);
+		graph.add_input("texture.cfra", TYPE_INT);
+		graph.add_input("texture.osatex", TYPE_INT);
 		
 		float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 		float N[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("color", BVM_FLOAT4, C);
-		graph.add_output("normal", BVM_FLOAT3, N);
+		graph.add_output("color", TYPE_FLOAT4, C);
+		graph.add_output("normal", TYPE_FLOAT3, N);
 	}
 	parse_tex_nodes(btree, &graph);
 	graph.finalize();
@@ -1009,12 +1012,12 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, FILE *deb
 	using namespace bvm;
 	
 	NodeGraph graph;
-	graph.add_input("iteration", BVM_INT);
-	graph.add_input("element.index", BVM_INT);
-	graph.add_input("element.location", BVM_FLOAT3);
-	graph.add_input("modifier.object", BVM_POINTER);
-	graph.add_input("modifier.base_mesh", BVM_POINTER);
-	graph.add_output("mesh", BVM_MESH, __empty_mesh__);
+	graph.add_input("iteration", TYPE_INT);
+	graph.add_input("element.index", TYPE_INT);
+	graph.add_input("element.location", TYPE_FLOAT3);
+	graph.add_input("modifier.object", TYPE_POINTER);
+	graph.add_input("modifier.base_mesh", TYPE_POINTER);
+	graph.add_output("mesh", TYPE_MESH, __empty_mesh__);
 	
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
@@ -1060,8 +1063,8 @@ struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_
 	using namespace bvm;
 	
 	NodeGraph graph;
-	graph.add_input("dupli.object", BVM_POINTER);
-	graph.add_input("dupli.container", BVM_POINTER);
+	graph.add_input("dupli.object", TYPE_POINTER);
+	graph.add_input("dupli.container", TYPE_POINTER);
 	
 	parse_py_nodes(btree, &graph);
 	graph.finalize();

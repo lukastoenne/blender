@@ -109,22 +109,23 @@ struct NodeType {
 //	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
 	
 	const NodeInput *add_input(const string &name,
-	                           BVMType type,
+	                           const TypeDesc &typedesc,
 	                           Value *default_value,
 	                           BVMInputValueType value_type = INPUT_VARIABLE);
+
 	const NodeOutput *add_output(const string &name,
-	                             BVMType type,
+	                             const TypeDesc &typedesc,
 	                             BVMOutputValueType value_type = OUTPUT_VARIABLE);
 	
 	template <typename T>
 	const NodeInput *add_input(const string &name,
-	                           BVMType type,
+	                           const TypeDesc &typedesc,
 	                           T default_value,
 	                           BVMInputValueType value_type = INPUT_VARIABLE)
 	{
-		Value *c = Value::create(type, default_value);
+		Value *c = Value::create(typedesc, default_value);
 		BLI_assert(c != NULL);
-		return add_input(name, type, c, value_type);
+		return add_input(name, typedesc, c, value_type);
 	}
 	
 private:
@@ -317,13 +318,13 @@ struct NodeGraph {
 	const Output *get_output(int index) const;
 	const Output *get_output(const string &name) const;
 	
-	const Input *add_input(const string &name, BVMType type);
-	const Output *add_output(const string &name, BVMType type, Value *default_value);
+	const Input *add_input(const string &name, const TypeDesc &typedesc);
+	const Output *add_output(const string &name, const TypeDesc &typedesc, Value *default_value);
 	
 	template <typename T>
-	const Output *add_output(const string &name, BVMType type, const T &default_value)
+	const Output *add_output(const string &name, const TypeDesc &typedesc, const T &default_value)
 	{
-		return add_output(name, type, Value::create(type, default_value));
+		return add_output(name, typedesc, Value::create(typedesc, default_value));
 	}
 	
 	void finalize();
