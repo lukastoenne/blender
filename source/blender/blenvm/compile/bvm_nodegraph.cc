@@ -930,6 +930,38 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_STRING, "");
 	nt->add_output("value", TYPE_STRING);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_FLOAT3_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_FLOAT4_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_INT_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_MATRIX44_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_POINTER_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_MESH_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
+	nt = NodeGraph::add_pass_node_type("PASS_STRING_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
 	nt->add_output("value", TYPE_FLOAT);
 	
