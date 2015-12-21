@@ -221,6 +221,7 @@ class MathNode(CommonNodeBase, ObjectNode):
         ('MODULO', 'Modulo', '', 'NONE', 17),
         ('ABSOLUTE', 'Absolute', '', 'NONE', 18),
         ('CLAMP', 'Clamp', '', 'NONE', 19),
+        ('SQRT', 'Square Root', '', 'NONE', 20),
     ]
     mode = EnumProperty(name="Mode",
                         items=_mode_items)

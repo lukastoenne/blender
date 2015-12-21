@@ -242,6 +242,12 @@ static void eval_op_clamp(float *stack, StackIndex offset, StackIndex offset_r)
 	stack_store_float(stack, offset_r, CLAMPIS(f, 0.0f, 1.0f));
 }
 
+static void eval_op_sqrt_float(float *stack, StackIndex offset_a, StackIndex offset_r)
+{
+	float a = stack_load_float(stack, offset_a);
+	stack_store_float(stack, offset_r, sqrt_safe(a));
+}
+
 static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);

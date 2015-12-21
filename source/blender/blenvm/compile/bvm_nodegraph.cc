@@ -816,6 +816,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(MODULO);
 	NODETYPE(ABSOLUTE);
 	NODETYPE(CLAMP);
+	NODETYPE(SQRT);
 	
 	NODETYPE(ADD_FLOAT3);
 	NODETYPE(SUB_FLOAT3);
@@ -1025,6 +1026,7 @@ static void register_opcode_node_types()
 	BINARY_MATH_NODE(MODULO);
 	UNARY_MATH_NODE(ABSOLUTE);
 	UNARY_MATH_NODE(CLAMP);
+	UNARY_MATH_NODE(SQRT);
 	
 	#undef BINARY_MATH_NODE
 	#undef UNARY_MATH_NODE

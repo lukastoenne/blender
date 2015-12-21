@@ -57,6 +57,14 @@ inline static float div_safe(float a, float b)
 		return 0.0f;
 }
 
+inline static float sqrt_safe(float a)
+{
+	if (a > 0.0f)
+		return sqrtf(a);
+	else
+		return 0.0f;
+}
+
 } /* namespace bvm */
 
 #endif /* __BVM_UTIL_MATH_H__ */

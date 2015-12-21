@@ -525,6 +525,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_clamp(stack, offset, offset_r);
 				break;
 			}
+			case OP_SQRT: {
+				StackIndex offset_a = fn->read_stack_index(&instr);
+				StackIndex offset_r = fn->read_stack_index(&instr);
+				eval_op_sqrt_float(stack, offset_a, offset_r);
+				break;
+			}
 			case OP_ADD_FLOAT3: {
 				StackIndex offset_a = fn->read_stack_index(&instr);
 				StackIndex offset_b = fn->read_stack_index(&instr);

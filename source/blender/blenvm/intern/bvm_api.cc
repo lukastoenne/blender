@@ -871,6 +871,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 			case 16: binary_math_node(comp, "GREATER_THAN"); break;
 			case 17: binary_math_node(comp, "MODULO"); break;
 			case 18: unary_math_node(comp, "ABSOLUTE"); break;
+			case 20: unary_math_node(comp, "SQRT"); break;
 		}
 	}
 	else if (type == "TextureNodeTexVoronoi") {
