@@ -935,32 +935,32 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_FLOAT_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT3_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_FLOAT3_ARRAY, array<BVM_FLOAT3>());
+	nt->add_output("value", TYPE_FLOAT3_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT4_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_FLOAT4_ARRAY, array<BVM_FLOAT4>());
+	nt->add_output("value", TYPE_FLOAT4_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_INT_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_INT_ARRAY, array<BVM_INT>());
+	nt->add_output("value", TYPE_INT_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MATRIX44_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_MATRIX44_ARRAY, array<BVM_MATRIX44>());
+	nt->add_output("value", TYPE_MATRIX44_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_STRING_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_STRING_ARRAY, array<BVM_STRING>());
+	nt->add_output("value", TYPE_STRING_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_POINTER_ARRAY, array<BVM_POINTER>());
+	nt->add_output("value", TYPE_POINTER_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", TYPE_MESH_ARRAY, array<BVM_MESH>());
+	nt->add_output("value", TYPE_MESH_ARRAY);
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
 	nt->add_output("value", TYPE_FLOAT);
