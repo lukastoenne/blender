@@ -51,6 +51,21 @@ class GeometrySocket(NodeSocket):
         alpha = 0.4 if self.is_placeholder else 1.0
         return (1.0, 0.4, 0.216, alpha)
 
+class DupliSocket(NodeSocket):
+    '''Dupli instances socket'''
+    bl_idname = 'DupliSocket'
+    bl_label = 'Duplis'
+
+    is_placeholder = BoolProperty(name="Is Placeholder",
+                                  default=False)
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        alpha = 0.4 if self.is_placeholder else 1.0
+        return (1.0, 0.4, 0.216, alpha)
+
 ###############################################################################
 
 socket_type_items = [
@@ -59,6 +74,7 @@ socket_type_items = [
     ("VECTOR", "Vector", "3D vector", 0, 2),
     ("COLOR", "Color", "RGBA color", 0, 3),
     ("MESH", "Mesh", "Mesh data", 0, 4),
+    ("DUPLIS", "Duplis", "Dupli instances", 0, 4),
     ("TRANSFORM", "Transform", "Affine transformation", 0, 5),
     ]
 
@@ -69,6 +85,7 @@ def socket_type_to_rna(base_type):
         "VECTOR" : bpy.types.NodeSocketVector,
         "COLOR" : bpy.types.NodeSocketColor,
         "MESH" : bpy.types.GeometrySocket,
+        "DUPLIS" : bpy.types.DupliSocket,
         "TRANSFORM" : bpy.types.TransformSocket,
         }
     return types.get(base_type, None)
@@ -82,10 +99,12 @@ def rna_to_bvm_type(cls):
         return 'FLOAT4'
     elif issubclass(cls, bpy.types.NodeSocketInt):
         return 'INT'
-    elif issubclass(cls, bpy.types.GeometrySocket):
-        return 'MESH'
     elif issubclass(cls, bpy.types.TransformSocket):
         return 'MATRIX44'
+    elif issubclass(cls, bpy.types.GeometrySocket):
+        return 'MESH'
+    elif issubclass(cls, bpy.types.DupliSocket):
+        return 'DUPLIS'
 
 def socket_type_to_bvm_type(base_type):
     return rna_to_bvm_type(socket_type_to_rna(base_type))

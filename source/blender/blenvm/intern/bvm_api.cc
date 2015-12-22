@@ -65,6 +65,8 @@ extern "C" {
 
 namespace bvm {
 static mesh_ptr __empty_mesh__;
+static ListBase __empty_listbase__ = {0};
+static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_listbase__);
 }
 
 void BVM_init(void)
@@ -1064,7 +1066,7 @@ struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_
 	
 	NodeGraph graph;
 	graph.add_input("dupli.object", TYPE_POINTER);
-	graph.add_input("dupli.container", TYPE_POINTER);
+	graph.add_output("dupli.result", TYPE_DUPLIS, __empty_duplis__);
 	
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
@@ -1088,11 +1090,21 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 {
 	using namespace bvm;
 
-	PointerRNA object_ptr, duplicont_ptr;
+	PointerRNA object_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);
-	RNA_pointer_create((ID *)object, &RNA_DupliContainer, duplicont, &duplicont_ptr);
-	const void *args[] = { &object_ptr, &duplicont_ptr };
-	void *results[] = {};
+	const void *args[] = { &object_ptr };
+	
+	duplis_ptr duplis;
+	void *results[] = { &duplis };
 	
 	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
+	
+	ListBase *lb = duplis.get();
+	if (lb) {
+		for (DupliObject *dob = (DupliObject *)lb->first; dob; dob = dob->next) {
+			BKE_dupli_add_instance(duplicont, dob->ob, dob->mat, dob->persistent_id[0],
+			        dob->animated, dob->no_draw, false);
+		}
+		BLI_freelistN(lb);
+	}
 }

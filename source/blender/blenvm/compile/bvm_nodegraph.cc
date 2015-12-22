@@ -938,8 +938,8 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_MESH);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
-	nt->add_input("value", TYPE_MESH, __empty_duplis__);
-	nt->add_output("value", TYPE_MESH);
+	nt->add_input("value", TYPE_DUPLIS, __empty_duplis__);
+	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());

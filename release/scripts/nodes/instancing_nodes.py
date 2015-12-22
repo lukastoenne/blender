@@ -81,6 +81,18 @@ def compile_object(compiler, ptr):
     return node.outputs[0]
 
 
+class OutputNode(InstancingNodeBase, ObjectNode):
+    '''Dupli output'''
+    bl_idname = 'InstancingOutputNode'
+    bl_label = 'Output'
+
+    def init(self, context):
+        self.inputs.new('DupliSocket', "")
+
+    def compile(self, compiler):
+        compiler.map_input(0, compiler.graph_output("dupli.result"))
+
+
 class MakeDupliNode(InstancingNodeBase, ObjectNode):
     '''Make object instance'''
     bl_idname = 'InstancingMakeDupliNode'
@@ -115,7 +127,7 @@ def register():
     bpy.utils.register_module(__name__)
 
     node_categories = [
-        InstancingNodeCategory("DUPLI_INPUT", "Input", items=[
+        InstancingNodeCategory("INS_INPUT", "Input", items=[
             NodeItem("ObjectIterationNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
@@ -124,14 +136,14 @@ def register():
             NodeItem("ObjectValueColorNode"),
             ]),
         InstancingNodeCategory("INS_OUTPUT", "Output", items=[
-            NodeItem("InstancingMakeDupliNode"),
+            NodeItem("InstancingOutputNode"),
             NodeItem(goutput.bl_idname),
             ]),
-        InstancingNodeCategory("GEO_CONVERTER", "Converter", items=[
+        InstancingNodeCategory("INS_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
             NodeItem("ObjectCombineVectorNode"),
             ]),
-        InstancingNodeCategory("GEO_MATH", "Math", items=[
+        InstancingNodeCategory("INS_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
             NodeItem("ObjectTranslationTransformNode"),
@@ -144,11 +156,11 @@ def register():
             NodeItem("ObjectGetScaleNode"),
             NodeItem("ObjectRandomNode"),
             ]),
-        InstancingNodeCategory("GEO_TEXTURE", "Texture", items=[
+        InstancingNodeCategory("INS_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureVoronoiNode"),
             ]),
-        InstancingNodeCategory("GEO_GROUP", "Group", items=[
+        InstancingNodeCategory("INS_GROUP", "Group", items=[
             NodeItem(gnode.bl_idname),
             ]),
         ]
