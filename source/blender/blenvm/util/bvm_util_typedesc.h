@@ -378,6 +378,18 @@ struct BaseTypeTraits<BVM_MATRIX44> {
 };
 
 template <>
+struct BaseTypeTraits<BVM_STRING> {
+	typedef const char* POD;
+	
+	enum eStackSize { stack_size = 2 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
+template <>
 struct BaseTypeTraits<BVM_POINTER> {
 	typedef PointerRNA POD;
 	
@@ -394,18 +406,6 @@ struct BaseTypeTraits<BVM_MESH> {
 	typedef mesh_ptr POD;
 	
 	enum eStackSize { stack_size = 8 };
-	
-	static inline void copy(POD *to, const POD *from)
-	{
-		*to = *from;
-	}
-};
-
-template <>
-struct BaseTypeTraits<BVM_STRING> {
-	typedef const char* POD;
-	
-	enum eStackSize { stack_size = 2 };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -497,18 +497,18 @@ struct TypeDesc {
 #define TYPE_FLOAT4 TypeDesc(BVM_FLOAT4, BVM_BUFFER_SINGLE)
 #define TYPE_INT TypeDesc(BVM_INT, BVM_BUFFER_SINGLE)
 #define TYPE_MATRIX44 TypeDesc(BVM_MATRIX44, BVM_BUFFER_SINGLE)
+#define TYPE_STRING TypeDesc(BVM_STRING, BVM_BUFFER_SINGLE)
 #define TYPE_POINTER TypeDesc(BVM_POINTER, BVM_BUFFER_SINGLE)
 #define TYPE_MESH TypeDesc(BVM_MESH, BVM_BUFFER_SINGLE)
-#define TYPE_STRING TypeDesc(BVM_STRING, BVM_BUFFER_SINGLE)
 
 #define TYPE_FLOAT_ARRAY TypeDesc(BVM_FLOAT, BVM_BUFFER_ARRAY)
 #define TYPE_FLOAT3_ARRAY TypeDesc(BVM_FLOAT3, BVM_BUFFER_ARRAY)
 #define TYPE_FLOAT4_ARRAY TypeDesc(BVM_FLOAT4, BVM_BUFFER_ARRAY)
 #define TYPE_INT_ARRAY TypeDesc(BVM_INT, BVM_BUFFER_ARRAY)
 #define TYPE_MATRIX44_ARRAY TypeDesc(BVM_MATRIX44, BVM_BUFFER_ARRAY)
+#define TYPE_STRING_ARRAY TypeDesc(BVM_STRING, BVM_BUFFER_ARRAY)
 #define TYPE_POINTER_ARRAY TypeDesc(BVM_POINTER, BVM_BUFFER_ARRAY)
 #define TYPE_MESH_ARRAY TypeDesc(BVM_MESH, BVM_BUFFER_ARRAY)
-#define TYPE_STRING_ARRAY TypeDesc(BVM_STRING, BVM_BUFFER_ARRAY)
 
 /* ------------------------------------------------------------------------- */
 
@@ -621,9 +621,9 @@ static Value *create(const TypeDesc &typedesc, T *data, size_t size)
 			case BVM_FLOAT4: return new ArrayValue<BVM_FLOAT4>(data, size);
 			case BVM_INT: return new ArrayValue<BVM_INT>(data, size);
 			case BVM_MATRIX44: return new ArrayValue<BVM_MATRIX44>(data, size);
+			case BVM_STRING: return new ArrayValue<BVM_STRING>(data, size);
 			case BVM_POINTER: return new ArrayValue<BVM_POINTER>(data, size);
 			case BVM_MESH: return new ArrayValue<BVM_MESH>(data, size);
-			case BVM_STRING: return new ArrayValue<BVM_STRING>(data, size);
 		}
 	}
 	return 0;
@@ -639,9 +639,9 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 			case BVM_FLOAT4: return new SingleValue<BVM_FLOAT4>(data);
 			case BVM_INT: return new SingleValue<BVM_INT>(data);
 			case BVM_MATRIX44: return new SingleValue<BVM_MATRIX44>(data);
+			case BVM_STRING: return new SingleValue<BVM_STRING>(data);
 			case BVM_POINTER: return new SingleValue<BVM_POINTER>(data);
 			case BVM_MESH: return new SingleValue<BVM_MESH>(data);
-			case BVM_STRING: return new SingleValue<BVM_STRING>(data);
 		}
 	}
 	return 0;
@@ -658,9 +658,9 @@ bool Value::get(array<type> *data) const
 			case BVM_FLOAT4: return static_cast< const ArrayValue<BVM_FLOAT4>* >(this)->get(data);
 			case BVM_INT: return static_cast< const ArrayValue<BVM_INT>* >(this)->get(data);
 			case BVM_MATRIX44: return static_cast< const ArrayValue<BVM_MATRIX44>* >(this)->get(data);
+			case BVM_STRING: return static_cast< const ArrayValue<BVM_STRING>* >(this)->get(data);
 			case BVM_POINTER: return static_cast< const ArrayValue<BVM_POINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const ArrayValue<BVM_MESH>* >(this)->get(data);
-			case BVM_STRING: return static_cast< const ArrayValue<BVM_STRING>* >(this)->get(data);
 		}
 	}
 	return false;
@@ -676,9 +676,9 @@ bool Value::get(T *data) const
 			case BVM_FLOAT4: return static_cast< const SingleValue<BVM_FLOAT4>* >(this)->get(data);
 			case BVM_INT: return static_cast< const SingleValue<BVM_INT>* >(this)->get(data);
 			case BVM_MATRIX44: return static_cast< const SingleValue<BVM_MATRIX44>* >(this)->get(data);
+			case BVM_STRING: return static_cast< const SingleValue<BVM_STRING>* >(this)->get(data);
 			case BVM_POINTER: return static_cast< const SingleValue<BVM_POINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const SingleValue<BVM_MESH>* >(this)->get(data);
-			case BVM_STRING: return static_cast< const SingleValue<BVM_STRING>* >(this)->get(data);
 		}
 	}
 	return false;
@@ -701,9 +701,9 @@ int TypeDesc::stack_size() const
 				case BVM_FLOAT4: return BaseTypeTraits<BVM_FLOAT4>::stack_size;
 				case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 				case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
+				case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
 				case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
 				case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
-				case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
@@ -726,9 +726,9 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_FLOAT4: COPY_TYPE(to, from, BVM_FLOAT4); break;
 				case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 				case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
+				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
-				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 			}
 			#undef COPY_TYPE
 			break;
@@ -741,9 +741,9 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_FLOAT4: COPY_TYPE(to, from, BVM_FLOAT4); break;
 				case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 				case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
+				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
-				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 			}
 			#undef COPY_TYPE
 			break;

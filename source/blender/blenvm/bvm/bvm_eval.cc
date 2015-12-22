@@ -324,6 +324,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_value_matrix44(stack, value, offset);
 				break;
 			}
+			case OP_VALUE_STRING: {
+				const char *value = fn->read_string(&instr);
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_value_string(stack, value, offset);
+				break;
+			}
 			case OP_VALUE_POINTER: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_pointer(stack, offset);
@@ -332,12 +338,6 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			case OP_VALUE_MESH: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_mesh(stack, offset);
-				break;
-			}
-			case OP_VALUE_STRING: {
-				const char *value = fn->read_string(&instr);
-				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_value_string(stack, value, offset);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {

@@ -333,19 +333,22 @@ void BVMCompiler::push_constant(const Value *value) const
 			push_matrix44(m);
 			break;
 		}
-		case BVM_POINTER: {
-			/* POINTER type can not be stored as a constant */
-			break;
-		}
-		case BVM_MESH:
-			/* MESH type can not be stored as a constant */
-			break;
-		case BVM_STRING:
+		case BVM_STRING: {
 			const char *s = "";
 			value->get(&s);
 			
 			push_string(s);
 			break;
+		}
+		case BVM_POINTER: {
+			/* POINTER type can not be stored as a constant */
+			break;
+		}
+		
+		case BVM_MESH: {
+			/* MESH type can not be stored as a constant */
+			break;
+		}
 	}
 }
 
@@ -397,16 +400,7 @@ void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
 			push_stack_index(offset);
 			break;
 		}
-		case BVM_POINTER: {
-			push_opcode(OP_VALUE_POINTER);
-			push_stack_index(offset);
-			break;
-		}
-		case BVM_MESH:
-			push_opcode(OP_VALUE_MESH);
-			push_stack_index(offset);
-			break;
-		case BVM_STRING:
+		case BVM_STRING: {
 			const char *s = "";
 			value->get(&s);
 			
@@ -414,6 +408,18 @@ void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
 			push_string(s);
 			push_stack_index(offset);
 			break;
+		}
+		case BVM_POINTER: {
+			push_opcode(OP_VALUE_POINTER);
+			push_stack_index(offset);
+			break;
+		}
+		
+		case BVM_MESH: {
+			push_opcode(OP_VALUE_MESH);
+			push_stack_index(offset);
+			break;
+		}
 	}
 }
 
@@ -425,8 +431,8 @@ static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 		case BVM_FLOAT4:
 		case BVM_INT:
 		case BVM_MATRIX44:
-		case BVM_POINTER:
 		case BVM_STRING:
+		case BVM_POINTER:
 			return OP_NOOP;
 		
 		case BVM_MESH:
@@ -443,8 +449,8 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 		case BVM_FLOAT4:
 		case BVM_INT:
 		case BVM_MATRIX44:
-		case BVM_POINTER:
 		case BVM_STRING:
+		case BVM_POINTER:
 			return OP_NOOP;
 		
 		case BVM_MESH:

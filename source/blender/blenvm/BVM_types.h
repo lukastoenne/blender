@@ -42,9 +42,9 @@ typedef enum BVMType {
 	BVM_FLOAT4,
 	BVM_INT,
 	BVM_MATRIX44,
+	BVM_STRING,
 	BVM_POINTER,
 	BVM_MESH,
-	BVM_STRING,
 } BVMType;
 
 typedef enum BVMBufferType {

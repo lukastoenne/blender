@@ -602,9 +602,9 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4"); break;
 				case BVM_INT: node = add_node("PASS_INT"); break;
 				case BVM_MATRIX44: node = add_node("PASS_MATRIX44"); break;
-				case BVM_MESH: node = add_node("PASS_MESH"); break;
-				case BVM_POINTER: node = add_node("PASS_POINTER"); break;
 				case BVM_STRING: node = add_node("PASS_STRING"); break;
+				case BVM_POINTER: node = add_node("PASS_POINTER"); break;
+				case BVM_MESH: node = add_node("PASS_MESH"); break;
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
@@ -614,9 +614,9 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4_ARRAY"); break;
 				case BVM_INT: node = add_node("PASS_INT_ARRAY"); break;
 				case BVM_MATRIX44: node = add_node("PASS_MATRIX44_ARRAY"); break;
-				case BVM_MESH: node = add_node("PASS_MESH_ARRAY"); break;
-				case BVM_POINTER: node = add_node("PASS_POINTER_ARRAY"); break;
 				case BVM_STRING: node = add_node("PASS_STRING_ARRAY"); break;
+				case BVM_POINTER: node = add_node("PASS_POINTER_ARRAY"); break;
+				case BVM_MESH: node = add_node("PASS_MESH_ARRAY"); break;
 			}
 			break;
 	}
@@ -634,9 +634,9 @@ SocketPair NodeGraph::add_value_node(Value *value)
 		case BVM_FLOAT4: node = add_node("VALUE_FLOAT4"); break;
 		case BVM_INT: node = add_node("VALUE_INT"); break;
 		case BVM_MATRIX44: node = add_node("VALUE_MATRIX44"); break;
+		case BVM_STRING: node = add_node("VALUE_STRING"); break;
 		case BVM_POINTER: node = add_node("VALUE_POINTER"); break;
 		case BVM_MESH: node = add_node("VALUE_MESH"); break;
-		case BVM_STRING: node = add_node("VALUE_STRING"); break;
 	}
 	if (node)
 		node->set_input_value("value", value);
@@ -652,9 +652,9 @@ SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
 		case BVM_FLOAT4: node = add_node("ARG_FLOAT4"); break;
 		case BVM_INT: node = add_node("ARG_INT"); break;
 		case BVM_MATRIX44: node = add_node("ARG_MATRIX44"); break;
+		case BVM_STRING: node = add_node("ARG_STRING"); break;
 		case BVM_POINTER: node = add_node("ARG_POINTER"); break;
 		case BVM_MESH: node = add_node("ARG_MESH"); break;
-		case BVM_STRING: node = add_node("ARG_STRING"); break;
 	}
 	return SocketPair(node, "value");
 }
@@ -791,9 +791,9 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_FLOAT4);
 	NODETYPE(VALUE_INT);
 	NODETYPE(VALUE_MATRIX44);
+	NODETYPE(VALUE_STRING);
 	NODETYPE(VALUE_POINTER);
 	NODETYPE(VALUE_MESH);
-	NODETYPE(VALUE_STRING);
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
@@ -918,6 +918,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
 	nt->add_output("value", TYPE_MATRIX44);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_STRING");
+	nt->add_input("value", TYPE_STRING, "");
+	nt->add_output("value", TYPE_STRING);
+	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER");
 	nt->add_input("value", TYPE_POINTER, PointerRNA_NULL);
 	nt->add_output("value", TYPE_POINTER);
@@ -925,10 +929,6 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_pass_node_type("PASS_MESH");
 	nt->add_input("value", TYPE_MESH, __empty_mesh__);
 	nt->add_output("value", TYPE_MESH);
-	
-	nt = NodeGraph::add_pass_node_type("PASS_STRING");
-	nt->add_input("value", TYPE_STRING, "");
-	nt->add_output("value", TYPE_STRING);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
@@ -950,15 +950,15 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
 	nt->add_output("value", TYPE_FLOAT_ARRAY);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_STRING_ARRAY");
+	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
+	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER_ARRAY");
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
 	nt->add_output("value", TYPE_FLOAT_ARRAY);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
-	
-	nt = NodeGraph::add_pass_node_type("PASS_STRING_ARRAY");
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
 	nt->add_output("value", TYPE_FLOAT_ARRAY);
 	
@@ -977,14 +977,14 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("ARG_MATRIX44");
 	nt->add_output("value", TYPE_MATRIX44);
 	
+	nt = NodeGraph::add_function_node_type("ARG_STRING");
+	nt->add_output("value", TYPE_STRING);
+	
 	nt = NodeGraph::add_function_node_type("ARG_POINTER");
 	nt->add_output("value", TYPE_POINTER);
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", TYPE_MESH);
-	
-	nt = NodeGraph::add_function_node_type("ARG_STRING");
-	nt->add_output("value", TYPE_STRING);
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT");
 	nt->add_input("value", TYPE_FLOAT, 0.0f, INPUT_CONSTANT);
@@ -1006,6 +1006,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
 	nt->add_output("value", TYPE_MATRIX44);
 	
+	nt = NodeGraph::add_function_node_type("VALUE_STRING");
+	nt->add_input("value", TYPE_STRING, "", INPUT_CONSTANT);
+	nt->add_output("value", TYPE_STRING);
+	
 	nt = NodeGraph::add_function_node_type("VALUE_POINTER");
 	nt->add_input("value", TYPE_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
 	nt->add_output("value", TYPE_POINTER);
@@ -1013,10 +1017,6 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("VALUE_MESH");
 	nt->add_input("value", TYPE_MESH, __empty_mesh__, INPUT_CONSTANT);
 	nt->add_output("value", TYPE_MESH);
-	
-	nt = NodeGraph::add_function_node_type("VALUE_STRING");
-	nt->add_input("value", TYPE_STRING, "", INPUT_CONSTANT);
-	nt->add_output("value", TYPE_STRING);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", TYPE_INT, 0, INPUT_CONSTANT);
