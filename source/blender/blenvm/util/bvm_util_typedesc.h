@@ -602,10 +602,20 @@ struct ArrayValue : public Value {
 	typedef array<type> array_t;
 	typedef const_array<type> const_array_t;
 	
+	ArrayValue(const array_t &data) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	    m_data(data)
+	{}
+	
 	ArrayValue(POD *data, size_t size) :
 	    Value(TypeDesc(type, BVM_BUFFER_ARRAY)),
 	    m_data(array_t(data, size))
 	{}
+	
+	template <typename T>
+	ArrayValue(T data) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY))
+	{ (void)data; }
 	
 	template <typename T>
 	ArrayValue(T *data, size_t size) :
@@ -650,7 +660,7 @@ static Value *create(const TypeDesc &typedesc, T *data, size_t size)
 			case BVM_DUPLIS: return new ArrayValue<BVM_DUPLIS>(data, size);
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 template <typename T>
@@ -669,7 +679,20 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 			case BVM_DUPLIS: return new SingleValue<BVM_DUPLIS>(data);
 		}
 	}
-	return 0;
+	else if (typedesc.buffer_type == BVM_BUFFER_ARRAY) {
+		switch (typedesc.base_type) {
+			case BVM_FLOAT: return new ArrayValue<BVM_FLOAT>(data);
+			case BVM_FLOAT3: return new ArrayValue<BVM_FLOAT3>(data);
+			case BVM_FLOAT4: return new ArrayValue<BVM_FLOAT4>(data);
+			case BVM_INT: return new ArrayValue<BVM_INT>(data);
+			case BVM_MATRIX44: return new ArrayValue<BVM_MATRIX44>(data);
+			case BVM_STRING: return new ArrayValue<BVM_STRING>(data);
+			case BVM_POINTER: return new ArrayValue<BVM_POINTER>(data);
+			case BVM_MESH: return new ArrayValue<BVM_MESH>(data);
+			case BVM_DUPLIS: return new ArrayValue<BVM_DUPLIS>(data);
+		}
+	}
+	return NULL;
 }
 
 
