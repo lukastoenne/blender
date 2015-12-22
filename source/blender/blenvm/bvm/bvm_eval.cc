@@ -145,8 +145,8 @@ static void eval_op_value_mesh(float *stack, StackIndex offset)
  */
 static void eval_op_value_duplis(float *stack, StackIndex offset)
 {
-	static ListBase lb = {0};
-	stack_store_duplis(stack, offset, &lb);
+	static DupliList duplis;
+	stack_store_duplis(stack, offset, &duplis);
 }
 
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)

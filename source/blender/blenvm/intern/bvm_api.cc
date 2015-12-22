@@ -65,8 +65,8 @@ extern "C" {
 
 namespace bvm {
 static mesh_ptr __empty_mesh__;
-static ListBase __empty_listbase__ = {0};
-static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_listbase__);
+static DupliList __empty_dupli_list__ = DupliList();
+static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_dupli_list__);
 }
 
 void BVM_init(void)
@@ -1094,17 +1094,19 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 	RNA_id_pointer_create((ID *)object, &object_ptr);
 	const void *args[] = { &object_ptr };
 	
-	duplis_ptr duplis;
-	void *results[] = { &duplis };
+	duplis_ptr result;
+	void *results[] = { &result };
 	
 	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 	
-	ListBase *lb = duplis.get();
-	if (lb) {
-		for (DupliObject *dob = (DupliObject *)lb->first; dob; dob = dob->next) {
-			BKE_dupli_add_instance(duplicont, dob->ob, dob->mat, dob->persistent_id[0],
-			        dob->animated, dob->no_draw, false);
+	DupliList *duplis = result.get();
+	if (duplis) {
+		for (DupliList::const_iterator it = duplis->begin(); it != duplis->end(); ++it) {
+			const Dupli &dupli = *it;
+			BKE_dupli_add_instance(duplicont, dupli.object, (float (*)[4])dupli.transform.data, dupli.index,
+			                       false, dupli.hide, dupli.recursive);
 		}
-		BLI_freelistN(lb);
+		
+//		delete duplis;
 	}
 }

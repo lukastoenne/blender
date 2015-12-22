@@ -94,7 +94,7 @@ inline static duplis_ptr stack_load_duplis_ptr(float *stack, StackIndex offset)
 	return *(duplis_ptr *)(&stack[offset]);
 }
 
-inline static ListBase *stack_load_duplis(float *stack, StackIndex offset)
+inline static DupliList *stack_load_duplis(float *stack, StackIndex offset)
 {
 	return ((duplis_ptr *)(&stack[offset]))->get();
 }
@@ -151,7 +151,7 @@ inline static void stack_store_duplis_ptr(float *stack, StackIndex offset, dupli
 	*(duplis_ptr *)(&stack[offset]) = p;
 }
 
-inline static void stack_store_duplis(float *stack, StackIndex offset, ListBase *lb)
+inline static void stack_store_duplis(float *stack, StackIndex offset, DupliList *lb)
 {
 	((duplis_ptr *)(&stack[offset]))->set(lb);
 }

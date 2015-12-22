@@ -33,6 +33,9 @@
 #define __BVM_TYPE_TRAITS_H__
 
 #include <cassert>
+#include <vector>
+
+#include "MEM_guardedalloc.h"
 
 extern "C" {
 #include "BLI_listbase.h"
@@ -299,13 +302,15 @@ struct DerivedMeshDestructor {
 };
 typedef node_data_ptr<DerivedMesh, DerivedMeshDestructor> mesh_ptr;
 
-struct DuplisDestructor {
-	static void destroy(ListBase *lb)
-	{
-		BLI_freelistN(lb);
-	}
+struct Dupli {
+	Object *object;
+	matrix44 transform;
+	int index;
+	bool hide;
+	bool recursive;
 };
-typedef node_data_ptr<ListBase, DuplisDestructor> duplis_ptr;
+typedef std::vector<Dupli> DupliList;
+typedef node_data_ptr<DupliList> duplis_ptr;
 
 inline void create_empty_mesh(mesh_ptr &p)
 {

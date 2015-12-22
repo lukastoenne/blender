@@ -890,8 +890,6 @@ OpCode get_opcode_from_node_type(const string &node)
 }
 
 static mesh_ptr __empty_mesh__;
-static ListBase __empty_listbase__ = {0};
-static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_listbase__);
 
 static void register_opcode_node_types()
 {
@@ -938,7 +936,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_MESH);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, __empty_duplis__);
+	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(new DupliList()));
 	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
@@ -1037,7 +1035,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_MESH);
 	
 	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, __empty_duplis__, INPUT_CONSTANT);
+	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(new DupliList()), INPUT_CONSTANT);
 	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
