@@ -349,6 +349,10 @@ void BVMCompiler::push_constant(const Value *value) const
 			/* MESH type can not be stored as a constant */
 			break;
 		}
+		case BVM_DUPLIS: {
+			/* DUPLIS type can not be stored as a constant */
+			break;
+		}
 	}
 }
 
@@ -420,6 +424,11 @@ void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
 			push_stack_index(offset);
 			break;
 		}
+		case BVM_DUPLIS: {
+			push_opcode(OP_VALUE_DUPLIS);
+			push_stack_index(offset);
+			break;
+		}
 	}
 }
 
@@ -437,6 +446,8 @@ static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 		
 		case BVM_MESH:
 			return OP_INIT_MESH_PTR;
+		case BVM_DUPLIS:
+			return OP_INIT_DUPLIS_PTR;
 	}
 	return OP_NOOP;
 }
@@ -455,6 +466,8 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 		
 		case BVM_MESH:
 			return OP_RELEASE_MESH_PTR;
+		case BVM_DUPLIS:
+			return OP_RELEASE_DUPLIS_PTR;
 	}
 	return OP_NOOP;
 }

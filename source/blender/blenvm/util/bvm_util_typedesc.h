@@ -35,6 +35,8 @@
 #include <cassert>
 
 extern "C" {
+#include "BLI_listbase.h"
+
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
 
@@ -295,8 +297,15 @@ struct DerivedMeshDestructor {
 		dm->release(dm);
 	}
 };
-
 typedef node_data_ptr<DerivedMesh, DerivedMeshDestructor> mesh_ptr;
+
+struct DuplisDestructor {
+	static void destroy(ListBase *lb)
+	{
+		BLI_freelistN(lb);
+	}
+};
+typedef node_data_ptr<ListBase, DuplisDestructor> duplis_ptr;
 
 inline void create_empty_mesh(mesh_ptr &p)
 {
@@ -413,6 +422,18 @@ struct BaseTypeTraits<BVM_MESH> {
 	}
 };
 
+template <>
+struct BaseTypeTraits<BVM_DUPLIS> {
+	typedef duplis_ptr POD;
+	
+	enum eStackSize { stack_size = 8 };
+	
+	static inline void copy(POD *to, const POD *from)
+	{
+		*to = *from;
+	}
+};
+
 /* ------------------------------------------------------------------------- */
 
 template <BVMType type>
@@ -500,6 +521,7 @@ struct TypeDesc {
 #define TYPE_STRING TypeDesc(BVM_STRING, BVM_BUFFER_SINGLE)
 #define TYPE_POINTER TypeDesc(BVM_POINTER, BVM_BUFFER_SINGLE)
 #define TYPE_MESH TypeDesc(BVM_MESH, BVM_BUFFER_SINGLE)
+#define TYPE_DUPLIS TypeDesc(BVM_DUPLIS, BVM_BUFFER_SINGLE)
 
 #define TYPE_FLOAT_ARRAY TypeDesc(BVM_FLOAT, BVM_BUFFER_ARRAY)
 #define TYPE_FLOAT3_ARRAY TypeDesc(BVM_FLOAT3, BVM_BUFFER_ARRAY)
@@ -509,6 +531,7 @@ struct TypeDesc {
 #define TYPE_STRING_ARRAY TypeDesc(BVM_STRING, BVM_BUFFER_ARRAY)
 #define TYPE_POINTER_ARRAY TypeDesc(BVM_POINTER, BVM_BUFFER_ARRAY)
 #define TYPE_MESH_ARRAY TypeDesc(BVM_MESH, BVM_BUFFER_ARRAY)
+#define TYPE_DUPLIS_ARRAY TypeDesc(BVM_DUPLIS, BVM_BUFFER_ARRAY)
 
 /* ------------------------------------------------------------------------- */
 
@@ -624,6 +647,7 @@ static Value *create(const TypeDesc &typedesc, T *data, size_t size)
 			case BVM_STRING: return new ArrayValue<BVM_STRING>(data, size);
 			case BVM_POINTER: return new ArrayValue<BVM_POINTER>(data, size);
 			case BVM_MESH: return new ArrayValue<BVM_MESH>(data, size);
+			case BVM_DUPLIS: return new ArrayValue<BVM_DUPLIS>(data, size);
 		}
 	}
 	return 0;
@@ -642,6 +666,7 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 			case BVM_STRING: return new SingleValue<BVM_STRING>(data);
 			case BVM_POINTER: return new SingleValue<BVM_POINTER>(data);
 			case BVM_MESH: return new SingleValue<BVM_MESH>(data);
+			case BVM_DUPLIS: return new SingleValue<BVM_DUPLIS>(data);
 		}
 	}
 	return 0;
@@ -661,6 +686,7 @@ bool Value::get(array<type> *data) const
 			case BVM_STRING: return static_cast< const ArrayValue<BVM_STRING>* >(this)->get(data);
 			case BVM_POINTER: return static_cast< const ArrayValue<BVM_POINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const ArrayValue<BVM_MESH>* >(this)->get(data);
+			case BVM_DUPLIS: return static_cast< const ArrayValue<BVM_DUPLIS>* >(this)->get(data);
 		}
 	}
 	return false;
@@ -679,6 +705,7 @@ bool Value::get(T *data) const
 			case BVM_STRING: return static_cast< const SingleValue<BVM_STRING>* >(this)->get(data);
 			case BVM_POINTER: return static_cast< const SingleValue<BVM_POINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const SingleValue<BVM_MESH>* >(this)->get(data);
+			case BVM_DUPLIS: return static_cast< const SingleValue<BVM_DUPLIS>* >(this)->get(data);
 		}
 	}
 	return false;
@@ -704,6 +731,7 @@ int TypeDesc::stack_size() const
 				case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
 				case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
 				case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
+				case BVM_DUPLIS: return BaseTypeTraits<BVM_DUPLIS>::stack_size;
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
@@ -729,6 +757,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
+				case BVM_DUPLIS: COPY_TYPE(to, from, BVM_DUPLIS); break;
 			}
 			#undef COPY_TYPE
 			break;
@@ -744,6 +773,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
 				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
+				case BVM_DUPLIS: COPY_TYPE(to, from, BVM_DUPLIS); break;
 			}
 			#undef COPY_TYPE
 			break;

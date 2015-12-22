@@ -140,6 +140,15 @@ static void eval_op_value_mesh(float *stack, StackIndex offset)
 	stack_store_mesh(stack, offset, CDDM_new(0, 0, 0, 0, 0));
 }
 
+/* Note: dupli data is not explicitly stored on the stack,
+ * this function always creates simply an empty dupli list.
+ */
+static void eval_op_value_duplis(float *stack, StackIndex offset)
+{
+	static ListBase lb = {0};
+	stack_store_duplis(stack, offset, &lb);
+}
+
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
@@ -196,6 +205,20 @@ static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
 	mesh_ptr p = stack_load_mesh_ptr(stack, offset);
 	p.decrement_use_count();
 	stack_store_mesh_ptr(stack, offset, p);
+}
+
+static void eval_op_init_duplis_ptr(float *stack, StackIndex offset, int use_count)
+{
+	duplis_ptr p(NULL);
+	p.set_use_count(use_count);
+	stack_store_duplis_ptr(stack, offset, p);
+}
+
+static void eval_op_release_duplis_ptr(float *stack, StackIndex offset)
+{
+	duplis_ptr p = stack_load_duplis_ptr(stack, offset);
+	p.decrement_use_count();
+	stack_store_duplis_ptr(stack, offset, p);
 }
 
 static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, StackIndex offset_col_b, StackIndex offset_fac, StackIndex offset_r)
@@ -340,6 +363,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_value_mesh(stack, offset);
 				break;
 			}
+			case OP_VALUE_DUPLIS: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_value_duplis(stack, offset);
+				break;
+			}
 			case OP_FLOAT_TO_INT: {
 				StackIndex offset_from = fn->read_stack_index(&instr);
 				StackIndex offset_to = fn->read_stack_index(&instr);
@@ -392,6 +420,17 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 			case OP_RELEASE_MESH_PTR: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_release_mesh_ptr(stack, offset);
+				break;
+			}
+			case OP_INIT_DUPLIS_PTR: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				int use_count = fn->read_int(&instr);
+				eval_op_init_duplis_ptr(stack, offset, use_count);
+				break;
+			}
+			case OP_RELEASE_DUPLIS_PTR: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				eval_op_release_duplis_ptr(stack, offset);
 				break;
 			}
 			case OP_ADD_FLOAT: {

@@ -69,6 +69,11 @@ inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
 	return *(matrix44 *)(&stack[offset]);
 }
 
+inline static const char *stack_load_string(float *stack, StackIndex offset)
+{
+	return *(const char **)(&stack[offset]);
+}
+
 inline static PointerRNA stack_load_pointer(float *stack, StackIndex offset)
 {
 	return *(PointerRNA *)(&stack[offset]);
@@ -84,10 +89,17 @@ inline static DerivedMesh *stack_load_mesh(float *stack, StackIndex offset)
 	return ((mesh_ptr *)(&stack[offset]))->get();
 }
 
-inline static const char *stack_load_string(float *stack, StackIndex offset)
+inline static duplis_ptr stack_load_duplis_ptr(float *stack, StackIndex offset)
 {
-	return *(const char **)(&stack[offset]);
+	return *(duplis_ptr *)(&stack[offset]);
 }
+
+inline static ListBase *stack_load_duplis(float *stack, StackIndex offset)
+{
+	return ((duplis_ptr *)(&stack[offset]))->get();
+}
+
+/* ------------------------------------------------------------------------- */
 
 inline static void stack_store_float(float *stack, StackIndex offset, float f)
 {
@@ -114,6 +126,11 @@ inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix4
 	*(matrix44 *)(&stack[offset]) = m;
 }
 
+inline static void stack_store_string(float *stack, StackIndex offset, const char *s)
+{
+	*(const char **)(&stack[offset]) = s;
+}
+
 inline static void stack_store_pointer(float *stack, StackIndex offset, PointerRNA p)
 {
 	*(PointerRNA *)(&stack[offset]) = p;
@@ -129,9 +146,14 @@ inline static void stack_store_mesh(float *stack, StackIndex offset, DerivedMesh
 	((mesh_ptr *)(&stack[offset]))->set(dm);
 }
 
-inline static void stack_store_string(float *stack, StackIndex offset, const char *s)
+inline static void stack_store_duplis_ptr(float *stack, StackIndex offset, duplis_ptr p)
 {
-	*(const char **)(&stack[offset]) = s;
+	*(duplis_ptr *)(&stack[offset]) = p;
+}
+
+inline static void stack_store_duplis(float *stack, StackIndex offset, ListBase *lb)
+{
+	((duplis_ptr *)(&stack[offset]))->set(lb);
 }
 
 } /* namespace bvm */

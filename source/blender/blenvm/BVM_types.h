@@ -45,6 +45,7 @@ typedef enum BVMType {
 	BVM_STRING,
 	BVM_POINTER,
 	BVM_MESH,
+	BVM_DUPLIS,
 } BVMType;
 
 typedef enum BVMBufferType {

@@ -605,6 +605,7 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 				case BVM_STRING: node = add_node("PASS_STRING"); break;
 				case BVM_POINTER: node = add_node("PASS_POINTER"); break;
 				case BVM_MESH: node = add_node("PASS_MESH"); break;
+				case BVM_DUPLIS: node = add_node("PASS_DUPLIS"); break;
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
@@ -617,6 +618,7 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 				case BVM_STRING: node = add_node("PASS_STRING_ARRAY"); break;
 				case BVM_POINTER: node = add_node("PASS_POINTER_ARRAY"); break;
 				case BVM_MESH: node = add_node("PASS_MESH_ARRAY"); break;
+				case BVM_DUPLIS: node = add_node("PASS_DUPLIS_ARRAY"); break;
 			}
 			break;
 	}
@@ -637,6 +639,7 @@ SocketPair NodeGraph::add_value_node(Value *value)
 		case BVM_STRING: node = add_node("VALUE_STRING"); break;
 		case BVM_POINTER: node = add_node("VALUE_POINTER"); break;
 		case BVM_MESH: node = add_node("VALUE_MESH"); break;
+		case BVM_DUPLIS: node = add_node("VALUE_DUPLIS"); break;
 	}
 	if (node)
 		node->set_input_value("value", value);
@@ -655,6 +658,7 @@ SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
 		case BVM_STRING: node = add_node("ARG_STRING"); break;
 		case BVM_POINTER: node = add_node("ARG_POINTER"); break;
 		case BVM_MESH: node = add_node("ARG_MESH"); break;
+		case BVM_DUPLIS: node = add_node("ARG_DUPLIS"); break;
 	}
 	return SocketPair(node, "value");
 }
@@ -794,6 +798,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_STRING);
 	NODETYPE(VALUE_POINTER);
 	NODETYPE(VALUE_MESH);
+	NODETYPE(VALUE_DUPLIS);
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
@@ -885,6 +890,8 @@ OpCode get_opcode_from_node_type(const string &node)
 }
 
 static mesh_ptr __empty_mesh__;
+static ListBase __empty_listbase__ = {0};
+static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_listbase__);
 
 static void register_opcode_node_types()
 {
@@ -930,6 +937,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_MESH, __empty_mesh__);
 	nt->add_output("value", TYPE_MESH);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
+	nt->add_input("value", TYPE_MESH, __empty_duplis__);
+	nt->add_output("value", TYPE_MESH);
+	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
 	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
 	nt->add_output("value", TYPE_FLOAT_ARRAY);
@@ -962,6 +973,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_MESH_ARRAY, array<BVM_MESH>());
 	nt->add_output("value", TYPE_MESH_ARRAY);
 	
+	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS_ARRAY");
+	nt->add_input("value", TYPE_DUPLIS_ARRAY, array<BVM_DUPLIS>());
+	nt->add_output("value", TYPE_DUPLIS_ARRAY);
+	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
 	nt->add_output("value", TYPE_FLOAT);
 	
@@ -985,6 +1000,9 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", TYPE_MESH);
+	
+	nt = NodeGraph::add_function_node_type("ARG_DUPLIS");
+	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT");
 	nt->add_input("value", TYPE_FLOAT, 0.0f, INPUT_CONSTANT);
@@ -1017,6 +1035,10 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("VALUE_MESH");
 	nt->add_input("value", TYPE_MESH, __empty_mesh__, INPUT_CONSTANT);
 	nt->add_output("value", TYPE_MESH);
+	
+	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
+	nt->add_input("value", TYPE_DUPLIS, __empty_duplis__, INPUT_CONSTANT);
+	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", TYPE_INT, 0, INPUT_CONSTANT);
