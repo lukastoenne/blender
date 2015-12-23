@@ -153,7 +153,8 @@ void ED_node_tag_update_id(ID *id)
 	 * This should ideally happen through the depsgraph too,
 	 * but for now this is the only real option.
 	 */
-	else if (STREQ(ntree->idname, "GeometryNodeTree")) {
+	else if (STREQ(ntree->idname, "GeometryNodeTree") ||
+	         STREQ(ntree->idname, "InstancingNodeTree")) {
 		WM_main_add_notifier(NC_MATERIAL | ND_NODES, NULL);
 	}
 	else if (id == &ntree->id) {
