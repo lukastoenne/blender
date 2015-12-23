@@ -1153,7 +1153,7 @@ static void make_duplis_nodetree(struct bNodeTree *ntree, const DupliContext *du
 {
 	struct BVMFunction *fn = BVM_function_cache_acquire(ntree);
 	if (!fn) {
-		fn = BVM_gen_dupli_function(ntree, NULL);
+		fn = BVM_gen_dupli_function(ntree);
 		BVM_function_cache_set(ntree, fn);
 	}
 	

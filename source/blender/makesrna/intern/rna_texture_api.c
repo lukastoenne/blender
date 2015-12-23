@@ -83,19 +83,14 @@ static void texture_evaluate(struct Tex *tex, float value[3], float r_color[4])
 	r_color[3] = texres.tin;
 }
 
-static void rna_Texture_debug_nodes_graphviz(struct Tex *tex, const char *filename)
+static void rna_Texture_debug_nodes_graphviz(struct Tex *tex, const char *filename, int finalize)
 {
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
 		return;
 	
-	if (tex->nodetree && tex->use_nodes) {
-		struct BVMFunction *fn;
-		
-		fn = BVM_gen_texture_function(tex, tex->nodetree, f);
-		
-		BVM_function_free(fn);
-	}
+	if (tex->nodetree && tex->use_nodes)
+		BVM_debug_texture_nodes(tex->nodetree, f, finalize);
 	
 	fclose(f);
 }
@@ -122,6 +117,7 @@ void RNA_api_texture(StructRNA *srna)
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "finalize", true, "Finalize", "Finalize the node graph for optimization");
 }
 
 void RNA_api_environment_map(StructRNA *srna)

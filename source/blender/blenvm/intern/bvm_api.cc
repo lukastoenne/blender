@@ -430,33 +430,46 @@ static void parse_py_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 	RNA_parameter_list_free(&list);
 }
 
-struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree, FILE *debug_file)
+static void init_forcefield_graph(bvm::NodeGraph &graph)
+{
+	using namespace bvm;
+	
+	graph.add_input("effector.object", TYPE_POINTER);
+	graph.add_input("effector.position", TYPE_FLOAT3);
+	graph.add_input("effector.velocity", TYPE_FLOAT3);
+	
+	float zero[3] = {0.0f, 0.0f, 0.0f};
+	graph.add_output("force", TYPE_FLOAT3, zero);
+	graph.add_output("impulse", TYPE_FLOAT3, zero);
+}
+
+struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
-	{
-		graph.add_input("effector.object", TYPE_POINTER);
-		graph.add_input("effector.position", TYPE_FLOAT3);
-		graph.add_input("effector.velocity", TYPE_FLOAT3);
-		
-		float zero[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("force", TYPE_FLOAT3, zero);
-		graph.add_output("impulse", TYPE_FLOAT3, zero);
-	}
-	
+	init_forcefield_graph(graph);
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
-	
-	if (debug_file) {
-		debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
-	}
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
+}
+
+void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, bool finalize)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	init_forcefield_graph(graph);
+	parse_py_nodes(btree, &graph);
+	if (finalize)
+		graph.finalize();
+	
+	debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
 }
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -944,36 +957,49 @@ static void parse_tex_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 	}
 }
 
+static void init_texture_graph(bvm::NodeGraph &graph)
+{
+	using namespace bvm;
+	
+	graph.add_input("texture.co", TYPE_FLOAT3);
+	graph.add_input("texture.dxt", TYPE_FLOAT3);
+	graph.add_input("texture.dyt", TYPE_FLOAT3);
+	graph.add_input("texture.cfra", TYPE_INT);
+	graph.add_input("texture.osatex", TYPE_INT);
+	
+	float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	float N[3] = {0.0f, 0.0f, 0.0f};
+	graph.add_output("color", TYPE_FLOAT4, C);
+	graph.add_output("normal", TYPE_FLOAT3, N);
+}
 
-struct BVMFunction *BVM_gen_texture_function(struct Tex */*tex*/, bNodeTree *btree, FILE *debug_file)
+struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
-	{
-		graph.add_input("texture.co", TYPE_FLOAT3);
-		graph.add_input("texture.dxt", TYPE_FLOAT3);
-		graph.add_input("texture.dyt", TYPE_FLOAT3);
-		graph.add_input("texture.cfra", TYPE_INT);
-		graph.add_input("texture.osatex", TYPE_INT);
-		
-		float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		float N[3] = {0.0f, 0.0f, 0.0f};
-		graph.add_output("color", TYPE_FLOAT4, C);
-		graph.add_output("normal", TYPE_FLOAT3, N);
-	}
+	init_texture_graph(graph);
 	parse_tex_nodes(btree, &graph);
 	graph.finalize();
-	
-	if (debug_file) {
-		debug::dump_graphviz(debug_file, &graph, "Texture Expression Graph");
-	}
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
+}
+
+void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, bool finalize)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	init_texture_graph(graph);
+	parse_tex_nodes(btree, &graph);
+	if (finalize)
+		graph.finalize();
+	
+	debug::dump_graphviz(debug_file, &graph, "Texture Expression Graph");
 }
 
 void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -1009,30 +1035,45 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, FILE *debug_file)
+static void init_modifier_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	NodeGraph graph;
 	graph.add_input("iteration", TYPE_INT);
 	graph.add_input("element.index", TYPE_INT);
 	graph.add_input("element.location", TYPE_FLOAT3);
 	graph.add_input("modifier.object", TYPE_POINTER);
 	graph.add_input("modifier.base_mesh", TYPE_POINTER);
 	graph.add_output("mesh", TYPE_MESH, __empty_mesh__);
+}
+
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
+{
+	using namespace bvm;
 	
+	NodeGraph graph;
+	init_modifier_graph(graph);
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
-	
-	if (debug_file) {
-		debug::dump_graphviz(debug_file, &graph, "Modifier Schedule Graph");
-	}
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
+}
+
+void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	init_modifier_graph(graph);
+	parse_py_nodes(btree, &graph);
+	if (finalize)
+		graph.finalize();
+	
+	debug::dump_graphviz(debug_file, &graph, "Modifier Schedule Graph");
 }
 
 struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
@@ -1060,26 +1101,42 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_file)
+static void init_dupli_graph(bvm::NodeGraph &graph)
+{
+	using namespace bvm;
+	
+	graph.add_input("dupli.object", TYPE_POINTER);
+	graph.add_output("dupli.result", TYPE_DUPLIS, __empty_duplis__);
+}
+
+struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
-	graph.add_input("dupli.object", TYPE_POINTER);
-	graph.add_output("dupli.result", TYPE_DUPLIS, __empty_duplis__);
-	
+	init_dupli_graph(graph);
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
-	
-	if (debug_file) {
-		debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
-	}
 	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
+}
+
+void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize)
+{
+	using namespace bvm;
+	
+	NodeGraph graph;
+	init_dupli_graph(graph);
+	
+	parse_py_nodes(btree, &graph);
+	if (finalize)
+		graph.finalize();
+	
+	debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
 }
 
 void BVM_eval_dupli(struct BVMEvalGlobals *globals,

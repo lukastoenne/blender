@@ -120,7 +120,8 @@ void BVM_context_free(struct BVMEvalContext *context);
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunction *BVM_gen_forcefield_function(struct bNodeTree *btree, FILE *debug_file);
+struct BVMFunction *BVM_gen_forcefield_function(struct bNodeTree *btree);
+void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize);
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
                          struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
@@ -130,7 +131,8 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMFunction *BVM_gen_texture_function(struct Tex *tex, struct bNodeTree *btree, FILE *debug_file);
+struct BVMFunction *BVM_gen_texture_function(struct bNodeTree *btree);
+void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize);
 
 void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
@@ -142,7 +144,8 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, FILE *debug_file);
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree);
+void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize);
 
 struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct BVMEvalContext *context,
@@ -154,7 +157,8 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 struct DupliContainer;
 
-struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree, FILE *debug_file);
+struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree);
+void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize);
 
 void BVM_eval_dupli(struct BVMEvalGlobals *globals,
                     struct BVMEvalContext *context,

@@ -471,7 +471,7 @@ void rna_Object_dm_info(struct Object *ob, int type, char *result)
 }
 #endif /* NDEBUG */
 
-static void rna_Object_debug_geometry_nodes_graphviz(struct Object *ob, const char *filename)
+static void rna_Object_debug_geometry_nodes_graphviz(struct Object *ob, const char *filename, int finalize)
 {
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
@@ -488,18 +488,14 @@ static void rna_Object_debug_geometry_nodes_graphviz(struct Object *ob, const ch
 			}
 		}
 		
-		if (geotree) {
-			struct BVMFunction *fn;
-			
-			fn = BVM_gen_modifier_function(geotree, f);
-			BVM_function_free(fn);
-		}
+		if (geotree)
+			BVM_debug_modifier_nodes(geotree, f, finalize);
 	}
 	
 	fclose(f);
 }
 
-static void rna_Object_debug_instancing_nodes_graphviz(struct Object *ob, const char *filename)
+static void rna_Object_debug_instancing_nodes_graphviz(struct Object *ob, const char *filename, int finalize)
 {
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
@@ -516,12 +512,8 @@ static void rna_Object_debug_instancing_nodes_graphviz(struct Object *ob, const 
 			}
 		}
 		
-		if (duplitree) {
-			struct BVMFunction *fn;
-			
-			fn = BVM_gen_dupli_function(duplitree, f);
-			BVM_function_free(fn);
-		}
+		if (duplitree)
+			BVM_debug_dupli_nodes(duplitree, f, finalize);
 	}
 	
 	fclose(f);
@@ -759,11 +751,13 @@ void RNA_api_object(StructRNA *srna)
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "finalize", true, "Finalize", "Finalize the node graph for optimization");
 
 	func = RNA_def_function(srna, "debug_instancing_nodes_graphviz", "rna_Object_debug_instancing_nodes_graphviz");
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "finalize", true, "Finalize", "Finalize the node graph for optimization");
 
 	func = RNA_def_function(srna, "update_from_editmode", "rna_Object_update_from_editmode");
 	RNA_def_function_ui_description(func, "Load the objects edit-mode data intp the object data");
