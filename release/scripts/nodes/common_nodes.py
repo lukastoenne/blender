@@ -101,6 +101,75 @@ class NodeBase():
 
 
 ###############################################################################
+
+
+class DynamicSocketListNode:
+    def add_extender(self, socketlist, sockettype):
+        socket = socketlist.new(sockettype, "")
+        socket.is_placeholder = True
+        return socket
+
+    def update_socket_list(self, socketlist, sockettype, insert=None):
+        ntree = self.id_data
+
+        # build map of connected inputs
+        input_links = dict()
+        for link in ntree.links:
+            if link.to_node == self:
+                input_links[link.to_socket] = (link, link.from_socket)
+
+        # remove unconnected sockets
+        for socket in socketlist:
+            if socket not in input_links and socket != insert:
+                socketlist.remove(socket)
+            else:
+                socket.is_placeholder = False
+
+        # shift sockets to make room for a new link
+        if insert is not None:
+            socketlist.new(sockettype, "")
+            nsocket = socketlist[-1]
+            for socket in reversed(socketlist[:-1]):
+                link, from_socket = input_links.get(socket, (None, None))
+                if link is not None:
+                    ntree.links.remove(link)
+                    ntree.links.new(from_socket, nsocket)
+                nsocket = socket
+                if socket == insert:
+                    break
+
+        self.add_extender(socketlist, sockettype)
+
+    def compile_socket_list(self, compiler, socketlist, passtype, jointype, valuetype):
+        ntree = self.id_data
+
+        # list of connected inputs
+        used_inputs = set()
+        for link in ntree.links:
+            if link.to_node == self:
+                used_inputs.add(link.to_socket)
+        # make a sorted index list
+        used_inputs = [ i for i,socket in enumerate(socketlist) if socket in used_inputs ]
+
+        if len(used_inputs) > 0:
+            node = compiler.add_node(passtype)
+            compiler.map_input(used_inputs[0], node.inputs[0])
+            result = node.outputs[0]
+        
+            for index in used_inputs[1:]:
+                node = compiler.add_node(jointype)
+                compiler.link(result, node.inputs[0])
+                compiler.map_input(index, node.inputs[1])
+                result = node.outputs[0]
+
+        else:
+            node = compiler.add_node(valuetype)
+            result = node.outputs[0]
+
+        return result
+
+
+###############################################################################
 # Generic Nodes
 
 class CommonNodeBase(NodeBase):

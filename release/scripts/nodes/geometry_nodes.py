@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase, NodeBase, enum_property_copy, enum_property_value_prop
+from common_nodes import NodeTreeBase, NodeBase, DynamicSocketListNode, enum_property_copy, enum_property_value_prop
 import group_nodes
 
 ###############################################################################
@@ -135,87 +135,33 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
         compiler.map_output(0, node.outputs[0])
 
 
-class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode):
+class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode, DynamicSocketListNode):
     '''Combine multiple meshes into one'''
     bl_idname = 'GeometryMeshCombineNode'
     bl_label = 'Combine Meshes'
-
-    def add_extender(self):
-        socket = self.inputs.new('GeometrySocket', "")
-        socket.is_placeholder = True
-        return socket
 
     def init(self, context):
         if self.is_updating:
             return
         with self.update_lock():
-            self.add_extender()
+            self.update_socket_list(self.inputs, 'GeometrySocket')
             self.outputs.new('GeometrySocket', "")
 
-    def update_inputs(self, insert=None):
+    def update(self):
         if self.is_updating:
             return
         with self.update_lock():
-            ntree = self.id_data
-
-            # build map of connected inputs
-            input_links = dict()
-            for link in ntree.links:
-                if link.to_node == self:
-                    input_links[link.to_socket] = (link, link.from_socket)
-
-            # remove unconnected sockets
-            for socket in self.inputs:
-                if socket not in input_links and socket != insert:
-                    self.inputs.remove(socket)
-                else:
-                    socket.is_placeholder = False
-
-            # shift sockets to make room for a new link
-            if insert is not None:
-                self.inputs.new('GeometrySocket', "")
-                nsocket = self.inputs[-1]
-                for socket in reversed(self.inputs[:-1]):
-                    link, from_socket = input_links.get(socket, (None, None))
-                    if link is not None:
-                        ntree.links.remove(link)
-                        ntree.links.new(from_socket, nsocket)
-                    nsocket = socket
-                    if socket == insert:
-                        break
-
-            self.add_extender()
-
-    def update(self):
-        self.update_inputs()
+            self.update_socket_list(self.inputs, 'GeometrySocket')
 
     def insert_link(self, link):
-        self.update_inputs(link.to_socket)
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'GeometrySocket', insert=link.to_socket)
 
     def compile(self, compiler):
-        ntree = self.id_data
-
-        # list of connected inputs
-        used_inputs = set()
-        for link in ntree.links:
-            if link.to_node == self:
-                used_inputs.add(link.to_socket)
-        # make a sorted index list
-        used_inputs = [ i for i,socket in enumerate(self.inputs) if socket in used_inputs ]
-
-        if len(used_inputs) > 0:
-            node = compiler.add_node("PASS_MESH")
-            compiler.map_input(used_inputs[0], node.inputs[0])
-            result = node.outputs[0]
-        
-            for index in used_inputs[1:]:
-                node = compiler.add_node("MESH_COMBINE")
-                compiler.link(result, node.inputs[0])
-                compiler.map_input(index, node.inputs[1])
-                
-                result = node.outputs[0]
-
-            compiler.map_output(0, result)
+        result = self.compile_socket_list(compiler, self.inputs, "PASS_MESH", "MESH_COMBINE", "VALUE_MESH")
+        compiler.map_output(0, result)
 
 
 class GeometryMeshArrayNode(GeometryNodeBase, ObjectNode):
