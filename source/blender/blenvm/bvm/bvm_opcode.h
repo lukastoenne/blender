@@ -144,6 +144,7 @@ enum OpCode {
 	OP_CURVE_PATH,
 	
 	OP_MAKE_DUPLI,
+	OP_DUPLIS_COMBINE,
 	
 	OP_END,
 	

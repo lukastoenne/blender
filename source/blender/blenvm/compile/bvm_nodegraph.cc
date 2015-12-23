@@ -885,6 +885,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(CURVE_PATH);
 	
 	NODETYPE(MAKE_DUPLI);
+	NODETYPE(DUPLIS_COMBINE);
 	
 	#undef NODETYPE
 	
@@ -1269,6 +1270,11 @@ static void register_opcode_node_types()
 	nt->add_input("hide", TYPE_INT, 0);
 	nt->add_input("recursive", TYPE_INT, 1);
 	nt->add_output("dupli", TYPE_DUPLIS);
+	
+	nt = NodeGraph::add_function_node_type("DUPLIS_COMBINE");
+	nt->add_input("duplis_a", TYPE_DUPLIS, duplis_ptr(new DupliList()));
+	nt->add_input("duplis_b", TYPE_DUPLIS, duplis_ptr(new DupliList()));
+	nt->add_output("duplis", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());

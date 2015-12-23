@@ -322,6 +322,20 @@ static void eval_op_make_dupli(float *stack, StackIndex offset_object, StackInde
 	stack_store_duplis(stack, offset_dupli, list);
 }
 
+static void eval_op_duplis_combine(float *stack, StackIndex offset_duplis_a, StackIndex offset_duplis_b,
+                                   StackIndex offset_duplis)
+{
+	const DupliList *a = stack_load_duplis(stack, offset_duplis_a);
+	const DupliList *b = stack_load_duplis(stack, offset_duplis_b);
+	
+	DupliList *result = new DupliList();
+	result->reserve(a->size() + b->size());
+	result->insert(result->end(), a->begin(), a->end());
+	result->insert(result->end(), b->begin(), b->end());
+	
+	stack_store_duplis(stack, offset_duplis, result);
+}
+
 void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
 {
 	EvalKernelData kd;
@@ -976,6 +990,14 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				StackIndex offset_dupli = fn->read_stack_index(&instr);
 				eval_op_make_dupli(stack, offset_object, offset_transform, offset_index,
 				                   offset_hide, offset_recursive, offset_dupli);
+				break;
+			}
+			
+			case OP_DUPLIS_COMBINE: {
+				StackIndex offset_duplis_a = fn->read_stack_index(&instr);
+				StackIndex offset_duplis_b = fn->read_stack_index(&instr);
+				StackIndex offset_result = fn->read_stack_index(&instr);
+				eval_op_duplis_combine(stack, offset_duplis_a, offset_duplis_b, offset_result);
 				break;
 			}
 			

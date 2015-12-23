@@ -94,7 +94,7 @@ inline static duplis_ptr stack_load_duplis_ptr(float *stack, StackIndex offset)
 	return *(duplis_ptr *)(&stack[offset]);
 }
 
-inline static DupliList *stack_load_duplis(float *stack, StackIndex offset)
+inline static const DupliList *stack_load_duplis(float *stack, StackIndex offset)
 {
 	return ((duplis_ptr *)(&stack[offset]))->get();
 }
