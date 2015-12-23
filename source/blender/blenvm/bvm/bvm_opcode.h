@@ -143,6 +143,8 @@ enum OpCode {
 	
 	OP_CURVE_PATH,
 	
+	OP_MAKE_DUPLI,
+	
 	OP_END,
 	
 //	OP_JUMP,

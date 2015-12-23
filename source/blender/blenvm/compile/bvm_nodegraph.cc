@@ -884,6 +884,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(CURVE_PATH);
 	
+	NODETYPE(MAKE_DUPLI);
+	
 	#undef NODETYPE
 	
 	return OP_NOOP;
@@ -1259,6 +1261,14 @@ static void register_opcode_node_types()
 	nt->add_output("radius", TYPE_FLOAT);
 	nt->add_output("weight", TYPE_FLOAT);
 	nt->add_output("tilt", TYPE_FLOAT);
+	
+	nt = NodeGraph::add_function_node_type("MAKE_DUPLI");
+	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
+	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
+	nt->add_input("index", TYPE_INT, 0);
+	nt->add_input("hide", TYPE_INT, 0);
+	nt->add_input("recursive", TYPE_INT, 1);
+	nt->add_output("dupli", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());

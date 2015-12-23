@@ -304,6 +304,24 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
+static void eval_op_make_dupli(float *stack, StackIndex offset_object, StackIndex offset_transform, StackIndex offset_index,
+                               StackIndex offset_hide, StackIndex offset_recursive, StackIndex offset_dupli)
+{
+	PointerRNA object = stack_load_pointer(stack, offset_object);
+	if (!object.data || !RNA_struct_is_a(&RNA_Object, object.type))
+		return;
+	
+	DupliList *list = new DupliList(1);
+	Dupli &dupli = list->back();
+	dupli.object = (Object *)object.data;
+	dupli.transform = stack_load_matrix44(stack, offset_transform);
+	dupli.index = stack_load_int(stack, offset_index);
+	dupli.hide = stack_load_int(stack, offset_hide);
+	dupli.recursive = stack_load_int(stack, offset_recursive);
+	
+	stack_store_duplis(stack, offset_dupli, list);
+}
+
 void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
 {
 	EvalKernelData kd;
@@ -946,6 +964,18 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                   offset_param, offset_loc, offset_dir, offset_nor,
 				                   offset_rot, offset_radius, offset_weight,
 				                   offset_tilt);
+				break;
+			}
+			
+			case OP_MAKE_DUPLI: {
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				StackIndex offset_index = fn->read_stack_index(&instr);
+				StackIndex offset_hide = fn->read_stack_index(&instr);
+				StackIndex offset_recursive = fn->read_stack_index(&instr);
+				StackIndex offset_dupli = fn->read_stack_index(&instr);
+				eval_op_make_dupli(stack, offset_object, offset_transform, offset_index,
+				                   offset_hide, offset_recursive, offset_dupli);
 				break;
 			}
 			

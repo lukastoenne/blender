@@ -159,7 +159,7 @@ class NodeCompiler:
 
     @staticmethod
     def get_id_key(id_data):
-        return BVMEvalGlobals.get_id_key(id_data)
+        return BVMEvalGlobals.get_id_key(id_data) if id_data else 0
 
 ###############################################################################
 

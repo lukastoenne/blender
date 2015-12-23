@@ -98,12 +98,40 @@ class MakeDupliNode(InstancingNodeBase, ObjectNode):
     bl_idname = 'InstancingMakeDupliNode'
     bl_label = 'Make Dupli'
 
+    bl_id_property_type = 'OBJECT'
+    def bl_id_property_poll(self, ob):
+        return True
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id")
+
+    def eval_dependencies(self, depsnode):
+        dob = self.id
+        if dob:
+            # XXX not quite ideal: we need to define a "dependency"
+            # because this puts the dupli object into the globals dict,
+            # even though the duplis don't actually need to be re-evaluated
+            # when this object changes
+            depsnode.add_object_relation(dob, 'GEOMETRY')
+
     def init(self, context):
         self.inputs.new('TransformSocket', "Transform")
+        self.inputs.new('NodeSocketInt', "Index")
+        self.inputs.new('NodeSocketInt', "Hide")
+        socket = self.inputs.new('NodeSocketInt', "Recursive")
+        socket.default_value = 1
+        self.outputs.new('DupliSocket', "")
 
     def compile(self, compiler):
-        #compiler.map_input(0, compiler.graph_output("mesh"))
-        print("DDDD")
+        ob = compile_object(compiler, self.id)
+
+        node = compiler.add_node("MAKE_DUPLI")
+        compiler.link(ob, node.inputs["object"])
+        compiler.map_input(0, node.inputs["transform"])
+        compiler.map_input(1, node.inputs["index"])
+        compiler.map_input(2, node.inputs["hide"])
+        compiler.map_input(3, node.inputs["recursive"])
+        compiler.map_output(0, node.outputs[0])
 
 ###############################################################################
 
@@ -138,6 +166,9 @@ def register():
         InstancingNodeCategory("INS_OUTPUT", "Output", items=[
             NodeItem("InstancingOutputNode"),
             NodeItem(goutput.bl_idname),
+            ]),
+        InstancingNodeCategory("INS_DUPLIS", "Duplis", items=[
+            NodeItem("InstancingMakeDupliNode"),
             ]),
         InstancingNodeCategory("INS_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
