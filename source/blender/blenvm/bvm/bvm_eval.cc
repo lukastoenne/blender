@@ -145,8 +145,7 @@ static void eval_op_value_mesh(float *stack, StackIndex offset)
  */
 static void eval_op_value_duplis(float *stack, StackIndex offset)
 {
-	static DupliList duplis;
-	stack_store_duplis(stack, offset, &duplis);
+	stack_store_duplis(stack, offset, new DupliList());
 }
 
 static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
@@ -209,7 +208,7 @@ static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
 
 static void eval_op_init_duplis_ptr(float *stack, StackIndex offset, int use_count)
 {
-	duplis_ptr p(NULL);
+	duplis_ptr p(new DupliList());
 	p.set_use_count(use_count);
 	stack_store_duplis_ptr(stack, offset, p);
 }
