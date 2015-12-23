@@ -24,7 +24,7 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
-from common_nodes import NodeTreeBase, NodeBase, enum_property_copy, enum_property_value_prop
+from common_nodes import NodeTreeBase, NodeBase, DynamicSocketListNode, enum_property_copy, enum_property_value_prop
 import group_nodes
 
 ###############################################################################
@@ -81,16 +81,32 @@ def compile_object(compiler, ptr):
     return node.outputs[0]
 
 
-class OutputNode(InstancingNodeBase, ObjectNode):
+class OutputNode(InstancingNodeBase, ObjectNode, DynamicSocketListNode):
     '''Dupli output'''
     bl_idname = 'InstancingOutputNode'
     bl_label = 'Output'
 
     def init(self, context):
-        self.inputs.new('DupliSocket', "")
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'DupliSocket')
+
+    def update(self):
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'DupliSocket')
+
+    def insert_link(self, link):
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'DupliSocket', insert=link.to_socket)
 
     def compile(self, compiler):
-        compiler.map_input(0, compiler.graph_output("dupli.result"))
+        result = self.compile_socket_list(compiler, self.inputs, "PASS_DUPLIS", "DUPLIS_COMBINE", "VALUE_DUPLIS")
+        compiler.link(result, compiler.graph_output("dupli.result"))
 
 
 class MakeDupliNode(InstancingNodeBase, ObjectNode):

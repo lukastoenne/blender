@@ -95,16 +95,32 @@ def compile_modifier_inputs(compiler, obptr):
     return ob, tfm, itfm
 
 
-class GeometryOutputNode(GeometryNodeBase, ObjectNode):
+class GeometryOutputNode(GeometryNodeBase, ObjectNode, DynamicSocketListNode):
     '''Geometry output'''
     bl_idname = 'GeometryOutputNode'
     bl_label = 'Output'
 
     def init(self, context):
-        self.inputs.new('GeometrySocket', "")
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'GeometrySocket')
+
+    def update(self):
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'GeometrySocket')
+
+    def insert_link(self, link):
+        if self.is_updating:
+            return
+        with self.update_lock():
+            self.update_socket_list(self.inputs, 'GeometrySocket', insert=link.to_socket)
 
     def compile(self, compiler):
-        compiler.map_input(0, compiler.graph_output("mesh"))
+        result = self.compile_socket_list(compiler, self.inputs, "PASS_MESH", "MESH_COMBINE", "VALUE_MESH")
+        compiler.link(result, compiler.graph_output("mesh"))
 
 
 class GeometryElementInfoNode(GeometryNodeBase, ObjectNode):
