@@ -109,6 +109,9 @@ endif()
 		bf_intern_string 
 		bf_intern_ghost
 		bf_intern_ghostndof3dconnexion
+		bf_blenvm
+		bf_blenvm_bvm
+		bf_blenvm_compile
 		bf_rna
 		bf_blenkernel
 		bf_depsgraph
