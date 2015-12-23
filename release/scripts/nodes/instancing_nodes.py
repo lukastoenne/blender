@@ -167,7 +167,7 @@ class InstancingNodesNew(Operator):
 ###############################################################################
 
 def register():
-    gnode, ginput, goutput = group_nodes.make_node_group_types("Instancing", InstancingNodeTree, InstancingNodeBase)
+    gnode, ginput, goutput = group_nodes.make_node_group_types("Instancing", InstancingNodeTree, InstancingNodeBase, "object_nodes.instancing_nodes_new")
     bpy.utils.register_module(__name__)
 
     node_categories = [

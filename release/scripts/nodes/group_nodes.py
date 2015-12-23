@@ -179,7 +179,7 @@ def make_node_group_interface(prefix, treetype, tree_items_update):
 
 ###############################################################################
 
-def make_node_group_types(prefix, treetype, node_base):
+def make_node_group_types(prefix, treetype, node_base, op_tree_new):
     ntree_idname = treetype.bl_idname
     groupnode_idname = '%sGroupNode' % prefix
 
@@ -296,7 +296,7 @@ def make_node_group_types(prefix, treetype, node_base):
             return True
 
         def draw_buttons(self, context, layout):
-            layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
+            layout.template_ID(self, "id", new=op_tree_new)
 
         def compile_dependencies(self, depsnode):
             ntree = self.id
