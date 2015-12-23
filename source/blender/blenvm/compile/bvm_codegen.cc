@@ -297,6 +297,7 @@ void BVMCompiler::push_string(const char *s) const
 
 void BVMCompiler::push_constant(const Value *value) const
 {
+	BLI_assert(value != NULL);
 	switch (value->typedesc().base_type) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
@@ -564,6 +565,8 @@ int BVMCompiler::codegen_function(const BVMCompiler::FunctionInfo &func,
 				
 				if (node.is_input_constant(i)) {
 					Value *value = node.find_input_value(i);
+					if (!value)
+						value = node.type->find_input(i)->default_value;
 					push_constant(value);
 				}
 				else {
