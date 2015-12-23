@@ -471,7 +471,7 @@ void rna_Object_dm_info(struct Object *ob, int type, char *result)
 }
 #endif /* NDEBUG */
 
-static void rna_Object_debug_nodes_graphviz(struct Object *ob, const char *filename)
+static void rna_Object_debug_geometry_nodes_graphviz(struct Object *ob, const char *filename)
 {
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
@@ -492,6 +492,34 @@ static void rna_Object_debug_nodes_graphviz(struct Object *ob, const char *filen
 			struct BVMFunction *fn;
 			
 			fn = BVM_gen_modifier_function(geotree, f);
+			BVM_function_free(fn);
+		}
+	}
+	
+	fclose(f);
+}
+
+static void rna_Object_debug_instancing_nodes_graphviz(struct Object *ob, const char *filename)
+{
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	if (ob->nodetree) {
+		bNodeTree *duplitree = NULL;
+		bNode *node;
+		
+		for (node = ob->nodetree->nodes.first; node; node = node->next) {
+			if (STREQ(node->idname, "InstancingNode")) {
+				duplitree = (bNodeTree *)node->id;
+				break;
+			}
+		}
+		
+		if (duplitree) {
+			struct BVMFunction *fn;
+			
+			fn = BVM_gen_dupli_function(duplitree, f);
 			BVM_function_free(fn);
 		}
 	}
@@ -727,7 +755,12 @@ void RNA_api_object(StructRNA *srna)
 	RNA_def_function_output(func, parm);
 #endif /* NDEBUG */
 
-	func = RNA_def_function(srna, "debug_nodes_graphviz", "rna_Object_debug_nodes_graphviz");
+	func = RNA_def_function(srna, "debug_geometry_nodes_graphviz", "rna_Object_debug_geometry_nodes_graphviz");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "debug_instancing_nodes_graphviz", "rna_Object_debug_instancing_nodes_graphviz");
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
