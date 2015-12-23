@@ -74,8 +74,8 @@ socket_type_items = [
     ("VECTOR", "Vector", "3D vector", 0, 2),
     ("COLOR", "Color", "RGBA color", 0, 3),
     ("MESH", "Mesh", "Mesh data", 0, 4),
-    ("DUPLIS", "Duplis", "Dupli instances", 0, 4),
-    ("TRANSFORM", "Transform", "Affine transformation", 0, 5),
+    ("DUPLIS", "Duplis", "Dupli instances", 0, 5),
+    ("TRANSFORM", "Transform", "Affine transformation", 0, 6),
     ]
 
 def socket_type_to_rna(base_type):
