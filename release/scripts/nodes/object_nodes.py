@@ -88,7 +88,7 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
         layout.template_ID(self, "id", new=GeometryNodesNew.bl_idname)
 
     def init(self, context):
-        self.id = GeometryNodesNew.make_node_tree()
+        pass
 
     def compile(self, compiler):
         pass
@@ -212,9 +212,12 @@ def register():
 
     node_categories = [
         ObjectNodeCategory("COMPONENTS", "Components", items=[
-            NodeItem("GeometryNode"),
-            NodeItem("ForceFieldNode"),
-            NodeItem("InstancingNode"),
+            NodeItem("GeometryNode",
+                     settings={"id": "bpy.types.%s.make_node_tree()" % (GeometryNodesNew.bl_rna.identifier)}),
+            NodeItem("ForceFieldNode",
+                     settings={"id": "bpy.types.%s.make_node_tree()" % (ForceFieldNodesNew.bl_rna.identifier)}),
+            NodeItem("InstancingNode",
+                     settings={"id": "bpy.types.%s.make_node_tree()" % (InstancingNodesNew.bl_rna.identifier)}),
             ]),
         ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
