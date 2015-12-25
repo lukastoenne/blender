@@ -49,6 +49,10 @@ class ForceFieldNodeTree(NodeTreeBase, NodeTree):
     def poll(cls, context):
         return False
 
+    def init_default(self):
+        out = self.nodes.new(ForceOutputNode.bl_idname)
+        out.location = (100, 20)
+
 
 class ForceNodeBase(NodeBase):
     @classmethod
@@ -117,10 +121,24 @@ class ForceFieldNodesNew(Operator):
 
     name = StringProperty(
             name="Name",
+            default="ForceFieldNodes",
             )
 
+    @classmethod
+    def make_node_tree(cls, name="ForceFieldNodes"):
+        ntree = bpy.data.node_groups.new(name, ForceFieldNodeTree.bl_idname)
+        if ntree:
+            ntree.init_default()
+        return ntree
+
     def execute(self, context):
-        return bpy.ops.node.new_node_tree(type='ForceFieldNodeTree', name="ForceFieldNodes")
+        node = getattr(context, "node", None)
+        ntree = self.make_node_tree(self.name)
+        if ntree is None:
+            return {'CANCELLED'}
+        if node:
+            node.id = ntree
+        return {'FINISHED'}
 
 
 ###############################################################################

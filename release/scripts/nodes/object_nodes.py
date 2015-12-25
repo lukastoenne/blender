@@ -24,7 +24,11 @@ from bpy.types import Operator, ObjectNode, NodeTree, Node, NodeSocket
 from bpy.props import *
 from nodeitems_utils import NodeCategory, NodeItem
 from mathutils import *
+
 from common_nodes import NodeTreeBase, NodeBase
+from geometry_nodes import GeometryNodesNew
+from instancing_nodes import InstancingNodesNew
+from forcefield_nodes import ForceFieldNodesNew
 
 ###############################################################################
 
@@ -80,7 +84,11 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
             ntree.bvm_eval_dependencies(depsnode)
 
     def draw_buttons(self, context, layout):
-        layout.template_ID(self, "id", new="object_nodes.geometry_nodes_new")
+        layout.context_pointer_set("node", self)
+        layout.template_ID(self, "id", new=GeometryNodesNew.bl_idname)
+
+    def init(self, context):
+        self.id = GeometryNodesNew.make_node_tree()
 
     def compile(self, compiler):
         pass
@@ -107,6 +115,7 @@ class InstancingNode(ObjectNodeBase, ObjectNode):
             ntree.bvm_eval_dependencies(depsnode)
 
     def draw_buttons(self, context, layout):
+        layout.context_pointer_set("node", self)
         layout.template_ID(self, "id", new="object_nodes.instancing_nodes_new")
 
     def compile(self, compiler):
@@ -134,6 +143,7 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
             ntree.bvm_eval_dependencies(depsnode)
 
     def draw_buttons(self, context, layout):
+        layout.context_pointer_set("node", self)
         layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")
 
     def compile(self, compiler):

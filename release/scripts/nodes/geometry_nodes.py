@@ -51,6 +51,14 @@ class GeometryNodeTree(NodeTreeBase, NodeTree):
     def poll(cls, context):
         return False
 
+    def init_default(self):
+        mesh = self.nodes.new(GeometryMeshLoadNode.bl_idname)
+        mesh.location = (-100 - mesh.bl_width_default, 20)
+        out = self.nodes.new(GeometryOutputNode.bl_idname)
+        out.location = (100, 20)
+
+        self.links.new(mesh.outputs[0], out.inputs[0])
+
 
 class GeometryNodeBase(NodeBase):
     @classmethod
@@ -342,15 +350,30 @@ class GeometryNodesNew(Operator):
 
     name = StringProperty(
             name="Name",
+            default="GeometryNodes",
             )
 
+    @classmethod
+    def make_node_tree(cls, name="GeometryNodes"):
+        ntree = bpy.data.node_groups.new(name, GeometryNodeTree.bl_idname)
+        if ntree:
+            ntree.init_default()
+        return ntree
+
     def execute(self, context):
-        return bpy.ops.node.new_node_tree(type='GeometryNodeTree', name="GeometryNodes")
+        node = getattr(context, "node", None)
+        ntree = self.make_node_tree(self.name)
+        if ntree is None:
+            return {'CANCELLED'}
+        if node:
+            node.id = ntree
+        return {'FINISHED'}
 
 ###############################################################################
 
 def register():
-    gnode, ginput, goutput = group_nodes.make_node_group_types("Geometry", GeometryNodeTree, GeometryNodeBase, "object_nodes.geometry_nodes_new")
+    gnode, ginput, goutput = group_nodes.make_node_group_types(
+        "Geometry", GeometryNodeTree, GeometryNodeBase)
     bpy.utils.register_module(__name__)
 
     node_categories = [

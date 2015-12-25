@@ -51,6 +51,10 @@ class InstancingNodeTree(NodeTreeBase, NodeTree):
     def poll(cls, context):
         return False
 
+    def init_default(self):
+        out = self.nodes.new(OutputNode.bl_idname)
+        out.location = (100, 20)
+
 
 class InstancingNodeBase(NodeBase):
     @classmethod
@@ -159,15 +163,29 @@ class InstancingNodesNew(Operator):
 
     name = StringProperty(
             name="Name",
+            default="DupliNodes",
             )
 
+    @classmethod
+    def make_node_tree(cls, name="DupliNodes"):
+        ntree = bpy.data.node_groups.new(name, InstancingNodeTree.bl_idname)
+        if ntree:
+            ntree.init_default()
+        return ntree
+
     def execute(self, context):
-        return bpy.ops.node.new_node_tree(type='InstancingNodeTree', name="InstancingNodes")
+        node = getattr(context, "node", None)
+        ntree = self.make_node_tree(self.name)
+        if ntree is None:
+            return {'CANCELLED'}
+        if node:
+            node.id = ntree
+        return {'FINISHED'}
 
 ###############################################################################
 
 def register():
-    gnode, ginput, goutput = group_nodes.make_node_group_types("Instancing", InstancingNodeTree, InstancingNodeBase, "object_nodes.instancing_nodes_new")
+    gnode, ginput, goutput = group_nodes.make_node_group_types("Instancing", InstancingNodeTree, InstancingNodeBase)
     bpy.utils.register_module(__name__)
 
     node_categories = [

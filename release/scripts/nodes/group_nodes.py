@@ -179,7 +179,7 @@ def make_node_group_interface(prefix, treetype, tree_items_update):
 
 ###############################################################################
 
-def make_node_group_types(prefix, treetype, node_base, op_tree_new):
+def make_node_group_types(prefix, treetype, node_base):
     ntree_idname = treetype.bl_idname
     groupnode_idname = '%sGroupNode' % prefix
 
@@ -192,10 +192,26 @@ def make_node_group_types(prefix, treetype, node_base, op_tree_new):
 
         name = StringProperty(
                 name="Name",
+                default="%s Node Group" % prefix,
                 )
 
+        @classmethod
+        def init_default(cls, ntree):
+            gin = ntree.nodes.new(GroupInputNode.bl_idname)
+            gin.location = (-100 - gin.bl_width_default, 20)
+            gout = ntree.nodes.new(GroupOutputNode.bl_idname)
+            gout.location = (100, 20)
+
         def execute(self, context):
-            return bpy.ops.node.new_node_tree(type=self.bl_ntree_idname, name="%s Node Group" % prefix)
+            node = getattr(context, "node", None)
+            ntree = bpy.data.node_groups.new(self.name, self.bl_ntree_idname)
+            if ntree is None:
+                return {'CANCELLED'}
+            
+            self.init_default(ntree)
+            if node:
+                node.id = ntree
+            return {'FINISHED'}
 
     # updates all affected nodes when the interface changes
     def tree_items_update(self, context=bpy.context):
@@ -296,7 +312,7 @@ def make_node_group_types(prefix, treetype, node_base, op_tree_new):
             return True
 
         def draw_buttons(self, context, layout):
-            layout.template_ID(self, "id", new=op_tree_new)
+            layout.template_ID(self, "id", new=NodeGroupNew.bl_idname)
 
         def compile_dependencies(self, depsnode):
             ntree = self.id
