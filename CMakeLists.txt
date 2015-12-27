@@ -1585,8 +1585,13 @@ elseif(WIN32)
 		if(WITH_SDL)
 			set(SDL ${LIBDIR}/sdl)
 			set(SDL_INCLUDE_DIR ${SDL}/include)
-			set(SDL_LIBRARY SDL2)
 			set(SDL_LIBPATH ${SDL}/lib)
+			# MinGW TODO: Update MinGW to SDL2
+			if(NOT CMAKE_COMPILER_IS_GNUCC)
+				set(SDL_LIBRARY SDL2)
+			else()
+				set(SDL_LIBRARY SDL)
+			endif()
 		endif()
 
 		# Audio IO
@@ -2738,6 +2743,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 		"/w34062"  # switch statement contains 'default' but no 'case' labels
 		# disable:
 		"/wd4018"  # signed/unsigned mismatch
+		"/wd4146"  # unary minus operator applied to unsigned type, result still unsigned
 		"/wd4065"  # switch statement contains 'default' but no 'case' labels
 		"/wd4127"  # conditional expression is constant
 		"/wd4181"  # qualifier applied to reference type; ignored
