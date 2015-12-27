@@ -68,46 +68,43 @@ class DupliSocket(NodeSocket):
 
 ###############################################################################
 
-socket_type_items = [
-    ("FLOAT", "Float", "Floating point number", 0, 0),
-    ("INT", "Int", "Integer number", 0, 1),
-    ("VECTOR", "Vector", "3D vector", 0, 2),
-    ("COLOR", "Color", "RGBA color", 0, 3),
-    ("MESH", "Mesh", "Mesh data", 0, 4),
-    ("DUPLIS", "Duplis", "Dupli instances", 0, 5),
-    ("TRANSFORM", "Transform", "Affine transformation", 0, 6),
+# combined info for each socket type:
+# identifier, UI name, description, bvm type, RNA struct type
+_socket_type_info = [
+    ("FLOAT", "Float", "Floating point number", 'FLOAT', bpy.types.NodeSocketFloat),
+    ("INT", "Int", "Integer number", 'INT', bpy.types.NodeSocketInt),
+    ("VECTOR", "Vector", "3D vector", 'FLOAT3', bpy.types.NodeSocketVector),
+    ("COLOR", "Color", "RGBA color", 'FLOAT4', bpy.types.NodeSocketColor),
+    ("MESH", "Mesh", "Mesh data", 'MESH', GeometrySocket),
+    ("DUPLIS", "Duplis", "Dupli instances", 'DUPLIS', DupliSocket),
+    ("TRANSFORM", "Transform", "Affine transformation", 'MATRIX44', TransformSocket),
     ]
 
-def socket_type_to_rna(base_type):
-    types = {
-        "FLOAT" : bpy.types.NodeSocketFloat,
-        "INT" : bpy.types.NodeSocketInt,
-        "VECTOR" : bpy.types.NodeSocketVector,
-        "COLOR" : bpy.types.NodeSocketColor,
-        "MESH" : bpy.types.GeometrySocket,
-        "DUPLIS" : bpy.types.DupliSocket,
-        "TRANSFORM" : bpy.types.TransformSocket,
-        }
-    return types.get(base_type, None)
+socket_type_items = [(s[0], s[1], s[2], 0, i) for i,s in enumerate(_socket_type_info)]
+
+def socket_type_to_rna(socket_type):
+    for s in _socket_type_info:
+        if s[0] == socket_type:
+            return s[4]
+    return None
+
+def socket_type_to_bvm_type(socket_type):
+    for s in _socket_type_info:
+        if s[0] == socket_type:
+            return s[3]
+    return ''
+
+def rna_to_socket_type(rna):
+    for s in _socket_type_info:
+        if issubclass(cls, s[4]):
+            return s[0]
+    return ''
 
 def rna_to_bvm_type(cls):
-    if issubclass(cls, bpy.types.NodeSocketFloat):
-        return 'FLOAT'
-    elif issubclass(cls, bpy.types.NodeSocketVector):
-        return 'FLOAT3'
-    elif issubclass(cls, bpy.types.NodeSocketColor):
-        return 'FLOAT4'
-    elif issubclass(cls, bpy.types.NodeSocketInt):
-        return 'INT'
-    elif issubclass(cls, bpy.types.TransformSocket):
-        return 'MATRIX44'
-    elif issubclass(cls, bpy.types.GeometrySocket):
-        return 'MESH'
-    elif issubclass(cls, bpy.types.DupliSocket):
-        return 'DUPLIS'
-
-def socket_type_to_bvm_type(base_type):
-    return rna_to_bvm_type(socket_type_to_rna(base_type))
+    for s in _socket_type_info:
+        if issubclass(cls, s[4]):
+            return s[3]
+    return ''
 
 # determines if a conversion is necessary and possible
 # and returns a new input socket to link
