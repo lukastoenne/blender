@@ -94,7 +94,7 @@ def socket_type_to_bvm_type(socket_type):
             return s[3]
     return ''
 
-def rna_to_socket_type(rna):
+def rna_to_socket_type(cls):
     for s in _socket_type_info:
         if issubclass(cls, s[4]):
             return s[0]

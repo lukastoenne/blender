@@ -22,7 +22,7 @@ import bpy
 import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
-from socket_types import socket_type_items, socket_type_to_rna, socket_type_to_bvm_type
+from socket_types import socket_type_items, socket_type_to_rna, socket_type_to_bvm_type, rna_to_socket_type
 from nodeitems_utils import NodeCategory as NodeCategoryBase, NodeItem, NodeItemCustom
 
 ###############################################################################
@@ -419,7 +419,171 @@ def make_node_group_types(prefix, treetype, node_base):
 
 ###############################################################################
 
-def GroupNodeCategory(prefix, gnode):
+def GroupNodeCategory(prefix, gnode, ginput, goutput):
+    ntree_idname = gnode.bl_ntree_idname
+
+    def copy_node(dst, src):
+        copy_attrs = ['color', 'height', 'hide', 'label',
+                      'location', 'id', 'mute', 'name',
+                      'show_options', 'show_preview', 'show_texture', 'use_custom_color',
+                      'width', 'width_hidden']
+        for attr in copy_attrs:
+            if not hasattr(dst, attr):
+                continue
+            if dst.is_property_readonly(attr):
+                continue
+            setattr(dst, attr, getattr(src, attr))
+
+        for key, value in src.items():
+            dst[key] = value
+
+    class NodeGroupMake(Operator):
+        """Make a node group from selected nodes"""
+        bl_idname = "object_nodes.%s_nodegroup_make" % prefix.lower()
+        bl_label = "Make Group"
+        bl_options = {'REGISTER', 'UNDO'}
+        bl_ntree_idname = ntree_idname
+
+        name = StringProperty(
+                name="Name",
+                default="Node Group",
+                )
+
+        @classmethod
+        def poll(cls, context):
+            space = context.space_data
+            if not space or space.type != 'NODE_EDITOR':
+                return False
+            ntree = space.edit_tree
+            if not ntree or not gnode.poll(ntree):
+                return False
+            return True
+
+        def execute(self, context):
+            ntree = context.space_data.edit_tree
+
+            # Warning! this has to happen right at the start
+            # because creating a node will make it selected by default!
+            selected_nodes = [node for node in ntree.nodes if node.select]
+            internal_links = []
+            input_links = []
+            output_links = []
+            for link in ntree.links:
+                if link.is_hidden or not link.is_valid:
+                    continue
+                sel_from = link.from_node.select
+                sel_to = link.to_node.select
+                if not sel_from and not sel_to:
+                    continue
+                elif sel_from and sel_to:
+                    internal_links.append(link)
+                elif sel_from:
+                    output_links.append(link)
+                elif sel_to:
+                    input_links.append(link)
+
+            groupnode = ntree.nodes.new(gnode.bl_idname)
+            if groupnode is None:
+                return {'CANCELLED'}
+            grouptree = bpy.data.node_groups.new(self.name, self.bl_ntree_idname)
+            if grouptree is None:
+                return {'CANCELLED'}
+            groupinput = grouptree.nodes.new(ginput.bl_idname)
+            groupoutput = grouptree.nodes.new(goutput.bl_idname)
+            groupnode.id = grouptree
+            
+            new_nodes = dict()
+            new_sockets = dict()
+            # copy nodes and local attributes
+            for node in selected_nodes:
+                inode = grouptree.nodes.new(node.bl_idname)
+                copy_node(inode, node)
+
+                # map old to new
+                new_nodes[node] = inode
+                for old, new in zip(node.inputs, inode.inputs):
+                    new_sockets[old] = new
+                for old, new in zip(node.outputs, inode.outputs):
+                    new_sockets[old] = new
+            # parent node must be mapped to new nodes
+            for node, inode in new_nodes.items():
+                if node.parent:
+                    iparent = new_nodes.get(node.parent, None)
+                    if iparent:
+                        inode.parent = iparent
+
+            # move nodes to sensible locations
+            if selected_nodes:
+                bbx = (min(node.location[0] for node in selected_nodes),
+                       max(node.location[0] + node.width for node in selected_nodes))
+                bby = (min(node.location[1] - node.height for node in selected_nodes),
+                       max(node.location[1] for node in selected_nodes))
+            else:
+                bbx = (0.0, 0.0)
+                bby = (0.0, 0.0)
+            center = (0.5*(bbx[0] + bbx[1]), 0.5*(bby[0] + bby[1]))
+            for node in new_nodes.values():
+                node.location[0] -= center[0]
+                node.location[1] -= center[1]
+            offsetx = 0.5*(bbx[1] - bbx[0])
+            groupinput.location[0] = -offsetx - groupinput.bl_width_default - 50
+            groupinput.location[1] = 0.5*groupinput.bl_height_default
+            groupoutput.location[0] = offsetx + 50
+            groupoutput.location[1] = 0.5*groupoutput.bl_height_default
+
+            groupnode.location[0] = center[0] - 0.5*groupnode.bl_width_default
+            groupnode.location[1] = center[1] + 0.5*groupnode.bl_height_default
+
+            # define the group interface
+            io_inputs = dict()
+            io_outputs = dict()
+            for link in input_links:
+                if link.from_socket not in io_inputs:
+                    io_inputs[link.from_socket] = {link.to_socket,}
+                else:
+                    io_inputs[link.from_socket].add(link.to_socket)
+            for link in output_links:
+                if link.from_socket not in io_outputs:
+                    io_outputs[link.from_socket] = {link.to_socket,}
+                else:
+                    io_outputs[link.from_socket].add(link.to_socket)
+
+            # reconstruct links
+            for link in internal_links:
+                ifrom_socket = new_sockets[link.from_socket]
+                ito_socket = new_sockets[link.to_socket]
+                grouptree.links.new(ifrom_socket, ito_socket)
+            for io, targets in io_inputs.items():
+                grouptree.add_input(io.name, rna_to_socket_type(type(io)))
+                io_extern = groupnode.inputs[-1]
+                io_intern = groupinput.outputs[-1]
+                
+                ntree.links.new(io, io_extern)
+                for s in targets:
+                    grouptree.links.new(io_intern, new_sockets[s])
+            for io, targets in io_outputs.items():
+                grouptree.add_output(io.name, rna_to_socket_type(type(io)))
+                io_extern = groupnode.outputs[-1]
+                io_intern = groupoutput.inputs[-1]
+
+                grouptree.links.new(new_sockets[io], io_intern)
+                for s in targets:
+                    ntree.links.new(io_extern, s)
+
+            # delete replaced nodes
+            for node in selected_nodes:
+                ntree.nodes.remove(node)
+
+            # clean up selection
+            for node in grouptree.nodes:
+                node.select = False
+            grouptree.nodes.active = None
+            for node in ntree.nodes:
+                node.select = (node == groupnode)
+            ntree.nodes.active = groupnode
+
+            return {'FINISHED'}
+    
     # menu entry for node group tools
     def group_tools_draw(self, layout, context):
         # TODO C node operators won't work for our nodes
@@ -459,12 +623,26 @@ def GroupNodeCategory(prefix, gnode):
                 return False
             return gnode.poll(ntree)
 
+    bpy.utils.register_class(NodeGroupMake)
+
+    # create keymap
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.default.keymaps.new(name="Node Generic", space_type='NODE_EDITOR')
+    kmi = km.keymap_items.new(NodeGroupMake.bl_idname, 'G', 'PRESS', ctrl=True)
+    keymaps.append(km)
+
     return NodeCategory()
 
 ###############################################################################
+
+keymaps = []
 
 def register():
     pass
 
 def unregister():
-    pass
+    # remove keymap
+    wm = bpy.context.window_manager
+    for km in keymaps:
+        wm.keyconfigs.default.keymaps.remove(km)
+    keymaps.clear()

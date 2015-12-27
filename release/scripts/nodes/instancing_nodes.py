@@ -226,7 +226,7 @@ def register():
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureVoronoiNode"),
             ]),
-        group_nodes.GroupNodeCategory("INS", gnode),
+        group_nodes.GroupNodeCategory("INS", gnode, ginput, goutput),
         ]
     nodeitems_utils.register_node_categories("INSTANCING_NODES", node_categories)
 
