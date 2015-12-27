@@ -124,9 +124,9 @@ struct DepsgraphNodeBuilderHandle
 	}
 	
 	DepsgraphNodeBuilderHandle(DepsgraphNodeBuilder *builder) :
-	    handle({0}),
 	    builder(builder)
 	{
+		memset(&handle, 0, sizeof(handle));
 		handle.add_texture_relation = add_texture_relation;
 		handle.add_nodetree_relation = add_nodetree_relation;
 	}

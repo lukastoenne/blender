@@ -30,6 +30,7 @@
  */
 
 #include <set>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -360,9 +361,9 @@ struct EvalGlobalsHandle
 	}
 	
 	EvalGlobalsHandle(EvalGlobals *globals) :
-	    handle({0}),
 	    globals(globals)
 	{
+		memset(&handle, 0, sizeof(handle));
 		handle.add_object_relation = add_object_relation;
 		handle.add_bone_relation = add_bone_relation;
 	}

@@ -154,11 +154,11 @@ struct DepsgraphRelationBuilderHandle
 	}
 	
 	DepsgraphRelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
-	    handle({0}),
 	    builder(builder),
 	    node(node),
 	    default_name(default_name)
 	{
+		memset(&handle, 0, sizeof(handle));
 		BLI_assert(node != NULL);
 		handle.add_scene_relation = add_scene_relation;
 		handle.add_object_relation = add_object_relation;
