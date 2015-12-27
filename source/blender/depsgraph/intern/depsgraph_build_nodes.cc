@@ -1122,7 +1122,7 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
 {
-	if (!ntree || (ntree->id.flag & LIB_DOIT) != 0)
+	if (!ntree || (ntree->id.tag & LIB_TAG_DOIT) != 0)
 		return;
 
 	/* nodetree itself */

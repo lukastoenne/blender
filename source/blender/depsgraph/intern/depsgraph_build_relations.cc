@@ -1851,9 +1851,9 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 
 void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 {
-	if (!ntree || (ntree->id.flag & LIB_DOIT) != 0)
+	if (!ntree || (ntree->id.tag & LIB_TAG_DOIT) != 0)
 		return;
-	ntree->id.flag |= LIB_DOIT;
+	ntree->id.tag |= LIB_TAG_DOIT;
 
 	ID *ntree_id = &ntree->id;
 
