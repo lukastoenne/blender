@@ -270,7 +270,7 @@ def make_node_group_types(prefix, treetype, node_base):
             if index != k:
                 sockets.move(index, k)
 
-    def internal_group_nodes(ntree, visited=None):
+    def internal_group_trees(ntree, visited=None):
         if ntree is None:
             return
         if visited is None:
@@ -278,13 +278,14 @@ def make_node_group_types(prefix, treetype, node_base):
         elif ntree in visited:
             return
         visited.add(ntree)
-        
+
+        yield ntree
+
         for node in ntree.nodes:
             if not isinstance(node, GroupNode):
                 continue
-            yield node
-            for inode in internal_group_nodes(node.id, visited):
-                yield inode
+            for itree in internal_group_trees(node.id, visited):
+                yield itree
 
     class GroupNode(node_base, ObjectNode):
         '''Group of nodes that can be used in other trees'''
@@ -296,8 +297,9 @@ def make_node_group_types(prefix, treetype, node_base):
         def bl_id_property_poll(self, ntree):
             if not isinstance(ntree, treetype):
                 return False
-            for node in internal_group_nodes(ntree):
-                if node == self:
+            parent_tree = self.id_data
+            for itree in internal_group_trees(ntree):
+                if itree == parent_tree:
                     return False
             return True
 
@@ -306,8 +308,8 @@ def make_node_group_types(prefix, treetype, node_base):
                 return False
             if self.id == ntree:
                 return False
-            for node in internal_group_nodes(self.id):
-                if node.id == ntree:
+            for itree in internal_group_trees(self.id):
+                if itree == ntree:
                     return False
             return True
 
