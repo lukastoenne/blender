@@ -23,6 +23,7 @@ import nodeitems_utils
 from bpy.types import Operator, Panel, UIList, NodeTree, Node, NodeSocket, ObjectNode, PropertyGroup, BVMTypeDesc
 from bpy.props import *
 from socket_types import socket_type_items, socket_type_to_rna, socket_type_to_bvm_type
+from nodeitems_utils import NodeCategory as NodeCategoryBase, NodeItem, NodeItemCustom
 
 ###############################################################################
 # Group Interface
@@ -179,6 +180,55 @@ def make_node_group_interface(prefix, treetype, tree_items_update):
 
 ###############################################################################
 
+# common identifying class to find group nodes
+class GroupNodeBase():
+    pass
+
+def internal_group_trees(ntree, visited=None):
+    if ntree is None:
+        return
+    if visited is None:
+        visited = set()
+    elif ntree in visited:
+        return
+    visited.add(ntree)
+
+    yield ntree
+
+    for node in ntree.nodes:
+        if not isinstance(node, GroupNodeBase):
+            continue
+        for itree in internal_group_trees(node.id, visited):
+            yield itree
+
+def ancestor_trees(root_tree, all_trees):
+    ancestors = set()
+    if root_tree is None:
+        return ancestors
+
+    visited = set()
+    def visit(ntree):
+        global indent
+        if ntree is None:
+            return False
+        if ntree in visited:
+            return ntree in ancestors
+        visited.add(ntree)
+
+        for node in ntree.nodes:
+            if not isinstance(node, GroupNodeBase):
+                continue
+            elif node.id == root_tree or visit(node.id):
+                ancestors.add(ntree)
+                return True
+        return False
+
+    for ntree in all_trees:
+        visit(ntree)
+
+    return ancestors
+
+
 def make_node_group_types(prefix, treetype, node_base):
     ntree_idname = treetype.bl_idname
     groupnode_idname = '%sGroupNode' % prefix
@@ -270,24 +320,7 @@ def make_node_group_types(prefix, treetype, node_base):
             if index != k:
                 sockets.move(index, k)
 
-    def internal_group_trees(ntree, visited=None):
-        if ntree is None:
-            return
-        if visited is None:
-            visited = set()
-        elif ntree in visited:
-            return
-        visited.add(ntree)
-
-        yield ntree
-
-        for node in ntree.nodes:
-            if not isinstance(node, GroupNode):
-                continue
-            for itree in internal_group_trees(node.id, visited):
-                yield itree
-
-    class GroupNode(node_base, ObjectNode):
+    class GroupNode(node_base, ObjectNode, GroupNodeBase):
         '''Group of nodes that can be used in other trees'''
         bl_idname = groupnode_idname
         bl_label = 'Group'
@@ -383,6 +416,50 @@ def make_node_group_types(prefix, treetype, node_base):
     bpy.utils.register_class(GroupOutputNode)
 
     return GroupNode, GroupInputNode, GroupOutputNode
+
+###############################################################################
+
+def GroupNodeCategory(prefix, gnode):
+    # menu entry for node group tools
+    def group_tools_draw(self, layout, context):
+        # TODO C node operators won't work for our nodes
+        #layout.operator("node.group_make")
+        #layout.operator("node.group_ungroup")
+        layout.separator()
+
+    def node_group_items(context):
+        if context is None:
+            return
+        space = context.space_data
+        if not space:
+            return
+        ntree = space.edit_tree
+        if not ntree:
+            return
+
+        yield NodeItemCustom(draw=group_tools_draw)
+
+        all_trees = context.blend_data.node_groups
+        ancestors = ancestor_trees(ntree, all_trees)
+        free_trees = [t for t in all_trees if (t.bl_idname == gnode.bl_ntree_idname) and (t != ntree) and (t not in ancestors)]
+
+        for ntree in free_trees:
+            yield NodeItem(gnode.bl_idname,
+                           label=ntree.name,
+                           settings={"id": "bpy.data.node_groups[%r]" % ntree.name})
+
+    class NodeCategory(NodeCategoryBase):
+        def __init__(self):
+            super().__init__("%s_GROUPS" % prefix, "Group", items=node_group_items)
+
+        @classmethod
+        def poll(cls, context):
+            ntree = context.space_data.edit_tree
+            if not ntree:
+                return False
+            return gnode.poll(ntree)
+
+    return NodeCategory()
 
 ###############################################################################
 

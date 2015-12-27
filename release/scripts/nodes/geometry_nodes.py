@@ -421,9 +421,7 @@ def register():
         GeometryNodeCategory("GEO_CURVE", "Curve", items=[
             NodeItem("CurvePathNode"),
             ]),
-        GeometryNodeCategory("GEO_GROUP", "Group", items=[
-            NodeItem(gnode.bl_idname),
-            ]),
+        group_nodes.GroupNodeCategory("GEO", gnode),
         ]
     nodeitems_utils.register_node_categories("GEOMETRY_NODES", node_categories)
 

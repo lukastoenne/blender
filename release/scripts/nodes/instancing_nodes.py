@@ -185,7 +185,8 @@ class InstancingNodesNew(Operator):
 ###############################################################################
 
 def register():
-    gnode, ginput, goutput = group_nodes.make_node_group_types("Instancing", InstancingNodeTree, InstancingNodeBase)
+    gnode, ginput, goutput = group_nodes.make_node_group_types(
+        "Instancing", InstancingNodeTree, InstancingNodeBase)
     bpy.utils.register_module(__name__)
 
     node_categories = [
@@ -225,9 +226,7 @@ def register():
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureVoronoiNode"),
             ]),
-        InstancingNodeCategory("INS_GROUP", "Group", items=[
-            NodeItem(gnode.bl_idname),
-            ]),
+        group_nodes.GroupNodeCategory("INS", gnode),
         ]
     nodeitems_utils.register_node_categories("INSTANCING_NODES", node_categories)
 
