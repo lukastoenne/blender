@@ -119,8 +119,6 @@ class MakeDupliNode(InstancingNodeBase, ObjectNode):
     bl_label = 'Make Dupli'
 
     bl_id_property_type = 'OBJECT'
-    def bl_id_property_poll(self, ob):
-        return True
 
     def draw_buttons(self, context, layout):
         layout.template_ID(self, "id")

@@ -1604,11 +1604,33 @@ static void rna_Node_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 	ED_node_tag_update_nodetree(bmain, ntree);
 }
 
-static void rna_ObjectNode_id_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_ObjectNode_id_update_cb(bContext *C, PointerRNA *ptr)
 {
+	bNode *node = (bNode *)ptr->data;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	func = RNA_struct_find_function(ptr->type, "bl_id_property_update");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, ptr, func);
+	RNA_parameter_set_lookup(&list, "context", &C);
+	node->typeinfo->ext.call(NULL, ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+static void rna_ObjectNode_id_update(bContext *C, PointerRNA *ptr)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	
 	rna_Node_update(bmain, scene, ptr);
 	
 	DEG_relations_tag_update(bmain);
+	
+	rna_ObjectNode_id_update_cb(C, ptr);
 }
 
 static void rna_Node_socket_value_update(ID *id, bNode *UNUSED(node), bContext *C)
@@ -6820,10 +6842,17 @@ static void rna_def_object_node(BlenderRNA *brna)
 	parm = RNA_def_pointer(func, "id", "ID", "ID", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
+	/* update */
+	func = RNA_def_function(srna, "bl_id_property_update", NULL);
+	RNA_def_function_ui_description(func, "Update called when the id property is changed");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_REGISTER_OPTIONAL);
+	parm = RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+
 	/* ID */
 	prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ID");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
 	RNA_def_property_editable_func(prop, "rna_ObjectNode_id_editable");
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_ObjectNode_id_typef", "rna_ObjectNode_id_poll");
 	RNA_def_property_ui_text(prop, "ID", "");

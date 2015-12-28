@@ -848,3 +848,9 @@ class ObjectNode(NodeInternal):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'ObjectNodeTree'
+
+    def bl_id_property_poll(self, id_data):
+        return True
+
+    def bl_id_property_update(self, context):
+        pass

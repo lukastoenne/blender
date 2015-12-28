@@ -336,6 +336,9 @@ def make_node_group_types(prefix, treetype, node_base):
                     return False
             return True
 
+        def bl_id_property_update(self, context):
+            self.update()
+
         def poll_instance(self, ntree):
             if hasattr(super(), "poll_instance") and not super().poll_instance(ntree):
                 return False
@@ -364,9 +367,8 @@ def make_node_group_types(prefix, treetype, node_base):
                 return
             with self.update_lock():
                 gtree = self.id
-                if gtree:
-                    node_sockets_sync(self.inputs, gtree.inputs)
-                    node_sockets_sync(self.outputs, gtree.outputs)
+                node_sockets_sync(self.inputs, gtree.inputs if gtree else [])
+                node_sockets_sync(self.outputs, gtree.outputs if gtree else [])
 
         def compile(self, compiler):
             if self.id is not None:
