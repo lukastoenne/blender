@@ -70,11 +70,17 @@ OpenVDBFloatGrid *OpenVDB_export_grid_fl(OpenVDBWriter *writer,
 {
 	Timer(__func__);
 
-	using namespace openvdb;
+	using openvdb::FloatGrid;
 
-	OpenVDBFloatGrid *grid =
-	        (OpenVDBFloatGrid *)internal::OpenVDB_export_grid<FloatGrid>(writer, name, data, res, matrix, (FloatGrid *)mask);
-	return grid;
+	FloatGrid *mask_grid = reinterpret_cast<FloatGrid *>(mask);
+	FloatGrid *grid = internal::OpenVDB_export_grid<FloatGrid>(writer,
+	                                                           name,
+	                                                           data,
+	                                                           res,
+	                                                           matrix,
+	                                                           mask_grid);
+
+	return reinterpret_cast<OpenVDBFloatGrid *>(grid);
 }
 
 OpenVDBIntGrid *OpenVDB_export_grid_ch(OpenVDBWriter *writer,
@@ -84,11 +90,18 @@ OpenVDBIntGrid *OpenVDB_export_grid_ch(OpenVDBWriter *writer,
 {
 	Timer(__func__);
 
-	using namespace openvdb;
+	using openvdb::FloatGrid;
+	using openvdb::Int32Grid;
 
-	OpenVDBIntGrid *grid =
-	        (OpenVDBIntGrid *)internal::OpenVDB_export_grid<Int32Grid>(writer, name, data, res, matrix, (FloatGrid *)mask);
-	return grid;
+	FloatGrid *mask_grid = reinterpret_cast<FloatGrid *>(mask);
+	Int32Grid *grid = internal::OpenVDB_export_grid<Int32Grid>(writer,
+	                                                           name,
+	                                                           data,
+	                                                           res,
+	                                                           matrix,
+	                                                           mask_grid);
+
+	return reinterpret_cast<OpenVDBIntGrid *>(grid);
 }
 
 OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
@@ -99,14 +112,23 @@ OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
 {
 	Timer(__func__);
 
-	using namespace openvdb;
+	using openvdb::GridBase;
+	using openvdb::FloatGrid;
+	using openvdb::VecType;
 
-	OpenVDBVectorGrid *grid =
-	(OpenVDBVectorGrid *)internal::OpenVDB_export_vector_grid(writer, name,
-	                                     data_x, data_y, data_z, res, matrix,
-	                                     static_cast<VecType>(vec_type),
-	                                     is_color, (FloatGrid *)mask);
-	return grid;
+	FloatGrid *mask_grid = reinterpret_cast<FloatGrid *>(mask);
+	GridBase *grid = internal::OpenVDB_export_vector_grid(writer,
+	                                                      name,
+	                                                      data_x,
+	                                                      data_y,
+	                                                      data_z,
+	                                                      res,
+	                                                      matrix,
+	                                                      static_cast<VecType>(vec_type),
+	                                                      is_color,
+	                                                      mask_grid);
+
+	return reinterpret_cast<OpenVDBVectorGrid *>(grid);
 }
 
 void OpenVDB_import_grid_fl(OpenVDBReader *reader,
@@ -148,18 +170,16 @@ void OpenVDBWriter_free(OpenVDBWriter *writer)
 
 void OpenVDBWriter_set_flags(OpenVDBWriter *writer, const int flag, const bool half)
 {
-	using namespace openvdb;
-
-	int compression_flags = io::COMPRESS_ACTIVE_MASK;
+	int compression_flags = openvdb::io::COMPRESS_ACTIVE_MASK;
 
 	if (flag == 0) {
-		compression_flags |= io::COMPRESS_ZIP;
+		compression_flags |= openvdb::io::COMPRESS_ZIP;
 	}
 	else if (flag == 1) {
-		compression_flags |= io::COMPRESS_BLOSC;
+		compression_flags |= openvdb::io::COMPRESS_BLOSC;
 	}
 	else {
-		compression_flags = io::COMPRESS_NONE;
+		compression_flags = openvdb::io::COMPRESS_NONE;
 	}
 
 	writer->setFlags(compression_flags, half);

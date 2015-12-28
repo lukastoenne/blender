@@ -3414,31 +3414,29 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
                                   update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	int orig_frame, fr, cancel = 0;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+
+	int cancel = 0;
 	float progress;
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
-	bool save_as_half;
 
-	orig_frame = scene->r.cfra;
-
-	cache = BKE_openvdb_get_current_cache(sds);
+	const int orig_frame = scene->r.cfra;
 
 	if (cache->writer == NULL) {
 		cache->writer = OpenVDBWriter_create();
 	}
 
-	save_as_half = ((cache->flags & OPENVDB_CACHE_SAVE_AS_HALF) != 0);
-
+	const bool save_as_half = ((cache->flags & OPENVDB_CACHE_SAVE_AS_HALF) != 0);
 	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
 
 	/* Unset exported flag if overwriting a cache, the operator should have
 	 * received confirmation from the user */
-	if (cache->flags & OPENVDB_CACHE_BAKED)
+	if (cache->flags & OPENVDB_CACHE_BAKED) {
 		cache->flags &= ~OPENVDB_CACHE_BAKED;
+	}
 
-	for (fr = cache->startframe; fr <= cache->endframe; fr++) {
+	for (int fr = cache->startframe; fr <= cache->endframe; fr++) {
 		/* smd->time is overwritten with scene->r.cfra in smokeModifier_process,
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
@@ -3485,8 +3483,6 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	SmokeDomainSettings *sds = smd->domain;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
-
-	cache = BKE_openvdb_get_current_cache(sds);
 
 	if (!(cache->flags & OPENVDB_CACHE_BAKED)) {
 		return false;

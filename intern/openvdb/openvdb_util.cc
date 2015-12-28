@@ -63,5 +63,5 @@ ScopeTimer::ScopeTimer(const std::string &message)
 
 ScopeTimer::~ScopeTimer()
 {
-	printf("%s: %fs\n", m_message.c_str(), time_dt() - m_start);
+	std::printf("%s: %fs\n", m_message.c_str(), time_dt() - m_start);
 }

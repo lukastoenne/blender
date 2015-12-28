@@ -2436,8 +2436,7 @@ static int openvdb_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
 
@@ -2446,24 +2445,21 @@ static int openvdb_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 
 	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, cache->startframe);
 
-	if (BLI_exists(filename)) {
-		if (BLI_is_file(filename)) {
-			if (BLI_file_is_writable(filename)) {
-				return WM_operator_confirm_message(C, op, "Cache target already exists! Overwrite?");
-			}
-			else {
-				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite cache target: %200s", filename);
-				return OPERATOR_CANCELLED;
-			}
-		}
-		else {
-			BKE_reportf(op->reports, RPT_ERROR, "Invalid cache target: %200s", filename);
-			return OPERATOR_CANCELLED;
-		}
-	}
-	else {
+	if (!BLI_exists(filename)) {
 		return openvdb_cache_bake_exec(C, op);
 	}
+
+	if (!BLI_is_file(filename)) {
+		BKE_reportf(op->reports, RPT_ERROR, "Invalid cache target: %200s", filename);
+		return OPERATOR_CANCELLED;
+	}
+
+	if (BLI_file_is_writable(filename)) {
+		return WM_operator_confirm_message(C, op, "Cache target already exists! Overwrite?");
+	}
+
+	BKE_reportf(op->reports, RPT_ERROR, "Cannot create cache target: %200s", filename);
+	return OPERATOR_CANCELLED;
 
 	UNUSED_VARS(event);
 }
@@ -2655,23 +2651,24 @@ static int openvdb_cache_free_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
+
+	if ((cache->flags & OPENVDB_CACHE_BAKED) == 0) {
+		return OPERATOR_CANCELLED;
+	}
+
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
-	int fr;
 
-	if ((cache->flags & OPENVDB_CACHE_BAKED) != 0) {
-		for (fr = cache->startframe; fr <= cache->endframe; fr++) {
-			BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
+	for (int fr = cache->startframe; fr <= cache->endframe; fr++) {
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
 
-			if (BLI_exists(filename)) {
-				BLI_delete(filename, false, false);
-			}
+		if (BLI_exists(filename)) {
+			BLI_delete(filename, false, false);
 		}
-
-		cache->flags &= ~OPENVDB_CACHE_BAKED;
 	}
+
+	cache->flags &= ~OPENVDB_CACHE_BAKED;
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
