@@ -217,7 +217,7 @@ typedef struct BMesh {
 	/* operator api stuff (must be all NULL or all alloc'd) */
 	struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
 
-	int stackdepth;
+	int toolflag_index;
 	struct BMOperator *currentop;
 	
 	CustomData vdata, edata, ldata, pdata;
@@ -276,8 +276,16 @@ enum {
 #define BM_CHECK_TYPE_ELEM(ele) \
 	CHECK_TYPE_ANY(ele, _BM_GENERIC_TYPE_ELEM_NONCONST, _BM_GENERIC_TYPE_ELEM_CONST)
 
+/* Assignment from a void* to a typed pointer is not allowed in C++,
+ * casting the LHS to void works fine though.
+ */
+#ifdef __cplusplus
+#define BM_CHECK_TYPE_ELEM_ASSIGN(ele) \
+	(BM_CHECK_TYPE_ELEM(ele)), *((void **)&ele)
+#else
 #define BM_CHECK_TYPE_ELEM_ASSIGN(ele) \
 	(BM_CHECK_TYPE_ELEM(ele)), ele
+#endif
 
 /* BMHeader->hflag (char) */
 enum {

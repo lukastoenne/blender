@@ -472,7 +472,7 @@ if(WITH_GLEW_ES AND WITH_SYSTEM_GLEW)
 	set(WITH_SYSTEM_GLEW OFF)
 endif()
 
-if(MSVC)
+if(WIN32)
 	getDefaultWindowsPrefixBase(CMAKE_GENERIC_PROGRAM_FILES)
 	set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
 endif()
@@ -495,7 +495,7 @@ option_defaults_clear()
 # By default we want to install to the directory we are compiling our executables
 # unless specified otherwise, which we currently do not allow
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-	if(MSVC)
+	if(WIN32)
 		set(CMAKE_INSTALL_PREFIX ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE} CACHE PATH "default install path" FORCE)
 	elseif(APPLE)
 		set(CMAKE_INSTALL_PREFIX ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE} CACHE PATH "default install path" FORCE)
@@ -1362,9 +1362,7 @@ elseif(WIN32)
 			set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 		endif()
 
-		if(MSVC)
-			set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
-		endif()
+		set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
 		find_package(jpeg REQUIRED)
 
 		set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
@@ -1616,8 +1614,13 @@ elseif(WIN32)
 		if(WITH_SDL)
 			set(SDL ${LIBDIR}/sdl)
 			set(SDL_INCLUDE_DIR ${SDL}/include)
-			set(SDL_LIBRARY SDL2)
 			set(SDL_LIBPATH ${SDL}/lib)
+			# MinGW TODO: Update MinGW to SDL2
+			if(NOT CMAKE_COMPILER_IS_GNUCC)
+				set(SDL_LIBRARY SDL2)
+			else()
+				set(SDL_LIBRARY SDL)
+			endif()
 		endif()
 
 		# Audio IO
@@ -2785,6 +2788,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 		"/w34062"  # switch statement contains 'default' but no 'case' labels
 		# disable:
 		"/wd4018"  # signed/unsigned mismatch
+		"/wd4146"  # unary minus operator applied to unsigned type, result still unsigned
 		"/wd4065"  # switch statement contains 'default' but no 'case' labels
 		"/wd4127"  # conditional expression is constant
 		"/wd4181"  # qualifier applied to reference type; ignored
