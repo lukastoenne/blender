@@ -424,7 +424,7 @@ def make_node_group_types(prefix, treetype, node_base):
 def GroupNodeCategory(prefix, gnode, ginput, goutput):
     ntree_idname = gnode.bl_ntree_idname
 
-    def copy_node(dst, src):
+    def copy_node_attributes(dst, src):
         copy_attrs = ['color', 'height', 'hide', 'label',
                       'location', 'id', 'mute', 'name',
                       'show_options', 'show_preview', 'show_texture', 'use_custom_color',
@@ -438,6 +438,40 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
 
         for key, value in src.items():
             dst[key] = value
+
+    def copy_nodes(nodes, to_ntree):
+        new_nodes = dict()
+        new_sockets = dict()
+        # copy nodes and local attributes
+        for node in nodes:
+            inode = to_ntree.nodes.new(node.bl_idname)
+            copy_node_attributes(inode, node)
+
+            # map old to new
+            new_nodes[node] = inode
+            for old, new in zip(node.inputs, inode.inputs):
+                new_sockets[old] = new
+            for old, new in zip(node.outputs, inode.outputs):
+                new_sockets[old] = new
+        # parent node must be mapped to new nodes
+        for node, inode in new_nodes.items():
+            if node.parent:
+                iparent = new_nodes.get(node.parent, None)
+                if iparent:
+                    inode.parent = iparent
+
+        return new_nodes, new_sockets
+
+    def node_bounds(nodes):
+        if nodes:
+            bbmin = (min(node.location[0] for node in nodes),
+                     min(node.location[1] - node.height for node in nodes))
+            bbmax = (max(node.location[0] + node.width for node in nodes),
+                     max(node.location[1] for node in nodes))
+        else:
+            bbmin = (0.0, 0.0)
+            bbmax = (0.0, 0.0)
+        return bbmin, bbmax
 
     class NodeGroupMake(Operator):
         """Make a node group from selected nodes"""
@@ -494,40 +528,16 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
             groupoutput = grouptree.nodes.new(goutput.bl_idname)
             groupnode.id = grouptree
             
-            new_nodes = dict()
-            new_sockets = dict()
-            # copy nodes and local attributes
-            for node in selected_nodes:
-                inode = grouptree.nodes.new(node.bl_idname)
-                copy_node(inode, node)
-
-                # map old to new
-                new_nodes[node] = inode
-                for old, new in zip(node.inputs, inode.inputs):
-                    new_sockets[old] = new
-                for old, new in zip(node.outputs, inode.outputs):
-                    new_sockets[old] = new
-            # parent node must be mapped to new nodes
-            for node, inode in new_nodes.items():
-                if node.parent:
-                    iparent = new_nodes.get(node.parent, None)
-                    if iparent:
-                        inode.parent = iparent
+            # copy nodes and attributes
+            new_nodes, new_sockets = copy_nodes(selected_nodes, grouptree)
 
             # move nodes to sensible locations
-            if selected_nodes:
-                bbx = (min(node.location[0] for node in selected_nodes),
-                       max(node.location[0] + node.width for node in selected_nodes))
-                bby = (min(node.location[1] - node.height for node in selected_nodes),
-                       max(node.location[1] for node in selected_nodes))
-            else:
-                bbx = (0.0, 0.0)
-                bby = (0.0, 0.0)
-            center = (0.5*(bbx[0] + bbx[1]), 0.5*(bby[0] + bby[1]))
+            bbmin, bbmax = node_bounds(selected_nodes)
+            center = (0.5*(bbmin[0] + bbmax[0]), 0.5*(bbmin[1] + bbmax[1]))
             for node in new_nodes.values():
                 node.location[0] -= center[0]
                 node.location[1] -= center[1]
-            offsetx = 0.5*(bbx[1] - bbx[0])
+            offsetx = 0.5*(bbmax[0] - bbmin[0])
             groupinput.location[0] = -offsetx - groupinput.bl_width_default - 50
             groupinput.location[1] = 0.5*groupinput.bl_height_default
             groupoutput.location[0] = offsetx + 50
