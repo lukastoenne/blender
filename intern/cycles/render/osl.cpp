@@ -698,11 +698,11 @@ void OSLCompiler::parameter_array(const char *name, const Transform tfm[], int a
 	ss->Parameter(name, type, (const float *)tfm);
 }
 
-void OSLCompiler::find_dependencies(set<ShaderNode*>& dependencies, ShaderInput *input)
+void OSLCompiler::find_dependencies(ShaderNodeSet& dependencies, ShaderInput *input)
 {
 	ShaderNode *node = (input->link)? input->link->parent: NULL;
 
-	if(node) {
+	if(node != NULL && dependencies.find(node) == dependencies.end()) {
 		foreach(ShaderInput *in, node->inputs)
 			if(!node_skip_input(node, in))
 				find_dependencies(dependencies, in);
@@ -711,9 +711,9 @@ void OSLCompiler::find_dependencies(set<ShaderNode*>& dependencies, ShaderInput 
 	}
 }
 
-void OSLCompiler::generate_nodes(const set<ShaderNode*>& nodes)
+void OSLCompiler::generate_nodes(const ShaderNodeSet& nodes)
 {
-	set<ShaderNode*> done;
+	ShaderNodeSet done;
 	bool nodes_done;
 
 	do {
@@ -764,7 +764,7 @@ OSL::ShadingAttribStateRef OSLCompiler::compile_type(Shader *shader, ShaderGraph
 	OSL::ShadingAttribStateRef group = ss->ShaderGroupBegin(shader->name.c_str());
 
 	ShaderNode *output = graph->output();
-	set<ShaderNode*> dependencies;
+	ShaderNodeSet dependencies;
 
 	if(type == SHADER_TYPE_SURFACE) {
 		/* generate surface shader */

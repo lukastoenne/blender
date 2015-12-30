@@ -22,8 +22,71 @@
 #include "util_algorithm.h"
 #include "util_debug.h"
 #include "util_foreach.h"
+#include "util_queue.h"
 
 CCL_NAMESPACE_BEGIN
+
+namespace {
+
+bool check_node_inputs_has_links(const ShaderNode *node)
+{
+	foreach(const ShaderInput *in, node->inputs) {
+		if(in->link) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool check_node_inputs_traversed(const ShaderNode *node,
+                                 const ShaderNodeSet& done)
+{
+	foreach(const ShaderInput *in, node->inputs) {
+		if(in->link) {
+			if(done.find(in->link->parent) == done.end()) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+bool check_node_inputs_equals(const ShaderNode *node_a,
+                              const ShaderNode *node_b)
+{
+	if(node_a->inputs.size() != node_b->inputs.size()) {
+		/* Happens with BSDF closure nodes which are currently sharing the same
+		 * name for all the BSDF types, making it impossible to filter out
+		 * incompatible nodes.
+		 */
+		return false;
+	}
+	for(int i = 0; i < node_a->inputs.size(); ++i) {
+		ShaderInput *input_a = node_a->inputs[i],
+		            *input_b = node_b->inputs[i];
+		if(input_a->link == NULL && input_b->link == NULL) {
+			/* Unconnected inputs are expected to have the same value. */
+			if(input_a->value != input_b->value) {
+				return false;
+			}
+		}
+		else if(input_a->link != NULL && input_b->link != NULL) {
+			/* Expect links are to come from the same exact socket. */
+			if(input_a->link != input_b->link) {
+				return false;
+			}
+		}
+		else {
+			/* One socket has a link and another has not, inputs can't be
+			 * considered equal.
+			 */
+			return false;
+		}
+	}
+	return true;
+}
+
+}  /* namespace */
 
 /* Input and Output */
 
@@ -68,9 +131,10 @@ ShaderNode::~ShaderNode()
 
 ShaderInput *ShaderNode::input(const char *name)
 {
-	foreach(ShaderInput *socket, inputs)
+	foreach(ShaderInput *socket, inputs) {
 		if(strcmp(socket->name, name) == 0)
 			return socket;
+	}
 
 	return NULL;
 }
@@ -115,30 +179,6 @@ ShaderOutput *ShaderNode::add_output(const char *name, ShaderSocketType type)
 	ShaderOutput *output = new ShaderOutput(this, name, type);
 	outputs.push_back(output);
 	return output;
-}
-
-ShaderInput *ShaderNode::get_input(const char *name)
-{
-	foreach(ShaderInput *input, inputs) {
-		if(strcmp(input->name, name) == 0)
-			return input;
-	}
-
-	/* Should never happen. */
-	assert(!"No Shader Input!");
-	return NULL;
-}
-
-ShaderOutput *ShaderNode::get_output(const char *name)
-{
-	foreach(ShaderOutput *output, outputs) {
-		if(strcmp(output->name, name) == 0)
-			return output;
-	}
-
-	/* Should never happen. */
-	assert(!"No Shader Output!");
-	return NULL;
 }
 
 void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -192,11 +232,11 @@ ShaderGraph *ShaderGraph::copy()
 	ShaderGraph *newgraph = new ShaderGraph();
 
 	/* copy nodes */
-	set<ShaderNode*> nodes_all;
+	ShaderNodeSet nodes_all;
 	foreach(ShaderNode *node, nodes)
 		nodes_all.insert(node);
 
-	map<ShaderNode*, ShaderNode*> nodes_copy;
+	ShaderNodeMap nodes_copy;
 	copy_nodes(nodes_all, nodes_copy);
 
 	/* add nodes (in same order, so output is still first) */
@@ -297,16 +337,16 @@ void ShaderGraph::finalize(Scene *scene,
 		finalized = true;
 	}
 	else if(do_simplify) {
-		simplify_nodes(scene);
+		simplify_settings(scene);
 	}
 }
 
-void ShaderGraph::find_dependencies(set<ShaderNode*>& dependencies, ShaderInput *input)
+void ShaderGraph::find_dependencies(ShaderNodeSet& dependencies, ShaderInput *input)
 {
 	/* find all nodes that this input depends on directly and indirectly */
 	ShaderNode *node = (input->link)? input->link->parent: NULL;
 
-	if(node) {
+	if(node != NULL && dependencies.find(node) == dependencies.end()) {
 		foreach(ShaderInput *in, node->inputs)
 			find_dependencies(dependencies, in);
 
@@ -314,7 +354,7 @@ void ShaderGraph::find_dependencies(set<ShaderNode*>& dependencies, ShaderInput 
 	}
 }
 
-void ShaderGraph::copy_nodes(set<ShaderNode*>& nodes, map<ShaderNode*, ShaderNode*>& nnodemap)
+void ShaderGraph::copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap)
 {
 	/* copy a set of nodes, and the links between them. the assumption is
 	 * made that all nodes that inputs are linked to are in the set too. */
@@ -360,6 +400,7 @@ void ShaderGraph::copy_nodes(set<ShaderNode*>& nodes, map<ShaderNode*, ShaderNod
 		}
 	}
 }
+
 /* Graph simplification */
 /* ******************** */
 
@@ -562,11 +603,136 @@ void ShaderGraph::remove_unneeded_nodes()
 	}
 }
 
-/* Step 3: Simplification.*/
-void ShaderGraph::simplify_nodes(Scene *scene)
+/* Step 2: Constant folding.
+ * Try to constant fold some nodes, and pipe result directly to
+ * the input socket of connected nodes.
+ */
+void ShaderGraph::constant_fold()
+{
+	ShaderNodeSet done, scheduled;
+	queue<ShaderNode*> traverse_queue;
+
+	/* Schedule nodes which doesn't have any dependencies. */
+	foreach(ShaderNode *node, nodes) {
+		if(!check_node_inputs_has_links(node)) {
+			traverse_queue.push(node);
+			scheduled.insert(node);
+		}
+	}
+
+	while(!traverse_queue.empty()) {
+		ShaderNode *node = traverse_queue.front();
+		traverse_queue.pop();
+		done.insert(node);
+		foreach(ShaderOutput *output, node->outputs) {
+			/* Schedule node which was depending on the value,
+			 * when possible. Do it before disconnect.
+			 */
+			foreach(ShaderInput *input, output->links) {
+				if(scheduled.find(input->parent) != scheduled.end()) {
+					/* Node might not be optimized yet but scheduled already
+					 * by other dependencies. No need to re-schedule it.
+					 */
+					continue;
+				}
+				/* Schedule node if its inputs are fully done. */
+				if(check_node_inputs_traversed(input->parent, done)) {
+					traverse_queue.push(input->parent);
+					scheduled.insert(input->parent);
+				}
+			}
+			/* Optimize current node. */
+			float3 optimized_value = make_float3(0.0f, 0.0f, 0.0f);
+			if(node->constant_fold(output, &optimized_value)) {
+				/* Apply optimized value to connected sockets. */
+				vector<ShaderInput*> links(output->links);
+				foreach(ShaderInput *input, links) {
+					/* Assign value and disconnect the optimizedinput. */
+					input->value = optimized_value;
+					disconnect(input);
+				}
+			}
+		}
+	}
+}
+
+/* Step 3: Simplification. */
+void ShaderGraph::simplify_settings(Scene *scene)
 {
 	foreach(ShaderNode *node, nodes) {
-		node->optimize(scene);
+		node->simplify_settings(scene);
+	}
+}
+
+/* Step 4: Deduplicate nodes with same settings. */
+void ShaderGraph::deduplicate_nodes()
+{
+	/* NOTES:
+	 * - Deduplication happens for nodes which has same exact settings and same
+	 *   exact input links configuration (either connected to same output or has
+	 *   the same exact default value).
+	 * - Deduplication happens in the bottom-top manner, so we know for fact that
+	 *   all traversed nodes are either can not be deduplicated at all or were
+	 *   already deduplicated.
+	 */
+
+	ShaderNodeSet scheduled;
+	map<ustring, ShaderNodeSet> done;
+	queue<ShaderNode*> traverse_queue;
+
+	/* Schedule nodes which doesn't have any dependencies. */
+	foreach(ShaderNode *node, nodes) {
+		if(!check_node_inputs_has_links(node)) {
+			traverse_queue.push(node);
+			scheduled.insert(node);
+		}
+	}
+
+	while(!traverse_queue.empty()) {
+		ShaderNode *node = traverse_queue.front();
+		traverse_queue.pop();
+		done[node->name].insert(node);
+		/* Schedule the nodes which were depending on the current node. */
+		foreach(ShaderOutput *output, node->outputs) {
+			foreach(ShaderInput *input, output->links) {
+				if(scheduled.find(input->parent) != scheduled.end()) {
+					/* Node might not be optimized yet but scheduled already
+					 * by other dependencies. No need to re-schedule it.
+					 */
+					continue;
+				}
+				/* Schedule node if its inputs are fully done. */
+				if(check_node_inputs_traversed(input->parent, done[input->parent->name])) {
+					traverse_queue.push(input->parent);
+					scheduled.insert(input->parent);
+				}
+			}
+		}
+		/* Try to merge this node with another one. */
+		foreach(ShaderNode *other_node, done[node->name]) {
+			if(node == other_node) {
+				/* Don't merge with self. */
+				continue;
+			}
+			if(node->name != other_node->name) {
+				/* Can only de-duplicate nodes of the same type. */
+				continue;
+			}
+			if(!check_node_inputs_equals(node, other_node)) {
+				/* Node inputs are different, can't merge them, */
+				continue;
+			}
+			if(!node->equals(other_node)) {
+				/* Node settings are different. */
+				continue;
+			}
+			/* TODO(sergey): Consider making it an utility function. */
+			for(int i = 0; i < node->outputs.size(); ++i) {
+				vector<ShaderInput*> inputs = node->outputs[i]->links;
+				relink(node->inputs, inputs, other_node->outputs[i]);
+			}
+			break;
+		}
 	}
 }
 
@@ -597,7 +763,7 @@ void ShaderGraph::break_cycles(ShaderNode *node, vector<bool>& visited, vector<b
 void ShaderGraph::clean(Scene *scene)
 {
 	/* Graph simplification:
-	 *  1: Remove unnecesarry nodes
+	 *  1: Remove unnecessary nodes
 	 *  2: Constant folding
 	 *  3: Simplification
 	 *  4: De-duplication
@@ -607,13 +773,13 @@ void ShaderGraph::clean(Scene *scene)
 	remove_unneeded_nodes();
 
 	/* 2: Constant folding. */
-	/* TODO(dingto): Implement */
+	constant_fold();
 
 	/* 3: Simplification. */
-	simplify_nodes(scene);
+	simplify_settings(scene);
 
 	/* 4: De-duplication. */
-	/* TODO(dingto): Implement */
+	deduplicate_nodes();
 
 	/* we do two things here: find cycles and break them, and remove unused
 	 * nodes that don't feed into the output. how cycles are broken is
@@ -719,14 +885,14 @@ void ShaderGraph::refine_bump_nodes()
 	foreach(ShaderNode *node, nodes) {
 		if(node->name == ustring("bump") && node->input("Height")->link) {
 			ShaderInput *bump_input = node->input("Height");
-			set<ShaderNode*> nodes_bump;
+			ShaderNodeSet nodes_bump;
 
 			/* make 2 extra copies of the subgraph defined in Bump input */
-			map<ShaderNode*, ShaderNode*> nodes_dx;
-			map<ShaderNode*, ShaderNode*> nodes_dy;
+			ShaderNodeMap nodes_dx;
+			ShaderNodeMap nodes_dy;
 
 			/* find dependencies for the given input */
-			find_dependencies(nodes_bump, bump_input );
+			find_dependencies(nodes_bump, bump_input);
 
 			copy_nodes(nodes_bump, nodes_dx);
 			copy_nodes(nodes_bump, nodes_dy);
@@ -785,13 +951,13 @@ void ShaderGraph::bump_from_displacement()
 		return;
 	
 	/* find dependencies for the given input */
-	set<ShaderNode*> nodes_displace;
+	ShaderNodeSet nodes_displace;
 	find_dependencies(nodes_displace, displacement_in);
 
 	/* copy nodes for 3 bump samples */
-	map<ShaderNode*, ShaderNode*> nodes_center;
-	map<ShaderNode*, ShaderNode*> nodes_dx;
-	map<ShaderNode*, ShaderNode*> nodes_dy;
+	ShaderNodeMap nodes_center;
+	ShaderNodeMap nodes_dx;
+	ShaderNodeMap nodes_dy;
 
 	copy_nodes(nodes_displace, nodes_center);
 	copy_nodes(nodes_displace, nodes_dx);

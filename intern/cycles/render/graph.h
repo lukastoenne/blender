@@ -190,14 +190,19 @@ public:
 	ShaderInput *add_input(const char *name, ShaderSocketType type, ShaderInput::DefaultValue value, int usage=ShaderInput::USE_ALL);
 	ShaderOutput *add_output(const char *name, ShaderSocketType type);
 
-	ShaderInput *get_input(const char *name);
-	ShaderOutput *get_output(const char *name);
-
 	virtual ShaderNode *clone() const = 0;
 	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;
-	virtual void optimize(Scene * /*scene*/) {};
+
+	/* ** Node optimization ** */
+	/* Check whether the node can be replaced with single constant. */
+	virtual bool constant_fold(ShaderOutput * /*socket*/, float3 * /*optimized_value*/) { return false; }
+
+	/* Simplify settings used by artists to the ones which are simpler to
+	 * evaluate in the kernel but keep the final result unchanged.
+	 */
+	virtual void simplify_settings(Scene * /*scene*/) {};
 
 	virtual bool has_surface_emission() { return false; }
 	virtual bool has_surface_transparent() { return false; }
@@ -233,6 +238,21 @@ public:
 	 * nodes group.
 	 */
 	virtual int get_feature() { return bump == SHADER_BUMP_NONE ? 0 : NODE_FEATURE_BUMP; }
+
+	/* Check whether settings of the node equals to another one.
+	 *
+	 * This is mainly used to check whether two nodes can be merged
+	 * together. Meaning, runtime stuff like node id and unbound slots
+	 * will be ignored for comparison.
+	 *
+	 * NOTE: If some node can't be de-duplicated for whatever reason it
+	 * is to be handled in the subclass.
+	 */
+	virtual bool equals(const ShaderNode *other)
+	{
+		return name == other->name &&
+		       bump == other->bump;
+	}
 };
 
 
@@ -253,6 +273,18 @@ public:
 	virtual ShaderNode *clone() const { return new type(*this); } \
 	virtual void compile(SVMCompiler& compiler); \
 	virtual void compile(OSLCompiler& compiler); \
+
+class ShaderNodeIDComparator
+{
+public:
+	bool operator()(const ShaderNode *n1, const ShaderNode *n2) const
+	{
+		return n1->id < n2->id;
+	}
+};
+
+typedef set<ShaderNode*, ShaderNodeIDComparator> ShaderNodeSet;
+typedef map<ShaderNode*, ShaderNode*, ShaderNodeIDComparator> ShaderNodeMap;
 
 /* Graph
  *
@@ -290,16 +322,20 @@ public:
 protected:
 	typedef pair<ShaderNode* const, ShaderNode*> NodePair;
 
-	void find_dependencies(set<ShaderNode*>& dependencies, ShaderInput *input);
-	void copy_nodes(set<ShaderNode*>& nodes, map<ShaderNode*, ShaderNode*>& nnodemap);
+	void find_dependencies(ShaderNodeSet& dependencies, ShaderInput *input);
+	void copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap);
 
 	void break_cycles(ShaderNode *node, vector<bool>& visited, vector<bool>& on_stack);
-	void clean(Scene *scene);
-	void simplify_nodes(Scene *scene);
 	void bump_from_displacement();
 	void refine_bump_nodes();
 	void default_inputs(bool do_osl);
 	void transform_multi_closure(ShaderNode *node, ShaderOutput *weight_out, bool volume);
+
+	/* Graph simplification routines. */
+	void clean(Scene *scene);
+	void constant_fold();
+	void simplify_settings(Scene *scene);
+	void deduplicate_nodes();
 };
 
 CCL_NAMESPACE_END

@@ -1046,6 +1046,10 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 						/* dopesheet filtering options... */
 						data_path = BLI_sprintfN("space_data.dopesheet.%s", RNA_property_identifier(but->rnaprop));
 					}
+					else if (RNA_struct_is_a(but->rnapoin.type, &RNA_FileSelectParams)) {
+						/* Filebrowser options... */
+						data_path = BLI_sprintfN("space_data.params.%s", RNA_property_identifier(but->rnaprop));
+					}
 				}
 			}
 			else if (GS(id->name) == ID_SCE) {
@@ -1344,9 +1348,9 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 		UI_block_end(C, block);
 
 	/* disable AA, makes widgets too blurry */
-	multisample_enabled = glIsEnabled(GL_MULTISAMPLE_ARB);
+	multisample_enabled = glIsEnabled(GL_MULTISAMPLE);
 	if (multisample_enabled)
-		glDisable(GL_MULTISAMPLE_ARB);
+		glDisable(GL_MULTISAMPLE);
 
 	/* we set this only once */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1396,7 +1400,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	glPopMatrix();
 
 	if (multisample_enabled)
-		glEnable(GL_MULTISAMPLE_ARB);
+		glEnable(GL_MULTISAMPLE);
 	
 	ui_draw_links(block);
 }
@@ -2827,10 +2831,11 @@ void ui_but_update(uiBut *but)
 				/* only needed for menus in popup blocks that don't recreate buttons on redraw */
 				if (but->block->flag & UI_BLOCK_LOOP) {
 					if (but->rnaprop && (RNA_property_type(but->rnaprop) == PROP_ENUM)) {
-						int value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
+						int value_enum = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
 						const char *buf;
-						if (RNA_property_enum_name_gettexted(but->block->evil_C,
-						                                     &but->rnapoin, but->rnaprop, value, &buf))
+						if (RNA_property_enum_name_gettexted(
+						        but->block->evil_C,
+						        &but->rnapoin, but->rnaprop, value_enum, &buf))
 						{
 							size_t slen = strlen(buf);
 							ui_but_string_free_internal(but);

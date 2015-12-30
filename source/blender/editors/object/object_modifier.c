@@ -760,10 +760,10 @@ static EnumPropertyItem *modifier_add_itemf(bContext *C, PointerRNA *UNUSED(ptr)
 	int totitem = 0, a;
 	
 	if (!ob)
-		return modifier_type_items;
+		return rna_enum_object_modifier_type_items;
 
-	for (a = 0; modifier_type_items[a].identifier; a++) {
-		md_item = &modifier_type_items[a];
+	for (a = 0; rna_enum_object_modifier_type_items[a].identifier; a++) {
+		md_item = &rna_enum_object_modifier_type_items[a];
 
 		if (md_item->identifier[0]) {
 			mti = modifierType_getInfo(md_item->value);
@@ -813,7 +813,7 @@ void OBJECT_OT_modifier_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	prop = RNA_def_enum(ot->srna, "type", modifier_type_items, eModifierType_Subsurf, "Type", "");
+	prop = RNA_def_enum(ot->srna, "type", rna_enum_object_modifier_type_items, eModifierType_Subsurf, "Type", "");
 	RNA_def_enum_funcs(prop, modifier_add_itemf);
 	ot->prop = prop;
 }
@@ -2436,8 +2436,7 @@ static int openvdb_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
 
@@ -2446,24 +2445,21 @@ static int openvdb_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 
 	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, cache->startframe);
 
-	if (BLI_exists(filename)) {
-		if (BLI_is_file(filename)) {
-			if (BLI_file_is_writable(filename)) {
-				return WM_operator_confirm_message(C, op, "Cache target already exists! Overwrite?");
-			}
-			else {
-				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite cache target: %200s", filename);
-				return OPERATOR_CANCELLED;
-			}
-		}
-		else {
-			BKE_reportf(op->reports, RPT_ERROR, "Invalid cache target: %200s", filename);
-			return OPERATOR_CANCELLED;
-		}
-	}
-	else {
+	if (!BLI_exists(filename)) {
 		return openvdb_cache_bake_exec(C, op);
 	}
+
+	if (!BLI_is_file(filename)) {
+		BKE_reportf(op->reports, RPT_ERROR, "Invalid cache target: %200s", filename);
+		return OPERATOR_CANCELLED;
+	}
+
+	if (BLI_file_is_writable(filename)) {
+		return WM_operator_confirm_message(C, op, "Cache target already exists! Overwrite?");
+	}
+
+	BKE_reportf(op->reports, RPT_ERROR, "Cannot create cache target: %200s", filename);
+	return OPERATOR_CANCELLED;
 
 	UNUSED_VARS(event);
 }
@@ -2502,14 +2498,13 @@ static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache, *cache_new;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds), *cache_new;
 
 	if (cache) {
 		cache->flags &= ~OPENVDB_CACHE_CURRENT;
@@ -2546,14 +2541,14 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache, *cache_prev = NULL, *cache_next = NULL;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache_prev = NULL, *cache_next = NULL;
 
 	if (cache) {
 		cache_prev = cache->prev;
@@ -2600,15 +2595,14 @@ static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	int direction = RNA_enum_get(op->ptr, "direction");
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	SmokeDomainSettings *sds = smd->domain;
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	int direction = RNA_enum_get(op->ptr, "direction");
 
 	if (direction == VDB_CACHE_MOVE_UP) {
 		if (cache->prev) {
@@ -2652,29 +2646,29 @@ static int openvdb_cache_free_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
-	const char *relbase = modifier_path_relbase(ob);
-	char filename[FILE_MAX];
-	int fr;
 
 	if (!smd) {
 		return OPERATOR_CANCELLED;
 	}
 
-	cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
 
-	if ((cache->flags & OPENVDB_CACHE_BAKED) != 0) {
-		for (fr = cache->startframe; fr <= cache->endframe; fr++) {
-			BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
-
-			if (BLI_exists(filename)) {
-				BLI_delete(filename, false, false);
-			}
-		}
-
-		cache->flags &= ~OPENVDB_CACHE_BAKED;
+	if ((cache->flags & OPENVDB_CACHE_BAKED) == 0) {
+		return OPERATOR_CANCELLED;
 	}
+
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+
+	for (int fr = cache->startframe; fr <= cache->endframe; fr++) {
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
+
+		if (BLI_exists(filename)) {
+			BLI_delete(filename, false, false);
+		}
+	}
+
+	cache->flags &= ~OPENVDB_CACHE_BAKED;
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 

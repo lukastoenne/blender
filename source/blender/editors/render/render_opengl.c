@@ -69,9 +69,9 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "GPU_extensions.h"
 #include "GPU_glew.h"
 #include "GPU_compositing.h"
+#include "GPU_framebuffer.h"
 
 
 #include "render_intern.h"
@@ -302,7 +302,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 		if (gpd) {
 			int i;
 			unsigned char *gp_rect;
-			unsigned char *rect = (unsigned char *)RE_RenderViewGetById(rr, oglrender->view_id)->rect32;
+			unsigned char *render_rect = (unsigned char *)RE_RenderViewGetById(rr, oglrender->view_id)->rect32;
 
 			GPU_offscreen_bind(oglrender->ofs, true);
 
@@ -320,7 +320,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, gp_rect);
 
 			for (i = 0; i < sizex * sizey * 4; i += 4) {
-				blend_color_mix_byte(&rect[i], &rect[i], &gp_rect[i]);
+				blend_color_mix_byte(&render_rect[i], &render_rect[i], &gp_rect[i]);
 			}
 			GPU_offscreen_unbind(oglrender->ofs, true);
 
@@ -559,7 +559,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	/* create image and image user */
 	oglrender->ima = BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
 	BKE_image_signal(oglrender->ima, NULL, IMA_SIGNAL_FREE);
-	BKE_image_backup_render(oglrender->scene, oglrender->ima);
+	BKE_image_backup_render(oglrender->scene, oglrender->ima, true);
 
 	oglrender->iuser.scene = scene;
 	oglrender->iuser.ok = 1;

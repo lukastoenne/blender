@@ -1802,7 +1802,7 @@ void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 	/* set object type and link to data */
 	ob->type = target->type;
 	ob->data = target->data;
-	id_us_plus((ID *)ob->data);     /* ensures lib data becomes LIB_EXTERN */
+	id_us_plus((ID *)ob->data);     /* ensures lib data becomes LIB_TAG_EXTERN */
 	
 	/* copy material and index information */
 	ob->actcol = ob->totcol = 0;
@@ -2679,6 +2679,18 @@ void BKE_boundbox_minmax(const BoundBox *bb, float obmat[4][4], float r_min[3], 
 		float vec[3];
 		mul_v3_m4v3(vec, obmat, bb->vec[i]);
 		minmax_v3v3_v3(r_min, r_max, vec);
+	}
+}
+
+void BKE_boundbox_scale(struct BoundBox *bb_dst, const struct BoundBox *bb_src, float scale)
+{
+	float cent[3];
+	BKE_boundbox_calc_center_aabb(bb_src, cent);
+
+	for (int i = 0; i < ARRAY_SIZE(bb_dst->vec); i++) {
+		bb_dst->vec[i][0] = ((bb_src->vec[i][0] - cent[0]) * scale) + cent[0];
+		bb_dst->vec[i][1] = ((bb_src->vec[i][1] - cent[1]) * scale) + cent[1];
+		bb_dst->vec[i][2] = ((bb_src->vec[i][2] - cent[2]) * scale) + cent[2];
 	}
 }
 
@@ -3783,13 +3795,13 @@ static Object *obrel_armature_find(Object *ob)
 
 static bool obrel_list_test(Object *ob)
 {
-	return ob && !(ob->id.flag & LIB_DOIT);
+	return ob && !(ob->id.tag & LIB_TAG_DOIT);
 }
 
 static void obrel_list_add(LinkNode **links, Object *ob)
 {
 	BLI_linklist_prepend(links, ob);
-	ob->id.flag |= LIB_DOIT;
+	ob->id.tag |= LIB_TAG_DOIT;
 }
 
 /*
@@ -3807,7 +3819,7 @@ LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectS
 
 	/* Remove markers from all objects */
 	for (base = scene->base.first; base; base = base->next) {
-		base->object->id.flag &= ~LIB_DOIT;
+		base->object->id.tag &= ~LIB_TAG_DOIT;
 	}
 
 	/* iterate over all selected and visible objects */

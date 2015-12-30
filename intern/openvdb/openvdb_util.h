@@ -26,8 +26,9 @@
 #ifndef __OPENVDB_UTIL_H__
 #define __OPENVDB_UTIL_H__
 
-#include <cstdio>
 #include <string>
+
+//#define DEBUG_TIME
 
 double time_dt();
 
@@ -38,21 +39,13 @@ class ScopeTimer {
 	std::string m_message;
 
 public:
-	ScopeTimer(const std::string &message)
-	    : m_message(message)
-	{
-		m_start = time_dt();
-	}
-
-	~ScopeTimer()
-	{
-		printf("%s: %fs\n", m_message.c_str(), time_dt() - m_start);
-	}
+	ScopeTimer(const std::string &message);
+	~ScopeTimer();
 };
 
-#ifndef NDEBUG
+#ifdef DEBUG_TIME
 #	define Timer(x) \
-		ScopeTimer func(x);
+		ScopeTimer prof(x);
 #else
 #	define Timer(x)
 #endif

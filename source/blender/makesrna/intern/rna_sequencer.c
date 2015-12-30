@@ -60,12 +60,13 @@ typedef struct EffectInfo {
 	int inputs;
 } EffectInfo;
 
-EnumPropertyItem sequence_modifier_type_items[] = {
+EnumPropertyItem rna_enum_sequence_modifier_type_items[] = {
 	{seqModifierType_ColorBalance, "COLOR_BALANCE", ICON_NONE, "Color Balance", ""},
 	{seqModifierType_Curves, "CURVES", ICON_NONE, "Curves", ""},
 	{seqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""},
 	{seqModifierType_BrightContrast, "BRIGHT_CONTRAST", ICON_NONE, "Bright/Contrast", ""},
 	{seqModifierType_Mask, "MASK", ICON_NONE, "Mask", ""},
+	{seqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_NONE, "White Balance", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -844,10 +845,8 @@ static char *rna_SequenceColorBalance_path(PointerRNA *ptr)
 		}
 		else {
 			/* path to modifier */
-			char name_esc[(sizeof(seq->name) - 2) * 2];
 			char name_esc_smd[sizeof(smd->name) * 2];
 
-			BLI_strescape(name_esc, seq->name + 2, sizeof(name_esc));
 			BLI_strescape(name_esc_smd, smd->name, sizeof(name_esc_smd));
 			return BLI_sprintfN("sequence_editor.sequences_all[\"%s\"].modifiers[\"%s\"].color_balance",
 			                    name_esc, name_esc_smd);
@@ -957,6 +956,8 @@ static StructRNA *rna_SequenceModifier_refine(struct PointerRNA *ptr)
 			return &RNA_HueCorrectModifier;
 		case seqModifierType_BrightContrast:
 			return &RNA_BrightContrastModifier;
+		case seqModifierType_WhiteBalance:
+			return &RNA_WhiteBalanceModifier;
 		default:
 			return &RNA_SequenceModifier;
 	}
@@ -1045,7 +1046,7 @@ static SequenceModifierData *rna_Sequence_modifier_new(Sequence *seq, bContext *
 		Scene *scene = CTX_data_scene(C);
 		SequenceModifierData *smd;
 
-		smd = BKE_sequence_modifier_new(seq, name, type);
+		smd = BKE_sequence_modifier_new(seq, name, type, scene);
 
 		BKE_sequence_invalidate_cache_for_modifier(scene, seq);
 
@@ -1359,7 +1360,7 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_string(func, "name", "Name", 0, "", "New name for the modifier");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* modifier to add */
-	parm = RNA_def_enum(func, "type", sequence_modifier_type_items, seqModifierType_ColorBalance, "", "Modifier type to add");
+	parm = RNA_def_enum(func, "type", rna_enum_sequence_modifier_type_items, seqModifierType_ColorBalance, "", "Modifier type to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* return type */
 	parm = RNA_def_pointer(func, "modifier", "SequenceModifier", "", "Newly created modifier");
@@ -1849,7 +1850,7 @@ static void rna_def_image(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "views_format", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "views_format");
-	RNA_def_property_enum_items(prop, views_format_items);
+	RNA_def_property_enum_items(prop, rna_enum_views_format_items);
 	RNA_def_property_ui_text(prop, "Views Format", "Mode to load image views");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Sequence_views_format_update");
 
@@ -1903,7 +1904,12 @@ static void rna_def_scene(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
 	RNA_def_property_ui_text(prop, "Camera Override", "Override the scenes active camera");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
-	
+
+	prop = RNA_def_property(srna, "use_sequence", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_SCENE_STRIPS);
+	RNA_def_property_ui_text(prop, "Use Sequence", "Use scenes sequence strips directly, instead of rendering");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
+
 	prop = RNA_def_property(srna, "use_grease_pencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SEQ_SCENE_NO_GPENCIL);
 	RNA_def_property_ui_text(prop, "Use Grease Pencil", "Show Grease Pencil strokes in OpenGL previews");
@@ -1958,7 +1964,7 @@ static void rna_def_movie(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "views_format", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "views_format");
-	RNA_def_property_enum_items(prop, views_format_items);
+	RNA_def_property_enum_items(prop, rna_enum_views_format_items);
 	RNA_def_property_ui_text(prop, "Views Format", "Mode to load movie views");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Sequence_views_format_update");
 
@@ -2437,7 +2443,7 @@ static void rna_def_modifier(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_enum_items(prop, sequence_modifier_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_sequence_modifier_type_items);
 	RNA_def_property_ui_text(prop, "Type", "");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, NULL);
 
@@ -2490,6 +2496,22 @@ static void rna_def_colorbalance_modifier(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 20.0f);
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Multiply Colors", "");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceModifier_update");
+}
+
+static void rna_def_whitebalance_modifier(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "WhiteBalanceModifier", "SequenceModifier");
+	RNA_def_struct_sdna(srna, "WhiteBalanceModifierData");
+	RNA_def_struct_ui_text(srna, "WhiteBalanceModifier", "White balance modifier for sequence strip");
+
+	prop = RNA_def_property(srna, "white_value", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_sdna(prop, NULL, "white_value");
+	RNA_def_property_ui_text(prop, "White value", "This color defines white in the strip");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceModifier_update");
 }
 
@@ -2555,6 +2577,7 @@ static void rna_def_modifiers(BlenderRNA *brna)
 	rna_def_curves_modifier(brna);
 	rna_def_hue_modifier(brna);
 	rna_def_brightcontrast_modifier(brna);
+	rna_def_whitebalance_modifier(brna);
 }
 
 void RNA_def_sequencer(BlenderRNA *brna)

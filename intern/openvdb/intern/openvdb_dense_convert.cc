@@ -25,9 +25,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
-
 #include "openvdb_dense_convert.h"
+
+#include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
 
 namespace internal {
 

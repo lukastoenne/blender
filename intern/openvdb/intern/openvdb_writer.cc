@@ -28,9 +28,9 @@
 OpenVDBWriter::OpenVDBWriter()
     : m_grids(new openvdb::GridPtrVec())
     , m_meta_map(new openvdb::MetaMap())
+    , m_save_as_half(false)
 {
 	m_meta_map->insertMeta("creator", openvdb::StringMetadata("Blender/OpenVDBWriter"));
-	m_save_as_half = false;
 }
 
 OpenVDBWriter::~OpenVDBWriter()

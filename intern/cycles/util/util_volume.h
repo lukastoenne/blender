@@ -80,6 +80,8 @@ class vdb_float_volume : public float_volume {
 	point_map point_samplers;
 	box_map box_samplers;
 
+	std::vector<openvdb::FloatGrid::ConstAccessor *> accessors;
+
 	openvdb::FloatGrid::ConstAccessor *accessor;
 	openvdb::math::Transform *transfrom;
 
@@ -134,6 +136,12 @@ public:
 				delete iter->second;
 			}
 		}
+
+		delete accessor;
+
+		for(size_t i = 0; i < accessors.size(); ++i) {
+			delete accessors[i];
+		}
 	}
 
 	ccl_always_inline float sample(float x, float y, float z, int sampling)
@@ -146,6 +154,7 @@ public:
 
 			if(iter == point_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new point_sampler_t(*acc, *transfrom);
 				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
 				point_samplers.insert(sampl);
@@ -162,6 +171,7 @@ public:
 
 			if(iter == box_samplers.end()) {
 				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new box_sampler_t(*acc, *transfrom);
 				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
 				box_samplers.insert(sampl);
@@ -258,6 +268,8 @@ class vdb_float3_volume : public float3_volume {
 	stag_point_map stag_point_samplers;
 	stag_box_map stag_box_samplers;
 
+	std::vector<openvdb::Vec3SGrid::ConstAccessor *> accessors;
+
 	openvdb::Vec3SGrid::ConstAccessor *accessor;
 	openvdb::math::Transform *transfrom;
 
@@ -327,6 +339,12 @@ public:
 				delete iter->second;
 			}
 		}
+
+		delete accessor;
+
+		for(size_t i = 0; i < accessors.size(); ++i) {
+			delete accessors[i];
+		}
 	}
 
 	ccl_always_inline float3 sample_staggered(float x, float y, float z, int sampling)
@@ -340,6 +358,7 @@ public:
 
 			if(iter == stag_point_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new stag_point_sampler_t(*acc, *transfrom);
 				pair<pthread_t, stag_point_sampler_t *> sampl(thread, sampler);
 				stag_point_samplers.insert(sampl);
@@ -356,6 +375,7 @@ public:
 
 			if(iter == stag_box_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new stag_box_sampler_t(*acc, *transfrom);
 				pair<pthread_t, stag_box_sampler_t *> sampl(thread, sampler);
 				stag_box_samplers.insert(sampl);
@@ -381,6 +401,7 @@ public:
 
 			if(iter == point_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new point_sampler_t(*acc, *transfrom);
 				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
 				point_samplers.insert(sampl);
@@ -397,6 +418,7 @@ public:
 
 			if(iter == box_samplers.end()) {
 				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
+				accessors.push_back(acc);
 				sampler = new box_sampler_t(*acc, *transfrom);
 				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
 				box_samplers.insert(sampl);

@@ -140,29 +140,30 @@ static void split_v_renderfaces(ObjectRen *obr, int startvlak, int UNUSED(startv
 
 	for (v=0; v<vLen; v++) {
 		VlakRen *vlr = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + v);
+		VlakRen *vlr_other;
 		VertRen *vert = RE_vertren_copy(obr, vlr->v2);
 
 		if (cyclv) {
 			vlr->v2 = vert;
 
-			if (v==vLen-1) {
-				VlakRen *vlr = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + 0);
-				vlr->v1 = vert;
+			if (v == vLen - 1) {
+				vlr_other = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + 0);
+				vlr_other->v1 = vert;
 			}
 			else {
-				VlakRen *vlr = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + v+1);
-				vlr->v1 = vert;
+				vlr_other = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + v+1);
+				vlr_other->v1 = vert;
 			}
 		}
 		else {
 			vlr->v2 = vert;
 
-			if (v<vLen-1) {
-				VlakRen *vlr = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + v+1);
-				vlr->v1 = vert;
+			if (v < vLen - 1) {
+				vlr_other = RE_findOrAddVlak(obr, startvlak + vLen*uIndex + v+1);
+				vlr_other->v1 = vert;
 			}
 
-			if (v==0) {
+			if (v == 0) {
 				vlr->v1 = RE_vertren_copy(obr, vlr->v1);
 			}
 		}
@@ -3955,7 +3956,7 @@ static void add_lightgroup(Render *re, Group *group, int exclusive)
 {
 	GroupObject *go, *gol;
 	
-	group->id.flag &= ~LIB_DOIT;
+	group->id.tag &= ~LIB_TAG_DOIT;
 
 	/* it's a bit too many loops in loops... but will survive */
 	/* note that 'exclusive' will remove it from the global list */
@@ -3994,12 +3995,12 @@ static void set_material_lightgroups(Render *re)
 		return;
 	
 	for (group= re->main->group.first; group; group=group->id.next)
-		group->id.flag |= LIB_DOIT;
+		group->id.tag |= LIB_TAG_DOIT;
 	
 	/* it's a bit too many loops in loops... but will survive */
 	/* hola! materials not in use...? */
 	for (ma= re->main->mat.first; ma; ma=ma->id.next) {
-		if (ma->group && (ma->group->id.flag & LIB_DOIT))
+		if (ma->group && (ma->group->id.tag & LIB_TAG_DOIT))
 			add_lightgroup(re, ma->group, ma->mode & MA_GROUP_NOLAY);
 	}
 }

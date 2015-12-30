@@ -267,12 +267,23 @@ class SEQUENCER_MT_change(Menu):
 
     def draw(self, context):
         layout = self.layout
+        strip = act_strip(context)
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.operator_menu_enum("sequencer.change_effect_input", "swap")
         layout.operator_menu_enum("sequencer.change_effect_type", "type")
-        layout.operator("sequencer.change_path", text="Path/Files")
+        prop = layout.operator("sequencer.change_path", text="Path/Files")
+
+        if strip:
+            stype = strip.type
+
+            if stype == 'IMAGE':
+                prop.filter_image = True;
+            elif stype == 'MOVIE':
+                prop.filter_movie = True;
+            elif stype == 'SOUND':
+                prop.filter_sound = True;
 
 
 class SEQUENCER_MT_frame(Menu):
@@ -827,11 +838,13 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
         layout.template_ID(strip, "scene")
 
         scene = strip.scene
+        layout.prop(strip, "use_sequence")
 
-        layout.label(text="Camera Override")
-        layout.template_ID(strip, "scene_camera")
+        if not strip.use_sequence:
+            layout.label(text="Camera Override")
+            layout.template_ID(strip, "scene_camera")
 
-        layout.prop(strip, "use_grease_pencil", text="Show Grease Pencil")
+            layout.prop(strip, "use_grease_pencil", text="Show Grease Pencil")
 
         if scene:
             layout.prop(scene, "audio_volume", text="Audio Volume")
@@ -1112,7 +1125,9 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                     col = box.column()
                     col.prop(mod, "bright")
                     col.prop(mod, "contrast")
-
+                elif mod.type == 'WHITE_BALANCE':
+                    col = box.column()
+                    col.prop(mod, "white_value")
 
 class SEQUENCER_PT_grease_pencil(GreasePencilDataPanel, SequencerButtonsPanel_Output, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'

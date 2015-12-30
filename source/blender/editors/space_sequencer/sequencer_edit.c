@@ -2219,7 +2219,7 @@ void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* to give to transform */
-	RNA_def_enum(ot->srna, "mode", transform_mode_types, TFM_TRANSLATION, "Mode", "");
+	RNA_def_enum(ot->srna, "mode", rna_enum_transform_mode_types, TFM_TRANSLATION, "Mode", "");
 }
 
 /* delete operator */
@@ -2517,7 +2517,7 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 #if 1
 		BKE_sequence_tx_set_final_left(ms->parseq, ms->disp_range[0]);
 		BKE_sequence_tx_set_final_right(ms->parseq, ms->disp_range[1]);
-		BKE_sequence_single_fix(seq);
+		BKE_sequence_single_fix(ms->parseq);
 		BKE_sequence_calc(scene, ms->parseq);
 #else
 		if (BKE_sequence_test_overlap(ed->seqbasep, ms->parseq))
@@ -3832,7 +3832,7 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILEPATH | WM_FILESEL_FILES,
 	                               FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_boolean(ot->srna, "use_placeholders", false, "Use Placeholders", "Use placeholders for missing frames of the strip");

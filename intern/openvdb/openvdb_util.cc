@@ -25,6 +25,8 @@
 
 #include "openvdb_util.h"
 
+#include <cstdio>
+
 #ifdef _WIN32
 
 #include <windows.h>
@@ -52,3 +54,14 @@ double time_dt()
 }
 
 #endif
+
+ScopeTimer::ScopeTimer(const std::string &message)
+    : m_message(message)
+{
+	m_start = time_dt();
+}
+
+ScopeTimer::~ScopeTimer()
+{
+	std::printf("%s: %fs\n", m_message.c_str(), time_dt() - m_start);
+}
