@@ -2489,6 +2489,7 @@ static OpenVDBCache *openvdb_cache_new(void)
 	cache->endframe = 250;
 	cache->compression = VDB_COMPRESSION_ZIP;
 
+	BLI_strncpy(cache->path, "//\0", 3);
 	BLI_strncpy(cache->name, "openvdb_cache", sizeof(cache->name));
 
 	return cache;
