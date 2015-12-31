@@ -557,6 +557,8 @@ struct Value {
 	template <typename T>
 	bool get(T *data) const;
 	
+	virtual Value *copy() const = 0;
+	
 protected:
 	Value(const TypeDesc &typedesc) :
 	    m_typedesc(typedesc)
@@ -594,6 +596,11 @@ struct SingleValue : public Value {
 		assert(!"Data type mismatch");
 		(void)data;
 		return false;
+	}
+	
+	Value *copy() const
+	{
+		return new SingleValue<type>(m_data);
 	}
 	
 private:
@@ -641,6 +648,11 @@ struct ArrayValue : public Value {
 		assert(!"Data type mismatch");
 		(void)data;
 		return false;
+	}
+	
+	Value *copy() const
+	{
+		return new ArrayValue<type>(m_data);
 	}
 	
 private:

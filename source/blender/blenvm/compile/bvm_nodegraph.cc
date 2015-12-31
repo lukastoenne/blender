@@ -82,6 +82,12 @@ NodeType::NodeType(const string &name, bool is_kernel_node, bool is_pass_node) :
 
 NodeType::~NodeType()
 {
+	/* input values are owned by the node type */
+	for (InputList::const_iterator it = m_inputs.begin(); it != m_inputs.end(); ++it) {
+		const NodeInput &input = *it;
+		if (input.default_value)
+			delete input.default_value;
+	}
 }
 
 const NodeInput *NodeType::find_input(int index) const
@@ -235,6 +241,17 @@ NodeInstance::NodeInstance(const NodeType *type, const string &name) :
 
 NodeInstance::~NodeInstance()
 {
+	/* value instances are managed by the node */
+	for (InputMap::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
+		const InputInstance &input = it->second;
+		if (input.value)
+			delete input.value;
+	}
+	for (OutputMap::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		const OutputInstance &output = it->second;
+		if (output.value)
+			delete output.value;
+	}
 }
 
 SocketPair NodeInstance::input(const string &name)
@@ -328,25 +345,25 @@ SocketPair NodeInstance::link(int index) const
 	return socket ? link(socket->name) : SocketPair(NULL, "");
 }
 
-Value *NodeInstance::find_input_value(const string &name) const
+const Value *NodeInstance::find_input_value(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	return (it != inputs.end()) ? it->second.value : NULL;
 }
 
-Value *NodeInstance::find_input_value(int index) const
+const Value *NodeInstance::find_input_value(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
 	return socket ? find_input_value(socket->name) : NULL;
 }
 
-Value *NodeInstance::find_output_value(const string &name) const
+const Value *NodeInstance::find_output_value(const string &name) const
 {
 	OutputMap::const_iterator it = outputs.find(name);
 	return (it != outputs.end()) ? it->second.value : NULL;
 }
 
-Value *NodeInstance::find_output_value(int index) const
+const Value *NodeInstance::find_output_value(int index) const
 {
 	const NodeOutput *socket = type->find_output(index);
 	return socket ? find_output_value(socket->name) : NULL;
@@ -678,7 +695,7 @@ SocketPair NodeGraph::find_root(const SocketPair &key)
 {
 	SocketPair root = key;
 	/* value is used to create a valid root node if necessary */
-	Value *value = NULL;
+	const Value *value = NULL;
 	while (root.node && root.node->type->is_pass_node()) {
 		value = root.node->has_input_value(0) ?
 		            root.node->find_input_value(0) :
@@ -692,7 +709,7 @@ SocketPair NodeGraph::find_root(const SocketPair &key)
 	/* create a value node as valid root if necessary */
 	if (!root.node) {
 		assert(value != NULL);
-		root = add_value_node(value);
+		root = add_value_node(value->copy());
 	}
 	
 	return root;
@@ -896,6 +913,8 @@ static mesh_ptr __empty_mesh__;
 
 static void register_opcode_node_types()
 {
+	static DupliList *__empty_duplilist__ = new DupliList();
+	
 	NodeType *nt;
 	
 	nt = NodeGraph::add_function_node_type("FLOAT_TO_INT");
@@ -939,7 +958,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_MESH);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(new DupliList()));
+	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
 	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
@@ -1038,7 +1057,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", TYPE_MESH);
 	
 	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(new DupliList()), INPUT_CONSTANT);
+	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__), INPUT_CONSTANT);
 	nt->add_output("value", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
@@ -1272,8 +1291,8 @@ static void register_opcode_node_types()
 	nt->add_output("dupli", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("DUPLIS_COMBINE");
-	nt->add_input("duplis_a", TYPE_DUPLIS, duplis_ptr(new DupliList()));
-	nt->add_input("duplis_b", TYPE_DUPLIS, duplis_ptr(new DupliList()));
+	nt->add_input("duplis_a", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
+	nt->add_input("duplis_b", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
 	nt->add_output("duplis", TYPE_DUPLIS);
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");

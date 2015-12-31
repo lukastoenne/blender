@@ -533,7 +533,7 @@ int BVMCompiler::codegen_function(const BVMCompiler::FunctionInfo &func,
 			}
 			else {
 				/* create a value node for the input */
-				Value *value = (node.has_input_value(i)) ? node.find_input_value(i) : input->default_value;
+				const Value *value = (node.has_input_value(i)) ? node.find_input_value(i) : input->default_value;
 				codegen_value(value, func.input_index.at(key));
 			}
 		}
@@ -564,7 +564,7 @@ int BVMCompiler::codegen_function(const BVMCompiler::FunctionInfo &func,
 				ConstSocketPair key(&node, input->name);
 				
 				if (node.is_input_constant(i)) {
-					Value *value = node.find_input_value(i);
+					const Value *value = node.find_input_value(i);
 					if (!value)
 						value = node.type->find_input(i)->default_value;
 					push_constant(value);

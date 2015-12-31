@@ -1165,6 +1165,6 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 			                       false, dupli.hide, dupli.recursive);
 		}
 		
-//		delete duplis;
+		delete duplis;
 	}
 }

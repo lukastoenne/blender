@@ -199,12 +199,22 @@ struct SocketPair {
 
 struct NodeInstance {
 	struct InputInstance {
+		InputInstance() :
+		    link_node(NULL),
+		    link_socket(NULL),
+		    value(NULL)
+		{}
+		
 		NodeInstance *link_node;
 		const NodeOutput *link_socket;
 		Value *value;
 	};
 	
 	struct OutputInstance {
+		OutputInstance() :
+		    value(NULL)
+		{}
+		
 		Value *value;
 	};
 	
@@ -234,10 +244,10 @@ struct NodeInstance {
 	SocketPair link(int index) const;
 	const NodeOutput *find_input_link_socket(const string &name) const;
 	const NodeOutput *find_input_link_socket(int index) const;
-	Value *find_input_value(const string &name) const;
-	Value *find_input_value(int index) const;
-	Value *find_output_value(const string &name) const;
-	Value *find_output_value(int index) const;
+	const Value *find_input_value(const string &name) const;
+	const Value *find_input_value(int index) const;
+	const Value *find_output_value(const string &name) const;
+	const Value *find_output_value(int index) const;
 	
 	bool set_input_value(const string &name, Value *value);
 	bool set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket);
