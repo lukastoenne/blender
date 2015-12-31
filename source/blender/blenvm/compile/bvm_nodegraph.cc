@@ -247,11 +247,6 @@ NodeInstance::~NodeInstance()
 		if (input.value)
 			delete input.value;
 	}
-	for (OutputMap::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const OutputInstance &output = it->second;
-		if (output.value)
-			delete output.value;
-	}
 }
 
 SocketPair NodeInstance::input(const string &name)
@@ -357,18 +352,6 @@ const Value *NodeInstance::find_input_value(int index) const
 	return socket ? find_input_value(socket->name) : NULL;
 }
 
-const Value *NodeInstance::find_output_value(const string &name) const
-{
-	OutputMap::const_iterator it = outputs.find(name);
-	return (it != outputs.end()) ? it->second.value : NULL;
-}
-
-const Value *NodeInstance::find_output_value(int index) const
-{
-	const NodeOutput *socket = type->find_output(index);
-	return socket ? find_output_value(socket->name) : NULL;
-}
-
 bool NodeInstance::set_input_value(const string &name, Value *value)
 {
 	InputInstance &input = inputs[name];
@@ -448,32 +431,6 @@ bool NodeInstance::is_input_function(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
 	return socket ? socket->value_type == INPUT_FUNCTION : false;
-}
-
-bool NodeInstance::set_output_value(const string &name, Value *value)
-{
-	OutputInstance &output = outputs[name];
-	if (output.value)
-		return false;
-	output.value = value;
-	return true;
-}
-
-bool NodeInstance::has_output_value(const string &name) const
-{
-	OutputMap::const_iterator it = outputs.find(name);
-	if (it != outputs.end()) {
-		const OutputInstance &output = it->second;
-		return (output.value);
-	}
-	else
-		return false;
-}
-
-bool NodeInstance::has_output_value(int index) const
-{
-	const NodeOutput *socket = type->find_output(index);
-	return socket ? has_output_value(socket->name) : false;
 }
 
 /* ------------------------------------------------------------------------- */

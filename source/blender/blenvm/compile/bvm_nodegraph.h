@@ -210,18 +210,8 @@ struct NodeInstance {
 		Value *value;
 	};
 	
-	struct OutputInstance {
-		OutputInstance() :
-		    value(NULL)
-		{}
-		
-		Value *value;
-	};
-	
 	typedef std::map<string, InputInstance> InputMap;
 	typedef std::pair<string, InputInstance> InputPair;
-	typedef std::map<string, OutputInstance> OutputMap;
-	typedef std::pair<string, OutputInstance> OutputPair;
 	
 	NodeInstance(const NodeType *type, const string &name);
 	~NodeInstance();
@@ -246,25 +236,15 @@ struct NodeInstance {
 	const NodeOutput *find_input_link_socket(int index) const;
 	const Value *find_input_value(const string &name) const;
 	const Value *find_input_value(int index) const;
-	const Value *find_output_value(const string &name) const;
-	const Value *find_output_value(int index) const;
 	
 	bool set_input_value(const string &name, Value *value);
 	bool set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket);
-	bool set_output_value(const string &name, Value *value);
 	
 	template <typename T>
 	bool set_input_value(const string &name, const T &value)
 	{
 		const NodeInput *socket = type->find_input(name);
 		return socket ? set_input_value(name, Value::create(socket->typedesc, value)) : false;
-	}
-	
-	template <typename T>
-	bool set_output_value(const string &name, const T &value)
-	{
-		const NodeInput *socket = type->find_output(name);
-		return socket ? set_output_value(name, Value::create(socket->typedesc, value)) : false;
 	}
 	
 	bool has_input_link(const string &name) const;
@@ -275,13 +255,10 @@ struct NodeInstance {
 	bool is_input_constant(int index) const;
 	bool is_input_function(const string &name) const;
 	bool is_input_function(int index) const;
-	bool has_output_value(const string &name) const;
-	bool has_output_value(int index) const;
 	
 	const NodeType *type;
 	string name;
 	InputMap inputs;
-	OutputMap outputs;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
