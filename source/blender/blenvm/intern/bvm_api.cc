@@ -1164,7 +1164,6 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 			BKE_dupli_add_instance(duplicont, dupli.object, (float (*)[4])dupli.transform.data, dupli.index,
 			                       false, dupli.hide, dupli.recursive);
 		}
-		
-		delete duplis;
 	}
+	result.clear();
 }

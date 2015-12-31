@@ -205,7 +205,14 @@ struct node_data_ptr {
 	}
 	
 	element_type* get() const { return m_data; }
-	void set(element_type *data) { m_data = data; }
+	void set(element_type *data)
+	{
+		if (m_data != data) {
+			if (m_data)
+				DestructorT::destroy(m_data);
+			m_data = data;
+		}
+	}
 	
 	element_type& operator * () const { return *m_data; }
 	element_type* operator -> () const { return m_data; }
@@ -222,17 +229,11 @@ struct node_data_ptr {
 		assert(m_refs != 0 && *m_refs > 0);
 		size_t count = --(*m_refs);
 		if (count == 0) {
-			if (m_data) {
-				DestructorT::destroy(m_data);
-				m_data = 0;
-			}
-			if (m_refs) {
-				destroy_refs(m_refs);
-			}
+			clear();
 		}
 	}
 	
-	void clear_use_count()
+	void clear()
 	{
 		if (m_data) {
 			DestructorT::destroy(m_data);
@@ -240,6 +241,7 @@ struct node_data_ptr {
 		}
 		if (m_refs) {
 			destroy_refs(m_refs);
+			m_refs = 0;
 		}
 	}
 	
@@ -315,6 +317,7 @@ typedef node_data_ptr<DupliList> duplis_ptr;
 inline void create_empty_mesh(mesh_ptr &p)
 {
 	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
+	/* prevent the DM from getting freed */
 	dm->needsFree = 0;
 	p.set(dm);
 }
@@ -322,9 +325,9 @@ inline void create_empty_mesh(mesh_ptr &p)
 inline void destroy_empty_mesh(mesh_ptr &p)
 {
 	DerivedMesh *dm = p.get();
+	/* have to set this back so the DM actually gets freed */
 	dm->needsFree = 1;
-	dm->release(dm);
-	p.set(NULL);
+	p.clear();
 }
 
 
