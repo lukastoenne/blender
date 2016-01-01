@@ -63,7 +63,7 @@ struct BVMCompiler {
 		int entry_point;
 		StackIndex return_index;
 	};
-	typedef std::map<ConstSocketPair, BasicBlock> BasicBlockMap;
+	typedef std::map<ConstSocketPair, BasicBlock> ExpressionMap;
 	typedef std::vector<int> StackUsers;
 	
 	BVMCompiler();
@@ -103,7 +103,7 @@ protected:
 	
 private:
 	BasicBlock main;
-	BasicBlockMap basic_block_map;
+	ExpressionMap expression_map;
 	StackUsers stack_users;
 	Function *fn;
 

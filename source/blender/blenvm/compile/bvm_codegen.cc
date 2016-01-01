@@ -123,21 +123,21 @@ void BVMCompiler::resolve_basic_block_symbols(const NodeGraph &graph, BVMCompile
 				/* stored directly in the instructions list after creating values */
 			}
 			else if (node.is_input_expression(i)) {
-				BasicBlock &func_block = basic_block_map.at(key);
+				BasicBlock &expr_block = expression_map.at(key);
 				
 				/* initialize local arguments */
-				func_block.output_index.insert(local_input_index.begin(), local_input_index.end());
+				expr_block.output_index.insert(local_input_index.begin(), local_input_index.end());
 				
-				resolve_basic_block_symbols(graph, func_block);
+				resolve_basic_block_symbols(graph, expr_block);
 				
 				ConstSocketPair link_key = key.node->link(key.socket);
 				if (link_key.node) {
-					func_block.return_index = func_block.output_index.at(link_key);
+					expr_block.return_index = expr_block.output_index.at(link_key);
 				}
 				else {
-					func_block.return_index = assign_stack_index(input->typedesc);
+					expr_block.return_index = assign_stack_index(input->typedesc);
 				}
-				block.input_index[key] = func_block.return_index;
+				block.input_index[key] = expr_block.return_index;
 			}
 			else if (node.has_input_link(i)) {
 				ConstSocketPair link_key(node.find_input_link_node(i),
@@ -185,11 +185,11 @@ void BVMCompiler::graph_node_append(const NodeInstance *node,
 		const NodeInstance *link_node = node->find_input_link_node(i);
 		
 		if (socket->value_type == INPUT_EXPRESSION) {
-			BasicBlock &block = basic_block_map[node->input(i)];
+			BasicBlock &expr_block = expression_map[node->input(i)];
 			
 			if (link_node) {
-				NodeSet func_visited;
-				expression_node_append(link_node, block.nodes, func_visited);
+				NodeSet expr_visited;
+				expression_node_append(link_node, expr_block.nodes, expr_visited);
 			}
 		}
 		else {
@@ -214,7 +214,7 @@ void BVMCompiler::sort_graph_nodes(const NodeGraph &graph)
 void BVMCompiler::resolve_symbols(const NodeGraph &graph)
 {
 	main = BasicBlock();
-	basic_block_map.clear();
+	expression_map.clear();
 	
 	/* recursively sort node lists for functions */
 	sort_graph_nodes(graph);
@@ -571,8 +571,8 @@ int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
 				}
 				else {
 					if (node.is_input_expression(i)) {
-						const BasicBlock &block = basic_block_map.at(key);
-						push_jump_address(block.entry_point);
+						const BasicBlock &expr_block = expression_map.at(key);
+						push_jump_address(expr_block.entry_point);
 					}
 					
 					push_stack_index(block.input_index.at(key));
@@ -622,7 +622,7 @@ Function *BVMCompiler::codegen(const NodeGraph &graph)
 	count_output_users(graph, output_users);
 	
 	/* first generate expression functions */
-	for (BasicBlockMap::iterator it = basic_block_map.begin(); it != basic_block_map.end(); ++it) {
+	for (ExpressionMap::iterator it = expression_map.begin(); it != expression_map.end(); ++it) {
 		const ConstSocketPair &key = it->first;
 		BasicBlock &block = it->second;
 		
