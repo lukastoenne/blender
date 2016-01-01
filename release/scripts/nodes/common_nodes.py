@@ -684,6 +684,231 @@ class TextureCloudsNode(CommonNodeBase, ObjectNode):
         compiler.map_output(2, node.outputs["normal"])
 
 
+class TextureWoodNode(CommonNodeBase, ObjectNode):
+    '''Wood texture'''
+    bl_idname = 'ObjectTextureWoodNode'
+    bl_label = 'Wood'
+
+    noise_basis = enum_property_copy(bpy.types.WoodTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    noise_basis_2 = enum_property_copy(bpy.types.WoodTexture, 'noise_basis_2')
+    noise_basis_2_value = enum_property_value_prop('noise_basis_2')
+    noise_hard = enum_property_copy(bpy.types.WoodTexture, 'noise_type')
+    noise_hard_value = enum_property_value_prop('noise_hard')
+    wood_type = enum_property_copy(bpy.types.WoodTexture, 'wood_type')
+    wood_type_value = enum_property_value_prop('wood_type')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "noise_basis")
+        layout.prop(self, "noise_basis_2")
+        layout.prop(self, "noise_hard")
+        layout.prop(self, "wood_type")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Turbulence")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_WOOD")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["turbulence"])
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        node.inputs["noise_basis_2"].set_value(self.noise_basis_2_value)
+        node.inputs["noise_hard"].set_value(self.noise_hard_value)
+        node.inputs["wood_type"].set_value(self.wood_type_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["normal"])
+
+
+class TextureMusgraveNode(CommonNodeBase, ObjectNode):
+    '''Musgrave texture'''
+    bl_idname = 'ObjectTextureMusgraveNode'
+    bl_label = 'Musgrave'
+
+    noise_basis = enum_property_copy(bpy.types.MusgraveTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    musgrave_type = enum_property_copy(bpy.types.MusgraveTexture, 'musgrave_type')
+    musgrave_type_value = enum_property_value_prop('musgrave_type')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "noise_basis")
+        layout.prop(self, "musgrave_type")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Dimension")
+        self.inputs.new('NodeSocketFloat', "Lacunarity")
+        self.inputs.new('NodeSocketFloat', "Octaves")
+        self.inputs.new('NodeSocketFloat', "Intensity")
+        self.inputs.new('NodeSocketFloat', "Offset")
+        self.inputs.new('NodeSocketFloat', "Gain")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_MUSGRAVE")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["dimension"])
+        compiler.map_input(3, node.inputs["lacunarity"])
+        compiler.map_input(4, node.inputs["octaves"])
+        compiler.map_input(5, node.inputs["intensity"])
+        compiler.map_input(6, node.inputs["offset"])
+        compiler.map_input(7, node.inputs["gain"])
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        node.inputs["musgrave_type"].set_value(self.musgrave_type_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["normal"])
+
+
+class TextureMarbleNode(CommonNodeBase, ObjectNode):
+    '''Marble texture'''
+    bl_idname = 'ObjectTextureMarbleNode'
+    bl_label = 'Marble'
+
+    depth = IntProperty(name="Depth", default=2)
+    noise_basis = enum_property_copy(bpy.types.MarbleTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    noise_basis_2 = enum_property_copy(bpy.types.MarbleTexture, 'noise_basis_2')
+    noise_basis_2_value = enum_property_value_prop('noise_basis_2')
+    noise_hard = enum_property_copy(bpy.types.MarbleTexture, 'noise_type')
+    noise_hard_value = enum_property_value_prop('noise_hard')
+    marble_type = enum_property_copy(bpy.types.MarbleTexture, 'marble_type')
+    marble_type_value = enum_property_value_prop('marble_type')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "depth")
+        layout.prop(self, "noise_basis")
+        layout.prop(self, "noise_basis_2")
+        layout.prop(self, "noise_hard")
+        layout.prop(self, "marble_type")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Nabla")
+        self.inputs.new('NodeSocketFloat', "Turbulence")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_MARBLE")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["nabla"])
+        compiler.map_input(3, node.inputs["turbulence"])
+        node.inputs["depth"].set_value(self.depth)
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        node.inputs["noise_basis_2"].set_value(self.noise_basis_2_value)
+        node.inputs["noise_hard"].set_value(self.noise_hard_value)
+        node.inputs["marble_type"].set_value(self.marble_type_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["normal"])
+
+
+class TextureStucciNode(CommonNodeBase, ObjectNode):
+    '''Stucci texture'''
+    bl_idname = 'ObjectTextureStucciNode'
+    bl_label = 'Stucci'
+
+    noise_basis = enum_property_copy(bpy.types.StucciTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    noise_hard = enum_property_copy(bpy.types.StucciTexture, 'noise_type')
+    noise_hard_value = enum_property_value_prop('noise_hard')
+    stucci_type = enum_property_copy(bpy.types.StucciTexture, 'stucci_type')
+    stucci_type_value = enum_property_value_prop('stucci_type')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "noise_basis")
+        layout.prop(self, "noise_hard")
+        layout.prop(self, "stucci_type")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Turbulence")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_STUCCI")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["turbulence"])
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        node.inputs["noise_hard"].set_value(self.noise_hard_value)
+        node.inputs["stucci_type"].set_value(self.stucci_type_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["normal"])
+
+
+class TextureDistNoiseNode(CommonNodeBase, ObjectNode):
+    '''DistNoise texture'''
+    bl_idname = 'ObjectTextureDistNoiseNode'
+    bl_label = 'Distorted Noise'
+
+    noise_basis = enum_property_copy(bpy.types.DistortedNoiseTexture, 'noise_basis')
+    noise_basis_value = enum_property_value_prop('noise_basis')
+    noise_dist = enum_property_copy(bpy.types.DistortedNoiseTexture, 'noise_distortion')
+    noise_dist_value = enum_property_value_prop('noise_dist')
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "noise_dist")
+        layout.prop(self, "noise_basis")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size")
+        self.inputs.new('NodeSocketFloat', "Nabla")
+        self.inputs.new('NodeSocketFloat', "Amount")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_DISTNOISE")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["nabla"])
+        compiler.map_input(3, node.inputs["dist_amount"])
+        node.inputs["noise_dist"].set_value(self.noise_dist_value)
+        node.inputs["noise_basis"].set_value(self.noise_basis_value)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["normal"])
+
+
+class TextureMagicNode(CommonNodeBase, ObjectNode):
+    '''Magic texture'''
+    bl_idname = 'ObjectTextureMagicNode'
+    bl_label = 'Magic'
+
+    depth = IntProperty(name="Depth", default=2)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "depth")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Turbulence")
+        self.outputs.new('NodeSocketFloat', "Intensity")
+        self.outputs.new('NodeSocketColor', "Color")
+        self.outputs.new('NodeSocketVector', "Normal")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_MAGIC")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["turbulence"])
+
+        node.inputs["depth"].set_value(self.depth)
+        compiler.map_output(0, node.outputs["intensity"])
+        compiler.map_output(1, node.outputs["color"])
+        compiler.map_output(2, node.outputs["normal"])
+
+
 class TextureVoronoiNode(CommonNodeBase, ObjectNode):
     '''Voronoi texture'''
     bl_idname = 'ObjectTextureVoronoiNode'

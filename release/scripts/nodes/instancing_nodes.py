@@ -222,7 +222,13 @@ def register():
             ]),
         InstancingNodeCategory("INS_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),
+            NodeItem("ObjectTextureDistNoiseNode"),
+            NodeItem("ObjectTextureMagicNode"),
+            NodeItem("ObjectTextureMarbleNode"),
+            NodeItem("ObjectTextureMusgraveNode"),
+            NodeItem("ObjectTextureStucciNode"),
             NodeItem("ObjectTextureVoronoiNode"),
+            NodeItem("ObjectTextureWoodNode"),
             ]),
         group_nodes.GroupNodeCategory("INS", gnode, ginput, goutput),
         ]

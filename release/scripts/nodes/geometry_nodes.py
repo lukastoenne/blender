@@ -416,7 +416,13 @@ def register():
             ]),
         GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),
+            NodeItem("ObjectTextureDistNoiseNode"),
+            NodeItem("ObjectTextureMagicNode"),
+            NodeItem("ObjectTextureMarbleNode"),
+            NodeItem("ObjectTextureMusgraveNode"),
+            NodeItem("ObjectTextureStucciNode"),
             NodeItem("ObjectTextureVoronoiNode"),
+            NodeItem("ObjectTextureWoodNode"),
             ]),
         GeometryNodeCategory("GEO_CURVE", "Curve", items=[
             NodeItem("CurvePathNode"),

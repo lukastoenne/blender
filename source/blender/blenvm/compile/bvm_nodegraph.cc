@@ -844,6 +844,12 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(TEX_PROC_VORONOI);
 	NODETYPE(TEX_PROC_CLOUDS);
+	NODETYPE(TEX_PROC_WOOD);
+	NODETYPE(TEX_PROC_MUSGRAVE);
+	NODETYPE(TEX_PROC_MAGIC);
+	NODETYPE(TEX_PROC_STUCCI);
+	NODETYPE(TEX_PROC_MARBLE);
+	NODETYPE(TEX_PROC_DISTNOISE);
 	
 	NODETYPE(OBJECT_LOOKUP);
 	NODETYPE(OBJECT_TRANSFORM);
@@ -1175,6 +1181,74 @@ static void register_opcode_node_types()
 	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
 	nt->add_output("intensity", TYPE_FLOAT);
 	nt->add_output("color", TYPE_FLOAT4);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_WOOD");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
+	nt->add_input("size", TYPE_FLOAT, 1.0f);
+	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
+	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis_2", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("wood_type", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_MUSGRAVE");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
+	nt->add_input("size", TYPE_FLOAT, 1.0f);
+	nt->add_input("dimension", TYPE_FLOAT, 1.0f);
+	nt->add_input("lacunarity", TYPE_FLOAT, 1.0f);
+	nt->add_input("octaves", TYPE_FLOAT, 1.0f);
+	nt->add_input("intensity", TYPE_FLOAT, 1.0f);
+	nt->add_input("offset", TYPE_FLOAT, 1.0f);
+	nt->add_input("gain", TYPE_FLOAT, 1.0f);
+	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("musgrave_type", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_MAGIC");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
+	nt->add_input("depth", TYPE_INT, 2, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
+	nt->add_output("color", TYPE_FLOAT4);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_STUCCI");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", TYPE_FLOAT, 1.0f);
+	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
+	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("stucci_type", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_MARBLE");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", TYPE_FLOAT, 1.0f);
+	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
+	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
+	nt->add_input("depth", TYPE_INT, 2, INPUT_CONSTANT);
+	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis_2", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("marble_type", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
+	nt->add_output("normal", TYPE_FLOAT3);
+
+	nt = NodeGraph::add_function_node_type("TEX_PROC_DISTNOISE");
+	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", TYPE_FLOAT, 1.0f);
+	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
+	nt->add_input("dist_amount", TYPE_FLOAT, 1.0f);
+	nt->add_input("noise_dist", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
+	nt->add_output("intensity", TYPE_FLOAT);
 	nt->add_output("normal", TYPE_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_LOOKUP");

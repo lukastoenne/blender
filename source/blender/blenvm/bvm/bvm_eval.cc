@@ -872,16 +872,98 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                        oIntensity, oColor, oNormal);
 				break;
 			}
-			case OP_TEX_PROC_BLEND:
-			case OP_TEX_PROC_MAGIC:
-			case OP_TEX_PROC_MARBLE:
-			case OP_TEX_PROC_WOOD:
-			case OP_TEX_PROC_MUSGRAVE:
-			case OP_TEX_PROC_NOISE:
-			case OP_TEX_PROC_STUCCI:
-			case OP_TEX_PROC_DISTNOISE:
-				// TODO
+			case OP_TEX_PROC_WOOD: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				StackIndex iTurb = fn->read_stack_index(&instr);
+				int iNoiseBasis = fn->read_int(&instr);
+				int iNoiseBasis2 = fn->read_int(&instr);
+				int iNoiseHard = fn->read_int(&instr);
+				int iWoodType = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_wood(stack, iPos, iNabla, iSize, iTurb,
+				                      iNoiseBasis, iNoiseBasis2, iNoiseHard, iWoodType,
+				                      oIntensity, oNormal);
 				break;
+			}
+			case OP_TEX_PROC_MUSGRAVE: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				StackIndex iDim = fn->read_stack_index(&instr);
+				StackIndex iLac = fn->read_stack_index(&instr);
+				StackIndex iOct = fn->read_stack_index(&instr);
+				StackIndex iInt = fn->read_stack_index(&instr);
+				StackIndex iOff = fn->read_stack_index(&instr);
+				StackIndex iGain = fn->read_stack_index(&instr);
+				int iNoiseBasis = fn->read_int(&instr);
+				int iNoiseType = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_musgrave(stack, iPos, iNabla, iSize, iDim,
+				                          iLac, iOct, iInt, iOff, iGain,
+				                          iNoiseBasis, iNoiseType,
+				                          oIntensity, oNormal);
+				break;
+			}
+			case OP_TEX_PROC_MAGIC: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iTurb = fn->read_stack_index(&instr);
+				int iDepth = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oColor = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_magic(stack, iPos, iTurb, iDepth, oIntensity,
+				                       oColor, oNormal);
+				break;
+			}
+			case OP_TEX_PROC_STUCCI: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				StackIndex iTurb = fn->read_stack_index(&instr);
+				int iBasis = fn->read_int(&instr);
+				int iHard = fn->read_int(&instr);
+				int iType = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_stucci(stack, iPos, iSize, iTurb, iBasis, iHard,
+				                        iType, oIntensity, oNormal);
+				break;
+			}
+			case OP_TEX_PROC_MARBLE: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iTurb = fn->read_stack_index(&instr);
+				int iDepth = fn->read_int(&instr);
+				int iNoiseBasis = fn->read_int(&instr);
+				int iNoiseBasis2 = fn->read_int(&instr);
+				int iNoiseHard = fn->read_int(&instr);
+				int iMarbleType = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_marble(stack, iPos, iNabla, iSize, iTurb,
+				                        iDepth, iNoiseBasis, iNoiseBasis2,
+				                        iNoiseHard, iMarbleType,
+				                        oIntensity, oNormal);
+				break;
+			}
+			case OP_TEX_PROC_DISTNOISE: {
+				StackIndex iPos = fn->read_stack_index(&instr);
+				StackIndex iSize = fn->read_stack_index(&instr);
+				StackIndex iNabla = fn->read_stack_index(&instr);
+				StackIndex iDist = fn->read_stack_index(&instr);
+				int iNoiseBasis = fn->read_int(&instr);
+				int iNoiseBasis2 = fn->read_int(&instr);
+				StackIndex oIntensity = fn->read_stack_index(&instr);
+				StackIndex oNormal = fn->read_stack_index(&instr);
+				eval_op_tex_proc_distnoise(stack, iPos, iNabla, iSize, iDist,
+				                           iNoiseBasis, iNoiseBasis2,
+				                           oIntensity, oNormal);
+				break;
+			}
 			
 			case OP_OBJECT_LOOKUP: {
 				int key = fn->read_int(&instr);
