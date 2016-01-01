@@ -216,7 +216,7 @@ const NodeInput *NodeType::add_input(const string &name,
 {
 	BLI_assert(!find_input(name));
 	/* function inputs only allowed for kernel nodes */
-	BLI_assert(m_is_kernel_node || value_type != INPUT_FUNCTION);
+	BLI_assert(m_is_kernel_node || value_type != INPUT_EXPRESSION);
 	m_inputs.push_back(NodeInput(name, typedesc, default_value, value_type));
 	return &m_inputs.back();
 }
@@ -421,16 +421,16 @@ bool NodeInstance::is_input_constant(int index) const
 	return socket ? socket->value_type == INPUT_CONSTANT : false;
 }
 
-bool NodeInstance::is_input_function(const string &name) const
+bool NodeInstance::is_input_expression(const string &name) const
 {
 	const NodeInput *socket = type->find_input(name);
-	return socket ? socket->value_type == INPUT_FUNCTION : false;
+	return socket ? socket->value_type == INPUT_EXPRESSION : false;
 }
 
-bool NodeInstance::is_input_function(int index) const
+bool NodeInstance::is_input_expression(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
-	return socket ? socket->value_type == INPUT_FUNCTION : false;
+	return socket ? socket->value_type == INPUT_EXPRESSION : false;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1282,13 +1282,13 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
 	nt->add_input("count", TYPE_INT, 1);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity(), INPUT_FUNCTION);
+	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity(), INPUT_EXPRESSION);
 	nt->add_output("mesh_out", TYPE_MESH);
 	nt->add_output("iteration", TYPE_INT, OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_DISPLACE");
 	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
-	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_FUNCTION);
+	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_EXPRESSION);
 	nt->add_output("mesh_out", TYPE_MESH);
 	nt->add_output("element.index", TYPE_FLOAT3, OUTPUT_LOCAL);
 	nt->add_output("element.location", TYPE_FLOAT3, OUTPUT_LOCAL);

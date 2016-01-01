@@ -122,7 +122,7 @@ void BVMCompiler::resolve_basic_block_symbols(const NodeGraph &graph, BVMCompile
 			if (node.is_input_constant(i)) {
 				/* stored directly in the instructions list after creating values */
 			}
-			else if (node.is_input_function(i)) {
+			else if (node.is_input_expression(i)) {
 				BasicBlock &func_block = basic_block_map.at(key);
 				
 				/* initialize local arguments */
@@ -184,7 +184,7 @@ void BVMCompiler::graph_node_append(const NodeInstance *node,
 		const NodeInput *socket = node->type->find_input(i);
 		const NodeInstance *link_node = node->find_input_link_node(i);
 		
-		if (socket->value_type == INPUT_FUNCTION) {
+		if (socket->value_type == INPUT_EXPRESSION) {
 			BasicBlock &block = basic_block_map[node->input(i)];
 			
 			if (link_node) {
@@ -525,7 +525,7 @@ int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
 			const NodeInput *input = node.type->find_input(i);
 			ConstSocketPair key(&node, input->name);
 			
-			if (node.is_input_constant(i) || node.is_input_function(i)) {
+			if (node.is_input_constant(i) || node.is_input_expression(i)) {
 				/* stored directly in instructions */
 			}
 			else if (node.has_input_link(i)) {
@@ -570,7 +570,7 @@ int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
 					push_constant(value);
 				}
 				else {
-					if (node.is_input_function(i)) {
+					if (node.is_input_expression(i)) {
 						const BasicBlock &block = basic_block_map.at(key);
 						push_jump_address(block.entry_point);
 					}
@@ -591,7 +591,7 @@ int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeInput *input = node.type->find_input(i);
 			
-			if (node.is_input_constant(i) || node.is_input_function(i)) {
+			if (node.is_input_constant(i) || node.is_input_expression(i)) {
 				/* pass */
 			}
 			else if (node.has_input_link(i)) {

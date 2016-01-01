@@ -253,8 +253,8 @@ struct NodeInstance {
 	bool has_input_value(int index) const;
 	bool is_input_constant(const string &name) const;
 	bool is_input_constant(int index) const;
-	bool is_input_function(const string &name) const;
-	bool is_input_function(int index) const;
+	bool is_input_expression(const string &name) const;
+	bool is_input_expression(int index) const;
 	
 	const NodeType *type;
 	string name;

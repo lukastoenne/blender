@@ -56,7 +56,7 @@ typedef enum BVMBufferType {
 typedef enum BVMInputValueType {
 	INPUT_CONSTANT,
 	INPUT_VARIABLE,
-	INPUT_FUNCTION,
+	INPUT_EXPRESSION,
 } BVMInputValueType;
 
 typedef enum BVMOutputValueType {
