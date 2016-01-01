@@ -342,6 +342,7 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
         ('DOT_FLOAT3', 'Dot Product', '', 'NONE', 5),
         ('CROSS_FLOAT3', 'Cross Product', '', 'NONE', 6),
         ('NORMALIZE_FLOAT3', 'Normalize', '', 'NONE', 7),
+        ('LENGTH_FLOAT3', 'Vector Length', '', 'NONE', 8),
     ]
     mode = EnumProperty(name="Mode",
                         items=_mode_items)
@@ -362,7 +363,7 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
                                   'AVERAGE_FLOAT3', 'DOT_FLOAT3', 'CROSS_FLOAT3'}
         has_vector_out = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'MUL_FLOAT3', 'DIV_FLOAT3',
                                        'AVERAGE_FLOAT3', 'CROSS_FLOAT3', 'NORMALIZE_FLOAT3'}
-        has_value_out = self.mode in {'DOT_FLOAT3', 'NORMALIZE_FLOAT3'}
+        has_value_out = self.mode in {'DOT_FLOAT3', 'NORMALIZE_FLOAT3', 'LENGTH_FLOAT3'}
 
         if is_binary:
             # binary node
@@ -433,7 +434,6 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
         compiler.map_input(1, node.inputs[1])
         compiler.map_input(2, node.inputs[2])
         compiler.map_output(0, node.outputs[0])
-
 
 class TranslationTransformNode(CommonNodeBase, ObjectNode):
     '''Create translation from a vector'''

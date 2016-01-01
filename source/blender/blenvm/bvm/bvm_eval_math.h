@@ -321,6 +321,13 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	stack_store_float(stack, offset_val, l);
 }
 
+static void eval_op_length_float3(float *stack, StackIndex offset, StackIndex offset_len)
+{
+	float3 v = stack_load_float3(stack, offset);
+	float l = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
+	stack_store_float(stack, offset_len, l);
+}
+
 static void eval_op_add_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);

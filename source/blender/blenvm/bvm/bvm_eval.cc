@@ -671,6 +671,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_normalize_float3(stack, offset, offset_vec, offset_val);
 				break;
 			}
+			case OP_LENGTH_FLOAT3: {
+				StackIndex offset = fn->read_stack_index(&instr);
+				StackIndex offset_len = fn->read_stack_index(&instr);
+				eval_op_length_float3(stack, offset, offset_len);
+				break;
+			}
 			case OP_ADD_MATRIX44: {
 				StackIndex offset_a = fn->read_stack_index(&instr);
 				StackIndex offset_b = fn->read_stack_index(&instr);

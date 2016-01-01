@@ -821,6 +821,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(DOT_FLOAT3);
 	NODETYPE(CROSS_FLOAT3);
 	NODETYPE(NORMALIZE_FLOAT3);
+	NODETYPE(LENGTH_FLOAT3);
 	
 	NODETYPE(ADD_MATRIX44);
 	NODETYPE(SUB_MATRIX44);
@@ -1125,6 +1126,10 @@ static void register_opcode_node_types()
 	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("vector", TYPE_FLOAT3);
 	nt->add_output("value", TYPE_FLOAT);
+	
+	nt = NodeGraph::add_function_node_type("LENGTH_FLOAT3");
+	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("length", TYPE_FLOAT);
 	
 	nt = NodeGraph::add_function_node_type("MIX_RGB");
 	nt->add_input("mode", TYPE_INT, 0, INPUT_CONSTANT);
