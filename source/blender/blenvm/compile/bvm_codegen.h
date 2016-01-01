@@ -55,15 +55,15 @@ typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
 typedef std::map<ConstSocketPair, int> SocketUserMap;
 
 struct BVMCompiler {
-	struct FunctionInfo {
-		FunctionInfo() : entry_point(0), return_index(BVM_STACK_INVALID) {}
+	struct BasicBlock {
+		BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
 		NodeList nodes;
 		SocketIndexMap input_index;
 		SocketIndexMap output_index;
 		int entry_point;
 		StackIndex return_index;
 	};
-	typedef std::map<ConstSocketPair, FunctionInfo> FunctionEntryMap;
+	typedef std::map<ConstSocketPair, BasicBlock> BasicBlockMap;
 	typedef std::vector<int> StackUsers;
 	
 	BVMCompiler();
@@ -75,7 +75,7 @@ protected:
 	StackIndex find_stack_index(int size) const;
 	StackIndex assign_stack_index(const TypeDesc &typedesc);
 	
-	void resolve_function_symbols(const NodeGraph &graph, FunctionInfo &func);
+	void resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block);
 	void resolve_symbols(const NodeGraph &graph);
 	
 	void push_opcode(OpCode op) const;
@@ -93,8 +93,8 @@ protected:
 	void push_constant(const Value *value) const;
 	
 	void codegen_value(const Value *value, StackIndex offset) const;
-	int codegen_function(const FunctionInfo &func,
-	                     const SocketUserMap &socket_users) const;
+	int codegen_basic_block(const BasicBlock &block,
+	                        const SocketUserMap &socket_users) const;
 	Function *codegen(const NodeGraph &graph);
 	
 	void expression_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
@@ -102,8 +102,8 @@ protected:
 	void sort_graph_nodes(const NodeGraph &graph);
 	
 private:
-	FunctionInfo main;
-	FunctionEntryMap func_entry_map;
+	BasicBlock main;
+	BasicBlockMap basic_block_map;
 	StackUsers stack_users;
 	Function *fn;
 
