@@ -30,6 +30,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_path_util.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
@@ -49,6 +50,8 @@
 #include "BKE_texture.h"
 
 #include "DEG_depsgraph_build.h"
+
+#include "BVM_api.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -71,6 +74,13 @@ EnumPropertyItem rna_enum_node_socket_in_out_items[] = {
 	{ SOCK_OUT, "OUT", 0, "Output", "" },
 	{ 0, NULL, 0, NULL, NULL }
 };
+
+typedef enum BVMFunctionType {
+	BVM_FUNTYPE_GEOMETRY,
+	BVM_FUNTYPE_INSTANCING,
+	BVM_FUNTYPE_TEXTURE,
+	BVM_FUNTYPE_FORCEFIELD,
+} BVMFunctionType;
 
 #ifndef RNA_RUNTIME
 static EnumPropertyItem node_socket_type_items[] = {
@@ -1053,6 +1063,30 @@ static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 	ED_node_tag_update_nodetree(CTX_data_main(C), ntree);
 }
 
+static void rna_NodeTree_bvm_debug_graphviz(struct bNodeTree *ntree, const char *filename,
+                                            int funtype, int mode, const char *label)
+{
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	switch (funtype) {
+		case BVM_FUNTYPE_GEOMETRY:
+			BVM_debug_modifier_nodes(ntree, f, label, mode);
+			break;
+		case BVM_FUNTYPE_INSTANCING:
+			BVM_debug_dupli_nodes(ntree, f, label, mode);
+			break;
+		case BVM_FUNTYPE_TEXTURE:
+			BVM_debug_texture_nodes(ntree, f, label, mode);
+			break;
+		case BVM_FUNTYPE_FORCEFIELD:
+			BVM_debug_forcefield_nodes(ntree, f, label, mode);
+			break;
+	}
+	
+	fclose(f);
+}
 
 /* ******** NodeLink ******** */
 
@@ -8104,6 +8138,21 @@ static void rna_def_nodetree(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem bvm_debug_function_type_items[] = {
+	    {BVM_FUNTYPE_GEOMETRY, "GEOMETRY", 0, "Geometry", ""},
+	    {BVM_FUNTYPE_INSTANCING, "INSTANCING", 0, "Instancing", ""},
+	    {BVM_FUNTYPE_TEXTURE, "TEXTURE", 0, "Texture", ""},
+	    {BVM_FUNTYPE_FORCEFIELD, "FORCEFIELD", 0, "Forcefield", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem bvm_debug_mode_items[] = {
+	    {BVM_DEBUG_NODES, "NODES", 0, "Nodes", ""},
+	    {BVM_DEBUG_NODES_UNOPTIMIZED, "NODES_UNOPTIMIZED", 0, "Nodes (unoptimized)", ""},
+	    {BVM_DEBUG_CODEGEN, "CODEGEN", 0, "Generated Code", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "NodeTree", "ID");
 	RNA_def_struct_ui_text(srna, "Node Tree",
 	                       "Node tree consisting of linked nodes used for shading, textures and compositing");
@@ -8244,6 +8293,18 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);
 	parm = RNA_def_pointer(func, "graph", "BVMNodeGraph", "Graph", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+
+	func = RNA_def_function(srna, "bvm_debug_graphviz", "rna_NodeTree_bvm_debug_graphviz");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_enum(func, "function_type", bvm_debug_function_type_items, BVM_FUNTYPE_GEOMETRY,
+	             "Function Type", "Type of function to generate");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_enum(func, "debug_mode", bvm_debug_mode_items, BVM_DEBUG_NODES,
+	             "Debug Mode", "Mode of debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_string(func, "label", NULL, 0, "Label", "");
 }
 
 static void rna_def_composite_nodetree(BlenderRNA *brna)

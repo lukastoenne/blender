@@ -460,17 +460,26 @@ struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
 	return (BVMFunction *)fn;
 }
 
-void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, bool finalize)
+void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
 	init_forcefield_graph(graph);
 	parse_py_nodes(btree, &graph);
-	if (finalize)
+	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
-	debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
+	switch (mode) {
+		case BVM_DEBUG_NODES:
+		case BVM_DEBUG_NODES_UNOPTIMIZED:
+			debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
+			break;
+		case BVM_DEBUG_CODEGEN:
+			DebugGraphvizCompiler compiler;
+			compiler.compile_function(graph, debug_file, label);
+			break;
+	}
 }
 
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -990,17 +999,26 @@ struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
 	return (BVMFunction *)fn;
 }
 
-void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, bool finalize)
+void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
 	init_texture_graph(graph);
 	parse_tex_nodes(btree, &graph);
-	if (finalize)
+	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
-	debug::dump_graphviz(debug_file, &graph, "Texture Expression Graph");
+	switch (mode) {
+		case BVM_DEBUG_NODES:
+		case BVM_DEBUG_NODES_UNOPTIMIZED:
+			debug::dump_graphviz(debug_file, &graph, "Texture Node Graph");
+			break;
+		case BVM_DEBUG_CODEGEN:
+			DebugGraphvizCompiler compiler;
+			compiler.compile_function(graph, debug_file, label);
+			break;
+	}
 }
 
 void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -1064,17 +1082,26 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 	return (BVMFunction *)fn;
 }
 
-void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize)
+void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace bvm;
 	
 	NodeGraph graph;
 	init_modifier_graph(graph);
 	parse_py_nodes(btree, &graph);
-	if (finalize)
+	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
-	debug::dump_graphviz(debug_file, &graph, "Modifier Schedule Graph");
+	switch (mode) {
+		case BVM_DEBUG_NODES:
+		case BVM_DEBUG_NODES_UNOPTIMIZED:
+			debug::dump_graphviz(debug_file, &graph, "Modifier Node Graph");
+			break;
+		case BVM_DEBUG_CODEGEN:
+			DebugGraphvizCompiler compiler;
+			compiler.compile_function(graph, debug_file, label);
+			break;
+	}
 }
 
 struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
@@ -1126,7 +1153,7 @@ struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
 	return (BVMFunction *)fn;
 }
 
-void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, bool finalize)
+void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace bvm;
 	
@@ -1134,10 +1161,19 @@ void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, bool final
 	init_dupli_graph(graph);
 	
 	parse_py_nodes(btree, &graph);
-	if (finalize)
+	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
-	debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
+	switch (mode) {
+		case BVM_DEBUG_NODES:
+		case BVM_DEBUG_NODES_UNOPTIMIZED:
+			debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
+			break;
+		case BVM_DEBUG_CODEGEN:
+			DebugGraphvizCompiler compiler;
+			compiler.compile_function(graph, debug_file, label);
+			break;
+	}
 }
 
 void BVM_eval_dupli(struct BVMEvalGlobals *globals,

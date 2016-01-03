@@ -134,6 +134,37 @@ private:
 	Function *fn;
 };
 
+struct DebugGraphvizCompiler : public Compiler {
+	DebugGraphvizCompiler();
+	~DebugGraphvizCompiler();
+	
+	void compile_function(const NodeGraph &graph, FILE *m_file, const string &label);
+	
+protected:
+	void push_opcode(OpCode op) const;
+	void push_stack_index(StackIndex arg) const;
+	void push_jump_address(int address) const;
+	
+	void push_float(float m_file) const;
+	void push_float3(float3 m_file) const;
+	void push_float4(float4 m_file) const;
+	void push_int(int i) const;
+	void push_matrix44(matrix44 m) const;
+	void push_string(const char *s) const;
+	
+	int current_address() const;
+	
+	void init_graph(const string &label);
+	void close_graph();
+	
+	void init_node();
+	void close_node();
+	
+private:
+	FILE *m_file;
+	int *m_current_address;
+};
+
 } /* namespace bvm */
 
 #endif /* __BVM_CODEGEN_H__ */

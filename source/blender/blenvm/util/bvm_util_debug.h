@@ -292,7 +292,7 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeGraph *
 	}
 }
 
-static void dump_graphviz(FILE *f, const NodeGraph *graph, const string &label)
+inline void dump_graphviz(FILE *f, const NodeGraph *graph, const string &label)
 {
 	DebugContext ctx;
 	ctx.file = f;

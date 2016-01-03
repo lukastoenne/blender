@@ -40,6 +40,7 @@ set(INC_SYS
 
 set(SRC
 	bvm_codegen.cc
+	bvm_codegen_debug.cc
 	bvm_codegen.h
 	bvm_nodegraph.cc
 	bvm_nodegraph.h
