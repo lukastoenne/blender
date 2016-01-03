@@ -8216,20 +8216,20 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	/* Depsgraph Update Callbacks */
 	func = RNA_def_function(srna, "bvm_compile_dependencies", NULL);
 	RNA_def_function_ui_description(func, "Dependencies that require a recompile");
-	RNA_def_function_flag(func, FUNC_REGISTER);
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);
 	parm = RNA_def_pointer(func, "depsnode", "DepsNode", "Depsgraph Node", "Node in the dependency graph");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	
 	func = RNA_def_function(srna, "bvm_eval_dependencies", NULL);
 	RNA_def_function_ui_description(func, "Dependencies that require evaluation");
-	RNA_def_function_flag(func, FUNC_REGISTER);
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);
 	parm = RNA_def_pointer(func, "depsnode", "DepsNode", "Depsgraph Node", "Node in the dependency graph");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 	
 	/* BlenVM compile */
 	func = RNA_def_function(srna, "bvm_compile", NULL);
 	RNA_def_function_ui_description(func, "Convert node settings to blenvm instructions");
-	RNA_def_function_flag(func, FUNC_REGISTER);
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);
 	parm = RNA_def_pointer(func, "graph", "BVMNodeGraph", "Graph", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 }
