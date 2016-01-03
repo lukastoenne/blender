@@ -154,6 +154,9 @@ protected:
 	
 	int current_address() const;
 	
+	const char *get_arg_name() const;
+	bool is_arg_output() const;
+	
 	void init_graph(const string &label);
 	void close_graph();
 	
@@ -162,7 +165,9 @@ protected:
 	
 private:
 	FILE *m_file;
-	int *m_current_address;
+	mutable int m_current_address;
+	mutable const NodeType *m_current_opnode;
+	mutable int m_current_arg;
 };
 
 } /* namespace bvm */
