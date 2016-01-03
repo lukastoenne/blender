@@ -54,7 +54,7 @@ typedef std::set<const NodeInstance *> NodeSet;
 typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
 typedef std::map<ConstSocketPair, int> SocketUserMap;
 
-struct BVMCompiler {
+struct Compiler {
 	struct BasicBlock {
 		BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
 		NodeList nodes;
@@ -66,10 +66,8 @@ struct BVMCompiler {
 	typedef std::map<ConstSocketPair, BasicBlock> ExpressionMap;
 	typedef std::vector<int> StackUsers;
 	
-	BVMCompiler();
-	~BVMCompiler();
-	
-	Function *compile_function(const NodeGraph &graph);
+	Compiler();
+	virtual ~Compiler();
 	
 protected:
 	StackIndex find_stack_index(int size) const;
@@ -78,6 +76,47 @@ protected:
 	void resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block);
 	void resolve_symbols(const NodeGraph &graph);
 	
+	virtual void push_opcode(OpCode op) const = 0;
+	virtual void push_stack_index(StackIndex arg) const = 0;
+	virtual void push_jump_address(int address) const = 0;
+	
+	virtual void push_float(float f) const = 0;
+	virtual void push_float3(float3 f) const = 0;
+	virtual void push_float4(float4 f) const = 0;
+	virtual void push_int(int i) const = 0;
+	virtual void push_matrix44(matrix44 m) const = 0;
+	virtual void push_string(const char *s) const = 0;
+	
+	virtual int current_address() const = 0;
+	
+	void push_constant(const Value *value) const;
+	
+	void codegen_value(const Value *value, StackIndex offset) const;
+	int codegen_basic_block(const BasicBlock &block,
+	                        const SocketUserMap &socket_users) const;
+	int codegen_main(const NodeGraph &graph);
+	
+	void expression_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
+	void graph_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
+	void sort_graph_nodes(const NodeGraph &graph);
+	
+	const BasicBlock &main_block() const { return main; }
+	
+private:
+	BasicBlock main;
+	ExpressionMap expression_map;
+	StackUsers stack_users;
+
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")
+};
+
+struct BVMCompiler : public Compiler {
+	BVMCompiler();
+	~BVMCompiler();
+	
+	Function *compile_function(const NodeGraph &graph);
+	
+protected:
 	void push_opcode(OpCode op) const;
 	void push_stack_index(StackIndex arg) const;
 	void push_jump_address(int address) const;
@@ -87,27 +126,12 @@ protected:
 	void push_float4(float4 f) const;
 	void push_int(int i) const;
 	void push_matrix44(matrix44 m) const;
-	void push_pointer(PointerRNA p) const;
 	void push_string(const char *s) const;
 	
-	void push_constant(const Value *value) const;
-	
-	void codegen_value(const Value *value, StackIndex offset) const;
-	int codegen_basic_block(const BasicBlock &block,
-	                        const SocketUserMap &socket_users) const;
-	Function *codegen(const NodeGraph &graph);
-	
-	void expression_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
-	void graph_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
-	void sort_graph_nodes(const NodeGraph &graph);
+	int current_address() const;
 	
 private:
-	BasicBlock main;
-	ExpressionMap expression_map;
-	StackUsers stack_users;
 	Function *fn;
-
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")
 };
 
 } /* namespace bvm */

@@ -39,17 +39,16 @@
 
 namespace bvm {
 
-BVMCompiler::BVMCompiler() :
-    fn(NULL)
+Compiler::Compiler()
 {
 	stack_users.resize(BVM_STACK_SIZE, 0);
 }
 
-BVMCompiler::~BVMCompiler()
+Compiler::~Compiler()
 {
 }
 
-StackIndex BVMCompiler::find_stack_index(int size) const
+StackIndex Compiler::find_stack_index(int size) const
 {
 	int unused = 0;
 	
@@ -69,7 +68,7 @@ StackIndex BVMCompiler::find_stack_index(int size) const
 	return BVM_STACK_INVALID;
 }
 
-StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
+StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 {
 	int size = typedesc.stack_size();
 	
@@ -82,7 +81,7 @@ StackIndex BVMCompiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void BVMCompiler::resolve_basic_block_symbols(const NodeGraph &graph, BVMCompiler::BasicBlock &block)
+void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::BasicBlock &block)
 {
 	for (NodeList::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
@@ -151,7 +150,7 @@ void BVMCompiler::resolve_basic_block_symbols(const NodeGraph &graph, BVMCompile
 	}
 }
 
-void BVMCompiler::expression_node_append(const NodeInstance *node,
+void Compiler::expression_node_append(const NodeInstance *node,
                                          NodeList &sorted_nodes,
                                          NodeSet &visited)
 {
@@ -172,7 +171,7 @@ void BVMCompiler::expression_node_append(const NodeInstance *node,
 	sorted_nodes.push_back(node);
 }
 
-void BVMCompiler::graph_node_append(const NodeInstance *node,
+void Compiler::graph_node_append(const NodeInstance *node,
                                     NodeList &sorted_nodes,
                                     NodeSet &visited)
 {
@@ -202,7 +201,7 @@ void BVMCompiler::graph_node_append(const NodeInstance *node,
 	sorted_nodes.push_back(node);
 }
 
-void BVMCompiler::sort_graph_nodes(const NodeGraph &graph)
+void Compiler::sort_graph_nodes(const NodeGraph &graph)
 {
 	NodeSet visited;
 	
@@ -211,7 +210,7 @@ void BVMCompiler::sort_graph_nodes(const NodeGraph &graph)
 	}
 }
 
-void BVMCompiler::resolve_symbols(const NodeGraph &graph)
+void Compiler::resolve_symbols(const NodeGraph &graph)
 {
 	main = BasicBlock();
 	expression_map.clear();
@@ -223,79 +222,8 @@ void BVMCompiler::resolve_symbols(const NodeGraph &graph)
 	resolve_basic_block_symbols(graph, main);
 }
 
-void BVMCompiler::push_opcode(OpCode op) const
-{
-	fn->add_instruction(op);
-}
 
-void BVMCompiler::push_stack_index(StackIndex arg) const
-{
-	if (arg != BVM_STACK_INVALID)
-		fn->add_instruction(arg);
-}
-
-void BVMCompiler::push_jump_address(int address) const
-{
-	fn->add_instruction(int_to_instruction(address));
-}
-
-void BVMCompiler::push_float(float f) const
-{
-	fn->add_instruction(float_to_instruction(f));
-}
-
-void BVMCompiler::push_float3(float3 f) const
-{
-	fn->add_instruction(float_to_instruction(f.x));
-	fn->add_instruction(float_to_instruction(f.y));
-	fn->add_instruction(float_to_instruction(f.z));
-}
-
-void BVMCompiler::push_float4(float4 f) const
-{
-	fn->add_instruction(float_to_instruction(f.x));
-	fn->add_instruction(float_to_instruction(f.y));
-	fn->add_instruction(float_to_instruction(f.z));
-	fn->add_instruction(float_to_instruction(f.w));
-}
-
-void BVMCompiler::push_int(int i) const
-{
-	fn->add_instruction(int_to_instruction(i));
-}
-
-void BVMCompiler::push_matrix44(matrix44 m) const
-{
-	fn->add_instruction(float_to_instruction(m.data[0][0]));
-	fn->add_instruction(float_to_instruction(m.data[0][1]));
-	fn->add_instruction(float_to_instruction(m.data[0][2]));
-	fn->add_instruction(float_to_instruction(m.data[0][3]));
-	fn->add_instruction(float_to_instruction(m.data[1][0]));
-	fn->add_instruction(float_to_instruction(m.data[1][1]));
-	fn->add_instruction(float_to_instruction(m.data[1][2]));
-	fn->add_instruction(float_to_instruction(m.data[1][3]));
-	fn->add_instruction(float_to_instruction(m.data[2][0]));
-	fn->add_instruction(float_to_instruction(m.data[2][1]));
-	fn->add_instruction(float_to_instruction(m.data[2][2]));
-	fn->add_instruction(float_to_instruction(m.data[2][3]));
-	fn->add_instruction(float_to_instruction(m.data[3][0]));
-	fn->add_instruction(float_to_instruction(m.data[3][1]));
-	fn->add_instruction(float_to_instruction(m.data[3][2]));
-	fn->add_instruction(float_to_instruction(m.data[3][3]));
-}
-
-void BVMCompiler::push_string(const char *s) const
-{
-	const char *c = s;
-	while (true) {
-		fn->add_instruction(int_to_instruction(*(const int *)c));
-		if (c[0]=='\0' || c[1]=='\0' || c[2]=='\0' || c[3]=='\0')
-			break;
-		c += 4;
-	}
-}
-
-void BVMCompiler::push_constant(const Value *value) const
+void Compiler::push_constant(const Value *value) const
 {
 	BLI_assert(value != NULL);
 	switch (value->typedesc().base_type) {
@@ -357,7 +285,7 @@ void BVMCompiler::push_constant(const Value *value) const
 	}
 }
 
-void BVMCompiler::codegen_value(const Value *value, StackIndex offset) const
+void Compiler::codegen_value(const Value *value, StackIndex offset) const
 {
 	switch (value->typedesc().base_type) {
 		case BVM_FLOAT: {
@@ -512,10 +440,10 @@ static void count_output_users(const NodeGraph &graph,
 	}
 }
 
-int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
+int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
                                      const SocketUserMap &socket_users) const
 {
-	int entry_point = fn->get_instruction_count();
+	int entry_point = current_address();
 	
 	for (NodeList::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
@@ -613,11 +541,8 @@ int BVMCompiler::codegen_basic_block(const BVMCompiler::BasicBlock &block,
 	return entry_point;
 }
 
-Function *BVMCompiler::codegen(const NodeGraph &graph)
+int Compiler::codegen_main(const NodeGraph &graph)
 {
-	Function *result = new Function();
-	fn = result;
-	
 	SocketUserMap output_users;
 	count_output_users(graph, output_users);
 	
@@ -641,18 +566,105 @@ Function *BVMCompiler::codegen(const NodeGraph &graph)
 	
 	/* now generate the main function */
 	int entry_point = codegen_basic_block(main, output_users);
-	fn->set_entry_point(entry_point);
-	
-	fn = NULL;
-	
-	return result;
+	return entry_point;
+}
+
+/* ========================================================================= */
+
+BVMCompiler::BVMCompiler() :
+    fn(NULL)
+{
+}
+
+BVMCompiler::~BVMCompiler()
+{
+}
+
+void BVMCompiler::push_opcode(OpCode op) const
+{
+	fn->add_instruction(op);
+}
+
+void BVMCompiler::push_stack_index(StackIndex arg) const
+{
+	if (arg != BVM_STACK_INVALID)
+		fn->add_instruction(arg);
+}
+
+void BVMCompiler::push_jump_address(int address) const
+{
+	fn->add_instruction(int_to_instruction(address));
+}
+
+void BVMCompiler::push_float(float f) const
+{
+	fn->add_instruction(float_to_instruction(f));
+}
+
+void BVMCompiler::push_float3(float3 f) const
+{
+	fn->add_instruction(float_to_instruction(f.x));
+	fn->add_instruction(float_to_instruction(f.y));
+	fn->add_instruction(float_to_instruction(f.z));
+}
+
+void BVMCompiler::push_float4(float4 f) const
+{
+	fn->add_instruction(float_to_instruction(f.x));
+	fn->add_instruction(float_to_instruction(f.y));
+	fn->add_instruction(float_to_instruction(f.z));
+	fn->add_instruction(float_to_instruction(f.w));
+}
+
+void BVMCompiler::push_int(int i) const
+{
+	fn->add_instruction(int_to_instruction(i));
+}
+
+void BVMCompiler::push_matrix44(matrix44 m) const
+{
+	fn->add_instruction(float_to_instruction(m.data[0][0]));
+	fn->add_instruction(float_to_instruction(m.data[0][1]));
+	fn->add_instruction(float_to_instruction(m.data[0][2]));
+	fn->add_instruction(float_to_instruction(m.data[0][3]));
+	fn->add_instruction(float_to_instruction(m.data[1][0]));
+	fn->add_instruction(float_to_instruction(m.data[1][1]));
+	fn->add_instruction(float_to_instruction(m.data[1][2]));
+	fn->add_instruction(float_to_instruction(m.data[1][3]));
+	fn->add_instruction(float_to_instruction(m.data[2][0]));
+	fn->add_instruction(float_to_instruction(m.data[2][1]));
+	fn->add_instruction(float_to_instruction(m.data[2][2]));
+	fn->add_instruction(float_to_instruction(m.data[2][3]));
+	fn->add_instruction(float_to_instruction(m.data[3][0]));
+	fn->add_instruction(float_to_instruction(m.data[3][1]));
+	fn->add_instruction(float_to_instruction(m.data[3][2]));
+	fn->add_instruction(float_to_instruction(m.data[3][3]));
+}
+
+void BVMCompiler::push_string(const char *s) const
+{
+	const char *c = s;
+	while (true) {
+		fn->add_instruction(int_to_instruction(*(const int *)c));
+		if (c[0]=='\0' || c[1]=='\0' || c[2]=='\0' || c[3]=='\0')
+			break;
+		c += 4;
+	}
+}
+
+int BVMCompiler::current_address() const
+{
+	return fn->get_instruction_count();
 }
 
 Function *BVMCompiler::compile_function(const NodeGraph &graph)
 {
 	resolve_symbols(graph);
 	
-	Function *result = codegen(graph);
+	fn = new Function();
+	
+	int entry_point = codegen_main(graph);
+	fn->set_entry_point(entry_point);
 	
 	/* store stack indices for inputs/outputs, to store arguments from and return results to the caller */
 	for (size_t i = 0; i < graph.inputs.size(); ++i) {
@@ -660,13 +672,13 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 		
 		StackIndex stack_index;
 		if (input.key.node) {
-			stack_index = main.output_index.at(input.key);
+			stack_index = main_block().output_index.at(input.key);
 		}
 		else {
 			stack_index = BVM_STACK_INVALID;
 		}
 		
-		result->add_argument(input.typedesc, input.name, stack_index);
+		fn->add_argument(input.typedesc, input.name, stack_index);
 	}
 	for (size_t i = 0; i < graph.outputs.size(); ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
@@ -674,10 +686,12 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 		/* every output must map to a node */
 		assert(output.key.node);
 		
-		StackIndex stack_index = main.output_index.at(output.key);
-		result->add_return_value(output.typedesc, output.name, stack_index);
+		StackIndex stack_index = main_block().output_index.at(output.key);
+		fn->add_return_value(output.typedesc, output.name, stack_index);
 	}
 	
+	Function *result = fn;
+	fn = NULL;
 	return result;
 }
 
