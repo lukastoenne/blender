@@ -653,7 +653,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 	if (ibuf && ibuf->rect) {
 		const bool use_clip = (U.glalphaclip != 1.0f);
-		int zoomfilter = (U.gameflags & USER_DISABLE_MIPMAP ) ? GL_NEAREST : GL_LINEAR;
+		int zoomfilter = (U.gameflags & USER_DISABLE_MIPMAP) ? GL_NEAREST : GL_LINEAR;
 		/* Setup GL params */
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -668,13 +668,12 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 		/* Draw the Image on the screen */
 		glaDrawPixelsTex(ofs_x, ofs_y, ima_x, ima_y, GL_RGBA, GL_UNSIGNED_BYTE, zoomfilter, ibuf->rect);
-		glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
 
 		glDisable(GL_BLEND);
 
 		if (use_clip) {
 			glDisable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, 0.0f);
+			glAlphaFunc(GL_ALWAYS, 0.0f);
 		}
 	}
 
@@ -691,7 +690,6 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	glEnd();
 
 	/* Reset GL settings */
-	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
@@ -730,8 +728,8 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 	const float size = ED_view3d_pixel_size(rv3d, co) * (float)U.obcenter_dia * 0.5f;
 	float verts[CIRCLE_RESOL][3];
 
-	/* using gldepthfunc guarantees that it does write z values,
-	 * but not checks for it, so centers remain visible independent order of drawing */
+	/* using glDepthFunc guarantees that it does write z values,
+	 * but not checks for it, so centers remain visible independent of draw order */
 	if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
 	/* write to near buffer always */
 	glDepthRange(0.0, 0.0);
@@ -1953,7 +1951,7 @@ static void drawcamera_stereo3d(
 		glPopAttrib();
 	}
 
-	/* draw convergence plane*/
+	/* draw convergence plane */
 	if (is_stereo3d_plane) {
 		float axis_center[3], screen_center[3];
 		float world_plane[4][3];
@@ -1993,7 +1991,7 @@ static void drawcamera_stereo3d(
 		}
 	}
 
-	/* draw convergence plane*/
+	/* draw convergence plane */
 	if (is_stereo3d_volume) {
 		float screen_center[3];
 		float near_plane[4][3], far_plane[4][3];
@@ -2408,7 +2406,7 @@ static void drawlattice(View3D *v3d, Object *ob)
 
 /* ***************** ******************** */
 
-/*  draw callback */
+/* draw callback */
 
 typedef struct drawDMVertSel_userData {
 	MVert *mvert;
@@ -3167,7 +3165,7 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
  * specialized to be split out (like drawing creases or measurements).
  */
 
-/* EditMesh drawing routines*/
+/* EditMesh drawing routines */
 
 static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
                                 BMEditMesh *em, DerivedMesh *cageDM, BMVert *eve_act,
