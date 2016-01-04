@@ -51,19 +51,20 @@ struct TypeDesc;
 
 typedef std::vector<const NodeInstance *> NodeList;
 typedef std::set<const NodeInstance *> NodeSet;
-typedef std::map<ConstSocketPair, StackIndex> SocketIndexMap;
-typedef std::map<ConstSocketPair, int> SocketUserMap;
+typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
+typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
+typedef std::map<ConstOutputKey, int> SocketUserMap;
 
 struct Compiler {
 	struct BasicBlock {
 		BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
 		NodeList nodes;
-		SocketIndexMap input_index;
-		SocketIndexMap output_index;
+		InputIndexMap input_index;
+		OutputIndexMap output_index;
 		int entry_point;
 		StackIndex return_index;
 	};
-	typedef std::map<ConstSocketPair, BasicBlock> ExpressionMap;
+	typedef std::map<ConstInputKey, BasicBlock> ExpressionMap;
 	typedef std::vector<int> StackUsers;
 	
 	Compiler();

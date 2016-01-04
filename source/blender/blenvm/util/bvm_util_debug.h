@@ -143,7 +143,6 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 	string name = input ? input->name : output->name;
 	string id = input ? "input" : "output";
 	void *ptr = input ? (void *)input : (void *)output;
-	const SocketPair &key = input ? input->key : output->key;
 	{
 		const char *shape = "box";
 		const char *style = "filled,rounded";
@@ -171,10 +170,11 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 		debug_fprintf(ctx, "];" NL);
 		debug_fprintf(ctx, NL);
 	}
-
-	if (key.node) {
-		const float penwidth = 2.0f;
-		if (input) {
+	
+	const float penwidth = 2.0f;
+	if (input) {
+		const OutputKey &key = input->key;
+		if (key) {
 			const NodeGraph::Input *tail = input;
 			const NodeInstance *head = key.node;
 			const string &head_socket = key.socket;
@@ -195,7 +195,10 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 			debug_fprintf(ctx, "];" NL);
 			debug_fprintf(ctx, NL);
 		}
-		else {
+	}
+	else {
+		const OutputKey &key = output->key;
+		if (key) {
 			const NodeInstance *tail = key.node;
 			const string &tail_socket = key.socket;
 			int tail_index = debug_output_index(tail, tail_socket);
@@ -256,7 +259,7 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeGraph *
 
 	/* local argument outputs */
 	for (int i = 0; i < node->num_outputs(); ++i) {
-		ConstSocketPair key = node->output(i);
+		ConstOutputKey key = node->output(i);
 		const NodeOutput *output = node->type->find_output(i);
 		
 		if (output->value_type == OUTPUT_LOCAL) {

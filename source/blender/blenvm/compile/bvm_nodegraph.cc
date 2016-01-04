@@ -234,6 +234,132 @@ const NodeOutput *NodeType::add_output(const string &name,
 
 /* ------------------------------------------------------------------------- */
 
+ConstOutputKey::ConstOutputKey() :
+    node(NULL), socket("")
+{}
+
+ConstOutputKey::ConstOutputKey(const NodeInstance *node, const string &socket) :
+    node(node), socket(socket)
+{}
+
+bool ConstOutputKey::operator < (const ConstOutputKey &other) const
+{
+	if (node < other.node)
+		return true;
+	else if (node > other.node)
+		return false;
+	else
+		return socket < other.socket;
+}
+
+ConstOutputKey::operator bool() const
+{
+	return node != NULL && !socket.empty();
+}
+
+/*****/
+
+OutputKey::OutputKey() :
+    node(NULL), socket("")
+{}
+
+OutputKey::OutputKey(NodeInstance *node, const string &socket) :
+    node(node), socket(socket)
+{}
+
+OutputKey::operator ConstOutputKey() const
+{
+	return ConstOutputKey(node, socket);
+}
+
+bool OutputKey::operator < (const OutputKey &other) const
+{
+	if (node < other.node)
+		return true;
+	else if (node > other.node)
+		return false;
+	else
+		return socket < other.socket;
+}
+
+OutputKey::operator bool() const
+{
+	return node != NULL && !socket.empty();
+}
+
+/*****/
+
+ConstInputKey::ConstInputKey() :
+    node(NULL), socket("")
+{}
+
+ConstInputKey::ConstInputKey(const NodeInstance *node, const string &socket) :
+    node(node), socket(socket)
+{}
+
+bool ConstInputKey::operator < (const ConstInputKey &other) const
+{
+	if (node < other.node)
+		return true;
+	else if (node > other.node)
+		return false;
+	else
+		return socket < other.socket;
+}
+
+ConstInputKey::operator bool() const
+{
+	return node != NULL && !socket.empty();
+}
+
+ConstOutputKey ConstInputKey::link() const
+{
+	if (node)
+		return node->link(socket);
+	else
+		return ConstOutputKey();
+}
+
+/*****/
+
+InputKey::InputKey() :
+    node(NULL), socket("")
+{}
+
+InputKey::InputKey(NodeInstance *node, const string &socket) :
+    node(node), socket(socket)
+{}
+
+InputKey::operator ConstInputKey() const
+{
+	return ConstInputKey(node, socket);
+}
+
+bool InputKey::operator < (const InputKey &other) const
+{
+	if (node < other.node)
+		return true;
+	else if (node > other.node)
+		return false;
+	else
+		return socket < other.socket;
+}
+
+InputKey::operator bool() const
+{
+	return node != NULL && !socket.empty();
+}
+
+OutputKey InputKey::link() const
+{
+	if (node)
+		return node->link(socket);
+	else
+		return OutputKey();
+}
+
+/* ------------------------------------------------------------------------- */
+
 NodeInstance::NodeInstance(const NodeType *type, const string &name) :
     type(type), name(name)
 {
@@ -249,52 +375,52 @@ NodeInstance::~NodeInstance()
 	}
 }
 
-SocketPair NodeInstance::input(const string &name)
+InputKey NodeInstance::input(const string &name)
 {
 	assert(type->find_input(name) != NULL);
-	return SocketPair(this, name);
+	return InputKey(this, name);
 }
 
-SocketPair NodeInstance::input(int index)
+InputKey NodeInstance::input(int index)
 {
 	assert(type->find_input(index) != NULL);
-	return SocketPair(this, type->find_input(index)->name);
+	return InputKey(this, type->find_input(index)->name);
 }
 
-SocketPair NodeInstance::output(const string &name)
+OutputKey NodeInstance::output(const string &name)
 {
 	assert(type->find_output(name) != NULL);
-	return SocketPair(this, name);
+	return OutputKey(this, name);
 }
 
-SocketPair NodeInstance::output(int index)
+OutputKey NodeInstance::output(int index)
 {
 	assert(type->find_output(index) != NULL);
-	return SocketPair(this, type->find_output(index)->name);
+	return OutputKey(this, type->find_output(index)->name);
 }
 
-ConstSocketPair NodeInstance::input(const string &name) const
+ConstInputKey NodeInstance::input(const string &name) const
 {
 	assert(type->find_input(name) != NULL);
-	return ConstSocketPair(this, name);
+	return ConstInputKey(this, name);
 }
 
-ConstSocketPair NodeInstance::input(int index) const
+ConstInputKey NodeInstance::input(int index) const
 {
 	assert(type->find_input(index) != NULL);
-	return ConstSocketPair(this, type->find_input(index)->name);
+	return ConstInputKey(this, type->find_input(index)->name);
 }
 
-ConstSocketPair NodeInstance::output(const string &name) const
+ConstOutputKey NodeInstance::output(const string &name) const
 {
 	assert(type->find_output(name) != NULL);
-	return ConstSocketPair(this, name);
+	return ConstOutputKey(this, name);
 }
 
-ConstSocketPair NodeInstance::output(int index) const
+ConstOutputKey NodeInstance::output(int index) const
 {
 	assert(type->find_output(index) != NULL);
-	return ConstSocketPair(this, type->find_output(index)->name);
+	return ConstOutputKey(this, type->find_output(index)->name);
 }
 
 NodeInstance *NodeInstance::find_input_link_node(const string &name) const
@@ -321,23 +447,23 @@ const NodeOutput *NodeInstance::find_input_link_socket(int index) const
 	return socket ? find_input_link_socket(socket->name) : NULL;
 }
 
-SocketPair NodeInstance::link(const string &name) const
+OutputKey NodeInstance::link(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
 		const NodeInstance::InputInstance &input = it->second;
 		return input.link_node && input.link_socket ?
-		            SocketPair(input.link_node, input.link_socket->name) :
-		            SocketPair(NULL, "");
+		            OutputKey(input.link_node, input.link_socket->name) :
+		            OutputKey(NULL, "");
 	}
 	else
-		return SocketPair(NULL, "");
+		return OutputKey(NULL, "");
 }
 
-SocketPair NodeInstance::link(int index) const
+OutputKey NodeInstance::link(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
-	return socket ? link(socket->name) : SocketPair(NULL, "");
+	return socket ? link(socket->name) : OutputKey(NULL, "");
 }
 
 const Value *NodeInstance::find_input_value(const string &name) const
@@ -549,6 +675,20 @@ const NodeGraph::Output *NodeGraph::get_output(const string &name) const
 	return NULL;
 }
 
+void NodeGraph::set_output_socket(int index, const OutputKey &key)
+{
+	BLI_assert(index >= 0 && index < outputs.size());
+	outputs[index].key = key;
+}
+
+void NodeGraph::set_output_socket(const string &name, const OutputKey &key)
+{
+	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		if (it->name == name)
+			it->key = key;
+	}
+}
+
 const NodeGraph::Input *NodeGraph::add_input(const string &name, const TypeDesc &typedesc)
 {
 	BLI_assert(!get_input(name));
@@ -559,13 +699,13 @@ const NodeGraph::Input *NodeGraph::add_input(const string &name, const TypeDesc 
 const NodeGraph::Output *NodeGraph::add_output(const string &name, const TypeDesc &typedesc, Value *default_value)
 {
 	BLI_assert(!get_output(name));
-	outputs.push_back(Output(name, typedesc, add_proxy(typedesc, default_value)));
+	outputs.push_back(Output(name, typedesc, add_proxy(typedesc, default_value)->output(0)));
 	return &outputs.back();
 }
 
 /* ------------------------------------------------------------------------- */
 
-SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
+NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 {
 	NodeInstance *node = NULL;
 	switch (typedesc.buffer_type) {
@@ -598,10 +738,10 @@ SocketPair NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 	}
 	if (node && default_value)
 		node->set_input_value("value", default_value);
-	return SocketPair(node, "value");
+	return node;
 }
 
-SocketPair NodeGraph::add_value_node(Value *value)
+OutputKey NodeGraph::add_value_node(Value *value)
 {
 	NodeInstance *node = NULL;
 	switch (value->typedesc().base_type) {
@@ -617,10 +757,10 @@ SocketPair NodeGraph::add_value_node(Value *value)
 	}
 	if (node)
 		node->set_input_value("value", value);
-	return SocketPair(node, "value");
+	return OutputKey(node, "value");
 }
 
-SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
+OutputKey NodeGraph::add_argument_node(const TypeDesc &typedesc)
 {
 	NodeInstance *node = NULL;
 	switch (typedesc.base_type) {
@@ -634,7 +774,7 @@ SocketPair NodeGraph::add_argument_node(const TypeDesc &typedesc)
 		case BVM_MESH: node = add_node("ARG_MESH"); break;
 		case BVM_DUPLIS: node = add_node("ARG_DUPLIS"); break;
 	}
-	return SocketPair(node, "value");
+	return OutputKey(node, "value");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -648,9 +788,9 @@ void NodeGraph::remove_all_nodes()
 	nodes.clear();
 }
 
-SocketPair NodeGraph::find_root(const SocketPair &key)
+OutputKey NodeGraph::find_root(const OutputKey &key)
 {
-	SocketPair root = key;
+	OutputKey root = key;
 	/* value is used to create a valid root node if necessary */
 	const Value *value = NULL;
 	while (root.node && root.node->type->is_pass_node()) {
@@ -658,9 +798,7 @@ SocketPair NodeGraph::find_root(const SocketPair &key)
 		            root.node->find_input_value(0) :
 		            root.node->type->find_input(0)->default_value;
 		
-		NodeInstance *link_node = root.node->find_input_link_node(0);
-		const NodeOutput *link_socket = root.node->find_input_link_socket(0);
-		root = SocketPair(link_node, link_socket ? link_socket->name : "");
+		root = root.node->link(0);
 	}
 	
 	/* create a value node as valid root if necessary */
@@ -687,7 +825,7 @@ void NodeGraph::skip_pass_nodes()
 			NodeInstance::InputInstance &input = it_input->second;
 			
 			if (input.link_node && input.link_socket) {
-				SocketPair root_key = find_root(SocketPair(input.link_node, input.link_socket->name));
+				OutputKey root_key = find_root(OutputKey(input.link_node, input.link_socket->name));
 				input.link_node = root_key.node;
 				input.link_socket = root_key.node->type->find_output(root_key.socket);
 			}
@@ -697,7 +835,7 @@ void NodeGraph::skip_pass_nodes()
 	/* move output references upstream as well */
 	for (OutputList::iterator it_output = outputs.begin(); it_output != outputs.end(); ++it_output) {
 		Output &output = *it_output;
-		assert(output.key.node);
+		assert(output.key);
 		output.key = find_root(output.key);
 	}
 }
@@ -730,7 +868,7 @@ void NodeGraph::remove_unused_nodes()
 	for (NodeGraph::InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		Input &input = *it;
 		if (used_nodes.find(input.key.node) == used_nodes.end()) {
-			input.key = SocketPair();
+			input.key = OutputKey();
 		}
 	}
 	

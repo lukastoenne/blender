@@ -87,12 +87,12 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 		const NodeInstance &node = **it;
 		
 		/* local arguments for expression inputs */
-		SocketIndexMap local_input_index;
+		OutputIndexMap local_input_index;
 		
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
 			const NodeOutput *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
+			ConstOutputKey key(&node, output->name);
 			
 			StackIndex stack_index;
 			if (block.output_index.find(key) == block.output_index.end()) {
@@ -115,7 +115,7 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 		/* prepare input stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeInput *input = node.type->find_input(i);
-			ConstSocketPair key(&node, input->name);
+			ConstInputKey key(&node, input->name);
 			assert(block.input_index.find(key) == block.input_index.end());
 			
 			if (node.is_input_constant(i)) {
@@ -129,7 +129,7 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 				
 				resolve_basic_block_symbols(graph, expr_block);
 				
-				ConstSocketPair link_key = key.node->link(key.socket);
+				ConstOutputKey link_key = key.node->link(key.socket);
 				if (link_key.node) {
 					expr_block.return_index = expr_block.output_index.at(link_key);
 				}
@@ -139,7 +139,7 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 				block.input_index[key] = expr_block.return_index;
 			}
 			else if (node.has_input_link(i)) {
-				ConstSocketPair link_key(node.find_input_link_node(i),
+				ConstOutputKey link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
 				block.input_index[key] = block.output_index.at(link_key);
 			}
@@ -408,7 +408,7 @@ static void count_output_users(const NodeGraph &graph,
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
 		const NodeInstance *node = it->second;
 		for (int i = 0; i < node->num_outputs(); ++i) {
-			ConstSocketPair key(node, node->type->find_output(i)->name);
+			ConstOutputKey key(node, node->type->find_output(i)->name);
 			users[key] = 0;
 		}
 	}
@@ -422,7 +422,7 @@ static void count_output_users(const NodeGraph &graph,
 		
 		for (int i = 0; i < node->num_inputs(); ++i) {
 			if (node->has_input_link(i)) {
-				ConstSocketPair key(node->find_input_link_node(i),
+				ConstOutputKey key(node->find_input_link_node(i),
 				                    node->find_input_link_socket(i)->name);
 				users[key] += 1;
 			}
@@ -451,7 +451,7 @@ int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
 		/* store values for unconnected inputs */
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			const NodeInput *input = node.type->find_input(i);
-			ConstSocketPair key(&node, input->name);
+			ConstInputKey key(&node, input->name);
 			
 			if (node.is_input_constant(i) || node.is_input_expression(i)) {
 				/* stored directly in instructions */
@@ -468,7 +468,7 @@ int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
 			const NodeOutput *output = node.type->find_output(i);
-			ConstSocketPair key(&node, output->name);
+			ConstOutputKey key(&node, output->name);
 			
 			/* if necessary, add a user count initializer */
 			OpCode init_op = ptr_init_opcode(output->typedesc);
@@ -489,7 +489,7 @@ int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
 			/* write input stack offsets and constants */
 			for (int i = 0; i < node.num_inputs(); ++i) {
 				const NodeInput *input = node.type->find_input(i);
-				ConstSocketPair key(&node, input->name);
+				ConstInputKey key(&node, input->name);
 				
 				if (node.is_input_constant(i)) {
 					const Value *value = node.find_input_value(i);
@@ -509,7 +509,7 @@ int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
 			/* write output stack offsets */
 			for (int i = 0; i < node.num_outputs(); ++i) {
 				const NodeOutput *output = node.type->find_output(i);
-				ConstSocketPair key(&node, output->name);
+				ConstOutputKey key(&node, output->name);
 				
 				push_stack_index(block.output_index.at(key));
 			}
@@ -523,7 +523,7 @@ int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
 				/* pass */
 			}
 			else if (node.has_input_link(i)) {
-				ConstSocketPair link_key(node.find_input_link_node(i),
+				ConstOutputKey link_key(node.find_input_link_node(i),
 				                         node.find_input_link_socket(i)->name);
 				
 				OpCode release_op = ptr_release_opcode(input->typedesc);
@@ -548,12 +548,12 @@ int Compiler::codegen_main(const NodeGraph &graph)
 	
 	/* first generate expression functions */
 	for (ExpressionMap::iterator it = expression_map.begin(); it != expression_map.end(); ++it) {
-		const ConstSocketPair &key = it->first;
+		const ConstInputKey &key = it->first;
 		BasicBlock &block = it->second;
 		
 		block.entry_point = codegen_basic_block(block, output_users);
 		
-		ConstSocketPair link_key = key.node->link(key.socket);
+		ConstOutputKey link_key = key.node->link(key.socket);
 		if (link_key.node) {
 			/* uses output value from the stack */
 		}

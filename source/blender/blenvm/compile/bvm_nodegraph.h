@@ -138,60 +138,51 @@ private:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeType")
 };
 
-struct ConstSocketPair {
-	ConstSocketPair() :
-	    node(NULL), socket("")
-	{}
-	ConstSocketPair(const NodeInstance *node, const string &socket) :
-	    node(node), socket(socket)
-	{}
+struct ConstOutputKey {
+	ConstOutputKey();
+	ConstOutputKey(const NodeInstance *node, const string &socket);
 	
-	bool operator < (const ConstSocketPair &other) const
-	{
-		if (node < other.node)
-			return true;
-		else if (node > other.node)
-			return false;
-		else
-			return socket < other.socket;
-	}
-	
-	operator bool() const
-	{
-		return node != NULL && !socket.empty();
-	}
+	bool operator < (const ConstOutputKey &other) const;
+	operator bool() const;
 	
 	const NodeInstance *node;
 	string socket;
 };
 
-struct SocketPair {
-	SocketPair() :
-	    node(NULL), socket("")
-	{}
-	SocketPair(NodeInstance *node, const string &socket) :
-	    node(node), socket(socket)
-	{}
+struct OutputKey {
+	OutputKey();
+	OutputKey(NodeInstance *node, const string &socket);	
 	
-	operator ConstSocketPair() const
-	{
-		return ConstSocketPair(node, socket);
-	}
+	operator ConstOutputKey() const;
+	bool operator < (const OutputKey &other) const;
+	operator bool() const;
 	
-	bool operator < (const SocketPair &other) const
-	{
-		if (node < other.node)
-			return true;
-		else if (node > other.node)
-			return false;
-		else
-			return socket < other.socket;
-	}
+	NodeInstance *node;
+	string socket;
+};
+
+struct ConstInputKey {
+	ConstInputKey();
+	ConstInputKey(const NodeInstance *node, const string &socket);
 	
-	operator bool() const
-	{
-		return node != NULL && !socket.empty();
-	}
+	bool operator < (const ConstInputKey &other) const;
+	operator bool() const;
+	
+	ConstOutputKey link() const;
+	
+	const NodeInstance *node;
+	string socket;
+};
+
+struct InputKey {
+	InputKey();
+	InputKey(NodeInstance *node, const string &socket);
+	
+	operator ConstInputKey() const;
+	bool operator < (const InputKey &other) const;
+	operator bool() const;
+	
+	OutputKey link() const;
 	
 	NodeInstance *node;
 	string socket;
@@ -216,22 +207,22 @@ struct NodeInstance {
 	NodeInstance(const NodeType *type, const string &name);
 	~NodeInstance();
 	
-	SocketPair input(const string &name);
-	SocketPair input(int index);
-	ConstSocketPair input(const string &name) const;
-	ConstSocketPair input(int index) const;
-	SocketPair output(const string &name);
-	SocketPair output(int index);
-	ConstSocketPair output(const string &name) const;
-	ConstSocketPair output(int index) const;
+	InputKey input(const string &name);
+	InputKey input(int index);
+	ConstInputKey input(const string &name) const;
+	ConstInputKey input(int index) const;
+	OutputKey output(const string &name);
+	OutputKey output(int index);
+	ConstOutputKey output(const string &name) const;
+	ConstOutputKey output(int index) const;
 	
 	int num_inputs() const { return type->num_inputs(); }
 	int num_outputs() const { return type->num_outputs(); }
 	
 	NodeInstance *find_input_link_node(const string &name) const;
 	NodeInstance *find_input_link_node(int index) const;
-	SocketPair link(const string &name) const;
-	SocketPair link(int index) const;
+	OutputKey link(const string &name) const;
+	OutputKey link(int index) const;
 	const NodeOutput *find_input_link_socket(const string &name) const;
 	const NodeOutput *find_input_link_socket(int index) const;
 	const Value *find_input_value(const string &name) const;
@@ -265,18 +256,18 @@ struct NodeInstance {
 
 struct NodeGraph {
 	struct Input {
-		Input(const string &name, const TypeDesc &typedesc, const SocketPair &key) :
+		Input(const string &name, const TypeDesc &typedesc, const OutputKey &key) :
 		    name(name), typedesc(typedesc), key(key) {}
 		string name;
 		TypeDesc typedesc;
-		SocketPair key;
+		OutputKey key;
 	};
 	struct Output {
-		Output(const string &name, const TypeDesc &typedesc, const SocketPair &key) :
+		Output(const string &name, const TypeDesc &typedesc, const OutputKey &key) :
 		    name(name), typedesc(typedesc), key(key) {}
 		string name;
 		TypeDesc typedesc;
-		SocketPair key;
+		OutputKey key;
 	};
 	typedef std::vector<Input> InputList;
 	typedef std::vector<Output> OutputList;
@@ -304,6 +295,8 @@ struct NodeGraph {
 	const Input *get_input(const string &name) const;
 	const Output *get_output(int index) const;
 	const Output *get_output(const string &name) const;
+	void set_output_socket(int index, const OutputKey &key);
+	void set_output_socket(const string &name, const OutputKey &key);
 	
 	const Input *add_input(const string &name, const TypeDesc &typedesc);
 	const Output *add_output(const string &name, const TypeDesc &typedesc, Value *default_value);
@@ -319,12 +312,12 @@ struct NodeGraph {
 protected:
 	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
 	
-	SocketPair add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
-	SocketPair add_value_node(Value *value);
-	SocketPair add_argument_node(const TypeDesc &typedesc);
+	NodeInstance *add_proxy(const TypeDesc &typedesc, Value *default_value = NULL);
+	OutputKey add_value_node(Value *value);
+	OutputKey add_argument_node(const TypeDesc &typedesc);
 	
 	void remove_all_nodes();
-	SocketPair find_root(const SocketPair &key);
+	OutputKey find_root(const OutputKey &key);
 	void skip_pass_nodes();
 	void remove_unused_nodes();
 	

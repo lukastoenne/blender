@@ -501,9 +501,9 @@ namespace bvm {
 
 struct bNodeCompiler {
 	typedef std::pair<bNode*, bNodeSocket*> bSocketPair;
-	typedef std::set<SocketPair> SocketSet;
-	typedef std::map<bSocketPair, SocketSet> InputMap;
-	typedef std::map<bSocketPair, SocketPair> OutputMap;
+	typedef std::set<InputKey> InputSet;
+	typedef std::map<bSocketPair, InputSet> InputMap;
+	typedef std::map<bSocketPair, OutputKey> OutputMap;
 	
 	bNodeCompiler(NodeGraph *graph) :
 	    m_graph(graph),
@@ -526,7 +526,7 @@ struct bNodeCompiler {
 		return m_graph->add_node(type, name);
 	}
 	
-	SocketPair add_input_proxy(int index)
+	OutputKey add_input_proxy(int index)
 	{
 		bNodeSocket *bsock = (bNodeSocket *)BLI_findlink(&m_current_bnode->inputs, index);
 		assert(bsock != NULL);
@@ -542,7 +542,7 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	void map_input_socket(int bindex, const SocketPair &socket)
+	void map_input_socket(int bindex, const InputKey &socket)
 	{
 		bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&m_current_bnode->inputs, bindex);
 		NodeInstance *node = socket.node;
@@ -574,7 +574,7 @@ struct bNodeCompiler {
 		}
 	}
 	
-	void map_output_socket(int bindex, const SocketPair &socket)
+	void map_output_socket(int bindex, const OutputKey &socket)
 	{
 		bNodeSocket *boutput = (bNodeSocket *)BLI_findlink(&m_current_bnode->outputs, bindex);
 		
@@ -587,22 +587,22 @@ struct bNodeCompiler {
 		int i;
 		for (bsock = (bNodeSocket *)m_current_bnode->inputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 			const NodeInput *input = node->type->find_input(i);
-			map_input_socket(i, SocketPair(node, input->name));
+			map_input_socket(i, InputKey(node, input->name));
 		}
 		for (bsock = (bNodeSocket *)m_current_bnode->outputs.first, i = 0; bsock; bsock = bsock->next, ++i) {
 			const NodeOutput *output = node->type->find_output(i);
-			map_output_socket(i, SocketPair(node, output->name));
+			map_output_socket(i, OutputKey(node, output->name));
 		}
 	}
 	
-	SocketPair get_graph_input(const string &name)
+	OutputKey get_graph_input(const string &name)
 	{
 		return m_graph->get_input(name)->key;
 	}
 	
-	SocketPair get_graph_output(const string &name)
+	void set_graph_output(const string &name, const OutputKey &key)
 	{
-		return m_graph->get_output(name)->key;
+		m_graph->set_output_socket(name, key);
 	}
 	
 	void add_link(bNodeLink *blink)
@@ -610,11 +610,11 @@ struct bNodeCompiler {
 		OutputMap::const_iterator it_from = m_output_map.find(bSocketPair(blink->fromnode, blink->fromsock));
 		InputMap::const_iterator it_to_set = m_input_map.find(bSocketPair(blink->tonode, blink->tosock));
 		if (it_from != m_output_map.end() && it_to_set != m_input_map.end()) {
-			const SocketPair &from_pair = it_from->second;
-			const SocketSet &to_set = it_to_set->second;
+			const OutputKey &from_pair = it_from->second;
+			const InputSet &to_set = it_to_set->second;
 			
-			for (SocketSet::const_iterator it_to = to_set.begin(); it_to != to_set.end(); ++it_to) {
-				const SocketPair &to_pair = *it_to;
+			for (InputSet::const_iterator it_to = to_set.begin(); it_to != to_set.end(); ++it_to) {
+				const InputKey &to_pair = *it_to;
 				
 				to_pair.node->set_input_link(to_pair.socket,
 				                             from_pair.node,
@@ -629,29 +629,29 @@ struct bNodeCompiler {
 		}
 	}
 	
-	void add_link_intern(const SocketPair &from,
-	                     const SocketPair &to)
+	void add_link_intern(const OutputKey &from,
+	                     const InputKey &to)
 	{
 		to.node->set_input_link(to.socket, from.node, from.node->type->find_output(from.socket));
 	}
 	
 	/* --------------------------------------------------------------------- */
 	
-	SocketPair node_value_fl(float v)
+	OutputKey node_value_fl(float v)
 	{
 		NodeInstance *node = add_node("PASS_FLOAT");
 		node->set_input_value("value", v);
 		return node->output("value");
 	}
 	
-	SocketPair node_value_v3(float3 v)
+	OutputKey node_value_v3(float3 v)
 	{
 		NodeInstance *node = add_node("PASS_FLOAT3");
 		node->set_input_value("value", v);
 		return node->output("value");
 	}
 	
-	SocketPair node_one_minus_fl(const SocketPair &a)
+	OutputKey node_one_minus_fl(const OutputKey &a)
 	{
 		NodeInstance *node = add_node("SUB_FLOAT");
 		node->set_input_value("value_a", 1.0f);
@@ -659,7 +659,7 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	SocketPair node_one_minus_v3(const SocketPair &a)
+	OutputKey node_one_minus_v3(const OutputKey &a)
 	{
 		NodeInstance *node = add_node("SUB_FLOAT3");
 		node->set_input_value("value_a", float3(1.0f, 1.0f, 1.0f));
@@ -667,7 +667,7 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	SocketPair node_math_binary(const char *mode, const SocketPair &a, const SocketPair &b)
+	OutputKey node_math_binary(const char *mode, const OutputKey &a, const OutputKey &b)
 	{
 		NodeInstance *node = add_node(mode);
 		add_link_intern(a, node->input("value_a"));
@@ -675,14 +675,14 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	SocketPair node_math_unary(const char *mode, const SocketPair &a)
+	OutputKey node_math_unary(const char *mode, const OutputKey &a)
 	{
 		NodeInstance *node = add_node(mode);
 		add_link_intern(a, node->input("value"));
 		return node->output("value");
 	}
 	
-	SocketPair node_mul_v3_fl(const SocketPair &a, const SocketPair &b)
+	OutputKey node_mul_v3_fl(const OutputKey &a, const OutputKey &b)
 	{
 		NodeInstance *node = add_node("MUL_FLOAT3_FLOAT");
 		add_link_intern(a, node->input("value_a"));
@@ -690,15 +690,15 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	SocketPair node_blend(const SocketPair &a, const SocketPair &b, const SocketPair &fac)
+	OutputKey node_blend(const OutputKey &a, const OutputKey &b, const OutputKey &fac)
 	{
-		SocketPair facinv = node_one_minus_fl(fac);
-		SocketPair mul_a = node_mul_v3_fl(a, facinv);
-		SocketPair mul_b = node_mul_v3_fl(b, fac);
+		OutputKey facinv = node_one_minus_fl(fac);
+		OutputKey mul_a = node_mul_v3_fl(a, facinv);
+		OutputKey mul_b = node_mul_v3_fl(b, fac);
 		return node_math_binary("ADD_FLOAT3", mul_a, mul_b);
 	}
 	
-	SocketPair node_compose_v4(const SocketPair &x, const SocketPair &y, const SocketPair &z, const SocketPair &w)
+	OutputKey node_compose_v4(const OutputKey &x, const OutputKey &y, const OutputKey &z, const OutputKey &w)
 	{
 		NodeInstance *node = add_node("SET_FLOAT4");
 		add_link_intern(x, node->input("value_x"));
@@ -708,7 +708,7 @@ struct bNodeCompiler {
 		return node->output("value");
 	}
 	
-	void node_decompose_v4(const SocketPair &v, SocketPair *x, SocketPair *y, SocketPair *z, SocketPair *w)
+	void node_decompose_v4(const OutputKey &v, OutputKey *x, OutputKey *y, OutputKey *z, OutputKey *w)
 	{
 		NodeInstance *node = add_node("GET_ELEM_FLOAT4");
 		add_link_intern(v, node->input("value"));
@@ -732,9 +732,9 @@ private:
 static void binary_math_node(bNodeCompiler *comp, const string &type)
 {
 	NodeInstance *node = comp->add_node(type);
-	comp->map_input_socket(0, SocketPair(node, "value_a"));
-	comp->map_input_socket(1, SocketPair(node, "value_b"));
-	comp->map_output_socket(0, SocketPair(node, "value"));
+	comp->map_input_socket(0, InputKey(node, "value_a"));
+	comp->map_input_socket(1, InputKey(node, "value_b"));
+	comp->map_output_socket(0, OutputKey(node, "value"));
 }
 
 static void unary_math_node(bNodeCompiler *comp, const string &type)
@@ -745,10 +745,10 @@ static void unary_math_node(bNodeCompiler *comp, const string &type)
 	bool sock0_linked = !nodeSocketIsHidden(sock0) && (sock0->flag & SOCK_IN_USE);
 	bool sock1_linked = !nodeSocketIsHidden(sock1) && (sock1->flag & SOCK_IN_USE);
 	if (sock0_linked || !sock1_linked)
-		comp->map_input_socket(0, SocketPair(node, "value"));
+		comp->map_input_socket(0, InputKey(node, "value"));
 	else
-		comp->map_input_socket(1, SocketPair(node, "value"));
-	comp->map_output_socket(0, SocketPair(node, "value"));
+		comp->map_input_socket(1, InputKey(node, "value"));
+	comp->map_output_socket(0, OutputKey(node, "value"));
 }
 
 static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
@@ -756,42 +756,42 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	bNode *bnode = (bNode *)bnode_ptr->data;
 	string type = string(bnode->typeinfo->idname);
 	if (type == "TextureNodeOutput") {
-		comp->map_input_socket(0, comp->get_graph_output("color"));
-		comp->map_input_socket(1, comp->get_graph_output("normal"));
+		comp->set_graph_output("color", comp->add_input_proxy(0));
+		comp->set_graph_output("normal", comp->add_input_proxy(1));
 	}
 	else if (type == "TextureNodeDecompose") {
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 0);
-			comp->map_input_socket(0, SocketPair(node, "value"));
-			comp->map_output_socket(0, SocketPair(node, "value"));
+			comp->map_input_socket(0, InputKey(node, "value"));
+			comp->map_output_socket(0, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 1);
-			comp->map_input_socket(0, SocketPair(node, "value"));
-			comp->map_output_socket(1, SocketPair(node, "value"));
+			comp->map_input_socket(0, InputKey(node, "value"));
+			comp->map_output_socket(1, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 2);
-			comp->map_input_socket(0, SocketPair(node, "value"));
-			comp->map_output_socket(2, SocketPair(node, "value"));
+			comp->map_input_socket(0, InputKey(node, "value"));
+			comp->map_output_socket(2, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
 			node->set_input_value("index", 3);
-			comp->map_input_socket(0, SocketPair(node, "value"));
-			comp->map_output_socket(3, SocketPair(node, "value"));
+			comp->map_input_socket(0, InputKey(node, "value"));
+			comp->map_output_socket(3, OutputKey(node, "value"));
 		}
 	}
 	else if (type == "TextureNodeCompose") {
 		NodeInstance *node = comp->add_node("SET_FLOAT4");
-		comp->map_input_socket(0, SocketPair(node, "value_x"));
-		comp->map_input_socket(1, SocketPair(node, "value_y"));
-		comp->map_input_socket(2, SocketPair(node, "value_z"));
-		comp->map_input_socket(3, SocketPair(node, "value_w"));
-		comp->map_output_socket(0, SocketPair(node, "value"));
+		comp->map_input_socket(0, InputKey(node, "value_x"));
+		comp->map_input_socket(1, InputKey(node, "value_y"));
+		comp->map_input_socket(2, InputKey(node, "value_z"));
+		comp->map_input_socket(3, InputKey(node, "value_w"));
+		comp->map_output_socket(0, OutputKey(node, "value"));
 	}
 	else if (type == "TextureNodeCoordinates") {
 		comp->map_output_socket(0, comp->get_graph_input("texture.co"));
@@ -801,11 +801,11 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		bool use_alpha = RNA_boolean_get(bnode_ptr, "use_alpha");
 		bool use_clamp = RNA_boolean_get(bnode_ptr, "use_clamp");
 		
-		SocketPair fac = comp->add_input_proxy(0);
-		SocketPair col_a = comp->add_input_proxy(1);
-		SocketPair col_b = comp->add_input_proxy(2);
+		OutputKey fac = comp->add_input_proxy(0);
+		OutputKey col_a = comp->add_input_proxy(1);
+		OutputKey col_b = comp->add_input_proxy(2);
 		if (use_alpha) {
-			SocketPair alpha;
+			OutputKey alpha;
 			comp->node_decompose_v4(col_b, NULL, NULL, NULL, &alpha);
 			fac = comp->node_math_binary("MUL_FLOAT", fac, alpha);
 		}
@@ -815,7 +815,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		comp->add_link_intern(fac, node->input("factor"));
 		comp->add_link_intern(col_a, node->input("color1"));
 		comp->add_link_intern(col_b, node->input("color2"));
-		SocketPair color = node->output("color");
+		OutputKey color = node->output("color");
 		
 		if (use_clamp) {
 			// TODO
@@ -911,16 +911,16 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		node->set_input_value("minkowski_exponent", 2.5f);
 		node->set_input_value("nabla", 0.05f);
 		
-		comp->map_input_socket(0, SocketPair(node, "position"));
-		comp->map_input_socket(3, SocketPair(node, "w1"));
-		comp->map_input_socket(4, SocketPair(node, "w2"));
-		comp->map_input_socket(5, SocketPair(node, "w3"));
-		comp->map_input_socket(6, SocketPair(node, "w4"));
-		comp->map_input_socket(7, SocketPair(node, "scale"));
-		comp->map_input_socket(8, SocketPair(node, "noise_size"));
+		comp->map_input_socket(0, InputKey(node, "position"));
+		comp->map_input_socket(3, InputKey(node, "w1"));
+		comp->map_input_socket(4, InputKey(node, "w2"));
+		comp->map_input_socket(5, InputKey(node, "w3"));
+		comp->map_input_socket(6, InputKey(node, "w4"));
+		comp->map_input_socket(7, InputKey(node, "scale"));
+		comp->map_input_socket(8, InputKey(node, "noise_size"));
 		
-		comp->map_output_socket(0, SocketPair(node, "color"));
-		comp->map_output_socket(1, SocketPair(node, "normal"));
+		comp->map_output_socket(0, OutputKey(node, "color"));
+		comp->map_output_socket(1, OutputKey(node, "normal"));
 	}
 	else if (type == "TextureNodeTexClouds") {
 		Tex *tex = (Tex *)bnode->storage;
@@ -931,11 +931,11 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		node->set_input_value("noise_hard", (int)(tex->noisetype != TEX_NOISESOFT));
 		node->set_input_value("nabla", 0.05f);
 		
-		comp->map_input_socket(0, SocketPair(node, "position"));
-		comp->map_input_socket(3, SocketPair(node, "size"));
+		comp->map_input_socket(0, InputKey(node, "position"));
+		comp->map_input_socket(3, InputKey(node, "size"));
 		
-		comp->map_output_socket(0, SocketPair(node, "color"));
-		comp->map_output_socket(1, SocketPair(node, "normal"));
+		comp->map_output_socket(0, OutputKey(node, "color"));
+		comp->map_output_socket(1, OutputKey(node, "normal"));
 	}
 }
 
