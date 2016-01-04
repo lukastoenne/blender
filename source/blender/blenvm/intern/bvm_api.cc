@@ -225,7 +225,7 @@ void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
 	const bvm::NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
 	if (input) {
 		if (node) *node = (BVMNodeInstance *)input->key.node;
-		if (socket) *socket = input->key.socket.c_str();
+		if (socket) *socket = input->key.socket->name.c_str();
 	}
 	else {
 		if (node) *node = NULL;
@@ -239,7 +239,7 @@ void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
 	const bvm::NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
 	if (output) {
 		if (node) *node = (BVMNodeInstance *)output->key.node;
-		if (socket) *socket = output->key.socket.c_str();
+		if (socket) *socket = output->key.socket->name.c_str();
 	}
 	else {
 		if (node) *node = NULL;
@@ -268,7 +268,7 @@ struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int inde
 bool BVM_node_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                              struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output)
 {
-	return _NODE(node)->set_input_link(_INPUT(input)->name, _NODE(from_node), _OUTPUT(from_output));
+	return _NODE(node)->link_set(_INPUT(input)->name, bvm::OutputKey(_NODE(from_node), _OUTPUT(from_output)->name));
 }
 
 struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name)
@@ -284,23 +284,23 @@ struct BVMNodeOutput *BVM_node_get_output_n(struct BVMNodeInstance *node, int in
 
 void BVM_node_set_input_value_float(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                     float value)
-{ _NODE(node)->set_input_value(_INPUT(input)->name, value); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, value); }
 
 void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[3])
-{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::float3::from_data(value)); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::float3::from_data(value)); }
 
 void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[4])
-{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::float4::from_data(value)); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::float4::from_data(value)); }
 
 void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                        float value[4][4])
-{ _NODE(node)->set_input_value(_INPUT(input)->name, bvm::matrix44::from_data(&value[0][0])); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::matrix44::from_data(&value[0][0])); }
 
 void BVM_node_set_input_value_int(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                   int value)
-{ _NODE(node)->set_input_value(_INPUT(input)->name, value); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, value); }
 
 const char *BVM_node_input_name(struct BVMNodeInput *input)
 { return _INPUT(input)->name.c_str(); }
@@ -546,29 +546,29 @@ struct bNodeCompiler {
 	{
 		bNodeSocket *binput = (bNodeSocket *)BLI_findlink(&m_current_bnode->inputs, bindex);
 		NodeInstance *node = socket.node;
-		const string &name = socket.socket;
+		const string &name = socket.socket->name;
 		
 		m_input_map[bSocketPair(m_current_bnode, binput)].insert(socket);
 		
 		switch (binput->type) {
 			case SOCK_FLOAT: {
 				bNodeSocketValueFloat *bvalue = (bNodeSocketValueFloat *)binput->default_value;
-				node->set_input_value(name, bvalue->value);
+				node->input_value_set(name, bvalue->value);
 				break;
 			}
 			case SOCK_VECTOR: {
 				bNodeSocketValueVector *bvalue = (bNodeSocketValueVector *)binput->default_value;
-				node->set_input_value(name, float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
+				node->input_value_set(name, float3(bvalue->value[0], bvalue->value[1], bvalue->value[2]));
 				break;
 			}
 			case SOCK_INT: {
 				bNodeSocketValueInt *bvalue = (bNodeSocketValueInt *)binput->default_value;
-				node->set_input_value(name, bvalue->value);
+				node->input_value_set(name, bvalue->value);
 				break;
 			}
 			case SOCK_RGBA: {
 				bNodeSocketValueRGBA *bvalue = (bNodeSocketValueRGBA *)binput->default_value;
-				node->set_input_value(name, float4(bvalue->value[0], bvalue->value[1], bvalue->value[2], bvalue->value[3]));
+				node->input_value_set(name, float4(bvalue->value[0], bvalue->value[1], bvalue->value[2], bvalue->value[3]));
 				break;
 			}
 		}
@@ -616,9 +616,7 @@ struct bNodeCompiler {
 			for (InputSet::const_iterator it_to = to_set.begin(); it_to != to_set.end(); ++it_to) {
 				const InputKey &to_pair = *it_to;
 				
-				to_pair.node->set_input_link(to_pair.socket,
-				                             from_pair.node,
-				                             from_pair.node->type->find_output(from_pair.socket));
+				to_pair.node->link_set(to_pair.socket->name, from_pair);
 			}
 		}
 		else {
@@ -632,7 +630,7 @@ struct bNodeCompiler {
 	void add_link_intern(const OutputKey &from,
 	                     const InputKey &to)
 	{
-		to.node->set_input_link(to.socket, from.node, from.node->type->find_output(from.socket));
+		to.node->link_set(to.socket->name, from);
 	}
 	
 	/* --------------------------------------------------------------------- */
@@ -640,21 +638,21 @@ struct bNodeCompiler {
 	OutputKey node_value_fl(float v)
 	{
 		NodeInstance *node = add_node("PASS_FLOAT");
-		node->set_input_value("value", v);
+		node->input_value_set("value", v);
 		return node->output("value");
 	}
 	
 	OutputKey node_value_v3(float3 v)
 	{
 		NodeInstance *node = add_node("PASS_FLOAT3");
-		node->set_input_value("value", v);
+		node->input_value_set("value", v);
 		return node->output("value");
 	}
 	
 	OutputKey node_one_minus_fl(const OutputKey &a)
 	{
 		NodeInstance *node = add_node("SUB_FLOAT");
-		node->set_input_value("value_a", 1.0f);
+		node->input_value_set("value_a", 1.0f);
 		add_link_intern(a, node->input("value_b"));
 		return node->output("value");
 	}
@@ -662,7 +660,7 @@ struct bNodeCompiler {
 	OutputKey node_one_minus_v3(const OutputKey &a)
 	{
 		NodeInstance *node = add_node("SUB_FLOAT3");
-		node->set_input_value("value_a", float3(1.0f, 1.0f, 1.0f));
+		node->input_value_set("value_a", float3(1.0f, 1.0f, 1.0f));
 		add_link_intern(a, node->input("value_b"));
 		return node->output("value");
 	}
@@ -762,25 +760,25 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	else if (type == "TextureNodeDecompose") {
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
-			node->set_input_value("index", 0);
+			node->input_value_set("index", 0);
 			comp->map_input_socket(0, InputKey(node, "value"));
 			comp->map_output_socket(0, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
-			node->set_input_value("index", 1);
+			node->input_value_set("index", 1);
 			comp->map_input_socket(0, InputKey(node, "value"));
 			comp->map_output_socket(1, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
-			node->set_input_value("index", 2);
+			node->input_value_set("index", 2);
 			comp->map_input_socket(0, InputKey(node, "value"));
 			comp->map_output_socket(2, OutputKey(node, "value"));
 		}
 		{
 			NodeInstance *node = comp->add_node("GET_ELEM_FLOAT4");
-			node->set_input_value("index", 3);
+			node->input_value_set("index", 3);
 			comp->map_input_socket(0, InputKey(node, "value"));
 			comp->map_output_socket(3, OutputKey(node, "value"));
 		}
@@ -811,7 +809,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		}
 		
 		NodeInstance *node = comp->add_node("MIX_RGB");
-		node->set_input_value("mode", mode);
+		node->input_value_set("mode", mode);
 		comp->add_link_intern(fac, node->input("factor"));
 		comp->add_link_intern(col_a, node->input("color1"));
 		comp->add_link_intern(col_b, node->input("color2"));
@@ -906,10 +904,10 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		Tex *tex = (Tex *)bnode->storage;
 		
 		NodeInstance *node = comp->add_node("TEX_PROC_VORONOI");
-		node->set_input_value("distance_metric", (int)tex->vn_distm);
-		node->set_input_value("color_type", (int)tex->vn_coltype);
-		node->set_input_value("minkowski_exponent", 2.5f);
-		node->set_input_value("nabla", 0.05f);
+		node->input_value_set("distance_metric", (int)tex->vn_distm);
+		node->input_value_set("color_type", (int)tex->vn_coltype);
+		node->input_value_set("minkowski_exponent", 2.5f);
+		node->input_value_set("nabla", 0.05f);
 		
 		comp->map_input_socket(0, InputKey(node, "position"));
 		comp->map_input_socket(3, InputKey(node, "w1"));
@@ -926,10 +924,10 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 		Tex *tex = (Tex *)bnode->storage;
 		
 		NodeInstance *node = comp->add_node("TEX_PROC_CLOUDS");
-		node->set_input_value("depth", (int)tex->noisedepth);
-		node->set_input_value("noise_basis", (int)tex->noisebasis);
-		node->set_input_value("noise_hard", (int)(tex->noisetype != TEX_NOISESOFT));
-		node->set_input_value("nabla", 0.05f);
+		node->input_value_set("depth", (int)tex->noisedepth);
+		node->input_value_set("noise_basis", (int)tex->noisebasis);
+		node->input_value_set("noise_hard", (int)(tex->noisetype != TEX_NOISESOFT));
+		node->input_value_set("nabla", 0.05f);
 		
 		comp->map_input_socket(0, InputKey(node, "position"));
 		comp->map_input_socket(3, InputKey(node, "size"));

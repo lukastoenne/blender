@@ -141,63 +141,71 @@ private:
 struct ConstOutputKey {
 	ConstOutputKey();
 	ConstOutputKey(const NodeInstance *node, const string &socket);
+	ConstOutputKey(const NodeInstance *node, const NodeOutput *socket);
 	
 	bool operator < (const ConstOutputKey &other) const;
 	operator bool() const;
 	
 	const NodeInstance *node;
-	string socket;
+	const NodeOutput *socket;
 };
 
 struct OutputKey {
 	OutputKey();
-	OutputKey(NodeInstance *node, const string &socket);	
+	OutputKey(NodeInstance *node, const string &socket);
+	OutputKey(NodeInstance *node, const NodeOutput *socket);
 	
 	operator ConstOutputKey() const;
 	bool operator < (const OutputKey &other) const;
 	operator bool() const;
 	
 	NodeInstance *node;
-	string socket;
+	const NodeOutput *socket;
 };
 
 struct ConstInputKey {
 	ConstInputKey();
 	ConstInputKey(const NodeInstance *node, const string &socket);
+	ConstInputKey(const NodeInstance *node, const NodeInput *socket);
 	
 	bool operator < (const ConstInputKey &other) const;
 	operator bool() const;
 	
 	ConstOutputKey link() const;
+	const Value *value() const;
+	bool is_constant() const;
+	bool is_expression() const;
 	
 	const NodeInstance *node;
-	string socket;
+	const NodeInput *socket;
 };
 
 struct InputKey {
 	InputKey();
 	InputKey(NodeInstance *node, const string &socket);
+	InputKey(NodeInstance *node, const NodeInput *socket);
 	
 	operator ConstInputKey() const;
 	bool operator < (const InputKey &other) const;
 	operator bool() const;
 	
 	OutputKey link() const;
+	const Value *value() const;
+	void value_set(Value *value) const;
+	bool is_constant() const;
+	bool is_expression() const;
 	
 	NodeInstance *node;
-	string socket;
+	const NodeInput *socket;
 };
 
 struct NodeInstance {
 	struct InputInstance {
 		InputInstance() :
-		    link_node(NULL),
-		    link_socket(NULL),
 		    value(NULL)
 		{}
 		
-		NodeInstance *link_node;
-		const NodeOutput *link_socket;
+		OutputKey link;
 		Value *value;
 	};
 	
@@ -219,33 +227,19 @@ struct NodeInstance {
 	int num_inputs() const { return type->num_inputs(); }
 	int num_outputs() const { return type->num_outputs(); }
 	
-	NodeInstance *find_input_link_node(const string &name) const;
-	NodeInstance *find_input_link_node(int index) const;
 	OutputKey link(const string &name) const;
 	OutputKey link(int index) const;
-	const NodeOutput *find_input_link_socket(const string &name) const;
-	const NodeOutput *find_input_link_socket(int index) const;
-	const Value *find_input_value(const string &name) const;
-	const Value *find_input_value(int index) const;
+	bool link_set(const string &name, const OutputKey &from);
 	
-	bool set_input_value(const string &name, Value *value);
-	bool set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket);
-	
+	const Value *input_value(const string &name) const;
+	const Value *input_value(int index) const;
+	bool input_value_set(const string &name, Value *value);
 	template <typename T>
-	bool set_input_value(const string &name, const T &value)
+	bool input_value_set(const string &name, const T &value)
 	{
 		const NodeInput *socket = type->find_input(name);
-		return socket ? set_input_value(name, Value::create(socket->typedesc, value)) : false;
+		return socket ? input_value_set(name, Value::create(socket->typedesc, value)) : false;
 	}
-	
-	bool has_input_link(const string &name) const;
-	bool has_input_link(int index) const;
-	bool has_input_value(const string &name) const;
-	bool has_input_value(int index) const;
-	bool is_input_constant(const string &name) const;
-	bool is_input_constant(int index) const;
-	bool is_input_expression(const string &name) const;
-	bool is_input_expression(int index) const;
 	
 	const NodeType *type;
 	string name;

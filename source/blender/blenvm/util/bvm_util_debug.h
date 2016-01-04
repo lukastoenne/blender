@@ -177,7 +177,7 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 		if (key) {
 			const NodeGraph::Input *tail = input;
 			const NodeInstance *head = key.node;
-			const string &head_socket = key.socket;
+			const string &head_socket = key.socket->name;
 			debug_fprintf(ctx, "// %s:%s -> %s\n",
 			              tail->name.c_str(),
 			              head->name.c_str(), head_socket.c_str());
@@ -200,7 +200,7 @@ static void debug_graphviz_input_output(const DebugContext &ctx,
 		const OutputKey &key = output->key;
 		if (key) {
 			const NodeInstance *tail = key.node;
-			const string &tail_socket = key.socket;
+			const string &tail_socket = key.socket->name;
 			int tail_index = debug_output_index(tail, tail_socket);
 			const NodeGraph::Output *head = output;
 			debug_fprintf(ctx, "// %s:%s -> %s\n",
@@ -231,9 +231,9 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeGraph *
 	for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
 		const NodeInstance::InputInstance &input = it->second;
 		
-		if (input.link_node && input.link_socket) {
-			const NodeInstance *tail = input.link_node;
-			const string &tail_socket = input.link_socket->name;
+		if (input.link) {
+			const NodeInstance *tail = input.link.node;
+			const string &tail_socket = input.link.socket->name;
 			int tail_index = debug_output_index(tail, tail_socket);
 			const NodeInstance *head = node;
 			const string &head_socket = it->first;
@@ -268,7 +268,7 @@ static void debug_graphviz_node_links(const DebugContext &ctx, const NodeGraph *
 			assert(graph_input);
 			if (graph_input->key.node) {
 				const NodeInstance *tail = key.node;
-				const string &tail_socket = key.socket;
+				const string &tail_socket = key.socket->name;
 				int tail_index = debug_output_index(tail, tail_socket);
 				const NodeGraph::Input *head = graph_input;
 				debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);

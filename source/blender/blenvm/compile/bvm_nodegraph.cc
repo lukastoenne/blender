@@ -235,10 +235,14 @@ const NodeOutput *NodeType::add_output(const string &name,
 /* ------------------------------------------------------------------------- */
 
 ConstOutputKey::ConstOutputKey() :
-    node(NULL), socket("")
+    node(NULL), socket(NULL)
 {}
 
 ConstOutputKey::ConstOutputKey(const NodeInstance *node, const string &socket) :
+    node(node), socket(node->type->find_output(socket))
+{}
+
+ConstOutputKey::ConstOutputKey(const NodeInstance *node, const NodeOutput *socket) :
     node(node), socket(socket)
 {}
 
@@ -254,16 +258,20 @@ bool ConstOutputKey::operator < (const ConstOutputKey &other) const
 
 ConstOutputKey::operator bool() const
 {
-	return node != NULL && !socket.empty();
+	return node != NULL && socket != NULL;
 }
 
 /*****/
 
 OutputKey::OutputKey() :
-    node(NULL), socket("")
+    node(NULL), socket(NULL)
 {}
 
 OutputKey::OutputKey(NodeInstance *node, const string &socket) :
+    node(node), socket(node->type->find_output(socket))
+{}
+
+OutputKey::OutputKey(NodeInstance *node, const NodeOutput *socket) :
     node(node), socket(socket)
 {}
 
@@ -284,16 +292,20 @@ bool OutputKey::operator < (const OutputKey &other) const
 
 OutputKey::operator bool() const
 {
-	return node != NULL && !socket.empty();
+	return node != NULL && socket != NULL;
 }
 
 /*****/
 
 ConstInputKey::ConstInputKey() :
-    node(NULL), socket("")
+    node(NULL), socket(NULL)
 {}
 
 ConstInputKey::ConstInputKey(const NodeInstance *node, const string &socket) :
+    node(node), socket(node->type->find_input(socket))
+{}
+
+ConstInputKey::ConstInputKey(const NodeInstance *node, const NodeInput *socket) :
     node(node), socket(socket)
 {}
 
@@ -309,24 +321,43 @@ bool ConstInputKey::operator < (const ConstInputKey &other) const
 
 ConstInputKey::operator bool() const
 {
-	return node != NULL && !socket.empty();
+	return node != NULL && socket != NULL;
 }
 
 ConstOutputKey ConstInputKey::link() const
 {
 	if (node)
-		return node->link(socket);
+		return node->link(socket->name);
 	else
 		return ConstOutputKey();
+}
+
+const Value *ConstInputKey::value() const
+{
+	return node->input_value(socket->name);
+}
+
+bool ConstInputKey::is_constant() const
+{
+	return socket->value_type == INPUT_CONSTANT;
+}
+
+bool ConstInputKey::is_expression() const
+{
+	return socket->value_type == INPUT_EXPRESSION;
 }
 
 /*****/
 
 InputKey::InputKey() :
-    node(NULL), socket("")
+    node(NULL), socket(NULL)
 {}
 
 InputKey::InputKey(NodeInstance *node, const string &socket) :
+    node(node), socket(node->type->find_input(socket))
+{}
+
+InputKey::InputKey(NodeInstance *node, const NodeInput *socket) :
     node(node), socket(socket)
 {}
 
@@ -347,15 +378,35 @@ bool InputKey::operator < (const InputKey &other) const
 
 InputKey::operator bool() const
 {
-	return node != NULL && !socket.empty();
+	return node != NULL && socket != NULL;
 }
 
 OutputKey InputKey::link() const
 {
 	if (node)
-		return node->link(socket);
+		return node->link(socket->name);
 	else
 		return OutputKey();
+}
+
+const Value *InputKey::value() const
+{
+	return node->input_value(socket->name);
+}
+
+void InputKey::value_set(Value *value) const
+{
+	node->input_value_set(socket->name, value);
+}
+
+bool InputKey::is_constant() const
+{
+	return socket->value_type == INPUT_CONSTANT;
+}
+
+bool InputKey::is_expression() const
+{
+	return socket->value_type == INPUT_EXPRESSION;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -423,41 +474,15 @@ ConstOutputKey NodeInstance::output(int index) const
 	return ConstOutputKey(this, type->find_output(index)->name);
 }
 
-NodeInstance *NodeInstance::find_input_link_node(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	return (it != inputs.end()) ? it->second.link_node : NULL;
-}
-
-NodeInstance *NodeInstance::find_input_link_node(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? find_input_link_node(socket->name) : NULL;
-}
-
-const NodeOutput *NodeInstance::find_input_link_socket(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	return (it != inputs.end()) ? it->second.link_socket : NULL;
-}
-
-const NodeOutput *NodeInstance::find_input_link_socket(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? find_input_link_socket(socket->name) : NULL;
-}
-
 OutputKey NodeInstance::link(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
 		const NodeInstance::InputInstance &input = it->second;
-		return input.link_node && input.link_socket ?
-		            OutputKey(input.link_node, input.link_socket->name) :
-		            OutputKey(NULL, "");
+		return input.link;
 	}
 	else
-		return OutputKey(NULL, "");
+		return OutputKey();
 }
 
 OutputKey NodeInstance::link(int index) const
@@ -466,19 +491,23 @@ OutputKey NodeInstance::link(int index) const
 	return socket ? link(socket->name) : OutputKey(NULL, "");
 }
 
-const Value *NodeInstance::find_input_value(const string &name) const
+const Value *NodeInstance::input_value(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
-	return (it != inputs.end()) ? it->second.value : NULL;
+	if (it != inputs.end()) {
+		if (it->second.value)
+			return it->second.value;
+	}
+	return type->find_input(name)->default_value;
 }
 
-const Value *NodeInstance::find_input_value(int index) const
+const Value *NodeInstance::input_value(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
-	return socket ? find_input_value(socket->name) : NULL;
+	return socket ? input_value(socket->name) : NULL;
 }
 
-bool NodeInstance::set_input_value(const string &name, Value *value)
+bool NodeInstance::input_value_set(const string &name, Value *value)
 {
 	InputInstance &input = inputs[name];
 	if (input.value)
@@ -487,76 +516,17 @@ bool NodeInstance::set_input_value(const string &name, Value *value)
 	return true;
 }
 
-bool NodeInstance::set_input_link(const string &name, NodeInstance *from_node, const NodeOutput *from_socket)
+bool NodeInstance::link_set(const string &name, const OutputKey &from)
 {
 	const NodeInput *socket = type->find_input(name);
 	InputInstance &input = inputs[name];
 	
-	if (socket->typedesc.assignable(from_socket->typedesc)) {
-		input.link_node = from_node;
-		input.link_socket = from_socket;
+	if (socket->typedesc.assignable(from.socket->typedesc)) {
+		input.link = from;
 		return true;
 	}
 	else
 		return false;
-}
-
-bool NodeInstance::has_input_link(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	if (it != inputs.end()) {
-		const InputInstance &input = it->second;
-		return (input.link_node && input.link_socket);
-	}
-	else
-		return false;
-}
-
-bool NodeInstance::has_input_link(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? has_input_link(socket->name) : false;
-}
-
-bool NodeInstance::has_input_value(const string &name) const
-{
-	InputMap::const_iterator it = inputs.find(name);
-	if (it != inputs.end()) {
-		const InputInstance &input = it->second;
-		return (input.value);
-	}
-	else
-		return false;
-}
-
-bool NodeInstance::has_input_value(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? has_input_value(socket->name) : false;
-}
-
-bool NodeInstance::is_input_constant(const string &name) const
-{
-	const NodeInput *socket = type->find_input(name);
-	return socket ? socket->value_type == INPUT_CONSTANT : false;
-}
-
-bool NodeInstance::is_input_constant(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? socket->value_type == INPUT_CONSTANT : false;
-}
-
-bool NodeInstance::is_input_expression(const string &name) const
-{
-	const NodeInput *socket = type->find_input(name);
-	return socket ? socket->value_type == INPUT_EXPRESSION : false;
-}
-
-bool NodeInstance::is_input_expression(int index) const
-{
-	const NodeInput *socket = type->find_input(index);
-	return socket ? socket->value_type == INPUT_EXPRESSION : false;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -737,7 +707,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 			break;
 	}
 	if (node && default_value)
-		node->set_input_value("value", default_value);
+		node->input_value_set("value", default_value);
 	return node;
 }
 
@@ -756,7 +726,7 @@ OutputKey NodeGraph::add_value_node(Value *value)
 		case BVM_DUPLIS: node = add_node("VALUE_DUPLIS"); break;
 	}
 	if (node)
-		node->set_input_value("value", value);
+		node->input_value_set("value", value);
 	return OutputKey(node, "value");
 }
 
@@ -794,10 +764,7 @@ OutputKey NodeGraph::find_root(const OutputKey &key)
 	/* value is used to create a valid root node if necessary */
 	const Value *value = NULL;
 	while (root.node && root.node->type->is_pass_node()) {
-		value = root.node->has_input_value(0) ?
-		            root.node->find_input_value(0) :
-		            root.node->type->find_input(0)->default_value;
-		
+		value = root.node->input_value(0);
 		root = root.node->link(0);
 	}
 	
@@ -824,10 +791,8 @@ void NodeGraph::skip_pass_nodes()
 		     ++it_input) {
 			NodeInstance::InputInstance &input = it_input->second;
 			
-			if (input.link_node && input.link_socket) {
-				OutputKey root_key = find_root(OutputKey(input.link_node, input.link_socket->name));
-				input.link_node = root_key.node;
-				input.link_socket = root_key.node->type->find_output(root_key.socket);
+			if (input.link) {
+				input.link = find_root(input.link);
 			}
 		}
 	}
@@ -850,8 +815,8 @@ static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
 	
 	for (NodeInstance::InputMap::iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
 		NodeInstance::InputInstance &input = it->second;
-		if (input.link_node) {
-			used_nodes_append(input.link_node, used_nodes);
+		if (input.link) {
+			used_nodes_append(input.link.node, used_nodes);
 		}
 	}
 }
