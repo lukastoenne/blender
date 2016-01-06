@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_type_traits.h
+/** \file blender/blenvm/intern/bvm_type_typedesc.h
  *  \ingroup bvm
  */
 
-#ifndef __BVM_TYPE_TRAITS_H__
-#define __BVM_TYPE_TRAITS_H__
+#ifndef __BVM_TYPE_TYPEDESC_H__
+#define __BVM_TYPE_TYPEDESC_H__
 
 #include <cassert>
 #include <vector>
