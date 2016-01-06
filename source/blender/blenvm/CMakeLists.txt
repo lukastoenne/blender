@@ -46,6 +46,7 @@ set(INC_SYS
 set(SRC
 	intern/bvm_api.cc
 
+	util/bvm_util_data_ptr.h
 	util/bvm_util_debug.h
 	util/bvm_util_hash.h
 	util/bvm_util_map.h
