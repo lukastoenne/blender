@@ -1048,6 +1048,18 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				                     offset_threshold, offset_mesh_out);
 				break;
 			}
+			case OP_MESH_CLOSEST_POINT: {
+				StackIndex offset_mesh = fn->read_stack_index(&instr);
+				StackIndex offset_transform = fn->read_stack_index(&instr);
+				StackIndex offset_invtransform = fn->read_stack_index(&instr);
+				StackIndex offset_vector = fn->read_stack_index(&instr);
+				StackIndex offset_position = fn->read_stack_index(&instr);
+				StackIndex offset_normal = fn->read_stack_index(&instr);
+				StackIndex offset_tangent = fn->read_stack_index(&instr);
+				eval_op_mesh_closest_point(stack, offset_mesh, offset_transform, offset_invtransform, offset_vector,
+				                           offset_position, offset_normal, offset_tangent);
+				break;
+			}
 			
 			case OP_CURVE_PATH: {
 				StackIndex offset_object = fn->read_stack_index(&instr);

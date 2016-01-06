@@ -481,6 +481,46 @@ static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
+static void eval_op_mesh_closest_point(float *stack,
+                                       StackIndex offset_mesh,
+                                       StackIndex offset_transform,
+	                                   StackIndex offset_invtransform,
+                                       StackIndex offset_vector,
+                                       StackIndex offset_position,
+                                       StackIndex offset_normal,
+                                       StackIndex offset_tangent)
+{
+	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh);
+	SpaceTransform transform = stack_load_space_transform(stack, offset_transform, offset_invtransform);
+	
+	float3 vec;
+	vec = stack_load_float3(stack, offset_vector);
+	BLI_space_transform_invert(&transform, &vec.x);
+	
+	float3 pos(0.0f, 0.0f, 0.0f), nor(0.0f, 0.0f, 0.0f), tang(0.0f, 0.0f, 0.0f);
+	
+	BVHTreeFromMesh treeData = {NULL};
+	bvhtree_from_mesh_looptri(&treeData, dm, 0.0, 2, 6);
+	if (treeData.tree) {
+		BVHTreeNearest nearest;
+		nearest.index = -1;
+		nearest.dist_sq = FLT_MAX;
+		BLI_bvhtree_find_nearest(treeData.tree, &vec.x, &nearest, treeData.nearest_callback, &treeData);
+		
+		if (nearest.index != -1) {
+			copy_v3_v3(&pos.x, nearest.co);
+			copy_v3_v3(&nor.x, nearest.no);
+			BLI_space_transform_apply(&transform, &pos.x);
+			BLI_space_transform_apply_normal(&transform, &nor.x);
+			// TODO tangent is still undefined
+		}
+	}
+	
+	stack_store_float3(stack, offset_position, pos);
+	stack_store_float3(stack, offset_normal, nor);
+	stack_store_float3(stack, offset_tangent, tang);
+}
+
 } /* namespace bvm */
 
 #endif /* __BVM_EVAL_MESH_H__ */

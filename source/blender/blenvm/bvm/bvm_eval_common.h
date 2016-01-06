@@ -69,6 +69,17 @@ inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
 	return *(matrix44 *)(&stack[offset]);
 }
 
+/* convenience function */
+inline static SpaceTransform stack_load_space_transform(float *stack,
+                                                        StackIndex offset_transform,
+                                                        StackIndex offset_invtransform)
+{
+	SpaceTransform transform;
+	copy_m4_m4(transform.local2target, stack_load_matrix44(stack, offset_transform).data);
+	copy_m4_m4(transform.target2local, stack_load_matrix44(stack, offset_invtransform).data);
+	return transform;
+}
+
 inline static const char *stack_load_string(float *stack, StackIndex offset)
 {
 	return *(const char **)(&stack[offset]);
@@ -124,6 +135,16 @@ inline static void stack_store_int(float *stack, StackIndex offset, int i)
 inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix44 m)
 {
 	*(matrix44 *)(&stack[offset]) = m;
+}
+
+/* convenience function */
+inline static void stack_store_space_transform(float *stack,
+                                               StackIndex offset_transform,
+                                               StackIndex offset_invtransform,
+                                               SpaceTransform transform)
+{
+	stack_store_matrix44(stack, offset_transform, matrix44::from_data(&transform.local2target[0][0]));
+	stack_store_matrix44(stack, offset_invtransform, matrix44::from_data(&transform.target2local[0][0]));
 }
 
 inline static void stack_store_string(float *stack, StackIndex offset, const char *s)

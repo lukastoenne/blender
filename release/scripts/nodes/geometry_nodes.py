@@ -286,6 +286,28 @@ class GeometryBooleanNode(GeometryNodeBase, ObjectNode):
         
         compiler.map_output(0, node.outputs[0])
 
+
+class GeometryClosestPointNode(GeometryNodeBase, ObjectNode):
+    '''Closest point on the a mesh'''
+    bl_idname = 'GeometryClosestPointNode'
+    bl_label = 'Closest Point'
+
+    def init(self, context):
+        self.inputs.new('GeometrySocket', "Mesh")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketVector', "Position")
+        self.outputs.new('NodeSocketVector', "Normal")
+        self.outputs.new('NodeSocketVector', "Tangent")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MESH_CLOSEST_POINT")
+        
+        compiler.map_input(0, node.inputs["mesh"])
+        compiler.map_input(1, node.inputs["vector"])
+        compiler.map_output(0, node.outputs["position"])
+        compiler.map_output(1, node.outputs["normal"])
+        compiler.map_output(2, node.outputs["tangent"])
+
 ###############################################################################
 
 class CurveNodeBase(NodeBase):
@@ -413,6 +435,7 @@ def register():
             NodeItem("ObjectGetAxisAngleNode"),
             NodeItem("ObjectGetScaleNode"),
             NodeItem("ObjectRandomNode"),
+            NodeItem("GeometryClosestPointNode"),
             ]),
         GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
             NodeItem("ObjectTextureCloudsNode"),

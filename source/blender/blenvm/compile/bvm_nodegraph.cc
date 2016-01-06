@@ -965,6 +965,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(MESH_ARRAY);
 	NODETYPE(MESH_DISPLACE);
 	NODETYPE(MESH_BOOLEAN);
+	NODETYPE(MESH_CLOSEST_POINT);
 	
 	NODETYPE(CURVE_PATH);
 	
@@ -1407,6 +1408,15 @@ static void register_opcode_node_types()
 	nt->add_input("connect_regions", TYPE_INT, 1);
 	nt->add_input("threshold", TYPE_FLOAT, 0.0f);
 	nt->add_output("mesh_out", TYPE_MESH);
+	
+	nt = NodeGraph::add_function_node_type("MESH_CLOSEST_POINT");
+	nt->add_input("mesh", TYPE_MESH, __empty_mesh__);
+	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
+	nt->add_input("inverse_transform", TYPE_MATRIX44, matrix44::identity());
+	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("position", TYPE_FLOAT3);
+	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_output("tangent", TYPE_FLOAT3);
 	
 	nt = NodeGraph::add_function_node_type("CURVE_PATH");
 	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
