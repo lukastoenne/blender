@@ -87,7 +87,8 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 		const NodeInstance &node = **it;
 		
 		/* local arguments for expression inputs */
-		OutputIndexMap local_input_index;
+		OutputIndexMap local_output_index;
+		local_output_index.insert(block.output_index.begin(), block.output_index.end());
 		
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
@@ -107,7 +108,7 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 				
 				assert(graph_input);
 				if (graph_input->key.node) {
-					local_input_index[graph_input->key] = stack_index;
+					local_output_index[graph_input->key] = stack_index;
 				}
 			}
 		}
@@ -125,7 +126,7 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::Bas
 				BasicBlock &expr_block = expression_map.at(key);
 				
 				/* initialize local arguments */
-				expr_block.output_index.insert(local_input_index.begin(), local_input_index.end());
+				expr_block.output_index.insert(local_output_index.begin(), local_output_index.end());
 				
 				resolve_basic_block_symbols(graph, expr_block);
 				
