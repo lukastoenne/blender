@@ -55,17 +55,18 @@ typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
 typedef std::map<ConstOutputKey, int> SocketUserMap;
 
+struct BasicBlock {
+	BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
+	NodeList nodes;
+	InputIndexMap input_index;
+	OutputIndexMap output_index;
+	int entry_point;
+	StackIndex return_index;
+};
+typedef std::map<ConstInputKey, BasicBlock> ExpressionMap;
+typedef std::vector<int> StackUsers;
+
 struct Compiler {
-	struct BasicBlock {
-		BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
-		NodeList nodes;
-		InputIndexMap input_index;
-		OutputIndexMap output_index;
-		int entry_point;
-		StackIndex return_index;
-	};
-	typedef std::map<ConstInputKey, BasicBlock> ExpressionMap;
-	typedef std::vector<int> StackUsers;
 	
 	Compiler();
 	virtual ~Compiler();

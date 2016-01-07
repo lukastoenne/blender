@@ -81,7 +81,7 @@ StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, Compiler::BasicBlock &block)
+void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block)
 {
 	for (NodeList::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
@@ -436,8 +436,8 @@ static void count_output_users(const NodeGraph &graph,
 	}
 }
 
-int Compiler::codegen_basic_block(const Compiler::BasicBlock &block,
-                                     const SocketUserMap &socket_users) const
+int Compiler::codegen_basic_block(const BasicBlock &block,
+                                  const SocketUserMap &socket_users) const
 {
 	int entry_point = current_address();
 	
