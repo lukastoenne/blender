@@ -244,6 +244,7 @@ struct NodeInstance {
 	const NodeType *type;
 	string name;
 	InputMap inputs;
+	int index; /* ordering index */
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
@@ -314,6 +315,7 @@ protected:
 	OutputKey find_root(const OutputKey &key);
 	void skip_pass_nodes();
 	void remove_unused_nodes();
+	void sort_nodes();
 	
 public:
 	NodeInstanceMap nodes;

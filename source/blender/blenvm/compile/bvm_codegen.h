@@ -49,15 +49,21 @@ struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
 
-typedef std::vector<const NodeInstance *> NodeList;
-typedef std::set<const NodeInstance *> NodeSet;
+struct NodeIndexCmp {
+	bool operator () (const NodeInstance *a, const NodeInstance *b) const
+	{
+		return a->index < b->index;
+	}
+};
+
+typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
 typedef std::map<ConstOutputKey, int> SocketUserMap;
 
 struct BasicBlock {
 	BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
-	NodeList nodes;
+	OrderedNodeSet nodes;
 	InputIndexMap input_index;
 	OutputIndexMap output_index;
 	int entry_point;
@@ -98,8 +104,8 @@ protected:
 	                        const SocketUserMap &socket_users) const;
 	int codegen_main(const NodeGraph &graph);
 	
-	void expression_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
-	void graph_node_append(const NodeInstance *node, NodeList &sorted_nodes, NodeSet &visited);
+	void expression_node_append(const NodeInstance *node, OrderedNodeSet &sorted_nodes, OrderedNodeSet &visited);
+	void graph_node_append(const NodeInstance *node, OrderedNodeSet &sorted_nodes, OrderedNodeSet &visited);
 	void sort_graph_nodes(const NodeGraph &graph);
 	
 	const BasicBlock &main_block() const { return main; }

@@ -412,7 +412,7 @@ bool InputKey::is_expression() const
 /* ------------------------------------------------------------------------- */
 
 NodeInstance::NodeInstance(const NodeType *type, const string &name) :
-    type(type), name(name)
+    type(type), name(name), index(0)
 {
 }
 
@@ -853,10 +853,35 @@ void NodeGraph::remove_unused_nodes()
 	}
 }
 
+static void assign_node_index(NodeInstance *node, int *next_index)
+{
+	if (node->index > 0)
+		return;
+	
+	for (int i = 0; i < node->num_inputs(); ++i) {
+		NodeInstance *link_node = node->link(i).node;
+		if (link_node) {
+			assign_node_index(link_node, next_index);
+		}
+	}
+	
+	node->index = (*next_index)++;
+}
+
+/* assign a global index to each node to allow sorted sets */
+void NodeGraph::sort_nodes()
+{
+	int next_index = 1;
+	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		assign_node_index(it->second, &next_index);
+	}
+}
+
 void NodeGraph::finalize()
 {
 	skip_pass_nodes();
 	remove_unused_nodes();
+	sort_nodes();
 }
 
 /* ------------------------------------------------------------------------- */

@@ -83,7 +83,7 @@ StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 
 void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block)
 {
-	for (NodeList::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
+	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
 		/* local arguments for expression inputs */
@@ -149,8 +149,8 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &b
 }
 
 void Compiler::expression_node_append(const NodeInstance *node,
-                                         NodeList &sorted_nodes,
-                                         NodeSet &visited)
+                                         OrderedNodeSet &nodes,
+                                         OrderedNodeSet &visited)
 {
 	if (node->type->is_kernel_node())
 		return;
@@ -162,16 +162,16 @@ void Compiler::expression_node_append(const NodeInstance *node,
 	for (size_t i = 0; i < node->num_inputs(); ++i) {
 		ConstOutputKey link = node->link(i);
 		if (link) {
-			expression_node_append(link.node, sorted_nodes, visited);
+			expression_node_append(link.node, nodes, visited);
 		}
 	}
 	
-	sorted_nodes.push_back(node);
+	nodes.insert(node);
 }
 
 void Compiler::graph_node_append(const NodeInstance *node,
-                                    NodeList &sorted_nodes,
-                                    NodeSet &visited)
+                                 OrderedNodeSet &nodes,
+                                 OrderedNodeSet &visited)
 {
 	if (visited.find(node) != visited.end())
 		return;
@@ -185,23 +185,23 @@ void Compiler::graph_node_append(const NodeInstance *node,
 			BasicBlock &expr_block = expression_map[node->input(i)];
 			
 			if (link) {
-				NodeSet expr_visited;
+				OrderedNodeSet expr_visited;
 				expression_node_append(link.node, expr_block.nodes, expr_visited);
 			}
 		}
 		else {
 			if (link) {
-				graph_node_append(link.node, sorted_nodes, visited);
+				graph_node_append(link.node, nodes, visited);
 			}
 		}
 	}
 	
-	sorted_nodes.push_back(node);
+	nodes.insert(node);
 }
 
 void Compiler::sort_graph_nodes(const NodeGraph &graph)
 {
-	NodeSet visited;
+	OrderedNodeSet visited;
 	
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it) {
 		graph_node_append(it->second, main.nodes, visited);
@@ -441,7 +441,7 @@ int Compiler::codegen_basic_block(const BasicBlock &block,
 {
 	int entry_point = current_address();
 	
-	for (NodeList::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
+	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
 		/* store values for unconnected inputs */
