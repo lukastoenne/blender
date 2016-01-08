@@ -57,16 +57,25 @@ struct NodeIndexCmp {
 };
 
 typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
+typedef std::set<ConstInputKey> InputSet;
+typedef std::set<ConstOutputKey> OutputSet;
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
-typedef std::map<ConstOutputKey, int> SocketUserMap;
+typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
 
 struct BasicBlock {
+	typedef std::map<ConstInputKey, BasicBlock> BasicBlockMap;
+	typedef std::map<ConstOutputKey, int> OutputUserMap;
+	
 	BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
 	OrderedNodeSet nodes;
+	BasicBlockMap expression_blocks;
+	OutputUserMap output_users;
+	
+	int entry_point;
+	
 	InputIndexMap input_index;
 	OutputIndexMap output_index;
-	int entry_point;
 	StackIndex return_index;
 };
 typedef std::map<ConstInputKey, BasicBlock> ExpressionMap;
@@ -77,10 +86,19 @@ struct Compiler {
 	Compiler();
 	virtual ~Compiler();
 	
+	const BasicBlock &main_block() const { return main; }
+	
 protected:
+	void get_local_args(const NodeGraph &graph, const NodeInstance *node, OutputSet &local_args);
+	bool add_block_node(const NodeGraph &graph, const NodeInstance *node, const OutputSet &block_args,
+	                    BasicBlock &block, int depth);
+	bool parse_expression_block(const NodeGraph &graph, const ConstInputKey &input,
+	                            const OutputSet &block_args, const OutputSet &local_args,
+	                            BasicBlock &block, int depth);
+	void parse_blocks(const NodeGraph &graph);
+	
 	StackIndex find_stack_index(int size) const;
 	StackIndex assign_stack_index(const TypeDesc &typedesc);
-	
 	void resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block);
 	void resolve_symbols(const NodeGraph &graph);
 	
@@ -100,19 +118,11 @@ protected:
 	void push_constant(const Value *value) const;
 	
 	void codegen_value(const Value *value, StackIndex offset) const;
-	int codegen_basic_block(const BasicBlock &block,
-	                        const SocketUserMap &socket_users) const;
-	int codegen_main(const NodeGraph &graph);
-	
-	void expression_node_append(const NodeInstance *node, OrderedNodeSet &sorted_nodes, OrderedNodeSet &visited);
-	void graph_node_append(const NodeInstance *node, OrderedNodeSet &sorted_nodes, OrderedNodeSet &visited);
-	void sort_graph_nodes(const NodeGraph &graph);
-	
-	const BasicBlock &main_block() const { return main; }
+	int codegen_basic_block(BasicBlock &block) const;
+	int codegen_main();
 	
 private:
 	BasicBlock main;
-	ExpressionMap expression_map;
 	StackUsers stack_users;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")
