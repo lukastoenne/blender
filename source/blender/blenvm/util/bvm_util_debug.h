@@ -300,6 +300,45 @@ struct NodeGraphDumper {
 		}
 	}
 	
+	static int get_block_depth(const NodeBlock *block)
+	{
+		int depth = -1;
+		while (block) {
+			block = block->parent;
+			++depth;
+		}
+		return depth;
+	}
+	
+	typedef std::set<const NodeBlock *> BlockSet;
+	typedef std::map<const NodeBlock *, BlockSet> BlockChildMap;
+	
+	inline void dump_block(const NodeBlock &block, const BlockChildMap &block_children) const
+	{
+		static const char *style = "filled,rounded";
+		int depth = get_block_depth(&block);
+		int gray_level = max_ii(100 - depth * 10, 0);
+		
+		debug_fprintf(ctx, "subgraph \"cluster_%p\" {" NL, &block);
+		debug_fprintf(ctx, "margin=\"%d\";" NL, 16);
+		debug_fprintf(ctx, "style=\"%s\";" NL, style);
+		debug_fprintf(ctx, "fillcolor=\"gray%d\"" NL, gray_level);
+		
+		for (NodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
+			const NodeInstance *node = *it;
+			dump_node(node);
+		}
+		
+		BlockChildMap::const_iterator it = block_children.find(&block);
+		if (it != block_children.end()) {
+			for (BlockSet::const_iterator it_child = it->second.begin(); it_child != it->second.end(); ++it_child) {
+				dump_block(**it_child, block_children);
+			}
+		}
+		
+		debug_fprintf(ctx, "}" NL);
+	}
+	
 	inline void dump_graph(const NodeGraph *graph, const string &label) const
 	{
 		debug_fprintf(ctx, "digraph depgraph {" NL);
@@ -311,10 +350,16 @@ struct NodeGraphDumper {
 		debug_fprintf(ctx, ",label=\"%s\"", label.c_str());
 	//	debug_fprintf(ctx, ",splines=ortho");
 		debug_fprintf(ctx, "];" NL);
-	
-		for (NodeGraph::NodeInstanceMap::const_iterator it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
-			const NodeInstance *node = it->second;
-			dump_node(node);
+		
+		BlockChildMap block_children;
+		for (NodeGraph::NodeBlockList::const_iterator it = graph->blocks.begin(); it != graph->blocks.end(); ++it) {
+			const NodeBlock &block = *it;
+			if (block.parent)
+				block_children[block.parent].insert(&block);
+		}
+		if (!graph->blocks.empty()) {
+			/* first block is main */
+			dump_block(graph->blocks.front(), block_children);
 		}
 		
 		for (NodeGraph::InputList::const_iterator it = graph->inputs.begin(); it != graph->inputs.end(); ++it) {

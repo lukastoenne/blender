@@ -35,6 +35,7 @@
 #include <cassert>
 #include <cstdio>
 #include <sstream>
+#include <algorithm>
 
 #include "bvm_nodegraph.h"
 #include "bvm_opcode.h"
@@ -889,6 +890,14 @@ void NodeGraph::remove_unused_nodes()
 		used_nodes_append(output.key.node, used_nodes);
 	}
 	/* make sure unused inputs don't leave dangling node pointers */
+	for (NodeGraph::NodeBlockList::iterator it = blocks.begin(); it != blocks.end(); ++it) {
+		NodeBlock &block = *it;
+		NodeSet used_block_nodes;
+		std::set_intersection(used_nodes.begin(), used_nodes.end(),
+		                      block.nodes.begin(), block.nodes.end(),
+		                      std::inserter(used_block_nodes, used_block_nodes.end()));
+		block.nodes = used_block_nodes;
+	}
 	for (NodeGraph::InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		Input &input = *it;
 		if (used_nodes.find(input.key.node) == used_nodes.end()) {
