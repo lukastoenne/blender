@@ -57,8 +57,7 @@ struct NodeIndexCmp {
 };
 
 typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
-typedef std::set<ConstInputKey> InputSet;
-typedef std::set<ConstOutputKey> OutputSet;
+
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;

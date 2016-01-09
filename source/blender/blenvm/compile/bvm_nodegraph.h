@@ -37,6 +37,8 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <set>
+#include <list>
 
 #include "MEM_guardedalloc.h"
 
@@ -190,6 +192,7 @@ struct InputKey {
 	operator bool() const;
 	
 	OutputKey link() const;
+	void link_set(const OutputKey &from) const;
 	const Value *value() const;
 	void value_set(Value *value) const;
 	bool is_constant() const;
@@ -198,6 +201,9 @@ struct InputKey {
 	NodeInstance *node;
 	const NodeInput *socket;
 };
+
+typedef std::set<ConstInputKey> InputSet;
+typedef std::set<ConstOutputKey> OutputSet;
 
 struct NodeInstance {
 	struct InputInstance {
@@ -213,6 +219,7 @@ struct NodeInstance {
 	typedef std::pair<string, InputInstance> InputPair;
 	
 	NodeInstance(const NodeType *type, const string &name);
+	NodeInstance(const NodeInstance *other, const string &name);
 	~NodeInstance();
 	
 	InputKey input(const string &name);
@@ -249,6 +256,20 @@ struct NodeInstance {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
 
+typedef std::set<NodeInstance*> NodeSet;
+typedef std::map<const NodeInstance*, NodeInstance*> NodeMap;
+
+struct NodeBlock {
+	NodeBlock(NodeBlock *parent) :
+	    parent(parent)
+	{}
+	
+	NodeBlock *parent;
+	NodeSet nodes;
+	
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeBlock")
+};
+
 struct NodeGraph {
 	struct Input {
 		Input(const string &name, const TypeDesc &typedesc, const OutputKey &key) :
@@ -271,6 +292,7 @@ struct NodeGraph {
 	typedef std::pair<string, NodeType> NodeTypeMapPair;
 	typedef std::map<string, NodeInstance*> NodeInstanceMap;
 	typedef std::pair<string, NodeInstance*> NodeInstanceMapPair;
+	typedef std::list<NodeBlock> NodeBlockList;
 	
 	static NodeTypeMap node_types;
 	
@@ -312,12 +334,28 @@ protected:
 	OutputKey add_argument_node(const TypeDesc &typedesc);
 	
 	void remove_all_nodes();
+	
+	NodeInstance *copy_node(const NodeInstance *node, NodeMap &node_map);
+	
+	/* optimizations */
+	
 	OutputKey find_root(const OutputKey &key);
+	
 	void skip_pass_nodes();
+	
 	void remove_unused_nodes();
+	
+	void get_local_args(const NodeInstance *node, OutputSet &local_args) const;
+	bool add_block_node(NodeInstance *node, const OutputSet &block_args,
+	                    NodeBlock &block, NodeMap &block_map);
+	bool blockify_expression(const InputKey &input, const OutputSet &block_args, const OutputSet &local_args,
+	                         NodeBlock &block, NodeMap &block_map);
+	void blockify_nodes();
+	
 	void sort_nodes();
 	
 public:
+	NodeBlockList blocks;
 	NodeInstanceMap nodes;
 	InputList inputs;
 	OutputList outputs;
