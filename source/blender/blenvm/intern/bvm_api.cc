@@ -472,13 +472,16 @@ void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *
 	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
-		case BVM_DEBUG_NODES_UNOPTIMIZED:
-			debug::dump_graphviz(debug_file, &graph, "Force Field Graph");
+		case BVM_DEBUG_NODES_UNOPTIMIZED: {
+			debug::NodeGraphDumper dumper(debug_file);
+			dumper.dump_graph(&graph, "Force Field Graph");
 			break;
-		case BVM_DEBUG_CODEGEN:
+		}
+		case BVM_DEBUG_CODEGEN: {
 			DebugGraphvizCompiler compiler;
 			compiler.compile_function(graph, debug_file, label);
 			break;
+		}
 	}
 }
 
@@ -1009,13 +1012,16 @@ void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *lab
 	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
-		case BVM_DEBUG_NODES_UNOPTIMIZED:
-			debug::dump_graphviz(debug_file, &graph, "Texture Node Graph");
+		case BVM_DEBUG_NODES_UNOPTIMIZED: {
+			debug::NodeGraphDumper dumper(debug_file);
+			dumper.dump_graph(&graph, "Texture Node Graph");
 			break;
-		case BVM_DEBUG_CODEGEN:
+		}
+		case BVM_DEBUG_CODEGEN: {
 			DebugGraphvizCompiler compiler;
 			compiler.compile_function(graph, debug_file, label);
 			break;
+		}
 	}
 }
 
@@ -1092,13 +1098,16 @@ void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const c
 	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
-		case BVM_DEBUG_NODES_UNOPTIMIZED:
-			debug::dump_graphviz(debug_file, &graph, "Modifier Node Graph");
+		case BVM_DEBUG_NODES_UNOPTIMIZED: {
+			debug::NodeGraphDumper dumper(debug_file);
+			dumper.dump_graph(&graph, "Modifier Node Graph");
 			break;
-		case BVM_DEBUG_CODEGEN:
+		}
+		case BVM_DEBUG_CODEGEN: {
 			DebugGraphvizCompiler compiler;
 			compiler.compile_function(graph, debug_file, label);
 			break;
+		}
 	}
 }
 
@@ -1164,13 +1173,16 @@ void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char
 	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
-		case BVM_DEBUG_NODES_UNOPTIMIZED:
-			debug::dump_graphviz(debug_file, &graph, "Dupli Node Graph");
+		case BVM_DEBUG_NODES_UNOPTIMIZED: {
+			debug::NodeGraphDumper dumper(debug_file);
+			dumper.dump_graph(&graph, "Dupli Node Graph");
 			break;
-		case BVM_DEBUG_CODEGEN:
+		}
+		case BVM_DEBUG_CODEGEN: {
 			DebugGraphvizCompiler compiler;
 			compiler.compile_function(graph, debug_file, label);
 			break;
+		}
 	}
 }
 
