@@ -5043,8 +5043,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 					link_list(fd, &smd->domain->vdb_caches);
 					for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
+						cache->flags |= OPENVDB_CACHE_OUTDATED;
 						cache->reader = NULL;
 						cache->writer = NULL;
+						cache->cached_frames = NULL;
 					}
 				}
 			}

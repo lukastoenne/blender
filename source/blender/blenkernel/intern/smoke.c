@@ -370,6 +370,9 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 			OpenVDBWriter_free(cache->writer);
 			OpenVDBReader_free(cache->reader);
 #endif
+			if (cache->cached_frames != NULL)
+				MEM_freeN(cache->cached_frames);
+
 			MEM_freeN(cache);
 		}
 
@@ -2751,15 +2754,81 @@ static void smokeModifier_process_pointcache(SmokeModifierData *smd, Scene *scen
 #endif
 }
 
+/* forward declarations */
+void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer);
+void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBWriter *writer);
+
+static void OpenVDBCache_validate_frames(OpenVDBCache *cache, Object *ob)
+{
+	if ((cache->flags & (OPENVDB_CACHE_OUTDATED|OPENVDB_CACHE_INVALID)) == 0) {
+		return;
+	}
+
+	const int start = cache->startframe, end = cache->endframe;
+
+	if (cache->cached_frames == NULL) {
+		cache->cached_frames = MEM_callocN(sizeof(char) * end - start + 1,
+		                                   "OpenVDBCache_cached_frames");
+	}
+
+	const char *relbase = modifier_path_relbase(ob);
+
+	if ((cache->flags & OPENVDB_CACHE_INVALID) != 0) {
+		BKE_openvdb_cache_remove_files(cache, relbase);
+		cache->flags &= ~OPENVDB_CACHE_INVALID;
+		return;
+	}
+
+	char filename[FILE_MAX];
+	for (int fr = start; fr != end; fr++) {
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
+
+		if (BLI_exists(filename)) {
+			cache->cached_frames[fr - start] = 1;
+		}
+	}
+
+	cache->flags &= ~OPENVDB_CACHE_OUTDATED;
+}
+
+static void bke_openvdb_cache_write_smoke(OpenVDBCache *cache, SmokeDomainSettings *sds, Object *ob, int framenr)
+{
+#ifdef WITH_OPENVDB
+	if (cache->writer == NULL) {
+		cache->writer = OpenVDBWriter_create();
+	}
+
+	if (framenr == cache->startframe) {
+		unit_m4(sds->obmat);
+	}
+
+	const bool save_as_half = ((cache->flags & OPENVDB_CACHE_SAVE_AS_HALF) != 0);
+	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
+
+	const char *relbase = modifier_path_relbase(ob);
+	char filename[FILE_MAX];
+	BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, framenr);
+
+	OpenVDB_write_fluid_settings(sds, cache->writer);
+	OpenVDB_export_smoke(sds, cache->writer);
+	OpenVDBWriter_write(cache->writer, filename);
+
+	cache->cached_frames[framenr - cache->startframe] = 1;
+#else
+	UNUSED_VARS(cache, sds, ob, framnr);
+#endif
+}
+
 static void smokeModifier_process_openvdb(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
 	int startframe, endframe, framenr;
 
 	framenr = scene->r.cfra;
 
-	if (cache) {
+	if (cache != NULL) {
+		OpenVDBCache_validate_frames(cache, ob);
 		startframe = cache->startframe;
 		endframe = cache->endframe;
 	}
@@ -2768,14 +2837,14 @@ static void smokeModifier_process_openvdb(SmokeModifierData *smd, Scene *scene, 
 		endframe = scene->r.efra;
 	}
 
-	if (!smd->domain->fluid || framenr == startframe) {
+	if (!sds->fluid || framenr == startframe) {
 		smokeModifier_reset_ex(smd, false);
 	}
 
-	if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0)
+	if (!sds->fluid && (framenr != startframe) && (sds->flags & MOD_SMOKE_FILE_LOAD) == 0)
 		return;
 
-	smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
+	sds->flags &= ~MOD_SMOKE_FILE_LOAD;
 	CLAMP(framenr, startframe, endframe);
 
 	/* If already viewing a pre/after frame, no need to reload */
@@ -2800,14 +2869,25 @@ static void smokeModifier_process_openvdb(SmokeModifierData *smd, Scene *scene, 
 		return;
 
 	/* don't simulate if viewing start frame, but scene frame is not real start frame */
-	if (framenr != scene->r.cfra)
+	if (framenr != scene->r.cfra) {
 		return;
+	}
+
+	/* if on second frame, write cache for first frame */
+	if ((cache != NULL) && (int)smd->time == startframe) {
+		bke_openvdb_cache_write_smoke(cache, sds, ob, startframe);
+	}
 
 	// set new time
 	smd->time = scene->r.cfra;
 
 	/* do simulation */
 	smokeModifier_step_simulation(smd, scene, ob, dm, framenr, startframe);
+
+	/* try to write cache */
+	if (cache != NULL) {
+		bke_openvdb_cache_write_smoke(cache, sds, ob, framenr);
+	}
 }
 
 static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm)
@@ -3183,7 +3263,7 @@ static void OpenVDB_read_fluid_settings(SmokeDomainSettings *sds, struct OpenVDB
 	OpenVDBReader_get_meta_mat4(reader, "obmat", sds->obmat);
 }
 
-static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
+void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
 {
 	OpenVDBWriter_add_meta_int(writer, "active_fields", sds->active_fields);
 	OpenVDBWriter_add_meta_v3_int(writer, "resolution", sds->res);
@@ -3199,24 +3279,7 @@ static void OpenVDB_write_fluid_settings(SmokeDomainSettings *sds, struct OpenVD
 	OpenVDBWriter_add_meta_mat4(writer, "obmat", sds->obmat);
 }
 
-void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)
-{
-	char cachepath[FILE_MAX];
-
-	BLI_strncpy(cachepath, path, FILE_MAX - 10);
-	BLI_path_abs(cachepath, relbase);
-
-	if (!BLI_exists(cachepath)) {
-		BLI_dir_create_recursive(cachepath);
-	}
-
-	BLI_join_dirfile(r_filename, sizeof(cachepath), cachepath, fname);
-	BLI_path_suffix(r_filename, FILE_MAX, "", "_");
-	BLI_path_frame(r_filename, frame, 4);
-	BLI_ensure_extension(r_filename, FILE_MAX, ".vdb");
-}
-
-static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
+void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter *writer)
 {
 	int fluid_fields = smoke_get_data_flags(sds);
 	struct OpenVDBFloatGrid *clip_grid = NULL;
@@ -3283,7 +3346,7 @@ static void OpenVDB_export_smoke(SmokeDomainSettings *sds, struct OpenVDBWriter 
 	}
 }
 
-static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader *reader, bool for_display)
+static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader *reader)
 {
 	int fluid_fields = smoke_get_data_flags(sds);
 	int active_fields, cache_fields = 0;
@@ -3330,7 +3393,6 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 	if (sds->fluid) {
 		float dt, dx, *dens, *react, *fuel, *flame, *heat, *heatold, *vx, *vy, *vz, *r, *g, *b;
 		unsigned char *obstacles;
-		bool for_low_display = for_display && (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG));
 
 		smoke_export(sds->fluid, &dt, &dx, &dens, &react, &flame, &fuel, &heat,
 		             &heatold, &vx, &vy, &vz, &r, &g, &b, &obstacles);
@@ -3338,61 +3400,45 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		OpenVDBReader_get_meta_fl(reader, "dt", &dt);
 
 		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);
+		OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 
-		if (for_low_display) {
-			OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
-		}
-
-		if (fluid_fields & SM_ACTIVE_HEAT && (!for_low_display)) {
+		if (fluid_fields & SM_ACTIVE_HEAT) {
 			OpenVDB_import_grid_fl(reader, "Heat", &heat, sds->res);
 			OpenVDB_import_grid_fl(reader, "Heat Old", &heatold, sds->res);
 		}
 
-		if (fluid_fields & SM_ACTIVE_FIRE && for_low_display) {
+		if (fluid_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_import_grid_fl(reader, "Flame", &flame, sds->res);
-
-			if (!for_low_display) { // should be "for_sim_cont" or so
-				OpenVDB_import_grid_fl(reader, "Fuel", &fuel, sds->res);
-				OpenVDB_import_grid_fl(reader, "React", &react, sds->res);
-			}
+			OpenVDB_import_grid_fl(reader, "Fuel", &fuel, sds->res);
+			OpenVDB_import_grid_fl(reader, "React", &react, sds->res);
 		}
 
-		if (fluid_fields & SM_ACTIVE_COLORS && for_low_display) {
+		if (fluid_fields & SM_ACTIVE_COLORS/* && for_low_display*/) {
 			OpenVDB_import_grid_vec(reader, "Color", &r, &g, &b, sds->res);
 		}
 
-		if (!for_low_display) { // should be "for_sim_cont" or so
-			OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
-			OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
-		}
+		OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
+		OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 	}
 
 	if (sds->wt) {
 		float *dens, *react, *fuel, *flame, *tcu, *tcv, *tcw, *r, *g, *b;
-		bool for_wt_display = for_display && (sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG);
 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
-		if (for_wt_display) {
-			OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
-		}
+		OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
 
-		if (fluid_fields & SM_ACTIVE_FIRE && for_wt_display) {
+		if (fluid_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_import_grid_fl(reader, "Flame High", &flame, sds->res_wt);
-
-			if (!for_wt_display) { // should be "for_sim_cont" or so
-				OpenVDB_import_grid_fl(reader, "Fuel High", &fuel, sds->res_wt);
-				OpenVDB_import_grid_fl(reader, "React High", &react, sds->res_wt);
-			}
+			OpenVDB_import_grid_fl(reader, "Fuel High", &fuel, sds->res_wt);
+			OpenVDB_import_grid_fl(reader, "React High", &react, sds->res_wt);
 		}
 
-		if (fluid_fields & SM_ACTIVE_COLORS && for_wt_display) {
+		if (fluid_fields & SM_ACTIVE_COLORS) {
 			OpenVDB_import_grid_vec(reader, "Color High", &r, &g, &b, sds->res_wt);
 		}
 
-		if (!for_wt_display) { // should be "for_sim_cont" or so
-			OpenVDB_import_grid_vec(reader, "Texture Coordinates", &tcu, &tcv, &tcw, sds->res);
-		}
+		OpenVDB_import_grid_vec(reader, "Texture Coordinates", &tcu, &tcv, &tcw, sds->res);
 	}
 }
 
@@ -3400,12 +3446,10 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
                                   update_cb update, void *update_cb_data)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
 
 	int cancel = 0;
 	float progress;
-	const char *relbase = modifier_path_relbase(ob);
-	char filename[FILE_MAX];
 
 	const int orig_frame = scene->r.cfra;
 
@@ -3415,6 +3459,9 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 
 	const bool save_as_half = ((cache->flags & OPENVDB_CACHE_SAVE_AS_HALF) != 0);
 	OpenVDBWriter_set_flags(cache->writer, cache->compression, save_as_half);
+
+	/* Remove all the dirty flags. */
+	cache->flags &= ~(OPENVDB_CACHE_INVALID|OPENVDB_CACHE_OUTDATED);
 
 	/* Unset exported flag if overwriting a cache, the operator should have
 	 * received confirmation from the user */
@@ -3427,30 +3474,9 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		 * so we can't use it here... */
 		scene->r.cfra = fr;
 
-		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
-
-		smokeModifier_process(smd, scene, ob, dm);
-
-		/* XXX hack: for some reason the smoke sim stores zero matrix for frame 1 */
-		{
-			PTCacheID pid;
-			int ptcache_start, ptcache_end;
-			float ptcache_timescale;
-			BKE_ptcache_id_from_smoke(&pid, ob, smd);
-			BKE_ptcache_id_time(&pid, scene, fr, &ptcache_start, &ptcache_end, &ptcache_timescale);
-
-			if (fr == ptcache_start) {
-				unit_m4(sds->obmat);
-			}
-		}
-
-		OpenVDB_write_fluid_settings(sds, cache->writer);
-		OpenVDB_export_smoke(sds, cache->writer);
+		smokeModifier_process_openvdb(smd, scene, ob, dm);
 
 		progress = (fr - cache->startframe) / (float)cache->endframe;
-
-		OpenVDBWriter_write(cache->writer, filename);
-
 		update(update_cb_data, progress, &cancel);
 
 		if (cancel) {
@@ -3470,11 +3496,13 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
 
-	if (!(cache->flags & OPENVDB_CACHE_BAKED)) {
-		return false;
+	if ((cache->flags & OPENVDB_CACHE_BAKED) != 0) {
+		if (CFRA < cache->startframe || CFRA > cache->endframe) {
+			return false;
+		}
 	}
 
-	if (CFRA < cache->startframe || CFRA > cache->endframe) {
+	if (cache->cached_frames[CFRA - cache->startframe] == 0) {
 		return false;
 	}
 
@@ -3491,7 +3519,7 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 
 	OpenVDBReader_open(cache->reader, filename);
 	OpenVDB_read_fluid_settings(sds, cache->reader);
-	OpenVDB_import_smoke(sds, cache->reader, /* for_display = */ true);
+	OpenVDB_import_smoke(sds, cache->reader);
 
 	return true;
 }
@@ -3514,16 +3542,14 @@ bool smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *
 	return false;
 }
 
-void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame)
-{
-	r_filename[0] = '\0';
-	UNUSED_VARS(path, fname, relbase, frame);
-}
-
 #endif
 
-OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
+OpenVDBCache *BKE_openvdb_cache_current(SmokeDomainSettings *sds)
 {
+	if (!sds) {
+		return NULL;
+	}
+
 	OpenVDBCache *cache = sds->vdb_caches.first;
 
 	for (; cache; cache = cache->next) {
@@ -3533,4 +3559,67 @@ OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
 	}
 
 	return cache;
+}
+
+void BKE_openvdb_cache_filename(char *r_filename, const char *path,
+                                const char *fname, const char *relbase, int frame)
+{
+	char cachepath[FILE_MAX];
+
+	BLI_strncpy(cachepath, path, FILE_MAX - 10);
+	BLI_path_abs(cachepath, relbase);
+
+	if (!BLI_exists(cachepath)) {
+		BLI_dir_create_recursive(cachepath);
+	}
+
+	BLI_join_dirfile(r_filename, sizeof(cachepath), cachepath, fname);
+	BLI_path_suffix(r_filename, FILE_MAX, "", "_");
+	BLI_path_frame(r_filename, frame, 4);
+	BLI_ensure_extension(r_filename, FILE_MAX, ".vdb");
+}
+
+void BKE_openvdb_cache_remove_files(OpenVDBCache *cache, const char *relbase)
+{
+	char filename[FILE_MAX];
+
+	for (int fr = cache->startframe; fr <= cache->endframe; fr++) {
+		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
+
+		if (BLI_exists(filename)) {
+			BLI_delete(filename, false, false);
+		}
+
+		cache->cached_frames[fr - cache->startframe] = 0;
+	}
+}
+
+bool BKE_openvdb_cache_reset(Object *ob)
+{
+	if (!ob) {
+		return false;
+	}
+
+	bool reset = false;
+	ModifierData *md;
+
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type != eModifierType_Smoke) {
+			continue;
+		}
+
+		SmokeModifierData *smd = (SmokeModifierData *)md;
+		if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) == 0) {
+			continue;
+		}
+
+		OpenVDBCache *cache = BKE_openvdb_cache_current(smd->domain);
+
+		if (cache && (cache->flags & OPENVDB_CACHE_BAKED) == 0) {
+			cache->flags |= OPENVDB_CACHE_INVALID;
+			reset = true;
+		}
+	}
+
+	return reset;
 }

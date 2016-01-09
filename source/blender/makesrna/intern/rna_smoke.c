@@ -72,8 +72,17 @@ static void rna_Smoke_dependency_update(Main *bmain, Scene *scene, PointerRNA *p
 static void rna_Smoke_resetCache(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	SmokeDomainSettings *settings = (SmokeDomainSettings *)ptr->data;
-	if (settings->smd && settings->smd->domain)
+
+	if (settings->smd && settings->smd->domain) {
 		settings->point_cache[0]->flag |= PTCACHE_OUTDATED;
+
+		OpenVDBCache *cache = BKE_openvdb_cache_current(settings);
+
+		if (cache) {
+			cache->flags |= OPENVDB_CACHE_INVALID;
+		}
+	}
+
 	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
 }
 
@@ -93,8 +102,15 @@ static void rna_Smoke_reset_dependency(Main *bmain, Scene *scene, PointerRNA *pt
 
 	smokeModifier_reset(settings->smd);
 
-	if (settings->smd && settings->smd->domain)
+	if (settings->smd && settings->smd->domain) {
 		settings->smd->domain->point_cache[0]->flag |= PTCACHE_OUTDATED;
+
+		OpenVDBCache *cache = BKE_openvdb_cache_current(settings->smd->domain);
+
+		if (cache) {
+			cache->flags |= OPENVDB_CACHE_INVALID;
+		}
+	}
 
 	rna_Smoke_dependency_update(bmain, scene, ptr);
 }
@@ -321,9 +337,7 @@ static void rna_SmokeFlow_uvlayer_set(PointerRNA *ptr, const char *value)
 static PointerRNA rna_SmokeModifier_active_openvdb_cache_get(PointerRNA *ptr)
 {
     SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
-    OpenVDBCache *cache = NULL;
-
-	cache = BKE_openvdb_get_current_cache(sds);
+    OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
     return rna_pointer_inherit_refine(ptr, &RNA_OpenVDBCache, cache);
 }
 
@@ -362,6 +376,19 @@ static void rna_SmokeModifier_active_openvdb_cache_index_set(struct PointerRNA *
     }
 }
 
+static void rna_OpenVDBCache_range_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	OpenVDBCache *cache = (OpenVDBCache *)ptr->data;
+	int new_len = cache->endframe - cache->startframe + 1;
+
+	if (new_len != MEM_allocN_len(cache->cached_frames)) {
+		cache->cached_frames = MEM_reallocN(cache->cached_frames, new_len * sizeof(char));
+	}
+
+	cache->flags |= OPENVDB_CACHE_OUTDATED;
+	UNUSED_VARS(bmain, scene);
+}
+
 
 #else
 
@@ -387,11 +414,13 @@ static void rna_def_openvdb_cache(BlenderRNA *brna)
 	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
 	RNA_def_property_ui_range(prop, 1, MAXFRAME, 1, 1);
 	RNA_def_property_ui_text(prop, "Start", "Frame on which the simulation starts");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_OpenVDBCache_range_update");
 
 	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "endframe");
 	RNA_def_property_range(prop, 1, MAXFRAME);
 	RNA_def_property_ui_text(prop, "End", "Frame on which the simulation stops");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_OpenVDBCache_range_update");
 
 	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "path");
@@ -458,7 +487,9 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 
 	static EnumPropertyItem prop_cache_items[] = {
 	    {SMOKE_CACHE_POINTCACHE, "POINTCACHE", 0, "Point Cache", "Use Point Cache for caching on disk"},
+#ifdef WITH_OPENVDB
 	    {SMOKE_CACHE_OPENVDB, "OPENVDB", 0, "OpenVDB", "Use OpenVDB for caching on disk"},
+#endif
 	    {0, NULL, 0, NULL, NULL}
 	};
 
