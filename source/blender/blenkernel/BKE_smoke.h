@@ -37,7 +37,7 @@ struct OpenVDBCache;
 
 typedef float (*bresenham_callback)(float *result, float *input, int res[3], int *pixel, float *tRay, float correct);
 
-struct DerivedMesh *smokeModifier_do(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm, bool for_render);
+struct DerivedMesh *smokeModifier_do(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct DerivedMesh *dm);
 
 void smoke_reallocate_fluid(struct SmokeDomainSettings *sds, float dx, int res[3], int free_old);
 void smoke_reallocate_highres_fluid(struct SmokeDomainSettings *sds, float dx, int res[3], int free_old);
@@ -61,7 +61,9 @@ void smokeModifier_OpenVDB_export(struct SmokeModifierData *smd, struct Scene *s
 
 bool smokeModifier_OpenVDB_import(struct SmokeModifierData *smd, struct Scene *scene, struct Object *ob, struct OpenVDBCache *cache);
 
-struct OpenVDBCache *BKE_openvdb_get_current_cache(struct SmokeDomainSettings *sds);
+struct OpenVDBCache *BKE_openvdb_cache_current(struct SmokeDomainSettings *sds);
 void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *fname, const char *relbase, int frame);
+void BKE_openvdb_cache_remove_files(struct OpenVDBCache *cache, const char *relbase);
+bool BKE_openvdb_cache_reset(struct Object *ob);
 
 #endif /* __BKE_SMOKE_H__ */

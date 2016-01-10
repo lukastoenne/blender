@@ -220,7 +220,7 @@ static void drawcube_size(float size);
 static void drawcircle_size(float size);
 static void draw_empty_sphere(float size);
 static void draw_empty_cone(float size);
-static void draw_box(float vec[8][3], bool solid);
+static void draw_box(const float vec[8][3], bool solid);
 
 static void ob_wire_color_blend_theme_id(const unsigned char ob_wire_col[4], const int theme_id, float fac)
 {
@@ -653,7 +653,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 	if (ibuf && ibuf->rect) {
 		const bool use_clip = (U.glalphaclip != 1.0f);
-		int zoomfilter = (U.gameflags & USER_DISABLE_MIPMAP ) ? GL_NEAREST : GL_LINEAR;
+		int zoomfilter = (U.gameflags & USER_DISABLE_MIPMAP) ? GL_NEAREST : GL_LINEAR;
 		/* Setup GL params */
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -668,13 +668,12 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 		/* Draw the Image on the screen */
 		glaDrawPixelsTex(ofs_x, ofs_y, ima_x, ima_y, GL_RGBA, GL_UNSIGNED_BYTE, zoomfilter, ibuf->rect);
-		glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
 
 		glDisable(GL_BLEND);
 
 		if (use_clip) {
 			glDisable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, 0.0f);
+			glAlphaFunc(GL_ALWAYS, 0.0f);
 		}
 	}
 
@@ -691,7 +690,6 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	glEnd();
 
 	/* Reset GL settings */
-	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
@@ -730,8 +728,8 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 	const float size = ED_view3d_pixel_size(rv3d, co) * (float)U.obcenter_dia * 0.5f;
 	float verts[CIRCLE_RESOL][3];
 
-	/* using gldepthfunc guarantees that it does write z values,
-	 * but not checks for it, so centers remain visible independent order of drawing */
+	/* using glDepthFunc guarantees that it does write z values,
+	 * but not checks for it, so centers remain visible independent of draw order */
 	if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
 	/* write to near buffer always */
 	glDepthRange(0.0, 0.0);
@@ -940,59 +938,24 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
  */
 static void drawcube_size(float size)
 {
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, -size, -size); glVertex3f(-size, -size, size);
-	glVertex3f(-size, size, size); glVertex3f(-size, size, -size);
+	const GLfloat pos[8][3] = {
+		{-size, -size, -size},
+		{-size, -size,  size},
+		{-size,  size, -size},
+		{-size,  size,  size},
+		{ size, -size, -size},
+		{ size, -size,  size},
+		{ size,  size, -size},
+		{ size,  size,  size}
+	};
 
-	glVertex3f(-size, -size, -size); glVertex3f(size, -size, -size);
-	glVertex3f(size, -size, size); glVertex3f(size, size, size);
+	const GLubyte indices[24] = {0,1,1,3,3,2,2,0,0,4,4,5,5,7,7,6,6,4,1,5,3,7,2,6};
 
-	glVertex3f(size, size, -size); glVertex3f(size, -size, -size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, -size, size); glVertex3f(size, -size, size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, size, size); glVertex3f(size, size, size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, size, -size); glVertex3f(size, size, -size);
-	glEnd();
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, pos);
+	glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
-
-/* this is an unused (old) cube-drawing function based on a given size */
-#if 0
-static void drawcube_size(const float size[3])
-{
-
-	glPushMatrix();
-	glScale3fv(size);
-	
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
-	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
-	glVertex3fv(cube[7]); glVertex3fv(cube[4]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[1]); glVertex3fv(cube[5]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[2]); glVertex3fv(cube[6]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[3]); glVertex3fv(cube[7]);
-	glEnd();
-	
-	glPopMatrix();
-}
-#endif
 
 static void drawshadbuflimits(Lamp *la, float mat[4][4])
 {
@@ -1004,16 +967,16 @@ static void drawshadbuflimits(Lamp *la, float mat[4][4])
 	madd_v3_v3v3fl(sta, mat[3], lavec, la->clipsta);
 	madd_v3_v3v3fl(end, mat[3], lavec, la->clipend);
 
-	glBegin(GL_LINE_STRIP);
+	glBegin(GL_LINES);
 	glVertex3fv(sta);
 	glVertex3fv(end);
 	glEnd();
 
 	glPointSize(3.0);
-	bglBegin(GL_POINTS);
-	bglVertex3fv(sta);
-	bglVertex3fv(end);
-	bglEnd();
+	glBegin(GL_POINTS);
+	glVertex3fv(sta);
+	glVertex3fv(end);
+	glEnd();
 	glPointSize(1.0);
 }
 
@@ -1430,14 +1393,14 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			interp_v3_v3v3(lvec_clip, vec, lvec, clipsta_fac);
 			interp_v3_v3v3(vvec_clip, vec, vvec, clipsta_fac);
 
-			glBegin(GL_LINE_STRIP);
+			glBegin(GL_LINES);
 			glVertex3fv(lvec_clip);
 			glVertex3fv(vvec_clip);
 			glEnd();
 		}
 		/* Else, draw spot direction (using distance as end limit, same as for Area lamp). */
 		else {
-			glBegin(GL_LINE_STRIP);
+			glBegin(GL_LINES);
 			glVertex3f(0.0, 0.0, -circrad);
 			glVertex3f(0.0, 0.0, -la->dist);
 			glEnd();
@@ -1446,7 +1409,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	else if (ELEM(la->type, LA_HEMI, LA_SUN)) {
 		
 		/* draw the line from the circle along the dist */
-		glBegin(GL_LINE_STRIP);
+		glBegin(GL_LINES);
 		vec[2] = -circrad;
 		glVertex3fv(vec);
 		vec[2] = -la->dist;
@@ -1506,7 +1469,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		else if (la->area_shape == LA_AREA_RECT)
 			fdrawbox(-la->area_size * 0.5f, -la->area_sizey * 0.5f, la->area_size * 0.5f, la->area_sizey * 0.5f);
 
-		glBegin(GL_LINE_STRIP);
+		glBegin(GL_LINES);
 		glVertex3f(0.0, 0.0, -circrad);
 		glVertex3f(0.0, 0.0, -la->dist);
 		glEnd();
@@ -1533,7 +1496,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	if (vec[2] > 0) vec[2] -= circrad;
 	else vec[2] += circrad;
 	
-	glBegin(GL_LINE_STRIP);
+	glBegin(GL_LINES);
 	glVertex3fv(vec);
 	vec[2] = 0;
 	glVertex3fv(vec);
@@ -1953,7 +1916,7 @@ static void drawcamera_stereo3d(
 		glPopAttrib();
 	}
 
-	/* draw convergence plane*/
+	/* draw convergence plane */
 	if (is_stereo3d_plane) {
 		float axis_center[3], screen_center[3];
 		float world_plane[4][3];
@@ -1993,7 +1956,7 @@ static void drawcamera_stereo3d(
 		}
 	}
 
-	/* draw convergence plane*/
+	/* draw convergence plane */
 	if (is_stereo3d_volume) {
 		float screen_center[3];
 		float near_plane[4][3], far_plane[4][3];
@@ -2250,7 +2213,7 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 	UI_ThemeColor(color);
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 
 	for (int w = 0; w < lt->pntsw; w++) {
 		int wxt = (w == 0 || w == lt->pntsw - 1);
@@ -2263,11 +2226,11 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 						/* check for active BPoint and ensure selected */
 						if ((bp == actbp) && (bp->f1 & SELECT)) {
 							UI_ThemeColor(TH_ACTIVE_VERT);
-							bglVertex3fv(dl ? co : bp->vec);
+							glVertex3fv(dl ? co : bp->vec);
 							UI_ThemeColor(color);
 						}
 						else if ((bp->f1 & SELECT) == sel) {
-							bglVertex3fv(dl ? co : bp->vec);
+							glVertex3fv(dl ? co : bp->vec);
 						}
 					}
 				}
@@ -2275,7 +2238,7 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short s
 		}
 	}
 	
-	bglEnd();
+	glEnd();
 	glPointSize(1.0);
 }
 
@@ -2408,7 +2371,7 @@ static void drawlattice(View3D *v3d, Object *ob)
 
 /* ***************** ******************** */
 
-/*  draw callback */
+/* draw callback */
 
 typedef struct drawDMVertSel_userData {
 	MVert *mvert;
@@ -2529,16 +2492,16 @@ static void draw_dm_face_centers__mapFunc(void *userData, int index, const float
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN) &&
 	    (BM_elem_flag_test(efa, BM_ELEM_SELECT) == data->select))
 	{
-		bglVertex3fv(cent);
+		glVertex3fv(cent);
 	}
 }
 static void draw_dm_face_centers(BMEditMesh *em, DerivedMesh *dm, bool select)
 {
 	drawBMSelect_userData data = {em->bm, select};
 
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_centers__mapFunc, &data, DM_FOREACH_NOP);
-	bglEnd();
+	glEnd();
 }
 
 static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3])
@@ -2599,13 +2562,13 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 			const MVertSkin *vs = BM_ELEM_CD_GET_VOID_P(eve, data->cd_vskin_offset);
 			if (vs->flag & MVERT_SKIN_ROOT) {
 				float radius = (vs->radius[0] + vs->radius[1]) * 0.5f;
-				bglEnd();
+				glEnd();
 			
 				glColor4ubv(data->th_skin_root);
 				drawcircball(GL_LINES, co, radius, data->imat);
 
 				glColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
-				bglBegin(GL_POINTS);
+				glBegin(GL_POINTS);
 			}
 		}
 
@@ -2613,19 +2576,19 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 		if (eve == data->eve_act) {
 			glColor4ubv(data->th_editmesh_active);
 			
-			bglEnd();
+			glEnd();
 			
 			glPointSize(data->th_vertex_size);
-			bglBegin(GL_POINTS);
-			bglVertex3fv(co);
-			bglEnd();
+			glBegin(GL_POINTS);
+			glVertex3fv(co);
+			glEnd();
 
 			glColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
 			glPointSize(data->th_vertex_size);
-			bglBegin(GL_POINTS);
+			glBegin(GL_POINTS);
 		}
 		else {
-			bglVertex3fv(co);
+			glVertex3fv(co);
 		}
 	}
 }
@@ -2651,9 +2614,9 @@ static void draw_dm_verts(BMEditMesh *em, DerivedMesh *dm, const char sel, BMVer
 	mul_m4_m4m4(data.imat, rv3d->viewmat, em->ob->obmat);
 	invert_m4(data.imat);
 
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data, DM_FOREACH_NOP);
-	bglEnd();
+	glEnd();
 }
 
 /* Draw edges with color set based on selection */
@@ -3125,7 +3088,7 @@ static void draw_dm_bweights__mapFunc(void *userData, int index, const float co[
 		const float bweight = BM_ELEM_CD_GET_FLOAT(eve, data->cd_layer_offset);
 		if (bweight != 0.0f) {
 			UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_SELECT, bweight);
-			bglVertex3fv(co);
+			glVertex3fv(co);
 		}
 	}
 }
@@ -3141,9 +3104,9 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 
 		if (data.cd_layer_offset != -1) {
 			glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
-			bglBegin(GL_POINTS);
+			glBegin(GL_POINTS);
 			dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, &data, DM_FOREACH_NOP);
-			bglEnd();
+			glEnd();
 		}
 	}
 	else {
@@ -3167,7 +3130,7 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
  * specialized to be split out (like drawing creases or measurements).
  */
 
-/* EditMesh drawing routines*/
+/* EditMesh drawing routines */
 
 static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
                                 BMEditMesh *em, DerivedMesh *cageDM, BMVert *eve_act,
@@ -6153,7 +6116,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 	
 	if (nu->type == CU_BEZIER) {
 
@@ -6164,21 +6127,21 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 				if (sel == 1 && bezt == vert) {
 					UI_ThemeColor(TH_ACTIVE_VERT);
 
-					if (bezt->f2 & SELECT) bglVertex3fv(bezt->vec[1]);
+					if (bezt->f2 & SELECT) glVertex3fv(bezt->vec[1]);
 					if (!hide_handles) {
-						if (bezt->f1 & SELECT) bglVertex3fv(bezt->vec[0]);
-						if (bezt->f3 & SELECT) bglVertex3fv(bezt->vec[2]);
+						if (bezt->f1 & SELECT) glVertex3fv(bezt->vec[0]);
+						if (bezt->f3 & SELECT) glVertex3fv(bezt->vec[2]);
 					}
 
 					UI_ThemeColor(color);
 				}
 				else if (hide_handles) {
-					if ((bezt->f2 & SELECT) == sel) bglVertex3fv(bezt->vec[1]);
+					if ((bezt->f2 & SELECT) == sel) glVertex3fv(bezt->vec[1]);
 				}
 				else {
-					if ((bezt->f1 & SELECT) == sel) bglVertex3fv(bezt->vec[0]);
-					if ((bezt->f2 & SELECT) == sel) bglVertex3fv(bezt->vec[1]);
-					if ((bezt->f3 & SELECT) == sel) bglVertex3fv(bezt->vec[2]);
+					if ((bezt->f1 & SELECT) == sel) glVertex3fv(bezt->vec[0]);
+					if ((bezt->f2 & SELECT) == sel) glVertex3fv(bezt->vec[1]);
+					if ((bezt->f3 & SELECT) == sel) glVertex3fv(bezt->vec[2]);
 				}
 			}
 			bezt++;
@@ -6191,18 +6154,18 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 			if (bp->hide == 0) {
 				if (bp == vert) {
 					UI_ThemeColor(TH_ACTIVE_VERT);
-					bglVertex3fv(bp->vec);
+					glVertex3fv(bp->vec);
 					UI_ThemeColor(color);
 				}
 				else {
-					if ((bp->f1 & SELECT) == sel) bglVertex3fv(bp->vec);
+					if ((bp->f1 & SELECT) == sel) glVertex3fv(bp->vec);
 				}
 			}
 			bp++;
 		}
 	}
 	
-	bglEnd();
+	glEnd();
 	glPointSize(1.0);
 }
 
@@ -6315,7 +6278,8 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 									if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
 										UI_ThemeColor(TH_NURB_SEL_ULINE);
 
-										glBegin(GL_LINE_STRIP);
+										/* TODO: pull glBegin out of loop */
+										glBegin(GL_LINES);
 										glVertex3fv(bp->vec);
 										glVertex3fv(bp1->vec);
 										glEnd();
@@ -6328,7 +6292,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 									else {
 										UI_ThemeColor(TH_NURB_ULINE);
 
-										glBegin(GL_LINE_STRIP);
+										glBegin(GL_LINES);
 										glVertex3fv(bp->vec);
 										glVertex3fv(bp1->vec);
 										glEnd();
@@ -6350,7 +6314,8 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 										if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
 											UI_ThemeColor(TH_NURB_SEL_VLINE);
 
-											glBegin(GL_LINE_STRIP);
+											/* TODO: pull glBegin out of loop */
+											glBegin(GL_LINE);
 											glVertex3fv(bp->vec);
 											glVertex3fv(bp1->vec);
 											glEnd();
@@ -6363,7 +6328,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 										else {
 											UI_ThemeColor(TH_NURB_VLINE);
 
-											glBegin(GL_LINE_STRIP);
+											glBegin(GL_LINES);
 											glVertex3fv(bp->vec);
 											glVertex3fv(bp1->vec);
 											glEnd();
@@ -6526,7 +6491,7 @@ static void draw_editfont(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *b
 		vec1[1] += cu->linedist * cu->fsize;
 		vec2[1] -= cu->lines * cu->linedist * cu->fsize;
 		setlinestyle(3);
-		glBegin(GL_LINE_STRIP);
+		glBegin(GL_LINES);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
 		glEnd();
@@ -7035,31 +7000,21 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 	setlinestyle(0);
 }
 
-static void draw_box(float vec[8][3], bool solid)
+static void draw_box(const float vec[8][3], bool solid)
 {
-	if (!solid) {
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
-		glVertex3fv(vec[0]); glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[6]);
-		glVertex3fv(vec[7]); glVertex3fv(vec[4]);
-		glEnd();
-
-		glBegin(GL_LINES);
-		glVertex3fv(vec[1]); glVertex3fv(vec[5]);
-		glVertex3fv(vec[2]); glVertex3fv(vec[6]);
-		glVertex3fv(vec[3]); glVertex3fv(vec[7]);
-		glEnd();
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vec);
+	
+	if (solid) {
+		const GLubyte indices[24] = {0,1,2,3,7,6,5,4,4,5,1,0,3,2,6,7,3,7,4,0,1,5,6,2};
+		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
 	}
 	else {
-		glBegin(GL_QUADS);
-		glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
-		glVertex3fv(vec[7]); glVertex3fv(vec[6]); glVertex3fv(vec[5]); glVertex3fv(vec[4]);
-		glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[1]); glVertex3fv(vec[0]);
-		glVertex3fv(vec[3]); glVertex3fv(vec[2]); glVertex3fv(vec[6]); glVertex3fv(vec[7]);
-		glVertex3fv(vec[3]); glVertex3fv(vec[7]); glVertex3fv(vec[4]); glVertex3fv(vec[0]);
-		glVertex3fv(vec[1]); glVertex3fv(vec[5]); glVertex3fv(vec[6]); glVertex3fv(vec[2]);
-		glEnd();
+		const GLubyte indices[24] = {0,1,1,2,2,3,3,0,0,4,4,5,5,6,6,7,7,4,1,5,2,6,3,7};
+		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
 	}
+
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
@@ -7315,9 +7270,9 @@ static void draw_hooks(Object *ob)
 			}
 
 			glPointSize(3.0);
-			bglBegin(GL_POINTS);
-			bglVertex3fv(vec);
-			bglEnd();
+			glBegin(GL_POINTS);
+			glVertex3fv(vec);
+			glEnd();
 			glPointSize(1.0);
 		}
 	}
@@ -7901,14 +7856,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				
 
 				// glPointSize(3.0);
-				bglBegin(GL_POINTS);
+				glBegin(GL_POINTS);
 
 				for (i = 0; i < scs->numpoints; i++)
 				{
-					bglVertex3fv(&scs->points[3 * i]);
+					glVertex3fv(&scs->points[3 * i]);
 				}
 
-				bglEnd();
+				glEnd();
 				glPointSize(1.0);
 
 				glMultMatrixf(ob->obmat);
@@ -7961,8 +7916,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (sds->fluid && CFRA >= sds->point_cache[0]->startframe) {
-				float p0[3], p1[3];
-
 				/* get view vector */
 				invert_m4_m4(ob->imat, ob->obmat);
 				mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);
@@ -8250,7 +8203,7 @@ static void bbs_obmode_mesh_verts__mapFunc(void *userData, int index, const floa
 
 	if (!(mv->flag & ME_HIDE)) {
 		WM_framebuffer_index_set(data->offset + index);
-		bglVertex3fv(co);
+		glVertex3fv(co);
 	}
 }
 
@@ -8262,9 +8215,9 @@ static void bbs_obmode_mesh_verts(Object *ob, DerivedMesh *dm, int offset)
 	data.mvert = mvert;
 	data.offset = offset;
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 	dm->foreachMappedVert(dm, bbs_obmode_mesh_verts__mapFunc, &data, DM_FOREACH_NOP);
-	bglEnd();
+	glEnd();
 	glPointSize(1.0);
 }
 
@@ -8276,16 +8229,16 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		WM_framebuffer_index_set(data->offset + index);
-		bglVertex3fv(co);
+		glVertex3fv(co);
 	}
 }
 static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 {
 	drawBMOffset_userData data = {em->bm, offset};
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	glBegin(GL_POINTS);
 	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, &data, DM_FOREACH_NOP);
-	bglEnd();
+	glEnd();
 	glPointSize(1.0);
 }
 
@@ -8343,7 +8296,7 @@ static void bbs_mesh_solid__drawCenter(void *userData, int index, const float ce
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		WM_framebuffer_index_set(index + 1);
 
-		bglVertex3fv(cent);
+		glVertex3fv(cent);
 	}
 }
 
@@ -8359,9 +8312,9 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 		if (check_ob_drawface_dot(scene, v3d, ob->dt)) {
 			glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
-			bglBegin(GL_POINTS);
+			glBegin(GL_POINTS);
 			dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, em->bm, DM_FOREACH_NOP);
-			bglEnd();
+			glEnd();
 		}
 
 	}

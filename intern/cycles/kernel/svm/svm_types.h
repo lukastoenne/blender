@@ -184,7 +184,8 @@ typedef enum NodeLightPath {
 	NODE_LP_backfacing,
 	NODE_LP_ray_length,
 	NODE_LP_ray_depth,
-	NODE_LP_ray_transparent
+	NODE_LP_ray_transparent,
+	NODE_LP_ray_transmission,
 } NodeLightPath;
 
 typedef enum NodeLightFalloff {
@@ -293,6 +294,11 @@ typedef enum NodeWaveType {
 	NODE_WAVE_BANDS,
 	NODE_WAVE_RINGS
 } NodeWaveType;
+
+typedef enum NodeWaveProfiles {
+	NODE_WAVE_PROFILE_SIN,
+	NODE_WAVE_PROFILE_SAW,
+} NodeWaveProfile;
 
 typedef enum NodeSkyType {
 	NODE_SKY_OLD,

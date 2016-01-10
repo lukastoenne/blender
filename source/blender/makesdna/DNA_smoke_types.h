@@ -167,6 +167,8 @@ typedef struct OpenVDBCache {
 	char path[1024];
 	char name[64];
 
+	/* array of length endframe-startframe+1 with flags to indicate cached frames */
+	char *cached_frames;
 	int startframe, endframe;
 	short flags, compression, pad[2];
 } OpenVDBCache;
@@ -175,6 +177,8 @@ enum {
 	OPENVDB_CACHE_CURRENT        = (1 << 0),
 	OPENVDB_CACHE_BAKED          = (1 << 1),
 	OPENVDB_CACHE_SAVE_AS_HALF   = (1 << 2),
+	OPENVDB_CACHE_OUTDATED       = (1 << 3),
+	OPENVDB_CACHE_INVALID        = (1 << 4),
 };
 
 enum {

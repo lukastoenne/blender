@@ -49,7 +49,7 @@ if(WIN32)
 endif()
 
 if(WITH_LIBMV)
-	blender_include_dirs(../../extern/libmv)
+	blender_include_dirs(../../intern/libmv)
 	add_definitions(-DWITH_LIBMV)
 endif()
 
@@ -524,7 +524,6 @@ if(UNIX AND NOT APPLE)
 			unset(_pypath_real)
 
 			# Copy the systems python into the install directory
-			# Scons copy in tools/Blender.py
 			# install(CODE "message(\"copying a subset of the systems python...\")")
 			install(
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
@@ -709,6 +708,20 @@ elseif(WIN32)
 				DESTINATION ${BLENDER_VERSION}/python/bin
 				CONFIGURATIONS Debug
 			)
+
+			# MinGW needs Python DLL
+			if(MINGW)
+				install(
+					FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
+					DESTINATION "."
+					CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+				)
+				install(
+					FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+					DESTINATION "."
+					CONFIGURATIONS Debug
+				)
+			endif()
 		endif()
 
 		unset(_PYTHON_VERSION_NO_DOTS)

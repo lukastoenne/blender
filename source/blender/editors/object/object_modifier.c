@@ -2436,7 +2436,7 @@ static int openvdb_cache_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 {
 	Object *ob = CTX_data_active_object(C);
 	SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(smd->domain);
 	const char *relbase = modifier_path_relbase(ob);
 	char filename[FILE_MAX];
 
@@ -2488,7 +2488,10 @@ static OpenVDBCache *openvdb_cache_new(void)
 	cache->startframe = 1;
 	cache->endframe = 250;
 	cache->compression = VDB_COMPRESSION_ZIP;
+	cache->cached_frames = MEM_callocN(cache->endframe - cache->startframe + 1,
+	                                   "OpenVDBCache_cache_frames");
 
+	BLI_strncpy(cache->path, "//\0", 3);
 	BLI_strncpy(cache->name, "openvdb_cache", sizeof(cache->name));
 
 	return cache;
@@ -2504,7 +2507,7 @@ static int openvdb_cache_add_exec(bContext *C, wmOperator *op)
 	}
 
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds), *cache_new;
+	OpenVDBCache *cache = BKE_openvdb_cache_current(sds), *cache_new;
 
 	if (cache) {
 		cache->flags &= ~OPENVDB_CACHE_CURRENT;
@@ -2547,13 +2550,14 @@ static int openvdb_cache_remove_exec(bContext *C, wmOperator *op)
 	}
 
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
 	OpenVDBCache *cache_prev = NULL, *cache_next = NULL;
 
 	if (cache) {
 		cache_prev = cache->prev;
 		cache_next = cache->next;
 		BLI_remlink(&sds->vdb_caches, cache);
+		MEM_freeN(cache->cached_frames);
 		MEM_freeN(cache);
 	}
 
@@ -2601,7 +2605,7 @@ static int openvdb_cache_move_exec(bContext *C, wmOperator *op)
 	}
 
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(sds);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
 	int direction = RNA_enum_get(op->ptr, "direction");
 
 	if (direction == VDB_CACHE_MOVE_UP) {
@@ -2651,22 +2655,14 @@ static int openvdb_cache_free_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	OpenVDBCache *cache = BKE_openvdb_get_current_cache(smd->domain);
+	OpenVDBCache *cache = BKE_openvdb_cache_current(smd->domain);
 
 	if ((cache->flags & OPENVDB_CACHE_BAKED) == 0) {
 		return OPERATOR_CANCELLED;
 	}
 
 	const char *relbase = modifier_path_relbase(ob);
-	char filename[FILE_MAX];
-
-	for (int fr = cache->startframe; fr <= cache->endframe; fr++) {
-		BKE_openvdb_cache_filename(filename, cache->path, cache->name, relbase, fr);
-
-		if (BLI_exists(filename)) {
-			BLI_delete(filename, false, false);
-		}
-	}
+	BKE_openvdb_cache_remove_files(cache, relbase);
 
 	cache->flags &= ~OPENVDB_CACHE_BAKED;
 

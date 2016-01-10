@@ -3189,18 +3189,23 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 
 static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 {
-	bPoseChannel *pchan;
 	bArmature *arm = ob->data;
-	int rebuild = 0;
 	
 	if (!pose || !arm)
 		return;
 	
 	/* always rebuild to match proxy or lib changes, but on Undo */
-	if (fd->memfile == NULL)
-		if (ob->proxy || (ob->id.lib==NULL && arm->id.lib))
-			rebuild = 1;
-	
+	bool rebuild = false;
+
+	if (fd->memfile == NULL) {
+		if (ob->proxy || (ob->id.lib==NULL && arm->id.lib)) {
+			rebuild = true;
+		}
+	}
+
+	/* avoid string */
+	GHash *bone_hash = BKE_armature_bone_from_name_map(arm);
+
 	if (ob->proxy) {
 		/* sync proxy layer */
 		if (pose->proxy_layer)
@@ -3208,28 +3213,32 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 		
 		/* sync proxy active bone */
 		if (pose->proxy_act_bone[0]) {
-			Bone *bone = BKE_armature_find_bone_name(arm, pose->proxy_act_bone);
-			if (bone)
+			Bone *bone = BLI_ghash_lookup(bone_hash, pose->proxy_act_bone);
+			if (bone) {
 				arm->act_bone = bone;
+			}
 		}
 	}
-	
-	for (pchan = pose->chanbase.first; pchan; pchan=pchan->next) {
+
+	for (bPoseChannel *pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 		lib_link_constraints(fd, (ID *)ob, &pchan->constraints);
-		
-		/* hurms... loop in a loop, but yah... later... (ton) */
-		pchan->bone = BKE_armature_find_bone_name(arm, pchan->name);
+
+		pchan->bone = BLI_ghash_lookup(bone_hash, pchan->name);
 		
 		pchan->custom = newlibadr_us(fd, arm->id.lib, pchan->custom);
-		if (pchan->bone == NULL)
-			rebuild= 1;
-		else if (ob->id.lib==NULL && arm->id.lib) {
+		if (UNLIKELY(pchan->bone == NULL)) {
+			rebuild = true;
+		}
+		else if ((ob->id.lib == NULL) && arm->id.lib) {
 			/* local pose selection copied to armature, bit hackish */
 			pchan->bone->flag &= ~BONE_SELECTED;
 			pchan->bone->flag |= pchan->selectflag;
 		}
 	}
+
+	BLI_ghash_free(bone_hash, NULL, NULL);
 	
+
 	if (rebuild) {
 		DAG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		BKE_pose_tag_recalc(bmain, pose);
@@ -5034,8 +5043,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 					link_list(fd, &smd->domain->vdb_caches);
 					for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
+						cache->flags |= OPENVDB_CACHE_OUTDATED;
 						cache->reader = NULL;
 						cache->writer = NULL;
+						cache->cached_frames = NULL;
 					}
 				}
 			}
@@ -5150,7 +5161,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		else if (md->type == eModifierType_ParticleSystem) {
 			ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
 			
-			psmd->dm= NULL;
+			psmd->dm_final = NULL;
+			psmd->dm_deformed = NULL;
 			psmd->psys= newdataadr(fd, psmd->psys);
 			psmd->flag &= ~eParticleSystemFlag_psys_updated;
 			psmd->flag |= eParticleSystemFlag_file_loaded;
@@ -9675,16 +9687,47 @@ static ID *link_named_part(Main *mainl, FileData *fd, const short idcode, const 
 	return id;
 }
 
+static void link_object_postprocess(ID *id, Scene *scene, View3D *v3d, const short flag)
+{
+	if (scene) {
+		Base *base;
+		Object *ob;
+
+		base = MEM_callocN(sizeof(Base), "app_nam_part");
+		BLI_addtail(&scene->base, base);
+
+		ob = (Object *)id;
+
+		/* link at active layer (view3d if available in context, else scene one */
+		if (flag & FILE_ACTIVELAY) {
+			ob->lay = BKE_screen_view3d_layer_active(v3d, scene);
+		}
+
+		ob->mode = OB_MODE_OBJECT;
+		base->lay = ob->lay;
+		base->object = ob;
+		base->flag = ob->flag;
+		ob->id.us++;
+
+		if (flag & FILE_AUTOSELECT) {
+			base->flag |= SELECT;
+			base->object->flag = base->flag;
+			/* do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level */
+		}
+	}
+}
+
 /**
  * Simple reader for copy/paste buffers.
  */
-void BLO_library_link_all(Main *mainl, BlendHandle *bh)
+void BLO_library_link_all(Main *mainl, BlendHandle *bh, const short flag, Scene *scene, View3D *v3d)
 {
 	FileData *fd = (FileData *)(bh);
 	BHead *bhead;
-	ID *id = NULL;
 	
 	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead)) {
+		ID *id = NULL;
+
 		if (bhead->code == ENDB)
 			break;
 		if (bhead->code == ID_OB)
@@ -9694,6 +9737,8 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh)
 			/* sort by name in list */
 			ListBase *lb = which_libbase(mainl, GS(id->name));
 			id_sort_by_name(lb, id);
+
+			link_object_postprocess(id, scene, v3d, flag);
 		}
 	}
 }
@@ -9705,32 +9750,7 @@ static ID *link_named_part_ex(
 	ID *id = link_named_part(mainl, fd, idcode, name);
 
 	if (id && (GS(id->name) == ID_OB)) {	/* loose object: give a base */
-		if (scene) {
-			Base *base;
-			Object *ob;
-
-			base = MEM_callocN(sizeof(Base), "app_nam_part");
-			BLI_addtail(&scene->base, base);
-
-			ob = (Object *)id;
-
-			/* link at active layer (view3d if available in context, else scene one */
-			if (flag & FILE_ACTIVELAY) {
-				ob->lay = BKE_screen_view3d_layer_active(v3d, scene);
-			}
-
-			ob->mode = OB_MODE_OBJECT;
-			base->lay = ob->lay;
-			base->object = ob;
-			base->flag = ob->flag;
-			ob->id.us++;
-
-			if (flag & FILE_AUTOSELECT) {
-				base->flag |= SELECT;
-				base->object->flag = base->flag;
-				/* do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level */
-			}
-		}
+		link_object_postprocess(id, scene, v3d, flag);
 	}
 	else if (id && (GS(id->name) == ID_GR)) {
 		/* tag as needing to be instantiated */
@@ -10021,7 +10041,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 							printf("	relative lib: %s\n", mainptr->curlib->name);
 							printf("  enter a new path:\n");
 							
-							if (scanf("%s", newlib_path) > 0) {
+							if (scanf("%1023s", newlib_path) > 0) {  /* Warning, keep length in sync with FILE_MAX! */
 								BLI_strncpy(mainptr->curlib->name, newlib_path, sizeof(mainptr->curlib->name));
 								BLI_strncpy(mainptr->curlib->filepath, newlib_path, sizeof(mainptr->curlib->filepath));
 								BLI_cleanup_path(G.main->name, mainptr->curlib->filepath);
