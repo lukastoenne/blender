@@ -2817,7 +2817,7 @@ static void bke_openvdb_cache_write_smoke(OpenVDBCache *cache, SmokeDomainSettin
 
 	cache->cached_frames[framenr - cache->startframe] = 1;
 #else
-	UNUSED_VARS(cache, sds, ob, framnr);
+	UNUSED_VARS(cache, sds, ob, framenr);
 #endif
 }
 
