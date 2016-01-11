@@ -418,12 +418,12 @@ bool InputKey::is_expression() const
 /* ------------------------------------------------------------------------- */
 
 NodeInstance::NodeInstance(const NodeType *type, const string &name) :
-    type(type), name(name), index(0)
+    type(type), name(name), index(0), block(NULL)
 {
 }
 
 NodeInstance::NodeInstance(const NodeInstance *other, const string &name) :
-    type(other->type), name(name), index(0)
+    type(other->type), name(name), index(0), block(NULL)
 {
 	for (InputMap::const_iterator it = other->inputs.begin(); it != other->inputs.end(); ++it) {
 		const string &input_name = it->first;
@@ -547,6 +547,49 @@ bool NodeInstance::input_value_set(const string &name, Value *value)
 		return false;
 	input.value = value;
 	return true;
+}
+
+/* ------------------------------------------------------------------------- */
+
+NodeBlock::NodeBlock(const string &name, NodeBlock *parent) :
+    m_name(name),
+    m_parent(parent)
+{}
+
+ConstOutputKey NodeBlock::local_arg(const string &name) const
+{
+	ArgumentMap::const_iterator it = m_local_args.find(name);
+	if (it != m_local_args.end())
+		return it->second;
+	else
+		return ConstOutputKey();
+}
+
+void NodeBlock::local_arg_set(const string &name, const ConstOutputKey &arg)
+{
+	m_local_args[name] = arg;
+}
+
+void NodeBlock::insert(NodeInstance *node)
+{
+	m_nodes.insert(node);
+	node->block = this;
+}
+
+void NodeBlock::prune(const NodeSet &used_nodes)
+{
+	NodeSet used_block_nodes;
+	std::set_intersection(used_nodes.begin(), used_nodes.end(),
+	                      m_nodes.begin(), m_nodes.end(),
+	                      std::inserter(used_block_nodes, used_block_nodes.end()));
+	m_nodes = used_block_nodes;
+	
+	for (ArgumentMap::iterator it = m_local_args.begin(); it != m_local_args.end(); ++it) {
+		NodeInstance *node = const_cast<NodeInstance *>(it->second.node);
+		if (used_nodes.find(node) == used_nodes.end()) {
+			it->second = ConstOutputKey();
+		}
+	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -867,6 +910,145 @@ void NodeGraph::skip_pass_nodes()
 	}
 }
 
+void NodeGraph::make_args_local(NodeBlock &block, NodeMap &block_map, NodeSet &block_visited, const NodeInstance *arg_node)
+{
+	if (!arg_node->type->is_kernel_node())
+		return;
+	
+	for (int i = 0; i < arg_node->num_outputs(); ++i) {
+		const NodeOutput *output = arg_node->type->find_output(i);
+		
+		if (output->value_type == OUTPUT_LOCAL) {
+			const Input *graph_input = get_input(output->name);
+			assert(graph_input);
+			
+			if (graph_input->key) {
+				block_visited.insert(graph_input->key.node);
+				OutputKey local_arg(copy_node(graph_input->key.node, block_map), graph_input->key.socket);
+				block.insert(local_arg.node);
+				block.local_arg_set(output->name, local_arg);
+			}
+		}
+	}
+}
+
+bool NodeGraph::add_block_node(NodeInstance *node, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited)
+{
+	/* determines if the node is part of the block */
+	bool is_block_node = block_map.find(node) != block_map.end();
+	
+	if (block_visited.find(node) != block_visited.end())
+		return is_block_node;
+	assert(!is_block_node); /* can't have been mapped yet */
+	block_visited.insert(node);
+	
+	for (int i = 0; i < node->num_inputs(); ++i) {
+		InputKey input = node->input(i);
+		if (input.is_constant()) {
+			if (!block.parent())
+				is_block_node |= true;
+		}
+		else if (input.is_expression()) {
+			if (!block.parent())
+				is_block_node |= blockify_expression(input, block, block_map, block_visited);
+		}
+		else {
+			OutputKey output = input.link();
+			if (output) {
+				is_block_node |= add_block_node(output.node, block, block_map, block_visited);
+			}
+		}
+	}
+	
+	if (is_block_node) {
+		NodeInstance *block_node;
+		if (block.parent()) {
+			block_node = copy_node(node, block_map);
+		}
+		else {
+			block_node = node;
+			block_map[node] = node;
+		}
+		block.insert(block_node);
+		return true;
+	}
+	else
+		return false;
+}
+
+bool NodeGraph::blockify_expression(const InputKey &input, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited)
+{
+	OutputKey link_key = input.link();
+	if (!link_key)
+		return false;
+	NodeInstance *link_node = link_key.node;
+	
+	bool is_block_node = false;
+	
+	/* generate a local block for the input expression */
+	blocks.push_back(NodeBlock(input.node->name + ":" + input.socket->name, &block));
+	NodeBlock &expr_block = blocks.back();
+	NodeSet expr_visited;
+	NodeMap expr_block_map;
+	
+	make_args_local(expr_block, expr_block_map, expr_visited, input.node);
+	
+	add_block_node(link_node, expr_block, expr_block_map, expr_visited);
+	
+	if (expr_block_map.find(link_node) != expr_block_map.end()) {
+		/* remap the input link */
+		input.link_set(OutputKey(expr_block_map.at(link_node), link_key.socket));
+	}
+	else {
+		/* use the input directly if no expression nodes are generated (no local arg dependencies) */
+		is_block_node |= add_block_node(link_node, block, block_map, block_visited);
+	}
+	
+	/* find node inputs in the expression block that use values outside of it,
+	 * which means these must be included in the parent block
+	 */
+	for (NodeSet::iterator it = expr_block.nodes().begin(); it != expr_block.nodes().end(); ++it) {
+		NodeInstance *node = *it;
+		for (int i = 0; i < node->num_inputs(); ++i) {
+			InputKey expr_input = node->input(i);
+			NodeInstance *link_node = expr_input.link().node;
+			if (link_node && expr_block.nodes().find(link_node) == expr_block.nodes().end())
+				is_block_node |= add_block_node(link_node, block, block_map, block_visited);
+		}
+	}
+	
+	return is_block_node;
+}
+
+void NodeGraph::blockify_nodes()
+{
+	blocks.push_back(NodeBlock("main", NULL));
+	NodeBlock &main = blocks.back();
+	NodeSet main_visited;
+	NodeMap main_map;
+	
+	/* input argument nodes must always be included in main,
+	 * to provide reliable storage for caller arguments
+	 */
+	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
+		const Input &input = *it;
+		if (input.key) {
+			NodeInstance *node = input.key.node;
+			main_visited.insert(node);
+			
+			NodeInstance *block_node = node; /* for main block: same as original node */
+			main_map[node] = block_node;
+			main.insert(block_node);
+		}
+	}
+	
+	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
+		const Output &output = *it;
+		if (output.key)
+			add_block_node(output.key.node, main, main_map, main_visited);
+	}
+}
+
 static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
 {
 	if (used_nodes.find(node) != used_nodes.end())
@@ -892,11 +1074,7 @@ void NodeGraph::remove_unused_nodes()
 	/* make sure unused inputs don't leave dangling node pointers */
 	for (NodeGraph::NodeBlockList::iterator it = blocks.begin(); it != blocks.end(); ++it) {
 		NodeBlock &block = *it;
-		NodeSet used_block_nodes;
-		std::set_intersection(used_nodes.begin(), used_nodes.end(),
-		                      block.nodes.begin(), block.nodes.end(),
-		                      std::inserter(used_block_nodes, used_block_nodes.end()));
-		block.nodes = used_block_nodes;
+		block.prune(used_nodes);
 	}
 	for (NodeGraph::InputList::iterator it = inputs.begin(); it != inputs.end(); ++it) {
 		Input &input = *it;
@@ -918,143 +1096,6 @@ void NodeGraph::remove_unused_nodes()
 		}
 		else
 			it++;
-	}
-}
-
-void NodeGraph::get_local_args(const NodeInstance *node, OutputSet &local_args) const
-{
-	if (!node->type->is_kernel_node())
-		return;
-	
-	for (int i = 0; i < node->num_outputs(); ++i) {
-		const NodeOutput *output = node->type->find_output(i);
-		
-		if (output->value_type == OUTPUT_LOCAL) {
-			const Input *graph_input = get_input(output->name);
-			assert(graph_input);
-			
-			if (graph_input->key) {
-				local_args.insert(graph_input->key);
-			}
-		}
-	}
-}
-
-static bool is_arg_node(const NodeInstance *node, const OutputSet &args)
-{
-	for (int i = 0; i < node->num_outputs(); ++i) {
-		ConstOutputKey output = node->output(i);
-		if (args.find(output) != args.end())
-			return true;
-	}
-	return false;
-}
-
-bool NodeGraph::add_block_node(NodeInstance *node, const OutputSet &block_args,
-                               NodeBlock &block, NodeMap &block_map)
-{
-	bool is_block_node = false; /* determines if the node is part of the block */
-	
-	is_block_node |= is_arg_node(node, block_args);
-	
-	OutputSet local_args;
-	get_local_args(node, local_args);
-	
-	for (int i = 0; i < node->num_inputs(); ++i) {
-		InputKey input = node->input(i);
-		if (input.is_constant()) {
-			if (!block.parent)
-				is_block_node |= true;
-		}
-		else if (input.is_expression()) {
-			if (!block.parent)
-				is_block_node |= blockify_expression(input, block_args, local_args, block, block_map);
-		}
-		else {
-			OutputKey output = input.link();
-			if (output) {
-				is_block_node |= add_block_node(output.node, block_args, block, block_map);
-			}
-		}
-	}
-	
-	if (is_block_node) {
-		NodeInstance *block_node = (block.parent) ? copy_node(node, block_map) : node;
-		block.nodes.insert(block_node);
-		return true;
-	}
-	else
-		return false;
-}
-
-bool NodeGraph::blockify_expression(const InputKey &input, const OutputSet &block_args, const OutputSet &local_args,
-                                    NodeBlock &block, NodeMap &block_map)
-{
-	OutputKey link_key = input.link();
-	if (!link_key)
-		return false;
-	NodeInstance *link_node = link_key.node;
-	
-	bool is_block_node = false;
-	
-	/* generate a local block for the input expression */
-	blocks.push_back(NodeBlock(&block));
-	NodeBlock &expr_block = blocks.back();
-	NodeMap expr_block_map;
-	
-	add_block_node(link_node, local_args, expr_block, expr_block_map);
-	if (expr_block.nodes.empty()) {
-		/* use the input directly if no expression nodes are generated (no local arg dependencies) */
-		is_block_node |= add_block_node(link_node, block_args, block, block_map);
-	}
-	else {
-		/* remap the input link */
-		input.link_set(OutputKey(expr_block_map.at(link_node), link_key.socket));
-	}
-	
-	/* find node inputs in the expression block that use values outside of it,
-	 * which means these must be included in the parent block
-	 */
-	for (NodeSet::iterator it = expr_block.nodes.begin(); it != expr_block.nodes.end(); ++it) {
-		NodeInstance *node = *it;
-		for (int i = 0; i < node->num_inputs(); ++i) {
-			InputKey expr_input = node->input(i);
-			NodeInstance *link_node = expr_input.link().node;
-			if (link_node && expr_block.nodes.find(link_node) == expr_block.nodes.end())
-				is_block_node |= add_block_node(link_node, block_args, block, block_map);
-		}
-	}
-	
-	return is_block_node;
-}
-
-void NodeGraph::blockify_nodes()
-{
-	OutputSet main_args;
-	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
-		const Input &input = *it;
-		if (input.key)
-			main_args.insert(input.key);
-	}
-	
-	blocks.push_back(NodeBlock(NULL));
-	NodeBlock &main = blocks.back();
-	/* for main block the node map is empty */
-	NodeMap main_map;
-	
-	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const Output &output = *it;
-		if (output.key)
-			add_block_node(output.key.node, main_args, main, main_map);
-	}
-	
-	/* input argument nodes must always be included in main,
-	 * to provide reliable storage for caller arguments
-	 */
-	for (InputList::const_iterator it = inputs.begin(); it != inputs.end(); ++it) {
-		const Input &input = *it;
-		if (input.key)
-			add_block_node(input.key.node, main_args, main, main_map);
 	}
 }
 

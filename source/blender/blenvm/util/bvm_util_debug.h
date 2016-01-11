@@ -56,6 +56,7 @@ static void debug_fprintf(const DebugContext &ctx, const char *fmt, ...)
 
 static const char *fontname = "helvetica";
 static float graph_label_size = 20.0f;
+static float block_label_size = 16.0f;
 static float node_label_size = 14.0f;
 static const char *node_color_function = "gainsboro";
 static const char *node_color_kernel = "lightsalmon1";
@@ -88,6 +89,38 @@ struct NodeGraphDumper {
 		return -1;
 	}
 	
+	inline static string node_id(const NodeInstance *node, bool stringify=true)
+	{
+		std::stringstream ss;
+		if (stringify)
+			ss << "\"node_" << (void*)node << "\"";
+		else
+			ss << "node_" << (void*)node;
+		return ss.str();
+	}
+	
+	inline static string input_id(const ConstInputKey &key, bool stringify=true)
+	{
+		int index = input_index(key.node, key.socket->name);
+		std::stringstream ss;
+		if (stringify)
+			ss << "\"I" << key.socket->name << "_" << index << "\"";
+		else
+			ss << "I" << key.socket->name << "_" << index;
+		return ss.str();
+	}
+	
+	inline static string output_id(const ConstOutputKey &key, bool stringify=true)
+	{
+		int index = output_index(key.node, key.socket->name);
+		std::stringstream ss;
+		if (stringify)
+			ss << "\"O" << key.socket->name << "_" << index << "\"";
+		else
+			ss << "O" << key.socket->name << "_" << index;
+		return ss.str();
+	}
+	
 	inline void dump_node(const NodeInstance *node) const
 	{
 		const char *shape = "box";
@@ -101,7 +134,7 @@ struct NodeGraphDumper {
 		string name = node->type->name();
 		
 		debug_fprintf(ctx, "// %s\n", node->name.c_str());
-		debug_fprintf(ctx, "\"node_%p\"", node);
+		debug_fprintf(ctx, "%s", node_id(node).c_str());
 		debug_fprintf(ctx, "[");
 		
 		/* html label including rows for input/output sockets
@@ -115,15 +148,31 @@ struct NodeGraphDumper {
 			debug_fprintf(ctx, "<TR>");
 			
 			if (i < numin) {
-				string name_in = node->type->find_input(i)->name;
-				debug_fprintf(ctx, "<TD PORT=\"I%s_%d\" BORDER=\"1\">%s</TD>", name_in.c_str(), i, name_in.c_str());
+				ConstInputKey input = node->input(i);
+				string name_in = input.socket->name;
+				debug_fprintf(ctx, "<TD");
+				debug_fprintf(ctx, " PORT=%s", input_id(input).c_str());
+				debug_fprintf(ctx, " BORDER=\"1\"");
+				if (input.is_expression())
+					debug_fprintf(ctx, " BGCOLOR=\"%s\"", node_color_return_value);
+				debug_fprintf(ctx, ">");
+				debug_fprintf(ctx, "%s", name_in.c_str());
+				debug_fprintf(ctx, "</TD>");
 			}
 			else
 				debug_fprintf(ctx, "<TD></TD>");
 				
 			if (i < numout) {
-				string name_out = node->type->find_output(i)->name;
-				debug_fprintf(ctx, "<TD PORT=\"O%s_%d\" BORDER=\"1\">%s</TD>", name_out.c_str(), i, name_out.c_str());
+				ConstOutputKey output = node->output(i);
+				string name_out = output.socket->name;
+				debug_fprintf(ctx, "<TD");
+				debug_fprintf(ctx, " PORT=%s", output_id(output).c_str());
+				debug_fprintf(ctx, " BORDER=\"1\"");
+				if (output.socket->value_type == OUTPUT_LOCAL)
+					debug_fprintf(ctx, " BGCOLOR=\"%s\"", node_color_argument);
+				debug_fprintf(ctx, ">");
+				debug_fprintf(ctx, "%s", name_out.c_str());
+				debug_fprintf(ctx, "</TD>");
 			}
 			else
 				debug_fprintf(ctx, "<TD></TD>");
@@ -143,159 +192,151 @@ struct NodeGraphDumper {
 		debug_fprintf(ctx, NL);
 	}
 	
-	inline void dump_input_output(const NodeGraph::Input *input, const NodeGraph::Output *output) const
+	inline void dump_local_arg(const string &local_arg_id, const ConstOutputKey arg_output) const
 	{
-		string name = input ? input->name : output->name;
-		string id = input ? "input" : "output";
-		void *ptr = input ? (void *)input : (void *)output;
-		{
-			const char *shape = "box";
-			const char *style = "filled,rounded";
-			const char *color = "black";
-			const char *fillcolor = input ?
-			                            node_color_argument :
-			                            node_color_return_value;
-			float penwidth = 1.0f;
-			
-			debug_fprintf(ctx, "// %s\n", name.c_str());
-			debug_fprintf(ctx, "\"%s_%p\"", id.c_str(), ptr);
-			debug_fprintf(ctx, "[");
-			
-			/* html label including rows for input/output sockets
-			 * http://www.graphviz.org/doc/info/shapes.html#html
-			 */
-			debug_fprintf(ctx, "label=\"%s\"", name.c_str());
-			debug_fprintf(ctx, ",fontname=\"%s\"", fontname);
-			debug_fprintf(ctx, ",fontsize=\"%f\"", node_label_size);
-			debug_fprintf(ctx, ",shape=\"%s\"", shape);
-			debug_fprintf(ctx, ",style=\"%s\"", style);
-			debug_fprintf(ctx, ",color=\"%s\"", color);
-			debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
-			debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-			debug_fprintf(ctx, "];" NL);
-			debug_fprintf(ctx, NL);
-		}
+		debug_fprintf(ctx, "%s -> %s:%s",
+		              local_arg_id.c_str(),
+		              node_id(arg_output.node).c_str(), output_id(arg_output).c_str());
 		
-		const float penwidth = 2.0f;
-		if (input) {
-			const OutputKey &key = input->key;
-			if (key) {
-				const NodeGraph::Input *tail = input;
-				const NodeInstance *head = key.node;
-				const string &head_socket = key.socket->name;
-				debug_fprintf(ctx, "// %s:%s -> %s\n",
-				              tail->name.c_str(),
-				              head->name.c_str(), head_socket.c_str());
-				debug_fprintf(ctx, "\"input_%p\"", tail);
-				debug_fprintf(ctx, " -> ");
-				debug_fprintf(ctx, "\"node_%p\"", head);
-				
-				debug_fprintf(ctx, "[");
-				/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-				debug_fprintf(ctx, "id=\"A%sB%s\"",
-				              head->name.c_str(),
-				              tail->name.c_str());
-				
-				debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-				debug_fprintf(ctx, "];" NL);
-				debug_fprintf(ctx, NL);
-			}
+		debug_fprintf(ctx, "[");
+		/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+		debug_fprintf(ctx, "id=\"ARG%s:%s\"", node_id(arg_output.node, false).c_str(), output_id(arg_output, false).c_str());
+		
+		debug_fprintf(ctx, ",penwidth=\"%f\"", 2.0f);
+		debug_fprintf(ctx, ",style=dashed");
+		debug_fprintf(ctx, ",color=%s", node_color_argument);
+//		debug_fprintf(ctx, ",constraint=false");
+		debug_fprintf(ctx, "];" NL);
+		debug_fprintf(ctx, NL);
+	}
+	
+	inline void dump_return_value(const string &return_value_id, const ConstOutputKey &ret_output) const
+	{
+		debug_fprintf(ctx, "%s:%s -> %s",
+		              node_id(ret_output.node).c_str(), output_id(ret_output).c_str(),
+		              return_value_id.c_str());
+		
+		debug_fprintf(ctx, "[");
+		/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+		debug_fprintf(ctx, "id=\"RET%s:%s\"", node_id(ret_output.node, false).c_str(), output_id(ret_output, false).c_str());
+		
+		debug_fprintf(ctx, ",penwidth=\"%f\"", 2.0f);
+		debug_fprintf(ctx, ",style=dashed");
+		debug_fprintf(ctx, ",color=%s", node_color_return_value);
+		debug_fprintf(ctx, "];" NL);
+		debug_fprintf(ctx, NL);
+	}
+	
+	inline void dump_graph_input(const NodeGraph::Input *input) const
+	{
+		string name = input->name;
+		std::stringstream ss;
+		ss << "\"input_" << (void *)input << "\"";
+		string id = ss.str();
+		
+		const char *shape = "box";
+		const char *style = "filled,rounded";
+		const char *color = "black";
+		const char *fillcolor = node_color_argument;
+		
+		debug_fprintf(ctx, "%s", id.c_str());
+		debug_fprintf(ctx, "[");
+		
+		debug_fprintf(ctx, "label=\"%s\"", name.c_str());
+		debug_fprintf(ctx, ",fontname=\"%s\"", fontname);
+		debug_fprintf(ctx, ",fontsize=\"%f\"", node_label_size);
+		debug_fprintf(ctx, ",shape=\"%s\"", shape);
+		debug_fprintf(ctx, ",style=\"%s\"", style);
+		debug_fprintf(ctx, ",color=\"%s\"", color);
+		debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
+		debug_fprintf(ctx, ",penwidth=\"%f\"", 1.0f);
+		debug_fprintf(ctx, "];" NL);
+		debug_fprintf(ctx, NL);
+		
+		const OutputKey &key = input->key;
+		if (key) {
+			dump_local_arg(id, key);
 		}
-		else {
-			const OutputKey &key = output->key;
-			if (key) {
-				const NodeInstance *tail = key.node;
-				const string &tail_socket = key.socket->name;
-				int tail_index = output_index(tail, tail_socket);
-				const NodeGraph::Output *head = output;
-				debug_fprintf(ctx, "// %s:%s -> %s\n",
-				              tail->name.c_str(), tail_socket.c_str(),
-				              head->name.c_str());
-				debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
-				debug_fprintf(ctx, " -> ");
-				debug_fprintf(ctx, "\"output_%p\"", head);
-				
-				debug_fprintf(ctx, "[");
-				/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-				debug_fprintf(ctx, "id=\"A%sB%s:O%s_%d\"",
-				              head->name.c_str(),
-				              tail->name.c_str(), tail_socket.c_str(), tail_index);
-				
-				debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-				debug_fprintf(ctx, "];" NL);
-				debug_fprintf(ctx, NL);
+	}
+	
+	inline void dump_graph_output(const NodeGraph::Output *output) const
+	{
+		string name = output->name;
+		std::stringstream ss;
+		ss << "\"output_" << (void *)output << "\"";
+		string id = ss.str();
+		
+		const char *shape = "box";
+		const char *style = "filled,rounded";
+		const char *color = "black";
+		const char *fillcolor = node_color_return_value;
+		
+		debug_fprintf(ctx, "%s", id.c_str());
+		debug_fprintf(ctx, "[");
+		
+		debug_fprintf(ctx, "label=\"%s\"", name.c_str());
+		debug_fprintf(ctx, ",fontname=\"%s\"", fontname);
+		debug_fprintf(ctx, ",fontsize=\"%f\"", node_label_size);
+		debug_fprintf(ctx, ",shape=\"%s\"", shape);
+		debug_fprintf(ctx, ",style=\"%s\"", style);
+		debug_fprintf(ctx, ",color=\"%s\"", color);
+		debug_fprintf(ctx, ",fillcolor=\"%s\"", fillcolor);
+		debug_fprintf(ctx, ",penwidth=\"%f\"", 1.0f);
+		debug_fprintf(ctx, "];" NL);
+		debug_fprintf(ctx, NL);
+		
+		const OutputKey &key = output->key;
+		if (key) {
+			dump_return_value(id, key);
+		}
+	}
+	
+	inline void dump_link(const ConstOutputKey &from, const ConstInputKey &to) const
+	{
+		float penwidth = 2.0f;
+		
+		debug_fprintf(ctx, "%s:%s -> %s:%s",
+		              node_id(from.node).c_str(), output_id(from).c_str(),
+		              node_id(to.node).c_str(), input_id(to).c_str());
+
+		debug_fprintf(ctx, "[");
+		/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
+		debug_fprintf(ctx, "id=\"VAL%s:%s\"", node_id(to.node, false).c_str(), input_id(to, false).c_str());
+		
+		debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+		debug_fprintf(ctx, "];" NL);
+		debug_fprintf(ctx, NL);
+	}
+	
+	inline void dump_local_args(const NodeInstance *node, const NodeBlock *block) const
+	{
+		for (int i = 0; i < node->num_outputs(); ++i) {
+			ConstOutputKey output = node->output(i);
+			if (output.socket->value_type == OUTPUT_LOCAL) {
+				ConstOutputKey local_arg = block->local_arg(output.socket->name);
+				if (local_arg)
+					dump_local_arg(node_id(node)+":"+output_id(output), local_arg);
 			}
 		}
 	}
 	
-	inline void dump_node_links(const NodeGraph *graph, const NodeInstance *node) const
+	inline void dump_node_links(const NodeInstance *node) const
 	{
-		float penwidth = 2.0f;
-		const char *localarg_color = "gray50";
-		
 		for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {
-			const NodeInstance::InputInstance &input = it->second;
+			const string &name = it->first;
+			ConstInputKey input = node->input(name);
 			
-			if (input.link) {
-				const NodeInstance *tail = input.link.node;
-				const string &tail_socket = input.link.socket->name;
-				int tail_index = output_index(tail, tail_socket);
-				const NodeInstance *head = node;
-				const string &head_socket = it->first;
-				int head_index = input_index(head, head_socket);
-				debug_fprintf(ctx, "// %s:%s -> %s:%s\n",
-				              tail->name.c_str(), tail_socket.c_str(),
-				              head->name.c_str(), head_socket.c_str());
-				debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
-				debug_fprintf(ctx, " -> ");
-				debug_fprintf(ctx, "\"node_%p\":\"I%s_%d\"", head, head_socket.c_str(), head_index);
-		
-				debug_fprintf(ctx, "[");
-				/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-				debug_fprintf(ctx, "id=\"A%s:O%s_%dB%s:O%s_%d\"",
-				              head->name.c_str(), head_socket.c_str(), head_index,
-				              tail->name.c_str(), tail_socket.c_str(), tail_index);
-				
-				debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-				debug_fprintf(ctx, "];" NL);
-				debug_fprintf(ctx, NL);
-			}
-		}
-		
-		/* local argument outputs */
-		for (int i = 0; i < node->num_outputs(); ++i) {
-			ConstOutputKey key = node->output(i);
-			const NodeOutput *output = node->type->find_output(i);
-			
-			if (output->value_type == OUTPUT_LOCAL) {
-				const NodeGraph::Input *graph_input = graph->get_input(output->name);
-				
-				assert(graph_input);
-				if (graph_input->key.node) {
-					const NodeInstance *tail = key.node;
-					const string &tail_socket = key.socket->name;
-					int tail_index = output_index(tail, tail_socket);
-					const NodeGraph::Input *head = graph_input;
-					debug_fprintf(ctx, "\"node_%p\":\"O%s_%d\"", tail, tail_socket.c_str(), tail_index);
-					debug_fprintf(ctx, " -> ");
-					debug_fprintf(ctx, "\"input_%p\"", head);
+			if (input.link()) {
+				if (input.is_expression()) {
+					dump_return_value(node_id(node, false)+":"+input_id(input, false), input.link());
 					
-					debug_fprintf(ctx, "[");
-					/* Note: without label an id seem necessary to avoid bugs in graphviz/dot */
-					debug_fprintf(ctx, "id=\"A%sB%s:O%s_%d\"",
-					              head->name.c_str(),
-					              tail->name.c_str(), tail_socket.c_str(), tail_index);
-					
-					debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
-					/* this lets us link back to argument nodes
-					 * without disturbing other nodes' placement
-					 */
-					debug_fprintf(ctx, ",constraint=false");
-					debug_fprintf(ctx, ",style=dashed");
-					debug_fprintf(ctx, ",color=%s", localarg_color);
-					debug_fprintf(ctx, "];" NL);
-					debug_fprintf(ctx, NL);
+					const NodeBlock *block = input.link().node->block;
+					if (block) {
+						dump_local_args(node, block);
+					}
 				}
+				else 
+					dump_link(input.link(), input);
 			}
 		}
 	}
@@ -304,7 +345,7 @@ struct NodeGraphDumper {
 	{
 		int depth = -1;
 		while (block) {
-			block = block->parent;
+			block = block->parent();
 			++depth;
 		}
 		return depth;
@@ -317,14 +358,17 @@ struct NodeGraphDumper {
 	{
 		static const char *style = "filled,rounded";
 		int depth = get_block_depth(&block);
-		int gray_level = max_ii(100 - depth * 10, 0);
+		int gray_level = max_ii(95 - depth * 10, 0);
 		
 		debug_fprintf(ctx, "subgraph \"cluster_%p\" {" NL, &block);
 		debug_fprintf(ctx, "margin=\"%d\";" NL, 16);
 		debug_fprintf(ctx, "style=\"%s\";" NL, style);
 		debug_fprintf(ctx, "fillcolor=\"gray%d\"" NL, gray_level);
+		debug_fprintf(ctx, "fontsize=\"%f\"", block_label_size);
+		debug_fprintf(ctx, "fontname=\"%s\"", fontname);
+		debug_fprintf(ctx, "label=\"%s\"", block.name().c_str());
 		
-		for (NodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
+		for (NodeSet::const_iterator it = block.nodes().begin(); it != block.nodes().end(); ++it) {
 			const NodeInstance *node = *it;
 			dump_node(node);
 		}
@@ -354,26 +398,32 @@ struct NodeGraphDumper {
 		BlockChildMap block_children;
 		for (NodeGraph::NodeBlockList::const_iterator it = graph->blocks.begin(); it != graph->blocks.end(); ++it) {
 			const NodeBlock &block = *it;
-			if (block.parent)
-				block_children[block.parent].insert(&block);
+			if (block.parent())
+				block_children[block.parent()].insert(&block);
 		}
 		if (!graph->blocks.empty()) {
 			/* first block is main */
 			dump_block(graph->blocks.front(), block_children);
 		}
+		else {
+			for (NodeGraph::NodeInstanceMap::const_iterator it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
+				const NodeInstance *node = it->second;
+				dump_node(node);
+			}
+		}
 		
 		for (NodeGraph::InputList::const_iterator it = graph->inputs.begin(); it != graph->inputs.end(); ++it) {
 			const NodeGraph::Input *input = &(*it);
-			dump_input_output(input, NULL);
+			dump_graph_input(input);
 		}
 		for (NodeGraph::OutputList::const_iterator it = graph->outputs.begin(); it != graph->outputs.end(); ++it) {
 			const NodeGraph::Output *output = &(*it);
-			dump_input_output(NULL, output);
+			dump_graph_output(output);
 		}
 		
 		for (NodeGraph::NodeInstanceMap::const_iterator it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
 			const NodeInstance *node = it->second;
-			dump_node_links(graph, node);
+			dump_node_links(node);
 		}
 	
 	//	deg_debug_graphviz_legend(ctx);

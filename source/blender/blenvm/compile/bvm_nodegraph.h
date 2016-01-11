@@ -59,6 +59,7 @@ namespace bvm {
 struct NodeGraph;
 struct NodeType;
 struct NodeInstance;
+struct NodeBlock;
 
 struct NodeInput {
 	NodeInput(const string &name,
@@ -252,6 +253,7 @@ struct NodeInstance {
 	string name;
 	InputMap inputs;
 	int index; /* ordering index */
+	const NodeBlock *block;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeInstance")
 };
@@ -260,12 +262,24 @@ typedef std::set<NodeInstance*> NodeSet;
 typedef std::map<const NodeInstance*, NodeInstance*> NodeMap;
 
 struct NodeBlock {
-	NodeBlock(NodeBlock *parent) :
-	    parent(parent)
-	{}
+	typedef std::map<string, ConstOutputKey> ArgumentMap;
 	
-	NodeBlock *parent;
-	NodeSet nodes;
+	NodeBlock(const string &name, NodeBlock *parent);
+	
+	const string &name() const { return m_name; }
+	NodeBlock *parent() const { return m_parent; }
+	const NodeSet &nodes() const { return m_nodes; }
+	ConstOutputKey local_arg(const string &name) const;
+	void local_arg_set(const string &name, const ConstOutputKey &arg);
+	
+	void insert(NodeInstance *node);
+	void prune(const NodeSet &used_nodes);
+	
+private:
+	string m_name;
+	NodeBlock *m_parent;
+	NodeSet m_nodes;
+	ArgumentMap m_local_args;
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeBlock")
 };
@@ -345,11 +359,9 @@ protected:
 	
 	void remove_unused_nodes();
 	
-	void get_local_args(const NodeInstance *node, OutputSet &local_args) const;
-	bool add_block_node(NodeInstance *node, const OutputSet &block_args,
-	                    NodeBlock &block, NodeMap &block_map);
-	bool blockify_expression(const InputKey &input, const OutputSet &block_args, const OutputSet &local_args,
-	                         NodeBlock &block, NodeMap &block_map);
+	void make_args_local(NodeBlock &block, NodeMap &block_map, NodeSet &expr_visited, const NodeInstance *arg_node);
+	bool add_block_node(NodeInstance *node, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited);
+	bool blockify_expression(const InputKey &input, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited);
 	void blockify_nodes();
 	
 	void sort_nodes();
