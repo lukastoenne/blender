@@ -1667,7 +1667,7 @@ static void register_opcode_node_types()
 	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
 	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_EXPRESSION);
 	nt->add_output("mesh_out", TYPE_MESH);
-	nt->add_output("element.index", TYPE_FLOAT3, OUTPUT_LOCAL);
+	nt->add_output("element.index", TYPE_INT, OUTPUT_LOCAL);
 	nt->add_output("element.location", TYPE_FLOAT3, OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
