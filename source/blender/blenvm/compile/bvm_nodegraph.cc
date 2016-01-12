@@ -864,6 +864,27 @@ NodeInstance *NodeGraph::copy_node(const NodeInstance *node, NodeMap &node_map)
 /* ------------------------------------------------------------------------- */
 /* Optimization */
 
+/* add a value node on unbound inputs */
+void NodeGraph::ensure_bound_inputs()
+{
+	/* copy node pointers to avoid looping over new nodes again */
+	NodeSet old_nodes;
+	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it)
+		old_nodes.insert(it->second);
+	
+	for (NodeSet::iterator it = old_nodes.begin(); it != old_nodes.end(); ++it) {
+		NodeInstance *node = *it;
+		for (int i = 0; i < node->num_inputs(); ++i) {
+			InputKey input = node->input(i);
+			if (input.is_constant())
+				continue;
+			else if (!input.link()) {
+				input.link_set(add_value_node(input.value()->copy()));
+			}
+		}
+	}
+}
+
 OutputKey NodeGraph::find_root(const OutputKey &key)
 {
 	OutputKey root = key;
@@ -1126,6 +1147,7 @@ void NodeGraph::sort_nodes()
 
 void NodeGraph::finalize()
 {
+	ensure_bound_inputs();
 	skip_pass_nodes();
 	blockify_nodes();
 	remove_unused_nodes();

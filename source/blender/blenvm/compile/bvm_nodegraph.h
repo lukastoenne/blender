@@ -356,6 +356,8 @@ protected:
 	
 	/* optimizations */
 	
+	void ensure_bound_inputs();
+	
 	OutputKey find_root(const OutputKey &key);
 	
 	void skip_pass_nodes();
