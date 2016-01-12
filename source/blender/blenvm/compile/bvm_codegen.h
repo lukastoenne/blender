@@ -60,45 +60,30 @@ typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
 
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
-typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
+typedef std::map<ConstOutputKey, int> OutputUsersMap;
+typedef std::map<const NodeInstance *, OutputSet> NodeDependencyMap;
+typedef std::map<const NodeBlock *, OutputSet> BlockDependencyMap;
 
-struct BasicBlock {
-	typedef std::map<ConstInputKey, BasicBlock> BasicBlockMap;
-	typedef std::map<ConstOutputKey, int> OutputUserMap;
-	
-	BasicBlock() : entry_point(0), return_index(BVM_STACK_INVALID) {}
-	OrderedNodeSet nodes;
-	BasicBlockMap expression_blocks;
-	OutputUserMap output_users;
-	
-	int entry_point;
-	
-	InputIndexMap input_index;
-	OutputIndexMap output_index;
-	StackIndex return_index;
-};
-typedef std::map<ConstInputKey, BasicBlock> ExpressionMap;
 typedef std::vector<int> StackUsers;
 
 struct Compiler {
+	struct BlockInfo {
+		int entry_point;
+	};
+	typedef std::map<const NodeBlock*, BlockInfo> BlockInfoMap;
 	
 	Compiler();
 	virtual ~Compiler();
 	
-	const BasicBlock &main_block() const { return main; }
-	
 protected:
-	void get_local_args(const NodeGraph &graph, const NodeInstance *node, OutputSet &local_args);
-	bool add_block_node(const NodeGraph &graph, const NodeInstance *node, const OutputSet &block_args,
-	                    BasicBlock &block, int depth);
-	bool parse_expression_block(const NodeGraph &graph, const ConstInputKey &input,
-	                            const OutputSet &block_args, const OutputSet &local_args,
-	                            BasicBlock &block, int depth);
-	void parse_blocks(const NodeGraph &graph);
+	void calc_node_dependencies(const NodeInstance *node, BlockDependencyMap &block_deps_map);
+	void calc_block_dependencies(const NodeBlock *block, BlockDependencyMap &block_deps_map);
+	void calc_symbol_scope(const NodeGraph &graph);
 	
 	StackIndex find_stack_index(int size) const;
 	StackIndex assign_stack_index(const TypeDesc &typedesc);
-	void resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block);
+	void get_local_arg_indices(const NodeInstance *node, const NodeBlock *local_block);
+	void resolve_node_block_symbols(const NodeBlock *block);
 	void resolve_symbols(const NodeGraph &graph);
 	
 	virtual void push_opcode(OpCode op) const = 0;
@@ -117,11 +102,16 @@ protected:
 	void push_constant(const Value *value) const;
 	
 	void codegen_value(const Value *value, StackIndex offset) const;
-	int codegen_basic_block(BasicBlock &block) const;
-	int codegen_main();
+	int codegen_node_block(const NodeBlock &block);
+	int codegen_graph(const NodeGraph &graph);
 	
-private:
-	BasicBlock main;
+protected:
+	BlockInfoMap block_info;
+	NodeDependencyMap node_deps_map;
+	OutputUsersMap output_users;
+	
+	InputIndexMap input_index;
+	OutputIndexMap output_index;
 	StackUsers stack_users;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")

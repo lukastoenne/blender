@@ -1133,7 +1133,8 @@ void EvalContext::eval_function(const EvalGlobals *globals, const Function *fn, 
 
 void EvalContext::eval_expression(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
 {
-	eval_instructions(globals, fn, entry_point, stack);
+	if (entry_point != BVM_JMP_INVALID)
+		eval_instructions(globals, fn, entry_point, stack);
 }
 
 } /* namespace bvm */

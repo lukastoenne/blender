@@ -260,7 +260,7 @@ void DebugGraphvizCompiler::compile_function(const NodeGraph &graph, FILE *f, co
 	init_graph(label);
 	init_node();
 	
-	int entry_point = codegen_main();
+	int entry_point = codegen_graph(graph);
 	(void)entry_point;
 	
 	close_node();

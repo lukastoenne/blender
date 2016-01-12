@@ -340,6 +340,9 @@ struct NodeGraph {
 	
 	void finalize();
 	
+	/* first block is main */
+	const NodeBlock &main_block() const { return blocks.front(); }
+	
 protected:
 	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
 	

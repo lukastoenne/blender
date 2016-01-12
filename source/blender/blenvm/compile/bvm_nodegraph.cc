@@ -573,6 +573,7 @@ void NodeBlock::local_arg_set(const string &name, const ConstOutputKey &arg)
 void NodeBlock::insert(NodeInstance *node)
 {
 	m_nodes.insert(node);
+	assert(node->block == NULL);
 	node->block = this;
 }
 

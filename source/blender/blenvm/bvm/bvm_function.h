@@ -47,6 +47,7 @@ namespace bvm {
 typedef uint32_t Instruction;
 typedef Instruction StackIndex;
 #define BVM_STACK_INVALID 0xFFFFFFFF
+#define BVM_JMP_INVALID 0xFFFFFFFF
 
 static inline Instruction float_to_instruction(float f)
 {

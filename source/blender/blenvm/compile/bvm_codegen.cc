@@ -48,175 +48,83 @@ Compiler::~Compiler()
 {
 }
 
-void Compiler::get_local_args(const NodeGraph &graph, const NodeInstance *node, OutputSet &local_args)
+static bool is_parent_block(const NodeBlock *parent, const NodeBlock *block)
 {
-	if (!node->type->is_kernel_node())
-		return;
-	
-	for (int i = 0; i < node->num_outputs(); ++i) {
-		const NodeOutput *output = node->type->find_output(i);
-		
-		if (output->value_type == OUTPUT_LOCAL) {
-			const NodeGraph::Input *graph_input = graph.get_input(output->name);
-			assert(graph_input);
-			
-			if (graph_input->key) {
-				local_args.insert(graph_input->key);
-			}
-		}
-	}
-}
-
-static bool is_arg_node(const NodeInstance *node, const OutputSet &args)
-{
-	for (int i = 0; i < node->num_outputs(); ++i) {
-		ConstOutputKey output = node->output(i);
-		if (args.find(output) != args.end())
+	while (block->parent()) {
+		block = block->parent();
+		if (block == parent)
 			return true;
 	}
 	return false;
 }
 
-static void count_output_users(const NodeGraph &graph,
-                               BasicBlock &block)
+void Compiler::calc_node_dependencies(const NodeInstance *node, BlockDependencyMap &block_deps_map)
 {
-	block.output_users.clear();
-	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
-		const NodeInstance *node = *it;
-		
-		for (int i = 0; i < node->num_outputs(); ++i) {
-			ConstOutputKey key = node->output(i);
-			block.output_users[key] = 0;
-		}
-	}
-	
-	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
-		const NodeInstance *node = *it;
-		
-		/* note: pass nodes are normally removed, but can exist for debugging purposes */
-		if (node->type->is_pass_node())
-			continue;
-		
-		for (int i = 0; i < node->num_inputs(); ++i) {
-			if (node->link(i)) {
-				block.output_users[node->link(i)] += 1;
-			}
-		}
-	}
-	
-	/* inputs are defined externally, they should be retained during evaluation */
-	for (NodeGraph::InputList::const_iterator it = graph.inputs.begin(); it != graph.inputs.end(); ++it) {
-		const NodeGraph::Input &input = *it;
-		block.output_users[input.key] += 1;
-	}
-	
-	/* outputs are passed on to the caller, who is responsible for freeing them */
-	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
-		const NodeGraph::Output &output = *it;
-		block.output_users[output.key] += 1;
-	}
-}
-
-bool Compiler::add_block_node(const NodeGraph &graph, const NodeInstance *node, const OutputSet &block_args,
-                              BasicBlock &block, int depth)
-{
-	bool is_block_node = false; /* determines if the node is part of the block */
-	
-	is_block_node |= is_arg_node(node, block_args);
-	
-	OutputSet local_args;
-	get_local_args(graph, node, local_args);
+	if (node_deps_map.find(node) != node_deps_map.end())
+		return;
+	OutputSet &node_deps = node_deps_map[node];
+	OutputSet &block_deps = block_deps_map.at(node->block);
 	
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		ConstInputKey input = node->input(i);
-		if (input.is_constant()) {
-			if (depth == 0)
-				is_block_node |= true;
-		}
-		else if (input.is_expression()) {
-			if (depth == 0)
-				is_block_node |= parse_expression_block(graph, input, block_args, local_args, block, depth);
-		}
-		else {
-			ConstOutputKey output = input.link();
-			if (output) {
-				is_block_node |= add_block_node(graph, output.node, block_args, block, depth);
+		
+		if (input.link()) {
+			const NodeInstance *link_node = input.link().node;
+			
+			if (link_node->block == node->block
+			    || is_parent_block(node->block, link_node->block))
+				node_deps.insert(input.link());
+			else if (is_parent_block(link_node->block, node->block)) {
+				block_deps.insert(input.link());
+			}
+			
+			if (input.is_expression()) {
+				if (link_node->block != node->block) {
+					calc_block_dependencies(link_node->block, block_deps_map);
+					
+					const OutputSet &expr_deps = block_deps_map.at(link_node->block);
+					node_deps.insert(expr_deps.begin(), expr_deps.end());
+				}
 			}
 		}
 	}
-	
-	if (is_block_node) {
-		block.nodes.insert(node);
-		return true;
-	}
-	else
-		return false;
 }
 
-bool Compiler::parse_expression_block(const NodeGraph &graph, const ConstInputKey &input,
-                                      const OutputSet &block_args, const OutputSet &local_args,
-                                      BasicBlock &block, int depth)
+void Compiler::calc_block_dependencies(const NodeBlock *block, BlockDependencyMap &block_deps_map)
 {
-	ConstOutputKey output = input.link();
-	if (!output)
-		return false;
-	const NodeInstance *node = output.node;
+	if (block_deps_map.find(block) != block_deps_map.end())
+		return;
+	block_deps_map[block] = OutputSet();
 	
-	bool is_block_node = false;
-	
-	/* generate a local block for the input expression */
-	BasicBlock &expr_block = block.expression_blocks[input];
-	
-	add_block_node(graph, node, local_args, expr_block, depth + 1);
-	if (expr_block.nodes.empty()) {
-		/* use the input directly if no expression nodes are generated (no local arg dependencies) */
-		is_block_node |= add_block_node(graph, node, block_args, block, depth);
+	for (NodeSet::const_iterator it = block->nodes().begin(); it != block->nodes().end(); ++it) {
+		const NodeInstance *node = *it;
+		calc_node_dependencies(node, block_deps_map);
+	}
+}
+
+void Compiler::calc_symbol_scope(const NodeGraph &graph)
+{
+	{
+		BlockDependencyMap block_deps_map;
+		calc_block_dependencies(&graph.main_block(), block_deps_map);
 	}
 	
-	count_output_users(graph, expr_block);
-	
-	/* find node inputs in the expression block that use values outside of it,
-	 * which means these must be included in the parent block
-	 */
-	for (OrderedNodeSet::const_iterator it = expr_block.nodes.begin(); it != expr_block.nodes.end(); ++it) {
-		const NodeInstance *node = *it;
-		for (int i = 0; i < node->num_inputs(); ++i) {
-			ConstInputKey expr_input = node->input(i);
-			const NodeInstance *link_node = expr_input.link().node;
-			if (link_node && expr_block.nodes.find(link_node) == expr_block.nodes.end())
-				is_block_node |= add_block_node(graph, link_node, block_args, block, depth);
+	assert(output_users.empty());
+	for (NodeDependencyMap::const_iterator it = node_deps_map.begin(); it != node_deps_map.end(); ++it) {
+		const OutputSet &deps = it->second;
+		
+		for (OutputSet::const_iterator it_dep = deps.begin(); it_dep != deps.end(); ++it_dep) {
+			ConstOutputKey output = *it_dep;
+			
+			++output_users[output];
 		}
 	}
-	
-	return is_block_node;
-}
-
-void Compiler::parse_blocks(const NodeGraph &graph)
-{
-	OutputSet main_args;
-	for (NodeGraph::InputList::const_iterator it = graph.inputs.begin(); it != graph.inputs.end(); ++it) {
-		const NodeGraph::Input &input = *it;
-		if (input.key)
-			main_args.insert(input.key);
-	}
-	
-	main = BasicBlock();
-	
+	/* retain graph outputs for the main caller */
 	for (NodeGraph::OutputList::const_iterator it = graph.outputs.begin(); it != graph.outputs.end(); ++it) {
 		const NodeGraph::Output &output = *it;
 		if (output.key)
-			add_block_node(graph, output.key.node, main_args, main, 0);
+			++output_users[output.key];
 	}
-	/* input argument nodes must always be included in main,
-	 * to provide reliable storage for caller arguments
-	 */
-	for (NodeGraph::InputList::const_iterator it = graph.inputs.begin(); it != graph.inputs.end(); ++it) {
-		const NodeGraph::Input &input = *it;
-		if (input.key)
-			add_block_node(graph, input.key.node, main_args, main, 0);
-	}
-	
-	count_output_users(graph, main);
 }
 
 StackIndex Compiler::find_stack_index(int size) const
@@ -252,68 +160,65 @@ StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &block)
+void Compiler::get_local_arg_indices(const NodeInstance *node, const NodeBlock *local_block)
 {
-	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
-		const NodeInstance &node = **it;
+	for (int i = 0; i < node->num_outputs(); ++i) {
+		ConstOutputKey output = node->output(i);
 		
-		/* local arguments for expression inputs */
-		OutputIndexMap local_output_index;
-		local_output_index.insert(block.output_index.begin(), block.output_index.end());
+		if (output.socket->value_type == OUTPUT_LOCAL) {
+			ConstOutputKey local_output = local_block->local_arg(output.socket->name);
+			output_index[local_output] = output_index.at(output);
+		}
+	}
+}
+
+void Compiler::resolve_node_block_symbols(const NodeBlock *block)
+{
+	assert(block_info.find(block) == block_info.end());
+	block_info[block] = BlockInfo();
+	
+	OrderedNodeSet nodes;
+	nodes.insert(block->nodes().begin(), block->nodes().end());
+	
+	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance &node = **it;
 		
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeOutput *output = node.type->find_output(i);
-			ConstOutputKey key(&node, output->name);
+			ConstOutputKey output = node.output(i);
 			
 			StackIndex stack_index;
-			if (block.output_index.find(key) == block.output_index.end()) {
-				stack_index = assign_stack_index(output->typedesc);
-				block.output_index[key] = stack_index;
-			}
+			if (output_index.find(output) == output_index.end())
+				stack_index = assign_stack_index(output.socket->typedesc);
 			else
-				stack_index = block.output_index.at(key);
-			
-			if (output->value_type == OUTPUT_LOCAL) {
-				const NodeGraph::Input *graph_input = graph.get_input(output->name);
-				
-				assert(graph_input);
-				if (graph_input->key.node) {
-					local_output_index[graph_input->key] = stack_index;
-				}
-			}
+				stack_index = output_index.at(output);
+			output_index[output] = stack_index;
 		}
 		
 		/* prepare input stack entries */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			const NodeInput *input = node.type->find_input(i);
-			ConstInputKey key(&node, input->name);
-			assert(block.input_index.find(key) == block.input_index.end());
+			ConstInputKey input = node.input(i);
+			assert(input_index.find(input) == input_index.end());
 			
-			if (key.is_constant()) {
+			if (input.is_constant()) {
 				/* stored directly in the instructions list after creating values */
 			}
-			else if (key.is_expression()) {
-				BasicBlock &expr_block = block.expression_blocks.at(key);
+			else if (input.is_expression()) {
+				ConstOutputKey link = input.link();
+				const NodeBlock *expr_block = link.node->block;
 				
-				/* initialize local arguments */
-				expr_block.output_index.insert(local_output_index.begin(), local_output_index.end());
-				
-				resolve_basic_block_symbols(graph, expr_block);
-				
-				if (key.link()) {
-					expr_block.return_index = expr_block.output_index.at(key.link());
+				if (block_info.find(expr_block) == block_info.end()) {
+					/* copy local arguments */
+					get_local_arg_indices(&node, expr_block);
+					resolve_node_block_symbols(expr_block);
 				}
-				else {
-					expr_block.return_index = assign_stack_index(input->typedesc);
-				}
-				block.input_index[key] = expr_block.return_index;
-			}
-			else if (key.link()) {
-				block.input_index[key] = block.output_index.at(key.link());
+				
+				StackIndex return_index = output_index.at(link);
+				input_index[input] = return_index;
 			}
 			else {
-				block.input_index[key] = assign_stack_index(input->typedesc);
+				ConstOutputKey link = input.link();
+				input_index[input] = output_index.at(link);
 			}
 		}
 	}
@@ -321,11 +226,8 @@ void Compiler::resolve_basic_block_symbols(const NodeGraph &graph, BasicBlock &b
 
 void Compiler::resolve_symbols(const NodeGraph &graph)
 {
-	/* recursively sort node lists for functions */
-	parse_blocks(graph);
-	
-	/* recursively resolve all stack assignments */
-	resolve_basic_block_symbols(graph, main);
+	/* recursively assign stack indices to outputs */
+	resolve_node_block_symbols(&graph.main_block());
 }
 
 
@@ -507,18 +409,16 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 	return OP_NOOP;
 }
 
-int Compiler::codegen_basic_block(BasicBlock &block) const
+int Compiler::codegen_node_block(const NodeBlock &block)
 {
-	/* do internal blocks first */
-	for (BasicBlock::BasicBlockMap::iterator it = block.expression_blocks.begin(); it != block.expression_blocks.end(); ++it) {
-		BasicBlock &expr_block = it->second;
-		codegen_basic_block(expr_block);
-	}
-	
 	int entry_point = current_address();
-	block.entry_point = entry_point;
+	BlockInfo &info = block_info[&block];
+	info.entry_point = entry_point;
 	
-	for (OrderedNodeSet::const_iterator it = block.nodes.begin(); it != block.nodes.end(); ++it) {
+	OrderedNodeSet nodes;
+	nodes.insert(block.nodes().begin(), block.nodes().end());
+	
+	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
 		/* store values for unconnected inputs */
@@ -533,7 +433,7 @@ int Compiler::codegen_basic_block(BasicBlock &block) const
 			}
 			else {
 				/* create a value node for the input */
-				codegen_value(key.value(), block.input_index.at(key));
+				codegen_value(key.value(), input_index.at(key));
 			}
 		}
 		/* initialize output data stack entries */
@@ -544,10 +444,10 @@ int Compiler::codegen_basic_block(BasicBlock &block) const
 			/* if necessary, add a user count initializer */
 			OpCode init_op = ptr_init_opcode(output->typedesc);
 			if (init_op != OP_NOOP) {
-				int users = block.output_users.at(key);
+				int users = output_users.at(key);
 				if (users > 0) {
 					push_opcode(init_op);
-					push_stack_index(block.output_index.at(key));
+					push_stack_index(output_index.at(key));
 					push_int(users);
 				}
 			}
@@ -566,35 +466,36 @@ int Compiler::codegen_basic_block(BasicBlock &block) const
 				}
 				else {
 					if (key.is_expression()) {
-						const BasicBlock &expr_block = block.expression_blocks.at(key);
-						push_jump_address(expr_block.entry_point);
+						if (key.link() && key.link().node->block != &block) {
+							const NodeBlock *expr_block = key.link().node->block;
+							push_jump_address(block_info.at(expr_block).entry_point);
+						}
+						else
+							push_jump_address(BVM_JMP_INVALID);
 					}
 					
-					push_stack_index(block.input_index.at(key));
+					push_stack_index(input_index.at(key));
 				}
 			}
 			/* write output stack offsets */
 			for (int i = 0; i < node.num_outputs(); ++i) {
 				ConstOutputKey key = node.output(i);
 				
-				push_stack_index(block.output_index.at(key));
+				push_stack_index(output_index.at(key));
 			}
 		}
 		
 		/* release input data stack entries */
-		for (int i = 0; i < node.num_inputs(); ++i) {
-			ConstInputKey key = node.input(i);
-			const NodeInput *input = node.type->find_input(i);
-			
-			if (key.is_constant() || key.is_expression()) {
-				/* pass */
-			}
-			else if (node.link(i)) {
-				OpCode release_op = ptr_release_opcode(input->typedesc);
+		{
+			const OutputSet &node_deps = node_deps_map.at(&node);
+			for (OutputSet::const_iterator it_dep = node_deps.begin(); it_dep != node_deps.end(); ++it_dep) {
+				ConstOutputKey output = *it_dep;
+				
+				OpCode release_op = ptr_release_opcode(output.socket->typedesc);
 				
 				if (release_op != OP_NOOP) {
 					push_opcode(release_op);
-					push_stack_index(block.output_index.at(node.link(i)));
+					push_stack_index(output_index.at(output));
 				}
 			}
 		}
@@ -605,11 +506,16 @@ int Compiler::codegen_basic_block(BasicBlock &block) const
 	return entry_point;
 }
 
-int Compiler::codegen_main()
+int Compiler::codegen_graph(const NodeGraph &graph)
 {
-	/* now generate the main function */
-	int entry_point = codegen_basic_block(main);
-	return entry_point;
+	calc_symbol_scope(graph);
+	
+	/* do internal blocks first */
+	for (NodeGraph::NodeBlockList::const_reverse_iterator it = graph.blocks.rbegin(); it != graph.blocks.rend(); ++it) {
+		const NodeBlock &block = *it;
+		codegen_node_block(block);
+	}
+	return block_info[&graph.main_block()].entry_point;
 }
 
 /* ========================================================================= */
@@ -706,7 +612,7 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 	
 	fn = new Function();
 	
-	int entry_point = codegen_main();
+	int entry_point = codegen_graph(graph);
 	fn->set_entry_point(entry_point);
 	
 	/* store stack indices for inputs/outputs, to store arguments from and return results to the caller */
@@ -715,7 +621,7 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 		
 		StackIndex stack_index;
 		if (input.key) {
-			stack_index = main_block().output_index.at(input.key);
+			stack_index = output_index.at(input.key);
 		}
 		else {
 			stack_index = BVM_STACK_INVALID;
@@ -729,7 +635,7 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 		/* every output must map to a node */
 		assert(output.key.node);
 		
-		StackIndex stack_index = main_block().output_index.at(output.key);
+		StackIndex stack_index = output_index.at(output.key);
 		fn->add_return_value(output.typedesc, output.name, stack_index);
 	}
 	

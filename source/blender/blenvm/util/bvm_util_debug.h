@@ -402,8 +402,7 @@ struct NodeGraphDumper {
 				block_children[block.parent()].insert(&block);
 		}
 		if (!graph->blocks.empty()) {
-			/* first block is main */
-			dump_block(graph->blocks.front(), block_children);
+			dump_block(graph->main_block(), block_children);
 		}
 		else {
 			for (NodeGraph::NodeInstanceMap::const_iterator it = graph->nodes.begin(); it != graph->nodes.end(); ++it) {
