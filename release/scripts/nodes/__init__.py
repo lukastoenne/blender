@@ -24,6 +24,7 @@ if "bpy" in locals():
         reload(val)
     del reload
 _modules = [
+    "bvm_debug",
     "common_nodes",
     "group_nodes",
     "forcefield_nodes",
