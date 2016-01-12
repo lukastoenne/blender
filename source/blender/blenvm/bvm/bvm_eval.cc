@@ -977,6 +977,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 				eval_op_object_transform(stack, offset_object, offset_transform);
 				break;
 			}
+			case OP_OBJECT_FINAL_MESH: {
+				StackIndex offset_object = fn->read_stack_index(&instr);
+				StackIndex offset_mesh = fn->read_stack_index(&instr);
+				eval_op_object_final_mesh(stack, offset_object, offset_mesh);
+				break;
+			}
 			
 			case OP_EFFECTOR_TRANSFORM: {
 				int object_index = fn->read_int(&instr);

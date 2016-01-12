@@ -159,6 +159,36 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
         compiler.map_output(0, node.outputs[0])
 
 
+class GeometryObjectFinalMeshNode(GeometryNodeBase, ObjectNode):
+    '''Load the final mesh of an object'''
+    bl_idname = 'GeometryObjectFinalMeshNode'
+    bl_label = 'Object Mesh'
+
+    bl_id_property_type = 'OBJECT'
+    def bl_id_property_poll(self, ob):
+        return ob.type == 'MESH'
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id")
+
+    def eval_dependencies(self, depsnode):
+        ob = self.id
+        if ob:
+            depsnode.add_object_relation(ob, 'GEOMETRY')
+
+    def init(self, context):
+        self.outputs.new('GeometrySocket', "")
+
+    def compile(self, compiler):
+        if self.id is None:
+            return
+        ob, tfm, itfm = compile_modifier_inputs(compiler, self.id)
+
+        node = compiler.add_node("OBJECT_FINAL_MESH")
+        compiler.link(ob, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
+
+
 class GeometryMeshCombineNode(GeometryNodeBase, ObjectNode, DynamicSocketListNode):
     '''Combine multiple meshes into one'''
     bl_idname = 'GeometryMeshCombineNode'
@@ -402,6 +432,7 @@ def register():
         GeometryNodeCategory("GEO_INPUT", "Input", items=[
             NodeItem("ObjectIterationNode"),
             NodeItem("GeometryMeshLoadNode"),
+            NodeItem("GeometryObjectFinalMeshNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("GeometryElementInfoNode"),
             NodeItem("ObjectValueFloatNode"),

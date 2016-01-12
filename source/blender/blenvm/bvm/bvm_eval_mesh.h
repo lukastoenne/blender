@@ -59,6 +59,23 @@ static void eval_op_mesh_load(float *stack, StackIndex offset_base_mesh, StackIn
 	stack_store_mesh(stack, offset_mesh, dm);
 }
 
+static void eval_op_object_final_mesh(float *stack,
+                                      StackIndex offset_object,
+                                      StackIndex offset_mesh)
+{
+	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	
+	DerivedMesh *result = NULL;
+	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
+		Object *ob = (Object *)ptr.data;
+		result = ob->derivedFinal;
+	}
+	if (!result)
+		result = CDDM_new(0, 0, 0, 0, 0);
+	
+	stack_store_mesh(stack, offset_mesh, result);
+}
+
 static void dm_insert(
         DerivedMesh *result, DerivedMesh *dm,
         int ofs_verts, int ofs_edges, int ofs_loops, int ofs_polys)

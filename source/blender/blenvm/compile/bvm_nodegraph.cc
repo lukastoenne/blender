@@ -1251,6 +1251,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(OBJECT_LOOKUP);
 	NODETYPE(OBJECT_TRANSFORM);
+	NODETYPE(OBJECT_FINAL_MESH);
 	
 	NODETYPE(EFFECTOR_TRANSFORM);
 	NODETYPE(EFFECTOR_CLOSEST_POINT);
@@ -1657,6 +1658,10 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("OBJECT_TRANSFORM");
 	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
 	nt->add_output("transform", TYPE_MATRIX44);
+	
+	nt = NodeGraph::add_function_node_type("OBJECT_FINAL_MESH");
+	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
+	nt->add_output("mesh", TYPE_MESH);
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", TYPE_INT, 0, INPUT_CONSTANT);
