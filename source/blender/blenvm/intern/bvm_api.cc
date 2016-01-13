@@ -1131,7 +1131,9 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	
 	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
 	
-	return result.get();
+	DerivedMesh *dm = result.get();
+	result.reset();
+	return dm;
 }
 
 /* ------------------------------------------------------------------------- */

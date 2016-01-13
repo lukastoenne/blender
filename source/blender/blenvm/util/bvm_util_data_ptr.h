@@ -72,7 +72,20 @@ struct node_data_ptr {
 	{
 	}
 	
-	element_type* get() const { return m_data; }
+	element_type* get() const
+	{
+		return m_data;
+	}
+	
+	void reset()
+	{
+		m_data = 0;
+		if (m_refs) {
+			destroy_refs(m_refs);
+			m_refs = 0;
+		}
+	}
+	
 	void set(element_type *data)
 	{
 		if (m_data != data) {
@@ -90,6 +103,10 @@ struct node_data_ptr {
 		assert(m_refs == 0);
 		if (use_count > 0)
 			m_refs = create_refs(use_count);
+		else if (m_refs) {
+			destroy_refs(m_refs);
+			m_refs = 0;
+		}
 	}
 	
 	void decrement_use_count()
