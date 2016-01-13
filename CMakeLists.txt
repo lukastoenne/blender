@@ -1619,12 +1619,7 @@ elseif(WIN32)
 		
 		if(WITH_MINGW64)
 			message(STATUS "Compiling for 64 bit with MinGW-w64.")
-			execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-			if(GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
-				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64_gcc49)
-			else()
-				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
-			endif()
+			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
 		else()
 			message(STATUS "Compiling for 32 bit with MinGW-w32.")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw32)
@@ -2474,7 +2469,7 @@ if(WITH_OPENMP)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 		else()
 			# Typically avoid adding flags as defines but we can't
-			# ass OpenMP flags to the linker for static builds, meaning
+			# pass OpenMP flags to the linker for static builds, meaning
 			# we can't add any OpenMP related flags to CFLAGS variables
 			# since they're passed to the linker as well.
 			add_definitions("${OpenMP_C_FLAGS}")
@@ -2583,6 +2578,61 @@ endif()
 
 if(WITH_PYTHON_MODULE)
 	add_definitions(-DPy_ENABLE_SHARED)
+endif()
+
+#-----------------------------------------------------------------------------
+# Configure GLog/GFlags
+
+if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+	set(GLOG_DEFINES
+		-DGOOGLE_GLOG_DLL_DECL=
+	)
+
+	set(GFLAGS_DEFINES
+		-DGFLAGS_DLL_DEFINE_FLAG=
+		-DGFLAGS_DLL_DECLARE_FLAG=
+		-DGFLAGS_DLL_DECL=
+	)
+endif()
+
+#-----------------------------------------------------------------------------
+# Configure Ceres
+
+if(WITH_LIBMV)
+	set(CERES_DEFINES)
+
+	TEST_SHARED_PTR_SUPPORT()
+	if(SHARED_PTR_FOUND)
+		if(SHARED_PTR_TR1_MEMORY_HEADER)
+			list(APPEND CERES_DEFINES -DCERES_TR1_MEMORY_HEADER)
+		endif()
+		if(SHARED_PTR_TR1_NAMESPACE)
+			list(APPEND CERES_DEFINES -DCERES_TR1_SHARED_PTR)
+		endif()
+	else()
+		message(FATAL_ERROR "Ceres: Unable to find shared_ptr.")
+	endif()
+
+	TEST_UNORDERED_MAP_SUPPORT()
+	if(HAVE_STD_UNORDERED_MAP_HEADER)
+		if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
+			list(APPEND CERES_DEFINES -DCERES_STD_UNORDERED_MAP)
+		else()
+			if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
+				list(APPEND CERES_DEFINES -DCERES_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
+			else()
+				list(APPEND CERES_DEFINES -DCERES_NO_UNORDERED_MAP)
+				message(STATUS "Ceres: Replacing unordered_map/set with map/set (warning: slower!)")
+			endif()
+		endif()
+	else()
+		if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
+			list(APPEND CERES_DEFINES -DCERES_TR1_UNORDERED_MAP)
+		else()
+			list(APPEND CERES_DEFINES -DCERES_NO_UNORDERED_MAP)
+			message(STATUS "Ceres: Replacing unordered_map/set with map/set (warning: slower!)")
+		endif()
+	endif()
 endif()
 
 #-----------------------------------------------------------------------------

@@ -626,13 +626,13 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		cycles_kernel
 		cycles_util
 		cycles_subd
-		bf_intern_raskter
 		bf_intern_opencolorio
 		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth
-		extern_libmv
+		bf_intern_libmv
 		extern_glog
+		extern_gflags
 		extern_sdlew
 
 		bf_intern_glew_mx
