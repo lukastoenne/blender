@@ -25,10 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_FUNCTION_H__
-#define __BVM_FUNCTION_H__
+#ifndef __BVM_INSTRUCTION_LIST_H__
+#define __BVM_INSTRUCTION_LIST_H__
 
-/** \file bvm_function.h
+/** \file bvm_instruction_list.h
  *  \ingroup bvm
  */
 
@@ -38,9 +38,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "bvm_opcode.h"
+#include "bvm_util_data_ptr.h"
+#include "bvm_util_math.h"
 #include "bvm_util_string.h"
 #include "bvm_util_thread.h"
-#include "bvm_util_typedesc.h"
 
 namespace bvm {
 
@@ -77,29 +78,11 @@ static inline int instruction_to_int(Instruction i)
 	return u.v;
 }
 
-struct Argument {
-	Argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :
-	    typedesc(typedesc),
-	    name(name),
-	    stack_offset(stack_offset)
-	{}
+struct InstructionList {
+	typedef std::vector<Instruction> Instructions;
 	
-	TypeDesc typedesc;
-	string name;
-	StackIndex stack_offset;
-
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:ReturnValue")
-};
-
-struct Function {
-	typedef std::vector<Argument> ArgumentList;
-	typedef std::vector<Instruction> InstructionList;
-	
-	Function();
-	~Function();
-	
-	static void retain(Function *fn);
-	static void release(Function **fn);
+	InstructionList();
+	~InstructionList();
 	
 	OpCode read_opcode(int *instr) const
 	{
@@ -199,30 +182,13 @@ struct Function {
 	int entry_point() const { return m_entry_point; }
 	void set_entry_point(int entry_point);
 	
-	size_t num_return_values() const;
-	const Argument &return_value(size_t index) const;
-	const Argument &return_value(const string &name) const;
-	size_t num_arguments() const;
-	const Argument &argument(size_t index) const;
-	const Argument &argument(const string &name) const;
-	
-	void add_argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
-	void add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset);
-	
-private:
-	ArgumentList m_arguments;
-	ArgumentList m_return_values;
-	InstructionList m_instructions;
+protected:
+	Instructions m_instructions;
 	int m_entry_point;
 	
-	int m_users;
-	
-	static mutex users_mutex;
-	static spin_lock users_lock;
-	
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:InstructionList")
 };
 
 } /* namespace bvm */
 
-#endif /* __BVM_FUNCTION_H__ */
+#endif /* __BVM_INSTRUCTION_LIST_H__ */

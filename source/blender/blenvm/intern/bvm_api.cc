@@ -495,7 +495,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	const void *args[] = { &object_ptr, point->loc, point->vel };
 	void *results[] = { force, impulse };
 	
-	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
+	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1039,7 +1039,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	const void *args[] = { coord, dxt, dyt, &cfra, &osatex };
 	void *results[] = { &color.x, &normal.x };
 	
-	_CTX(ctx)->eval_function(&globals, _FUNC(fn), args, results);
+	_FUNC(fn)->eval(_CTX(ctx), &globals, args, results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -1129,7 +1129,7 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	const void *args[] = { &iteration, &elem_index, &elem_loc, &object_ptr, &base_mesh_ptr };
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
+	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
 	DerivedMesh *dm = result.get();
 	result.reset();
@@ -1203,7 +1203,7 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 	duplis_ptr result;
 	void *results[] = { &result };
 	
-	_CTX(ctx)->eval_function(_GLOBALS(globals), _FUNC(fn), args, results);
+	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
 	DupliList *duplis = result.get();
 	if (duplis) {

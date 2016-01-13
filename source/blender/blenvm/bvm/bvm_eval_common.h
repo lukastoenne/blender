@@ -33,7 +33,7 @@
  */
 
 #include "bvm_eval.h"
-#include "bvm_function.h"
+#include "bvm_instruction_list.h"
 
 namespace bvm {
 
@@ -41,7 +41,7 @@ struct EvalContext;
 
 struct EvalKernelData {
 	const EvalContext *context;
-	const Function *function;
+	const InstructionList *function;
 };
 
 inline static float stack_load_float(float *stack, StackIndex offset)

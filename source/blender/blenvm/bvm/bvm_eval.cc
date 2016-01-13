@@ -335,7 +335,7 @@ static void eval_op_duplis_combine(float *stack, StackIndex offset_duplis_a, Sta
 	stack_store_duplis(stack, offset_duplis, result);
 }
 
-void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const InstructionList *fn, int entry_point, float *stack) const
 {
 	EvalKernelData kd;
 	kd.context = this;
@@ -1112,32 +1112,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Function *
 	}
 }
 
-void EvalContext::eval_function(const EvalGlobals *globals, const Function *fn, const void *arguments[], void *results[]) const
-{
-	float stack[BVM_STACK_SIZE] = {0};
-	
-	/* initialize input arguments */
-	for (int i = 0; i < fn->num_arguments(); ++i) {
-		const Argument &arg = fn->argument(i);
-		if (arg.stack_offset != BVM_STACK_INVALID) {
-			float *value = &stack[arg.stack_offset];
-			
-			arg.typedesc.copy_value((void *)value, arguments[i]);
-		}
-	}
-	
-	eval_instructions(globals, fn, fn->entry_point(), stack);
-	
-	/* read out return values */
-	for (int i = 0; i < fn->num_return_values(); ++i) {
-		const Argument &rval = fn->return_value(i);
-		float *value = &stack[rval.stack_offset];
-		
-		rval.typedesc.copy_value(results[i], (void *)value);
-	}
-}
-
-void EvalContext::eval_expression(const EvalGlobals *globals, const Function *fn, int entry_point, float *stack) const
+void EvalContext::eval_expression(const EvalGlobals *globals, const InstructionList *fn, int entry_point, float *stack) const
 {
 	if (entry_point != BVM_JMP_INVALID)
 		eval_instructions(globals, fn, entry_point, stack);

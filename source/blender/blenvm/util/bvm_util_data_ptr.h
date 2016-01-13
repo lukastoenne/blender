@@ -32,6 +32,8 @@
 #ifndef __BVM_TYPE_DATA_PTR_H__
 #define __BVM_TYPE_DATA_PTR_H__
 
+#include <assert.h>
+
 #include "MEM_guardedalloc.h"
 
 extern "C" {

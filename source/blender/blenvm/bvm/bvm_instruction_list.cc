@@ -25,58 +25,31 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_EVAL_H__
-#define __BVM_EVAL_H__
-
-/** \file bvm_eval.h
+/** \file bvm_instruction_list.cc
  *  \ingroup bvm
  */
 
-#include <vector>
-
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-#include "RNA_access.h"
-}
-
-#include "bvm_util_map.h"
-#include "bvm_util_string.h"
-
-struct ID;
-struct Object;
+#include "bvm_instruction_list.h"
 
 namespace bvm {
 
-struct InstructionList;
+InstructionList::InstructionList() :
+    m_entry_point(0)
+{
+}
 
-#define BVM_STACK_SIZE 4095
+InstructionList::~InstructionList()
+{
+}
 
-struct EvalGlobals {
-	typedef unordered_map<int, Object *> ObjectMap;
-	
-	static int get_id_key(ID *id);
-	
-	void add_object(int key, Object *ob);
-	PointerRNA lookup_object(int key) const;
-	
-private:
-	ObjectMap m_objects;
+void InstructionList::add_instruction(Instruction v)
+{
+	m_instructions.push_back(v);
+}
 
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
-};
-
-struct EvalContext {
-	EvalContext();
-	~EvalContext();
-	
-	void eval_expression(const EvalGlobals *globals, const InstructionList *instr, int entry_point, float *stack) const;
-	
-	void eval_instructions(const EvalGlobals *globals, const InstructionList *instr, int entry_point, float *stack) const;
-	
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
-};
+void InstructionList::set_entry_point(int entry_point)
+{
+	m_entry_point = entry_point;
+}
 
 } /* namespace bvm */
-
-#endif /* __BVM_EVAL_H__ */

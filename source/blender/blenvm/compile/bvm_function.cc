@@ -29,6 +29,7 @@
  *  \ingroup bvm
  */
 
+#include "bvm_eval.h"
 #include "bvm_function.h"
 
 namespace bvm {
@@ -37,7 +38,6 @@ mutex Function::users_mutex = mutex();
 spin_lock Function::users_lock = spin_lock(Function::users_mutex);
 
 Function::Function() :
-    m_entry_point(0),
     m_users(0)
 {
 }
@@ -67,16 +67,6 @@ void Function::release(Function **fn)
 		}
 		users_lock.unlock();
 	}
-}
-
-void Function::add_instruction(Instruction v)
-{
-	m_instructions.push_back(v);
-}
-
-void Function::set_entry_point(int entry_point)
-{
-	m_entry_point = entry_point;
 }
 
 size_t Function::num_arguments() const
@@ -123,6 +113,31 @@ void Function::add_argument(const TypeDesc &typedesc, const string &name, StackI
 void Function::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
 {
 	m_return_values.push_back(Argument(typedesc, name, stack_offset));
+}
+
+void Function::eval(EvalContext *context, const EvalGlobals *globals, const void *arguments[], void *results[]) const
+{
+	float stack[BVM_STACK_SIZE] = {0};
+	
+	/* initialize input arguments */
+	for (int i = 0; i < num_arguments(); ++i) {
+		const Argument &arg = argument(i);
+		if (arg.stack_offset != BVM_STACK_INVALID) {
+			float *value = &stack[arg.stack_offset];
+			
+			arg.typedesc.copy_value((void *)value, arguments[i]);
+		}
+	}
+	
+	context->eval_instructions(globals, this, entry_point(), stack);
+	
+	/* read out return values */
+	for (int i = 0; i < num_return_values(); ++i) {
+		const Argument &rval = return_value(i);
+		float *value = &stack[rval.stack_offset];
+		
+		rval.typedesc.copy_value(results[i], (void *)value);
+	}
 }
 
 } /* namespace bvm */

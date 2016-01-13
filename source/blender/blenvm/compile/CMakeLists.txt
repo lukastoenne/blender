@@ -42,6 +42,8 @@ set(SRC
 	bvm_codegen.cc
 	bvm_codegen_debug.cc
 	bvm_codegen.h
+	bvm_function.h
+	bvm_function.cc
 	bvm_nodegraph.cc
 	bvm_nodegraph.h
 )
