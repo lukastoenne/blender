@@ -51,8 +51,8 @@ extern "C" {
 }
 
 #include "bvm_opcode.h"
+#include "bvm_typedesc.h"
 #include "bvm_util_string.h"
-#include "bvm_util_typedesc.h"
 
 namespace bvm {
 

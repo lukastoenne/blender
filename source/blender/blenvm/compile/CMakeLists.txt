@@ -46,6 +46,8 @@ set(SRC
 	bvm_function.cc
 	bvm_nodegraph.cc
 	bvm_nodegraph.h
+	bvm_typedesc.cc
+	bvm_typedesc.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
