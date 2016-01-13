@@ -435,13 +435,13 @@ static void init_forcefield_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("effector.object", TYPE_POINTER);
-	graph.add_input("effector.position", TYPE_FLOAT3);
-	graph.add_input("effector.velocity", TYPE_FLOAT3);
+	graph.add_input("effector.object", "POINTER");
+	graph.add_input("effector.position", "FLOAT3");
+	graph.add_input("effector.velocity", "FLOAT3");
 	
 	float zero[3] = {0.0f, 0.0f, 0.0f};
-	graph.add_output("force", TYPE_FLOAT3, zero);
-	graph.add_output("impulse", TYPE_FLOAT3, zero);
+	graph.add_output("force", "FLOAT3", zero);
+	graph.add_output("impulse", "FLOAT3", zero);
 }
 
 struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
@@ -972,16 +972,16 @@ static void init_texture_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("texture.co", TYPE_FLOAT3);
-	graph.add_input("texture.dxt", TYPE_FLOAT3);
-	graph.add_input("texture.dyt", TYPE_FLOAT3);
-	graph.add_input("texture.cfra", TYPE_INT);
-	graph.add_input("texture.osatex", TYPE_INT);
+	graph.add_input("texture.co", "FLOAT3");
+	graph.add_input("texture.dxt", "FLOAT3");
+	graph.add_input("texture.dyt", "FLOAT3");
+	graph.add_input("texture.cfra", "INT");
+	graph.add_input("texture.osatex", "INT");
 	
 	float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	float N[3] = {0.0f, 0.0f, 0.0f};
-	graph.add_output("color", TYPE_FLOAT4, C);
-	graph.add_output("normal", TYPE_FLOAT3, N);
+	graph.add_output("color", "FLOAT4", C);
+	graph.add_output("normal", "FLOAT3", N);
 }
 
 struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
@@ -1062,12 +1062,12 @@ static void init_modifier_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("iteration", TYPE_INT);
-	graph.add_input("element.index", TYPE_INT);
-	graph.add_input("element.location", TYPE_FLOAT3);
-	graph.add_input("modifier.object", TYPE_POINTER);
-	graph.add_input("modifier.base_mesh", TYPE_POINTER);
-	graph.add_output("mesh", TYPE_MESH, __empty_mesh__);
+	graph.add_input("iteration", "INT");
+	graph.add_input("element.index", "INT");
+	graph.add_input("element.location", "FLOAT3");
+	graph.add_input("modifier.object", "POINTER");
+	graph.add_input("modifier.base_mesh", "POINTER");
+	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
 struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
@@ -1142,8 +1142,8 @@ static void init_dupli_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("dupli.object", TYPE_POINTER);
-	graph.add_output("dupli.result", TYPE_DUPLIS, __empty_duplis__);
+	graph.add_input("dupli.object", "POINTER");
+	graph.add_output("dupli.result", "DUPLIS", __empty_duplis__);
 }
 
 struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)

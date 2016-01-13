@@ -112,24 +112,19 @@ struct NodeType {
 //	bool verify_arguments(Module *module, LLVMContext &context, raw_ostream &err);
 	
 	const NodeInput *add_input(const string &name,
-	                           const TypeDesc &typedesc,
+	                           const string &type,
 	                           Value *default_value,
 	                           BVMInputValueType value_type = INPUT_VARIABLE);
 
 	const NodeOutput *add_output(const string &name,
-	                             const TypeDesc &typedesc,
+	                             const string &type,
 	                             BVMOutputValueType value_type = OUTPUT_VARIABLE);
 	
 	template <typename T>
 	const NodeInput *add_input(const string &name,
-	                           const TypeDesc &typedesc,
+	                           const string &type,
 	                           T default_value,
-	                           BVMInputValueType value_type = INPUT_VARIABLE)
-	{
-		Value *c = Value::create(typedesc, default_value);
-		BLI_assert(c != NULL);
-		return add_input(name, typedesc, c, value_type);
-	}
+	                           BVMInputValueType value_type = INPUT_VARIABLE);
 	
 private:
 	string m_name;
@@ -302,13 +297,22 @@ struct NodeGraph {
 	typedef std::vector<Input> InputList;
 	typedef std::vector<Output> OutputList;
 	
+	typedef std::map<string, TypeDesc> TypeDefMap;
+	typedef std::pair<string, TypeDesc> TypeDefPair;
 	typedef std::map<string, NodeType> NodeTypeMap;
 	typedef std::pair<string, NodeType> NodeTypeMapPair;
+	
 	typedef std::map<string, NodeInstance*> NodeInstanceMap;
 	typedef std::pair<string, NodeInstance*> NodeInstanceMapPair;
 	typedef std::list<NodeBlock> NodeBlockList;
 	
+	static TypeDefMap typedefs;
 	static NodeTypeMap node_types;
+	
+	static const TypeDesc &find_typedef(const string &name);
+	static bool has_typedef(const string &name);
+	static TypeDesc *add_typedef(const string &name, BVMType base_type);
+	static void remove_typedef(const string &name);
 	
 	static const NodeType *find_node_type(const string &name);
 	static NodeType *add_function_node_type(const string &name);
@@ -329,13 +333,13 @@ struct NodeGraph {
 	void set_output_socket(int index, const OutputKey &key);
 	void set_output_socket(const string &name, const OutputKey &key);
 	
-	const Input *add_input(const string &name, const TypeDesc &typedesc);
-	const Output *add_output(const string &name, const TypeDesc &typedesc, Value *default_value);
+	const Input *add_input(const string &name, const string &type);
+	const Output *add_output(const string &name, const string &type, Value *default_value);
 	
 	template <typename T>
-	const Output *add_output(const string &name, const TypeDesc &typedesc, const T &default_value)
+	const Output *add_output(const string &name, const string &type, const T &default_value)
 	{
-		return add_output(name, typedesc, Value::create(typedesc, default_value));
+		return add_output(name, type, Value::create(find_typedef(type), default_value));
 	}
 	
 	void finalize();
@@ -383,6 +387,20 @@ public:
 OpCode get_opcode_from_node_type(const string &node);
 void nodes_init();
 void nodes_free();
+
+/* ========================================================================= */
+/* inline functions */
+
+template <typename T>
+const NodeInput *NodeType::add_input(const string &name,
+                                     const string &type,
+                                     T default_value,
+                                     BVMInputValueType value_type)
+{
+	Value *c = Value::create(NodeGraph::find_typedef(type), default_value);
+	BLI_assert(c != NULL);
+	return add_input(name, type, c, value_type);
+}
 
 } /* namespace bvm */
 

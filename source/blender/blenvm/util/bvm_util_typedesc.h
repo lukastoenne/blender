@@ -45,6 +45,7 @@ extern "C" {
 
 namespace bvm {
 
+struct NodeGraph;
 struct Value;
 
 template <BVMType type>
@@ -228,34 +229,14 @@ struct TypeDesc {
 	    buffer_type(buffer_type)
 	{}
 	
-	inline bool assignable(const TypeDesc &other) const;
-	
 	BVMType base_type;
 	BVMBufferType buffer_type;
+	
+	inline bool assignable(const TypeDesc &other) const;
 	
 	inline int stack_size() const;
 	inline void copy_value(void *to, const void *from) const;
 };
-
-#define TYPE_FLOAT TypeDesc(BVM_FLOAT, BVM_BUFFER_SINGLE)
-#define TYPE_FLOAT3 TypeDesc(BVM_FLOAT3, BVM_BUFFER_SINGLE)
-#define TYPE_FLOAT4 TypeDesc(BVM_FLOAT4, BVM_BUFFER_SINGLE)
-#define TYPE_INT TypeDesc(BVM_INT, BVM_BUFFER_SINGLE)
-#define TYPE_MATRIX44 TypeDesc(BVM_MATRIX44, BVM_BUFFER_SINGLE)
-#define TYPE_STRING TypeDesc(BVM_STRING, BVM_BUFFER_SINGLE)
-#define TYPE_POINTER TypeDesc(BVM_POINTER, BVM_BUFFER_SINGLE)
-#define TYPE_MESH TypeDesc(BVM_MESH, BVM_BUFFER_SINGLE)
-#define TYPE_DUPLIS TypeDesc(BVM_DUPLIS, BVM_BUFFER_SINGLE)
-
-#define TYPE_FLOAT_ARRAY TypeDesc(BVM_FLOAT, BVM_BUFFER_ARRAY)
-#define TYPE_FLOAT3_ARRAY TypeDesc(BVM_FLOAT3, BVM_BUFFER_ARRAY)
-#define TYPE_FLOAT4_ARRAY TypeDesc(BVM_FLOAT4, BVM_BUFFER_ARRAY)
-#define TYPE_INT_ARRAY TypeDesc(BVM_INT, BVM_BUFFER_ARRAY)
-#define TYPE_MATRIX44_ARRAY TypeDesc(BVM_MATRIX44, BVM_BUFFER_ARRAY)
-#define TYPE_STRING_ARRAY TypeDesc(BVM_STRING, BVM_BUFFER_ARRAY)
-#define TYPE_POINTER_ARRAY TypeDesc(BVM_POINTER, BVM_BUFFER_ARRAY)
-#define TYPE_MESH_ARRAY TypeDesc(BVM_MESH, BVM_BUFFER_ARRAY)
-#define TYPE_DUPLIS_ARRAY TypeDesc(BVM_DUPLIS, BVM_BUFFER_ARRAY)
 
 /* ------------------------------------------------------------------------- */
 

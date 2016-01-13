@@ -211,25 +211,27 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 #endif
 
 const NodeInput *NodeType::add_input(const string &name,
-                                     const TypeDesc &typedesc,
+                                     const string &type,
                                      Value *default_value,
                                      BVMInputValueType value_type)
 {
 	BLI_assert(!find_input(name));
+	BLI_assert(NodeGraph::has_typedef(type));
 	/* function inputs only allowed for kernel nodes */
 	BLI_assert(m_is_kernel_node || value_type != INPUT_EXPRESSION);
-	m_inputs.push_back(NodeInput(name, typedesc, default_value, value_type));
+	m_inputs.push_back(NodeInput(name, NodeGraph::find_typedef(type), default_value, value_type));
 	return &m_inputs.back();
 }
 
 const NodeOutput *NodeType::add_output(const string &name,
-                                       const TypeDesc &typedesc,
+                                       const string &type,
                                        BVMOutputValueType value_type)
 {
 	BLI_assert(!find_output(name));
+	BLI_assert(NodeGraph::has_typedef(type));
 	/* local outputs only allowed for kernel nodes */
 	BLI_assert(m_is_kernel_node || value_type != OUTPUT_LOCAL);
-	m_outputs.push_back(NodeOutput(name, typedesc, value_type));
+	m_outputs.push_back(NodeOutput(name, NodeGraph::find_typedef(type), value_type));
 	return &m_outputs.back();
 }
 
@@ -595,7 +597,37 @@ void NodeBlock::prune(const NodeSet &used_nodes)
 
 /* ------------------------------------------------------------------------- */
 
+NodeGraph::TypeDefMap NodeGraph::typedefs;
 NodeGraph::NodeTypeMap NodeGraph::node_types;
+
+const TypeDesc &NodeGraph::find_typedef(const string &name)
+{
+	return typedefs.at(name);
+}
+
+bool NodeGraph::has_typedef(const string &name)
+{
+	return typedefs.find(name) != typedefs.end();
+}
+
+TypeDesc *NodeGraph::add_typedef(const string &name, BVMType base_type)
+{
+	std::pair<TypeDefMap::iterator, bool> result =
+	        typedefs.insert(TypeDefPair(name, TypeDesc(base_type)));
+	if (result.second) {
+		TypeDesc *typedesc = &result.first->second;
+		return typedesc;
+	}
+	else
+		return NULL;
+}
+
+void NodeGraph::remove_typedef(const string &name)
+{
+	TypeDefMap::iterator it = typedefs.find(name);
+	if (it != typedefs.end())
+		typedefs.erase(it);
+}
 
 const NodeType *NodeGraph::find_node_type(const string &name)
 {
@@ -738,16 +770,18 @@ void NodeGraph::set_output_socket(const string &name, const OutputKey &key)
 	}
 }
 
-const NodeGraph::Input *NodeGraph::add_input(const string &name, const TypeDesc &typedesc)
+const NodeGraph::Input *NodeGraph::add_input(const string &name, const string &type)
 {
 	BLI_assert(!get_input(name));
+	const TypeDesc &typedesc = find_typedef(type);
 	inputs.push_back(Input(name, typedesc, add_argument_node(typedesc)));
 	return &inputs.back();
 }
 
-const NodeGraph::Output *NodeGraph::add_output(const string &name, const TypeDesc &typedesc, Value *default_value)
+const NodeGraph::Output *NodeGraph::add_output(const string &name, const string &type, Value *default_value)
 {
 	BLI_assert(!get_output(name));
+	const TypeDesc &typedesc = find_typedef(type);
 	outputs.push_back(Output(name, typedesc, add_proxy(typedesc, default_value)->output(0)));
 	return &outputs.back();
 }
@@ -1156,6 +1190,57 @@ void NodeGraph::finalize()
 
 /* ------------------------------------------------------------------------- */
 
+static void register_typedefs()
+{
+	TypeDesc *t;
+	
+	t = NodeGraph::add_typedef("FLOAT", BVM_FLOAT);
+	
+	t = NodeGraph::add_typedef("FLOAT3", BVM_FLOAT3);
+	
+	t = NodeGraph::add_typedef("FLOAT4", BVM_FLOAT4);
+	
+	t = NodeGraph::add_typedef("INT", BVM_INT);
+	
+	t = NodeGraph::add_typedef("MATRIX44", BVM_MATRIX44);
+	
+	t = NodeGraph::add_typedef("STRING", BVM_STRING);
+	
+	t = NodeGraph::add_typedef("POINTER", BVM_POINTER);
+	
+	t = NodeGraph::add_typedef("MESH", BVM_MESH);
+	
+	t = NodeGraph::add_typedef("DUPLIS", BVM_DUPLIS);
+	
+	
+	t = NodeGraph::add_typedef("FLOAT_ARRAY", BVM_FLOAT);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("INT_ARRAY", BVM_INT);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("STRING_ARRAY", BVM_STRING);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("POINTER_ARRAY", BVM_POINTER);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("MESH_ARRAY", BVM_MESH);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+	
+	t = NodeGraph::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS);
+	t->buffer_type = BVM_BUFFER_ARRAY;
+}
+
 OpCode get_opcode_from_node_type(const string &node)
 {
 	#define NODETYPE(name) \
@@ -1282,181 +1367,181 @@ static void register_opcode_node_types()
 	NodeType *nt;
 	
 	nt = NodeGraph::add_function_node_type("FLOAT_TO_INT");
-	nt->add_input("value", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_INT);
+	nt->add_input("value", "FLOAT", 0.0f);
+	nt->add_output("value", "INT");
 	
 	nt = NodeGraph::add_function_node_type("INT_TO_FLOAT");
-	nt->add_input("value", TYPE_INT, 0);
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value", "INT", 0);
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT");
-	nt->add_input("value", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value", "FLOAT", 0.0f);
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT3");
-	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT4");
-	nt->add_input("value", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT4);
+	nt->add_input("value", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT4");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_INT");
-	nt->add_input("value", TYPE_INT, 0);
-	nt->add_output("value", TYPE_INT);
+	nt->add_input("value", "INT", 0);
+	nt->add_output("value", "INT");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_STRING");
-	nt->add_input("value", TYPE_STRING, "");
-	nt->add_output("value", TYPE_STRING);
+	nt->add_input("value", "STRING", "");
+	nt->add_output("value", "STRING");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER");
-	nt->add_input("value", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_output("value", TYPE_POINTER);
+	nt->add_input("value", "POINTER", PointerRNA_NULL);
+	nt->add_output("value", "POINTER");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH");
-	nt->add_input("value", TYPE_MESH, __empty_mesh__);
-	nt->add_output("value", TYPE_MESH);
+	nt->add_input("value", "MESH", __empty_mesh__);
+	nt->add_output("value", "MESH");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
-	nt->add_output("value", TYPE_DUPLIS);
+	nt->add_input("value", "DUPLIS", duplis_ptr(__empty_duplilist__));
+	nt->add_output("value", "DUPLIS");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
-	nt->add_input("value", TYPE_FLOAT_ARRAY, array<BVM_FLOAT>());
-	nt->add_output("value", TYPE_FLOAT_ARRAY);
+	nt->add_input("value", "FLOAT_ARRAY", array<BVM_FLOAT>());
+	nt->add_output("value", "FLOAT_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT3_ARRAY");
-	nt->add_input("value", TYPE_FLOAT3_ARRAY, array<BVM_FLOAT3>());
-	nt->add_output("value", TYPE_FLOAT3_ARRAY);
+	nt->add_input("value", "FLOAT3_ARRAY", array<BVM_FLOAT3>());
+	nt->add_output("value", "FLOAT3_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT4_ARRAY");
-	nt->add_input("value", TYPE_FLOAT4_ARRAY, array<BVM_FLOAT4>());
-	nt->add_output("value", TYPE_FLOAT4_ARRAY);
+	nt->add_input("value", "FLOAT4_ARRAY", array<BVM_FLOAT4>());
+	nt->add_output("value", "FLOAT4_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_INT_ARRAY");
-	nt->add_input("value", TYPE_INT_ARRAY, array<BVM_INT>());
-	nt->add_output("value", TYPE_INT_ARRAY);
+	nt->add_input("value", "INT_ARRAY", array<BVM_INT>());
+	nt->add_output("value", "INT_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MATRIX44_ARRAY");
-	nt->add_input("value", TYPE_MATRIX44_ARRAY, array<BVM_MATRIX44>());
-	nt->add_output("value", TYPE_MATRIX44_ARRAY);
+	nt->add_input("value", "MATRIX44_ARRAY", array<BVM_MATRIX44>());
+	nt->add_output("value", "MATRIX44_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_STRING_ARRAY");
-	nt->add_input("value", TYPE_STRING_ARRAY, array<BVM_STRING>());
-	nt->add_output("value", TYPE_STRING_ARRAY);
+	nt->add_input("value", "STRING_ARRAY", array<BVM_STRING>());
+	nt->add_output("value", "STRING_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_POINTER_ARRAY");
-	nt->add_input("value", TYPE_POINTER_ARRAY, array<BVM_POINTER>());
-	nt->add_output("value", TYPE_POINTER_ARRAY);
+	nt->add_input("value", "POINTER_ARRAY", array<BVM_POINTER>());
+	nt->add_output("value", "POINTER_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH_ARRAY");
-	nt->add_input("value", TYPE_MESH_ARRAY, array<BVM_MESH>());
-	nt->add_output("value", TYPE_MESH_ARRAY);
+	nt->add_input("value", "MESH_ARRAY", array<BVM_MESH>());
+	nt->add_output("value", "MESH_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS_ARRAY");
-	nt->add_input("value", TYPE_DUPLIS_ARRAY, array<BVM_DUPLIS>());
-	nt->add_output("value", TYPE_DUPLIS_ARRAY);
+	nt->add_input("value", "DUPLIS_ARRAY", array<BVM_DUPLIS>());
+	nt->add_output("value", "DUPLIS_ARRAY");
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT");
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT3");
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("ARG_FLOAT4");
-	nt->add_output("value", TYPE_FLOAT4);
+	nt->add_output("value", "FLOAT4");
 	
 	nt = NodeGraph::add_function_node_type("ARG_INT");
-	nt->add_output("value", TYPE_INT);
+	nt->add_output("value", "INT");
 	
 	nt = NodeGraph::add_function_node_type("ARG_MATRIX44");
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("ARG_STRING");
-	nt->add_output("value", TYPE_STRING);
+	nt->add_output("value", "STRING");
 	
 	nt = NodeGraph::add_function_node_type("ARG_POINTER");
-	nt->add_output("value", TYPE_POINTER);
+	nt->add_output("value", "POINTER");
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
-	nt->add_output("value", TYPE_MESH);
+	nt->add_output("value", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("ARG_DUPLIS");
-	nt->add_output("value", TYPE_DUPLIS);
+	nt->add_output("value", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT");
-	nt->add_input("value", TYPE_FLOAT, 0.0f, INPUT_CONSTANT);
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value", "FLOAT", 0.0f, INPUT_CONSTANT);
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT3");
-	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_FLOAT4");
-	nt->add_input("value", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
-	nt->add_output("value", TYPE_FLOAT4);
+	nt->add_input("value", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 0.0f), INPUT_CONSTANT);
+	nt->add_output("value", "FLOAT4");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_INT");
-	nt->add_input("value", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("value", TYPE_INT);
+	nt->add_input("value", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("value", "INT");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity(), INPUT_CONSTANT);
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity(), INPUT_CONSTANT);
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_STRING");
-	nt->add_input("value", TYPE_STRING, "", INPUT_CONSTANT);
-	nt->add_output("value", TYPE_STRING);
+	nt->add_input("value", "STRING", "", INPUT_CONSTANT);
+	nt->add_output("value", "STRING");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_POINTER");
-	nt->add_input("value", TYPE_POINTER, PointerRNA_NULL, INPUT_CONSTANT);
-	nt->add_output("value", TYPE_POINTER);
+	nt->add_input("value", "POINTER", PointerRNA_NULL, INPUT_CONSTANT);
+	nt->add_output("value", "POINTER");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_MESH");
-	nt->add_input("value", TYPE_MESH, __empty_mesh__, INPUT_CONSTANT);
-	nt->add_output("value", TYPE_MESH);
+	nt->add_input("value", "MESH", __empty_mesh__, INPUT_CONSTANT);
+	nt->add_output("value", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
-	nt->add_input("value", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__), INPUT_CONSTANT);
-	nt->add_output("value", TYPE_DUPLIS);
+	nt->add_input("value", "DUPLIS", duplis_ptr(__empty_duplilist__), INPUT_CONSTANT);
+	nt->add_output("value", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
-	nt->add_input("index", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("index", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("SET_FLOAT3");
-	nt->add_input("value_x", TYPE_FLOAT, 0.0f);
-	nt->add_input("value_y", TYPE_FLOAT, 0.0f);
-	nt->add_input("value_z", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_x", "FLOAT", 0.0f);
+	nt->add_input("value_y", "FLOAT", 0.0f);
+	nt->add_input("value_z", "FLOAT", 0.0f);
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT4");
-	nt->add_input("index", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("value", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("index", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("SET_FLOAT4");
-	nt->add_input("value_x", TYPE_FLOAT, 0.0f);
-	nt->add_input("value_y", TYPE_FLOAT, 0.0f);
-	nt->add_input("value_z", TYPE_FLOAT, 0.0f);
-	nt->add_input("value_w", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_FLOAT4);
+	nt->add_input("value_x", "FLOAT", 0.0f);
+	nt->add_input("value_y", "FLOAT", 0.0f);
+	nt->add_input("value_z", "FLOAT", 0.0f);
+	nt->add_input("value_w", "FLOAT", 0.0f);
+	nt->add_output("value", "FLOAT4");
 	
 	#define BINARY_MATH_NODE(name) \
 	nt = NodeGraph::add_function_node_type(STRINGIFY(name)); \
-	nt->add_input("value_a", TYPE_FLOAT, 0.0f); \
-	nt->add_input("value_b", TYPE_FLOAT, 0.0f); \
-	nt->add_output("value", TYPE_FLOAT)
+	nt->add_input("value_a", "FLOAT", 0.0f); \
+	nt->add_input("value_b", "FLOAT", 0.0f); \
+	nt->add_output("value", "FLOAT")
 	
 	#define UNARY_MATH_NODE(name) \
 	nt = NodeGraph::add_function_node_type(STRINGIFY(name)); \
-	nt->add_input("value", TYPE_FLOAT, 0.0f); \
-	nt->add_output("value", TYPE_FLOAT)
+	nt->add_input("value", "FLOAT", 0.0f); \
+	nt->add_output("value", "FLOAT")
 	
 	BINARY_MATH_NODE(ADD_FLOAT);
 	BINARY_MATH_NODE(SUB_FLOAT);
@@ -1484,362 +1569,363 @@ static void register_opcode_node_types()
 	#undef UNARY_MATH_NODE
 	
 	nt = NodeGraph::add_function_node_type("ADD_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("SUB_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("MUL_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("DIV_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("MUL_FLOAT3_FLOAT");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT", 0.0f);
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("DIV_FLOAT3_FLOAT");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT", 0.0f);
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("AVERAGE_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("DOT_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("CROSS_FLOAT3");
-	nt->add_input("value_a", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("NORMALIZE_FLOAT3");
-	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("vector", TYPE_FLOAT3);
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("vector", "FLOAT3");
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("LENGTH_FLOAT3");
-	nt->add_input("value", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("length", TYPE_FLOAT);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("length", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("MIX_RGB");
-	nt->add_input("mode", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("factor", TYPE_FLOAT, 0.0f);
-	nt->add_input("color1", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
-	nt->add_input("color2", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 1.0f));
-	nt->add_output("color", TYPE_FLOAT4);
+	nt->add_input("mode", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("factor", "FLOAT", 0.0f);
+	nt->add_input("color1", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_input("color2", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 1.0f));
+	nt->add_output("color", "FLOAT4");
 	
 	nt = NodeGraph::add_function_node_type("INT_TO_RANDOM");
-	nt->add_input("seed", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("value", TYPE_INT, 0);
-	nt->add_output("irandom", TYPE_INT);
-	nt->add_output("frandom", TYPE_FLOAT);
+	nt->add_input("seed", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "INT", 0);
+	nt->add_output("irandom", "INT");
+	nt->add_output("frandom", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("FLOAT_TO_RANDOM");
-	nt->add_input("seed", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("value", TYPE_FLOAT, 0);
-	nt->add_output("irandom", TYPE_INT);
-	nt->add_output("frandom", TYPE_FLOAT);
+	nt->add_input("seed", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT", 0);
+	nt->add_output("irandom", "INT");
+	nt->add_output("frandom", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_VORONOI");
-	nt->add_input("distance_metric", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("color_type", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("minkowski_exponent", TYPE_FLOAT, 2.5f);
-	nt->add_input("scale", TYPE_FLOAT, 1.0f);
-	nt->add_input("noise_size", TYPE_FLOAT, 1.0f);
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("w1", TYPE_FLOAT, 1.0f);
-	nt->add_input("w2", TYPE_FLOAT, 0.0f);
-	nt->add_input("w3", TYPE_FLOAT, 0.0f);
-	nt->add_input("w4", TYPE_FLOAT, 0.0f);
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("color", TYPE_FLOAT4);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("distance_metric", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("color_type", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("minkowski_exponent", "FLOAT", 2.5f);
+	nt->add_input("scale", "FLOAT", 1.0f);
+	nt->add_input("noise_size", "FLOAT", 1.0f);
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("w1", "FLOAT", 1.0f);
+	nt->add_input("w2", "FLOAT", 0.0f);
+	nt->add_input("w3", "FLOAT", 0.0f);
+	nt->add_input("w4", "FLOAT", 0.0f);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("color", "FLOAT4");
+	nt->add_output("normal", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("TEX_PROC_CLOUDS");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("depth", TYPE_INT, 2, INPUT_CONSTANT);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("color", TYPE_FLOAT4);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("depth", "INT", 2, INPUT_CONSTANT);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("color", "FLOAT4");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_WOOD");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_basis_2", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("wood_type", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("turbulence", "FLOAT", 1.0f);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis_2", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("wood_type", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_MUSGRAVE");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("dimension", TYPE_FLOAT, 1.0f);
-	nt->add_input("lacunarity", TYPE_FLOAT, 1.0f);
-	nt->add_input("octaves", TYPE_FLOAT, 1.0f);
-	nt->add_input("intensity", TYPE_FLOAT, 1.0f);
-	nt->add_input("offset", TYPE_FLOAT, 1.0f);
-	nt->add_input("gain", TYPE_FLOAT, 1.0f);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("musgrave_type", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("dimension", "FLOAT", 1.0f);
+	nt->add_input("lacunarity", "FLOAT", 1.0f);
+	nt->add_input("octaves", "FLOAT", 1.0f);
+	nt->add_input("intensity", "FLOAT", 1.0f);
+	nt->add_input("offset", "FLOAT", 1.0f);
+	nt->add_input("gain", "FLOAT", 1.0f);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("musgrave_type", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_MAGIC");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
-	nt->add_input("depth", TYPE_INT, 2, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("color", TYPE_FLOAT4);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("turbulence", "FLOAT", 1.0f);
+	nt->add_input("depth", "INT", 2, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("color", "FLOAT4");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_STUCCI");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("stucci_type", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("turbulence", "FLOAT", 1.0f);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("stucci_type", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_MARBLE");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("turbulence", TYPE_FLOAT, 1.0f);
-	nt->add_input("depth", TYPE_INT, 2, INPUT_CONSTANT);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_basis_2", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_hard", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("marble_type", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("turbulence", "FLOAT", 1.0f);
+	nt->add_input("depth", "INT", 2, INPUT_CONSTANT);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis_2", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_hard", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("marble_type", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("normal", "FLOAT3");
 
 	nt = NodeGraph::add_function_node_type("TEX_PROC_DISTNOISE");
-	nt->add_input("position", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("size", TYPE_FLOAT, 1.0f);
-	nt->add_input("nabla", TYPE_FLOAT, 0.05f);
-	nt->add_input("dist_amount", TYPE_FLOAT, 1.0f);
-	nt->add_input("noise_dist", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_input("noise_basis", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("intensity", TYPE_FLOAT);
-	nt->add_output("normal", TYPE_FLOAT3);
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("nabla", "FLOAT", 0.05f);
+	nt->add_input("dist_amount", "FLOAT", 1.0f);
+	nt->add_input("noise_dist", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("noise_basis", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("intensity", "FLOAT");
+	nt->add_output("normal", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_LOOKUP");
-	nt->add_input("key", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("object", TYPE_POINTER);
+	nt->add_input("key", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("object", "POINTER");
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_TRANSFORM");
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_output("transform", TYPE_MATRIX44);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_output("transform", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_FINAL_MESH");
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_output("mesh", TYPE_MESH);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
-	nt->add_input("object", TYPE_INT, 0, INPUT_CONSTANT);
-	nt->add_output("transform", TYPE_MATRIX44);
+	nt->add_input("object", "INT", 0, INPUT_CONSTANT);
+	nt->add_output("transform", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_CLOSEST_POINT");
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("position", TYPE_FLOAT3);
-	nt->add_output("normal", TYPE_FLOAT3);
-	nt->add_output("tangent", TYPE_FLOAT3);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("position", "FLOAT3");
+	nt->add_output("normal", "FLOAT3");
+	nt->add_output("tangent", "FLOAT3");
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
-	nt->add_input("base_mesh", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_output("mesh", TYPE_MESH);
+	nt->add_input("base_mesh", "POINTER", PointerRNA_NULL);
+	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");
-	nt->add_input("mesh_a", TYPE_MESH, __empty_mesh__);
-	nt->add_input("mesh_b", TYPE_MESH, __empty_mesh__);
-	nt->add_output("mesh_out", TYPE_MESH);
+	nt->add_input("mesh_a", "MESH", __empty_mesh__);
+	nt->add_input("mesh_b", "MESH", __empty_mesh__);
+	nt->add_output("mesh_out", "MESH");
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
-	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
-	nt->add_input("count", TYPE_INT, 1);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity(), INPUT_EXPRESSION);
-	nt->add_output("mesh_out", TYPE_MESH);
-	nt->add_output("iteration", TYPE_INT, OUTPUT_LOCAL);
+	nt->add_input("mesh_in", "MESH", __empty_mesh__);
+	nt->add_input("count", "INT", 1);
+	nt->add_input("transform", "MATRIX44", matrix44::identity(), INPUT_EXPRESSION);
+	nt->add_output("mesh_out", "MESH");
+	nt->add_output("iteration", "INT", OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_DISPLACE");
-	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
-	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f), INPUT_EXPRESSION);
-	nt->add_output("mesh_out", TYPE_MESH);
-	nt->add_output("element.index", TYPE_INT, OUTPUT_LOCAL);
-	nt->add_output("element.location", TYPE_FLOAT3, OUTPUT_LOCAL);
+	nt->add_input("mesh_in", "MESH", __empty_mesh__);
+	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f), INPUT_EXPRESSION);
+	nt->add_output("mesh_out", "MESH");
+	nt->add_output("element.index", "INT", OUTPUT_LOCAL);
+	nt->add_output("element.location", "FLOAT3", OUTPUT_LOCAL);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
-	nt->add_input("mesh_in", TYPE_MESH, __empty_mesh__);
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("inverse_transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("operation", TYPE_INT, -1);
-	nt->add_input("separate", TYPE_INT, 0);
-	nt->add_input("dissolve", TYPE_INT, 1);
-	nt->add_input("connect_regions", TYPE_INT, 1);
-	nt->add_input("threshold", TYPE_FLOAT, 0.0f);
-	nt->add_output("mesh_out", TYPE_MESH);
+	nt->add_input("mesh_in", "MESH", __empty_mesh__);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("transform", "MATRIX44", matrix44::identity());
+	nt->add_input("inverse_transform", "MATRIX44", matrix44::identity());
+	nt->add_input("operation", "INT", -1);
+	nt->add_input("separate", "INT", 0);
+	nt->add_input("dissolve", "INT", 1);
+	nt->add_input("connect_regions", "INT", 1);
+	nt->add_input("threshold", "FLOAT", 0.0f);
+	nt->add_output("mesh_out", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("MESH_CLOSEST_POINT");
-	nt->add_input("mesh", TYPE_MESH, __empty_mesh__);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("inverse_transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("vector", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("position", TYPE_FLOAT3);
-	nt->add_output("normal", TYPE_FLOAT3);
-	nt->add_output("tangent", TYPE_FLOAT3);
+	nt->add_input("mesh", "MESH", __empty_mesh__);
+	nt->add_input("transform", "MATRIX44", matrix44::identity());
+	nt->add_input("inverse_transform", "MATRIX44", matrix44::identity());
+	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("position", "FLOAT3");
+	nt->add_output("normal", "FLOAT3");
+	nt->add_output("tangent", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("CURVE_PATH");
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("inverse_transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("parameter", TYPE_FLOAT, 0.0f);
-	nt->add_output("location", TYPE_FLOAT3);
-	nt->add_output("direction", TYPE_FLOAT3);
-	nt->add_output("normal", TYPE_FLOAT3);
-	nt->add_output("rotation", TYPE_MATRIX44);
-	nt->add_output("radius", TYPE_FLOAT);
-	nt->add_output("weight", TYPE_FLOAT);
-	nt->add_output("tilt", TYPE_FLOAT);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("transform", "MATRIX44", matrix44::identity());
+	nt->add_input("inverse_transform", "MATRIX44", matrix44::identity());
+	nt->add_input("parameter", "FLOAT", 0.0f);
+	nt->add_output("location", "FLOAT3");
+	nt->add_output("direction", "FLOAT3");
+	nt->add_output("normal", "FLOAT3");
+	nt->add_output("rotation", "MATRIX44");
+	nt->add_output("radius", "FLOAT");
+	nt->add_output("weight", "FLOAT");
+	nt->add_output("tilt", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("MAKE_DUPLI");
-	nt->add_input("object", TYPE_POINTER, PointerRNA_NULL);
-	nt->add_input("transform", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("index", TYPE_INT, 0);
-	nt->add_input("hide", TYPE_INT, 0);
-	nt->add_input("recursive", TYPE_INT, 1);
-	nt->add_output("dupli", TYPE_DUPLIS);
+	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("transform", "MATRIX44", matrix44::identity());
+	nt->add_input("index", "INT", 0);
+	nt->add_input("hide", "INT", 0);
+	nt->add_input("recursive", "INT", 1);
+	nt->add_output("dupli", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("DUPLIS_COMBINE");
-	nt->add_input("duplis_a", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
-	nt->add_input("duplis_b", TYPE_DUPLIS, duplis_ptr(__empty_duplilist__));
-	nt->add_output("duplis", TYPE_DUPLIS);
+	nt->add_input("duplis_a", "DUPLIS", duplis_ptr(__empty_duplilist__));
+	nt->add_input("duplis_b", "DUPLIS", duplis_ptr(__empty_duplilist__));
+	nt->add_output("duplis", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("SUB_MATRIX44");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_FLOAT, 0.0f);
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "FLOAT", 0.0f);
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("DIV_MATRIX44_FLOAT");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_FLOAT, 1.0f);
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "FLOAT", 1.0f);
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("NEGATE_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("TRANSPOSE_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("INVERT_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("ADJOINT_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_MATRIX44);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("DETERMINANT_MATRIX44");
-	nt->add_input("value", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("value", TYPE_FLOAT);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT3");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT3);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("MUL_MATRIX44_FLOAT4");
-	nt->add_input("value_a", TYPE_MATRIX44, matrix44::identity());
-	nt->add_input("value_b", TYPE_FLOAT4, float4(0.0f, 0.0f, 0.0f, 0.0f));
-	nt->add_output("value", TYPE_FLOAT4);
+	nt->add_input("value_a", "MATRIX44", matrix44::identity());
+	nt->add_input("value_b", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("value", "FLOAT4");
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_LOC");
-	nt->add_input("matrix", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("loc", TYPE_FLOAT3);
+	nt->add_input("matrix", "MATRIX44", matrix44::identity());
+	nt->add_output("loc", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_EULER");
-	nt->add_input("order", TYPE_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
-	nt->add_input("matrix", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("euler", TYPE_FLOAT3);
+	nt->add_input("order", "INT", EULER_ORDER_DEFAULT, INPUT_CONSTANT);
+	nt->add_input("matrix", "MATRIX44", matrix44::identity());
+	nt->add_output("euler", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_AXISANGLE");
-	nt->add_input("matrix", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("axis", TYPE_FLOAT3);
-	nt->add_output("angle", TYPE_FLOAT);
+	nt->add_input("matrix", "MATRIX44", matrix44::identity());
+	nt->add_output("axis", "FLOAT3");
+	nt->add_output("angle", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("MATRIX44_TO_SCALE");
-	nt->add_input("matrix", TYPE_MATRIX44, matrix44::identity());
-	nt->add_output("scale", TYPE_FLOAT3);
+	nt->add_input("matrix", "MATRIX44", matrix44::identity());
+	nt->add_output("scale", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("LOC_TO_MATRIX44");
-	nt->add_input("loc", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", TYPE_MATRIX44);
+	nt->add_input("loc", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("EULER_TO_MATRIX44");
-	nt->add_input("order", TYPE_INT, EULER_ORDER_DEFAULT, INPUT_CONSTANT);
-	nt->add_input("euler", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", TYPE_MATRIX44);
+	nt->add_input("order", "INT", EULER_ORDER_DEFAULT, INPUT_CONSTANT);
+	nt->add_input("euler", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("AXISANGLE_TO_MATRIX44");
-	nt->add_input("axis", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_input("angle", TYPE_FLOAT, 0.0f);
-	nt->add_output("matrix", TYPE_MATRIX44);
+	nt->add_input("axis", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("angle", "FLOAT", 0.0f);
+	nt->add_output("matrix", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("SCALE_TO_MATRIX44");
-	nt->add_input("scale", TYPE_FLOAT3, float3(0.0f, 0.0f, 0.0f));
-	nt->add_output("matrix", TYPE_MATRIX44);
+	nt->add_input("scale", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("matrix", "MATRIX44");
 }
 
 void nodes_init()
 {
 	create_empty_mesh(__empty_mesh__);
 	
+	register_typedefs();
 	register_opcode_node_types();
 }
 
