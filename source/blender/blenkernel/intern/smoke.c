@@ -2370,7 +2370,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 typedef struct UpdateEffectorsData {
 	Scene *scene;
 	SmokeDomainSettings *sds;
-	ListBase *effectors;
+	EffectorContext *effectors;
 
 	float *density;
 	float *fuel;
