@@ -127,9 +127,9 @@ static void eval_op_value_string(float *stack, const char *value, StackIndex off
 /* Note: pointer data is not explicitly stored on the stack,
  * this function always creates simply a NULL pointer.
  */
-static void eval_op_value_pointer(float *stack, StackIndex offset)
+static void eval_op_value_rnapointer(float *stack, StackIndex offset)
 {
-	stack_store_pointer(stack, offset, PointerRNA_NULL);
+	stack_store_rnapointer(stack, offset, PointerRNA_NULL);
 }
 
 /* Note: mesh data is not explicitly stored on the stack,
@@ -234,12 +234,12 @@ static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, Sta
 static void eval_op_object_lookup(const EvalGlobals *globals, float *stack, int key, StackIndex offset_object)
 {
 	PointerRNA ptr = globals->lookup_object(key);
-	stack_store_pointer(stack, offset_object, ptr);
+	stack_store_rnapointer(stack, offset_object, ptr);
 }
 
 static void eval_op_object_transform(float *stack, StackIndex offset_object, StackIndex offset_transform)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	matrix44 obmat;
 	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
 		Object *ob = (Object *)ptr.data;
@@ -266,7 +266,7 @@ static void eval_op_effector_transform(const EvalGlobals *globals, float *stack,
 static void eval_op_effector_closest_point(float *stack, StackIndex offset_object, StackIndex offset_vector,
                                            StackIndex offset_position, StackIndex offset_normal, StackIndex offset_tangent)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	if (!ptr.data)
 		return;
 	Object *ob = (Object *)ptr.data;
@@ -306,7 +306,7 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 static void eval_op_make_dupli(float *stack, StackIndex offset_object, StackIndex offset_transform, StackIndex offset_index,
                                StackIndex offset_hide, StackIndex offset_recursive, StackIndex offset_dupli)
 {
-	PointerRNA object = stack_load_pointer(stack, offset_object);
+	PointerRNA object = stack_load_rnapointer(stack, offset_object);
 	if (!object.data || !RNA_struct_is_a(&RNA_Object, object.type))
 		return;
 	
@@ -384,9 +384,9 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				eval_op_value_string(stack, value, offset);
 				break;
 			}
-			case OP_VALUE_POINTER: {
+			case OP_VALUE_RNAPOINTER: {
 				StackIndex offset = fn->read_stack_index(&instr);
-				eval_op_value_pointer(stack, offset);
+				eval_op_value_rnapointer(stack, offset);
 				break;
 			}
 			case OP_VALUE_MESH: {

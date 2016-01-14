@@ -435,7 +435,7 @@ static void init_forcefield_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("effector.object", "POINTER");
+	graph.add_input("effector.object", "RNAPOINTER");
 	graph.add_input("effector.position", "FLOAT3");
 	graph.add_input("effector.velocity", "FLOAT3");
 	
@@ -1065,8 +1065,8 @@ static void init_modifier_graph(bvm::NodeGraph &graph)
 	graph.add_input("iteration", "INT");
 	graph.add_input("element.index", "INT");
 	graph.add_input("element.location", "FLOAT3");
-	graph.add_input("modifier.object", "POINTER");
-	graph.add_input("modifier.base_mesh", "POINTER");
+	graph.add_input("modifier.object", "RNAPOINTER");
+	graph.add_input("modifier.base_mesh", "RNAPOINTER");
 	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
@@ -1142,7 +1142,7 @@ static void init_dupli_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("dupli.object", "POINTER");
+	graph.add_input("dupli.object", "RNAPOINTER");
 	graph.add_output("dupli.result", "DUPLIS", __empty_duplis__);
 }
 

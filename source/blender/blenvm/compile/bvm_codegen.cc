@@ -277,8 +277,8 @@ void Compiler::push_constant(const Value *value) const
 			push_string(s);
 			break;
 		}
-		case BVM_POINTER: {
-			/* POINTER type can not be stored as a constant */
+		case BVM_RNAPOINTER: {
+			/* RNAPOINTER type can not be stored as a constant */
 			break;
 		}
 		
@@ -350,8 +350,8 @@ void Compiler::codegen_value(const Value *value, StackIndex offset) const
 			push_stack_index(offset);
 			break;
 		}
-		case BVM_POINTER: {
-			push_opcode(OP_VALUE_POINTER);
+		case BVM_RNAPOINTER: {
+			push_opcode(OP_VALUE_RNAPOINTER);
 			push_stack_index(offset);
 			break;
 		}
@@ -378,7 +378,7 @@ static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 		case BVM_INT:
 		case BVM_MATRIX44:
 		case BVM_STRING:
-		case BVM_POINTER:
+		case BVM_RNAPOINTER:
 			return OP_NOOP;
 		
 		case BVM_MESH:
@@ -398,7 +398,7 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 		case BVM_INT:
 		case BVM_MATRIX44:
 		case BVM_STRING:
-		case BVM_POINTER:
+		case BVM_RNAPOINTER:
 			return OP_NOOP;
 		
 		case BVM_MESH:

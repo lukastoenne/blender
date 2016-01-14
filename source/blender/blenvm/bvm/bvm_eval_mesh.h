@@ -48,7 +48,7 @@ namespace bvm {
 
 static void eval_op_mesh_load(float *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_base_mesh);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_base_mesh);
 	DerivedMesh *dm;
 	if (ptr.data && RNA_struct_is_a(&RNA_Mesh, ptr.type)) {
 		dm = CDDM_from_mesh((Mesh *)ptr.data);
@@ -63,7 +63,7 @@ static void eval_op_object_final_mesh(float *stack,
                                       StackIndex offset_object,
                                       StackIndex offset_mesh)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	
 	DerivedMesh *result = NULL;
 	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
@@ -473,7 +473,7 @@ static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
                                  StackIndex offset_threshold,
                                  StackIndex offset_mesh_out)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	
 	DerivedMesh *result = NULL;

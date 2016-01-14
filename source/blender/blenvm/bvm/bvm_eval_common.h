@@ -85,7 +85,7 @@ inline static const char *stack_load_string(float *stack, StackIndex offset)
 	return *(const char **)(&stack[offset]);
 }
 
-inline static PointerRNA stack_load_pointer(float *stack, StackIndex offset)
+inline static PointerRNA stack_load_rnapointer(float *stack, StackIndex offset)
 {
 	return *(PointerRNA *)(&stack[offset]);
 }
@@ -152,7 +152,7 @@ inline static void stack_store_string(float *stack, StackIndex offset, const cha
 	*(const char **)(&stack[offset]) = s;
 }
 
-inline static void stack_store_pointer(float *stack, StackIndex offset, PointerRNA p)
+inline static void stack_store_rnapointer(float *stack, StackIndex offset, PointerRNA p)
 {
 	*(PointerRNA *)(&stack[offset]) = p;
 }

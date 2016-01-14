@@ -800,7 +800,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 				case BVM_INT: node = add_node("PASS_INT"); break;
 				case BVM_MATRIX44: node = add_node("PASS_MATRIX44"); break;
 				case BVM_STRING: node = add_node("PASS_STRING"); break;
-				case BVM_POINTER: node = add_node("PASS_POINTER"); break;
+				case BVM_RNAPOINTER: node = add_node("PASS_RNAPOINTER"); break;
 				case BVM_MESH: node = add_node("PASS_MESH"); break;
 				case BVM_DUPLIS: node = add_node("PASS_DUPLIS"); break;
 			}
@@ -813,7 +813,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 				case BVM_INT: node = add_node("PASS_INT_ARRAY"); break;
 				case BVM_MATRIX44: node = add_node("PASS_MATRIX44_ARRAY"); break;
 				case BVM_STRING: node = add_node("PASS_STRING_ARRAY"); break;
-				case BVM_POINTER: node = add_node("PASS_POINTER_ARRAY"); break;
+				case BVM_RNAPOINTER: node = add_node("PASS_RNAPOINTER_ARRAY"); break;
 				case BVM_MESH: node = add_node("PASS_MESH_ARRAY"); break;
 				case BVM_DUPLIS: node = add_node("PASS_DUPLIS_ARRAY"); break;
 			}
@@ -834,7 +834,7 @@ OutputKey NodeGraph::add_value_node(Value *value)
 		case BVM_INT: node = add_node("VALUE_INT"); break;
 		case BVM_MATRIX44: node = add_node("VALUE_MATRIX44"); break;
 		case BVM_STRING: node = add_node("VALUE_STRING"); break;
-		case BVM_POINTER: node = add_node("VALUE_POINTER"); break;
+		case BVM_RNAPOINTER: node = add_node("VALUE_RNAPOINTER"); break;
 		case BVM_MESH: node = add_node("VALUE_MESH"); break;
 		case BVM_DUPLIS: node = add_node("VALUE_DUPLIS"); break;
 	}
@@ -853,7 +853,7 @@ OutputKey NodeGraph::add_argument_node(const TypeDesc &typedesc)
 		case BVM_INT: node = add_node("ARG_INT"); break;
 		case BVM_MATRIX44: node = add_node("ARG_MATRIX44"); break;
 		case BVM_STRING: node = add_node("ARG_STRING"); break;
-		case BVM_POINTER: node = add_node("ARG_POINTER"); break;
+		case BVM_RNAPOINTER: node = add_node("ARG_RNAPOINTER"); break;
 		case BVM_MESH: node = add_node("ARG_MESH"); break;
 		case BVM_DUPLIS: node = add_node("ARG_DUPLIS"); break;
 	}
@@ -1206,7 +1206,7 @@ static void register_typedefs()
 	
 	t = NodeGraph::add_typedef("STRING", BVM_STRING);
 	
-	t = NodeGraph::add_typedef("POINTER", BVM_POINTER);
+	t = NodeGraph::add_typedef("RNAPOINTER", BVM_RNAPOINTER);
 	
 	t = NodeGraph::add_typedef("MESH", BVM_MESH);
 	
@@ -1231,7 +1231,7 @@ static void register_typedefs()
 	t = NodeGraph::add_typedef("STRING_ARRAY", BVM_STRING);
 	t->buffer_type = BVM_BUFFER_ARRAY;
 	
-	t = NodeGraph::add_typedef("POINTER_ARRAY", BVM_POINTER);
+	t = NodeGraph::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER);
 	t->buffer_type = BVM_BUFFER_ARRAY;
 	
 	t = NodeGraph::add_typedef("MESH_ARRAY", BVM_MESH);
@@ -1253,7 +1253,7 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_INT);
 	NODETYPE(VALUE_MATRIX44);
 	NODETYPE(VALUE_STRING);
-	NODETYPE(VALUE_POINTER);
+	NODETYPE(VALUE_RNAPOINTER);
 	NODETYPE(VALUE_MESH);
 	NODETYPE(VALUE_DUPLIS);
 	
@@ -1398,9 +1398,9 @@ static void register_opcode_node_types()
 	nt->add_input("value", "STRING", "");
 	nt->add_output("value", "STRING");
 	
-	nt = NodeGraph::add_pass_node_type("PASS_POINTER");
-	nt->add_input("value", "POINTER", PointerRNA_NULL);
-	nt->add_output("value", "POINTER");
+	nt = NodeGraph::add_pass_node_type("PASS_RNAPOINTER");
+	nt->add_input("value", "RNAPOINTER", PointerRNA_NULL);
+	nt->add_output("value", "RNAPOINTER");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH");
 	nt->add_input("value", "MESH", __empty_mesh__);
@@ -1434,9 +1434,9 @@ static void register_opcode_node_types()
 	nt->add_input("value", "STRING_ARRAY", array<BVM_STRING>());
 	nt->add_output("value", "STRING_ARRAY");
 	
-	nt = NodeGraph::add_pass_node_type("PASS_POINTER_ARRAY");
-	nt->add_input("value", "POINTER_ARRAY", array<BVM_POINTER>());
-	nt->add_output("value", "POINTER_ARRAY");
+	nt = NodeGraph::add_pass_node_type("PASS_RNAPOINTER_ARRAY");
+	nt->add_input("value", "RNAPOINTER_ARRAY", array<BVM_RNAPOINTER>());
+	nt->add_output("value", "RNAPOINTER_ARRAY");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_MESH_ARRAY");
 	nt->add_input("value", "MESH_ARRAY", array<BVM_MESH>());
@@ -1464,8 +1464,8 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("ARG_STRING");
 	nt->add_output("value", "STRING");
 	
-	nt = NodeGraph::add_function_node_type("ARG_POINTER");
-	nt->add_output("value", "POINTER");
+	nt = NodeGraph::add_function_node_type("ARG_RNAPOINTER");
+	nt->add_output("value", "RNAPOINTER");
 	
 	nt = NodeGraph::add_function_node_type("ARG_MESH");
 	nt->add_output("value", "MESH");
@@ -1497,9 +1497,9 @@ static void register_opcode_node_types()
 	nt->add_input("value", "STRING", "", INPUT_CONSTANT);
 	nt->add_output("value", "STRING");
 	
-	nt = NodeGraph::add_function_node_type("VALUE_POINTER");
-	nt->add_input("value", "POINTER", PointerRNA_NULL, INPUT_CONSTANT);
-	nt->add_output("value", "POINTER");
+	nt = NodeGraph::add_function_node_type("VALUE_RNAPOINTER");
+	nt->add_input("value", "RNAPOINTER", PointerRNA_NULL, INPUT_CONSTANT);
+	nt->add_output("value", "RNAPOINTER");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_MESH");
 	nt->add_input("value", "MESH", __empty_mesh__, INPUT_CONSTANT);
@@ -1738,14 +1738,14 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_LOOKUP");
 	nt->add_input("key", "INT", 0, INPUT_CONSTANT);
-	nt->add_output("object", "POINTER");
+	nt->add_output("object", "RNAPOINTER");
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_TRANSFORM");
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("transform", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("OBJECT_FINAL_MESH");
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_TRANSFORM");
@@ -1753,14 +1753,14 @@ static void register_opcode_node_types()
 	nt->add_output("transform", "MATRIX44");
 	
 	nt = NodeGraph::add_function_node_type("EFFECTOR_CLOSEST_POINT");
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("position", "FLOAT3");
 	nt->add_output("normal", "FLOAT3");
 	nt->add_output("tangent", "FLOAT3");
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
-	nt->add_input("base_mesh", "POINTER", PointerRNA_NULL);
+	nt->add_input("base_mesh", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");
@@ -1784,7 +1784,7 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_input("transform", "MATRIX44", matrix44::identity());
 	nt->add_input("inverse_transform", "MATRIX44", matrix44::identity());
 	nt->add_input("operation", "INT", -1);
@@ -1804,7 +1804,7 @@ static void register_opcode_node_types()
 	nt->add_output("tangent", "FLOAT3");
 	
 	nt = NodeGraph::add_function_node_type("CURVE_PATH");
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_input("transform", "MATRIX44", matrix44::identity());
 	nt->add_input("inverse_transform", "MATRIX44", matrix44::identity());
 	nt->add_input("parameter", "FLOAT", 0.0f);
@@ -1817,7 +1817,7 @@ static void register_opcode_node_types()
 	nt->add_output("tilt", "FLOAT");
 	
 	nt = NodeGraph::add_function_node_type("MAKE_DUPLI");
-	nt->add_input("object", "POINTER", PointerRNA_NULL);
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_input("transform", "MATRIX44", matrix44::identity());
 	nt->add_input("index", "INT", 0);
 	nt->add_input("hide", "INT", 0);

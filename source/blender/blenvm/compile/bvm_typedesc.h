@@ -124,7 +124,7 @@ struct BaseTypeTraits<BVM_STRING> {
 };
 
 template <>
-struct BaseTypeTraits<BVM_POINTER> {
+struct BaseTypeTraits<BVM_RNAPOINTER> {
 	typedef PointerRNA POD;
 	
 	enum eStackSize { stack_size = 6 };
@@ -372,7 +372,7 @@ static Value *create(const TypeDesc &typedesc, T *data, size_t size)
 			case BVM_INT: return new ArrayValue<BVM_INT>(data, size);
 			case BVM_MATRIX44: return new ArrayValue<BVM_MATRIX44>(data, size);
 			case BVM_STRING: return new ArrayValue<BVM_STRING>(data, size);
-			case BVM_POINTER: return new ArrayValue<BVM_POINTER>(data, size);
+			case BVM_RNAPOINTER: return new ArrayValue<BVM_RNAPOINTER>(data, size);
 			case BVM_MESH: return new ArrayValue<BVM_MESH>(data, size);
 			case BVM_DUPLIS: return new ArrayValue<BVM_DUPLIS>(data, size);
 		}
@@ -391,7 +391,7 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 			case BVM_INT: return new SingleValue<BVM_INT>(data);
 			case BVM_MATRIX44: return new SingleValue<BVM_MATRIX44>(data);
 			case BVM_STRING: return new SingleValue<BVM_STRING>(data);
-			case BVM_POINTER: return new SingleValue<BVM_POINTER>(data);
+			case BVM_RNAPOINTER: return new SingleValue<BVM_RNAPOINTER>(data);
 			case BVM_MESH: return new SingleValue<BVM_MESH>(data);
 			case BVM_DUPLIS: return new SingleValue<BVM_DUPLIS>(data);
 		}
@@ -404,7 +404,7 @@ Value *Value::create(const TypeDesc &typedesc, T data)
 			case BVM_INT: return new ArrayValue<BVM_INT>(data);
 			case BVM_MATRIX44: return new ArrayValue<BVM_MATRIX44>(data);
 			case BVM_STRING: return new ArrayValue<BVM_STRING>(data);
-			case BVM_POINTER: return new ArrayValue<BVM_POINTER>(data);
+			case BVM_RNAPOINTER: return new ArrayValue<BVM_RNAPOINTER>(data);
 			case BVM_MESH: return new ArrayValue<BVM_MESH>(data);
 			case BVM_DUPLIS: return new ArrayValue<BVM_DUPLIS>(data);
 		}
@@ -424,7 +424,7 @@ bool Value::get(array<type> *data) const
 			case BVM_INT: return static_cast< const ArrayValue<BVM_INT>* >(this)->get(data);
 			case BVM_MATRIX44: return static_cast< const ArrayValue<BVM_MATRIX44>* >(this)->get(data);
 			case BVM_STRING: return static_cast< const ArrayValue<BVM_STRING>* >(this)->get(data);
-			case BVM_POINTER: return static_cast< const ArrayValue<BVM_POINTER>* >(this)->get(data);
+			case BVM_RNAPOINTER: return static_cast< const ArrayValue<BVM_RNAPOINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const ArrayValue<BVM_MESH>* >(this)->get(data);
 			case BVM_DUPLIS: return static_cast< const ArrayValue<BVM_DUPLIS>* >(this)->get(data);
 		}
@@ -443,7 +443,7 @@ bool Value::get(T *data) const
 			case BVM_INT: return static_cast< const SingleValue<BVM_INT>* >(this)->get(data);
 			case BVM_MATRIX44: return static_cast< const SingleValue<BVM_MATRIX44>* >(this)->get(data);
 			case BVM_STRING: return static_cast< const SingleValue<BVM_STRING>* >(this)->get(data);
-			case BVM_POINTER: return static_cast< const SingleValue<BVM_POINTER>* >(this)->get(data);
+			case BVM_RNAPOINTER: return static_cast< const SingleValue<BVM_RNAPOINTER>* >(this)->get(data);
 			case BVM_MESH: return static_cast< const SingleValue<BVM_MESH>* >(this)->get(data);
 			case BVM_DUPLIS: return static_cast< const SingleValue<BVM_DUPLIS>* >(this)->get(data);
 		}
@@ -469,7 +469,7 @@ int TypeDesc::stack_size() const
 				case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
 				case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
 				case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
-				case BVM_POINTER: return BaseTypeTraits<BVM_POINTER>::stack_size;
+				case BVM_RNAPOINTER: return BaseTypeTraits<BVM_RNAPOINTER>::stack_size;
 				case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
 				case BVM_DUPLIS: return BaseTypeTraits<BVM_DUPLIS>::stack_size;
 			}
@@ -495,7 +495,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 				case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
-				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
+				case BVM_RNAPOINTER: COPY_TYPE(to, from, BVM_RNAPOINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
 				case BVM_DUPLIS: COPY_TYPE(to, from, BVM_DUPLIS); break;
 			}
@@ -511,7 +511,7 @@ void TypeDesc::copy_value(void *to, const void *from) const
 				case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
 				case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
 				case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
-				case BVM_POINTER: COPY_TYPE(to, from, BVM_POINTER); break;
+				case BVM_RNAPOINTER: COPY_TYPE(to, from, BVM_RNAPOINTER); break;
 				case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
 				case BVM_DUPLIS: COPY_TYPE(to, from, BVM_DUPLIS); break;
 			}

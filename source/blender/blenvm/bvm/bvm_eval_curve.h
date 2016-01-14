@@ -57,7 +57,7 @@ static void eval_op_curve_path(float *stack,
                                StackIndex offset_weight,
                                StackIndex offset_tilt)
 {
-	PointerRNA ptr = stack_load_pointer(stack, offset_object);
+	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	float t = stack_load_float(stack, offset_param);
 	
 	/* where_on_path is touchy about 0 > t > 1 */
