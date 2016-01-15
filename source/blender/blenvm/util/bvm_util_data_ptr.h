@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_type_data_ptr.h
+/** \file blender/blenvm/intern/bvm_util_data_ptr.h
  *  \ingroup bvm
  */
 
-#ifndef __BVM_TYPE_DATA_PTR_H__
-#define __BVM_TYPE_DATA_PTR_H__
+#ifndef __BVM_UTIL_DATA_PTR_H__
+#define __BVM_UTIL_DATA_PTR_H__
 
 #include <assert.h>
 
