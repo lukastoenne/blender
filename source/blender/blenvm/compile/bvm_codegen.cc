@@ -234,7 +234,7 @@ void Compiler::resolve_symbols(const NodeGraph &graph)
 void Compiler::push_constant(const Value *value) const
 {
 	BLI_assert(value != NULL);
-	switch (value->typedesc().base_type) {
+	switch (value->typedesc().base_type()) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
 			value->get(&f);
@@ -295,7 +295,7 @@ void Compiler::push_constant(const Value *value) const
 
 void Compiler::codegen_value(const Value *value, StackIndex offset) const
 {
-	switch (value->typedesc().base_type) {
+	switch (value->typedesc().base_type()) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
 			value->get(&f);
@@ -371,7 +371,7 @@ void Compiler::codegen_value(const Value *value, StackIndex offset) const
 
 static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 {
-	switch (typedesc.base_type) {
+	switch (typedesc.base_type()) {
 		case BVM_FLOAT:
 		case BVM_FLOAT3:
 		case BVM_FLOAT4:
@@ -391,7 +391,7 @@ static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 
 static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 {
-	switch (typedesc.base_type) {
+	switch (typedesc.base_type()) {
 		case BVM_FLOAT:
 		case BVM_FLOAT3:
 		case BVM_FLOAT4:

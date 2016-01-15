@@ -321,10 +321,10 @@ BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output)
 { return _OUTPUT(output)->value_type; }
 
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc)
-{ return _TYPEDESC(typedesc)->base_type; }
+{ return _TYPEDESC(typedesc)->base_type(); }
 
 BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc)
-{ return _TYPEDESC(typedesc)->buffer_type; }
+{ return _TYPEDESC(typedesc)->buffer_type(); }
 
 /* ------------------------------------------------------------------------- */
 

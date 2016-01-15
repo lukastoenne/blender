@@ -610,12 +610,25 @@ bool NodeGraph::has_typedef(const string &name)
 	return typedefs.find(name) != typedefs.end();
 }
 
-TypeDesc *NodeGraph::add_typedef(const string &name, BVMType base_type)
+TypeDesc *NodeGraph::add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type)
 {
 	std::pair<TypeDefMap::iterator, bool> result =
-	        typedefs.insert(TypeDefPair(name, TypeDesc(base_type)));
+	        typedefs.insert(TypeDefPair(name, TypeDesc(base_type, buffer_type)));
 	if (result.second) {
 		TypeDesc *typedesc = &result.first->second;
+		return typedesc;
+	}
+	else
+		return NULL;
+}
+
+TypeDesc *NodeGraph::add_typedef_struct(const string &name)
+{
+	std::pair<TypeDefMap::iterator, bool> result =
+	        typedefs.insert(TypeDefPair(name, TypeDesc(BVM_INT)));
+	if (result.second) {
+		TypeDesc *typedesc = &result.first->second;
+		typedesc->make_structure();
 		return typedesc;
 	}
 	else
@@ -791,9 +804,9 @@ const NodeGraph::Output *NodeGraph::add_output(const string &name, const string 
 NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_value)
 {
 	NodeInstance *node = NULL;
-	switch (typedesc.buffer_type) {
+	switch (typedesc.buffer_type()) {
 		case BVM_BUFFER_SINGLE:
-			switch (typedesc.base_type) {
+			switch (typedesc.base_type()) {
 				case BVM_FLOAT: node = add_node("PASS_FLOAT"); break;
 				case BVM_FLOAT3: node = add_node("PASS_FLOAT3"); break;
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4"); break;
@@ -806,7 +819,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
-			switch (typedesc.base_type) {
+			switch (typedesc.base_type()) {
 				case BVM_FLOAT: node = add_node("PASS_FLOAT_ARRAY"); break;
 				case BVM_FLOAT3: node = add_node("PASS_FLOAT3_ARRAY"); break;
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4_ARRAY"); break;
@@ -827,7 +840,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 OutputKey NodeGraph::add_value_node(Value *value)
 {
 	NodeInstance *node = NULL;
-	switch (value->typedesc().base_type) {
+	switch (value->typedesc().base_type()) {
 		case BVM_FLOAT: node = add_node("VALUE_FLOAT"); break;
 		case BVM_FLOAT3: node = add_node("VALUE_FLOAT3"); break;
 		case BVM_FLOAT4: node = add_node("VALUE_FLOAT4"); break;
@@ -846,7 +859,7 @@ OutputKey NodeGraph::add_value_node(Value *value)
 OutputKey NodeGraph::add_argument_node(const TypeDesc &typedesc)
 {
 	NodeInstance *node = NULL;
-	switch (typedesc.base_type) {
+	switch (typedesc.base_type()) {
 		case BVM_FLOAT: node = add_node("ARG_FLOAT"); break;
 		case BVM_FLOAT3: node = add_node("ARG_FLOAT3"); break;
 		case BVM_FLOAT4: node = add_node("ARG_FLOAT4"); break;
@@ -1213,32 +1226,27 @@ static void register_typedefs()
 	t = NodeGraph::add_typedef("DUPLIS", BVM_DUPLIS);
 	
 	
-	t = NodeGraph::add_typedef("FLOAT_ARRAY", BVM_FLOAT);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("FLOAT_ARRAY", BVM_FLOAT, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("INT_ARRAY", BVM_INT);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("INT_ARRAY", BVM_INT, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("STRING_ARRAY", BVM_STRING);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("STRING_ARRAY", BVM_STRING, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("MESH_ARRAY", BVM_MESH);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("MESH_ARRAY", BVM_MESH, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS);
-	t->buffer_type = BVM_BUFFER_ARRAY;
+	t = NodeGraph::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS, BVM_BUFFER_ARRAY);
+	
+	
+	
+	(void)t;
 }
 
 OpCode get_opcode_from_node_type(const string &node)

@@ -311,7 +311,8 @@ struct NodeGraph {
 	
 	static const TypeDesc &find_typedef(const string &name);
 	static bool has_typedef(const string &name);
-	static TypeDesc *add_typedef(const string &name, BVMType base_type);
+	static TypeDesc *add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type=BVM_BUFFER_SINGLE);
+	static TypeDesc *add_typedef_struct(const string &name);
 	static void remove_typedef(const string &name);
 	
 	static const NodeType *find_node_type(const string &name);
