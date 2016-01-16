@@ -117,13 +117,13 @@ void Function::add_return_value(const TypeDesc &typedesc, const string &name, St
 
 void Function::eval(EvalContext *context, const EvalGlobals *globals, const void *arguments[], void *results[]) const
 {
-	float stack[BVM_STACK_SIZE] = {0};
+	EvalStack stack[BVM_STACK_SIZE] = {0};
 	
 	/* initialize input arguments */
 	for (int i = 0; i < num_arguments(); ++i) {
 		const Argument &arg = argument(i);
 		if (arg.stack_offset != BVM_STACK_INVALID) {
-			float *value = &stack[arg.stack_offset];
+			EvalStack *value = &stack[arg.stack_offset];
 			
 			arg.typedesc.copy_value((void *)value, arguments[i]);
 		}
@@ -134,7 +134,7 @@ void Function::eval(EvalContext *context, const EvalGlobals *globals, const void
 	/* read out return values */
 	for (int i = 0; i < num_return_values(); ++i) {
 		const Argument &rval = return_value(i);
-		float *value = &stack[rval.stack_offset];
+		EvalStack *value = &stack[rval.stack_offset];
 		
 		rval.typedesc.copy_value(results[i], (void *)value);
 	}

@@ -44,7 +44,7 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_matrix44_to_loc(float *stack, StackIndex offset_mat, StackIndex offset_loc)
+static void eval_op_matrix44_to_loc(EvalStack *stack, StackIndex offset_mat, StackIndex offset_loc)
 {
 	matrix44 m = stack_load_matrix44(stack, offset_mat);
 	float3 loc;
@@ -52,7 +52,7 @@ static void eval_op_matrix44_to_loc(float *stack, StackIndex offset_mat, StackIn
 	stack_store_float3(stack, offset_loc, loc);
 }
 
-static void eval_op_matrix44_to_euler(float *stack, int order, StackIndex offset_mat, StackIndex offset_euler)
+static void eval_op_matrix44_to_euler(EvalStack *stack, int order, StackIndex offset_mat, StackIndex offset_euler)
 {
 	matrix44 m = stack_load_matrix44(stack, offset_mat);
 	float3 euler;
@@ -60,7 +60,7 @@ static void eval_op_matrix44_to_euler(float *stack, int order, StackIndex offset
 	stack_store_float3(stack, offset_euler, euler);
 }
 
-static void eval_op_matrix44_to_axisangle(float *stack, StackIndex offset_mat, StackIndex offset_axis, StackIndex offset_angle)
+static void eval_op_matrix44_to_axisangle(EvalStack *stack, StackIndex offset_mat, StackIndex offset_axis, StackIndex offset_angle)
 {
 	matrix44 m = stack_load_matrix44(stack, offset_mat);
 	float3 axis;
@@ -70,7 +70,7 @@ static void eval_op_matrix44_to_axisangle(float *stack, StackIndex offset_mat, S
 	stack_store_float(stack, offset_angle, angle);
 }
 
-static void eval_op_matrix44_to_scale(float *stack, StackIndex offset_mat, StackIndex offset_scale)
+static void eval_op_matrix44_to_scale(EvalStack *stack, StackIndex offset_mat, StackIndex offset_scale)
 {
 	matrix44 m = stack_load_matrix44(stack, offset_mat);
 	float3 scale;
@@ -78,7 +78,7 @@ static void eval_op_matrix44_to_scale(float *stack, StackIndex offset_mat, Stack
 	stack_store_float3(stack, offset_scale, scale);
 }
 
-static void eval_op_loc_to_matrix44(float *stack, StackIndex offset_loc, StackIndex offset_mat)
+static void eval_op_loc_to_matrix44(EvalStack *stack, StackIndex offset_loc, StackIndex offset_mat)
 {
 	float3 loc = stack_load_float3(stack, offset_loc);
 	matrix44 m = matrix44::identity();
@@ -86,7 +86,7 @@ static void eval_op_loc_to_matrix44(float *stack, StackIndex offset_loc, StackIn
 	stack_store_matrix44(stack, offset_mat, m);
 }
 
-static void eval_op_euler_to_matrix44(float *stack, int order, StackIndex offset_euler, StackIndex offset_mat)
+static void eval_op_euler_to_matrix44(EvalStack *stack, int order, StackIndex offset_euler, StackIndex offset_mat)
 {
 	float3 euler = stack_load_float3(stack, offset_euler);
 	matrix44 m = matrix44::identity();
@@ -94,7 +94,7 @@ static void eval_op_euler_to_matrix44(float *stack, int order, StackIndex offset
 	stack_store_matrix44(stack, offset_mat, m);
 }
 
-static void eval_op_axisangle_to_matrix44(float *stack, StackIndex offset_axis, StackIndex offset_angle, StackIndex offset_mat)
+static void eval_op_axisangle_to_matrix44(EvalStack *stack, StackIndex offset_axis, StackIndex offset_angle, StackIndex offset_mat)
 {
 	float3 axis = stack_load_float3(stack, offset_axis);
 	float angle = stack_load_float(stack, offset_angle);
@@ -103,7 +103,7 @@ static void eval_op_axisangle_to_matrix44(float *stack, StackIndex offset_axis, 
 	stack_store_matrix44(stack, offset_mat, m);
 }
 
-static void eval_op_scale_to_matrix44(float *stack, StackIndex offset_scale, StackIndex offset_mat)
+static void eval_op_scale_to_matrix44(EvalStack *stack, StackIndex offset_scale, StackIndex offset_mat)
 {
 	float3 scale = stack_load_float3(stack, offset_scale);
 	matrix44 m = matrix44::identity();
@@ -111,207 +111,207 @@ static void eval_op_scale_to_matrix44(float *stack, StackIndex offset_scale, Sta
 	stack_store_matrix44(stack, offset_mat, m);
 }
 
-static void eval_op_add_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_add_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, a + b);
 }
 
-static void eval_op_sub_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_sub_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, a - b);
 }
 
-static void eval_op_mul_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, a * b);
 }
 
-static void eval_op_div_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_div_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, div_safe(a, b));
 }
 
-static void eval_op_sine(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_sine(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, sinf(f));
 }
 
-static void eval_op_cosine(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_cosine(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, cosf(f));
 }
 
-static void eval_op_tangent(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_tangent(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, tanf(f));
 }
 
-static void eval_op_arcsine(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_arcsine(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, asinf(f));
 }
 
-static void eval_op_arccosine(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_arccosine(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, acosf(f));
 }
 
-static void eval_op_arctangent(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_arctangent(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, atanf(f));
 }
 
-static void eval_op_power(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_power(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, (a >= 0.0f)? powf(a, b): 0.0f);
 }
 
-static void eval_op_logarithm(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_logarithm(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, (a >= 0.0f && b >= 0.0f)? logf(a) / logf(b): 0.0f);
 }
 
-static void eval_op_minimum(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_minimum(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, min_ff(a, b));
 }
 
-static void eval_op_maximum(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_maximum(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, max_ff(a, b));
 }
 
-static void eval_op_round(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_round(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, floorf(f + 0.5f));
 }
 
-static void eval_op_less_than(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_less_than(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, (a < b) ? 1.0f : 0.0f);
 }
 
-static void eval_op_greater_than(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_greater_than(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, (a > b) ? 1.0f : 0.0f);
 }
 
-static void eval_op_modulo(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_modulo(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float(stack, offset_r, (b != 0.0f) ? fmodf(a, b) : 0.0f);
 }
 
-static void eval_op_absolute(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_absolute(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, fabsf(f));
 }
 
-static void eval_op_clamp(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_clamp(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	float f = stack_load_float(stack, offset);
 	stack_store_float(stack, offset_r, CLAMPIS(f, 0.0f, 1.0f));
 }
 
-static void eval_op_sqrt_float(float *stack, StackIndex offset_a, StackIndex offset_r)
+static void eval_op_sqrt_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_r)
 {
 	float a = stack_load_float(stack, offset_a);
 	stack_store_float(stack, offset_r, sqrt_safe(a));
 }
 
-static void eval_op_add_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_add_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.x + b.x, a.y + b.y, a.z + b.z));
 }
 
-static void eval_op_sub_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_sub_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.x - b.x, a.y - b.y, a.z - b.z));
 }
 
-static void eval_op_mul_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.x * b.x, a.y * b.y, a.z * b.z));
 }
 
-static void eval_op_div_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_div_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(div_safe(a.x, b.x), div_safe(a.y, b.y), div_safe(a.z, b.z)));
 }
 
-static void eval_op_mul_float3_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_float3_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.x * b, a.y * b, a.z * b));
 }
 
-static void eval_op_div_float3_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_div_float3_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(div_safe(a.x, b), div_safe(a.y, b), div_safe(a.z, b)));
 }
 
-static void eval_op_average_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_average_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(0.5f*(a.x+b.x), 0.5f*(a.y+b.y), 0.5f*(a.z+b.z)));
 }
 
-static void eval_op_dot_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_dot_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float(stack, offset_r, a.x * b.x + a.y * b.y + a.z * b.z);
 }
 
-static void eval_op_cross_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_cross_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	float3 a = stack_load_float3(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
 	stack_store_float3(stack, offset_r, float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x));
 }
 
-static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex offset_vec, StackIndex offset_val)
+static void eval_op_normalize_float3(EvalStack *stack, StackIndex offset, StackIndex offset_vec, StackIndex offset_val)
 {
 	float3 v = stack_load_float3(stack, offset);
 	float l = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -321,14 +321,14 @@ static void eval_op_normalize_float3(float *stack, StackIndex offset, StackIndex
 	stack_store_float(stack, offset_val, l);
 }
 
-static void eval_op_length_float3(float *stack, StackIndex offset, StackIndex offset_len)
+static void eval_op_length_float3(EvalStack *stack, StackIndex offset, StackIndex offset_len)
 {
 	float3 v = stack_load_float3(stack, offset);
 	float l = sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 	stack_store_float(stack, offset_len, l);
 }
 
-static void eval_op_add_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_add_matrix44(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	matrix44 b = stack_load_matrix44(stack, offset_b);
@@ -337,7 +337,7 @@ static void eval_op_add_matrix44(float *stack, StackIndex offset_a, StackIndex o
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_sub_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_sub_matrix44(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	matrix44 b = stack_load_matrix44(stack, offset_b);
@@ -346,7 +346,7 @@ static void eval_op_sub_matrix44(float *stack, StackIndex offset_a, StackIndex o
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_mul_matrix44(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_matrix44(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	matrix44 b = stack_load_matrix44(stack, offset_b);
@@ -355,7 +355,7 @@ static void eval_op_mul_matrix44(float *stack, StackIndex offset_a, StackIndex o
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_mul_matrix44_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_matrix44_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
@@ -365,7 +365,7 @@ static void eval_op_mul_matrix44_float(float *stack, StackIndex offset_a, StackI
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_div_matrix44_float(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_div_matrix44_float(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	float b = stack_load_float(stack, offset_b);
@@ -375,7 +375,7 @@ static void eval_op_div_matrix44_float(float *stack, StackIndex offset_a, StackI
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_negate_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_negate_matrix44(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	matrix44 m = stack_load_matrix44(stack, offset);
 	matrix44 r;
@@ -384,7 +384,7 @@ static void eval_op_negate_matrix44(float *stack, StackIndex offset, StackIndex 
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_transpose_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_transpose_matrix44(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	matrix44 m = stack_load_matrix44(stack, offset);
 	matrix44 r;
@@ -392,7 +392,7 @@ static void eval_op_transpose_matrix44(float *stack, StackIndex offset, StackInd
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_invert_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_invert_matrix44(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	matrix44 m = stack_load_matrix44(stack, offset);
 	matrix44 r;
@@ -400,7 +400,7 @@ static void eval_op_invert_matrix44(float *stack, StackIndex offset, StackIndex 
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_adjoint_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_adjoint_matrix44(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	matrix44 m = stack_load_matrix44(stack, offset);
 	matrix44 r;
@@ -408,14 +408,14 @@ static void eval_op_adjoint_matrix44(float *stack, StackIndex offset, StackIndex
 	stack_store_matrix44(stack, offset_r, r);
 }
 
-static void eval_op_determinant_matrix44(float *stack, StackIndex offset, StackIndex offset_r)
+static void eval_op_determinant_matrix44(EvalStack *stack, StackIndex offset, StackIndex offset_r)
 {
 	matrix44 m = stack_load_matrix44(stack, offset);
 	float d = determinant_m4(m.data);
 	stack_store_float(stack, offset_r, d);
 }
 
-static void eval_op_mul_matrix44_float3(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_matrix44_float3(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	float3 b = stack_load_float3(stack, offset_b);
@@ -424,7 +424,7 @@ static void eval_op_mul_matrix44_float3(float *stack, StackIndex offset_a, Stack
 	stack_store_float3(stack, offset_r, r);
 }
 
-static void eval_op_mul_matrix44_float4(float *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
+static void eval_op_mul_matrix44_float4(EvalStack *stack, StackIndex offset_a, StackIndex offset_b, StackIndex offset_r)
 {
 	matrix44 a = stack_load_matrix44(stack, offset_a);
 	float4 b = stack_load_float4(stack, offset_b);
@@ -433,7 +433,7 @@ static void eval_op_mul_matrix44_float4(float *stack, StackIndex offset_a, Stack
 	stack_store_float4(stack, offset_r, r);
 }
 
-static void eval_op_int_to_random(float *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
+static void eval_op_int_to_random(EvalStack *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
 {
 	union { uint32_t u; int x; } c;
 	c.x = stack_load_int(stack, offset);
@@ -444,7 +444,7 @@ static void eval_op_int_to_random(float *stack, uint64_t seed, StackIndex offset
 	stack_store_float(stack, offset_frandom, (float)r / (0xFFFFFFFF));
 }
 
-static void eval_op_float_to_random(float *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
+static void eval_op_float_to_random(EvalStack *stack, uint64_t seed, StackIndex offset, StackIndex offset_irandom, StackIndex offset_frandom)
 {
 	union { uint32_t u; float x; } c;
 	c.x = stack_load_float(stack, offset);

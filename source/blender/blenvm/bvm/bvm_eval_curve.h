@@ -44,7 +44,7 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_curve_path(float *stack,
+static void eval_op_curve_path(EvalStack *stack,
                                StackIndex offset_object,
                                StackIndex offset_transform,
                                StackIndex offset_invtransform,

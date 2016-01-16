@@ -66,13 +66,17 @@ private:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };
 
+struct EvalStack {
+	int value;
+};
+
 struct EvalContext {
 	EvalContext();
 	~EvalContext();
 	
-	void eval_expression(const EvalGlobals *globals, const InstructionList *instr, int entry_point, float *stack) const;
+	void eval_expression(const EvalGlobals *globals, const InstructionList *instr, int entry_point, EvalStack *stack) const;
 	
-	void eval_instructions(const EvalGlobals *globals, const InstructionList *instr, int entry_point, float *stack) const;
+	void eval_instructions(const EvalGlobals *globals, const InstructionList *instr, int entry_point, EvalStack *stack) const;
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
 };

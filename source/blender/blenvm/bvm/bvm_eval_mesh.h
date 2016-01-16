@@ -46,7 +46,7 @@ extern "C" {
 
 namespace bvm {
 
-static void eval_op_mesh_load(float *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
+static void eval_op_mesh_load(EvalStack *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
 {
 	PointerRNA ptr = stack_load_rnapointer(stack, offset_base_mesh);
 	DerivedMesh *dm;
@@ -59,7 +59,7 @@ static void eval_op_mesh_load(float *stack, StackIndex offset_base_mesh, StackIn
 	stack_store_mesh(stack, offset_mesh, dm);
 }
 
-static void eval_op_object_final_mesh(float *stack,
+static void eval_op_object_final_mesh(EvalStack *stack,
                                       StackIndex offset_object,
                                       StackIndex offset_mesh)
 {
@@ -152,7 +152,7 @@ static void dm_insert(
 	}
 }
 
-static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, float *stack,
+static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, EvalStack *stack,
                                  StackIndex offset_mesh_a, StackIndex offset_mesh_b, StackIndex offset_mesh_out)
 {
 	DerivedMesh *dm_a = stack_load_mesh(stack, offset_mesh_a);
@@ -181,7 +181,7 @@ static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, float *s
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
-static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
+static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
                              DerivedMesh *dm, int count,
                              int fn_transform, StackIndex offset_transform, StackIndex offset_iteration)
 {
@@ -283,7 +283,7 @@ static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *k
 	return result;
 }
 
-static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
+static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
                                StackIndex offset_mesh_in, StackIndex offset_mesh_out, StackIndex offset_count,
                                int fn_transform, StackIndex offset_transform, StackIndex offset_iteration)
 {
@@ -297,7 +297,7 @@ static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData 
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
-static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
+static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
                         DerivedMesh *dm, int fn_vector, StackIndex offset_vector,
                         StackIndex offset_elem_index, StackIndex offset_elem_loc)
 {
@@ -321,7 +321,7 @@ static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData
 	return result;
 }
 
-static void eval_op_mesh_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, float *stack,
+static void eval_op_mesh_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
                                   StackIndex offset_mesh_in, StackIndex offset_mesh_out,
                                   int fn_vector, StackIndex offset_vector,
                                   StackIndex offset_elem_index, StackIndex offset_elem_loc)
@@ -461,7 +461,7 @@ static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 
 
 static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
                                  const EvalKernelData *UNUSED(kernel_data),
-                                 float *stack,
+                                 EvalStack *stack,
                                  StackIndex offset_mesh_in,
                                  StackIndex offset_object,
                                  StackIndex offset_transform,
@@ -498,7 +498,7 @@ static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
 	stack_store_mesh(stack, offset_mesh_out, result);
 }
 
-static void eval_op_mesh_closest_point(float *stack,
+static void eval_op_mesh_closest_point(EvalStack *stack,
                                        StackIndex offset_mesh,
                                        StackIndex offset_transform,
 	                                   StackIndex offset_invtransform,

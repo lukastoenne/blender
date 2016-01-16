@@ -40,7 +40,7 @@ extern "C" {
 
 namespace bvm {
 
-inline void eval_op_tex_proc_voronoi(float *stack, int distance_metric, int color_type,
+inline void eval_op_tex_proc_voronoi(EvalStack *stack, int distance_metric, int color_type,
                                      StackIndex iMinkowskiExponent, StackIndex iScale,
                                      StackIndex iNoiseSize, StackIndex iNabla,
                                      StackIndex iW1, StackIndex iW2, StackIndex iW3, StackIndex iW4,
@@ -133,7 +133,7 @@ inline void eval_op_tex_proc_voronoi(float *stack, int distance_metric, int colo
 	stack_store_float3(stack, oNormal, normal);
 }
 
-inline void eval_op_tex_proc_clouds(float *stack,
+inline void eval_op_tex_proc_clouds(EvalStack *stack,
                                     StackIndex iPos, StackIndex iNabla, StackIndex iSize,
                                     int depth, int noise_basis, int noise_hard,
                                     StackIndex oIntensity, StackIndex oColor, StackIndex oNormal)
@@ -233,7 +233,7 @@ static float wood_int(float size, float x, float y, float z, float turb,
 	return wi;
 }
 
-inline void eval_op_tex_proc_wood(float *stack,
+inline void eval_op_tex_proc_wood(EvalStack *stack,
                                   StackIndex iPos, StackIndex iNabla, StackIndex iSize, StackIndex iTurb,
                                   int noise_basis, int noise_basis_2, int noise_hard, int wood_type,
                                   StackIndex oIntensity, StackIndex oNormal)
@@ -288,7 +288,7 @@ static float marble_int(float size, float x, float y, float z, float turb,
 	return intensity;
 }
 
-inline void eval_op_tex_proc_marble(float *stack,
+inline void eval_op_tex_proc_marble(EvalStack *stack,
                                   StackIndex iPos, StackIndex iNabla, StackIndex iSize, StackIndex iTurb,
                                   int depth, int noise_basis, int noise_basis_2,
                                   int noise_hard, int marble_type,
@@ -314,7 +314,7 @@ inline void eval_op_tex_proc_marble(float *stack,
 	stack_store_float3(stack, oNormal, normal);
 }
 
-inline void eval_op_tex_proc_musgrave(float *stack,
+inline void eval_op_tex_proc_musgrave(EvalStack *stack,
                                       StackIndex iPos, StackIndex iNabla, StackIndex iSize,
                                       StackIndex iDim, StackIndex iLac, StackIndex iOct,
                                       StackIndex iInt, StackIndex iOffset, StackIndex iGain,
@@ -389,7 +389,7 @@ inline void eval_op_tex_proc_musgrave(float *stack,
 	stack_store_float3(stack, oNormal, normal);
 }
 
-inline void eval_op_tex_proc_magic(float *stack,
+inline void eval_op_tex_proc_magic(EvalStack *stack,
                                    StackIndex iPos, StackIndex iTurb,
                                    int depth,
                                    StackIndex oIntensity, StackIndex oColor, StackIndex oNormal)
@@ -463,7 +463,7 @@ inline void eval_op_tex_proc_magic(float *stack,
 	stack_store_float3(stack, oNormal, normal);
 }
 
-inline void eval_op_tex_proc_stucci(float *stack,
+inline void eval_op_tex_proc_stucci(EvalStack *stack,
                                    StackIndex iPos, StackIndex iSize, StackIndex iTurb,
                                    int noise_basis, int noisehard, int noise_type,
                                    StackIndex oIntensity, StackIndex oNormal)
@@ -500,7 +500,7 @@ inline void eval_op_tex_proc_stucci(float *stack,
 	stack_store_float3(stack, oNormal, normal);
 }
 
-inline void eval_op_tex_proc_distnoise(float *stack,
+inline void eval_op_tex_proc_distnoise(EvalStack *stack,
                                        StackIndex iPos, StackIndex iSize,
                                        StackIndex iNabla, StackIndex iDist,
                                        int noise_basis, int noise_basis_2,

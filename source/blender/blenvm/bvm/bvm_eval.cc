@@ -94,32 +94,32 @@ EvalContext::~EvalContext()
 
 /* ------------------------------------------------------------------------- */
 
-static void eval_op_value_float(float *stack, float value, StackIndex offset)
+static void eval_op_value_float(EvalStack *stack, float value, StackIndex offset)
 {
 	stack_store_float(stack, offset, value);
 }
 
-static void eval_op_value_float3(float *stack, float3 value, StackIndex offset)
+static void eval_op_value_float3(EvalStack *stack, float3 value, StackIndex offset)
 {
 	stack_store_float3(stack, offset, value);
 }
 
-static void eval_op_value_float4(float *stack, float4 value, StackIndex offset)
+static void eval_op_value_float4(EvalStack *stack, float4 value, StackIndex offset)
 {
 	stack_store_float4(stack, offset, value);
 }
 
-static void eval_op_value_int(float *stack, int value, StackIndex offset)
+static void eval_op_value_int(EvalStack *stack, int value, StackIndex offset)
 {
 	stack_store_int(stack, offset, value);
 }
 
-static void eval_op_value_matrix44(float *stack, matrix44 value, StackIndex offset)
+static void eval_op_value_matrix44(EvalStack *stack, matrix44 value, StackIndex offset)
 {
 	stack_store_matrix44(stack, offset, value);
 }
 
-static void eval_op_value_string(float *stack, const char *value, StackIndex offset)
+static void eval_op_value_string(EvalStack *stack, const char *value, StackIndex offset)
 {
 	stack_store_string(stack, offset, value);
 }
@@ -127,7 +127,7 @@ static void eval_op_value_string(float *stack, const char *value, StackIndex off
 /* Note: pointer data is not explicitly stored on the stack,
  * this function always creates simply a NULL pointer.
  */
-static void eval_op_value_rnapointer(float *stack, StackIndex offset)
+static void eval_op_value_rnapointer(EvalStack *stack, StackIndex offset)
 {
 	stack_store_rnapointer(stack, offset, PointerRNA_NULL);
 }
@@ -135,7 +135,7 @@ static void eval_op_value_rnapointer(float *stack, StackIndex offset)
 /* Note: mesh data is not explicitly stored on the stack,
  * this function always creates simply an empty mesh.
  */
-static void eval_op_value_mesh(float *stack, StackIndex offset)
+static void eval_op_value_mesh(EvalStack *stack, StackIndex offset)
 {
 	stack_store_mesh(stack, offset, CDDM_new(0, 0, 0, 0, 0));
 }
@@ -143,24 +143,24 @@ static void eval_op_value_mesh(float *stack, StackIndex offset)
 /* Note: dupli data is not explicitly stored on the stack,
  * this function always creates simply an empty dupli list.
  */
-static void eval_op_value_duplis(float *stack, StackIndex offset)
+static void eval_op_value_duplis(EvalStack *stack, StackIndex offset)
 {
 	stack_store_duplis(stack, offset, new DupliList());
 }
 
-static void eval_op_float_to_int(float *stack, StackIndex offset_from, StackIndex offset_to)
+static void eval_op_float_to_int(EvalStack *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
 	stack_store_int(stack, offset_to, (int)f);
 }
 
-static void eval_op_int_to_float(float *stack, StackIndex offset_from, StackIndex offset_to)
+static void eval_op_int_to_float(EvalStack *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	int i = stack_load_int(stack, offset_from);
 	stack_store_float(stack, offset_to, (float)i);
 }
 
-static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
+static void eval_op_set_float3(EvalStack *stack, StackIndex offset_x, StackIndex offset_y, StackIndex offset_z, StackIndex offset_to)
 {
 	float x = stack_load_float(stack, offset_x);
 	float y = stack_load_float(stack, offset_y);
@@ -168,7 +168,7 @@ static void eval_op_set_float3(float *stack, StackIndex offset_x, StackIndex off
 	stack_store_float3(stack, offset_to, float3(x, y, z));
 }
 
-static void eval_op_set_float4(float *stack, StackIndex offset_x, StackIndex offset_y,
+static void eval_op_set_float4(EvalStack *stack, StackIndex offset_x, StackIndex offset_y,
                                StackIndex offset_z, StackIndex offset_w, StackIndex offset_to)
 {
 	float x = stack_load_float(stack, offset_x);
@@ -178,49 +178,49 @@ static void eval_op_set_float4(float *stack, StackIndex offset_x, StackIndex off
 	stack_store_float4(stack, offset_to, float4(x, y, z, w));
 }
 
-static void eval_op_get_elem_float3(float *stack, int index, StackIndex offset_from, StackIndex offset_to)
+static void eval_op_get_elem_float3(EvalStack *stack, int index, StackIndex offset_from, StackIndex offset_to)
 {
 	assert(index >= 0 && index < 3);
 	float3 f = stack_load_float3(stack, offset_from);
 	stack_store_float(stack, offset_to, f[index]);
 }
 
-static void eval_op_get_elem_float4(float *stack, int index, StackIndex offset_from, StackIndex offset_to)
+static void eval_op_get_elem_float4(EvalStack *stack, int index, StackIndex offset_from, StackIndex offset_to)
 {
 	assert(index >= 0 && index < 4);
 	float4 f = stack_load_float4(stack, offset_from);
 	stack_store_float(stack, offset_to, f[index]);
 }
 
-static void eval_op_init_mesh_ptr(float *stack, StackIndex offset, int use_count)
+static void eval_op_init_mesh_ptr(EvalStack *stack, StackIndex offset, int use_count)
 {
 	mesh_ptr p(NULL);
 	p.set_use_count(use_count);
 	stack_store_mesh_ptr(stack, offset, p);
 }
 
-static void eval_op_release_mesh_ptr(float *stack, StackIndex offset)
+static void eval_op_release_mesh_ptr(EvalStack *stack, StackIndex offset)
 {
 	mesh_ptr p = stack_load_mesh_ptr(stack, offset);
 	p.decrement_use_count();
 	stack_store_mesh_ptr(stack, offset, p);
 }
 
-static void eval_op_init_duplis_ptr(float *stack, StackIndex offset, int use_count)
+static void eval_op_init_duplis_ptr(EvalStack *stack, StackIndex offset, int use_count)
 {
 	duplis_ptr p(new DupliList());
 	p.set_use_count(use_count);
 	stack_store_duplis_ptr(stack, offset, p);
 }
 
-static void eval_op_release_duplis_ptr(float *stack, StackIndex offset)
+static void eval_op_release_duplis_ptr(EvalStack *stack, StackIndex offset)
 {
 	duplis_ptr p = stack_load_duplis_ptr(stack, offset);
 	p.decrement_use_count();
 	stack_store_duplis_ptr(stack, offset, p);
 }
 
-static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, StackIndex offset_col_b, StackIndex offset_fac, StackIndex offset_r)
+static void eval_op_mix_rgb(EvalStack *stack, int mode, StackIndex offset_col_a, StackIndex offset_col_b, StackIndex offset_fac, StackIndex offset_r)
 {
 	float4 a = stack_load_float4(stack, offset_col_a);
 	float4 b = stack_load_float4(stack, offset_col_b);
@@ -231,13 +231,13 @@ static void eval_op_mix_rgb(float *stack, int mode, StackIndex offset_col_a, Sta
 	stack_store_float4(stack, offset_r, a);
 }
 
-static void eval_op_object_lookup(const EvalGlobals *globals, float *stack, int key, StackIndex offset_object)
+static void eval_op_object_lookup(const EvalGlobals *globals, EvalStack *stack, int key, StackIndex offset_object)
 {
 	PointerRNA ptr = globals->lookup_object(key);
 	stack_store_rnapointer(stack, offset_object, ptr);
 }
 
-static void eval_op_object_transform(float *stack, StackIndex offset_object, StackIndex offset_transform)
+static void eval_op_object_transform(EvalStack *stack, StackIndex offset_object, StackIndex offset_transform)
 {
 	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
 	matrix44 obmat;
@@ -251,7 +251,7 @@ static void eval_op_object_transform(float *stack, StackIndex offset_object, Sta
 	stack_store_matrix44(stack, offset_transform, obmat);
 }
 
-static void eval_op_effector_transform(const EvalGlobals *globals, float *stack, int object_index, StackIndex offset_tfm)
+static void eval_op_effector_transform(const EvalGlobals *globals, EvalStack *stack, int object_index, StackIndex offset_tfm)
 {
 	// TODO the way objects are stored in globals has changed a lot, this needs updating
 	(void)globals;
@@ -263,7 +263,7 @@ static void eval_op_effector_transform(const EvalGlobals *globals, float *stack,
 //	stack_store_matrix44(stack, offset_tfm, m);
 }
 
-static void eval_op_effector_closest_point(float *stack, StackIndex offset_object, StackIndex offset_vector,
+static void eval_op_effector_closest_point(EvalStack *stack, StackIndex offset_object, StackIndex offset_vector,
                                            StackIndex offset_position, StackIndex offset_normal, StackIndex offset_tangent)
 {
 	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
@@ -303,7 +303,7 @@ static void eval_op_effector_closest_point(float *stack, StackIndex offset_objec
 	}
 }
 
-static void eval_op_make_dupli(float *stack, StackIndex offset_object, StackIndex offset_transform, StackIndex offset_index,
+static void eval_op_make_dupli(EvalStack *stack, StackIndex offset_object, StackIndex offset_transform, StackIndex offset_index,
                                StackIndex offset_hide, StackIndex offset_recursive, StackIndex offset_dupli)
 {
 	PointerRNA object = stack_load_rnapointer(stack, offset_object);
@@ -321,7 +321,7 @@ static void eval_op_make_dupli(float *stack, StackIndex offset_object, StackInde
 	stack_store_duplis(stack, offset_dupli, list);
 }
 
-static void eval_op_duplis_combine(float *stack, StackIndex offset_duplis_a, StackIndex offset_duplis_b,
+static void eval_op_duplis_combine(EvalStack *stack, StackIndex offset_duplis_a, StackIndex offset_duplis_b,
                                    StackIndex offset_duplis)
 {
 	const DupliList *a = stack_load_duplis(stack, offset_duplis_a);
@@ -335,7 +335,7 @@ static void eval_op_duplis_combine(float *stack, StackIndex offset_duplis_a, Sta
 	stack_store_duplis(stack, offset_duplis, result);
 }
 
-void EvalContext::eval_instructions(const EvalGlobals *globals, const InstructionList *fn, int entry_point, float *stack) const
+void EvalContext::eval_instructions(const EvalGlobals *globals, const InstructionList *fn, int entry_point, EvalStack *stack) const
 {
 	EvalKernelData kd;
 	kd.context = this;
@@ -1112,7 +1112,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 	}
 }
 
-void EvalContext::eval_expression(const EvalGlobals *globals, const InstructionList *fn, int entry_point, float *stack) const
+void EvalContext::eval_expression(const EvalGlobals *globals, const InstructionList *fn, int entry_point, EvalStack *stack) const
 {
 	if (entry_point != BVM_JMP_INVALID)
 		eval_instructions(globals, fn, entry_point, stack);

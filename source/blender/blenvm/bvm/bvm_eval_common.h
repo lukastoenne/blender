@@ -44,33 +44,33 @@ struct EvalKernelData {
 	const InstructionList *function;
 };
 
-inline static float stack_load_float(float *stack, StackIndex offset)
+inline static float stack_load_float(const EvalStack *stack, StackIndex offset)
 {
 	return *(float *)(&stack[offset]);
 }
 
-inline static float3 stack_load_float3(float *stack, StackIndex offset)
+inline static float3 stack_load_float3(const EvalStack *stack, StackIndex offset)
 {
 	return *(float3 *)(&stack[offset]);
 }
 
-inline static float4 stack_load_float4(float *stack, StackIndex offset)
+inline static float4 stack_load_float4(const EvalStack *stack, StackIndex offset)
 {
 	return *(float4 *)(&stack[offset]);
 }
 
-inline static int stack_load_int(float *stack, StackIndex offset)
+inline static int stack_load_int(const EvalStack *stack, StackIndex offset)
 {
 	return *(int *)(&stack[offset]);
 }
 
-inline static matrix44 stack_load_matrix44(float *stack, StackIndex offset)
+inline static matrix44 stack_load_matrix44(const EvalStack *stack, StackIndex offset)
 {
 	return *(matrix44 *)(&stack[offset]);
 }
 
 /* convenience function */
-inline static SpaceTransform stack_load_space_transform(float *stack,
+inline static SpaceTransform stack_load_space_transform(const EvalStack *stack,
                                                         StackIndex offset_transform,
                                                         StackIndex offset_invtransform)
 {
@@ -80,65 +80,65 @@ inline static SpaceTransform stack_load_space_transform(float *stack,
 	return transform;
 }
 
-inline static const char *stack_load_string(float *stack, StackIndex offset)
+inline static const char *stack_load_string(const EvalStack *stack, StackIndex offset)
 {
 	return *(const char **)(&stack[offset]);
 }
 
-inline static PointerRNA stack_load_rnapointer(float *stack, StackIndex offset)
+inline static PointerRNA stack_load_rnapointer(const EvalStack *stack, StackIndex offset)
 {
 	return *(PointerRNA *)(&stack[offset]);
 }
 
-inline static mesh_ptr stack_load_mesh_ptr(float *stack, StackIndex offset)
+inline static mesh_ptr stack_load_mesh_ptr(const EvalStack *stack, StackIndex offset)
 {
 	return *(mesh_ptr *)(&stack[offset]);
 }
 
-inline static DerivedMesh *stack_load_mesh(float *stack, StackIndex offset)
+inline static DerivedMesh *stack_load_mesh(const EvalStack *stack, StackIndex offset)
 {
 	return ((mesh_ptr *)(&stack[offset]))->get();
 }
 
-inline static duplis_ptr stack_load_duplis_ptr(float *stack, StackIndex offset)
+inline static duplis_ptr stack_load_duplis_ptr(const EvalStack *stack, StackIndex offset)
 {
 	return *(duplis_ptr *)(&stack[offset]);
 }
 
-inline static const DupliList *stack_load_duplis(float *stack, StackIndex offset)
+inline static const DupliList *stack_load_duplis(const EvalStack *stack, StackIndex offset)
 {
 	return ((duplis_ptr *)(&stack[offset]))->get();
 }
 
 /* ------------------------------------------------------------------------- */
 
-inline static void stack_store_float(float *stack, StackIndex offset, float f)
+inline static void stack_store_float(EvalStack *stack, StackIndex offset, float f)
 {
 	*(float *)(&stack[offset]) = f;
 }
 
-inline static void stack_store_float3(float *stack, StackIndex offset, float3 f)
+inline static void stack_store_float3(EvalStack *stack, StackIndex offset, float3 f)
 {
 	*(float3 *)(&stack[offset]) = f;
 }
 
-inline static void stack_store_float4(float *stack, StackIndex offset, float4 f)
+inline static void stack_store_float4(EvalStack *stack, StackIndex offset, float4 f)
 {
 	*(float4 *)(&stack[offset]) = f;
 }
 
-inline static void stack_store_int(float *stack, StackIndex offset, int i)
+inline static void stack_store_int(EvalStack *stack, StackIndex offset, int i)
 {
 	*(int *)(&stack[offset]) = i;
 }
 
-inline static void stack_store_matrix44(float *stack, StackIndex offset, matrix44 m)
+inline static void stack_store_matrix44(EvalStack *stack, StackIndex offset, matrix44 m)
 {
 	*(matrix44 *)(&stack[offset]) = m;
 }
 
 /* convenience function */
-inline static void stack_store_space_transform(float *stack,
+inline static void stack_store_space_transform(EvalStack *stack,
                                                StackIndex offset_transform,
                                                StackIndex offset_invtransform,
                                                SpaceTransform transform)
@@ -147,32 +147,32 @@ inline static void stack_store_space_transform(float *stack,
 	stack_store_matrix44(stack, offset_invtransform, matrix44::from_data(&transform.target2local[0][0]));
 }
 
-inline static void stack_store_string(float *stack, StackIndex offset, const char *s)
+inline static void stack_store_string(EvalStack *stack, StackIndex offset, const char *s)
 {
 	*(const char **)(&stack[offset]) = s;
 }
 
-inline static void stack_store_rnapointer(float *stack, StackIndex offset, PointerRNA p)
+inline static void stack_store_rnapointer(EvalStack *stack, StackIndex offset, PointerRNA p)
 {
 	*(PointerRNA *)(&stack[offset]) = p;
 }
 
-inline static void stack_store_mesh_ptr(float *stack, StackIndex offset, mesh_ptr p)
+inline static void stack_store_mesh_ptr(EvalStack *stack, StackIndex offset, mesh_ptr p)
 {
 	*(mesh_ptr *)(&stack[offset]) = p;
 }
 
-inline static void stack_store_mesh(float *stack, StackIndex offset, DerivedMesh *dm)
+inline static void stack_store_mesh(EvalStack *stack, StackIndex offset, DerivedMesh *dm)
 {
 	((mesh_ptr *)(&stack[offset]))->set(dm);
 }
 
-inline static void stack_store_duplis_ptr(float *stack, StackIndex offset, duplis_ptr p)
+inline static void stack_store_duplis_ptr(EvalStack *stack, StackIndex offset, duplis_ptr p)
 {
 	*(duplis_ptr *)(&stack[offset]) = p;
 }
 
-inline static void stack_store_duplis(float *stack, StackIndex offset, DupliList *lb)
+inline static void stack_store_duplis(EvalStack *stack, StackIndex offset, DupliList *lb)
 {
 	((duplis_ptr *)(&stack[offset]))->set(lb);
 }
