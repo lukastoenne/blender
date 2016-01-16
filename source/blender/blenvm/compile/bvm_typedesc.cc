@@ -130,31 +130,31 @@ bool TypeDesc::assignable(const TypeDesc &other) const
 	return *this == other;
 }
 
-int TypeDesc::stack_size() const
+size_t TypeDesc::size() const
 {
 	if (m_structure) {
-		int size = 0;
+		size_t size = 0;
 		for (int i = 0; i < m_structure->num_fields(); ++i)
-			size += m_structure->field(i).typedesc.stack_size();
+			size += m_structure->field(i).typedesc.size();
 		return size;
 	}
 	else {
 		switch (m_buffer_type) {
 			case BVM_BUFFER_SINGLE:
 				switch (m_base_type) {
-					case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::stack_size;
-					case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::stack_size;
-					case BVM_FLOAT4: return BaseTypeTraits<BVM_FLOAT4>::stack_size;
-					case BVM_INT: return BaseTypeTraits<BVM_INT>::stack_size;
-					case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::stack_size;
-					case BVM_STRING: return BaseTypeTraits<BVM_STRING>::stack_size;
-					case BVM_RNAPOINTER: return BaseTypeTraits<BVM_RNAPOINTER>::stack_size;
-					case BVM_MESH: return BaseTypeTraits<BVM_MESH>::stack_size;
-					case BVM_DUPLIS: return BaseTypeTraits<BVM_DUPLIS>::stack_size;
+					case BVM_FLOAT: return BaseTypeTraits<BVM_FLOAT>::size;
+					case BVM_FLOAT3: return BaseTypeTraits<BVM_FLOAT3>::size;
+					case BVM_FLOAT4: return BaseTypeTraits<BVM_FLOAT4>::size;
+					case BVM_INT: return BaseTypeTraits<BVM_INT>::size;
+					case BVM_MATRIX44: return BaseTypeTraits<BVM_MATRIX44>::size;
+					case BVM_STRING: return BaseTypeTraits<BVM_STRING>::size;
+					case BVM_RNAPOINTER: return BaseTypeTraits<BVM_RNAPOINTER>::size;
+					case BVM_MESH: return BaseTypeTraits<BVM_MESH>::size;
+					case BVM_DUPLIS: return BaseTypeTraits<BVM_DUPLIS>::size;
 				}
 				break;
 			case BVM_BUFFER_ARRAY:
-				return 4;
+				return 16;
 		}
 	}
 	
@@ -167,9 +167,9 @@ void TypeDesc::copy_value(void *to, const void *from) const
 		for (int i = 0; i < m_structure->num_fields(); ++i) {
 			m_structure->field(i).typedesc.copy_value(to, from);
 			
-			int size = m_structure->field(i).typedesc.stack_size();
-			to = ((float *)to) + size;
-			from = ((float *)from) + size;
+			size_t size = m_structure->field(i).typedesc.size();
+			to = ((uint8_t *)to) + size;
+			from = ((uint8_t *)from) + size;
 		}
 	}
 	else {

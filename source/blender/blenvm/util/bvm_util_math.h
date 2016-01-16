@@ -32,11 +32,27 @@
  *  \ingroup bvm
  */
 
+#include <assert.h>
+
 extern "C" {
 #include "BLI_math.h"
 }
 
 namespace bvm {
+
+static inline int int_div_floor(int a, int b)
+{
+	assert(a > 0);
+	assert(b > 0);
+	return a / b;
+}
+
+static inline int int_div_ceil(int a, int b)
+{
+	assert(a > 0);
+	assert(b > 0);
+	return 1 + ((a - 1) / b);
+}
 
 /* types */
 

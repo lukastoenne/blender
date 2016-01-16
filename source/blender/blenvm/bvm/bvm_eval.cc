@@ -84,6 +84,13 @@ PointerRNA EvalGlobals::lookup_object(int key) const
 
 /* ------------------------------------------------------------------------- */
 
+int EvalStack::stack_size(size_t datasize)
+{
+	return int_div_ceil(datasize, sizeof(EvalStack));
+}
+
+/* ------------------------------------------------------------------------- */
+
 EvalContext::EvalContext()
 {
 }

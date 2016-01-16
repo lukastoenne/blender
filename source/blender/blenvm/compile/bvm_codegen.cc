@@ -149,10 +149,10 @@ StackIndex Compiler::find_stack_index(int size) const
 
 StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 {
-	int size = typedesc.stack_size();
+	int stack_size = EvalStack::stack_size(typedesc.size());
 	
-	StackIndex stack_offset = find_stack_index(size);
-	for (int i = 0; i < size; ++i) {
+	StackIndex stack_offset = find_stack_index(stack_size);
+	for (int i = 0; i < stack_size; ++i) {
 		// TODO keep track of value users
 		stack_users[stack_offset + i] += 1;
 	}

@@ -67,6 +67,8 @@ private:
 };
 
 struct EvalStack {
+	static int stack_size(size_t datasize);
+	
 	int value;
 };
 

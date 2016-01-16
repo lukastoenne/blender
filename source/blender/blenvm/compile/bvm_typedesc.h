@@ -56,7 +56,7 @@ template <>
 struct BaseTypeTraits<BVM_FLOAT> {
 	typedef float POD;
 	
-	enum eStackSize { stack_size = 1 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -68,7 +68,7 @@ template <>
 struct BaseTypeTraits<BVM_FLOAT3> {
 	typedef float3 POD;
 	
-	enum eStackSize { stack_size = 3 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -80,7 +80,7 @@ template <>
 struct BaseTypeTraits<BVM_FLOAT4> {
 	typedef float4 POD;
 	
-	enum eStackSize { stack_size = 4 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -92,7 +92,7 @@ template <>
 struct BaseTypeTraits<BVM_INT> {
 	typedef int POD;
 	
-	enum eStackSize { stack_size = 1 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -104,7 +104,7 @@ template <>
 struct BaseTypeTraits<BVM_MATRIX44> {
 	typedef matrix44 POD;
 	
-	enum eStackSize { stack_size = 16 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -116,7 +116,7 @@ template <>
 struct BaseTypeTraits<BVM_STRING> {
 	typedef const char* POD;
 	
-	enum eStackSize { stack_size = 2 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -128,7 +128,7 @@ template <>
 struct BaseTypeTraits<BVM_RNAPOINTER> {
 	typedef PointerRNA POD;
 	
-	enum eStackSize { stack_size = 6 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -140,7 +140,7 @@ template <>
 struct BaseTypeTraits<BVM_MESH> {
 	typedef mesh_ptr POD;
 	
-	enum eStackSize { stack_size = 8 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -152,7 +152,7 @@ template <>
 struct BaseTypeTraits<BVM_DUPLIS> {
 	typedef duplis_ptr POD;
 	
-	enum eStackSize { stack_size = 8 };
+	enum eStackSize { size = sizeof(POD) };
 	
 	static inline void copy(POD *to, const POD *from)
 	{
@@ -239,7 +239,7 @@ struct TypeDesc {
 	
 	bool assignable(const TypeDesc &other) const;
 	
-	int stack_size() const;
+	size_t size() const;
 	void copy_value(void *to, const void *from) const;
 	
 	bool is_structure() const { return m_structure != NULL; }
