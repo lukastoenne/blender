@@ -22,7 +22,6 @@ set(SRC
 	util_task.cpp
 	util_time.cpp
 	util_transform.cpp
-	util_volume.cpp
 )
 
 if(NOT CYCLES_STANDALONE_REPOSITORY)
@@ -92,6 +91,9 @@ endif()
 if(WITH_OPENVDB)
     add_definitions(
         -DWITH_OPENVDB
+    )
+    list(APPEND SRC
+		util_volume.cpp
     )
 endif()
 
