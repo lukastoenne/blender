@@ -18,6 +18,7 @@
 #include "scene.h"
 #include "util_logging.h"
 #include "util_progress.h"
+#include "util_task.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -194,6 +195,7 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 		FloatGrid::Ptr fgrid = gridPtrCast<FloatGrid>(grid);
 
 		vdb_float_volume *sampler = new vdb_float_volume(fgrid);
+		sampler->create_threads_utils(TaskScheduler::thread_ids());
 		float_volumes.insert(float_volumes.begin() + slot, sampler);
 		scalar_grids.push_back(fgrid);
 	}
@@ -205,6 +207,7 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 		Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(grid);
 
 		vdb_float3_volume *sampler = new vdb_float3_volume(vgrid);
+		sampler->create_threads_utils(TaskScheduler::thread_ids());
 		float3_volumes.insert(float3_volumes.begin() + slot, sampler);
 		vector_grids.push_back(vgrid);
 	}

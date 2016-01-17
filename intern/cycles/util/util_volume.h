@@ -54,6 +54,7 @@ CCL_NAMESPACE_END
 #endif
 
 #include "util_map.h"
+#include "util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -62,6 +63,52 @@ using std::isfinite;
 #else
 using boost::math::isfinite;
 #endif
+
+template <typename IsectorType>
+void create_isectors_threads(unordered_map<pthread_t, IsectorType *> &isect_map,
+                             const vector<pthread_t> &thread_ids,
+                             const IsectorType &main_isect)
+{
+	pthread_t my_thread = pthread_self();
+
+	for (size_t i = 0; i < thread_ids.size(); ++i) {
+		IsectorType *isect = new IsectorType(main_isect);
+		pair<pthread_t, IsectorType *> inter(thread_ids[i], isect);
+		isect_map.insert(inter);
+	}
+
+	if (isect_map.find(my_thread) == isect_map.end()) {
+		IsectorType *isect = new IsectorType(main_isect);
+		pair<pthread_t, IsectorType *> inter(my_thread, isect);
+		isect_map.insert(inter);
+	}
+}
+
+template <typename SamplerType, typename AccessorType>
+void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_map,
+                             vector<AccessorType *> &accessors,
+                             const vector<pthread_t> &thread_ids,
+                             const openvdb::math::Transform *transform,
+                             const AccessorType &main_accessor)
+{
+	pthread_t my_thread = pthread_self();
+
+	for (size_t i = 0; i < thread_ids.size(); ++i) {
+		AccessorType *accessor = new AccessorType(main_accessor);
+		accessors.push_back(accessor);
+		SamplerType *sampler = new SamplerType(*accessor, *transform);
+		pair<pthread_t, SamplerType *> sampl(thread_ids[i], sampler);
+		sampler_map.insert(sampl);
+	}
+
+	if (sampler_map.find(my_thread) == sampler_map.end()) {
+		AccessorType *accessor = new AccessorType(main_accessor);
+		accessors.push_back(accessor);
+		SamplerType *sampler = new SamplerType(*accessor, *transform);
+		pair<pthread_t, SamplerType *> sampl(my_thread, sampler);
+		sampler_map.insert(sampl);
+	}
+}
 
 typedef openvdb::math::Ray<float> vdb_ray_t;
 
@@ -80,10 +127,10 @@ class vdb_float_volume : public float_volume {
 	point_map point_samplers;
 	box_map box_samplers;
 
-	std::vector<openvdb::FloatGrid::ConstAccessor *> accessors;
+	vector<openvdb::FloatGrid::ConstAccessor *> accessors;
 
 	openvdb::FloatGrid::ConstAccessor *accessor;
-	openvdb::math::Transform *transfrom;
+	openvdb::math::Transform *transform;
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
@@ -94,7 +141,7 @@ class vdb_float_volume : public float_volume {
 
 public:
 	vdb_float_volume(openvdb::FloatGrid::Ptr grid)
-	    : transfrom(&grid->transform())
+	    : transform(&grid->transform())
 	{
 		accessor = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
 
@@ -144,41 +191,28 @@ public:
 		}
 	}
 
+	void create_threads_utils(const vector<pthread_t> &thread_ids)
+	{
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+		create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
+		create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
+	}
+
 	ccl_always_inline float sample(float x, float y, float z, int sampling)
 	{
 		pthread_t thread = pthread_self();
 
 		if(sampling == OPENVDB_SAMPLE_POINT) {
 			point_map::iterator iter = point_samplers.find(thread);
-			point_sampler_t *sampler;
-
-			if(iter == point_samplers.end()) {
-				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new point_sampler_t(*acc, *transfrom);
-				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
-				point_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != point_samplers.end());
+			point_sampler_t *sampler = iter->second;
 
 			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			box_map::iterator iter = box_samplers.find(thread);
-			box_sampler_t *sampler;
-
-			if(iter == box_samplers.end()) {
-				openvdb::FloatGrid::ConstAccessor *acc = new openvdb::FloatGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new box_sampler_t(*acc, *transfrom);
-				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
-				box_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != box_samplers.end());
+			box_sampler_t *sampler = iter->second;
 
 			return sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
@@ -188,16 +222,8 @@ public:
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
-		isector_t *vdb_isect;
-
-		if(iter == isectors.end()) {
-			vdb_isect = new isector_t(*main_isector);
-			pair<pthread_t, isector_t *> inter(thread, vdb_isect);
-			isectors.insert(inter);
-		}
-		else {
-			vdb_isect = iter->second;
-		}
+		assert(iter != isectors.end());
+		isector_t *vdb_isect = iter->second;
 
 		vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
 		vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);
@@ -268,10 +294,10 @@ class vdb_float3_volume : public float3_volume {
 	stag_point_map stag_point_samplers;
 	stag_box_map stag_box_samplers;
 
-	std::vector<openvdb::Vec3SGrid::ConstAccessor *> accessors;
+	vector<openvdb::Vec3SGrid::ConstAccessor *> accessors;
 
 	openvdb::Vec3SGrid::ConstAccessor *accessor;
-	openvdb::math::Transform *transfrom;
+	openvdb::math::Transform *transform;
 
 	/* Main intersector, its purpose is to initialize the voxels' bounding box
 	 * so the ones for the various threads do not do this, rather they are
@@ -282,7 +308,7 @@ class vdb_float3_volume : public float3_volume {
 
 public:
 	vdb_float3_volume(openvdb::Vec3SGrid::Ptr grid)
-	    : transfrom(&grid->transform())
+	    : transform(&grid->transform())
 	{
 		accessor = new openvdb::Vec3SGrid::ConstAccessor(grid->getConstAccessor());
 		staggered = (grid->getGridClass() == openvdb::GRID_STAGGERED);
@@ -347,6 +373,15 @@ public:
 		}
 	}
 
+	void create_threads_utils(const vector<pthread_t> &thread_ids)
+	{
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+		create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
+		create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
+		create_samplers_threads(stag_point_samplers, accessors, thread_ids, transform, *accessor);
+		create_samplers_threads(stag_box_samplers, accessors, thread_ids, transform, *accessor);
+	}
+
 	ccl_always_inline float3 sample_staggered(float x, float y, float z, int sampling)
 	{
 		openvdb::Vec3s r;
@@ -354,35 +389,15 @@ public:
 
 		if(sampling == OPENVDB_SAMPLE_POINT) {
 			stag_point_map::iterator iter = stag_point_samplers.find(thread);
-			stag_point_sampler_t *sampler;
-
-			if(iter == stag_point_samplers.end()) {
-				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new stag_point_sampler_t(*acc, *transfrom);
-				pair<pthread_t, stag_point_sampler_t *> sampl(thread, sampler);
-				stag_point_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != stag_point_samplers.end());
+			stag_point_sampler_t *sampler = iter->second;
 
 			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			stag_box_map::iterator iter = stag_box_samplers.find(thread);
-			stag_box_sampler_t *sampler;
-
-			if(iter == stag_box_samplers.end()) {
-				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new stag_box_sampler_t(*acc, *transfrom);
-				pair<pthread_t, stag_box_sampler_t *> sampl(thread, sampler);
-				stag_box_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != stag_box_samplers.end());
+			stag_box_sampler_t *sampler = iter->second;
 
 			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
@@ -397,35 +412,15 @@ public:
 
 		if(sampling == OPENVDB_SAMPLE_POINT) {
 			point_map::iterator iter = point_samplers.find(thread);
-			point_sampler_t *sampler;
-
-			if(iter == point_samplers.end()) {
-				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new point_sampler_t(*acc, *transfrom);
-				pair<pthread_t, point_sampler_t *> sampl(thread, sampler);
-				point_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != point_samplers.end());
+			point_sampler_t *sampler = iter->second;
 
 			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
 		else {
 			box_map::iterator iter = box_samplers.find(thread);
-			box_sampler_t *sampler;
-
-			if(iter == box_samplers.end()) {
-				openvdb::Vec3SGrid::ConstAccessor *acc = new openvdb::Vec3SGrid::ConstAccessor(*accessor);
-				accessors.push_back(acc);
-				sampler = new box_sampler_t(*acc, *transfrom);
-				pair<pthread_t, box_sampler_t *> sampl(thread, sampler);
-				box_samplers.insert(sampl);
-			}
-			else {
-				sampler = iter->second;
-			}
+			assert(iter != box_samplers.end());
+			box_sampler_t *sampler = iter->second;
 
 			r = sampler->wsSample(openvdb::Vec3d(x, y, z));
 		}
@@ -445,16 +440,8 @@ public:
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
-		isector_t *vdb_isect;
-
-		if(iter == isectors.end()) {
-			vdb_isect = new isector_t(*main_isector);
-			pair<pthread_t, isector_t *> inter(thread, vdb_isect);
-			isectors.insert(inter);
-		}
-		else {
-			vdb_isect = iter->second;
-		}
+		assert(iter != isectors.end());
+		isector_t *vdb_isect = iter->second;
 
 		vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
 		vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);

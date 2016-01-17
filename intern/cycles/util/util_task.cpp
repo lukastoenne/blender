@@ -298,6 +298,18 @@ void TaskScheduler::clear(TaskPool *pool)
 	pool->num_decrease(done);
 }
 
+vector<pthread_t> TaskScheduler::thread_ids()
+{
+	thread_scoped_lock lock(mutex);
+
+	vector<pthread_t> ids;
+	foreach(thread *t, threads) {
+		ids.push_back(t->id());
+	}
+
+	return ids;
+}
+
 /* Dedicated Task Pool */
 
 DedicatedTaskPool::DedicatedTaskPool()
