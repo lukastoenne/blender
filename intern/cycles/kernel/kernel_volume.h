@@ -761,85 +761,180 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	float3 accum_emission = make_float3(0.0f, 0.0f, 0.0f);
 	float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
 	float3 cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
-	float t = 0.0f;
+	float t = 0.0f, t1 = 0.0f;
 
 	segment->numsteps = 0;
 	segment->closure_flag = 0;
 	bool is_last_step_empty = false;
 
 	VolumeStep *step = segment->steps;
+#ifdef __OPENVDB__
+	int vdb_index = kernel_data.tables.density_index;
+	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
 
-	for(int i = 0; i < max_steps; i++, step++) {
-		/* advance to new position */
-		float new_t = min(ray->t, (i+1) * step_size);
-		float dt = new_t - t;
-
-		/* use random position inside this segment to sample shader */
-		if(heterogeneous && new_t == ray->t)
-			random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
-
-		float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
-		VolumeShaderCoefficients coeff;
-
-		/* compute segment */
-		if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
-			int closure_flag = sd->flag;
-			float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
-
-			/* compute accumulated transmittance */
-			float3 transmittance = volume_color_transmittance(sigma_t, dt);
-
-			/* compute emission attenuated by absorption */
-			if(closure_flag & SD_EMISSION) {
-				float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
-				accum_emission += accum_transmittance * emission;
-			}
-
-			accum_transmittance *= transmittance;
-
-			/* compute pdf for distance sampling */
-			float3 pdf_distance = dt * accum_transmittance * coeff.sigma_s;
-			cdf_distance = cdf_distance + pdf_distance;
-
-			/* write step data */
-			step->sigma_t = sigma_t;
-			step->sigma_s = coeff.sigma_s;
-			step->closure_flag = closure_flag;
-
-			segment->closure_flag |= closure_flag;
-
-			is_last_step_empty = false;
-			segment->numsteps++;
+	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
+		/* TODO(kevin): this call should be moved out of here, all it does is
+		 * checking if we have an intersection with the boundbox of the volumue
+		 * which in most cases corresponds to the boundbox of the object that has
+		 * this volume. Also it initializes the rays for the ray marching. */
+		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+			return;
 		}
-		else {
-			if(is_last_step_empty) {
-				/* consecutive empty step, merge */
-				step--;
+
+		/* t and t1 represent the entry and exit points for each leaf node or tile
+		 * containing active voxels. If we don't have any active node in the current
+		 * ray path (i.e. empty space) the ray march loop is not executed,
+		 * otherwise we loop through all leaves until the end of the volume. */
+		while(kg->float_volumes[vdb_index]->march(&t, &t1)) {
+
+			/* Perform small steps through the current leaf or tile. */
+			for(float new_t = step_size * ceilf(t / step_size); new_t <= t1; new_t += step_size, step++) {
+				float dt = new_t - t;
+
+				/* use random position inside this segment to sample shader */
+				if(heterogeneous && new_t == ray->t)
+					random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+				float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+				VolumeShaderCoefficients coeff;
+
+				/* compute segment */
+				if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
+					int closure_flag = sd->flag;
+					float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+
+					/* compute accumulated transmittance */
+					float3 transmittance = volume_color_transmittance(sigma_t, dt);
+
+					/* compute emission attenuated by absorption */
+					if(closure_flag & SD_EMISSION) {
+						float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
+						accum_emission += accum_transmittance * emission;
+					}
+
+					accum_transmittance *= transmittance;
+
+					/* compute pdf for distance sampling */
+					float3 pdf_distance = dt * accum_transmittance * coeff.sigma_s;
+					cdf_distance = cdf_distance + pdf_distance;
+
+					/* write step data */
+					step->sigma_t = sigma_t;
+					step->sigma_s = coeff.sigma_s;
+					step->closure_flag = closure_flag;
+
+					segment->closure_flag |= closure_flag;
+
+					is_last_step_empty = false;
+					segment->numsteps++;
+				}
+				else {
+					if(is_last_step_empty) {
+						/* consecutive empty step, merge */
+						step--;
+					}
+					else {
+						/* store empty step */
+						step->sigma_t = make_float3(0.0f, 0.0f, 0.0f);
+						step->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+						step->closure_flag = 0;
+
+						segment->numsteps++;
+						is_last_step_empty = true;
+					}
+				}
+
+				step->accum_transmittance = accum_transmittance;
+				step->cdf_distance = cdf_distance;
+				step->t = new_t;
+				step->shade_t = t + random_jitter_offset;
+
+				/* stop if at the end of the volume */
+				t = new_t;
+				if(t == ray->t)
+					break;
+
+				/* stop if nearly all light blocked */
+				if(accum_transmittance.x < tp_eps && accum_transmittance.y < tp_eps && accum_transmittance.z < tp_eps)
+					break;
+			}
+		}
+	}
+	else
+#endif
+	{
+		for(int i = 0; i < max_steps; i++, step++) {
+			/* advance to new position */
+			float new_t = min(ray->t, (i+1) * step_size);
+			float dt = new_t - t;
+
+			/* use random position inside this segment to sample shader */
+			if(heterogeneous && new_t == ray->t)
+				random_jitter_offset = lcg_step_float(&state->rng_congruential) * dt;
+
+			float3 new_P = ray->P + ray->D * (t + random_jitter_offset);
+			VolumeShaderCoefficients coeff;
+
+			/* compute segment */
+			if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
+				int closure_flag = sd->flag;
+				float3 sigma_t = coeff.sigma_a + coeff.sigma_s;
+
+				/* compute accumulated transmittance */
+				float3 transmittance = volume_color_transmittance(sigma_t, dt);
+
+				/* compute emission attenuated by absorption */
+				if(closure_flag & SD_EMISSION) {
+					float3 emission = kernel_volume_emission_integrate(&coeff, closure_flag, transmittance, dt);
+					accum_emission += accum_transmittance * emission;
+				}
+
+				accum_transmittance *= transmittance;
+
+				/* compute pdf for distance sampling */
+				float3 pdf_distance = dt * accum_transmittance * coeff.sigma_s;
+				cdf_distance = cdf_distance + pdf_distance;
+
+				/* write step data */
+				step->sigma_t = sigma_t;
+				step->sigma_s = coeff.sigma_s;
+				step->closure_flag = closure_flag;
+
+				segment->closure_flag |= closure_flag;
+
+				is_last_step_empty = false;
+				segment->numsteps++;
 			}
 			else {
-				/* store empty step */
-				step->sigma_t = make_float3(0.0f, 0.0f, 0.0f);
-				step->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
-				step->closure_flag = 0;
+				if(is_last_step_empty) {
+					/* consecutive empty step, merge */
+					step--;
+				}
+				else {
+					/* store empty step */
+					step->sigma_t = make_float3(0.0f, 0.0f, 0.0f);
+					step->sigma_s = make_float3(0.0f, 0.0f, 0.0f);
+					step->closure_flag = 0;
 
-				segment->numsteps++;
-				is_last_step_empty = true;
+					segment->numsteps++;
+					is_last_step_empty = true;
+				}
 			}
+
+			step->accum_transmittance = accum_transmittance;
+			step->cdf_distance = cdf_distance;
+			step->t = new_t;
+			step->shade_t = t + random_jitter_offset;
+
+			/* stop if at the end of the volume */
+			t = new_t;
+			if(t == ray->t)
+				break;
+
+			/* stop if nearly all light blocked */
+			if(accum_transmittance.x < tp_eps && accum_transmittance.y < tp_eps && accum_transmittance.z < tp_eps)
+				break;
 		}
-
-		step->accum_transmittance = accum_transmittance;
-		step->cdf_distance = cdf_distance;
-		step->t = new_t;
-		step->shade_t = t + random_jitter_offset;
-
-		/* stop if at the end of the volume */
-		t = new_t;
-		if(t == ray->t)
-			break;
-
-		/* stop if nearly all light blocked */
-		if(accum_transmittance.x < tp_eps && accum_transmittance.y < tp_eps && accum_transmittance.z < tp_eps)
-			break;
 	}
 
 	/* store total emission and transmittance */
@@ -847,15 +942,19 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	segment->accum_transmittance = accum_transmittance;
 
 	/* normalize cumulative density function for distance sampling */
-	VolumeStep *last_step = segment->steps + segment->numsteps - 1;
+	int numsteps = segment->numsteps - 1;
 
-	if(!is_zero(last_step->cdf_distance)) {
-		VolumeStep *step = &segment->steps[0];
-		int numsteps = segment->numsteps;
-		float3 inv_cdf_distance_sum = safe_invert_color(last_step->cdf_distance);
+	if(numsteps >= 0) {
+		VolumeStep *last_step = segment->steps + segment->numsteps - 1;
 
-		for(int i = 0; i < numsteps; i++, step++)
-			step->cdf_distance *= inv_cdf_distance_sum;
+		if(!is_zero(last_step->cdf_distance)) {
+			VolumeStep *step = &segment->steps[0];
+			int numsteps = segment->numsteps;
+			float3 inv_cdf_distance_sum = safe_invert_color(last_step->cdf_distance);
+
+			for(int i = 0; i < numsteps; i++, step++)
+				step->cdf_distance *= inv_cdf_distance_sum;
+		}
 	}
 }
 
