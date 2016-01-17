@@ -112,6 +112,7 @@ protected:
 	static thread_mutex mutex;
 	static int users;
 	static vector<thread*> threads;
+	static vector<pthread_t> threads_ids;
 	static bool do_exit;
 
 	static list<Entry> queue;
