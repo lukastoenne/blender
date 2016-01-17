@@ -729,11 +729,6 @@ else()
 	set(COMPILER_SSE2_FLAG)
 endif()
 
-TEST_STDBOOL_SUPPORT()
-if(HAVE_STDBOOL_H)
-	add_definitions(-DHAVE_STDBOOL_H)
-endif()
-
 TEST_SHARED_PTR_SUPPORT()
 TEST_UNORDERED_MAP_SUPPORT()
 
@@ -1512,8 +1507,8 @@ elseif(WIN32)
 				set(BOOST_INCLUDE_DIR ${BOOST}/include)
 				if(MSVC12)
 					set(BOOST_LIBPATH ${BOOST}/lib)
-					set(BOOST_POSTFIX "vc120-mt-s-1_55.lib")
-					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_55.lib")
+					set(BOOST_POSTFIX "vc120-mt-s-1_60.lib")
+					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_60.lib")
 				else()
 					set(BOOST_LIBPATH ${BOOST}/lib)
 					set(BOOST_POSTFIX "vc140-mt-s-1_60.lib")
@@ -3098,9 +3093,6 @@ if(FIRST_RUN)
 	if(WIN32)
 		info_cfg_option(WITH_GL_ANGLE)
 	endif()
-
-	# debug
-	message(STATUS "HAVE_STDBOOL_H = ${HAVE_STDBOOL_H}")
 
 	info_cfg_text("")
 
