@@ -215,7 +215,8 @@ static void eval_op_release_mesh_ptr(EvalStack *stack, StackIndex offset)
 
 static void eval_op_init_duplis_ptr(EvalStack *stack, StackIndex offset, int use_count)
 {
-	duplis_ptr p(new DupliList());
+	static DupliList __empty_duplilist__ = DupliList();
+	duplis_ptr p(&__empty_duplilist__);
 	p.set_use_count(use_count);
 	stack_store_duplis_ptr(stack, offset, p);
 }

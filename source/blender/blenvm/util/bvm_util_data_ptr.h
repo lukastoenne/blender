@@ -45,101 +45,184 @@ extern "C" {
 
 namespace bvm {
 
-/* generic default deletor, using 'delete' operator */
+/* generic default deleter, using 'delete' operator */
 template <typename T>
-struct DeleteDestructor {
-	static void destroy(T *data)
+struct DefaultDeleter {
+	void operator() (T *data) const
 	{
 		delete data;
 	}
 };
 
 /* reference-counted pointer for managing transient data on the stack */
-template <typename T, typename DestructorT = DeleteDestructor<T> >
-struct node_data_ptr {
-	typedef T element_type;
-	typedef node_data_ptr<T> self_type;
+template <typename T, typename Deleter = DefaultDeleter<T> >
+struct node_counted_ptr {
+	typedef T data_t;
+	typedef node_counted_ptr<T, Deleter> self_t;
 	
-	node_data_ptr() :
-	    m_data(0),
-	    m_refs(0)
+	node_counted_ptr() :
+	    m_data(NULL),
+	    m_refs(NULL)
 	{}
 	
-	explicit node_data_ptr(element_type *data) :
+	explicit node_counted_ptr(data_t *data) :
 	    m_data(data),
-	    m_refs(0)
+	    m_refs(NULL)
 	{}
 	
-	~node_data_ptr()
+	template <typename Y, typename YDeleter>
+	node_counted_ptr(const node_counted_ptr<Y, YDeleter> &other) :
+	    m_data(other.m_data),
+	    m_refs(other.m_refs)
 	{
 	}
 	
-	element_type* get() const
+	~node_counted_ptr()
+	{
+	}
+	
+	template <typename Y, typename YDeleter>
+	self_t& operator = (const node_counted_ptr<Y, YDeleter> &other)
+	{
+		m_data = other.m_data;
+	    m_refs = other.m_refs;
+	}
+	
+	operator bool() const
+	{
+		return m_refs != NULL;
+	}
+	
+	data_t* get() const
 	{
 		return m_data;
 	}
 	
 	void reset()
 	{
-		m_data = 0;
+		m_data = NULL;
 		if (m_refs) {
 			destroy_refs(m_refs);
-			m_refs = 0;
+			m_refs = NULL;
 		}
 	}
 	
-	void set(element_type *data)
+	void reset(data_t *data)
 	{
 		if (m_data != data) {
-			if (m_data)
-				DestructorT::destroy(m_data);
+			if (m_data) {
+				Deleter del;
+				del(m_data);
+			}
 			m_data = data;
 		}
-	}
-	
-	element_type& operator * () const { return *m_data; }
-	element_type* operator -> () const { return m_data; }
-	
-	void set_use_count(size_t use_count)
-	{
-		assert(m_refs == 0);
-		if (use_count > 0)
-			m_refs = create_refs(use_count);
-		else if (m_refs) {
+		if (m_refs) {
 			destroy_refs(m_refs);
-			m_refs = 0;
+			m_refs = NULL;
 		}
 	}
 	
-	void decrement_use_count()
+	data_t& operator * () const { return *m_data; }
+	data_t* operator -> () const { return m_data; }
+	
+	void retain()
 	{
-		assert(m_refs != 0 && *m_refs > 0);
+		if (m_refs == NULL)
+			m_refs = create_refs();
+		++(*m_refs);
+	}
+	
+	void release()
+	{
+		assert(m_refs != NULL && *m_refs > 0);
 		size_t count = --(*m_refs);
 		if (count == 0) {
 			clear();
 		}
 	}
 	
+protected:
+	/* TODO this could be handled by a common memory manager with a mempool */
+	static size_t *create_refs() { return new size_t(0); }
+	static void destroy_refs(size_t *refs) { delete refs; }
+	
 	void clear()
 	{
 		if (m_data) {
-			DestructorT::destroy(m_data);
-			m_data = 0;
+			Deleter del;
+			del(m_data);
+			m_data = NULL;
 		}
 		if (m_refs) {
 			destroy_refs(m_refs);
-			m_refs = 0;
+			m_refs = NULL;
 		}
 	}
-	
-protected:
-	/* TODO this could be handled by a common memory manager with a mempool */
-	static size_t *create_refs(size_t use_count) { return new size_t(use_count); }
-	static void destroy_refs(size_t *refs) { delete refs; }
 	
 private:
 	T *m_data;
 	size_t *m_refs;
+};
+
+/* reference-counted pointer for managing transient data on the stack */
+template <typename T, typename Deleter = DefaultDeleter<T> >
+struct node_scoped_ptr {
+	typedef T data_t;
+	typedef node_counted_ptr<T, Deleter> counted_ptr_t;
+	typedef node_scoped_ptr<T, Deleter> self_t;
+	
+	node_scoped_ptr() :
+	    m_ptr(NULL),
+	    m_refs(0)
+	{}
+	
+	explicit node_scoped_ptr(data_t *data) :
+	    m_ptr(data),
+	    m_refs(0)
+	{}
+	
+	~node_scoped_ptr()
+	{
+	}
+	
+	counted_ptr_t& ptr() { return m_ptr; }
+	const counted_ptr_t& ptr() const { return m_ptr; }
+	
+	data_t* get() const { return m_ptr.get(); }
+	
+	void reset()
+	{
+		m_refs = 0;
+		if (m_ptr)
+			m_ptr.release();
+	}
+	
+	void set(data_t *data)
+	{
+		if (m_ptr)
+			m_ptr.release();
+		m_ptr = counted_ptr_t(data);
+		if (data)
+			m_ptr.retain();
+	}
+	
+	void set_use_count(size_t use_count)
+	{
+		assert(m_refs == 0);
+		m_refs = use_count;
+	}
+	
+	void decrement_use_count()
+	{
+		assert(m_refs > 0);
+		--m_refs;
+		if (m_refs == 0)
+			reset();
+	}
+	
+private:
+	counted_ptr_t m_ptr;
+	size_t m_refs;
 };
 
 /* TODO THIS IS IMPORTANT!
@@ -183,13 +266,19 @@ private:
 };
 #endif
 
-struct DerivedMeshDestructor {
-	static void destroy(DerivedMesh *dm)
+/* XXX should use node_counted_ptr<DerivedMesh> instead,
+ * so mesh_ptr is the pointer type, and node_scoped_ptr
+ * is the type of variables on the stack (a scoped variable)
+ */
+
+struct DerivedMeshDeleter {
+	void operator () (DerivedMesh *dm) const
 	{
-		dm->release(dm);
+		if (dm)
+			dm->release(dm);
 	}
 };
-typedef node_data_ptr<DerivedMesh, DerivedMeshDestructor> mesh_ptr;
+typedef node_scoped_ptr<DerivedMesh, DerivedMeshDeleter> mesh_ptr;
 
 struct Dupli {
 	Object *object;
@@ -199,22 +288,25 @@ struct Dupli {
 	bool recursive;
 };
 typedef std::vector<Dupli> DupliList;
-typedef node_data_ptr<DupliList> duplis_ptr;
+typedef node_scoped_ptr<DupliList> duplis_ptr;
 
 inline void create_empty_mesh(mesh_ptr &p)
 {
 	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
 	/* prevent the DM from getting freed */
 	dm->needsFree = 0;
+	
 	p.set(dm);
 }
 
 inline void destroy_empty_mesh(mesh_ptr &p)
 {
 	DerivedMesh *dm = p.get();
+	p.reset();
+	
 	/* have to set this back so the DM actually gets freed */
 	dm->needsFree = 1;
-	p.clear();
+	dm->release(dm);
 }
 
 } /* namespace bvm */

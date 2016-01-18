@@ -66,8 +66,7 @@ extern "C" {
 
 namespace bvm {
 static mesh_ptr __empty_mesh__;
-static DupliList __empty_dupli_list__ = DupliList();
-static duplis_ptr __empty_duplis__ = duplis_ptr(&__empty_dupli_list__);
+static duplis_ptr __empty_duplilist__ = duplis_ptr(new DupliList());
 }
 
 void BVM_init(void)
@@ -1132,7 +1131,8 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
 	DerivedMesh *dm = result.get();
-	result.reset();
+	/* destroy the pointer variable */
+	result.ptr().reset();
 	return dm;
 }
 
@@ -1143,7 +1143,7 @@ static void init_dupli_graph(bvm::NodeGraph &graph)
 	using namespace bvm;
 	
 	graph.add_input("dupli.object", "RNAPOINTER");
-	graph.add_output("dupli.result", "DUPLIS", __empty_duplis__);
+	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
 }
 
 struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
@@ -1213,5 +1213,5 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 			                       false, dupli.hide, dupli.recursive);
 		}
 	}
-	result.clear();
+	result.reset();
 }

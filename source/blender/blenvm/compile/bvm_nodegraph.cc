@@ -1370,7 +1370,7 @@ static mesh_ptr __empty_mesh__;
 
 static void register_opcode_node_types()
 {
-	static DupliList *__empty_duplilist__ = new DupliList();
+	static duplis_ptr __empty_duplilist__ = duplis_ptr(new DupliList());
 	
 	NodeType *nt;
 	
@@ -1415,7 +1415,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", "MESH");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_DUPLIS");
-	nt->add_input("value", "DUPLIS", duplis_ptr(__empty_duplilist__));
+	nt->add_input("value", "DUPLIS", __empty_duplilist__);
 	nt->add_output("value", "DUPLIS");
 	
 	nt = NodeGraph::add_pass_node_type("PASS_FLOAT_ARRAY");
@@ -1514,7 +1514,7 @@ static void register_opcode_node_types()
 	nt->add_output("value", "MESH");
 	
 	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
-	nt->add_input("value", "DUPLIS", duplis_ptr(__empty_duplilist__), INPUT_CONSTANT);
+	nt->add_input("value", "DUPLIS", __empty_duplilist__, INPUT_CONSTANT);
 	nt->add_output("value", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
@@ -1833,8 +1833,8 @@ static void register_opcode_node_types()
 	nt->add_output("dupli", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("DUPLIS_COMBINE");
-	nt->add_input("duplis_a", "DUPLIS", duplis_ptr(__empty_duplilist__));
-	nt->add_input("duplis_b", "DUPLIS", duplis_ptr(__empty_duplilist__));
+	nt->add_input("duplis_a", "DUPLIS", __empty_duplilist__);
+	nt->add_input("duplis_b", "DUPLIS", __empty_duplilist__);
 	nt->add_output("duplis", "DUPLIS");
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
