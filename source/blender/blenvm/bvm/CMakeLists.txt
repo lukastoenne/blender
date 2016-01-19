@@ -30,6 +30,7 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../bmesh
+	../../imbuf
 	../../makesdna
 	../../makesrna
 	../../../../intern/guardedalloc
@@ -43,6 +44,7 @@ set(SRC
 	bvm_eval.h
 	bvm_eval_common.h
 	bvm_eval_curve.h
+	bvm_eval_image.h
 	bvm_eval_math.h
 	bvm_eval_mesh.h
 	bvm_eval_texture.h

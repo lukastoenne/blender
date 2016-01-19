@@ -123,12 +123,19 @@ struct DepsgraphNodeBuilderHandle
 		handle->builder->build_nodetree(NULL, ntree);
 	}
 	
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type /*component*/, const char */*description*/)
+	{
+		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		handle->builder->build_image(ima);
+	}
+	
 	DepsgraphNodeBuilderHandle(DepsgraphNodeBuilder *builder) :
 	    builder(builder)
 	{
 		memset(&handle, 0, sizeof(handle));
 		handle.add_texture_relation = add_texture_relation;
 		handle.add_nodetree_relation = add_nodetree_relation;
+		handle.add_image_relation = add_image_relation;
 	}
 	
 	DepsNodeHandle handle;
@@ -1061,6 +1068,11 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		}
 	}
 
+	if (ob->nodetree) {
+		DepsgraphNodeBuilderHandle handle(this);
+		deg_nodetree_bvm_eval_deps(ob->nodetree, &handle.handle);
+	}
+
 	add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 	                   DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Eval Done");
@@ -1221,6 +1233,24 @@ void DepsgraphNodeBuilder::build_texture(DepsNode *owner_node, Tex *tex)
 	build_animdata(tex_id);
 	/* texture's nodetree */
 	build_nodetree(owner_node, tex->nodetree);
+}
+
+/* Recursively build graph for texture */
+void DepsgraphNodeBuilder::build_image(Image *ima)
+{
+	ID *ima_id = &ima->id;
+	if (ima_id->tag & LIB_TAG_DOIT) {
+		return;
+	}
+	ima_id->tag |= LIB_TAG_DOIT;
+	
+	/* image itself */
+	add_id_node(ima_id);
+	
+	/* main parameters */
+	add_operation_node(ima_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_INIT,
+	                   NULL,
+	                   DEG_OPCODE_IMAGE_INIT);
 }
 
 void DepsgraphNodeBuilder::build_compositor(Scene *scene)

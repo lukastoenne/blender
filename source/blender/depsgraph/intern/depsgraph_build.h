@@ -38,6 +38,7 @@ struct GHash;
 struct ID;
 struct FCurve;
 struct Group;
+struct Image;
 struct Key;
 struct Main;
 struct Material;
@@ -123,6 +124,7 @@ struct DepsgraphNodeBuilder {
 	void build_material(DepsNode *owner_node, Material *ma);
 	void build_texture(DepsNode *owner_node, Tex *tex);
 	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
+	void build_image(Image *ima);
 	void build_world(World *world);
 	void build_compositor(Scene *scene);
 	void build_gpencil(bGPdata *gpd);
@@ -279,6 +281,7 @@ struct DepsgraphRelationBuilder
 	void build_material(ID *owner, Material *ma);
 	void build_texture(ID *owner, Tex *tex);
 	void build_texture_stack(ID *owner, MTex **texture_stack);
+	void build_image(Image *ima);
 	void build_compositor(Scene *scene);
 	void build_gpencil(ID *owner, bGPdata *gpd);
 

@@ -958,6 +958,36 @@ class TextureVoronoiNode(CommonNodeBase, ObjectNode):
 
 ###############################################################################
 
+class ImageSampleNode(CommonNodeBase, ObjectNode):
+    '''Sample an image'''
+    bl_idname = 'ImageSampleNode'
+    bl_label = 'Image Sample'
+
+    bl_id_property_type = 'IMAGE'
+
+    def draw_buttons(self, context, layout):
+        layout.template_ID(self, "id")
+
+    def eval_dependencies(self, depsnode):
+        ima = self.id
+        if ima:
+            depsnode.add_image_relation(ima, 'PARAMETERS')
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "UV")
+        self.outputs.new('NodeSocketColor', "Color")
+
+    def compile(self, compiler):
+        if self.id is None:
+            return
+        ima = compiler.get_id_key(self.id)
+        node = compiler.add_node("IMAGE_SAMPLE")
+        node.inputs[0].set_value(ima)
+        compiler.map_input(0, node.inputs[1])
+        compiler.map_output(0, node.outputs[0])
+
+###############################################################################
+
 def register():
     bpy.utils.register_module(__name__)
 

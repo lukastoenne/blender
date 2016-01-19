@@ -47,6 +47,7 @@ struct Object;
 struct Scene;
 struct Tex;
 struct bNodeTree;
+struct Image;
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -92,6 +93,7 @@ struct DepsNodeHandle
 	void (*add_bone_relation)(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description);
 	void (*add_texture_relation)(struct DepsNodeHandle *handle, struct Tex *tex, eDepsNode_Type component, const char *description);
 	void (*add_nodetree_relation)(struct DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description);
+	void (*add_image_relation)(struct DepsNodeHandle *handle, struct Image *ima, eDepsNode_Type component, const char *description);
 };
 
 void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsNode_Type component, const char *description);
@@ -99,6 +101,7 @@ void DEG_add_object_relation(struct DepsNodeHandle *node, struct Object *ob, eDe
 void DEG_add_bone_relation(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description);
 void DEG_add_texture_relation(struct DepsNodeHandle *handle, struct Tex *tex, eDepsNode_Type component, const char *description);
 void DEG_add_nodetree_relation(struct DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description);
+void DEG_add_image_relation(struct DepsNodeHandle *handle, struct Image *ima, eDepsNode_Type component, const char *description);
 
 /* TODO(sergey): Remove once all geometry update is granular. */
 void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);

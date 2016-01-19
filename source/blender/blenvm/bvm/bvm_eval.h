@@ -32,6 +32,7 @@
  *  \ingroup bvm
  */
 
+#include <set>
 #include <vector>
 
 #include "MEM_guardedalloc.h"
@@ -44,6 +45,10 @@ extern "C" {
 #include "bvm_util_string.h"
 
 struct ID;
+struct Image;
+struct ImagePool;
+struct ImageUser;
+struct ImBuf;
 struct Object;
 
 namespace bvm {
@@ -54,14 +59,23 @@ struct InstructionList;
 
 struct EvalGlobals {
 	typedef unordered_map<int, Object *> ObjectMap;
+	typedef unordered_map<int, Image *> ImageMap;
+	
+	EvalGlobals();
+	~EvalGlobals();
 	
 	static int get_id_key(ID *id);
 	
 	void add_object(int key, Object *ob);
 	PointerRNA lookup_object(int key) const;
 	
+	void add_image(int key, Image *ima);
+	ImBuf *lookup_imbuf(int key, ImageUser *iuser) const;
+	
 private:
 	ObjectMap m_objects;
+	ImageMap m_images;
+	ImagePool *m_image_pool;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };

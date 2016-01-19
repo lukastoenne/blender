@@ -359,12 +359,19 @@ struct EvalGlobalsHandle
 		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
 	}
 	
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type /*component*/, const char */*description*/)
+	{
+		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
+		handle->globals->add_image(EvalGlobals::get_id_key((ID *)ima), ima);
+	}
+	
 	EvalGlobalsHandle(EvalGlobals *globals) :
 	    globals(globals)
 	{
 		memset(&handle, 0, sizeof(handle));
 		handle.add_object_relation = add_object_relation;
 		handle.add_bone_relation = add_bone_relation;
+		handle.add_image_relation = add_image_relation;
 	}
 	
 	DepsNodeHandle handle;

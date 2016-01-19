@@ -148,6 +148,16 @@ struct DepsgraphRelationBuilderHandle
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type component, const char *description)
+	{
+		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
+		ComponentKey comp_key(&ima->id, component);
+		
+		handle->builder->build_image(ima);
+		
+		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
+	}
+	
 	DepsgraphRelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
@@ -160,6 +170,7 @@ struct DepsgraphRelationBuilderHandle
 		handle.add_bone_relation = add_bone_relation;
 		handle.add_texture_relation = add_texture_relation;
 		handle.add_nodetree_relation = add_nodetree_relation;
+		handle.add_image_relation = add_image_relation;
 	}
 	
 	DepsNodeHandle handle;
@@ -1962,6 +1973,17 @@ void DepsgraphRelationBuilder::build_texture_stack(ID *owner, MTex **texture_sta
 		if (mtex && mtex->tex)
 			build_texture(owner, mtex->tex);
 	}
+}
+
+void DepsgraphRelationBuilder::build_image(Image *ima)
+{
+	ID *ima_id = &ima->id;
+	if (ima_id->tag & LIB_TAG_DOIT) {
+		return;
+	}
+	ima_id->tag |= LIB_TAG_DOIT;
+	
+	/* TODO no internal components yet which could be related to each other */
 }
 
 void DepsgraphRelationBuilder::build_compositor(Scene *scene)

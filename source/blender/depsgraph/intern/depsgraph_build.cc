@@ -135,6 +135,12 @@ void DEG_add_nodetree_relation(DepsNodeHandle *handle, struct bNodeTree *ntree, 
 		handle->add_nodetree_relation(handle, ntree, component, description);
 }
 
+void DEG_add_image_relation(DepsNodeHandle *handle, struct Image *ima, eDepsNode_Type component, const char *description)
+{
+	if (handle->add_image_relation)
+		handle->add_image_relation(handle, ima, component, description);
+}
+
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
 {
 	if (graph == NULL) {

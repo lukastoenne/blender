@@ -76,6 +76,12 @@ static void rna_DepsNode_add_nodetree_relation(struct DepsNodeHandle *node, stru
 	DEG_add_nodetree_relation(node, ntree, component, description);
 }
 
+static void rna_DepsNode_add_image_relation(struct DepsNodeHandle *node, struct Image *ima,
+                                            int component, const char *description)
+{
+	DEG_add_image_relation(node, ima, component, description);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
@@ -156,7 +162,7 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	func = RNA_def_function(srna, "add_bone_relation", "rna_DepsNode_add_bone_relation");
 	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_string(func, "bone", NULL, 0, "Bone", "Name of the bone the node depends on");
+	parm = RNA_def_string(func, "bone", NULL, 0, "Bone", "Name of the bone the node depends on");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
 	             "Component of data the node depends on");
@@ -171,6 +177,13 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	
 	func = RNA_def_function(srna, "add_nodetree_relation", "rna_DepsNode_add_nodetree_relation");
 	parm = RNA_def_pointer(func, "node_tree", "NodeTree", "Node Tree", "Node tree the node depends on");
+	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
+	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	             "Component of data the node depends on");
+	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
+	
+	func = RNA_def_function(srna, "add_image_relation", "rna_DepsNode_add_image_relation");
+	parm = RNA_def_pointer(func, "image", "Image", "Image", "Image the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
 	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
 	             "Component of data the node depends on");

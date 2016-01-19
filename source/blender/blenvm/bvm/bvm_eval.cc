@@ -41,12 +41,16 @@ extern "C" {
 #include "BKE_bvhutils.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_image.h"
 #include "BKE_material.h"
+
+#include "IMB_imbuf_types.h"
 }
 
 #include "bvm_eval.h"
 #include "bvm_eval_common.h"
 #include "bvm_eval_curve.h"
+#include "bvm_eval_image.h"
 #include "bvm_eval_math.h"
 #include "bvm_eval_mesh.h"
 #include "bvm_eval_texture.h"
@@ -54,6 +58,16 @@ extern "C" {
 #include "bvm_util_hash.h"
 
 namespace bvm {
+
+EvalGlobals::EvalGlobals()
+{
+	m_image_pool = BKE_image_pool_new();
+}
+
+EvalGlobals::~EvalGlobals()
+{
+	BKE_image_pool_free(m_image_pool);
+}
 
 int EvalGlobals::get_id_key(ID *id)
 {
@@ -80,6 +94,31 @@ PointerRNA EvalGlobals::lookup_object(int key) const
 	else {
 		return PointerRNA_NULL;
 	}
+}
+
+void EvalGlobals::add_image(int key, Image *ima)
+{
+	m_images[key] = ima;
+}
+
+ImBuf *EvalGlobals::lookup_imbuf(int key, ImageUser *iuser) const
+{
+	ImageMap::const_iterator ima_it = m_images.find(key);
+	Image *ima = (ima_it != m_images.end()) ? ima_it->second : NULL;
+	if (!ima)
+		return NULL;
+	
+	/* local changes to the original ImageUser */
+//	if (!BKE_image_is_multilayer(ima))
+//		iuser->multi_index = BKE_scene_multiview_view_id_get(this->m_rd, this->m_viewName);
+	
+	ImBuf *ibuf = BKE_image_pool_acquire_ibuf(ima, iuser, m_image_pool);
+	if (!ibuf || (!ibuf->rect && !ibuf->rect_float)) {
+		BKE_image_pool_release_ibuf(ima, ibuf, m_image_pool);
+		return NULL;
+	}
+	
+	return ibuf;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1091,6 +1130,14 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				                   offset_param, offset_loc, offset_dir, offset_nor,
 				                   offset_rot, offset_radius, offset_weight,
 				                   offset_tilt);
+				break;
+			}
+			
+			case OP_IMAGE_SAMPLE: {
+				StackIndex offset_image = fn->read_stack_index(&instr);
+				StackIndex offset_uv = fn->read_stack_index(&instr);
+				StackIndex offset_color = fn->read_stack_index(&instr);
+				eval_op_image_sample(globals, stack, offset_image, offset_uv, offset_color);
 				break;
 			}
 			

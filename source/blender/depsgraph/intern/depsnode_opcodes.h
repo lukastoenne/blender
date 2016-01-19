@@ -147,6 +147,11 @@ DEF_DEG_OPCODE(TEXTURE_INIT)
 /* invalidate caches, recalculate texture effects */
 DEF_DEG_OPCODE(TEXTURE_INVALIDATE)
 
+/* Images ------------------------------------------ */
+
+/* placeholder */
+DEF_DEG_OPCODE(IMAGE_INIT)
+
 /* Particles --------------------------------------- */
 
 /* XXX: placeholder - Particle System eval */

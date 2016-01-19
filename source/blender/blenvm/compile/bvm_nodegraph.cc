@@ -1358,6 +1358,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	
 	NODETYPE(CURVE_PATH);
 	
+	NODETYPE(IMAGE_SAMPLE);
+	
 	NODETYPE(MAKE_DUPLI);
 	NODETYPE(DUPLIS_COMBINE);
 	
@@ -1836,6 +1838,11 @@ static void register_opcode_node_types()
 	nt->add_input("duplis_a", "DUPLIS", __empty_duplilist__);
 	nt->add_input("duplis_b", "DUPLIS", __empty_duplilist__);
 	nt->add_output("duplis", "DUPLIS");
+	
+	nt = NodeGraph::add_function_node_type("IMAGE_SAMPLE");
+	nt->add_input("image", "INT", 0);
+	nt->add_input("uv", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("color", "FLOAT4");
 	
 	nt = NodeGraph::add_function_node_type("ADD_MATRIX44");
 	nt->add_input("value_a", "MATRIX44", matrix44::identity());

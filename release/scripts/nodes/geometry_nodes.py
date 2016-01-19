@@ -469,6 +469,7 @@ def register():
             NodeItem("GeometryClosestPointNode"),
             ]),
         GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
+            NodeItem("ImageSampleNode"),
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureDistNoiseNode"),
             NodeItem("ObjectTextureMagicNode"),
