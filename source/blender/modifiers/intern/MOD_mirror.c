@@ -98,9 +98,9 @@ static void updateDepsgraph(ModifierData *md,
 {
 	MirrorModifierData *mmd = (MirrorModifierData *)md;
 	if (mmd->mirror_ob != NULL) {
-		DEG_add_object_relation(node, mmd->mirror_ob, DEG_OB_COMP_TRANSFORM, "Mirror Modifier");
+		DEG_add_object_relation(node, mmd->mirror_ob, DEPSNODE_TYPE_TRANSFORM, "Mirror Modifier");
 	}
-	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Mirror Modifier");
+	DEG_add_object_relation(node, ob, DEPSNODE_TYPE_TRANSFORM, "Mirror Modifier");
 }
 
 static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,

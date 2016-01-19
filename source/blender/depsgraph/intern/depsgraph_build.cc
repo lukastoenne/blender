@@ -105,31 +105,31 @@ extern "C" {
 /* ****************** */
 /* External Build API */
 
-void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
+void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsNode_Type component, const char *description)
 {
 	if (handle->add_scene_relation)
 		handle->add_scene_relation(handle, scene, component, description);
 }
 
-void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
+void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsNode_Type component, const char *description)
 {
 	if (handle->add_object_relation)
 		handle->add_object_relation(handle, ob, component, description);
 }
 
-void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description)
+void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description)
 {
 	if (handle->add_bone_relation)
 		handle->add_bone_relation(handle, ob, bone_name, component, description);
 }
 
-void DEG_add_texture_relation(DepsNodeHandle *handle, struct Tex *tex, eDepsTextureComponentType component, const char *description)
+void DEG_add_texture_relation(DepsNodeHandle *handle, struct Tex *tex, eDepsNode_Type component, const char *description)
 {
 	if (handle->add_texture_relation)
 		handle->add_texture_relation(handle, tex, component, description);
 }
 
-void DEG_add_nodetree_relation(DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType component, const char *description)
+void DEG_add_nodetree_relation(DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description)
 {
 	if (handle->add_nodetree_relation)
 		handle->add_nodetree_relation(handle, ntree, component, description);

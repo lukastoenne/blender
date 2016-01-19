@@ -129,7 +129,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	CastModifierData *cmd = (CastModifierData *)md;
 	if (cmd->object != NULL) {
-		DEG_add_object_relation(node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
+		DEG_add_object_relation(node, cmd->object, DEPSNODE_TYPE_TRANSFORM, "Cast Modifier");
 	}
 }
 

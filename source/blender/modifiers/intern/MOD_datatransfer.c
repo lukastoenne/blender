@@ -151,7 +151,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	DataTransferModifierData *dtmd = (DataTransferModifierData *) md;
 	if (dtmd->ob_source != NULL) {
-		DEG_add_object_relation(node, dtmd->ob_source, DEG_OB_COMP_GEOMETRY, "DataTransfer Modifier");
+		DEG_add_object_relation(node, dtmd->ob_source, DEPSNODE_TYPE_GEOMETRY, "DataTransfer Modifier");
 	}
 }
 

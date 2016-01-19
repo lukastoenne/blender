@@ -134,7 +134,7 @@ static void updateDepsgraph(ModifierData *md,
 	int i;
 	for (i = 0; i < umd->num_projectors; ++i) {
 		if (umd->projectors[i] != NULL) {
-			DEG_add_object_relation(node, umd->projectors[i], DEG_OB_COMP_TRANSFORM, "UV Project Modifier");
+			DEG_add_object_relation(node, umd->projectors[i], DEPSNODE_TYPE_TRANSFORM, "UV Project Modifier");
 		}
 	}
 }

@@ -347,13 +347,13 @@ namespace bvm {
 
 struct EvalGlobalsHandle
 {
-	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsObjectComponentType /*component*/, const char */*description*/)
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsNode_Type /*component*/, const char */*description*/)
 	{
 		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
 		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
 	}
 	
-	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char */*bone_name*/, eDepsObjectComponentType /*component*/, const char */*description*/)
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char */*bone_name*/, eDepsNode_Type /*component*/, const char */*description*/)
 	{
 		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
 		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);

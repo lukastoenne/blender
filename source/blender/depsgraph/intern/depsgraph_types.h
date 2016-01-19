@@ -37,7 +37,7 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.h"
 #include "depsgraph_util_function.h"
 
 /* TODO(sergey): Ideally we'll just use char* and statically allocated strings
@@ -67,77 +67,6 @@ typedef enum eDepsNode_Class {
 	DEPSNODE_CLASS_COMPONENT       = 1,        /* [Outer Node] An "aspect" of evaluating/updating an ID-Block, requiring certain types of evaluation behaviours */
 	DEPSNODE_CLASS_OPERATION       = 2,        /* [Inner Node] A glorified function-pointer/callback for scheduling up evaluation operations for components, subject to relationship requirements */
 } eDepsNode_Class;
-
-/* Types of Nodes */
-typedef enum eDepsNode_Type {
-	DEPSNODE_TYPE_UNDEFINED        = -1,       /* fallback type for invalid return value */
-
-	DEPSNODE_TYPE_OPERATION        = 0,        /* Inner Node (Operation) */
-
-	/* Generic Types */
-	DEPSNODE_TYPE_ROOT             = 1,        /* "Current Scene" - basically whatever kicks off the evaluation process */
-	DEPSNODE_TYPE_TIMESOURCE       = 2,        /* Time-Source */
-
-	DEPSNODE_TYPE_ID_REF           = 3,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
-	DEPSNODE_TYPE_SUBGRAPH         = 4,        /* Isolated sub-graph - used for keeping instanced data separate from instances using them */
-
-	/* Outer Types */
-	DEPSNODE_TYPE_PARAMETERS       = 11,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
-	DEPSNODE_TYPE_PROXY            = 12,       /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
-	DEPSNODE_TYPE_ANIMATION        = 13,       /* Animation Component */                 // XXX: merge in with parameters?
-	DEPSNODE_TYPE_TRANSFORM        = 14,       /* Transform Component (Parenting/Constraints) */
-	DEPSNODE_TYPE_GEOMETRY         = 15,       /* Geometry Component (DerivedMesh/Displist) */
-	DEPSNODE_TYPE_SEQUENCER        = 16,       /* Sequencer Component (Scene Only) */
-
-	/* Evaluation-Related Outer Types (with Subdata) */
-	DEPSNODE_TYPE_EVAL_POSE        = 21,       /* Pose Component - Owner/Container of Bones Eval */
-	DEPSNODE_TYPE_BONE             = 22,       /* Bone Component - Child/Subcomponent of Pose */
-
-	DEPSNODE_TYPE_EVAL_PARTICLES   = 23,       /* Particle Systems Component */
-	DEPSNODE_TYPE_SHADING          = 24,       /* Material Shading Component */
-} eDepsNode_Type;
-
-inline eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
-{
-	switch (component) {
-		case DEG_SCENE_COMP_PARAMETERS:     return DEPSNODE_TYPE_PARAMETERS;
-		case DEG_SCENE_COMP_ANIMATION:      return DEPSNODE_TYPE_ANIMATION;
-		case DEG_SCENE_COMP_SEQUENCER:      return DEPSNODE_TYPE_SEQUENCER;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-inline eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType component)
-{
-	switch (component) {
-		case DEG_OB_COMP_PARAMETERS:        return DEPSNODE_TYPE_PARAMETERS;
-		case DEG_OB_COMP_PROXY:             return DEPSNODE_TYPE_PROXY;
-		case DEG_OB_COMP_ANIMATION:         return DEPSNODE_TYPE_ANIMATION;
-		case DEG_OB_COMP_TRANSFORM:         return DEPSNODE_TYPE_TRANSFORM;
-		case DEG_OB_COMP_GEOMETRY:          return DEPSNODE_TYPE_GEOMETRY;
-		case DEG_OB_COMP_EVAL_POSE:         return DEPSNODE_TYPE_EVAL_POSE;
-		case DEG_OB_COMP_BONE:              return DEPSNODE_TYPE_BONE;
-		case DEG_OB_COMP_EVAL_PARTICLES:    return DEPSNODE_TYPE_EVAL_PARTICLES;
-		case DEG_OB_COMP_SHADING:           return DEPSNODE_TYPE_SHADING;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-inline eDepsNode_Type deg_build_texture_component_type(eDepsTextureComponentType component)
-{
-	switch (component) {
-		case DEG_TEX_COMP_PARAMETERS:          return DEPSNODE_TYPE_PARAMETERS;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
-
-inline eDepsNode_Type deg_build_nodetree_component_type(eDepsNodeTreeComponentType component)
-{
-	switch (component) {
-		case DEG_NTREE_COMP_PARAMETERS:     return DEPSNODE_TYPE_PARAMETERS;
-	}
-	return DEPSNODE_TYPE_UNDEFINED;
-}
 
 /* Identifiers for common operations (as an enum) */
 typedef enum eDepsOperation_Code {

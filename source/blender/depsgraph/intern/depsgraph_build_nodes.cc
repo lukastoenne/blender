@@ -111,13 +111,13 @@ extern "C" {
 
 struct DepsgraphNodeBuilderHandle
 {
-	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsTextureComponentType /*component*/, const char */*description*/)
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsNode_Type /*component*/, const char */*description*/)
 	{
 		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
 		handle->builder->build_texture(NULL, tex);
 	}
 	
-	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType /*component*/, const char */*description*/)
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNode_Type /*component*/, const char */*description*/)
 	{
 		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
 		handle->builder->build_nodetree(NULL, ntree);

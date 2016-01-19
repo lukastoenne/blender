@@ -108,45 +108,40 @@ extern "C" {
 
 struct DepsgraphRelationBuilderHandle
 {
-	static void add_scene_relation(DepsNodeHandle *_handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
+	static void add_scene_relation(DepsNodeHandle *_handle, struct Scene *scene, eDepsNode_Type component, const char *description)
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		eDepsNode_Type type = deg_build_scene_component_type(component);
-		ComponentKey comp_key(&scene->id, type);
+		ComponentKey comp_key(&scene->id, component);
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsNode_Type component, const char *description)
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		eDepsNode_Type type = deg_build_object_component_type(component);
-		ComponentKey comp_key(&ob->id, type);
+		ComponentKey comp_key(&ob->id, component);
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description)
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description)
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		eDepsNode_Type type = deg_build_object_component_type(component);
-		ComponentKey comp_key(&ob->id, type, bone_name);
+		ComponentKey comp_key(&ob->id, component, bone_name);
 		
 		// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsTextureComponentType component, const char *description)
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsNode_Type component, const char *description)
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		eDepsNode_Type type = deg_build_texture_component_type(component);
-		ComponentKey comp_key(&tex->id, type);
+		ComponentKey comp_key(&tex->id, component);
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
-	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNodeTreeComponentType component, const char *description)
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description)
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		eDepsNode_Type type = deg_build_nodetree_component_type(component);
-		ComponentKey comp_key(&ntree->id, type);
+		ComponentKey comp_key(&ntree->id, component);
 		
 		handle->builder->build_nodetree(NULL, ntree);
 		

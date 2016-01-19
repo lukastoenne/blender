@@ -148,7 +148,7 @@ static void updateDepsgraph(ModifierData *md,
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
 	if (mmd->object != NULL) {
 		/* TODO(sergey): Do we need transform component here? */
-		DEG_add_object_relation(node, mmd->object, DEG_OB_COMP_GEOMETRY, "Mesh Deform Modifier");
+		DEG_add_object_relation(node, mmd->object, DEPSNODE_TYPE_GEOMETRY, "Mesh Deform Modifier");
 	}
 }
 

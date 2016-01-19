@@ -216,6 +216,36 @@ void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
 
 void DEG_editors_update_pre(struct Main *bmain, struct Scene *scene, bool time);
 
+
+/* Types of Nodes */
+typedef enum eDepsNode_Type {
+	DEPSNODE_TYPE_UNDEFINED        = -1,       /* fallback type for invalid return value */
+
+	DEPSNODE_TYPE_OPERATION        = 0,        /* Inner Node (Operation) */
+
+	/* Generic Types */
+	DEPSNODE_TYPE_ROOT             = 1,        /* "Current Scene" - basically whatever kicks off the evaluation process */
+	DEPSNODE_TYPE_TIMESOURCE       = 2,        /* Time-Source */
+
+	DEPSNODE_TYPE_ID_REF           = 3,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
+	DEPSNODE_TYPE_SUBGRAPH         = 4,        /* Isolated sub-graph - used for keeping instanced data separate from instances using them */
+
+	/* Outer Types */
+	DEPSNODE_TYPE_PARAMETERS       = 11,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+	DEPSNODE_TYPE_PROXY            = 12,       /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
+	DEPSNODE_TYPE_ANIMATION        = 13,       /* Animation Component */                 // XXX: merge in with parameters?
+	DEPSNODE_TYPE_TRANSFORM        = 14,       /* Transform Component (Parenting/Constraints) */
+	DEPSNODE_TYPE_GEOMETRY         = 15,       /* Geometry Component (DerivedMesh/Displist) */
+	DEPSNODE_TYPE_SEQUENCER        = 16,       /* Sequencer Component (Scene Only) */
+
+	/* Evaluation-Related Outer Types (with Subdata) */
+	DEPSNODE_TYPE_EVAL_POSE        = 21,       /* Pose Component - Owner/Container of Bones Eval */
+	DEPSNODE_TYPE_BONE             = 22,       /* Bone Component - Child/Subcomponent of Pose */
+
+	DEPSNODE_TYPE_EVAL_PARTICLES   = 23,       /* Particle Systems Component */
+	DEPSNODE_TYPE_SHADING          = 24,       /* Material Shading Component */
+} eDepsNode_Type;
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

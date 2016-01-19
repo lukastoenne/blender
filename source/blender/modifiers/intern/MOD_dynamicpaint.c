@@ -151,7 +151,7 @@ static void updateDepsgraph(ModifierData *md,
 			DynamicPaintModifierData *pmd2 =
 			        (DynamicPaintModifierData *)modifiers_findByType(base->object, eModifierType_DynamicPaint);
 			if (pmd2 && pmd2->brush && ob != base->object) {
-				DEG_add_object_relation(node, base->object, DEG_OB_COMP_TRANSFORM, "Dynamic Paint Brush");
+				DEG_add_object_relation(node, base->object, DEPSNODE_TYPE_TRANSFORM, "Dynamic Paint Brush");
 			}
 		}
 	}

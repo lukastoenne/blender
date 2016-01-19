@@ -106,7 +106,7 @@ static void updateDepsgraph(ModifierData *md,
 		bArmature *arm = (bArmature *)mmd->ob_arm->data;
 		/* Tag relationship in depsgraph, but also on the armature. */
 		/* TODO(sergey): Is it a proper relation here? */
-		DEG_add_object_relation(node, mmd->ob_arm, DEG_OB_COMP_TRANSFORM, "Mask Modifier");
+		DEG_add_object_relation(node, mmd->ob_arm, DEPSNODE_TYPE_TRANSFORM, "Mask Modifier");
 		arm->flag |= ARM_HAS_VIZ_DEPS;
 	}
 }

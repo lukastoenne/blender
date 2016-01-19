@@ -308,7 +308,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	SimpleDeformModifierData *smd  = (SimpleDeformModifierData *)md;
 	if (smd->origin != NULL) {
-		DEG_add_object_relation(node, smd->origin, DEG_OB_COMP_TRANSFORM, "SimpleDeform Modifier");
+		DEG_add_object_relation(node, smd->origin, DEPSNODE_TYPE_TRANSFORM, "SimpleDeform Modifier");
 	}
 }
 

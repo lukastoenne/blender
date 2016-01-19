@@ -118,11 +118,11 @@ static void updateDepsgraph(ModifierData *md,
 {
 	BooleanModifierData *bmd = (BooleanModifierData *)md;
 	if (bmd->object != NULL) {
-		DEG_add_object_relation(node, bmd->object, DEG_OB_COMP_TRANSFORM, "Boolean Modifier");
-		DEG_add_object_relation(node, bmd->object, DEG_OB_COMP_GEOMETRY, "Boolean Modifier");
+		DEG_add_object_relation(node, bmd->object, DEPSNODE_TYPE_TRANSFORM, "Boolean Modifier");
+		DEG_add_object_relation(node, bmd->object, DEPSNODE_TYPE_GEOMETRY, "Boolean Modifier");
 	}
 	/* We need own transformation as well. */
-	DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Boolean Modifier");
+	DEG_add_object_relation(node, ob, DEPSNODE_TYPE_TRANSFORM, "Boolean Modifier");
 }
 
 #if defined(USE_CARVE) || defined(USE_BMESH)

@@ -153,7 +153,7 @@ static void updateDepsgraph(ModifierData *md,
 			if (ob1 != ob) {
 				CollisionModifierData *coll_clmd = (CollisionModifierData *)modifiers_findByType(ob1, eModifierType_Collision);
 				if (coll_clmd) {
-					DEG_add_object_relation(node, ob1, DEG_OB_COMP_TRANSFORM, "Cloth Modifier");
+					DEG_add_object_relation(node, ob1, DEPSNODE_TYPE_TRANSFORM, "Cloth Modifier");
 				}
 			}
 		}
