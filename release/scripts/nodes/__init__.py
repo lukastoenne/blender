@@ -29,6 +29,8 @@ _modules = [
     "group_nodes",
     "forcefield_nodes",
     "geometry_nodes",
+    "rigidbody_nodes",
+    "smokesim_nodes",
     "object_nodes",
 ]
 

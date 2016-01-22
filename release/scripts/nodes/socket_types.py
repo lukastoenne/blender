@@ -66,6 +66,21 @@ class DupliSocket(NodeSocket):
         alpha = 0.4 if self.is_placeholder else 1.0
         return (1.0, 0.4, 0.216, alpha)
 
+class AnySocket(NodeSocket):
+    '''Any type socket'''
+    bl_idname = 'AnySocket'
+    bl_label = 'Any'
+
+    is_placeholder = BoolProperty(name="Is Placeholder",
+                                  default=False)
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        alpha = 0.4 if self.is_placeholder else 1.0
+        return (0.95, 0.95, 0.95, alpha)
+
 ###############################################################################
 
 # combined info for each socket type:

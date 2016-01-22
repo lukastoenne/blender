@@ -115,7 +115,7 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
 
 class ForceFieldNodesNew(Operator):
     """Create new force field node tree"""
-    bl_idname = "object_nodes.force_field_nodes_new"
+    bl_idname = "object_nodes.forcefield_nodes_new"
     bl_label = "New"
     bl_options = {'REGISTER', 'UNDO'}
 

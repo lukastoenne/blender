@@ -29,6 +29,8 @@ from common_nodes import NodeTreeBase, NodeBase
 from geometry_nodes import GeometryNodesNew
 from instancing_nodes import InstancingNodesNew
 from forcefield_nodes import ForceFieldNodesNew
+from smokesim_nodes import SmokeSimNodesNew
+from rigidbody_nodes import RigidBodyNodesNew
 
 ###############################################################################
 
@@ -116,7 +118,7 @@ class InstancingNode(ObjectNodeBase, ObjectNode):
 
     def draw_buttons(self, context, layout):
         layout.context_pointer_set("node", self)
-        layout.template_ID(self, "id", new="object_nodes.instancing_nodes_new")
+        layout.template_ID(self, "id", new=InstancingNodesNew.bl_idname)
 
     def compile(self, compiler):
         pass
@@ -144,7 +146,63 @@ class ForceFieldNode(ObjectNodeBase, ObjectNode):
 
     def draw_buttons(self, context, layout):
         layout.context_pointer_set("node", self)
-        layout.template_ID(self, "id", new="object_nodes.force_field_nodes_new")
+        layout.template_ID(self, "id", new=ForceFieldNodesNew.bl_idname)
+
+    def compile(self, compiler):
+        pass
+
+
+class SmokeSimNode(ObjectNodeBase, ObjectNode):
+    '''Smoke simulation'''
+    bl_idname = 'SmokeSimNode'
+    bl_label = 'Smoke Simulation'
+    bl_icon = 'MOD_SMOKE'
+
+    bl_id_property_type = 'NODETREE'
+    def bl_id_property_poll(self, ntree):
+        return ntree.bl_idname == 'SmokeSimNodeTree'
+
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
+
+    def draw_buttons(self, context, layout):
+        layout.context_pointer_set("node", self)
+        layout.template_ID(self, "id", new=SmokeSimNodesNew.bl_idname)
+
+    def compile(self, compiler):
+        pass
+
+
+class RigidBodyNode(ObjectNodeBase, ObjectNode):
+    '''Rigid body simulation'''
+    bl_idname = 'RigidBodyNode'
+    bl_label = 'Rigid Body Simulation'
+    bl_icon = 'PHYSICS'
+
+    bl_id_property_type = 'NODETREE'
+    def bl_id_property_poll(self, ntree):
+        return ntree.bl_idname == 'RigidBodyNodeTree'
+
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
+
+    def draw_buttons(self, context, layout):
+        layout.context_pointer_set("node", self)
+        layout.template_ID(self, "id", new=RigidBodyNodesNew.bl_idname)
 
     def compile(self, compiler):
         pass
@@ -213,11 +271,15 @@ def register():
     node_categories = [
         ObjectNodeCategory("COMPONENTS", "Components", items=[
             NodeItem("GeometryNode",
-                     settings={"id": "bpy.types.%s.make_node_tree()" % (GeometryNodesNew.bl_rna.identifier)}),
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_geometry_nodes_new.make_node_tree()"}),
             NodeItem("ForceFieldNode",
-                     settings={"id": "bpy.types.%s.make_node_tree()" % (ForceFieldNodesNew.bl_rna.identifier)}),
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_forcefield_nodes_new.make_node_tree()"}),
             NodeItem("InstancingNode",
-                     settings={"id": "bpy.types.%s.make_node_tree()" % (InstancingNodesNew.bl_rna.identifier)}),
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_instancing_nodes_new.make_node_tree()"}),
+            NodeItem("SmokeSimNode",
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_smokesim_nodes_new.make_node_tree()"}),
+            NodeItem("RigidBodyNode",
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_rigidbody_nodes_new.make_node_tree()"}),
             ]),
         ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
