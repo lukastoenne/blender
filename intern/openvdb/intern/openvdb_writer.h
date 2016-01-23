@@ -28,7 +28,8 @@
 
 #include <openvdb/openvdb.h>
 
-class OpenVDBWriter {
+struct OpenVDBWriter {
+private:
 	openvdb::GridPtrVecPtr m_grids;
 	openvdb::MetaMap::Ptr m_meta_map;
 
@@ -44,8 +45,8 @@ public:
 
 	void insertFloatMeta(const openvdb::Name &name, const float value);
 	void insertIntMeta(const openvdb::Name &name, const int value);
-	void insertVec3sMeta(const openvdb::Name &name, const openvdb::Vec3s value);
-	void insertVec3IMeta(const openvdb::Name &name, const openvdb::Vec3I value);
+	void insertVec3sMeta(const openvdb::Name &name, const openvdb::Vec3s &value);
+	void insertVec3IMeta(const openvdb::Name &name, const openvdb::Vec3I &value);
 	void insertMat4sMeta(const openvdb::Name &name, const float value[4][4]);
 
 	void setFlags(const int compression, const bool save_as_half);

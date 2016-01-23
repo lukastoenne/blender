@@ -95,6 +95,9 @@ public:
 	/* number of threads that can work on task */
 	static int num_threads() { return threads.size(); }
 
+	/* ids of all threads managed by the scheduler */
+	static vector<pthread_t> thread_ids();
+
 	/* test if any session is using the scheduler */
 	static bool active() { return users != 0; }
 
@@ -109,6 +112,7 @@ protected:
 	static thread_mutex mutex;
 	static int users;
 	static vector<thread*> threads;
+	static vector<pthread_t> threads_ids;
 	static bool do_exit;
 
 	static list<Entry> queue;

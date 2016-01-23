@@ -1847,11 +1847,12 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname)
 		if (bh->SDNAnr && (fd->flags & FD_FLAGS_SWITCH_ENDIAN))
 			switch_endian_structs(fd->filesdna, bh);
 		
-		if (fd->compflags[bh->SDNAnr]) {	/* flag==0: doesn't exist anymore */
-			if (fd->compflags[bh->SDNAnr] == 2) {
+		if (fd->compflags[bh->SDNAnr] != SDNA_CMP_REMOVED) {
+			if (fd->compflags[bh->SDNAnr] == SDNA_CMP_NOT_EQUAL) {
 				temp = DNA_struct_reconstruct(fd->memsdna, fd->filesdna, fd->compflags, bh->SDNAnr, bh->nr, (bh+1));
 			}
 			else {
+				/* SDNA_CMP_EQUAL */
 				temp = MEM_mallocN(bh->len, blockname);
 				memcpy(temp, (bh+1), bh->len);
 			}
@@ -5036,18 +5037,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					}
 					BLI_listbase_clear(&smd->domain->ptcaches[1]);
 					smd->domain->point_cache[1] = NULL;
-				}
-
-				{
-					OpenVDBCache *cache;
-
-					link_list(fd, &smd->domain->vdb_caches);
-					for (cache = smd->domain->vdb_caches.first; cache; cache = cache->next) {
-						cache->flags |= OPENVDB_CACHE_OUTDATED;
-						cache->reader = NULL;
-						cache->writer = NULL;
-						cache->cached_frames = NULL;
-					}
 				}
 			}
 			else if (smd->type == MOD_SMOKE_TYPE_FLOW) {
@@ -9720,7 +9709,7 @@ static void link_object_postprocess(ID *id, Scene *scene, View3D *v3d, const sho
 /**
  * Simple reader for copy/paste buffers.
  */
-void BLO_library_link_all(Main *mainl, BlendHandle *bh, const short flag, Scene *scene, View3D *v3d)
+void BLO_library_link_copypaste(Main *mainl, BlendHandle *bh)
 {
 	FileData *fd = (FileData *)(bh);
 	BHead *bhead;
@@ -9730,15 +9719,24 @@ void BLO_library_link_all(Main *mainl, BlendHandle *bh, const short flag, Scene 
 
 		if (bhead->code == ENDB)
 			break;
-		if (bhead->code == ID_OB)
+		if (ELEM(bhead->code, ID_OB, ID_GR)) {
 			read_libblock(fd, mainl, bhead, LIB_TAG_TESTIND, &id);
-			
+		}
+
+
 		if (id) {
 			/* sort by name in list */
 			ListBase *lb = which_libbase(mainl, GS(id->name));
 			id_sort_by_name(lb, id);
 
-			link_object_postprocess(id, scene, v3d, flag);
+			if (bhead->code == ID_OB) {
+				/* Instead of instancing Base's directly, postpone until after groups are loaded
+				 * otherwise the base's flag is set incorrectly when groups are used */
+				Object *ob = (Object *)id;
+				ob->mode = OB_MODE_OBJECT;
+				/* ensure give_base_to_objects runs on this object */
+				BLI_assert(id->us == 0);
+			}
 		}
 	}
 }

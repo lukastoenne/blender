@@ -33,11 +33,11 @@ namespace internal {
 
 openvdb::Mat4R convertMatrix(const float mat[4][4])
 {
-    return openvdb::Mat4R(
-                mat[0][0], mat[0][1], mat[0][2], mat[0][3],
-                mat[1][0], mat[1][1], mat[1][2], mat[1][3],
-                mat[2][0], mat[2][1], mat[2][2], mat[2][3],
-                mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+	return openvdb::Mat4R(
+	        mat[0][0], mat[0][1], mat[0][2], mat[0][3],
+	        mat[1][0], mat[1][1], mat[1][2], mat[1][3],
+	        mat[2][0], mat[2][1], mat[2][2], mat[2][3],
+	        mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
 }
 
 
@@ -72,14 +72,15 @@ public:
 	}
 };
 
-openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                              const openvdb::Name &name,
-                                              const float *data_x, const float *data_y, const float *data_z,
-                                              const int res[3],
-                                              float fluid_mat[4][4],
-                                              openvdb::VecType vec_type,
-                                              const bool is_color,
-                                              const openvdb::FloatGrid *mask)
+openvdb::GridBase *OpenVDB_export_vector_grid(
+        OpenVDBWriter *writer,
+        const openvdb::Name &name,
+        const float *data_x, const float *data_y, const float *data_z,
+        const int res[3],
+        float fluid_mat[4][4],
+        openvdb::VecType vec_type,
+        const bool is_color,
+        const openvdb::FloatGrid *mask)
 {
 	using namespace openvdb;
 
@@ -129,15 +130,24 @@ openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
 	return vecgrid.get();
 }
 
-void OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                const openvdb::Name &name,
-                                float **data_x, float **data_y, float **data_z,
-                                const int res[3])
+void OpenVDB_import_grid_vector(
+        OpenVDBReader *reader,
+        const openvdb::Name &name,
+        float **data_x, float **data_y, float **data_z,
+        const int res[3])
 {
 	using namespace openvdb;
 
+	if (!reader->hasGrid(name)) {
+		std::fprintf(stderr, "OpenVDB grid %s not found in file!\n", name.c_str());
+		memset(*data_x, 0, sizeof(float) * res[0] * res[1] * res[2]);
+		memset(*data_y, 0, sizeof(float) * res[0] * res[1] * res[2]);
+		memset(*data_z, 0, sizeof(float) * res[0] * res[1] * res[2]);
+		return;
+	}
+
 	Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(reader->getGrid(name));
-	Vec3SGrid::Accessor acc = vgrid->getAccessor();
+	Vec3SGrid::ConstAccessor acc = vgrid->getConstAccessor();
 	math::Coord xyz;
 	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
 

@@ -27,6 +27,7 @@
 
 #include "buffers.h"
 
+#include "util_debug.h"
 #include "util_foreach.h"
 #include "util_logging.h"
 #include "util_map.h"
@@ -84,29 +85,28 @@ namespace {
 
 cl_device_type opencl_device_type()
 {
-	char *device = getenv("CYCLES_OPENCL_TEST");
-
-	if(device) {
-		if(strcmp(device, "NONE") == 0)
+	switch(DebugFlags().opencl.device_type)
+	{
+		case DebugFlags::OpenCL::DEVICE_NONE:
 			return 0;
-		if(strcmp(device, "ALL") == 0)
+		case DebugFlags::OpenCL::DEVICE_ALL:
 			return CL_DEVICE_TYPE_ALL;
-		else if(strcmp(device, "DEFAULT") == 0)
+		case DebugFlags::OpenCL::DEVICE_DEFAULT:
 			return CL_DEVICE_TYPE_DEFAULT;
-		else if(strcmp(device, "CPU") == 0)
+		case DebugFlags::OpenCL::DEVICE_CPU:
 			return CL_DEVICE_TYPE_CPU;
-		else if(strcmp(device, "GPU") == 0)
+		case DebugFlags::OpenCL::DEVICE_GPU:
 			return CL_DEVICE_TYPE_GPU;
-		else if(strcmp(device, "ACCELERATOR") == 0)
+		case DebugFlags::OpenCL::DEVICE_ACCELERATOR:
 			return CL_DEVICE_TYPE_ACCELERATOR;
+		default:
+			return CL_DEVICE_TYPE_ALL;
 	}
-
-	return CL_DEVICE_TYPE_ALL;
 }
 
-bool opencl_kernel_use_debug()
+inline bool opencl_kernel_use_debug()
 {
-	return (getenv("CYCLES_OPENCL_DEBUG") != NULL);
+	return DebugFlags().opencl.debug;
 }
 
 bool opencl_kernel_use_advanced_shading(const string& platform)
@@ -129,11 +129,11 @@ bool opencl_kernel_use_advanced_shading(const string& platform)
 bool opencl_kernel_use_split(const string& platform_name,
                              const cl_device_type device_type)
 {
-	if(getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL) {
+	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_SPLIT) {
 		VLOG(1) << "Forcing split kernel to use.";
 		return true;
 	}
-	if(getenv("CYCLES_OPENCL_MEGA_KERNEL_TEST") != NULL) {
+	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_MEGA) {
 		VLOG(1) << "Forcing mega kernel to use.";
 		return false;
 	}
@@ -229,8 +229,7 @@ bool opencl_device_version_check(cl_device_id device,
 void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
 {
 	const bool force_all_platforms =
-	        (getenv("CYCLES_OPENCL_MEGA_KERNEL_TEST") != NULL) ||
-	        (getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL);
+		(DebugFlags().opencl.kernel_type != DebugFlags::OpenCL::KERNEL_DEFAULT);
 	const cl_device_type device_type = opencl_device_type();
 	static bool first_time = true;
 #define FIRST_VLOG(severity) if(first_time) VLOG(severity)
@@ -1306,6 +1305,7 @@ public:
 		cl_mem d_output = CL_MEM_PTR(task.shader_output);
 		cl_mem d_output_luma = CL_MEM_PTR(task.shader_output_luma);
 		cl_int d_shader_eval_type = task.shader_eval_type;
+		cl_int d_shader_filter = task.shader_filter;
 		cl_int d_shader_x = task.shader_x;
 		cl_int d_shader_w = task.shader_w;
 		cl_int d_offset = task.offset;
@@ -1331,20 +1331,27 @@ public:
 				                d_input,
 				                d_output);
 
-		if(task.shader_eval_type < SHADER_EVAL_BAKE) {
-			start_arg_index += kernel_set_args(kernel,
-			                                   start_arg_index,
-			                                   d_output_luma);
-		}
+			if(task.shader_eval_type < SHADER_EVAL_BAKE) {
+				start_arg_index += kernel_set_args(kernel,
+				                                   start_arg_index,
+				                                   d_output_luma);
+			}
 
 #define KERNEL_TEX(type, ttype, name) \
-		set_kernel_arg_mem(kernel, &start_arg_index, #name);
+			set_kernel_arg_mem(kernel, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
 			start_arg_index += kernel_set_args(kernel,
 			                                   start_arg_index,
-			                                   d_shader_eval_type,
+			                                   d_shader_eval_type);
+			if(task.shader_eval_type >= SHADER_EVAL_BAKE) {
+				start_arg_index += kernel_set_args(kernel,
+				                                   start_arg_index,
+				                                   d_shader_filter);
+			}
+			start_arg_index += kernel_set_args(kernel,
+			                                   start_arg_index,
 			                                   d_shader_x,
 			                                   d_shader_w,
 			                                   d_offset,

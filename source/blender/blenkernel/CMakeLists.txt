@@ -522,6 +522,12 @@ if(WITH_OPENVDB)
 	list(APPEND INC
 		 ../../../intern/openvdb
 	)
+
+	if(WITH_OPENVDB_BLOSC)
+		add_definitions(
+			-DWITH_OPENVDB_BLOSC
+		)
+	endif()
 endif()
 
 ## Warnings as errors, this is too strict!

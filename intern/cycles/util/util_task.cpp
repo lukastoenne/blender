@@ -168,6 +168,7 @@ void TaskPool::num_increase()
 thread_mutex TaskScheduler::mutex;
 int TaskScheduler::users = 0;
 vector<thread*> TaskScheduler::threads;
+vector<pthread_t> TaskScheduler::threads_ids;
 bool TaskScheduler::do_exit = false;
 
 list<TaskScheduler::Entry> TaskScheduler::queue;
@@ -190,9 +191,12 @@ void TaskScheduler::init(int num_threads)
 
 		/* launch threads that will be waiting for work */
 		threads.resize(num_threads);
+		threads_ids.resize(num_threads);
 
-		for(size_t i = 0; i < threads.size(); i++)
+		for(size_t i = 0; i < threads.size(); i++) {
 			threads[i] = new thread(function_bind(&TaskScheduler::thread_run, i));
+			threads_ids.push_back(threads[i]->id());
+		}
 	}
 	
 	users++;
@@ -296,6 +300,11 @@ void TaskScheduler::clear(TaskPool *pool)
 
 	/* notify done */
 	pool->num_decrease(done);
+}
+
+vector<pthread_t> TaskScheduler::thread_ids()
+{
+	return threads_ids;
 }
 
 /* Dedicated Task Pool */

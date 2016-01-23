@@ -24,13 +24,14 @@
  */
 
 #include "openvdb_writer.h"
+#include "openvdb_util.h"
 
 OpenVDBWriter::OpenVDBWriter()
     : m_grids(new openvdb::GridPtrVec())
     , m_meta_map(new openvdb::MetaMap())
     , m_save_as_half(false)
 {
-	m_meta_map->insertMeta("creator", openvdb::StringMetadata("Blender/OpenVDBWriter"));
+	m_meta_map->insertMeta("creator", openvdb::StringMetadata("Blender/Smoke"));
 }
 
 OpenVDBWriter::~OpenVDBWriter()
@@ -49,22 +50,34 @@ void OpenVDBWriter::insert(const openvdb::GridBase &grid)
 
 void OpenVDBWriter::insertFloatMeta(const openvdb::Name &name, const float value)
 {
-	m_meta_map->insertMeta(name, openvdb::FloatMetadata(value));
+	try {
+		m_meta_map->insertMeta(name, openvdb::FloatMetadata(value));
+	}
+	CATCH_KEYERROR;
 }
 
 void OpenVDBWriter::insertIntMeta(const openvdb::Name &name, const int value)
 {
-	m_meta_map->insertMeta(name, openvdb::Int32Metadata(value));
+	try {
+		m_meta_map->insertMeta(name, openvdb::Int32Metadata(value));
+	}
+	CATCH_KEYERROR;
 }
 
-void OpenVDBWriter::insertVec3sMeta(const openvdb::Name &name, const openvdb::Vec3s value)
+void OpenVDBWriter::insertVec3sMeta(const openvdb::Name &name, const openvdb::Vec3s &value)
 {
-	m_meta_map->insertMeta(name, openvdb::Vec3SMetadata(value));
+	try {
+		m_meta_map->insertMeta(name, openvdb::Vec3SMetadata(value));
+	}
+	CATCH_KEYERROR;
 }
 
-void OpenVDBWriter::insertVec3IMeta(const openvdb::Name &name, const openvdb::Vec3I value)
+void OpenVDBWriter::insertVec3IMeta(const openvdb::Name &name, const openvdb::Vec3I &value)
 {
-	m_meta_map->insertMeta(name, openvdb::Vec3IMetadata(value));
+	try {
+		m_meta_map->insertMeta(name, openvdb::Vec3IMetadata(value));
+	}
+	CATCH_KEYERROR;
 }
 
 void OpenVDBWriter::insertMat4sMeta(const openvdb::Name &name, const float value[4][4])
@@ -75,7 +88,10 @@ void OpenVDBWriter::insertMat4sMeta(const openvdb::Name &name, const float value
 	    value[2][0], value[2][1], value[2][2], value[2][3],
 	    value[3][0], value[3][1], value[3][2], value[3][3]);
 
-	m_meta_map->insertMeta(name, openvdb::Mat4SMetadata(mat));
+	try {
+		m_meta_map->insertMeta(name, openvdb::Mat4SMetadata(mat));
+	}
+	CATCH_KEYERROR;
 }
 
 void OpenVDBWriter::setFlags(const int compression, const bool save_as_half)
@@ -86,11 +102,17 @@ void OpenVDBWriter::setFlags(const int compression, const bool save_as_half)
 
 void OpenVDBWriter::write(const openvdb::Name &filename) const
 {
-	openvdb::io::File file(filename);
-	file.setCompression(m_compression_flags);
-	file.write(*m_grids, *m_meta_map);
-	file.close();
+	try {
+		openvdb::io::File file(filename);
+		file.setCompression(m_compression_flags);
+		file.write(*m_grids, *m_meta_map);
+		file.close();
 
-	/* Should perhaps be an option at some point */
-	m_grids->clear();
+		/* Should perhaps be an option at some point */
+		m_grids->clear();
+	}
+	/* Mostly to catch exceptions related to Blosc not being supported. */
+	catch (const openvdb::IoError &e) {
+		std::cerr << e.what() << '\n';
+	}
 }

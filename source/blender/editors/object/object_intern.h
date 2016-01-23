@@ -106,6 +106,8 @@ void OBJECT_OT_select_by_layer(struct wmOperatorType *ot);
 void OBJECT_OT_select_linked(struct wmOperatorType *ot);
 void OBJECT_OT_select_grouped(struct wmOperatorType *ot);
 void OBJECT_OT_select_mirror(struct wmOperatorType *ot);
+void OBJECT_OT_select_more(struct wmOperatorType *ot);
+void OBJECT_OT_select_less(struct wmOperatorType *ot);
 void OBJECT_OT_select_same_group(struct wmOperatorType *ot);
 
 /* object_add.c */
@@ -184,11 +186,6 @@ void OBJECT_OT_skin_loose_mark_clear(struct wmOperatorType *ot);
 void OBJECT_OT_skin_radii_equalize(struct wmOperatorType *ot);
 void OBJECT_OT_skin_armature_create(struct wmOperatorType *ot);
 void OBJECT_OT_laplaciandeform_bind(struct wmOperatorType *ot);
-void OBJECT_OT_openvdb_cache_bake(struct wmOperatorType *ot);
-void OBJECT_OT_openvdb_cache_add(struct wmOperatorType *ot);
-void OBJECT_OT_openvdb_cache_remove(struct wmOperatorType *ot);
-void OBJECT_OT_openvdb_cache_move(struct wmOperatorType *ot);
-void OBJECT_OT_openvdb_cache_free(struct wmOperatorType *ot);
 
 /* object_constraint.c */
 void OBJECT_OT_constraint_add(struct wmOperatorType *ot);

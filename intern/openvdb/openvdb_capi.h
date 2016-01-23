@@ -49,35 +49,41 @@ enum {
 	VEC_CONTRAVARIANT_ABSOLUTE = 4,
 };
 
-struct OpenVDBFloatGrid *OpenVDB_export_grid_fl(struct OpenVDBWriter *writer,
-                                                const char *name, float *data,
-                                                const int res[3], float matrix[4][4],
-                                                struct OpenVDBFloatGrid *mask);
+struct OpenVDBFloatGrid *OpenVDB_export_grid_fl(
+        struct OpenVDBWriter *writer,
+        const char *name, float *data,
+        const int res[3], float matrix[4][4],
+        struct OpenVDBFloatGrid *mask);
 
-struct OpenVDBIntGrid *OpenVDB_export_grid_ch(struct OpenVDBWriter *writer,
-                                              const char *name, unsigned char *data,
-                                              const int res[3], float matrix[4][4],
-                                              struct OpenVDBFloatGrid *mask);
+struct OpenVDBIntGrid *OpenVDB_export_grid_ch(
+        struct OpenVDBWriter *writer,
+        const char *name, unsigned char *data,
+        const int res[3], float matrix[4][4],
+        struct OpenVDBFloatGrid *mask);
 
-struct OpenVDBVectorGrid *OpenVDB_export_grid_vec(struct OpenVDBWriter *writer,
-                                                  const char *name,
-                                                  const float *data_x, const float *data_y, const float *data_z,
-                                                  const int res[3], float matrix[4][4], short vec_type,
-                                                  const bool is_color,
-                                                  struct OpenVDBFloatGrid *mask);
+struct OpenVDBVectorGrid *OpenVDB_export_grid_vec(
+        struct OpenVDBWriter *writer,
+        const char *name,
+        const float *data_x, const float *data_y, const float *data_z,
+        const int res[3], float matrix[4][4], short vec_type,
+        const bool is_color,
+        struct OpenVDBFloatGrid *mask);
 
-void OpenVDB_import_grid_fl(struct OpenVDBReader *reader,
-                            const char *name, float **data,
-                            const int res[3]);
+void OpenVDB_import_grid_fl(
+        struct OpenVDBReader *reader,
+        const char *name, float **data,
+        const int res[3]);
 
-void OpenVDB_import_grid_ch(struct OpenVDBReader *reader,
-                            const char *name, unsigned char **data,
-                            const int res[3]);
+void OpenVDB_import_grid_ch(
+        struct OpenVDBReader *reader,
+        const char *name, unsigned char **data,
+        const int res[3]);
 
-void OpenVDB_import_grid_vec(struct OpenVDBReader *reader,
-                             const char *name,
-                             float **data_x, float **data_y, float **data_z,
-                             const int res[3]);
+void OpenVDB_import_grid_vec(
+        struct OpenVDBReader *reader,
+        const char *name,
+        float **data_x, float **data_y, float **data_z,
+        const int res[3]);
 
 struct OpenVDBWriter *OpenVDBWriter_create(void);
 void OpenVDBWriter_free(struct OpenVDBWriter *writer);

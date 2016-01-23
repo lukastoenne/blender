@@ -24,73 +24,100 @@
  */
 
 #include "openvdb_reader.h"
-
-#define COPY_MAX_BYTES 10485760 /* 10 Mb */
+#include "openvdb_util.h"
 
 OpenVDBReader::OpenVDBReader()
     : m_meta_map(new openvdb::MetaMap)
+    , m_file(NULL)
 {
-	/* Although it is safe, it may not be good to have this here... */
+	/* Although it is safe, it may not be good to have this here, could be done
+	 * once instead of everytime we read a file. */
 	openvdb::initialize();
-	m_file = NULL;
 }
 
 OpenVDBReader::~OpenVDBReader()
 {
-	cleanup_file();
+	cleanupFile();
 }
 
 void OpenVDBReader::open(const openvdb::Name &filename)
 {
-	cleanup_file();
+	cleanupFile();
 
-	m_file = new openvdb::io::File(filename);
-	m_file->setCopyMaxBytes(COPY_MAX_BYTES);
-	m_file->open();
+	try {
+		m_file = new openvdb::io::File(filename);
+		m_file->setCopyMaxBytes(0);
+		m_file->open();
 
-	m_meta_map = m_file->getMetadata();
-}
-
-void OpenVDBReader::floatMeta(const openvdb::Name &name, float &value)
-{
-	value = m_meta_map->metaValue<float>(name);
-}
-
-void OpenVDBReader::intMeta(const openvdb::Name &name, int &value)
-{
-	value = m_meta_map->metaValue<int>(name);
-}
-
-void OpenVDBReader::vec3sMeta(const openvdb::Name &name, float value[3])
-{
-	openvdb::Vec3s meta_val = m_meta_map->metaValue<openvdb::Vec3s>(name);
-
-	value[0] = meta_val.x();
-	value[1] = meta_val.y();
-	value[2] = meta_val.z();
-}
-
-void OpenVDBReader::vec3IMeta(const openvdb::Name &name, int value[3])
-{
-	openvdb::Vec3i meta_val = m_meta_map->metaValue<openvdb::Vec3i>(name);
-
-	value[0] = meta_val.x();
-	value[1] = meta_val.y();
-	value[2] = meta_val.z();
-}
-
-void OpenVDBReader::mat4sMeta(const openvdb::Name &name, float value[4][4])
-{
-	openvdb::Mat4s meta_val = m_meta_map->metaValue<openvdb::Mat4s>(name);
-
-	for (int i =  0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			value[i][j] = meta_val[i][j];
-		}
+		m_meta_map = m_file->getMetadata();
+	}
+	/* Mostly to catch exceptions related to Blosc not being supported. */
+	catch (const openvdb::IoError &e) {
+		std::cerr << e.what() << '\n';
+		cleanupFile();
 	}
 }
 
-openvdb::GridBase::Ptr OpenVDBReader::getGrid(const openvdb::Name &name)
+void OpenVDBReader::floatMeta(const openvdb::Name &name, float &value) const
+{
+	try {
+		value = m_meta_map->metaValue<float>(name);
+	}
+	CATCH_KEYERROR;
+}
+
+void OpenVDBReader::intMeta(const openvdb::Name &name, int &value) const
+{
+	try {
+		value = m_meta_map->metaValue<int>(name);
+	}
+	CATCH_KEYERROR;
+}
+
+void OpenVDBReader::vec3sMeta(const openvdb::Name &name, float value[3]) const
+{
+	try {
+		openvdb::Vec3s meta_val = m_meta_map->metaValue<openvdb::Vec3s>(name);
+
+		value[0] = meta_val.x();
+		value[1] = meta_val.y();
+		value[2] = meta_val.z();
+	}
+	CATCH_KEYERROR;
+}
+
+void OpenVDBReader::vec3IMeta(const openvdb::Name &name, int value[3]) const
+{
+	try {
+		openvdb::Vec3i meta_val = m_meta_map->metaValue<openvdb::Vec3i>(name);
+
+		value[0] = meta_val.x();
+		value[1] = meta_val.y();
+		value[2] = meta_val.z();
+	}
+	CATCH_KEYERROR;
+}
+
+void OpenVDBReader::mat4sMeta(const openvdb::Name &name, float value[4][4]) const
+{
+	try {
+		openvdb::Mat4s meta_val = m_meta_map->metaValue<openvdb::Mat4s>(name);
+
+		for (int i =  0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				value[i][j] = meta_val[i][j];
+			}
+		}
+	}
+	CATCH_KEYERROR;
+}
+
+bool OpenVDBReader::hasGrid(const openvdb::Name &name) const
+{
+	return m_file->hasGrid(name);
+}
+
+openvdb::GridBase::Ptr OpenVDBReader::getGrid(const openvdb::Name &name) const
 {
 	return m_file->readGrid(name);
 }
@@ -100,7 +127,7 @@ size_t OpenVDBReader::numGrids() const
 	return m_file->getGrids()->size();
 }
 
-void OpenVDBReader::cleanup_file()
+void OpenVDBReader::cleanupFile()
 {
 	if (m_file) {
 		m_file->close();

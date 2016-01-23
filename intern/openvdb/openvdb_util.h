@@ -26,17 +26,21 @@
 #ifndef __OPENVDB_UTIL_H__
 #define __OPENVDB_UTIL_H__
 
-#include <string>
+#include <openvdb/openvdb.h>
+#include <openvdb/util/CpuTimer.h>
+
+#define CATCH_KEYERROR \
+	catch (const openvdb::KeyError &e) { \
+		std::cerr << e.what() << '\n'; \
+	}
 
 //#define DEBUG_TIME
-
-double time_dt();
 
 /* A utility class which prints the time elapsed during its lifetime, useful for
  * e.g. timing the overall execution time of a function */
 class ScopeTimer {
-	double m_start;
 	std::string m_message;
+	openvdb::util::CpuTimer m_timer;
 
 public:
 	ScopeTimer(const std::string &message);

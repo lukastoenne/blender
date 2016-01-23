@@ -243,13 +243,13 @@ option(WITH_SUBSURF_WERROR  "Treat warnings as errors in subsurf code" OFF)
 mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" ON)
-option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enble if OpenVDB was built with blosc support" OFF)
+option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" ON)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
 mark_as_advanced(WITH_GHOST_DEBUG)
 
-option(WITH_GHOST_SDL    "Enable building blender against SDL for windowing rather then the native APIs" OFF)
+option(WITH_GHOST_SDL    "Enable building Blender against SDL for windowing rather than the native APIs" OFF)
 mark_as_advanced(WITH_GHOST_SDL)
 
 if(WITH_X11)
@@ -401,6 +401,9 @@ option(WITH_CYCLES_WERROR	"Treat warnings as errors in Cycles code" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
 mark_as_advanced(WITH_CYCLES_WERROR)
+
+option(WITH_CUDA_DYNLOAD "Dynamically load CUDA libraries at runtime" ON)
+mark_as_advanced(WITH_CUDA_DYNLOAD)
 
 # LLVM
 option(WITH_LLVM					"Use LLVM" OFF)
@@ -677,10 +680,11 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_CYCLES         OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
+	set_and_warn(WITH_OPENVDB        OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
@@ -726,10 +730,8 @@ else()
 	set(COMPILER_SSE2_FLAG)
 endif()
 
-TEST_STDBOOL_SUPPORT()
-if(HAVE_STDBOOL_H)
-	add_definitions(-DHAVE_STDBOOL_H)
-endif()
+TEST_SHARED_PTR_SUPPORT()
+TEST_UNORDERED_MAP_SUPPORT()
 
 if(WITH_AUDASPACE)
 	if(WITH_SYSTEM_AUDASPACE)
@@ -1506,8 +1508,8 @@ elseif(WIN32)
 				set(BOOST_INCLUDE_DIR ${BOOST}/include)
 				if(MSVC12)
 					set(BOOST_LIBPATH ${BOOST}/lib)
-					set(BOOST_POSTFIX "vc120-mt-s-1_55.lib")
-					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_55.lib")
+					set(BOOST_POSTFIX "vc120-mt-s-1_60.lib")
+					set(BOOST_DEBUG_POSTFIX "vc120-mt-sgd-1_60.lib")
 				else()
 					set(BOOST_LIBPATH ${BOOST}/lib)
 					set(BOOST_POSTFIX "vc140-mt-s-1_60.lib")
@@ -2648,7 +2650,6 @@ endif()
 if(WITH_LIBMV)
 	set(CERES_DEFINES)
 
-	TEST_SHARED_PTR_SUPPORT()
 	if(SHARED_PTR_FOUND)
 		if(SHARED_PTR_TR1_MEMORY_HEADER)
 			list(APPEND CERES_DEFINES -DCERES_TR1_MEMORY_HEADER)
@@ -2660,7 +2661,6 @@ if(WITH_LIBMV)
 		message(FATAL_ERROR "Ceres: Unable to find shared_ptr.")
 	endif()
 
-	TEST_UNORDERED_MAP_SUPPORT()
 	if(HAVE_STD_UNORDERED_MAP_HEADER)
 		if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
 			list(APPEND CERES_DEFINES -DCERES_STD_UNORDERED_MAP)
@@ -2953,7 +2953,9 @@ if(WITH_BLENDER OR WITH_PLAYER)
 elseif(WITH_CYCLES_STANDALONE)
 	add_subdirectory(intern/cycles)
 	add_subdirectory(extern/clew)
-	add_subdirectory(extern/cuew)
+	if(WITH_CUDA_DYNLOAD)
+		add_subdirectory(extern/cuew)
+	endif()
 	if(NOT WITH_SYSTEM_GLEW)
 		add_subdirectory(extern/glew)
 	endif()
@@ -3092,9 +3094,6 @@ if(FIRST_RUN)
 	if(WIN32)
 		info_cfg_option(WITH_GL_ANGLE)
 	endif()
-
-	# debug
-	message(STATUS "HAVE_STDBOOL_H = ${HAVE_STDBOOL_H}")
 
 	info_cfg_text("")
 
