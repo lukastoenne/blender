@@ -78,8 +78,9 @@ enum {
 #define SM_ACTIVE_COLOR_SET	(1<<3)
 
 enum {
-	SMOKE_CACHE_POINTCACHE = 0,
-	SMOKE_CACHE_OPENVDB    = 1,
+	VDB_COMPRESSION_BLOSC = 0,
+	VDB_COMPRESSION_ZIP   = 1,
+	VDB_COMPRESSION_NONE  = 2,
 };
 
 typedef struct SmokeDomainSettings {
@@ -136,8 +137,14 @@ typedef struct SmokeDomainSettings {
 	float strength;
 	int res_wt[3];
 	float dx_wt;
+	/* point cache options */
 	int cache_comp;
 	int cache_high_comp;
+	/* OpenVDB cache options */
+	int openvdb_comp;
+	char cache_file_format;
+	char data_depth;
+	char pad[2];
 
 	/* Smoke uses only one cache from now on (index [0]), but keeping the array for now for reading old files. */
 	struct PointCache *point_cache[2];	/* definition is in DNA_object_force.h */
@@ -154,38 +161,8 @@ typedef struct SmokeDomainSettings {
 	float burning_rate, flame_smoke, flame_vorticity;
 	float flame_ignition, flame_max_temp;
 	float flame_smoke_color[3];
-
-	struct ListBase vdb_caches;
-	short cache_type, pad[3];
 } SmokeDomainSettings;
 
-typedef struct OpenVDBCache {
-	struct OpenVDBCache *next, *prev;
-	struct OpenVDBReader *reader;
-	struct OpenVDBWriter *writer;
-
-	char path[1024];
-	char name[64];
-
-	/* array of length endframe-startframe+1 with flags to indicate cached frames */
-	char *cached_frames;
-	int startframe, endframe;
-	short flags, compression, pad[2];
-} OpenVDBCache;
-
-enum {
-	OPENVDB_CACHE_CURRENT        = (1 << 0),
-	OPENVDB_CACHE_BAKED          = (1 << 1),
-	OPENVDB_CACHE_SAVE_AS_HALF   = (1 << 2),
-	OPENVDB_CACHE_OUTDATED       = (1 << 3),
-	OPENVDB_CACHE_INVALID        = (1 << 4),
-};
-
-enum {
-	VDB_COMPRESSION_ZIP   = 0,
-	VDB_COMPRESSION_BLOSC = 1,
-	VDB_COMPRESSION_NONE  = 2,
-};
 
 /* inflow / outflow */
 

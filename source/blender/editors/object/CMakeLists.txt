@@ -78,11 +78,4 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-if(WITH_OPENVDB)
-	add_definitions(-DWITH_OPENVDB)
-	list(APPEND INC
-		../../../../intern/openvdb
-	)
-endif()
-
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}")

@@ -35,6 +35,7 @@
 
 #include "BKE_modifier.h"
 #include "BKE_smoke.h"
+#include "BKE_pointcache.h"
 
 #include "BLI_threads.h"
 
@@ -53,8 +54,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_particle.h"
 
-#include "BLI_math.h"
-
 #include "smoke_API.h"
 
 
@@ -72,17 +71,8 @@ static void rna_Smoke_dependency_update(Main *bmain, Scene *scene, PointerRNA *p
 static void rna_Smoke_resetCache(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	SmokeDomainSettings *settings = (SmokeDomainSettings *)ptr->data;
-
-	if (settings->smd && settings->smd->domain) {
+	if (settings->smd && settings->smd->domain)
 		settings->point_cache[0]->flag |= PTCACHE_OUTDATED;
-
-		OpenVDBCache *cache = BKE_openvdb_cache_current(settings);
-
-		if (cache) {
-			cache->flags |= OPENVDB_CACHE_INVALID;
-		}
-	}
-
 	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
 }
 
@@ -102,15 +92,8 @@ static void rna_Smoke_reset_dependency(Main *bmain, Scene *scene, PointerRNA *pt
 
 	smokeModifier_reset(settings->smd);
 
-	if (settings->smd && settings->smd->domain) {
+	if (settings->smd && settings->smd->domain)
 		settings->smd->domain->point_cache[0]->flag |= PTCACHE_OUTDATED;
-
-		OpenVDBCache *cache = BKE_openvdb_cache_current(settings->smd->domain);
-
-		if (cache) {
-			cache->flags |= OPENVDB_CACHE_INVALID;
-		}
-	}
 
 	rna_Smoke_dependency_update(bmain, scene, ptr);
 }
@@ -334,121 +317,7 @@ static void rna_SmokeFlow_uvlayer_set(PointerRNA *ptr, const char *value)
 	rna_object_uvlayer_name_set(ptr, value, flow->uvlayer_name, sizeof(flow->uvlayer_name));
 }
 
-static PointerRNA rna_SmokeModifier_active_openvdb_cache_get(PointerRNA *ptr)
-{
-    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
-    OpenVDBCache *cache = BKE_openvdb_cache_current(sds);
-    return rna_pointer_inherit_refine(ptr, &RNA_OpenVDBCache, cache);
-}
-
-static void rna_SmokeModifier_active_openvdb_cache_index_range(PointerRNA *ptr, int *min, int *max,
-                                                               int *UNUSED(softmin), int *UNUSED(softmax))
-{
-    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
-    *min = 0;
-    *max = max_ii(0, BLI_listbase_count(&sds->vdb_caches) - 1);
-}
-
-static int rna_SmokeModifier_active_openvdb_cache_index_get(PointerRNA *ptr)
-{
-    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
-    OpenVDBCache *cache = (OpenVDBCache *)sds->vdb_caches.first;
-    int i = 0;
-
-    for (; cache; cache = cache->next, i++) {
-        if (cache->flags & OPENVDB_CACHE_CURRENT)
-            return i;
-    }
-    return 0;
-}
-
-static void rna_SmokeModifier_active_openvdb_cache_index_set(struct PointerRNA *ptr, int value)
-{
-    SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
-    OpenVDBCache *cache = (OpenVDBCache *)sds->vdb_caches.first;
-    int i = 0;
-
-    for (; cache; cache = cache->next, i++) {
-        if (i == value)
-            cache->flags |= OPENVDB_CACHE_CURRENT;
-        else
-            cache->flags &= ~OPENVDB_CACHE_CURRENT;
-    }
-}
-
-static void rna_OpenVDBCache_range_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	OpenVDBCache *cache = (OpenVDBCache *)ptr->data;
-	int new_len = cache->endframe - cache->startframe + 1;
-
-	if (new_len != MEM_allocN_len(cache->cached_frames)) {
-		cache->cached_frames = MEM_reallocN(cache->cached_frames, new_len * sizeof(char));
-	}
-
-	cache->flags |= OPENVDB_CACHE_OUTDATED;
-	UNUSED_VARS(bmain, scene);
-}
-
-
 #else
-
-static void rna_def_openvdb_cache(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	static EnumPropertyItem prop_compression_items[] = {
-		{ VDB_COMPRESSION_ZIP, "ZIP", 0, "Zip", "Slow and effective compression" },
-#ifdef WITH_OPENVDB_BLOSC
-		{ VDB_COMPRESSION_BLOSC, "BLOSC", 0, "Blosc", "Multithreaded compression, almost similar in size and quality as 'Zip'" },
-#endif
-		{ VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
-		{ 0, NULL, 0, NULL, NULL }
-	};
-
-	srna = RNA_def_struct(brna, "OpenVDBCache", NULL);
-	RNA_def_struct_ui_text(srna, "OpenVDB cache", "OpenVDB cache");
-
-	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "startframe");
-	RNA_def_property_range(prop, -MAXFRAME, MAXFRAME);
-	RNA_def_property_ui_range(prop, 1, MAXFRAME, 1, 1);
-	RNA_def_property_ui_text(prop, "Start", "Frame on which the simulation starts");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_OpenVDBCache_range_update");
-
-	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "endframe");
-	RNA_def_property_range(prop, 1, MAXFRAME);
-	RNA_def_property_ui_text(prop, "End", "Frame on which the simulation stops");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_OpenVDBCache_range_update");
-
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
-	RNA_def_property_string_sdna(prop, NULL, "path");
-	RNA_def_property_ui_text(prop, "File Path", "Cache file path");
-
-	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_ui_text(prop, "Name", "Cache name");
-	RNA_def_struct_name_property(srna, prop);
-
-	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", OPENVDB_CACHE_BAKED);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-	prop = RNA_def_property(srna, "compression", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "compression");
-	RNA_def_property_enum_items(prop, prop_compression_items);
-	RNA_def_property_ui_text(prop, "File Compression",
-	                         "Select what type of compression to use when writing the files");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
-
-	prop = RNA_def_property(srna, "save_as_half", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", OPENVDB_CACHE_SAVE_AS_HALF);
-	RNA_def_property_ui_text(prop, "Save as Half",
-	                         "Write all scalar (including vector) grids to the file as 16-bit half floats to reduce file size");
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
-}
 
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 {
@@ -464,6 +333,15 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_compression_items[] = {
+		{ VDB_COMPRESSION_ZIP, "ZIP", 0, "Zip", "Effective but slow compression" },
+#ifdef WITH_OPENVDB_BLOSC
+		{ VDB_COMPRESSION_BLOSC, "BLOSC", 0, "Blosc", "Multithreaded compression, similar in size and quality as 'Zip'" },
+#endif
+		{ VDB_COMPRESSION_NONE, "NONE", 0, "None", "Do not use any compression" },
+		{ 0, NULL, 0, NULL, NULL }
+	};
+
 	static EnumPropertyItem smoke_cache_comp_items[] = {
 		{SM_CACHE_LIGHT, "CACHELIGHT", 0, "Light", "Fast but not so effective compression"},
 		{SM_CACHE_HEAVY, "CACHEHEAVY", 0, "Heavy", "Effective but slow compression"},
@@ -477,6 +355,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem smoke_data_depth_items[] = {
+		{16, "16", 0, "Float (Half)", "Half float (16 bit data)"},
+		{0,  "32", 0, "Float (Full)", "Full float (32 bit data)"},  /* default */
+		{0, NULL, 0, NULL, NULL},
+	};
+
 	static EnumPropertyItem smoke_domain_colli_items[] = {
 		{SM_BORDER_OPEN, "BORDEROPEN", 0, "Open", "Smoke doesn't collide with any border"},
 		{SM_BORDER_VERTICAL, "BORDERVERTICAL", 0, "Vertically Open",
@@ -485,12 +369,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem prop_cache_items[] = {
-	    {SMOKE_CACHE_POINTCACHE, "POINTCACHE", 0, "Point Cache", "Use Point Cache for caching on disk"},
+	static EnumPropertyItem cache_file_type_items[] = {
+		{PTCACHE_FILE_PTCACHE, "POINTCACHE", 0, "Point Cache", "Blender specific point cache file format"},
 #ifdef WITH_OPENVDB
-	    {SMOKE_CACHE_OPENVDB, "OPENVDB", 0, "OpenVDB", "Use OpenVDB for caching on disk"},
+		{PTCACHE_FILE_OPENVDB, "OPENVDB", 0, "OpenVDB", "OpenVDB file format"},
 #endif
-	    {0, NULL, 0, NULL, NULL}
+		{0, NULL, 0, NULL, NULL}
 	};
 
 	srna = RNA_def_struct(brna, "SmokeDomainSettings", NULL);
@@ -602,6 +486,19 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "cache_comp");
 	RNA_def_property_enum_items(prop, smoke_cache_comp_items);
 	RNA_def_property_ui_text(prop, "Cache Compression", "Compression method to be used");
+
+	prop = RNA_def_property(srna, "openvdb_cache_compress_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "openvdb_comp");
+	RNA_def_property_enum_items(prop, prop_compression_items);
+	RNA_def_property_ui_text(prop, "Compression", "Compression method to be used");
+
+	prop = RNA_def_property(srna, "data_depth", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "data_depth");
+	RNA_def_property_enum_items(prop, smoke_data_depth_items);
+	RNA_def_property_ui_text(prop, "Data Depth",
+	                         "Bit depth for writing all scalar (including vector) "
+	                         "lower values reduce file size");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
 
 	prop = RNA_def_property(srna, "collision_extents", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "border_collisions");
@@ -742,30 +639,11 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	                         "Maximum amount of fluid cell can contain before it is considered empty");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
 
-	prop = RNA_def_property(srna, "cache_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "cache_type");
-	RNA_def_property_ui_text(prop, "", "Use OpenVDB to cache the simulation");
-	RNA_def_property_enum_items(prop, prop_cache_items);
-	RNA_def_property_ui_text(prop, "Cache Type",
-	                         "Select the type of the caching system to use");
-	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
-
-	prop = RNA_def_property(srna, "cache", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_sdna(prop, NULL, "vdb_caches", NULL);
-	RNA_def_property_struct_type(prop, "OpenVDBCache");
-
-	prop = RNA_def_property(srna, "active_openvdb_cache", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "OpenVDBCache");
-	RNA_def_property_pointer_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_get", NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Active OpenVDB cache", "");
-
-	prop = RNA_def_property(srna, "active_openvdb_cache_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_funcs(prop, "rna_SmokeModifier_active_openvdb_cache_index_get",
-	                           "rna_SmokeModifier_active_openvdb_cache_index_set",
-	                           "rna_SmokeModifier_active_openvdb_cache_index_range");
-	RNA_def_property_ui_text(prop, "Active OpenVDB cache Index", "");
-
-	rna_def_openvdb_cache(brna);
+	prop = RNA_def_property(srna, "cache_file_format", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "cache_file_format");
+	RNA_def_property_enum_items(prop, cache_file_type_items);
+	RNA_def_property_ui_text(prop, "File Format", "Select the file format to be used for caching");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

@@ -18,20 +18,12 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, UIList
+from bpy.types import Panel
 
 from bl_ui.properties_physics_common import (
         point_cache_ui,
         effector_weights_ui,
         )
-
-
-def enable_panel(domain):
-    if domain.cache_type in {'POINTCACHE'}:
-        return not domain.point_cache.is_baked
-    else:
-        cache = domain.active_openvdb_cache
-        return (not cache.is_baked if cache else True)
 
 
 class PhysicButtonsPanel:
@@ -62,7 +54,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             split = layout.split()
 
-            split.enabled = enable_panel(domain)
+            split.enabled = not domain.point_cache.is_baked
 
             col = split.column()
             col.label(text="Resolution:")
@@ -184,7 +176,7 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
         domain = context.smoke.domain_settings
 
         split = layout.split()
-        split.enabled = enable_panel(domain)
+        split.enabled = not domain.point_cache.is_baked
 
         col = split.column(align=True)
         col.label(text="Reaction:")
@@ -210,9 +202,8 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
 
     def draw_header(self, context):
         md = context.smoke.domain_settings
-        layout = self.layout
-        layout.active = enable_panel(md)
-        layout.prop(md, "use_adaptive_domain", text="")
+
+        self.layout.prop(md, "use_adaptive_domain", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -221,7 +212,7 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
         layout.active = domain.use_adaptive_domain
 
         split = layout.split()
-        split.enabled = enable_panel(domain)
+        split.enabled = (not domain.point_cache.is_baked)
 
         col = split.column(align=True)
         col.label(text="Resolution:")
@@ -245,9 +236,8 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
 
     def draw_header(self, context):
         md = context.smoke.domain_settings
-        layout = self.layout
-        layout.active = enable_panel(md)
-        layout.prop(md, "use_high_resolution", text="")
+
+        self.layout.prop(md, "use_high_resolution", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -257,7 +247,7 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
         layout.active = md.use_high_resolution
 
         split = layout.split()
-        split.enabled = enable_panel(md)
+        split.enabled = not md.point_cache.is_baked
 
         col = split.column()
         col.label(text="Resolution:")
@@ -301,15 +291,6 @@ class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
         col.prop(domain, "collision_group", text="")
 
 
-class DATA_UL_openvdb_caches(UIList):
-    def draw_items(self, context, layout, item, icon, active_data, active_propname, index):
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
-        elif self.layout_type in {'GRID'}:
-            layout.alignement = 'CENTER'
-            layout.label(text="", icon_value=icon)
-
-
 class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Cache"
     bl_options = {'DEFAULT_CLOSED'}
@@ -324,48 +305,26 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
         layout = self.layout
 
         domain = context.smoke.domain_settings
-        cache_type = domain.cache_type
+        cache_file_format = domain.cache_file_format
 
-        layout.prop(domain, "cache_type")
+        layout.prop(domain, "cache_file_format")
 
-        if cache_type in {'POINTCACHE'}:
-            cache = domain.point_cache
-
+        if cache_file_format == 'POINTCACHE':
             layout.label(text="Compression:")
             layout.prop(domain, "point_cache_compress_type", expand=True)
-
-            point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
-        elif cache_type in {'OPENVDB'}:
+        elif cache_file_format == 'OPENVDB':
             if not bpy.app.build_options.openvdb:
                 layout.label("Build without OpenVDB support.")
                 return
 
+            layout.label(text="Compression:")
+            layout.prop(domain, "openvdb_cache_compress_type", expand=True)
             row = layout.row()
-            row.template_list("DATA_UL_openvdb_caches", "", domain, "cache", domain, "active_openvdb_cache_index", rows=3)
+            row.label("Data Depth:")
+            row.prop(domain, "data_depth", expand=True, text="Data Depth")
 
-            col = row.column()
-            sub = col.row()
-            subsub = sub.column(align=True)
-            subsub.operator("object.openvdb_cache_add", icon='ZOOMIN', text="")
-            subsub.operator("object.openvdb_cache_remove", icon='ZOOMOUT', text="")
-            sub = col.row()
-            subsub = sub.column(align=True)
-            subsub.operator("object.openvdb_cache_move", icon='MOVE_UP_VEC', text="").direction = 'UP'
-            subsub.operator("object.openvdb_cache_move", icon='MOVE_DOWN_VEC', text="").direction = 'DOWN'
-
-            cache = domain.active_openvdb_cache
-
-            if cache:
-                layout.prop(cache, "filepath")
-                layout.prop(cache, "compression")
-                row = layout.row(align=True)
-                row.prop(cache, "frame_start")
-                row.prop(cache, "frame_end")
-                row = layout.row()
-                row.prop(cache, "save_as_half")
-                row = layout.row()
-                row.operator("object.openvdb_cache_bake")
-                row.operator("object.openvdb_cache_free")
+        cache = domain.point_cache
+        point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

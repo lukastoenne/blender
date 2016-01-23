@@ -80,7 +80,6 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_smoke.h"
 #include "BKE_tracking.h"
 
 #include "GPU_buffers.h"
@@ -1888,40 +1887,6 @@ static void flush_pointcache_reset(Main *bmain, Scene *scene, DagNode *node,
 	}
 }
 
-/* node was checked to have lasttime != curtime, and is of type ID_OB */
-static void flush_openvdbcache_reset(Main *bmain, Scene *scene, DagNode *node,
-                                     int curtime, unsigned int lay, bool reset)
-{
-	DagAdjList *itA;
-	Object *ob;
-
-	node->lasttime = curtime;
-
-	for (itA = node->child; itA; itA = itA->next) {
-		if (itA->node->type != ID_OB) {
-			continue;
-		}
-
-		if (itA->node->lasttime != curtime) {
-			ob = (Object *)(itA->node->ob);
-
-			if (reset || (ob->recalc & OB_RECALC_ALL)) {
-				if (BKE_openvdb_cache_reset(ob)) {
-					/* Don't tag nodes which are on invisible layer. */
-					if (itA->node->lay & lay) {
-						ob->recalc |= OB_RECALC_DATA;
-						lib_id_recalc_data_tag(bmain, &ob->id);
-					}
-				}
-
-				flush_openvdbcache_reset(bmain, scene, itA->node, curtime, lay, true);
-			}
-			else
-				flush_openvdbcache_reset(bmain, scene, itA->node, curtime, lay, false);
-		}
-	}
-}
-
 /* flush layer flags to dependencies */
 static void dag_scene_flush_layers(Scene *sce, int lay)
 {
@@ -2037,24 +2002,12 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 						lib_id_recalc_data_tag(bmain, &ob->id);
 					}
 
-					if (BKE_openvdb_cache_reset(ob)) {
-						ob->recalc |= OB_RECALC_DATA;
-						lib_id_recalc_data_tag(bmain, &ob->id);
-					}
-
 					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
 					                       lay, true);
-
-					flush_openvdbcache_reset(bmain, sce, itA->node, lasttime,
-					                         lay, true);
 				}
-				else {
+				else
 					flush_pointcache_reset(bmain, sce, itA->node, lasttime,
 					                       lay, false);
-
-					flush_openvdbcache_reset(bmain, sce, itA->node, lasttime,
-					                         lay, false);
-				}
 			}
 		}
 	}
@@ -2587,7 +2540,6 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 	if (GS(id->name) == ID_OB) {
 		ob = (Object *)id;
 		BKE_ptcache_object_reset(sce, ob, PTCACHE_RESET_DEPSGRAPH);
-		BKE_openvdb_cache_reset(obt);
 
 		/* So if someone tagged object recalc directly,
 		 * id_tag_update bit-field stays relevant
@@ -2619,7 +2571,6 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 					obt->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_data_tag(bmain, &obt->id);
 					BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
-					BKE_openvdb_cache_reset(obt);
 				}
 			}
 		}
