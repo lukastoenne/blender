@@ -34,6 +34,8 @@
 #include <openvdb/tools/Clip.h>
 #include <openvdb/tools/Dense.h>
 
+#include <cstdio>
+
 #define TOLERANCE 1e-3f
 
 namespace internal {
@@ -41,12 +43,13 @@ namespace internal {
 openvdb::Mat4R convertMatrix(const float mat[4][4]);
 
 template <typename GridType, typename T>
-GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
-                              const openvdb::Name &name,
-                              const T *data,
-                              const int res[3],
-                              float fluid_mat[4][4],
-                              const openvdb::FloatGrid *mask)
+GridType *OpenVDB_export_grid(
+        OpenVDBWriter *writer,
+        const openvdb::Name &name,
+        const T *data,
+        const int res[3],
+        float fluid_mat[4][4],
+        const openvdb::FloatGrid *mask)
 {
 	using namespace openvdb;
 
@@ -57,7 +60,7 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 	typename GridType::Ptr grid = GridType::create(T(0));
 
 	tools::Dense<const T, openvdb::tools::LayoutXYZ> dense_grid(bbox, data);
-	tools::copyFromDense(dense_grid, grid->tree(), TOLERANCE);
+	tools::copyFromDense(dense_grid, grid->tree(), (T)TOLERANCE);
 
 	grid->setTransform(transform);
 
@@ -75,15 +78,22 @@ GridType *OpenVDB_export_grid(OpenVDBWriter *writer,
 }
 
 template <typename GridType, typename T>
-void OpenVDB_import_grid(OpenVDBReader *reader,
-                         const openvdb::Name &name,
-                         T **data,
-                         const int res[3])
+void OpenVDB_import_grid(
+        OpenVDBReader *reader,
+        const openvdb::Name &name,
+        T **data,
+        const int res[3])
 {
 	using namespace openvdb;
 
+	if (!reader->hasGrid(name)) {
+		std::fprintf(stderr, "OpenVDB grid %s not found in file!\n", name.c_str());
+		memset(*data, 0, sizeof(T) * res[0] * res[1] * res[2]);
+		return;
+	}
+
 	typename GridType::Ptr grid = gridPtrCast<GridType>(reader->getGrid(name));
-	typename GridType::Accessor acc = grid->getAccessor();
+	typename GridType::ConstAccessor acc = grid->getConstAccessor();
 
 	math::Coord xyz;
 	int &x = xyz[0], &y = xyz[1], &z = xyz[2];
@@ -98,20 +108,22 @@ void OpenVDB_import_grid(OpenVDBReader *reader,
 	}
 }
 
-openvdb::GridBase *OpenVDB_export_vector_grid(OpenVDBWriter *writer,
-                                              const openvdb::Name &name,
-                                              const float *data_x, const float *data_y, const float *data_z,
-                                              const int res[3],
-                                              float fluid_mat[4][4],
-                                              openvdb::VecType vec_type,
-                                              const bool is_color,
-                                              const openvdb::FloatGrid *mask);
+openvdb::GridBase *OpenVDB_export_vector_grid(
+        OpenVDBWriter *writer,
+        const openvdb::Name &name,
+        const float *data_x, const float *data_y, const float *data_z,
+        const int res[3],
+        float fluid_mat[4][4],
+        openvdb::VecType vec_type,
+        const bool is_color,
+        const openvdb::FloatGrid *mask);
 
 
-void OpenVDB_import_grid_vector(OpenVDBReader *reader,
-                                const openvdb::Name &name,
-                                float **data_x, float **data_y, float **data_z,
-                                const int res[3]);
+void OpenVDB_import_grid_vector(
+        OpenVDBReader *reader,
+        const openvdb::Name &name,
+        float **data_x, float **data_y, float **data_z,
+        const int res[3]);
 
 }  /* namespace internal */
 

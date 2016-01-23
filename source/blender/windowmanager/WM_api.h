@@ -454,10 +454,12 @@ struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void
 bool        WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char       *WM_jobs_name(struct wmWindowManager *wm, void *owner);
+double      WM_jobs_starttime(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata_from_type(struct wmWindowManager *wm, int job_type);
 
 bool        WM_jobs_is_running(struct wmJob *);
+bool		WM_jobs_is_stopped(wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata_get(struct wmJob *);
 void        WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void        WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);

@@ -27,41 +27,12 @@
 
 #include <cstdio>
 
-#ifdef _WIN32
-
-#include <windows.h>
-
-double time_dt()
-{
-	__int64 frequency, counter;
-
-	QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
-	QueryPerformanceCounter((LARGE_INTEGER*)&counter);
-
-	return (double)counter/(double)frequency;
-}
-
-#else
-
-#include <sys/time.h>
-
-double time_dt()
-{
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	return now.tv_sec + now.tv_usec*1e-6;
-}
-
-#endif
-
 ScopeTimer::ScopeTimer(const std::string &message)
     : m_message(message)
-{
-	m_start = time_dt();
-}
+    , m_timer()
+{}
 
 ScopeTimer::~ScopeTimer()
 {
-	std::printf("%s: %fs\n", m_message.c_str(), time_dt() - m_start);
+	std::printf("%s: %fms\n", m_message.c_str(), m_timer.delta());
 }

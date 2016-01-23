@@ -270,10 +270,10 @@ if(WITH_OPENCOLORIO)
 endif()
 
 if(WITH_OPENVDB)
-    add_definitions(-DWITH_OPENVDB)
-    list(APPEND INC
-        ../../../../intern/openvdb
-    )
+	add_definitions(-DWITH_OPENVDB)
+	list(APPEND INC
+		../../../../intern/openvdb
+	)
 endif()
 
 if(WITH_OPENIMAGEIO)

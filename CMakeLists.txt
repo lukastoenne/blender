@@ -243,13 +243,13 @@ option(WITH_SUBSURF_WERROR  "Treat warnings as errors in subsurf code" OFF)
 mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" ON)
-option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enble if OpenVDB was built with blosc support" OFF)
+option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" ON)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
 mark_as_advanced(WITH_GHOST_DEBUG)
 
-option(WITH_GHOST_SDL    "Enable building blender against SDL for windowing rather then the native APIs" OFF)
+option(WITH_GHOST_SDL    "Enable building Blender against SDL for windowing rather than the native APIs" OFF)
 mark_as_advanced(WITH_GHOST_SDL)
 
 if(WITH_X11)
@@ -680,10 +680,11 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_CYCLES         OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
+	set_and_warn(WITH_OPENVDB        OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB)
 	# Keep enabled
 else()
 	# Enabled but we don't need it

@@ -28,11 +28,12 @@
 
 #include <openvdb/openvdb.h>
 
-class OpenVDBReader {
+struct OpenVDBReader {
+private:
 	openvdb::MetaMap::Ptr m_meta_map;
 	openvdb::io::File *m_file;
 
-	void cleanup_file();
+	void cleanupFile();
 
 public:
 	OpenVDBReader();
@@ -40,13 +41,14 @@ public:
 
 	void open(const openvdb::Name &filename);
 
-	void floatMeta(const openvdb::Name &name, float &value);
-	void intMeta(const openvdb::Name &name, int &value);
-	void vec3sMeta(const openvdb::Name &name, float value[3]);
-	void vec3IMeta(const openvdb::Name &name, int value[3]);
-	void mat4sMeta(const openvdb::Name &name, float value[4][4]);
+	void floatMeta(const openvdb::Name &name, float &value) const;
+	void intMeta(const openvdb::Name &name, int &value) const;
+	void vec3sMeta(const openvdb::Name &name, float value[3]) const;
+	void vec3IMeta(const openvdb::Name &name, int value[3]) const;
+	void mat4sMeta(const openvdb::Name &name, float value[4][4]) const;
 
-	openvdb::GridBase::Ptr getGrid(const openvdb::Name &name);
+	bool hasGrid(const openvdb::Name &name) const;
+	openvdb::GridBase::Ptr getGrid(const openvdb::Name &name) const;
 	size_t numGrids() const;
 };
 
