@@ -1623,6 +1623,14 @@ void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *i
 		im_format->imtype = R_IMF_IMTYPE_TIFF;
 		if (custom_flags & TIF_16BIT)
 			im_format->depth = R_IMF_CHAN_DEPTH_16;
+		if (custom_flags & TIF_COMPRESS_NONE)
+			im_format->tiff_codec = R_IMF_TIFF_CODEC_NONE;
+		if (custom_flags & TIF_COMPRESS_DEFLATE)
+			im_format->tiff_codec = R_IMF_TIFF_CODEC_DEFLATE;
+		if (custom_flags & TIF_COMPRESS_LZW)
+			im_format->tiff_codec = R_IMF_TIFF_CODEC_LZW;
+		if (custom_flags & TIF_COMPRESS_PACKBITS)
+			im_format->tiff_codec = R_IMF_TIFF_CODEC_PACKBITS;
 	}
 #endif
 
@@ -2174,6 +2182,9 @@ void BKE_imbuf_write_prepare(ImBuf *ibuf, const ImageFormatData *imf)
 	char compress = imf->compress;
 	char quality = imf->quality;
 
+	/* initialize all from image format */
+	ibuf->foptions.flag = 0;
+
 	if (imtype == R_IMF_IMTYPE_IRIS) {
 		ibuf->ftype = IMB_FTYPE_IMAGIC;
 	}
@@ -2205,8 +2216,21 @@ void BKE_imbuf_write_prepare(ImBuf *ibuf, const ImageFormatData *imf)
 	else if (imtype == R_IMF_IMTYPE_TIFF) {
 		ibuf->ftype = IMB_FTYPE_TIF;
 
-		if (imf->depth == R_IMF_CHAN_DEPTH_16)
+		if (imf->depth == R_IMF_CHAN_DEPTH_16) {
 			ibuf->foptions.flag |= TIF_16BIT;
+		}
+		if (imf->tiff_codec == R_IMF_TIFF_CODEC_NONE) {
+			ibuf->foptions.flag |= TIF_COMPRESS_NONE;
+		}
+		else if (imf->tiff_codec == R_IMF_TIFF_CODEC_DEFLATE) {
+			ibuf->foptions.flag |= TIF_COMPRESS_DEFLATE;
+		}
+		else if (imf->tiff_codec == R_IMF_TIFF_CODEC_LZW) {
+			ibuf->foptions.flag |= TIF_COMPRESS_LZW;
+		}
+		else if (imf->tiff_codec == R_IMF_TIFF_CODEC_PACKBITS) {
+			ibuf->foptions.flag |= TIF_COMPRESS_PACKBITS;
+		}
 	}
 #endif
 #ifdef WITH_OPENEXR
@@ -2214,7 +2238,6 @@ void BKE_imbuf_write_prepare(ImBuf *ibuf, const ImageFormatData *imf)
 		ibuf->ftype = IMB_FTYPE_OPENEXR;
 		if (imf->depth == R_IMF_CHAN_DEPTH_16)
 			ibuf->foptions.flag |= OPENEXR_HALF;
-		ibuf->foptions.flag &= ~OPENEXR_COMPRESS;
 		ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_COMPRESS);
 
 		if (!(imf->flag & R_IMF_FLAG_ZBUF))
@@ -2334,6 +2357,7 @@ int BKE_imbuf_write_as(ImBuf *ibuf, const char *name, ImageFormatData *imf,
 		/* note that we are not restoring _all_ settings */
 		ibuf->planes = ibuf_back.planes;
 		ibuf->ftype =  ibuf_back.ftype;
+		ibuf->foptions =  ibuf_back.foptions;
 	}
 
 	return ok;

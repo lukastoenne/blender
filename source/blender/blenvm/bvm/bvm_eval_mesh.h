@@ -395,7 +395,7 @@ static DerivedMesh *do_boolean(DerivedMesh *dm, DerivedMesh *dm_other, matrix44 
 
 		looptris = (BMLoop *(*)[3])MEM_mallocN(sizeof(*looptris) * looptris_tot, __func__);
 
-		BM_bmesh_calc_tessellation(bm, looptris, &tottri);
+		BM_mesh_calc_tessellation(bm, looptris, &tottri);
 
 		/* postpone this until after tessellating
 		 * so we can use the original normals before the vertex are moved */

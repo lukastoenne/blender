@@ -95,6 +95,8 @@ typedef enum GPUBuiltin {
 	GPU_PARTICLE_LOCATION =	    (1 << 10),
 	GPU_PARTICLE_VELOCITY =     (1 << 11),
 	GPU_PARTICLE_ANG_VELOCITY = (1 << 12),
+	GPU_LOC_TO_VIEW_MATRIX =    (1 << 13),
+	GPU_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 14),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -148,6 +150,8 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_OBJECT_IMAT          = 4  | GPU_DYNAMIC_GROUP_OBJECT,
 	GPU_DYNAMIC_OBJECT_COLOR         = 5  | GPU_DYNAMIC_GROUP_OBJECT,
 	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 6  | GPU_DYNAMIC_GROUP_OBJECT,
+	GPU_DYNAMIC_OBJECT_LOCTOVIEWMAT  = 7  | GPU_DYNAMIC_GROUP_OBJECT,
+	GPU_DYNAMIC_OBJECT_LOCTOVIEWIMAT = 8  | GPU_DYNAMIC_GROUP_OBJECT,
 
 	GPU_DYNAMIC_LAMP_DYNVEC          = 1  | GPU_DYNAMIC_GROUP_LAMP,
 	GPU_DYNAMIC_LAMP_DYNCO           = 2  | GPU_DYNAMIC_GROUP_LAMP,
@@ -218,7 +222,7 @@ void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock);
 void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float obcol[4],
+        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
         float autobumpscale, GPUParticleInfo *pi);
 void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);
@@ -306,6 +310,8 @@ void GPU_lamp_update_buffer_mats(GPULamp *lamp);
 void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsize, float winmat[4][4]);
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
 int GPU_lamp_shadow_buffer_type(GPULamp *lamp);
+int GPU_lamp_shadow_bind_code(GPULamp *lamp);
+float *GPU_lamp_dynpersmat(GPULamp *lamp);
 
 void GPU_lamp_update(GPULamp *lamp, int lay, int hide, float obmat[4][4]);
 void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float energy);
