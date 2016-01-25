@@ -79,19 +79,10 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
 
 vdb_float_volume::vdb_float_volume(openvdb::FloatGrid::Ptr grid)
     : transform(&grid->transform())
+    , uniform_voxels(grid->hasUniformVoxels())
+    , main_isector(uniform_voxels ? new isector_t(*grid, 1) : NULL)
 {
 	accessor = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
-
-	/* only grids with uniform voxels can be used with VolumeRayIntersector */
-	if(grid->hasUniformVoxels()) {
-		uniform_voxels = true;
-		/* 1 = size of the largest sampling kernel radius (BoxSampler) */
-		main_isector = new isector_t(*grid, 1);
-	}
-	else {
-		uniform_voxels = false;
-		main_isector = NULL;
-	}
 }
 
 vdb_float_volume::~vdb_float_volume()
@@ -125,20 +116,11 @@ void vdb_float_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 
 vdb_float3_volume::vdb_float3_volume(openvdb::Vec3SGrid::Ptr grid)
     : transform(&grid->transform())
+    , uniform_voxels(grid->hasUniformVoxels())
+    , staggered(grid->getGridClass() == openvdb::GRID_STAGGERED)
+    , main_isector(uniform_voxels ? new isector_t(*grid, 1) : NULL)
 {
 	accessor = new openvdb::Vec3SGrid::ConstAccessor(grid->getConstAccessor());
-	staggered = (grid->getGridClass() == openvdb::GRID_STAGGERED);
-
-	/* only grids with uniform voxels can be used with VolumeRayIntersector */
-	if(grid->hasUniformVoxels()) {
-		uniform_voxels = true;
-		/* 1 = size of the largest sampling kernel radius (BoxSampler) */
-		main_isector = new isector_t(*grid, 1);
-	}
-	else {
-		uniform_voxels = false;
-		main_isector = NULL;
-	}
 }
 
 vdb_float3_volume::~vdb_float3_volume()
