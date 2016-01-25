@@ -112,7 +112,10 @@ vdb_float_volume::~vdb_float_volume()
 
 void vdb_float_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 {
-	create_isectors_threads(isectors, thread_ids, *main_isector);
+	if (uniform_voxels) {
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+	}
+
 	create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
 }
@@ -158,7 +161,10 @@ vdb_float3_volume::~vdb_float3_volume()
 
 void vdb_float3_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 {
-	create_isectors_threads(isectors, thread_ids, *main_isector);
+	if (uniform_voxels) {
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+	}
+
 	create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(stag_point_samplers, accessors, thread_ids, transform, *accessor);
