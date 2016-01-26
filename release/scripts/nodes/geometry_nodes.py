@@ -430,6 +430,7 @@ def register():
 
     node_categories = [
         GeometryNodeCategory("GEO_INPUT", "Input", items=[
+            NodeItem("ObjectRangeNode"),
             NodeItem("ObjectIterationNode"),
             NodeItem("GeometryMeshLoadNode"),
             NodeItem("GeometryObjectFinalMeshNode"),

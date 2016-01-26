@@ -63,12 +63,21 @@ static const char *node_color_kernel = "lightsalmon1";
 static const char *node_color_pass = "gray96";
 static const char *node_color_argument = "steelblue";
 static const char *node_color_return_value = "orange";
+static const char *color_opcode = "firebrick1";
+static const char *color_stack_index = "dodgerblue1";
+static const char *color_jump_address = "forestgreen";
+static const char *color_value = "gold1";
 
 struct NodeGraphDumper {
 	NodeGraphDumper(FILE *f) :
 	    file(f)
 	{
 		ctx.file = f;
+		
+		(void)color_opcode;
+		(void)color_stack_index;
+		(void)color_jump_address;
+		(void)color_value;
 	}
 	
 	inline static int input_index(const NodeInstance *node, const string &name)
@@ -153,8 +162,16 @@ struct NodeGraphDumper {
 				debug_fprintf(ctx, "<TD");
 				debug_fprintf(ctx, " PORT=%s", input_id(input).c_str());
 				debug_fprintf(ctx, " BORDER=\"1\"");
-				if (input.is_expression())
-					debug_fprintf(ctx, " BGCOLOR=\"%s\"", node_color_return_value);
+				switch (input.value_type()) {
+					case INPUT_EXPRESSION:
+						break;
+					case INPUT_VARIABLE:
+						debug_fprintf(ctx, " BGCOLOR=\"%s\"", node_color_argument);
+						break;
+					case INPUT_CONSTANT:
+						debug_fprintf(ctx, " BGCOLOR=\"%s\"", color_value);
+						break;
+				}
 				debug_fprintf(ctx, ">");
 				debug_fprintf(ctx, "%s", name_in.c_str());
 				debug_fprintf(ctx, "</TD>");
@@ -168,7 +185,7 @@ struct NodeGraphDumper {
 				debug_fprintf(ctx, "<TD");
 				debug_fprintf(ctx, " PORT=%s", output_id(output).c_str());
 				debug_fprintf(ctx, " BORDER=\"1\"");
-				if (output.socket->value_type == OUTPUT_LOCAL)
+				if (output.value_type() == OUTPUT_VARIABLE)
 					debug_fprintf(ctx, " BGCOLOR=\"%s\"", node_color_argument);
 				debug_fprintf(ctx, ">");
 				debug_fprintf(ctx, "%s", name_out.c_str());
@@ -304,6 +321,10 @@ struct NodeGraphDumper {
 		debug_fprintf(ctx, "id=\"VAL%s:%s\"", node_id(to.node, false).c_str(), input_id(to, false).c_str());
 		
 		debug_fprintf(ctx, ",penwidth=\"%f\"", penwidth);
+		if (to.value_type() == INPUT_VARIABLE) {
+			debug_fprintf(ctx, ",constraint=\"false\"");
+			debug_fprintf(ctx, ",style=\"dashed\"");
+		}
 		debug_fprintf(ctx, "];" NL);
 		debug_fprintf(ctx, NL);
 	}
@@ -312,7 +333,7 @@ struct NodeGraphDumper {
 	{
 		for (int i = 0; i < node->num_outputs(); ++i) {
 			ConstOutputKey output = node->output(i);
-			if (output.socket->value_type == OUTPUT_LOCAL) {
+			if (output.value_type() == OUTPUT_VARIABLE) {
 				ConstOutputKey local_arg = block->local_arg(output.socket->name);
 				if (local_arg)
 					dump_local_arg(node_id(node)+":"+output_id(output), local_arg);
@@ -327,15 +348,15 @@ struct NodeGraphDumper {
 			ConstInputKey input = node->input(name);
 			
 			if (input.link()) {
-				if (input.is_expression()) {
-					dump_return_value(node_id(node, false)+":"+input_id(input, false), input.link());
+//				if (input.is_expression()) {
+//					dump_return_value(node_id(node, false)+":"+input_id(input, false), input.link());
 					
-					const NodeBlock *block = input.link().node->block;
-					if (block) {
-						dump_local_args(node, block);
-					}
-				}
-				else 
+//					const NodeBlock *block = input.link().node->block;
+//					if (block) {
+//						dump_local_args(node, block);
+//					}
+//				}
+//				else 
 					dump_link(input.link(), input);
 			}
 		}

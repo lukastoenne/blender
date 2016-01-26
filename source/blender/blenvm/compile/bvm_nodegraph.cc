@@ -217,8 +217,6 @@ const NodeInput *NodeType::add_input(const string &name,
 {
 	BLI_assert(!find_input(name));
 	BLI_assert(NodeGraph::has_typedef(type));
-	/* function inputs only allowed for kernel nodes */
-	BLI_assert(m_is_kernel_node || value_type != INPUT_EXPRESSION);
 	m_inputs.push_back(NodeInput(name, NodeGraph::find_typedef(type), default_value, value_type));
 	return &m_inputs.back();
 }
@@ -230,7 +228,7 @@ const NodeOutput *NodeType::add_output(const string &name,
 	BLI_assert(!find_output(name));
 	BLI_assert(NodeGraph::has_typedef(type));
 	/* local outputs only allowed for kernel nodes */
-	BLI_assert(m_is_kernel_node || value_type != OUTPUT_LOCAL);
+	BLI_assert(m_is_kernel_node || value_type != OUTPUT_VARIABLE);
 	m_outputs.push_back(NodeOutput(name, NodeGraph::find_typedef(type), value_type));
 	return &m_outputs.back();
 }
@@ -262,6 +260,11 @@ bool ConstOutputKey::operator < (const ConstOutputKey &other) const
 ConstOutputKey::operator bool() const
 {
 	return node != NULL && socket != NULL;
+}
+
+BVMOutputValueType ConstOutputKey::value_type() const
+{
+	return socket->value_type;
 }
 
 /*****/
@@ -296,6 +299,11 @@ bool OutputKey::operator < (const OutputKey &other) const
 OutputKey::operator bool() const
 {
 	return node != NULL && socket != NULL;
+}
+
+BVMOutputValueType OutputKey::value_type() const
+{
+	return socket->value_type;
 }
 
 /*****/
@@ -340,14 +348,9 @@ const Value *ConstInputKey::value() const
 	return node->input_value(socket->name);
 }
 
-bool ConstInputKey::is_constant() const
+BVMInputValueType ConstInputKey::value_type() const
 {
-	return socket->value_type == INPUT_CONSTANT;
-}
-
-bool ConstInputKey::is_expression() const
-{
-	return socket->value_type == INPUT_EXPRESSION;
+	return socket->value_type;
 }
 
 /*****/
@@ -407,14 +410,9 @@ void InputKey::value_set(Value *value) const
 	node->input_value_set(socket->name, value);
 }
 
-bool InputKey::is_constant() const
+BVMInputValueType InputKey::value_type() const
 {
-	return socket->value_type == INPUT_CONSTANT;
-}
-
-bool InputKey::is_expression() const
-{
-	return socket->value_type == INPUT_EXPRESSION;
+	return socket->value_type;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -732,11 +730,8 @@ NodeInstance *NodeGraph::add_node(const string &type, const string &name)
 	make_unique_name(final, nodes);
 	
 	NodeInstance *node = new NodeInstance(nodetype, final);
-	std::pair<NodeInstanceMap::iterator, bool> result =
-	        nodes.insert(NodeInstanceMapPair(final, node));
-	BLI_assert(result.second);
-	
-	return result.first->second;
+	insert_node(node);
+	return node;
 }
 
 const NodeGraph::Input *NodeGraph::get_input(int index) const
@@ -881,6 +876,28 @@ void NodeGraph::remove_all_nodes()
 	nodes.clear();
 }
 
+void NodeGraph::insert_node(NodeInstance *node)
+{
+	NodeInstanceMap::const_iterator it = nodes.find(node->name);
+	if (it == nodes.end()) {
+		std::pair<NodeInstanceMap::iterator, bool> result =
+		        nodes.insert(NodeInstanceMapPair(node->name, node));
+		BLI_assert(result.second);
+	}
+	else {
+		BLI_assert(it->second == node);
+	}
+}
+
+NodeInstance *NodeGraph::copy_node(const NodeInstance *node)
+{
+	string name = node->name;
+	make_unique_name(name, nodes);
+	NodeInstance *cnode = new NodeInstance(node, name);
+	insert_node(cnode);
+	return cnode;
+}
+
 NodeInstance *NodeGraph::copy_node(const NodeInstance *node, NodeMap &node_map)
 {
 	string name = node->name;
@@ -911,8 +928,21 @@ NodeInstance *NodeGraph::copy_node(const NodeInstance *node, NodeMap &node_map)
 /* ------------------------------------------------------------------------- */
 /* Optimization */
 
+void NodeGraph::remap_outputs(const OutputMap &replacements)
+{
+	/* remap output references */
+	for (OutputList::iterator it_output = outputs.begin(); it_output != outputs.end(); ++it_output) {
+		Output &output = *it_output;
+		assert(output.key);
+		
+		if (replacements.find(output.key) != replacements.end()) {
+			output.key = replacements.at(output.key);
+		}
+	}
+}
+
 /* add a value node on unbound inputs */
-void NodeGraph::ensure_bound_inputs()
+void NodeGraph::ensure_valid_expression_inputs()
 {
 	/* copy node pointers to avoid looping over new nodes again */
 	NodeSet old_nodes;
@@ -923,10 +953,9 @@ void NodeGraph::ensure_bound_inputs()
 		NodeInstance *node = *it;
 		for (int i = 0; i < node->num_inputs(); ++i) {
 			InputKey input = node->input(i);
-			if (input.is_constant())
-				continue;
-			else if (!input.link()) {
-				input.link_set(add_value_node(input.value()->copy()));
+			if (input.value_type() == INPUT_EXPRESSION) {
+				if (!input.link())
+					input.link_set(add_value_node(input.value()->copy()));
 			}
 		}
 	}
@@ -937,13 +966,13 @@ OutputKey NodeGraph::find_root(const OutputKey &key)
 	OutputKey root = key;
 	/* value is used to create a valid root node if necessary */
 	const Value *value = NULL;
-	while (root.node && root.node->type->is_pass_node()) {
+	while (root && root.node->type->is_pass_node()) {
 		value = root.node->input_value(0);
 		root = root.node->link(0);
 	}
 	
 	/* create a value node as valid root if necessary */
-	if (!root.node) {
+	if (!root) {
 		assert(value != NULL);
 		root = add_value_node(value->copy());
 	}
@@ -953,12 +982,16 @@ OutputKey NodeGraph::find_root(const OutputKey &key)
 
 void NodeGraph::skip_pass_nodes()
 {
+	OutputMap replacements;
+	
 	/* redirect links to skip over 'pass'-type nodes */
 	for (NodeInstanceMap::iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		NodeInstance *node = it->second;
 		
-		if (node->type->is_pass_node())
+		if (node->type->is_pass_node()) {
+			replacements[node->output(0)] = find_root(node->input(0).link());
 			continue;
+		}
 		
 		for (NodeInstance::InputMap::iterator it_input = node->inputs.begin();
 		     it_input != node->inputs.end();
@@ -971,11 +1004,90 @@ void NodeGraph::skip_pass_nodes()
 		}
 	}
 	
-	/* move output references upstream as well */
+	remap_outputs(replacements);
+}
+
+NodeInstance *NodeGraph::inline_node(NodeInstance *old_node, const VariableMap &vars)
+{
+	/* Note: Don't copy nodes without inputs!
+	 * These would be joined by CSE anyway, and avoiding a copy here
+	 * is necessary to keep valid references from graph input arguments!
+	 */
+	NodeInstance *new_node;
+	if (old_node->num_inputs() == 0) {
+		new_node = old_node;
+		insert_node(new_node);
+	}
+	else {
+		new_node = copy_node(old_node);
+	}
+	
+	VariableMap local_vars(vars);
+	
+	for (int i = 0; i < new_node->num_outputs(); ++i) {
+		OutputKey new_output = new_node->output(i);
+		
+		if (new_output.value_type() == OUTPUT_VARIABLE) {
+			local_vars[new_output.socket->name] = new_output;
+		}
+	}
+	
+	for (int i = 0; i < old_node->num_inputs(); ++i) {
+		InputKey old_input = old_node->input(i);
+		
+		switch (old_input.value_type()) {
+			case INPUT_CONSTANT:
+				break;
+			case INPUT_EXPRESSION: {
+				OutputKey old_link = old_input.link();
+				assert(old_link);
+				OutputKey new_link = OutputKey(inline_node(old_link.node, local_vars), old_link.socket);
+				
+				new_node->link_set(old_input.socket->name, new_link);
+				break;
+			}
+			case INPUT_VARIABLE: {
+				if (vars.find(old_input.socket->name) != vars.end()) {
+					OutputKey var = vars.at(old_input.socket->name);
+					new_node->link_set(old_input.socket->name, var);
+				}
+				break;
+			}
+		}
+	}
+	
+	return new_node;
+}
+
+void NodeGraph::inline_function_calls()
+{
+	NodeInstanceMap old_nodes;
+	old_nodes.swap(nodes);
+	
+	VariableMap vars;
+	
+	OutputMap replacements;
+	/* outermost function calls are the output nodes */
 	for (OutputList::iterator it_output = outputs.begin(); it_output != outputs.end(); ++it_output) {
 		Output &output = *it_output;
 		assert(output.key);
-		output.key = find_root(output.key);
+		
+		NodeInstance *node_inlined = inline_node(output.key.node, vars);
+		replacements[output.key] = OutputKey(node_inlined, output.key.socket);
+	}
+	
+	remap_outputs(replacements);
+	
+	/* delete old nodes which have not been reused */
+	{
+		NodeSet unused_nodes;
+		for (NodeInstanceMap::const_iterator it = old_nodes.begin(); it != old_nodes.end(); ++it)
+			unused_nodes.insert(it->second);
+		for (NodeInstanceMap::const_iterator it = nodes.begin(); it != nodes.end(); ++it)
+			unused_nodes.erase(it->second);
+		for (NodeSet::iterator it = unused_nodes.begin(); it != unused_nodes.end(); ++it) {
+			delete *it;
+		}
 	}
 }
 
@@ -987,7 +1099,7 @@ void NodeGraph::make_args_local(NodeBlock &block, NodeMap &block_map, NodeSet &b
 	for (int i = 0; i < arg_node->num_outputs(); ++i) {
 		const NodeOutput *output = arg_node->type->find_output(i);
 		
-		if (output->value_type == OUTPUT_LOCAL) {
+		if (output->value_type == OUTPUT_VARIABLE) {
 			const Input *graph_input = get_input(output->name);
 			assert(graph_input);
 			
@@ -1013,11 +1125,11 @@ bool NodeGraph::add_block_node(NodeInstance *node, NodeBlock &block, NodeMap &bl
 	
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		InputKey input = node->input(i);
-		if (input.is_constant()) {
+		if (input.value_type() == INPUT_CONSTANT) {
 			if (!block.parent())
 				is_block_node |= true;
 		}
-		else if (input.is_expression()) {
+		else if (input.value_type() == INPUT_EXPRESSION) {
 			if (!block.parent())
 				is_block_node |= blockify_expression(input, block, block_map, block_visited);
 		}
@@ -1111,11 +1223,11 @@ void NodeGraph::blockify_nodes()
 		}
 	}
 	
-	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		const Output &output = *it;
-		if (output.key)
-			add_block_node(output.key.node, main, main_map, main_visited);
-	}
+//	for (OutputList::const_iterator it = outputs.begin(); it != outputs.end(); ++it) {
+//		const Output &output = *it;
+//		if (output.key)
+//			add_block_node(output.key.node, main, main_map, main_visited);
+//	}
 }
 
 static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
@@ -1172,6 +1284,8 @@ static void assign_node_index(NodeInstance *node, int *next_index)
 {
 	if (node->index > 0)
 		return;
+	/* prevent infinite recursion */
+	node->index = 1;
 	
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		NodeInstance *link_node = node->link(i).node;
@@ -1194,9 +1308,10 @@ void NodeGraph::sort_nodes()
 
 void NodeGraph::finalize()
 {
-	ensure_bound_inputs();
+	ensure_valid_expression_inputs();
 	skip_pass_nodes();
-	blockify_nodes();
+//	blockify_nodes();
+	inline_function_calls();
 	remove_unused_nodes();
 	sort_nodes();
 }
@@ -1264,6 +1379,8 @@ OpCode get_opcode_from_node_type(const string &node)
 	NODETYPE(VALUE_RNAPOINTER);
 	NODETYPE(VALUE_MESH);
 	NODETYPE(VALUE_DUPLIS);
+	
+	NODETYPE(RANGE_INT);
 	
 	NODETYPE(FLOAT_TO_INT);
 	NODETYPE(INT_TO_FLOAT);
@@ -1518,6 +1635,13 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_function_node_type("VALUE_DUPLIS");
 	nt->add_input("value", "DUPLIS", __empty_duplilist__, INPUT_CONSTANT);
 	nt->add_output("value", "DUPLIS");
+	
+	nt = NodeGraph::add_function_node_type("RANGE_INT");
+	nt->add_input("index0", "INT", 0, INPUT_VARIABLE);
+	nt->add_input("start", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("end", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("step", "INT", 1, INPUT_CONSTANT);
+	nt->add_output("value", "INT");
 	
 	nt = NodeGraph::add_function_node_type("GET_ELEM_FLOAT3");
 	nt->add_input("index", "INT", 0, INPUT_CONSTANT);
@@ -1781,16 +1905,16 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_kernel_node_type("MESH_ARRAY");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);
 	nt->add_input("count", "INT", 1);
-	nt->add_input("transform", "MATRIX44", matrix44::identity(), INPUT_EXPRESSION);
+	nt->add_input("transform", "MATRIX44", matrix44::identity());
 	nt->add_output("mesh_out", "MESH");
-	nt->add_output("iteration", "INT", OUTPUT_LOCAL);
+	nt->add_output("iteration", "INT", OUTPUT_VARIABLE);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_DISPLACE");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);
-	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f), INPUT_EXPRESSION);
+	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("mesh_out", "MESH");
-	nt->add_output("element.index", "INT", OUTPUT_LOCAL);
-	nt->add_output("element.location", "FLOAT3", OUTPUT_LOCAL);
+	nt->add_output("index0", "INT", OUTPUT_VARIABLE);
+	nt->add_output("location", "FLOAT3", OUTPUT_VARIABLE);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);

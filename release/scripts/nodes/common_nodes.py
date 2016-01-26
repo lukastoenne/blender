@@ -177,6 +177,31 @@ class CommonNodeBase(NodeBase):
     def poll(cls, ntree):
         return isinstance(ntree, NodeTreeBase)
 
+class RangeNode(CommonNodeBase, ObjectNode):
+    '''Generate a range of numbers'''
+    bl_idname = 'ObjectRangeNode'
+    bl_label = 'Range'
+
+    start = IntProperty(name="Start", default=0)
+    end = IntProperty(name="End", default=10)
+    step = IntProperty(name="Step", default=1)
+
+    def draw_buttons(self, context, layout):
+        row = layout.row(align=True)
+        row.prop(self, "start")
+        row.prop(self, "end")
+        layout.prop(self, "step")
+
+    def init(self, context):
+        self.outputs.new('NodeSocketInt', "Value")
+
+    def compile(self, compiler):
+        node = compiler.add_node("RANGE_INT")
+        node.inputs[1].set_value(self.start)
+        node.inputs[2].set_value(self.end)
+        node.inputs[3].set_value(self.step)
+        compiler.map_output(0, node.outputs[0])
+
 class ValueFloatNode(CommonNodeBase, ObjectNode):
     '''Floating point number'''
     bl_idname = 'ObjectValueFloatNode'

@@ -55,13 +55,13 @@ typedef enum BVMBufferType {
 
 typedef enum BVMInputValueType {
 	INPUT_CONSTANT,
-	INPUT_VARIABLE,
 	INPUT_EXPRESSION,
+	INPUT_VARIABLE,
 } BVMInputValueType;
 
 typedef enum BVMOutputValueType {
+	OUTPUT_EXPRESSION,
 	OUTPUT_VARIABLE,
-	OUTPUT_LOCAL,
 } BVMOutputValueType;
 
 #ifdef __cplusplus

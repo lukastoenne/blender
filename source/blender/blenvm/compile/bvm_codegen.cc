@@ -78,7 +78,7 @@ void Compiler::calc_node_dependencies(const NodeInstance *node, BlockDependencyM
 				block_deps.insert(input.link());
 			}
 			
-			if (input.is_expression()) {
+			if (input.value_type() == INPUT_EXPRESSION) {
 				if (link_node->block != node->block) {
 					calc_block_dependencies(link_node->block, block_deps_map);
 					
@@ -165,7 +165,7 @@ void Compiler::get_local_arg_indices(const NodeInstance *node, const NodeBlock *
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
 		
-		if (output.socket->value_type == OUTPUT_LOCAL) {
+		if (output.socket->value_type == OUTPUT_VARIABLE) {
 			ConstOutputKey local_output = local_block->local_arg(output.socket->name);
 			output_index[local_output] = output_index.at(output);
 		}
@@ -200,10 +200,10 @@ void Compiler::resolve_node_block_symbols(const NodeBlock *block)
 			ConstInputKey input = node.input(i);
 			assert(input_index.find(input) == input_index.end());
 			
-			if (input.is_constant()) {
+			if (input.value_type() == INPUT_CONSTANT) {
 				/* stored directly in the instructions list after creating values */
 			}
-			else if (input.is_expression()) {
+			else if (input.value_type() == INPUT_EXPRESSION) {
 				ConstOutputKey link = input.link();
 				const NodeBlock *expr_block = link.node->block;
 				
@@ -425,7 +425,8 @@ int Compiler::codegen_node_block(const NodeBlock &block)
 		for (int i = 0; i < node.num_inputs(); ++i) {
 			ConstInputKey key = node.input(i);
 			
-			if (key.is_constant() || key.is_expression()) {
+			if (key.value_type() == INPUT_CONSTANT ||
+			    key.value_type() == INPUT_EXPRESSION) {
 				/* stored directly in instructions */
 			}
 			else if (key.link()) {
@@ -461,11 +462,11 @@ int Compiler::codegen_node_block(const NodeBlock &block)
 			for (int i = 0; i < node.num_inputs(); ++i) {
 				ConstInputKey key = node.input(i);
 				
-				if (key.is_constant()) {
+				if (key.value_type() == INPUT_CONSTANT) {
 					push_constant(key.value());
 				}
 				else {
-					if (key.is_expression()) {
+					if (key.value_type() == INPUT_EXPRESSION) {
 						if (key.link() && key.link().node->block != &block) {
 							const NodeBlock *expr_block = key.link().node->block;
 							push_jump_address(block_info.at(expr_block).entry_point);

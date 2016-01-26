@@ -316,8 +316,8 @@ static void rna_def_bvm_node_input(BlenderRNA *brna)
 	
 	static EnumPropertyItem value_type_items[] = {
 	    {INPUT_CONSTANT, "CONSTANT", 0, "Constant", "Fixed value that must be defined at compile time"},
-	    {INPUT_VARIABLE, "VARIABLE", 0, "Variable", "Variable value from another node can be used"},
-	    {INPUT_EXPRESSION, "EXPRESSION", 0, "Expression", "Value is calculated for each element"},
+	    {INPUT_EXPRESSION, "EXPRESSION", 0, "Expression", "Use an expression formed by other nodes"},
+	    {INPUT_VARIABLE, "VARIABLE", 0, "Variable", "Local variable value"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	
@@ -349,8 +349,8 @@ static void rna_def_bvm_node_output(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem value_type_items[] = {
-	    {OUTPUT_VARIABLE, "VARIABLE", 0, "Variable", "Variable value that can be used by other nodes"},
-	    {OUTPUT_LOCAL, "LOCAL", 0, "Local", "Local value that is only used internally"},
+	    {OUTPUT_EXPRESSION, "EXPRESSION", 0, "Expression", "Expression that can be used by other nodes"},
+	    {OUTPUT_VARIABLE, "VARIABLE", 0, "Variable", "Local variable for input expressions"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	

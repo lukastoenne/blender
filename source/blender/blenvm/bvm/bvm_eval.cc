@@ -194,6 +194,15 @@ static void eval_op_value_duplis(EvalStack *stack, StackIndex offset)
 	stack_store_duplis(stack, offset, new DupliList());
 }
 
+static void eval_op_range_int(EvalStack *stack,
+                              int start, int /*end*/, int step,
+                              StackIndex offset_index,
+                              StackIndex offset_value)
+{
+	int index = stack_load_int(stack, offset_index);
+	stack_store_int(stack, offset_value, start + index * step);
+}
+
 static void eval_op_float_to_int(EvalStack *stack, StackIndex offset_from, StackIndex offset_to)
 {
 	float f = stack_load_float(stack, offset_from);
@@ -444,6 +453,15 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 			case OP_VALUE_DUPLIS: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				eval_op_value_duplis(stack, offset);
+				break;
+			}
+			case OP_RANGE_INT: {
+				StackIndex offset_index = fn->read_stack_index(&instr);
+				StackIndex offset_start = fn->read_int(&instr);
+				StackIndex offset_end = fn->read_int(&instr);
+				StackIndex offset_step = fn->read_int(&instr);
+				StackIndex offset_value = fn->read_stack_index(&instr);
+				eval_op_range_int(stack, offset_index, offset_start, offset_end, offset_step, offset_value);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {

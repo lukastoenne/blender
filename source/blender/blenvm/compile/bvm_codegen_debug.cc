@@ -40,13 +40,9 @@
 
 namespace bvm {
 
-#define NL "\r\n"
+using namespace debug;
 
-static const char *fontname = "helvetica";
-static const char *color_opcode = "firebrick1";
-static const char *color_stack_index = "dodgerblue1";
-static const char *color_jump_address = "forestgreen";
-static const char *color_value = "gold1";
+#define NL "\r\n"
 
 static void debug_fprintf(FILE *f, const char *fmt, ...) ATTR_PRINTF_FORMAT(2, 3);
 static void debug_fprintf(FILE *f, const char *fmt, ...)

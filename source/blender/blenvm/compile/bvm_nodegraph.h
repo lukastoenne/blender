@@ -114,17 +114,17 @@ struct NodeType {
 	const NodeInput *add_input(const string &name,
 	                           const string &type,
 	                           Value *default_value,
-	                           BVMInputValueType value_type = INPUT_VARIABLE);
+	                           BVMInputValueType value_type = INPUT_EXPRESSION);
 
 	const NodeOutput *add_output(const string &name,
 	                             const string &type,
-	                             BVMOutputValueType value_type = OUTPUT_VARIABLE);
+	                             BVMOutputValueType value_type = OUTPUT_EXPRESSION);
 	
 	template <typename T>
 	const NodeInput *add_input(const string &name,
 	                           const string &type,
 	                           T default_value,
-	                           BVMInputValueType value_type = INPUT_VARIABLE);
+	                           BVMInputValueType value_type = INPUT_EXPRESSION);
 	
 private:
 	string m_name;
@@ -144,6 +144,8 @@ struct ConstOutputKey {
 	bool operator < (const ConstOutputKey &other) const;
 	operator bool() const;
 	
+	BVMOutputValueType value_type() const;
+	
 	const NodeInstance *node;
 	const NodeOutput *socket;
 };
@@ -156,6 +158,8 @@ struct OutputKey {
 	operator ConstOutputKey() const;
 	bool operator < (const OutputKey &other) const;
 	operator bool() const;
+	
+	BVMOutputValueType value_type() const;
 	
 	NodeInstance *node;
 	const NodeOutput *socket;
@@ -171,8 +175,7 @@ struct ConstInputKey {
 	
 	ConstOutputKey link() const;
 	const Value *value() const;
-	bool is_constant() const;
-	bool is_expression() const;
+	BVMInputValueType value_type() const;
 	
 	const NodeInstance *node;
 	const NodeInput *socket;
@@ -191,8 +194,7 @@ struct InputKey {
 	void link_set(const OutputKey &from) const;
 	const Value *value() const;
 	void value_set(Value *value) const;
-	bool is_constant() const;
-	bool is_expression() const;
+	BVMInputValueType value_type() const;
 	
 	NodeInstance *node;
 	const NodeInput *socket;
@@ -200,6 +202,7 @@ struct InputKey {
 
 typedef std::set<ConstInputKey> InputSet;
 typedef std::set<ConstOutputKey> OutputSet;
+typedef std::map<string, OutputKey> VariableMap;
 
 struct NodeInstance {
 	struct InputInstance {
@@ -255,6 +258,8 @@ struct NodeInstance {
 
 typedef std::set<NodeInstance*> NodeSet;
 typedef std::map<const NodeInstance*, NodeInstance*> NodeMap;
+typedef std::map<ConstOutputKey, OutputKey> OutputMap;
+typedef std::map<const NodeInstance*, bool> NodeBoolMap;
 
 struct NodeBlock {
 	typedef std::map<string, ConstOutputKey> ArgumentMap;
@@ -357,15 +362,22 @@ protected:
 	
 	void remove_all_nodes();
 	
+	void insert_node(NodeInstance *node);
+	NodeInstance *copy_node(const NodeInstance *node);
 	NodeInstance *copy_node(const NodeInstance *node, NodeMap &node_map);
 	
 	/* optimizations */
 	
-	void ensure_bound_inputs();
+	void remap_outputs(const OutputMap &replacements);
+	
+	void ensure_valid_expression_inputs();
 	
 	OutputKey find_root(const OutputKey &key);
 	
 	void skip_pass_nodes();
+	
+	NodeInstance *inline_node(NodeInstance *old_node, const VariableMap &vars);
+	void inline_function_calls();
 	
 	void remove_unused_nodes();
 	

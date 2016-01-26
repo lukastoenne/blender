@@ -1068,9 +1068,6 @@ static void init_modifier_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
-	graph.add_input("iteration", "INT");
-	graph.add_input("element.index", "INT");
-	graph.add_input("element.location", "FLOAT3");
 	graph.add_input("modifier.object", "RNAPOINTER");
 	graph.add_input("modifier.base_mesh", "RNAPOINTER");
 	graph.add_output("mesh", "MESH", __empty_mesh__);
