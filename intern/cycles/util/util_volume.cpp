@@ -33,18 +33,18 @@ void create_isectors_threads(unordered_map<pthread_t, IsectorType *> &isect_map,
                              const vector<pthread_t> &thread_ids,
                              const IsectorType &main_isect)
 {
+	release_map_memory(isect_map);
+
 	pthread_t my_thread = pthread_self();
 
 	for (size_t i = 0; i < thread_ids.size(); ++i) {
-		IsectorType *isect = new IsectorType(main_isect);
-		pair<pthread_t, IsectorType *> inter(thread_ids[i], isect);
-		isect_map.insert(inter);
+		if (isect_map.find(thread_ids[i]) == isect_map.end()) {
+			isect_map[thread_ids[i]] = new IsectorType(main_isect);
+		}
 	}
 
 	if (isect_map.find(my_thread) == isect_map.end()) {
-		IsectorType *isect = new IsectorType(main_isect);
-		pair<pthread_t, IsectorType *> inter(my_thread, isect);
-		isect_map.insert(inter);
+		isect_map[my_thread] = new IsectorType(main_isect);
 	}
 }
 
@@ -55,22 +55,23 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
                              const openvdb::math::Transform *transform,
                              const AccessorType &main_accessor)
 {
+	release_map_memory(sampler_map);
+
 	pthread_t my_thread = pthread_self();
 
 	for (size_t i = 0; i < thread_ids.size(); ++i) {
 		AccessorType *accessor = new AccessorType(main_accessor);
 		accessors.push_back(accessor);
-		SamplerType *sampler = new SamplerType(*accessor, *transform);
-		pair<pthread_t, SamplerType *> sampl(thread_ids[i], sampler);
-		sampler_map.insert(sampl);
+
+		if (sampler_map.find(thread_ids[i]) == sampler_map.end()) {
+			sampler_map[thread_ids[i]] = new SamplerType(*accessor, *transform);
+		}
 	}
 
 	if (sampler_map.find(my_thread) == sampler_map.end()) {
 		AccessorType *accessor = new AccessorType(main_accessor);
 		accessors.push_back(accessor);
-		SamplerType *sampler = new SamplerType(*accessor, *transform);
-		pair<pthread_t, SamplerType *> sampl(my_thread, sampler);
-		sampler_map.insert(sampl);
+		sampler_map[my_thread] = new SamplerType(*accessor, *transform);
 	}
 }
 
@@ -78,19 +79,10 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
 
 vdb_float_volume::vdb_float_volume(openvdb::FloatGrid::Ptr grid)
     : transform(&grid->transform())
+    , uniform_voxels(grid->hasUniformVoxels())
+    , main_isector(uniform_voxels ? new isector_t(*grid, 1) : NULL)
 {
 	accessor = new openvdb::FloatGrid::ConstAccessor(grid->getConstAccessor());
-
-	/* only grids with uniform voxels can be used with VolumeRayIntersector */
-	if(grid->hasUniformVoxels()) {
-		uniform_voxels = true;
-		/* 1 = size of the largest sampling kernel radius (BoxSampler) */
-		main_isector = new isector_t(*grid, 1);
-	}
-	else {
-		uniform_voxels = false;
-		main_isector = NULL;
-	}
 }
 
 vdb_float_volume::~vdb_float_volume()
@@ -112,7 +104,10 @@ vdb_float_volume::~vdb_float_volume()
 
 void vdb_float_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 {
-	create_isectors_threads(isectors, thread_ids, *main_isector);
+	if (uniform_voxels) {
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+	}
+
 	create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
 }
@@ -121,20 +116,11 @@ void vdb_float_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 
 vdb_float3_volume::vdb_float3_volume(openvdb::Vec3SGrid::Ptr grid)
     : transform(&grid->transform())
+    , uniform_voxels(grid->hasUniformVoxels())
+    , staggered(grid->getGridClass() == openvdb::GRID_STAGGERED)
+    , main_isector(uniform_voxels ? new isector_t(*grid, 1) : NULL)
 {
 	accessor = new openvdb::Vec3SGrid::ConstAccessor(grid->getConstAccessor());
-	staggered = (grid->getGridClass() == openvdb::GRID_STAGGERED);
-
-	/* only grids with uniform voxels can be used with VolumeRayIntersector */
-	if(grid->hasUniformVoxels()) {
-		uniform_voxels = true;
-		/* 1 = size of the largest sampling kernel radius (BoxSampler) */
-		main_isector = new isector_t(*grid, 1);
-	}
-	else {
-		uniform_voxels = false;
-		main_isector = NULL;
-	}
 }
 
 vdb_float3_volume::~vdb_float3_volume()
@@ -158,7 +144,10 @@ vdb_float3_volume::~vdb_float3_volume()
 
 void vdb_float3_volume::create_threads_utils(const vector<pthread_t> &thread_ids)
 {
-	create_isectors_threads(isectors, thread_ids, *main_isector);
+	if (uniform_voxels) {
+		create_isectors_threads(isectors, thread_ids, *main_isector);
+	}
+
 	create_samplers_threads(point_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(box_samplers, accessors, thread_ids, transform, *accessor);
 	create_samplers_threads(stag_point_samplers, accessors, thread_ids, transform, *accessor);

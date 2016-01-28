@@ -168,7 +168,7 @@ static void load_tex_task_cb_ex(void *userdata, void *UNUSED(userdata_chunck), c
 	bool convert_to_linear = false;
 	struct ColorSpace *colorspace = NULL;
 
-	if (mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+	if (mtex->tex && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
 		ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
 		/* For consistency, sampling always returns color in linear space */
 		if (tex_ibuf && tex_ibuf->rect_float == NULL) {
@@ -1064,6 +1064,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	}
 
 	/* make lines pretty */
+	glLineWidth(1.0f);
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
 
