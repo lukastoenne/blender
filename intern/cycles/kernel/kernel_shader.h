@@ -103,6 +103,9 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 		triangle_dPdudv(kg, ccl_fetch(sd, prim), &ccl_fetch(sd, dPdu), &ccl_fetch(sd, dPdv));
 #endif
 	}
+	else if(ccl_fetch(sd, type) & PRIMITIVE_VOLUME) {
+		ccl_fetch(sd, shader) = kernel_tex_fetch(__vol_shader, ccl_fetch(sd, prim));
+	}
 	else {
 		/* motion triangle */
 		motion_triangle_shader_setup(kg, sd, isect, ray, false);

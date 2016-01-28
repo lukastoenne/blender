@@ -347,8 +347,13 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
 	
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
-	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	if(object_has_sparse_volume(b_ob)) {
+		object->mesh = NULL;
+	}
+	else {
+		/* mesh sync */
+		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	}
 
 	/* special case not tracked by object update flags */
 

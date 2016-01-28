@@ -94,8 +94,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	/* try to intersect with VDB volumes */
 	int num_volumes = kernel_data.tables.num_volumes;
 
-	for (int i = 0; i < num_volumes; i++) {
-		if (kg->float_volumes[i]->intersect(ray, isect)) {
+	for(int i = 0; i < num_volumes; i++) {
+		if(kg->float_volumes[i]->intersect(ray, isect)) {
+			isect->type = PRIMITIVE_VOLUME;
 			kernel_data.tables.density_index = i;
 			return true;
 		}
