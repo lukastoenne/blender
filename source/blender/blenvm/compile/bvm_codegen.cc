@@ -421,68 +421,82 @@ int Compiler::codegen_node_block(const NodeBlock &block)
 	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
+#if 0
 		/* store values for unconnected inputs */
 		for (int i = 0; i < node.num_inputs(); ++i) {
-			ConstInputKey key = node.input(i);
+			ConstInputKey input = node.input(i);
 			
-			if (key.value_type() == INPUT_CONSTANT ||
-			    key.value_type() == INPUT_EXPRESSION) {
-				/* stored directly in instructions */
-			}
-			else if (key.link()) {
-				/* uses linked output value on the stack */
-			}
-			else {
-				/* create a value node for the input */
-				codegen_value(key.value(), input_index.at(key));
+			switch (input.value_type()) {
+				case INPUT_CONSTANT:
+					/* stored directly in instructions */
+					break;
+				case INPUT_EXPRESSION:
+				case INPUT_VARIABLE:
+					/* uses linked output value on the stack */
+					assert(input.link());
+					break;
 			}
 		}
+#endif
 		/* initialize output data stack entries */
 		for (int i = 0; i < node.num_outputs(); ++i) {
-			const NodeOutput *output = node.type->find_output(i);
-			ConstOutputKey key(&node, output->name);
+			ConstOutputKey output = node.output(i);
 			
 			/* if necessary, add a user count initializer */
-			OpCode init_op = ptr_init_opcode(output->typedesc);
+			OpCode init_op = ptr_init_opcode(output.socket->typedesc);
 			if (init_op != OP_NOOP) {
-				int users = output_users.at(key);
+				int users = output_users.at(output);
 				if (users > 0) {
 					push_opcode(init_op);
-					push_stack_index(output_index.at(key));
+					push_stack_index(output_index.at(output));
 					push_int(users);
 				}
 			}
 		}
 		
 		OpCode op = get_opcode_from_node_type(node.type->name());
+		
 		if (op != OP_NOOP) {
 			/* write main opcode */
 			push_opcode(op);
 			/* write input stack offsets and constants */
 			for (int i = 0; i < node.num_inputs(); ++i) {
-				ConstInputKey key = node.input(i);
+				ConstInputKey input = node.input(i);
+				ConstOutputKey link = input.link();
 				
-				if (key.value_type() == INPUT_CONSTANT) {
-					push_constant(key.value());
-				}
-				else {
-					if (key.value_type() == INPUT_EXPRESSION) {
-						if (key.link() && key.link().node->block != &block) {
-							const NodeBlock *expr_block = key.link().node->block;
-							push_jump_address(block_info.at(expr_block).entry_point);
+				switch (input.value_type()) {
+					case INPUT_CONSTANT:
+						push_constant(input.value());
+						break;
+					case INPUT_EXPRESSION:
+					case INPUT_VARIABLE:
+						/* XXX This is neither ideal nor final:
+						 * Ultimately loops, conditionals, etc. should
+						 * be coded explicitly in the instructions,
+						 * but for the time being we leave it to complex
+						 * kernel blackbox functions to call functions.
+						 * Every kernel op simply gets a jump address in front
+						 * of each input variable, so we don't need an extra
+						 * qualifier per input.
+						 */
+						if (node.type->is_kernel_node()) {
+							if (link.node->block->parent() == &block) {
+								const NodeBlock *expr_block = input.link().node->block;
+								push_jump_address(block_info.at(expr_block).entry_point);
+							}
+							else
+								push_jump_address(BVM_JMP_INVALID);
 						}
-						else
-							push_jump_address(BVM_JMP_INVALID);
-					}
-					
-					push_stack_index(input_index.at(key));
+						
+						push_stack_index(input_index.at(input));
+						break;
 				}
 			}
 			/* write output stack offsets */
 			for (int i = 0; i < node.num_outputs(); ++i) {
-				ConstOutputKey key = node.output(i);
+				ConstOutputKey output = node.output(i);
 				
-				push_stack_index(output_index.at(key));
+				push_stack_index(output_index.at(output));
 			}
 		}
 		

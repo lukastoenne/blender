@@ -298,8 +298,8 @@ static void eval_op_mesh_array(const EvalGlobals *globals, const EvalKernelData 
 }
 
 static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
-                        DerivedMesh *dm, int fn_vector, StackIndex offset_vector,
-                        StackIndex offset_elem_index, StackIndex offset_elem_loc)
+                                DerivedMesh *dm, int fn_vector, StackIndex offset_vector,
+                                StackIndex offset_index)
 {
 	DerivedMesh *result = CDDM_copy(dm);
 	MVert *orig_mv, *orig_mverts = dm->getVertArray(dm);
@@ -307,8 +307,7 @@ static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData
 	int i, numverts = result->getNumVerts(result);
 	
 	for (i = 0, mv = mverts, orig_mv = orig_mverts; i < numverts; ++i, ++mv, ++orig_mv) {
-		stack_store_int(stack, offset_elem_index, i);
-		stack_store_float3(stack, offset_elem_loc, float3::from_data(orig_mv->co));
+		stack_store_int(stack, offset_index, i);
 		
 		kernel_data->context->eval_expression(globals, kernel_data->function, fn_vector, stack);
 		float3 dco = stack_load_float3(stack, offset_vector);
@@ -323,14 +322,14 @@ static DerivedMesh *do_displace(const EvalGlobals *globals, const EvalKernelData
 
 static void eval_op_mesh_displace(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
                                   StackIndex offset_mesh_in, StackIndex offset_mesh_out,
-                                  int fn_vector, StackIndex offset_vector,
-                                  StackIndex offset_elem_index, StackIndex offset_elem_loc)
+                                  int adr_vector, StackIndex offset_vector,
+                                  StackIndex offset_index)
 {
 	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh_in);
 	
 	DerivedMesh *result = do_displace(globals, kernel_data, stack,
-	                                  dm, fn_vector, offset_vector,
-	                                  offset_elem_index, offset_elem_loc);
+	                                  dm, adr_vector, offset_vector,
+	                                  offset_index);
 	
 	stack_store_mesh(stack, offset_mesh_out, result);
 }

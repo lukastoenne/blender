@@ -1837,11 +1837,11 @@ static void register_opcode_node_types()
 	nt->add_output("normal", "FLOAT3");
 	nt->add_output("tangent", "FLOAT3");
 	
-	nt = NodeGraph::add_kernel_node_type("MESH_LOAD");
+	nt = NodeGraph::add_function_node_type("MESH_LOAD");
 	nt->add_input("base_mesh", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("mesh", "MESH");
 	
-	nt = NodeGraph::add_kernel_node_type("MESH_COMBINE");
+	nt = NodeGraph::add_function_node_type("MESH_COMBINE");
 	nt->add_input("mesh_a", "MESH", __empty_mesh__);
 	nt->add_input("mesh_b", "MESH", __empty_mesh__);
 	nt->add_output("mesh_out", "MESH");
@@ -1851,16 +1851,15 @@ static void register_opcode_node_types()
 	nt->add_input("count", "INT", 1);
 	nt->add_input("transform", "MATRIX44", matrix44::identity());
 	nt->add_output("mesh_out", "MESH");
-	nt->add_output("iteration", "INT", OUTPUT_VARIABLE);
+	nt->add_output("index0", "INT", OUTPUT_VARIABLE);
 	
 	nt = NodeGraph::add_kernel_node_type("MESH_DISPLACE");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);
 	nt->add_input("vector", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("mesh_out", "MESH");
 	nt->add_output("index0", "INT", OUTPUT_VARIABLE);
-	nt->add_output("location", "FLOAT3", OUTPUT_VARIABLE);
 	
-	nt = NodeGraph::add_kernel_node_type("MESH_BOOLEAN");
+	nt = NodeGraph::add_function_node_type("MESH_BOOLEAN");
 	nt->add_input("mesh_in", "MESH", __empty_mesh__);
 	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_input("transform", "MATRIX44", matrix44::identity());

@@ -457,11 +457,11 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 			}
 			case OP_RANGE_INT: {
 				StackIndex offset_index = fn->read_stack_index(&instr);
-				StackIndex offset_start = fn->read_int(&instr);
-				StackIndex offset_end = fn->read_int(&instr);
-				StackIndex offset_step = fn->read_int(&instr);
+				int start = fn->read_int(&instr);
+				int end = fn->read_int(&instr);
+				int step = fn->read_int(&instr);
 				StackIndex offset_value = fn->read_stack_index(&instr);
-				eval_op_range_int(stack, offset_index, offset_start, offset_end, offset_step, offset_value);
+				eval_op_range_int(stack, start, end, step, offset_index, offset_value);
 				break;
 			}
 			case OP_FLOAT_TO_INT: {
@@ -1079,27 +1079,29 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				break;
 			}
 			case OP_MESH_ARRAY: {
+				fn->read_jump_address(&instr);
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
+				fn->read_jump_address(&instr);
 				StackIndex offset_count = fn->read_stack_index(&instr);
-				int fn_transform = fn->read_jump_address(&instr);
+				int adr_transform = fn->read_jump_address(&instr);
 				StackIndex offset_transform = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
-				StackIndex offset_iteration = fn->read_stack_index(&instr);
+				StackIndex offset_index = fn->read_stack_index(&instr);
 				eval_op_mesh_array(globals, &kd, stack,
 				                   offset_mesh_in, offset_mesh_out, offset_count,
-				                   fn_transform, offset_transform, offset_iteration);
+				                   adr_transform, offset_transform, offset_index);
 				break;
 			}
 			case OP_MESH_DISPLACE: {
+				fn->read_jump_address(&instr);
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
 				int fn_vector = fn->read_jump_address(&instr);
 				StackIndex offset_vector = fn->read_stack_index(&instr);
 				StackIndex offset_mesh_out = fn->read_stack_index(&instr);
-				StackIndex offset_elem_index = fn->read_stack_index(&instr);
-				StackIndex offset_elem_loc = fn->read_stack_index(&instr);
+				StackIndex offset_index = fn->read_stack_index(&instr);
 				eval_op_mesh_displace(globals, &kd, stack,
 				                      offset_mesh_in, offset_mesh_out, fn_vector, offset_vector,
-				                      offset_elem_index, offset_elem_loc);
+				                      offset_index);
 				break;
 			}
 			case OP_MESH_BOOLEAN: {
