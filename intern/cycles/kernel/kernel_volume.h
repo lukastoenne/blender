@@ -497,7 +497,7 @@ ccl_device_inline VolumeIntegrateResult kernel_volume_integrate_ray(
 	if(volume_shader_sample(kg, sd, state, new_P, &coeff)) {
 		int closure_flag = sd->flag;
 		float3 new_tp;
-		float3 transmittance;
+		float3 transmittance = make_float3(1.0f, 1.0f, 1.0f);
 		bool scatter = false;
 
 		/* distance sampling */
@@ -761,7 +761,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	float3 accum_emission = make_float3(0.0f, 0.0f, 0.0f);
 	float3 accum_transmittance = make_float3(1.0f, 1.0f, 1.0f);
 	float3 cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
-	float t = 0.0f, t1 = 0.0f;
+	float t = 0.0f;
 
 	segment->numsteps = 0;
 	segment->closure_flag = 0;
@@ -771,6 +771,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 #ifdef __OPENVDB__
 	int vdb_index = kernel_data.tables.density_index;
 	bool has_vdb_volume = kernel_data.tables.num_volumes > 0;
+	float t1 = 0.0f;
 
 	if(has_vdb_volume && kg->float_volumes[vdb_index]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
