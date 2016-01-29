@@ -1125,11 +1125,8 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	PointerRNA object_ptr, base_mesh_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);
 	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
-	int iteration = 0;
-	int elem_index = 0;
-	float3 elem_loc(0.0f, 0.0f, 0.0f);
 	mesh_ptr result;
-	const void *args[] = { &iteration, &elem_index, &elem_loc, &object_ptr, &base_mesh_ptr };
+	const void *args[] = { &object_ptr, &base_mesh_ptr };
 	void *results[] = { &result };
 	
 	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);

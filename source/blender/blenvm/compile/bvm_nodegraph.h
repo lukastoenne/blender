@@ -259,30 +259,41 @@ struct NodeInstance {
 typedef std::set<NodeInstance*> NodeSet;
 typedef std::map<const NodeInstance*, NodeInstance*> NodeMap;
 typedef std::map<ConstOutputKey, OutputKey> OutputMap;
-typedef std::map<const NodeInstance*, bool> NodeBoolMap;
+
+struct NodeIndexCmp {
+	bool operator () (const NodeInstance *a, const NodeInstance *b) const
+	{
+		return a->index < b->index;
+	}
+};
+
+typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
 
 struct NodeBlock {
 	typedef std::map<string, ConstOutputKey> ArgumentMap;
 	
-	NodeBlock(const string &name, NodeBlock *parent);
+	NodeBlock(const string &name, NodeBlock *parent = NULL);
 	
 	const string &name() const { return m_name; }
 	NodeBlock *parent() const { return m_parent; }
+	void parent_set(NodeBlock *parent) { m_parent = parent; }
+	NodeSet &nodes() { return m_nodes; }
 	const NodeSet &nodes() const { return m_nodes; }
 	ConstOutputKey local_arg(const string &name) const;
 	void local_arg_set(const string &name, const ConstOutputKey &arg);
 	
-	void insert(NodeInstance *node);
 	void prune(const NodeSet &used_nodes);
 	
 private:
 	string m_name;
 	NodeBlock *m_parent;
 	NodeSet m_nodes;
-	ArgumentMap m_local_args;
+	ArgumentMap m_local_args; // XXX REMOVE
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeBlock")
 };
+
+typedef std::set<NodeBlock *> NodeBlockSet;
 
 struct NodeGraph {
 	struct Input {
@@ -381,9 +392,8 @@ protected:
 	
 	void remove_unused_nodes();
 	
-	void make_args_local(NodeBlock &block, NodeMap &block_map, NodeSet &expr_visited, const NodeInstance *arg_node);
-	bool add_block_node(NodeInstance *node, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited);
-	bool blockify_expression(const InputKey &input, NodeBlock &block, NodeMap &block_map, NodeSet &block_visited);
+	bool add_block_node(NodeBlock &block, const OutputSet &local_vars,
+	                    NodeInstance *node, NodeSet &visited);
 	void blockify_nodes();
 	
 	void sort_nodes();

@@ -49,15 +49,6 @@ struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
 
-struct NodeIndexCmp {
-	bool operator () (const NodeInstance *a, const NodeInstance *b) const
-	{
-		return a->index < b->index;
-	}
-};
-
-typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
-
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
 typedef std::map<ConstOutputKey, int> OutputUsersMap;
