@@ -16,6 +16,19 @@
 
 #include "util_volume.h"
 
+#if defined(HAS_CPP11_FEATURES) && defined(_MSC_VER)
+
+namespace std {
+
+bool operator==(const pthread_t &lhs, const pthread_t &rhs)
+{
+	return lhs.p == rhs.p;
+}
+
+}  /* namespace std */
+
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 template <typename T>
