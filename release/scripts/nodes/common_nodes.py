@@ -277,18 +277,6 @@ class ValueColorNode(CommonNodeBase, ObjectNode):
         compiler.map_output(0, node.outputs[0])
 
 
-class IterationNode(CommonNodeBase, ObjectNode):
-    '''Iteration number'''
-    bl_idname = 'ObjectIterationNode'
-    bl_label = 'Iteration'
-
-    def init(self, context):
-        self.outputs.new('NodeSocketInt', "N")
-
-    def compile(self, compiler):
-        compiler.map_output(0, compiler.graph_input("iteration"))
-
-
 class MathNode(CommonNodeBase, ObjectNode):
     '''Math '''
     bl_idname = 'ObjectMathNode'

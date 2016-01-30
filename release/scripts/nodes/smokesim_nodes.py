@@ -277,7 +277,6 @@ def register():
     node_categories = [
         SmokeSimNodeCategory("SMO_INPUT", "Input", items=[
             NodeItem("SmokeSimNode_State"),
-            NodeItem("ObjectIterationNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
             NodeItem("ObjectValueIntNode"),

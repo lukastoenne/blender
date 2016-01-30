@@ -189,7 +189,6 @@ def register():
 
     node_categories = [
         InstancingNodeCategory("INS_INPUT", "Input", items=[
-            NodeItem("ObjectIterationNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
             NodeItem("ObjectValueIntNode"),

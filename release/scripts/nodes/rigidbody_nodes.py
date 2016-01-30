@@ -103,7 +103,6 @@ def register():
 
     node_categories = [
         RigidBodyNodeCategory("SMO_INPUT", "Input", items=[
-            NodeItem("ObjectIterationNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
             NodeItem("ObjectValueIntNode"),
