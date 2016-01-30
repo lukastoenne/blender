@@ -73,6 +73,34 @@ bool BlenderSync::object_is_light(BL::Object b_ob)
 	return (b_ob_data && b_ob_data.is_a(&RNA_Lamp));
 }
 
+bool BlenderSync::object_has_sparse_volume(BL::Object b_ob)
+{
+	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
+
+	if(!b_domain) {
+		return false;
+	}
+
+	BL::PointCache b_ptcache = b_domain.point_cache();
+
+	if (!b_ptcache.is_baked()) {
+	    return false;
+	}
+
+	if (b_domain.cache_file_format() != BL::SmokeDomainSettings::cache_file_format_OPENVDB) {
+	    return false;
+	}
+
+#if 0
+	char filename[1024];
+	SmokeDomainSettings_cache_filename_get(&b_domain.ptr, filename);
+
+	return strcmp(filename, "");
+#else
+	return true;
+#endif
+}
+
 static uint object_ray_visibility(BL::Object b_ob)
 {
 	PointerRNA cvisibility = RNA_pointer_get(&b_ob.ptr, "cycles_visibility");
@@ -348,9 +376,10 @@ Object *BlenderSync::sync_object(BL::Object b_parent,
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
 	if(object_has_sparse_volume(b_ob)) {
-		object->mesh = NULL;
+		//object->mesh = NULL;
+		printf("object has sparse volume\n");
 	}
-	else {
+	/*else*/ {
 		/* mesh sync */
 		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
 	}

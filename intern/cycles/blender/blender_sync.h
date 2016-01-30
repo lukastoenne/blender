@@ -123,6 +123,7 @@ private:
 	bool BKE_object_is_modified(BL::Object b_ob);
 	bool object_is_mesh(BL::Object b_ob);
 	bool object_is_light(BL::Object b_ob);
+	bool object_has_sparse_volume(BL::Object b_ob);
 
 	/* variables */
 	BL::RenderEngine b_engine;
