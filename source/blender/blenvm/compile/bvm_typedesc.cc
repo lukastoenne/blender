@@ -154,7 +154,29 @@ size_t TypeDesc::size() const
 				}
 				break;
 			case BVM_BUFFER_ARRAY:
-				return 16;
+				switch (m_base_type) {
+					case BVM_FLOAT: return sizeof(array<BVM_FLOAT>);
+					case BVM_FLOAT3: return sizeof(array<BVM_FLOAT>);
+					case BVM_FLOAT4: return sizeof(array<BVM_FLOAT>);
+					case BVM_INT: return sizeof(array<BVM_FLOAT>);
+					case BVM_MATRIX44: return sizeof(array<BVM_FLOAT>);
+					case BVM_STRING: return sizeof(array<BVM_FLOAT>);
+					case BVM_RNAPOINTER: return sizeof(array<BVM_FLOAT>);
+					case BVM_MESH: return sizeof(array<BVM_FLOAT>);
+					case BVM_DUPLIS: return sizeof(array<BVM_FLOAT>);
+				}
+			case BVM_BUFFER_IMAGE:
+				switch (m_base_type) {
+					case BVM_FLOAT: return sizeof(image<BVM_FLOAT>);
+					case BVM_FLOAT3: return sizeof(image<BVM_FLOAT>);
+					case BVM_FLOAT4: return sizeof(image<BVM_FLOAT>);
+					case BVM_INT: return sizeof(image<BVM_FLOAT>);
+					case BVM_MATRIX44: return sizeof(image<BVM_FLOAT>);
+					case BVM_STRING: return sizeof(image<BVM_FLOAT>);
+					case BVM_RNAPOINTER: return sizeof(image<BVM_FLOAT>);
+					case BVM_MESH: return sizeof(image<BVM_FLOAT>);
+					case BVM_DUPLIS: return sizeof(image<BVM_FLOAT>);
+				}
 		}
 	}
 	
@@ -193,6 +215,22 @@ void TypeDesc::copy_value(void *to, const void *from) const
 			case BVM_BUFFER_ARRAY:
 #define COPY_TYPE(a, b, type) \
 	*(array<type> *)(a) = *(array<type> const *)(b);
+				switch (m_base_type) {
+					case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT); break;
+					case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3); break;
+					case BVM_FLOAT4: COPY_TYPE(to, from, BVM_FLOAT4); break;
+					case BVM_INT: COPY_TYPE(to, from, BVM_INT); break;
+					case BVM_MATRIX44: COPY_TYPE(to, from, BVM_MATRIX44); break;
+					case BVM_STRING: COPY_TYPE(to, from, BVM_STRING); break;
+					case BVM_RNAPOINTER: COPY_TYPE(to, from, BVM_RNAPOINTER); break;
+					case BVM_MESH: COPY_TYPE(to, from, BVM_MESH); break;
+					case BVM_DUPLIS: COPY_TYPE(to, from, BVM_DUPLIS); break;
+				}
+#undef COPY_TYPE
+				break;
+			case BVM_BUFFER_IMAGE:
+#define COPY_TYPE(a, b, type) \
+	*(image<type> *)(a) = *(image<type> const *)(b);
 				switch (m_base_type) {
 					case BVM_FLOAT: COPY_TYPE(to, from, BVM_FLOAT); break;
 					case BVM_FLOAT3: COPY_TYPE(to, from, BVM_FLOAT3); break;

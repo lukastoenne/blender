@@ -51,6 +51,7 @@ typedef enum BVMType {
 typedef enum BVMBufferType {
 	BVM_BUFFER_SINGLE,
 	BVM_BUFFER_ARRAY,
+	BVM_BUFFER_IMAGE,
 } BVMBufferType;
 
 typedef enum BVMInputValueType {

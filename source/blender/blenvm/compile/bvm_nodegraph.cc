@@ -819,6 +819,12 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, Value *default_valu
 				case BVM_DUPLIS: node = add_node("PASS_DUPLIS_ARRAY"); break;
 			}
 			break;
+		case BVM_BUFFER_IMAGE:
+			switch (typedesc.base_type()) {
+				case BVM_FLOAT: node = add_node("PASS_FLOAT_IMAGE"); break;
+				case BVM_INT: node = add_node("PASS_INT_IMAGE"); break;
+			}
+			break;
 	}
 	if (node && default_value)
 		node->input_value_set("value", default_value);

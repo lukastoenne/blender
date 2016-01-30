@@ -177,7 +177,7 @@ struct const_array {
 	
 	const POD *data() const { return m_data; }
 	
-	const POD& operator [] (size_t index)
+	const POD& operator [] (size_t index) const
 	{
 		return m_data[index];
 	}
@@ -220,6 +220,71 @@ struct array {
 private:
 	POD *m_data;
 	size_t m_size;
+};
+
+template <BVMType type>
+struct const_image {
+	typedef BaseTypeTraits<type> traits;
+	typedef typename traits::POD POD;
+	
+	const_image(const POD *data, size_t width, size_t height) :
+	    m_data(data),
+	    m_width(width),
+	    m_height(height)
+	{}
+	
+	~const_image()
+	{}
+	
+	const POD *data() const { return m_data; }
+	
+	const POD& get(size_t x, size_t y) const
+	{
+		return m_data[x + y * m_width];
+	}
+	
+private:
+	POD *m_data;
+	size_t m_width;
+	size_t m_height;
+};
+
+template <BVMType type>
+struct image {
+	typedef BaseTypeTraits<type> traits;
+	typedef typename traits::POD POD;
+	
+	image() :
+	    m_data(NULL),
+	    m_width(0),
+	    m_height(0)
+	{}
+	
+	image(const POD *data, size_t width, size_t height) :
+	    m_data(data),
+	    m_width(width),
+	    m_height(height)
+	{}
+	
+	~image()
+	{}
+	
+	operator const_image<type>() const
+	{
+		return const_image<type>(m_data, m_width, m_height);
+	}
+	
+	POD *data() const { return m_data; }
+	
+	POD& get(size_t x, size_t y)
+	{
+		return m_data[x + y * m_width];
+	}
+	
+private:
+	POD *m_data;
+	size_t m_width;
+	size_t m_height;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -405,6 +470,58 @@ struct ArrayValue : public Value {
 	
 private:
 	array_t m_data;
+};
+
+template <BVMType type>
+struct ImageValue : public Value {
+	typedef BaseTypeTraits<type> traits;
+	typedef typename traits::POD POD;
+	typedef image<type> image_t;
+	typedef const_image<type> const_image_t;
+	
+	ImageValue(const image_t &data) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	    m_data(data)
+	{}
+	
+	ImageValue(POD *data, size_t width, size_t height) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	    m_data(image_t(data, width, height))
+	{}
+	
+	template <typename T>
+	ImageValue(T data) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY))
+	{ (void)data; }
+	
+	template <typename T>
+	ImageValue(T *data, size_t width, size_t height) :
+	    Value(TypeDesc(type, BVM_BUFFER_ARRAY))
+	{ (void)data; (void)width; (void)height; }
+	
+	const image_t &data() const { return m_data; }
+	
+	bool get(image_t *data) const
+	{
+		*data = m_data;
+		return true;
+	}
+	
+	template <typename T>
+	bool get(T *data) const
+	{
+		assert(!"Data type mismatch");
+		(void)data;
+		return false;
+	}
+	
+	Value *copy() const
+	{
+		return new ImageValue<type>(m_data);
+	}
+	
+private:
+	image_t m_data;
 };
 
 /* ========================================================================= */
