@@ -317,6 +317,15 @@ static void rna_SmokeFlow_uvlayer_set(PointerRNA *ptr, const char *value)
 	rna_object_uvlayer_name_set(ptr, value, flow->uvlayer_name, sizeof(flow->uvlayer_name));
 }
 
+static void rna_SmokeModifier_cache_filename_get(PointerRNA *ptr, char *filename)
+{
+       SmokeDomainSettings *sds = (SmokeDomainSettings *)ptr->data;
+       PTCacheID pid;
+
+       BKE_ptcache_id_from_smoke(&pid, ptr->id.data, sds->smd);
+       ptcache_filename(&pid, filename, sds->smd->time, 1, 1);
+}
+
 #else
 
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
@@ -644,6 +653,12 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, cache_file_type_items);
 	RNA_def_property_ui_text(prop, "File Format", "Select the file format to be used for caching");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
+
+	prop = RNA_def_property(srna, "cache_filename", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_maxlength(prop, 1024);
+	RNA_def_property_string_funcs(prop, "rna_SmokeModifier_cache_filename_get", NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Filename", "Path to the .blend file");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

@@ -91,14 +91,12 @@ bool BlenderSync::object_has_sparse_volume(BL::Object& b_ob)
 	    return false;
 	}
 
-#if 0
 	char filename[1024];
 	SmokeDomainSettings_cache_filename_get(&b_domain.ptr, filename);
 
+	printf("filename (blender sync): %s\n", filename);
+
 	return strcmp(filename, "");
-#else
-	return true;
-#endif
 }
 
 static uint object_ray_visibility(BL::Object& b_ob)

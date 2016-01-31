@@ -280,6 +280,7 @@ void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct 
 
 /***************** Global funcs ****************************/
 void BKE_ptcache_remove(void);
+int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext);
 
 /************ ID specific functions ************************/
 void    BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
