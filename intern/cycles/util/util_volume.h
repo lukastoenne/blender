@@ -81,7 +81,7 @@ template<>
 struct hash<pthread_t> {
 	size_t operator()(const pthread_t &pt) const
 	{
-		return static_cast<size_t>(pt.p);
+		return std::hash<void *>()(pt.p) ^ (std::hash<unsigned int>()(pt.x) << 1);
 	}
 };
 
