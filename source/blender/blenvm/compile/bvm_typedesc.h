@@ -582,7 +582,7 @@ template <BVMType type>
 bool Value::get(array<type> *data) const
 {
 	if (m_typedesc.buffer_type() == BVM_BUFFER_ARRAY) {
-		switch (m_typedesc.base_type) {
+		switch (m_typedesc.base_type()) {
 			case BVM_FLOAT: return static_cast< const ArrayValue<BVM_FLOAT>* >(this)->get(data);
 			case BVM_FLOAT3: return static_cast< const ArrayValue<BVM_FLOAT3>* >(this)->get(data);
 			case BVM_FLOAT4: return static_cast< const ArrayValue<BVM_FLOAT4>* >(this)->get(data);
