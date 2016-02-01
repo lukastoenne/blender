@@ -39,6 +39,12 @@ set(INC_SYS
 )
 
 set(SRC
+	bvm_ast_context.cc
+	bvm_ast_context.h
+	bvm_ast_decl.cc
+	bvm_ast_decl.h
+	bvm_ast_stmt.cc
+	bvm_ast_stmt.h
 	bvm_codegen.cc
 	bvm_codegen_debug.cc
 	bvm_codegen.h
@@ -46,6 +52,7 @@ set(SRC
 	bvm_function.cc
 	bvm_nodegraph.cc
 	bvm_nodegraph.h
+	bvm_source_location.h
 	bvm_typedesc.cc
 	bvm_typedesc.h
 	bvm_value.cc
