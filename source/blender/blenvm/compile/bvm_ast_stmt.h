@@ -47,7 +47,6 @@ struct Stmt {
 	
 protected:
 	void* operator new (size_t size, const ASTContext &C);
-	void operator delete(void *ptr, const ASTContext &C);
 	
 	Stmt(SourceLocation loc);
 };

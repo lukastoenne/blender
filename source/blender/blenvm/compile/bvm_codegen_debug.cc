@@ -39,6 +39,7 @@
 #include "bvm_util_string.h"
 
 namespace bvm {
+namespace deprecated {
 
 using namespace debug;
 
@@ -294,4 +295,5 @@ void DebugGraphvizCompiler::compile_function(const NodeGraph &graph, FILE *f, co
 	m_file = NULL;
 }
 
+} /* namespace deprecated */
 } /* namespace bvm */

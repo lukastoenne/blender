@@ -29,28 +29,73 @@
  *  \ingroup bvm
  */
 
+#include <assert.h>
+
 #include "bvm_ast_context.h"
 #include "bvm_ast_decl.h"
 
 namespace bvm {
 namespace ast {
 
+DeclContext::DeclContext(DeclContext *parent) :
+    m_parent(parent)
+{
+}
+
+DeclContext::~DeclContext()
+{
+}
+
+
+void* Decl::operator new (size_t size, const ASTContext &C)
+{
+	return C.allocate(size);
+}
+
 void* Decl::operator new (size_t size, const ASTContext &C, DeclContext *DC)
 {
 	(void)DC;
-	return C.allocate(size, "Decl");
-}
-
-void Decl::operator delete(void *ptr, const ASTContext &C, DeclContext *DC)
-{
-	(void)DC;
-	C.deallocate(ptr);
+	return C.allocate(size);
 }
 
 Decl::Decl(DeclContext *DC, SourceLocation loc) :
     decl_ctx(DC),
     loc(loc)
 {
+}
+
+TranslationUnitDecl *Decl::get_translation_unit_decl() const
+{
+	DeclContext *DC = decl_ctx;
+	while (DC->get_parent())
+		DC = DC->get_parent();
+	
+	assert(dynamic_cast<TranslationUnitDecl*>(DC) && "Decl is not contained in a translation unit");
+	return static_cast<TranslationUnitDecl*>(DC);
+}
+
+ASTContext &Decl::get_ast_context() const
+{
+	return get_translation_unit_decl()->getASTContext();
+}
+
+/* ========================================================================= */
+
+TranslationUnitDecl *TranslationUnitDecl::create(ASTContext &C)
+{
+	return new (C) TranslationUnitDecl(C);
+}
+
+TranslationUnitDecl::TranslationUnitDecl(ASTContext &C) :
+    Decl(NULL, SourceLocation()),
+    DeclContext(NULL),
+    ctx(C)
+{
+}
+
+ASTContext &TranslationUnitDecl::getASTContext() const
+{
+	return ctx;
 }
 
 

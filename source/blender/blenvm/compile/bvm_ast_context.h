@@ -36,15 +36,35 @@
 
 #include "bvm_util_string.h"
 
+struct MemArena;
+
 namespace bvm {
 namespace ast {
 
 struct ASTContext {
-	void *allocate(size_t size, const char *name) const;
-	void deallocate(void *ptr) const;
+	ASTContext();
+	~ASTContext();
+	
+	/* AST objects are never explicitly deleted, but all allocated memory
+	 * is released when the ASTContext is destroyed.
+	 */
+	void *allocate(size_t size) const;
+	
+private:
+	MemArena *m_arena;
 };
 
 } /* namespace ast */
 } /* namespace bvm */
+
+inline void* operator new (size_t size, const bvm::ast::ASTContext &C)
+{
+	return C.allocate(size);
+}
+
+inline void* operator new[] (size_t size, const bvm::ast::ASTContext &C)
+{
+	return C.allocate(size);
+}
 
 #endif /* __BVM_AST_CONTEXT_H__ */

@@ -45,9 +45,12 @@
 namespace bvm {
 
 struct Function;
+struct TypeDesc;
+
+namespace deprecated {
+
 struct NodeGraph;
 struct NodeInstance;
-struct TypeDesc;
 
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
@@ -168,6 +171,7 @@ private:
 	mutable int m_current_arg;
 };
 
+} /* namespace deprecated */
 } /* namespace bvm */
 
 #endif /* __BVM_CODEGEN_H__ */

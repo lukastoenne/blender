@@ -43,6 +43,7 @@
 #include "bvm_util_math.h"
 
 namespace bvm {
+namespace deprecated {
 
 NodeInput::NodeInput(const string &name,
                      const TypeDesc &typedesc,
@@ -2009,17 +2010,19 @@ static void register_opcode_node_types()
 	nt->add_output("matrix", "MATRIX44");
 }
 
+} /* namespace deprecated */
+
 void nodes_init()
 {
-	create_empty_mesh(__empty_mesh__);
+	create_empty_mesh(deprecated::__empty_mesh__);
 	
-	register_typedefs();
-	register_opcode_node_types();
+	deprecated::register_typedefs();
+	deprecated::register_opcode_node_types();
 }
 
 void nodes_free()
 {
-	destroy_empty_mesh(__empty_mesh__);
+	destroy_empty_mesh(deprecated::__empty_mesh__);
 }
 
 } /* namespace bvm */

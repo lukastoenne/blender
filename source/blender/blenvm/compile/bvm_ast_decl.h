@@ -42,19 +42,47 @@ namespace ast {
 
 struct ASTContext;
 struct Stmt;
+struct TranslationUnitDecl;
 
 struct DeclContext {
+	virtual ~DeclContext();
+	
+	DeclContext *get_parent() const { return m_parent; }
+	
+protected:
+	DeclContext(DeclContext *parent);
+	
+private:
+	DeclContext *m_parent;
 };
 
 struct Decl {
 	DeclContext *decl_ctx;
 	SourceLocation loc;
 	
+	TranslationUnitDecl *get_translation_unit_decl() const;
+	
+	ASTContext &get_ast_context() const;
+	
 protected:
+	void* operator new (size_t size, const ASTContext &C);
 	void* operator new (size_t size, const ASTContext &C, DeclContext *DC);
-	void operator delete(void *ptr, const ASTContext &C, DeclContext *DC);
 	
 	Decl(DeclContext *DC, SourceLocation loc);
+};
+
+/* ========================================================================= */
+
+struct TranslationUnitDecl : Decl, DeclContext {
+	static TranslationUnitDecl *create(ASTContext &C);
+	
+	ASTContext &getASTContext() const;
+	
+protected:
+	explicit TranslationUnitDecl(ASTContext &C);
+	
+private:
+	ASTContext &ctx;
 };
 
 struct VarDecl : public Decl {

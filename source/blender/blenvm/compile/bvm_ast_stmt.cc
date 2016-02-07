@@ -37,12 +37,7 @@ namespace ast {
 
 void* Stmt::operator new (size_t size, const ASTContext &C)
 {
-	return C.allocate(size, "Stmt");
-}
-
-void Stmt::operator delete(void *ptr, const ASTContext &C)
-{
-	C.deallocate(ptr);
+	return C.allocate(size);
 }
 
 Stmt::Stmt(SourceLocation loc) :

@@ -37,6 +37,9 @@
 namespace bvm {
 
 struct SourceLocation {
+	SourceLocation()
+	{}
+	
 	string node_tree;
 	string node;
 	string socket;

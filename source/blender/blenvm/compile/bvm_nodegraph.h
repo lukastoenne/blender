@@ -56,6 +56,7 @@ extern "C" {
 #include "bvm_util_string.h"
 
 namespace bvm {
+namespace deprecated {
 
 struct NodeGraph;
 struct NodeType;
@@ -409,8 +410,6 @@ public:
 };
 
 OpCode get_opcode_from_node_type(const string &node);
-void nodes_init();
-void nodes_free();
 
 /* ========================================================================= */
 /* inline functions */
@@ -425,6 +424,11 @@ const NodeInput *NodeType::add_input(const string &name,
 	BLI_assert(c != NULL);
 	return add_input(name, type, c, value_type);
 }
+
+} /* namespace deprecated */
+
+void nodes_init();
+void nodes_free();
 
 } /* namespace bvm */
 

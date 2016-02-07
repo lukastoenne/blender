@@ -29,21 +29,30 @@
  *  \ingroup bvm
  */
 
-#include "MEM_guardedalloc.h"
+#include <string>
+
+extern "C" {
+#include "BLI_memarena.h"
+}
 
 #include "bvm_ast_context.h"
 
 namespace bvm {
 namespace ast {
 
-void *ASTContext::allocate(size_t size, const char *name) const
+ASTContext::ASTContext()
 {
-	return MEM_mallocN(size, name);
+	m_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "ASTContext memarena");
 }
 
-void ASTContext::deallocate(void *ptr) const
+ASTContext::~ASTContext()
 {
-	MEM_freeN(ptr);
+	BLI_memarena_free(m_arena);
+}
+
+void *ASTContext::allocate(size_t size) const
+{
+	return BLI_memarena_alloc(m_arena, size);
 }
 
 } /* namespace ast */

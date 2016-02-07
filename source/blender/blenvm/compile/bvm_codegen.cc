@@ -38,6 +38,7 @@
 #include "bvm_nodegraph.h"
 
 namespace bvm {
+namespace deprecated {
 
 Compiler::Compiler()
 {
@@ -659,4 +660,5 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 	return result;
 }
 
+} /* namespace deprecated */
 } /* namespace bvm */
