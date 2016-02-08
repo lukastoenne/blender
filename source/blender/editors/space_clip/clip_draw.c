@@ -577,6 +577,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	px[0] = 1.0f / width / sc->zoom;
 	px[1] = 1.0f / height / sc->zoom;
 
+	glLineWidth(1.0f);
+
 	/* marker position and offset position */
 	if ((track->flag & SELECT) == sel && (marker->flag & MARKER_DISABLED) == 0) {
 		float pos[2], p[2];
@@ -852,23 +854,6 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 
 		glEnable(GL_LINE_STIPPLE);
 		glLineStipple(3, 0xaaaa);
-
-#if 0
-		/* TODO: disable for now, needs better approach visualizing this */
-
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(pat_min[0] - dx, pat_min[1] - dy);
-		glVertex2f(pat_max[0] + dx, pat_min[1] - dy);
-		glVertex2f(pat_max[0] + dx, pat_max[1] + dy);
-		glVertex2f(pat_min[0] - dx, pat_max[1] + dy);
-		glEnd();
-
-		/* marker's offset slider */
-		draw_marker_slide_square(pat_min[0] - dx, pat_max[1] + dy, patdx, patdy, outline, px);
-
-		/* pattern re-sizing triangle */
-		draw_marker_slide_triangle(pat_max[0] + dx, pat_min[1] - dy, patdx, patdy, outline, px);
-#endif
 
 		glBegin(GL_LINES);
 		glVertex2f(0.0f, 0.0f);

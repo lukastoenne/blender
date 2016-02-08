@@ -404,7 +404,7 @@ function(setup_liblinks
 		endif()
 	endif()
 	if(WITH_OPENVDB)
-		target_link_libraries(${target} ${OPENVDB_LIBRARIES})
+		target_link_libraries(${target} ${OPENVDB_LIBRARIES} ${TBB_LIBRARIES})
 	endif()
 	if(WITH_CYCLES_OSL)
 		target_link_libraries(${target} ${OSL_LIBRARIES})
@@ -621,7 +621,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_loopbacknetwork
 		bf_intern_moto
 		extern_openjpeg
-		extern_redcode
 		ge_videotex
 		bf_dna
 		bf_blenfont

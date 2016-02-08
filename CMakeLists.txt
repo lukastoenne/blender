@@ -155,10 +155,8 @@ option_defaults_init(
 	_init_CODEC_FFMPEG
 	_init_CYCLES_OSL
 	_init_IMAGE_OPENEXR
-	_init_IMAGE_REDCODE
 	_init_INPUT_NDOF
 	_init_JACK
-	_init_LIBMV_SCHUR_SPECIALIZATION
 	_init_OPENCOLLADA
 	_init_OPENCOLORIO
 	_init_SDL
@@ -174,7 +172,6 @@ if (UNIX AND NOT APPLE)
 	set(_init_CODEC_FFMPEG                   OFF)
 	set(_init_CYCLES_OSL                     OFF)
 	set(_init_IMAGE_OPENEXR                  OFF)
-	set(_init_IMAGE_REDCODE                  OFF)
 	set(_init_INPUT_NDOF                     OFF)
 	set(_init_JACK                           OFF)
 	set(_init_OPENCOLLADA                    OFF)
@@ -185,7 +182,6 @@ if (UNIX AND NOT APPLE)
 elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
-	set(_init_INPUT_NDOF                     OFF)
 	set(_init_JACK                           OFF)
 	set(_init_OPENSUBDIV                     OFF)
 endif()
@@ -235,12 +231,8 @@ option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLO
 
 # Compositor
 option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
-option(WITH_COMPOSITOR_WERROR  "Treat warnings as errors in compositor code" OFF)
-mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
 option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" _init_OPENSUBDIV)
-option(WITH_SUBSURF_WERROR  "Treat warnings as errors in subsurf code" OFF)
-mark_as_advanced(WITH_COMPOSITOR_WERROR)
 
 option(WITH_OPENVDB       "Enable features relying on OpenVDB" OFF)
 option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" OFF)
@@ -315,7 +307,6 @@ option(WITH_IMAGE_TIFF          "Enable LibTIFF Support" ON)
 option(WITH_IMAGE_DDS           "Enable DDS Image Support" ON)
 option(WITH_IMAGE_CINEON        "Enable CINEON and DPX Image Support" ON)
 option(WITH_IMAGE_HDR           "Enable HDR Image Support" ON)
-option(WITH_IMAGE_REDCODE       "Enable RedCode Image Support" ${_init_IMAGE_REDCODE})
 option(WITH_IMAGE_FRAMESERVER   "Enable image FrameServer Support for rendering" ON)
 
 # Audio/Video format support
@@ -351,10 +342,8 @@ endif()
 
 # Camera/motion tracking
 option(WITH_LIBMV         "Enable Libmv structure from motion library" ON)
-option(WITH_LIBMV_SCHUR_SPECIALIZATIONS "Enable fixed-size schur specializations." ${_init_LIBMV_SCHUR_SPECIALIZATION})
-option(WITH_LIBMV_WERROR  "Treat warnings as errors in Libmv (and Blender's motion tracking) code")
+option(WITH_LIBMV_SCHUR_SPECIALIZATIONS "Enable fixed-size schur specializations." OFF)
 mark_as_advanced(WITH_LIBMV_SCHUR_SPECIALIZATIONS)
-mark_as_advanced(WITH_LIBMV_WERROR)
 
 # Freestyle
 option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
@@ -392,15 +381,13 @@ option(WITH_CYCLES_STANDALONE		"Build Cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})
 option(WITH_CYCLES_CUDA_BINARIES	"Build Cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_50 sm_52 CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_37 sm_50 sm_52 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 option(WITH_CYCLES_LOGGING	"Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build Cycles with extra debug capabilities" OFF)
-option(WITH_CYCLES_WERROR	"Treat warnings as errors in Cycles code" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
-mark_as_advanced(WITH_CYCLES_WERROR)
 
 option(WITH_CUDA_DYNLOAD "Dynamically load CUDA libraries at runtime" ON)
 mark_as_advanced(WITH_CUDA_DYNLOAD)
@@ -642,10 +629,6 @@ if(NOT WITH_SDL AND WITH_GHOST_SDL)
 	message(FATAL_ERROR "WITH_GHOST_SDL requires WITH_SDL")
 endif()
 
-if(WITH_IMAGE_REDCODE AND ((NOT WITH_IMAGE_OPENJPEG) OR (NOT WITH_CODEC_FFMPEG)))
-	message(FATAL_ERROR "WITH_IMAGE_REDCODE requires WITH_IMAGE_OPENJPEG and WITH_CODEC_FFMPEG")
-endif()
-
 # python module, needs some different options
 if(WITH_PYTHON_MODULE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PYTHON_MODULE requires WITH_PLAYER to be OFF")
@@ -681,10 +664,13 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
 	set_and_warn(WITH_OPENVDB        OFF)
+	set_and_warn(WITH_OPENCOLORIO    OFF)
+	set_and_warn(WITH_MOD_BOOLEAN    OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB)
+	set_and_warn(WITH_PLAYER         OFF)  # depends on GAMEENGINE
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_MOD_BOOLEAN)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
@@ -1062,19 +1048,11 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_OPENVDB)
 		find_package_wrapper(OpenVDB)
-
-		set(TBB ${LIBDIR}/tbb)
-		set(TBB_LIBRARIES tbb)
-		set(TBB_LIBPATH ${TBB}/lib)
-
-		set(OPENVDB_LIBRARIES ${OPENVDB_LIBRARIES} ${BOOST_LIBRARIES} ${ZLIB_LIBRARIES} ${TBB_LIBRARIES})
-		set(OPENVDB_LIBPATH)  # TODO, remove and reference the absolute path everywhere
-		set(OPENVDB_DEFINITIONS)
-
-		if(NOT OPENVDB_FOUND)
+		find_package_wrapper(TBB)
+		if(NOT OPENVDB_FOUND OR NOT TBB_FOUND)
 			set(WITH_OPENVDB OFF)
 			set(WITH_OPENVDB_BLOSC OFF)
-			message(STATUS "OpenVDB not found")
+			message(STATUS "OpenVDB not found, disabling it")
 		endif()
 	endif()
 
@@ -2031,7 +2009,7 @@ elseif(APPLE)
 	if(WITH_IMAGE_OPENEXR)
 		set(OPENEXR ${LIBDIR}/openexr)
 		set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
-		set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
+		set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
 		set(OPENEXR_LIBRARIES Iex Half IlmImf Imath IlmThread)
 		set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 	endif()
@@ -2155,6 +2133,9 @@ elseif(APPLE)
 		if(WITH_CYCLES_NETWORK)
 			list(APPEND BOOST_LIBRARIES boost_serialization-mt)
 		endif()
+		if(WITH_OPENVDB)
+			list(APPEND BOOST_LIBRARIES boost_iostreams-mt)
+		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
 	endif()
@@ -2182,6 +2163,8 @@ elseif(APPLE)
 	if(WITH_OPENVDB)
 		set(OPENVDB ${LIBDIR}/openvdb)
 		set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+		set(TBB_INCLUDE_DIRS ${LIBDIR}/tbb/include)
+		set(TBB_LIBRARIES ${LIBDIR}/tbb/lib/libtbb.a)
 		set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
 		set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
 		set(OPENVDB_DEFINITIONS)
@@ -2377,11 +2360,6 @@ if(WITH_IMAGE_OPENJPEG)
 	if(WIN32)
 		set(OPENJPEG_DEFINES "-DOPJ_STATIC")
 	endif()
-endif()
-
-if(WITH_IMAGE_REDCODE)
-	set(REDCODE ${CMAKE_SOURCE_DIR}/extern)
-	set(REDCODE_INC ${REDCODE})
 endif()
 
 if(NOT WITH_SYSTEM_EIGEN3)
@@ -2869,7 +2847,7 @@ if(WITH_PYTHON)
 							"Python.h for python version \"${PYTHON_VERSION}\"")
 	endif()
 
-	if(WIN32)
+	if(WIN32 OR APPLE)
 		# pass, we have this in an archive to extract
 	elseif(WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY)
 		find_python_package(numpy)
@@ -3052,7 +3030,6 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_IMAGE_HDR)
 	info_cfg_option(WITH_IMAGE_OPENEXR)
 	info_cfg_option(WITH_IMAGE_OPENJPEG)
-	info_cfg_option(WITH_IMAGE_REDCODE)
 	info_cfg_option(WITH_IMAGE_TIFF)
 
 	info_cfg_text("Audio:")

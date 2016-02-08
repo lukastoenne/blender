@@ -1934,7 +1934,7 @@ int main(
 	DAG_init();
 
 	BKE_brush_system_init();
-	RE_init_texture_rng();
+	RE_texture_rng_init();
 	
 
 	BLI_callback_global_init();

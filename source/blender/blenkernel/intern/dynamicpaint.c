@@ -2189,8 +2189,10 @@ int dynamicPaint_createUVSurface(Scene *scene, DynamicPaintSurface *surface)
 	tottri = dm->getNumLoopTri(dm);
 
 	/* get uv map */
-	CustomData_validate_layer_name(&dm->loopData, CD_MLOOPUV, surface->uvlayer_name, uvname);
-	mloopuv = CustomData_get_layer_named(&dm->loopData, CD_MLOOPUV, uvname);
+	if (CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
+		CustomData_validate_layer_name(&dm->loopData, CD_MLOOPUV, surface->uvlayer_name, uvname);
+		mloopuv = CustomData_get_layer_named(&dm->loopData, CD_MLOOPUV, uvname);
+	}
 
 	/* Check for validity	*/
 	if (!mloopuv)
@@ -2717,13 +2719,13 @@ static void dynamicPaint_updateBrushMaterials(Object *brushOb, Material *ui_mat,
 		if (tot) {
 			bMats->ob_mats = MEM_callocN(sizeof(Material *) * (tot), "BrushMaterials");
 			for (i = 0; i < tot; i++) {
-				bMats->ob_mats[i] = RE_init_sample_material(give_current_material(brushOb, (i + 1)), scene);
+				bMats->ob_mats[i] = RE_sample_material_init(give_current_material(brushOb, (i + 1)), scene);
 			}
 		}
 		bMats->tot = tot;
 	}
 	else {
-		bMats->mat = RE_init_sample_material(ui_mat, scene);
+		bMats->mat = RE_sample_material_init(ui_mat, scene);
 	}
 }
 
@@ -2734,12 +2736,12 @@ static void dynamicPaint_freeBrushMaterials(BrushMaterials *bMats)
 	if (bMats->ob_mats) {
 		int i;
 		for (i = 0; i < bMats->tot; i++) {
-			RE_free_sample_material(bMats->ob_mats[i]);
+			RE_sample_material_free(bMats->ob_mats[i]);
 		}
 		MEM_freeN(bMats->ob_mats);
 	}
 	else if (bMats->mat) {
-		RE_free_sample_material(bMats->mat);
+		RE_sample_material_free(bMats->mat);
 	}
 }
 
