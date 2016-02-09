@@ -102,7 +102,7 @@ class ForceClosestPointNode(ForceNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Tangent")
 
     def compile(self, compiler):
-        node = compiler.add_node("EFFECTOR_CLOSEST_POINT", self.name+"N")
+        node = compiler.add_node("EFFECTOR_CLOSEST_POINT")
         
         compiler.link(compiler.graph_input("effector.object"), node.inputs["object"])
 

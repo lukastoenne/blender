@@ -54,8 +54,8 @@ class NodeTreeBase():
         for node in self.nodes:
             node.eval_dependencies(depsnode)
 
-    def bvm_compile(self, graph):
-        compiler = NodeCompiler(graph)
+    def bvm_compile(self, bvm_compiler):
+        compiler = NodeCompiler(bvm_compiler)
         self.compile_nodes(compiler)
 
     def compile_nodes(self, compiler):
@@ -317,7 +317,7 @@ class MathNode(CommonNodeBase, ObjectNode):
         self.outputs.new('NodeSocketFloat', "Value")
 
     def compile(self, compiler):
-        node = compiler.add_node(self.mode, self.name+"N")
+        node = compiler.add_node(self.mode)
 
         is_binary = self.mode in {'ADD_FLOAT', 'SUB_FLOAT', 'MUL_FLOAT', 'DIV_FLOAT', 
                                   'POWER', 'LOGARITHM', 'MINIMUM', 'MAXIMUM',
@@ -370,7 +370,7 @@ class VectorMathNode(CommonNodeBase, ObjectNode):
         self.outputs.new('NodeSocketFloat', "Value")
 
     def compile(self, compiler):
-        node = compiler.add_node(self.mode, self.name+"N")
+        node = compiler.add_node(self.mode)
 
         is_binary = self.mode in {'ADD_FLOAT3', 'SUB_FLOAT3', 'MUL_FLOAT3', 'DIV_FLOAT3',
                                   'AVERAGE_FLOAT3', 'DOT_FLOAT3', 'CROSS_FLOAT3'}
@@ -414,17 +414,17 @@ class SeparateVectorNode(CommonNodeBase, ObjectNode):
         self.outputs.new('NodeSocketFloat', "Z")
 
     def compile(self, compiler):
-        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"X")
+        node = compiler.add_node("GET_ELEM_FLOAT3")
         node.inputs["index"].set_value(0)
         compiler.map_input(0, node.inputs["value"])
         compiler.map_output(0, node.outputs["value"])
         
-        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Y")
+        node = compiler.add_node("GET_ELEM_FLOAT3")
         node.inputs["index"].set_value(1)
         compiler.map_input(0, node.inputs["value"])
         compiler.map_output(1, node.outputs["value"])
         
-        node = compiler.add_node("GET_ELEM_FLOAT3", self.name+"Z")
+        node = compiler.add_node("GET_ELEM_FLOAT3")
         node.inputs["index"].set_value(2)
         compiler.map_input(0, node.inputs["value"])
         compiler.map_output(2, node.outputs["value"])
@@ -442,7 +442,7 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
         self.outputs.new('NodeSocketVector', "Vector")
 
     def compile(self, compiler):
-        node = compiler.add_node("SET_FLOAT3", self.name+"N")
+        node = compiler.add_node("SET_FLOAT3")
         compiler.map_input(0, node.inputs[0])
         compiler.map_input(1, node.inputs[1])
         compiler.map_input(2, node.inputs[2])

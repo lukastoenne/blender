@@ -37,6 +37,8 @@
 #include "bvm_function.h"
 #include "bvm_nodegraph.h"
 
+#include "bvm_ast_node.h"
+
 namespace bvm {
 namespace deprecated {
 
@@ -661,4 +663,15 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 }
 
 } /* namespace deprecated */
+
+///////////////////////////////////////////////////////////////////////////////
+
+LLVMCompiler::LLVMCompiler()
+{
+}
+
+LLVMCompiler::~LLVMCompiler()
+{
+}
+
 } /* namespace bvm */

@@ -45,6 +45,7 @@ extern "C" {
 #include "BKE_anim.h"
 #include "BKE_effect.h"
 #include "BKE_node.h"
+#include "BKE_report.h"
 
 #include "DEG_depsgraph_build.h"
 
@@ -208,8 +209,8 @@ void BVM_function_cache_clear(void)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::deprecated::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
-{ return (bvm::deprecated::NodeGraph *)graph; }
+BLI_INLINE bvm::NodeCompiler *_COMPILER(struct BVMNodeCompiler *compiler)
+{ return (bvm::NodeCompiler *)compiler; }
 BLI_INLINE bvm::deprecated::NodeInstance *_NODE(struct BVMNodeInstance *node)
 { return (bvm::deprecated::NodeInstance *)node; }
 BLI_INLINE bvm::deprecated::NodeInput *_INPUT(struct BVMNodeInput *input)
@@ -219,40 +220,14 @@ BLI_INLINE bvm::deprecated::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
 BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
 { return (bvm::TypeDesc *)typedesc; }
 
-struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
-{ return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
+struct BVMNodeInstance *BVM_node_compiler_add_node(BVMNodeCompiler *compiler, const char *type)
+{ return (struct BVMNodeInstance *)_COMPILER(compiler)->add_node(type); }
 
-void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
-                             struct BVMNodeInstance **node, const char **socket)
-{
-	using namespace bvm::deprecated;
-	
-	const NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
-	if (input) {
-		if (node) *node = (BVMNodeInstance *)input->key.node;
-		if (socket) *socket = input->key.socket->name.c_str();
-	}
-	else {
-		if (node) *node = NULL;
-		if (socket) *socket = "";
-	}
-}
+struct BVMNodeInput *BVM_node_compiler_get_input(struct BVMNodeCompiler *compiler, const char *name)
+{ return (struct BVMNodeInput *)_COMPILER(compiler)->get_input(name); }
 
-void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
-                              struct BVMNodeInstance **node, const char **socket)
-{
-	using namespace bvm::deprecated;
-	
-	const NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
-	if (output) {
-		if (node) *node = (BVMNodeInstance *)output->key.node;
-		if (socket) *socket = output->key.socket->name.c_str();
-	}
-	else {
-		if (node) *node = NULL;
-		if (socket) *socket = "";
-	}
-}
+struct BVMNodeOutput *BVM_node_compiler_get_output(struct BVMNodeCompiler *compiler, const char *name)
+{ return (struct BVMNodeOutput *)_COMPILER(compiler)->get_input(name); }
 
 
 int BVM_node_num_inputs(struct BVMNodeInstance *node)
@@ -427,6 +402,55 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
 
 /* ------------------------------------------------------------------------- */
+
+namespace bvm {
+
+struct StdoutErrorHandler : public ASTErrorHandler {
+	StdoutErrorHandler()
+	{
+	}
+	
+	static string type_from_level(BVMErrorLevel level) {
+		switch (level) {
+			case BVM_ERROR_WARNING: return "Warning: ";
+			case BVM_ERROR_CRITICAL: return "Error: ";
+		}
+		return "";
+	}
+	
+	void report(const string &msg, SourceLocation loc, BVMErrorLevel level)
+	{
+		printf("%s", (type_from_level(level) + loc.as_string() + ": " + msg).c_str());
+	}
+};
+
+struct ReportErrorHandler : public ASTErrorHandler {
+	ReportErrorHandler(ReportList *reports) :
+	    reports(reports)
+	{
+	}
+	
+	static ReportType report_type_from_level(BVMErrorLevel level) {
+		switch (level) {
+			case BVM_ERROR_WARNING: return RPT_WARNING;
+			case BVM_ERROR_CRITICAL: return RPT_ERROR;
+		}
+		return RPT_INFO;
+	}
+	
+	void report(const string &msg, SourceLocation loc, BVMErrorLevel level)
+	{
+		if (reports)
+			BKE_report(reports, report_type_from_level(level), (loc.as_string() + ": " + msg).c_str());
+		else
+			fallback.report(msg, loc, level);
+	}
+	
+	StdoutErrorHandler fallback;
+	ReportList *reports;
+};
+
+}
 
 static void parse_py_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
 {
@@ -1089,11 +1113,12 @@ static void init_modifier_graph(bvm::deprecated::NodeGraph &graph)
 	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, ReportList *reports)
 {
 	using namespace bvm;
 	using namespace bvm::deprecated;
 	
+#if 0
 	NodeGraph graph;
 	init_modifier_graph(graph);
 	parse_py_nodes(btree, &graph);
@@ -1102,17 +1127,18 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
+#endif
 	
-	{
-	bNodeTreeParser parser;
+	ReportErrorHandler error_handler(reports);
+	bNodeTreeParser parser(&error_handler);
 	
 	ast::ASTContext C;
 	ast::NodeGraph *graph = parser.parse(C, btree);
 	
-//	BVMCompiler compiler;
-//	Function *fn = compiler.compile_function(graph);
+	LLVMCompiler compiler;
+//	LLVMFunction *fn = compiler.compile_function(graph);
+	Function *fn = NULL;
 //	Function::retain(fn);
-	}
 	
 	return (BVMFunction *)fn;
 }

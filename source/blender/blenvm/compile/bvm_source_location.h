@@ -40,6 +40,21 @@ struct SourceLocation {
 	SourceLocation()
 	{}
 	
+	string as_string() const
+	{
+		string s;
+		if (!node_tree.empty()) {
+			s += node_tree;
+			if (!node.empty()) {
+				s += ":" + node;
+				if (!socket.empty()) {
+					s += ":" + socket;
+				}
+			}
+		}
+		return s;
+	}
+	
 	string node_tree;
 	string node;
 	string socket;

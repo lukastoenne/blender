@@ -44,21 +44,19 @@
 
 #include "WM_api.h"
 
-static struct BVMNodeInstance *rna_BVMNodeGraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name)
+static struct BVMNodeInstance *rna_BVMNodeCompiler_add_node(struct BVMNodeCompiler *compiler, const char *type)
 {
-	return BVM_nodegraph_add_node(graph, type, name);
+	return BVM_node_compiler_add_node(compiler, type);
 }
 
-static void rna_BVMNodeGraph_get_input(struct BVMNodeGraph *graph, const char *name,
-                                       struct BVMNodeInstance **node, const char **socket)
+static struct BVMNodeInput *rna_BVMNodeCompiler_get_input(struct BVMNodeCompiler *compiler, const char *name)
 {
-	BVM_nodegraph_get_input(graph, name, node, socket);
+	return BVM_node_compiler_get_input(compiler, name);
 }
 
-static void rna_BVMNodeGraph_get_output(struct BVMNodeGraph *graph, const char *name,
-                                        struct BVMNodeInstance **node, const char **socket)
+static struct BVMNodeOutput *rna_BVMNodeCompiler_get_output(struct BVMNodeCompiler *compiler, const char *name)
 {
-	BVM_nodegraph_get_output(graph, name, node, socket);
+	return BVM_node_compiler_get_output(compiler, name);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -447,37 +445,32 @@ static void rna_def_bvm_node_instance(BlenderRNA *brna)
 	RNA_def_int(func, "value", 0, INT_MIN, INT_MAX, "Value", "", INT_MIN, INT_MAX);
 }
 
-static void rna_def_bvm_node_graph(BlenderRNA *brna)
+static void rna_def_bvm_node_compiler(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	FunctionRNA *func;
 	PropertyRNA *parm;
 	
-	srna = RNA_def_struct(brna, "BVMNodeGraph", NULL);
-	RNA_def_struct_ui_text(srna, "Node Graph", "Graph of instruction nodes");
+	srna = RNA_def_struct(brna, "BVMNodeCompiler", NULL);
+	RNA_def_struct_ui_text(srna, "Node Compiler", "Compiler interface for a node tree");
 	
-	func = RNA_def_function(srna, "add_node", "rna_BVMNodeGraph_add_node");
-	RNA_def_function_ui_description(func, "Add a new internal node");
+	func = RNA_def_function(srna, "add_node", "rna_BVMNodeCompiler_add_node");
+	RNA_def_function_ui_description(func, "Add a new bvm node");
 	RNA_def_string(func, "type", NULL, 0, "Type", "Type of the node");
-	RNA_def_string(func, "name", NULL, 0, "Name", "Name of the node");
 	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
 	RNA_def_function_return(func, parm);
 	
-	func = RNA_def_function(srna, "get_input", "rna_BVMNodeGraph_get_input");
+	func = RNA_def_function(srna, "get_input", "rna_BVMNodeCompiler_get_input");
 	RNA_def_function_ui_description(func, "Get a node/socket pair used as input of the graph");
 	RNA_def_string(func, "name", NULL, 0, "Name", "Input slot name");
-	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
-	RNA_def_function_output(func, parm);
-	parm = RNA_def_string(func, "socket", NULL, 0, "Socket", "Socket name");
-	RNA_def_function_output(func, parm);
+	parm = RNA_def_pointer(func, "input", "BVMNodeInput", "Input", "Global input");
+	RNA_def_function_return(func, parm);
 	
-	func = RNA_def_function(srna, "get_output", "rna_BVMNodeGraph_get_output");
+	func = RNA_def_function(srna, "get_output", "rna_BVMNodeCompiler_get_output");
 	RNA_def_function_ui_description(func, "Get a node/socket pair used as output of the graph");
 	RNA_def_string(func, "name", NULL, 0, "Name", "Output slot name");
-	parm = RNA_def_pointer(func, "node", "BVMNodeInstance", "Node", "");
-	RNA_def_function_output(func, parm);
-	parm = RNA_def_string(func, "socket", NULL, 0, "Socket", "Socket name");
-	RNA_def_function_output(func, parm);
+	parm = RNA_def_pointer(func, "output", "BVMNodeOutput", "Output", "Global output");
+	RNA_def_function_return(func, parm);
 }
 
 static void rna_def_bvm_eval_globals(BlenderRNA *brna)
@@ -511,7 +504,7 @@ void RNA_def_blenvm(BlenderRNA *brna)
 	rna_def_bvm_node_input(brna);
 	rna_def_bvm_node_output(brna);
 	rna_def_bvm_node_instance(brna);
-	rna_def_bvm_node_graph(brna);
+	rna_def_bvm_node_compiler(brna);
 	rna_def_bvm_eval_globals(brna);
 }
 

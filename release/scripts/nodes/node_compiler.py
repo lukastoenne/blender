@@ -80,8 +80,8 @@ class NodeWrapper:
 
 # Compiler class for converting nodes
 class NodeCompiler:
-    def __init__(self, graph):
-        self.graph = graph
+    def __init__(self, compiler):
+        self.compiler = compiler
         self.bnode_stack = []
 
     def push(self, bnode, input_map, output_map):
@@ -106,8 +106,8 @@ class NodeCompiler:
     def pop(self):
         self.bnode_stack.pop()
 
-    def add_node(self, type, name=""):
-        node = self.graph.add_node(type, name)
+    def add_node(self, type):
+        node = self.compiler.add_node(type)
         if node is None:
             raise Exception("Can not add node of type %r" % type)
         return NodeWrapper(node)
@@ -116,11 +116,11 @@ class NodeCompiler:
         return self.add_node("PASS_%s" % type)
 
     def graph_input(self, name):
-        in_node, in_socket = self.graph.get_input(name)
+        in_node, in_socket = self.compiler.get_input(name)
         return OutputWrapper(in_node, in_node.outputs[in_socket])
 
     def graph_output(self, name):
-        out_node, out_socket = self.graph.get_output(name)
+        out_node, out_socket = self.compiler.get_output(name)
         return InputWrapper(out_node, out_node.inputs[out_socket])
 
     def link(self, from_output, to_input, autoconvert=True):

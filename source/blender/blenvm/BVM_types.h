@@ -65,6 +65,11 @@ typedef enum BVMOutputValueType {
 	OUTPUT_VARIABLE,
 } BVMOutputValueType;
 
+typedef enum BVMErrorLevel {
+	BVM_ERROR_WARNING,
+	BVM_ERROR_CRITICAL,
+} BVMErrorLevel;
+
 #ifdef __cplusplus
 }
 #endif

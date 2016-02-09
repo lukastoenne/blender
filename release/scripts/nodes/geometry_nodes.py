@@ -154,7 +154,7 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
         self.outputs.new('GeometrySocket', "")
 
     def compile(self, compiler):
-        node = compiler.add_node("MESH_LOAD", self.name)
+        node = compiler.add_node("MESH_LOAD")
         compiler.link(compiler.graph_input("modifier.base_mesh"), node.inputs[0])
         compiler.map_output(0, node.outputs[0])
 
