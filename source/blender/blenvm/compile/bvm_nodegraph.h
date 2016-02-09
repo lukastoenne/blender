@@ -56,7 +56,6 @@ extern "C" {
 #include "bvm_util_string.h"
 
 namespace bvm {
-namespace deprecated {
 
 struct NodeGraph;
 struct NodeType;
@@ -424,8 +423,6 @@ const NodeInput *NodeType::add_input(const string &name,
 	BLI_assert(c != NULL);
 	return add_input(name, type, c, value_type);
 }
-
-} /* namespace deprecated */
 
 void nodes_init();
 void nodes_free();

@@ -37,7 +37,6 @@
 #include "bvm_nodegraph.h"
 
 namespace bvm {
-namespace deprecated {
 namespace debug {
 
 #define NL "\r\n"
@@ -460,7 +459,6 @@ protected:
 #undef NL
 
 } /* namespace debug */
-} /* namespace deprecated */
 } /* namespace bvm */
 
 #endif  /* __BVM_UTIL_DEBUG_H__ */

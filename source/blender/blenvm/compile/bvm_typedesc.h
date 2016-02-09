@@ -46,9 +46,7 @@ extern "C" {
 
 namespace bvm {
 
-namespace deprecated {
 struct NodeGraph;
-}
 
 struct Value;
 

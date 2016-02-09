@@ -1703,11 +1703,9 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	
 	struct BVMFunction *fn = BVM_function_cache_acquire(ntree);
 	if (!fn) {
-		fn = BVM_gen_modifier_function(ntree, NULL);
+		fn = BVM_gen_modifier_function(ntree);
 		BVM_function_cache_set(ntree, fn);
 	}
-	if (!fn)
-		return CDDM_from_mesh(me);
 	
 	{
 		struct BVMEvalGlobals *globals = BVM_globals_create();

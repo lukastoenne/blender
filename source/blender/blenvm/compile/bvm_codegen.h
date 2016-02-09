@@ -47,10 +47,10 @@ namespace bvm {
 struct Function;
 struct TypeDesc;
 
-namespace deprecated {
-
 struct NodeGraph;
 struct NodeInstance;
+
+namespace deprecated {
 
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;
@@ -172,14 +172,6 @@ private:
 };
 
 } /* namespace deprecated */
-
-struct LLVMCompiler {
-	LLVMCompiler();
-	~LLVMCompiler();
-	
-//	void compile_function(const ast::FunctionDecl &fundecl);
-};
-
 } /* namespace bvm */
 
 #endif /* __BVM_CODEGEN_H__ */

@@ -45,7 +45,6 @@ extern "C" {
 #include "BKE_anim.h"
 #include "BKE_effect.h"
 #include "BKE_node.h"
-#include "BKE_report.h"
 
 #include "DEG_depsgraph_build.h"
 
@@ -60,10 +59,8 @@ extern "C" {
 #include "bvm_eval.h"
 #include "bvm_function.h"
 #include "bvm_nodegraph.h"
-#include "bvm_bnode_parser.h"
 
 #include "bvm_ast_context.h"
-#include "bvm_ast_node.h"
 
 #include "bvm_util_debug.h"
 #include "bvm_util_map.h"
@@ -209,25 +206,51 @@ void BVM_function_cache_clear(void)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::NodeCompiler *_COMPILER(struct BVMNodeCompiler *compiler)
-{ return (bvm::NodeCompiler *)compiler; }
-BLI_INLINE bvm::deprecated::NodeInstance *_NODE(struct BVMNodeInstance *node)
-{ return (bvm::deprecated::NodeInstance *)node; }
-BLI_INLINE bvm::deprecated::NodeInput *_INPUT(struct BVMNodeInput *input)
-{ return (bvm::deprecated::NodeInput *)input; }
-BLI_INLINE bvm::deprecated::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
-{ return (bvm::deprecated::NodeOutput *)output; }
+BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
+{ return (bvm::NodeGraph *)graph; }
+BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
+{ return (bvm::NodeInstance *)node; }
+BLI_INLINE bvm::NodeInput *_INPUT(struct BVMNodeInput *input)
+{ return (bvm::NodeInput *)input; }
+BLI_INLINE bvm::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
+{ return (bvm::NodeOutput *)output; }
 BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
 { return (bvm::TypeDesc *)typedesc; }
 
-struct BVMNodeInstance *BVM_node_compiler_add_node(BVMNodeCompiler *compiler, const char *type)
-{ return (struct BVMNodeInstance *)_COMPILER(compiler)->add_node(type); }
+struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
+{ return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
 
-struct BVMNodeInput *BVM_node_compiler_get_input(struct BVMNodeCompiler *compiler, const char *name)
-{ return (struct BVMNodeInput *)_COMPILER(compiler)->get_input(name); }
+void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
+                             struct BVMNodeInstance **node, const char **socket)
+{
+	using namespace bvm;
+	
+	const NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
+	if (input) {
+		if (node) *node = (BVMNodeInstance *)input->key.node;
+		if (socket) *socket = input->key.socket->name.c_str();
+	}
+	else {
+		if (node) *node = NULL;
+		if (socket) *socket = "";
+	}
+}
 
-struct BVMNodeOutput *BVM_node_compiler_get_output(struct BVMNodeCompiler *compiler, const char *name)
-{ return (struct BVMNodeOutput *)_COMPILER(compiler)->get_input(name); }
+void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
+                              struct BVMNodeInstance **node, const char **socket)
+{
+	using namespace bvm;
+	
+	const NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
+	if (output) {
+		if (node) *node = (BVMNodeInstance *)output->key.node;
+		if (socket) *socket = output->key.socket->name.c_str();
+	}
+	else {
+		if (node) *node = NULL;
+		if (socket) *socket = "";
+	}
+}
 
 
 int BVM_node_num_inputs(struct BVMNodeInstance *node)
@@ -250,7 +273,7 @@ struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int inde
 bool BVM_node_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                              struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output)
 {
-	using namespace bvm::deprecated;
+	using namespace bvm;
 	
 	return _NODE(node)->link_set(_INPUT(input)->name, OutputKey(_NODE(from_node), _OUTPUT(from_output)->name));
 }
@@ -403,56 +426,7 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
-namespace bvm {
-
-struct StdoutErrorHandler : public ASTErrorHandler {
-	StdoutErrorHandler()
-	{
-	}
-	
-	static string type_from_level(BVMErrorLevel level) {
-		switch (level) {
-			case BVM_ERROR_WARNING: return "Warning: ";
-			case BVM_ERROR_CRITICAL: return "Error: ";
-		}
-		return "";
-	}
-	
-	void report(const string &msg, SourceLocation loc, BVMErrorLevel level)
-	{
-		printf("%s", (type_from_level(level) + loc.as_string() + ": " + msg).c_str());
-	}
-};
-
-struct ReportErrorHandler : public ASTErrorHandler {
-	ReportErrorHandler(ReportList *reports) :
-	    reports(reports)
-	{
-	}
-	
-	static ReportType report_type_from_level(BVMErrorLevel level) {
-		switch (level) {
-			case BVM_ERROR_WARNING: return RPT_WARNING;
-			case BVM_ERROR_CRITICAL: return RPT_ERROR;
-		}
-		return RPT_INFO;
-	}
-	
-	void report(const string &msg, SourceLocation loc, BVMErrorLevel level)
-	{
-		if (reports)
-			BKE_report(reports, report_type_from_level(level), (loc.as_string() + ": " + msg).c_str());
-		else
-			fallback.report(msg, loc, level);
-	}
-	
-	StdoutErrorHandler fallback;
-	ReportList *reports;
-};
-
-}
-
-static void parse_py_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
+static void parse_py_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 {
 	PointerRNA ptr;
 	ParameterList list;
@@ -471,7 +445,7 @@ static void parse_py_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
 	RNA_parameter_list_free(&list);
 }
 
-static void init_forcefield_graph(bvm::deprecated::NodeGraph &graph)
+static void init_forcefield_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
 	
@@ -503,6 +477,7 @@ struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
 
 void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
+	using namespace bvm;
 	using namespace bvm::deprecated;
 	
 	NodeGraph graph;
@@ -529,7 +504,7 @@ void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
                          struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
 {
-	using namespace bvm::deprecated;
+	using namespace bvm;
 	
 	PointerRNA object_ptr;
 	RNA_id_pointer_create((ID *)effob, &object_ptr);
@@ -985,11 +960,11 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 } /* namespace deprecated */
 } /* namespace bvm */
 
-static void parse_tex_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
+static void parse_tex_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 {
-	using namespace bvm::deprecated;
+	using namespace bvm;
 	
-	bNodeCompiler comp(graph);
+	deprecated::bNodeCompiler comp(graph);
 	
 	for (bNode *bnode = (bNode*)btree->nodes.first; bnode; bnode = bnode->next) {
 		PointerRNA ptr;
@@ -1000,7 +975,7 @@ static void parse_tex_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
 			continue;
 		
 		comp.set_current_node(bnode);
-		convert_tex_node(&comp, &ptr);
+		deprecated::convert_tex_node(&comp, &ptr);
 	}
 	
 	for (bNodeLink *blink = (bNodeLink *)btree->links.first; blink; blink = blink->next) {
@@ -1011,9 +986,9 @@ static void parse_tex_nodes(bNodeTree *btree, bvm::deprecated::NodeGraph *graph)
 	}
 }
 
-static void init_texture_graph(bvm::deprecated::NodeGraph &graph)
+static void init_texture_graph(bvm::NodeGraph &graph)
 {
-	using namespace bvm::deprecated;
+	using namespace bvm;
 	
 	graph.add_input("texture.co", "FLOAT3");
 	graph.add_input("texture.dxt", "FLOAT3");
@@ -1046,6 +1021,7 @@ struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
 
 void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
+	using namespace bvm;
 	using namespace bvm::deprecated;
 	
 	NodeGraph graph;
@@ -1075,7 +1051,6 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
                       short which_output, int cfra, int UNUSED(preview))
 {
 	using namespace bvm;
-	using namespace bvm::deprecated;
 	
 	EvalGlobals globals;
 	
@@ -1103,22 +1078,20 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 
 /* ------------------------------------------------------------------------- */
 
-static void init_modifier_graph(bvm::deprecated::NodeGraph &graph)
+static void init_modifier_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
-	using namespace bvm::deprecated;
 	
 	graph.add_input("modifier.object", "RNAPOINTER");
 	graph.add_input("modifier.base_mesh", "RNAPOINTER");
 	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, ReportList *reports)
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 {
 	using namespace bvm;
 	using namespace bvm::deprecated;
 	
-#if 0
 	NodeGraph graph;
 	init_modifier_graph(graph);
 	parse_py_nodes(btree, &graph);
@@ -1127,18 +1100,6 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, ReportLis
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
-#endif
-	
-	ReportErrorHandler error_handler(reports);
-	bNodeTreeParser parser(&error_handler);
-	
-	ast::ASTContext C;
-	ast::NodeGraph *graph = parser.parse(C, btree);
-	
-	LLVMCompiler compiler;
-//	LLVMFunction *fn = compiler.compile_function(graph);
-	Function *fn = NULL;
-//	Function::retain(fn);
 	
 	return (BVMFunction *)fn;
 }
@@ -1176,7 +1137,6 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct Mesh *base_mesh)
 {
 	using namespace bvm;
-	using namespace bvm::deprecated;
 
 	PointerRNA object_ptr, base_mesh_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);
@@ -1195,10 +1155,9 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-static void init_dupli_graph(bvm::deprecated::NodeGraph &graph)
+static void init_dupli_graph(bvm::NodeGraph &graph)
 {
 	using namespace bvm;
-	using namespace bvm::deprecated;
 	
 	graph.add_input("dupli.object", "RNAPOINTER");
 	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
@@ -1223,6 +1182,7 @@ struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
 
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
+	using namespace bvm;
 	using namespace bvm::deprecated;
 	
 	NodeGraph graph;
@@ -1254,7 +1214,6 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
                     struct DupliContainer *duplicont)
 {
 	using namespace bvm;
-	using namespace bvm::deprecated;
 
 	PointerRNA object_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);

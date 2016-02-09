@@ -40,8 +40,6 @@
 extern "C" {
 #endif
 
-struct ReportList;
-
 struct BVMFunction;
 struct BVMModule;
 
@@ -60,15 +58,18 @@ void BVM_function_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMNodeCompiler;
+struct BVMNodeGraph;
 struct BVMNodeInstance;
 struct BVMNodeInput;
 struct BVMNodeOutput;
 struct BVMTypeDesc;
 
-struct BVMNodeInstance *BVM_node_compiler_add_node(struct BVMNodeCompiler *compiler, const char *type);
-struct BVMNodeInput *BVM_node_compiler_get_input(struct BVMNodeCompiler *compiler, const char *name);
-struct BVMNodeOutput *BVM_node_compiler_get_output(struct BVMNodeCompiler *compiler, const char *name);
+struct BVMNodeInstance *BVM_nodegraph_add_node(struct BVMNodeGraph *graph, const char *type, const char *name);
+
+void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
+                             struct BVMNodeInstance **node, const char **socket);
+void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
+                              struct BVMNodeInstance **node, const char **socket);
 
 int BVM_node_num_inputs(struct BVMNodeInstance *node);
 int BVM_node_num_outputs(struct BVMNodeInstance *node);
@@ -149,7 +150,7 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree, struct ReportList *reports);
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree);
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,

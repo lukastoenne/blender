@@ -43,12 +43,8 @@ set(SRC
 	bvm_ast_context.h
 	bvm_ast_decl.cc
 	bvm_ast_decl.h
-	bvm_ast_node.cc
-	bvm_ast_node.h
 	bvm_ast_stmt.cc
 	bvm_ast_stmt.h
-	bvm_bnode_parser.cc
-	bvm_bnode_parser.h
 	bvm_codegen.cc
 	bvm_codegen_debug.cc
 	bvm_codegen.h
