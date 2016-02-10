@@ -34,7 +34,11 @@
 #include <cstdio>
 #include <sstream>
 
-#include "bvm_nodegraph.h"
+#include "bvm_node_graph.h"
+
+#include "bvm_ast_decl.h"
+#include "bvm_ast_stmt.h"
+#include "bvm_ast_visitor.h"
 
 namespace bvm {
 namespace debug {
@@ -454,6 +458,27 @@ struct NodeGraphDumper {
 protected:
 	FILE *file;
 	DebugContext ctx;
+};
+
+struct ASTDumper : ast::ASTVisitor<ASTDumper> {
+	ASTDumper(FILE *f,  const string &label) :
+	    file(f),
+	    level(0)
+	{
+		ctx.file = f;
+		
+		debug_fprintf(ctx, "==== %s ====" NL, label.c_str());
+	}
+	
+	inline void visitFunctionDecl(const ast::FunctionDecl *decl) const
+	{
+		debug_fprintf(ctx, "FunctionDecl <%s>" NL, decl->loc.as_string().c_str());
+	}
+	
+protected:
+	FILE *file;
+	DebugContext ctx;
+	int level;
 };
 
 #undef NL

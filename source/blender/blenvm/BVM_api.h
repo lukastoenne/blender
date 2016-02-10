@@ -118,6 +118,7 @@ void BVM_context_free(struct BVMEvalContext *context);
 typedef enum BVMDebugMode {
 	BVM_DEBUG_NODES,
 	BVM_DEBUG_NODES_UNOPTIMIZED,
+	BVM_DEBUG_AST,
 	BVM_DEBUG_CODEGEN,
 } BVMDebugMode;
 

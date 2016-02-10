@@ -33,7 +33,7 @@
 #include <set>
 
 #include "bvm_codegen.h"
-#include "bvm_nodegraph.h"
+#include "bvm_node_graph.h"
 
 #include "bvm_util_debug.h"
 #include "bvm_util_string.h"

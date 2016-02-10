@@ -45,13 +45,16 @@ set(SRC
 	bvm_ast_decl.h
 	bvm_ast_stmt.cc
 	bvm_ast_stmt.h
+	bvm_ast_visitor.h
 	bvm_codegen.cc
 	bvm_codegen_debug.cc
 	bvm_codegen.h
 	bvm_function.h
 	bvm_function.cc
-	bvm_nodegraph.cc
-	bvm_nodegraph.h
+	bvm_node_graph.cc
+	bvm_node_graph.h
+	bvm_node_parser.cc
+	bvm_node_parser.h
 	bvm_source_location.h
 	bvm_typedesc.cc
 	bvm_typedesc.h

@@ -37,7 +37,7 @@
 #include <sstream>
 #include <algorithm>
 
-#include "bvm_nodegraph.h"
+#include "bvm_node_graph.h"
 #include "bvm_opcode.h"
 
 #include "bvm_util_math.h"

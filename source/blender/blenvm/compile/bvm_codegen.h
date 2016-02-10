@@ -38,7 +38,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "bvm_instruction_list.h"
-#include "bvm_nodegraph.h"
+#include "bvm_node_graph.h"
 #include "bvm_opcode.h"
 #include "bvm_util_string.h"
 

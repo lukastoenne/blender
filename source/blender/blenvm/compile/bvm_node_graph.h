@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_nodegraph.h
+/** \file blender/blenvm/intern/bvm_node_graph.h
  *  \ingroup bvm
  */
 
-#ifndef __BVM_NODEGRAPH_H__
-#define __BVM_NODEGRAPH_H__
+#ifndef __BVM_NODE_GRAPH_H__
+#define __BVM_NODE_GRAPH_H__
 
 #include <stdlib.h>
 #include <string>

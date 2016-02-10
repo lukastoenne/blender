@@ -56,6 +56,28 @@ class BVMNodeGraphvizOperator(Operator):
         
         return {'FINISHED'}
 
+class BVMNodeDebugPrintOperator(Operator):
+    bl_idname = "node.bvm_debug_print"
+    bl_label = "Print Debug Output"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    function_type = enum_property_copy(bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['function_type'])
+    debug_mode = enum_property_copy(bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['debug_mode'])
+
+    def execute(self, context):
+        if hasattr(context, "debug_nodetree"):
+            ntree = context.debug_nodetree
+            ntree.bvm_debug_graphviz(dotfile, self.function_type, self.debug_mode, label=ntree.name)
+        else:
+            return {'CANCELLED'}
+
+        f = open(dotfile, 'r')
+        for line in f:
+            print(line)
+        f.close()
+        
+        return {'FINISHED'}
+
 def draw_depshow_op(layout, ntree):
     if isinstance(ntree, bpy.types.GeometryNodeTree):
         funtype = 'GEOMETRY'
@@ -77,6 +99,9 @@ def draw_depshow_op(layout, ntree):
     props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Nodes (unoptimized)")
     props.function_type = funtype
     props.debug_mode = 'NODES_UNOPTIMIZED'
+    props = col.operator(BVMNodeDebugPrintOperator.bl_idname, text="Abstract Syntax Tree")
+    props.function_type = funtype
+    props.debug_mode = 'AST'
     props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Code")
     props.function_type = funtype
     props.debug_mode = 'CODEGEN'
@@ -103,8 +128,10 @@ class BVMNodeGraphvizPanel(Panel):
 
 def register():
     bpy.utils.register_class(BVMNodeGraphvizOperator)
+    bpy.utils.register_class(BVMNodeDebugPrintOperator)
     bpy.utils.register_class(BVMNodeGraphvizPanel)
 
 def unregister():
     bpy.utils.unregister_class(BVMNodeGraphvizPanel)
     bpy.utils.unregister_class(BVMNodeGraphvizOperator)
+    bpy.utils.unregister_class(BVMNodeDebugPrintOperator)

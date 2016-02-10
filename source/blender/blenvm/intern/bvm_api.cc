@@ -58,7 +58,8 @@ extern "C" {
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
 #include "bvm_function.h"
-#include "bvm_nodegraph.h"
+#include "bvm_node_graph.h"
+#include "bvm_node_parser.h"
 
 #include "bvm_ast_context.h"
 
@@ -486,11 +487,19 @@ void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *
 	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
+	NodeParser parser;
+	ast::FunctionDecl *ast_func = parser.parse(graph);
+	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
 		case BVM_DEBUG_NODES_UNOPTIMIZED: {
 			debug::NodeGraphDumper dumper(debug_file);
 			dumper.dump_graph(&graph, "Force Field Graph");
+			break;
+		}
+		case BVM_DEBUG_AST: {
+			debug::ASTDumper dumper(debug_file, "Force Field AST");
+			dumper.traverseFunctionDecl(ast_func);
 			break;
 		}
 		case BVM_DEBUG_CODEGEN: {
@@ -1030,11 +1039,19 @@ void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *lab
 	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
+	NodeParser parser;
+	ast::FunctionDecl *ast_func = parser.parse(graph);
+	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
 		case BVM_DEBUG_NODES_UNOPTIMIZED: {
 			debug::NodeGraphDumper dumper(debug_file);
 			dumper.dump_graph(&graph, "Texture Node Graph");
+			break;
+		}
+		case BVM_DEBUG_AST: {
+			debug::ASTDumper dumper(debug_file, "Texture AST");
+			dumper.traverseFunctionDecl(ast_func);
 			break;
 		}
 		case BVM_DEBUG_CODEGEN: {
@@ -1097,6 +1114,9 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 	parse_py_nodes(btree, &graph);
 	graph.finalize();
 	
+//	NodeParser parser;
+//	ast::FunctionDecl *ast_func = parser.parse(graph);
+	
 	BVMCompiler compiler;
 	Function *fn = compiler.compile_function(graph);
 	Function::retain(fn);
@@ -1115,11 +1135,19 @@ void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const c
 	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
+	NodeParser parser;
+	ast::FunctionDecl *ast_func = parser.parse(graph);
+	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
 		case BVM_DEBUG_NODES_UNOPTIMIZED: {
 			debug::NodeGraphDumper dumper(debug_file);
 			dumper.dump_graph(&graph, "Modifier Node Graph");
+			break;
+		}
+		case BVM_DEBUG_AST: {
+			debug::ASTDumper dumper(debug_file, "Modifier AST");
+			dumper.traverseFunctionDecl(ast_func);
 			break;
 		}
 		case BVM_DEBUG_CODEGEN: {
@@ -1192,11 +1220,19 @@ void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char
 	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
+	NodeParser parser;
+	ast::FunctionDecl *ast_func = parser.parse(graph);
+	
 	switch (mode) {
 		case BVM_DEBUG_NODES:
 		case BVM_DEBUG_NODES_UNOPTIMIZED: {
 			debug::NodeGraphDumper dumper(debug_file);
 			dumper.dump_graph(&graph, "Dupli Node Graph");
+			break;
+		}
+		case BVM_DEBUG_AST: {
+			debug::ASTDumper dumper(debug_file, "Dupli AST");
+			dumper.traverseFunctionDecl(ast_func);
 			break;
 		}
 		case BVM_DEBUG_CODEGEN: {
