@@ -281,11 +281,17 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 							if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR)
 								bssrdf->radius = make_float3(0.0f, 0.0f, 0.0f);
 
+							float3 albedo =
+							        (bssrdf->sc.type == CLOSURE_BSSRDF_BURLEY_ID)
+							                ? bssrdf->albedo
+							                : make_float3(0.0f, 0.0f, 0.0f);
+
 							/* create one closure for each color channel */
 							if(fabsf(weight.x) > 0.0f) {
 								sc.weight = make_float3(weight.x, 0.0f, 0.0f);
 								sc.data0 = bssrdf->radius.x;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.x;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -294,6 +300,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 								sc.weight = make_float3(0.0f, weight.y, 0.0f);
 								sc.data0 = bssrdf->radius.y;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.y;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -302,6 +309,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 								sc.weight = make_float3(0.0f, 0.0f, weight.z);
 								sc.data0 = bssrdf->radius.z;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.z;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -331,11 +339,7 @@ void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, PathState *state
 	int shader = sd->shader & SHADER_MASK;
 
 	if(kg->osl->surface_state[shader]) {
-#if OSL_LIBRARY_VERSION_CODE < 10600
-		ss->execute(*octx, *(kg->osl->surface_state[shader]), *globals);
-#else
 		ss->execute(octx, *(kg->osl->surface_state[shader]), *globals);
-#endif
 	}
 
 	/* flatten closure tree */
@@ -395,11 +399,7 @@ float3 OSLShader::eval_background(KernelGlobals *kg, ShaderData *sd, PathState *
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 
 	if(kg->osl->background_state) {
-#if OSL_LIBRARY_VERSION_CODE < 10600
-		ss->execute(*octx, *(kg->osl->background_state), *globals);
-#else
 		ss->execute(octx, *(kg->osl->background_state), *globals);
-#endif
 	}
 
 	/* return background color immediately */
@@ -510,11 +510,7 @@ void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, PathState *state,
 	int shader = sd->shader & SHADER_MASK;
 
 	if(kg->osl->volume_state[shader]) {
-#if OSL_LIBRARY_VERSION_CODE < 10600
-		ss->execute(*octx, *(kg->osl->volume_state[shader]), *globals);
-#else
 		ss->execute(octx, *(kg->osl->volume_state[shader]), *globals);
-#endif
 	}
 	
 	/* flatten closure tree */
@@ -540,11 +536,7 @@ void OSLShader::eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderConte
 	int shader = sd->shader & SHADER_MASK;
 
 	if(kg->osl->displacement_state[shader]) {
-#if OSL_LIBRARY_VERSION_CODE < 10600
-		ss->execute(*octx, *(kg->osl->displacement_state[shader]), *globals);
-#else
 		ss->execute(octx, *(kg->osl->displacement_state[shader]), *globals);
-#endif
 	}
 
 	/* get back position */

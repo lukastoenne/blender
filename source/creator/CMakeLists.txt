@@ -130,7 +130,7 @@ if(WIN32 AND NOT UNIX)
 
 
 	list(APPEND SRC
-		../icons/winblender.rc
+		${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
 	)
 endif()
 
@@ -981,7 +981,7 @@ elseif(APPLE)
 		# copy site-packages files
 		install_dir(
 			${LIBDIR}/release/site-packages
-			${CMAKE_CURRENT_BINARY_DIR}/python/lib/python${PYTHON_VERSION}/site-packages
+			${CMAKE_CURRENT_BINARY_DIR}/python/lib/python${PYTHON_VERSION}
 		)
 
 		install(DIRECTORY ${LIBDIR}/python/bin
@@ -1094,7 +1094,7 @@ setup_liblinks(blender)
 if(WIN32 AND NOT WITH_PYTHON_MODULE)
 	set(LAUNCHER_SRC
 		creator_launch_win.c
-		../icons/winblender.rc
+		${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
 	)
 	add_executable(blender-launcher ${LAUNCHER_SRC})
 	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})
