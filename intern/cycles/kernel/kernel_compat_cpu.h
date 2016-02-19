@@ -153,6 +153,8 @@ template<typename T> struct texture_image  {
 					ix = wrap_clamp(ix, width);
 					iy = wrap_clamp(iy, height);
 					break;
+				default:
+					kernel_assert(0);
 			}
 			return read(data[ix + iy*width]);
 		}
@@ -180,6 +182,8 @@ template<typename T> struct texture_image  {
 					ix = wrap_clamp(ix, width);
 					iy = wrap_clamp(iy, height);
 					break;
+				default:
+					kernel_assert(0);
 			}
 
 			float4 r = (1.0f - ty)*(1.0f - tx)*read(data[ix + iy*width]);
@@ -226,6 +230,8 @@ template<typename T> struct texture_image  {
 					ix = wrap_clamp(ix, width);
 					iy = wrap_clamp(iy, height);
 					break;
+				default:
+					kernel_assert(0);
 			}
 
 			const int xc[4] = {pix, ix, nix, nnix};
@@ -291,6 +297,8 @@ template<typename T> struct texture_image  {
 					iy = wrap_clamp(iy, height);
 					iz = wrap_clamp(iz, depth);
 					break;
+				default:
+					kernel_assert(0);
 			}
 
 			return read(data[ix + iy*width + iz*width*height]);
@@ -326,6 +334,8 @@ template<typename T> struct texture_image  {
 					iy = wrap_clamp(iy, height);
 					iz = wrap_clamp(iz, depth);
 					break;
+				default:
+					kernel_assert(0);
 			}
 
 			float4 r;
@@ -391,6 +401,8 @@ template<typename T> struct texture_image  {
 					iy = wrap_clamp(iy, height);
 					iz = wrap_clamp(iz, depth);
 					break;
+				default:
+					kernel_assert(0);
 			}
 
 			const int xc[4] = {pix, ix, nix, nnix};
