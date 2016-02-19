@@ -317,6 +317,7 @@ void ShaderManager::device_update_shaders_used(Scene *scene)
 	scene->shaders[scene->default_light]->used = true;
 	scene->shaders[scene->default_background]->used = true;
 	scene->shaders[scene->default_empty]->used = true;
+	scene->shaders[scene->default_volume]->used = true;
 
 	foreach(Mesh *mesh, scene->meshes)
 		foreach(uint shader, mesh->used_shaders)
@@ -488,6 +489,23 @@ void ShaderManager::add_default(Scene *scene)
 		shader->graph = graph;
 		scene->shaders.push_back(shader);
 		scene->default_empty = scene->shaders.size() - 1;
+	}
+
+	/* default empty */
+	{
+		graph = new ShaderGraph();
+
+		closure = graph->add(new ScatterVolumeNode());
+		closure->input("Density")->value = make_float3(0.8f, 0.8f, 0.8f);
+		out = graph->output();
+
+		graph->connect(closure->output("Volume"), out->input("Volume"));
+
+		shader = new Shader();
+		shader->name = "default_volume";
+		shader->graph = graph;
+		scene->shaders.push_back(shader);
+		scene->default_volume = scene->shaders.size() - 1;
 	}
 }
 

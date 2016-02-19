@@ -187,6 +187,7 @@ public:
 	int default_light;
 	int default_background;
 	int default_empty;
+	int default_volume;
 
 	/* device */
 	Device *device;
