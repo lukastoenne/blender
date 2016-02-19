@@ -6773,6 +6773,8 @@ static bool drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 	}
 	
+	glLineWidth(1.0f);
+
 	while (ml) {
 		/* draw radius */
 		if (mb->editelems) {
@@ -7503,6 +7505,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	/* only once set now, will be removed too, should become a global standard */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	/* reset here to avoid having to call all over */
+	glLineWidth(1.0f);
 
 	view3d_cached_text_draw_begin();
 	
@@ -7634,7 +7638,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					}
 				}
 				else if (ED_view3d_boundbox_clip(rv3d, ob->bb)) {
-					glLineWidth(1.0f);
 					empty_object = drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 				}
 				break;
