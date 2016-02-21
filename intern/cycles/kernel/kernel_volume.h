@@ -219,14 +219,13 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	int v = 0;
 	float_volume *volume = kg->float_volumes[0];
 
-	for(; v < num_volumes; v++) {
+	for(; v < num_volumes; v++, volume++) {
 		if(volume->intersect(ray, NULL)) {
 			break;
 		}
-		volume++;
 	}
 
-	if(has_vdb_volume && /*v < num_volumes &&*/ volume->has_uniform_voxels()) {
+	if(has_vdb_volume && v < num_volumes && kg->float_volumes[v]->has_uniform_voxels()) {
 		/* TODO(kevin): this call should be moved out of here, all it does is
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has
@@ -239,7 +238,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 		 * containing active voxels. If we don't have any active node in the current
 		 * ray path (i.e. empty space) the ray march loop is not executed,
 		 * otherwise we loop through all leaves until the end of the volume. */
-		while(volume->march(&t, &t1)) {
+		while(kg->float_volumes[v]->march(&t, &t1)) {
 			int i = 0;
 
 			/* Perform small steps through the current leaf or tile. */

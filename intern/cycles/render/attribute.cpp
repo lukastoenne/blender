@@ -292,8 +292,10 @@ Attribute *AttributeSet::add(ustring name, TypeDesc type, AttributeElement eleme
 	/* this is weak .. */
 	if(triangle_mesh)
 		attr->reserve(triangle_mesh->verts.size(), triangle_mesh->triangles.size(), triangle_mesh->motion_steps, 0, 0, resize);
-	if(curve_mesh)
+	else if(curve_mesh)
 		attr->reserve(0, 0, curve_mesh->motion_steps, curve_mesh->curves.size(), curve_mesh->curve_keys.size(), resize);
+	else
+		attr->reserve(0, 0, 0, 0, 0, resize);
 	
 	return attr;
 }

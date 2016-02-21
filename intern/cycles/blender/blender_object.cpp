@@ -382,7 +382,7 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		printf("object has sparse volume\n");
 		sync_volume(b_ob);
 	}
-	else {
+	/*else*/ {
 		/* mesh sync */
 		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
 	}

@@ -40,13 +40,16 @@ static Attribute *get_openvdb_attribute(Volume *volume, const string& filename, 
 
 	if(value_type == "float") {
 		attr = volume->attributes.add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_VOXEL);
+		fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
 	}
 	else if(value_type == "vec3s") {
 		if (grid->getMetadata< openvdb::TypedMetadata<bool> >("is_color")) {
 			attr = volume->attributes.add(name, TypeDesc::TypeColor, ATTR_ELEMENT_VOXEL);
+			fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
 		}
 		else {
 			attr = volume->attributes.add(name, TypeDesc::TypeVector, ATTR_ELEMENT_VOXEL);
+			fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
 		}
 	}
 
@@ -73,10 +76,15 @@ static void create_volume_attribute(BL::Object& b_ob,
 
 	Attribute *attr = get_openvdb_attribute(volume, filename, name);
 	VoxelAttribute *volume_data = attr->data_voxel();
+	int slot = volume_manager->add_volume(volume, filename, name.string());
+
+	if (!volume_data) {
+		fprintf(stderr, "Failed to create volume data!\n");
+	}
 
 	// TODO(kevin): add volume fields to the Volume*
 //	volume_data->manager = volume_manager;
-	volume_data->slot = volume_manager->add_volume(volume, filename, name.string());
+	volume_data->slot = slot;
 }
 
 static void create_volume_attributes(Scene *scene,
