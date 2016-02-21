@@ -45,6 +45,7 @@ class Scene;
 class Shader;
 class ShaderGraph;
 class ShaderNode;
+class Volume;
 
 class BlenderSync {
 public:
@@ -114,7 +115,7 @@ private:
 	                 BL::Object& b_ob,
 	                 bool motion,
 	                 int time_index = 0);
-	void sync_volume(BL::Object& b_ob);
+	Volume *sync_volume(BL::Object& b_ob);
 	Object *sync_object(BL::Object& b_parent,
 	                    int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
 	                    BL::DupliObject& b_dupli_ob,

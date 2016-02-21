@@ -16,16 +16,14 @@
 
 #include "blender_sync.h"
 
+#include "attribute.h"
 #include "../render/volume.h"
+
+#include "util_foreach.h"
 
 #include <openvdb/openvdb.h>
 
-class Volume {
-public:
-	vector<uint> used_shaders;
-	AttributeSet attributes;
-	string name;
-};
+CCL_NAMESPACE_BEGIN
 
 static Attribute *get_openvdb_attribute(Volume *volume, const string& filename, const ustring& name)
 {
@@ -38,7 +36,6 @@ static Attribute *get_openvdb_attribute(Volume *volume, const string& filename, 
 
 	openvdb::GridBase::ConstPtr grid = file.readGrid(name.string());
 
-	openvdb::Name name = grid->getName();
 	openvdb::Name value_type = grid->valueType();
 
 	if(value_type == "float") {
@@ -53,19 +50,23 @@ static Attribute *get_openvdb_attribute(Volume *volume, const string& filename, 
 		}
 	}
 
+	fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
+
 	return attr;
 }
 
-static void create_mesh_volume_attribute(BL::Object& b_ob,
-                                         Volume *volume,
-                                         VolumeManager *volume_manager,
-                                         const ustring &name,
-                                         float frame)
+static void create_volume_attribute(BL::Object& b_ob,
+                                    Volume *volume,
+                                    VolumeManager *volume_manager,
+                                    const ustring& name,
+                                    float /*frame*/)
 {
 	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
 
-	if(!b_domain)
+	if(!b_domain) {
+		fprintf(stderr, "No domain found!\n");
 		return;
+	}
 
 	char filename[1024];
 	SmokeDomainSettings_cache_filename_get(&b_domain.ptr, filename);
@@ -75,7 +76,7 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 
 	// TODO(kevin): add volume fields to the Volume*
 //	volume_data->manager = volume_manager;
-	volume_data->slot = volume_manager->add_volume(filename, name, 0, 0);
+	volume_data->slot = volume_manager->add_volume(volume, filename, name.string());
 }
 
 static void create_volume_attributes(Scene *scene,
@@ -85,23 +86,47 @@ static void create_volume_attributes(Scene *scene,
 {
 	foreach(uint id, volume->used_shaders) {
 		Shader *shader = scene->shaders[id];
+		fprintf(stderr, "Number of attribute requests: %lu\n", shader->attributes.requests.size());
 
-		foreach(AttributeRequest attribute, shader->attributes.requests) {
-			if (attribute.name == "") {
+		foreach(AttributeRequest req, shader->attributes.requests) {
+			ustring name;
+
+			if (req.std == ATTR_STD_VOLUME_DENSITY) {
+				name = ustring(Attribute::standard_name(ATTR_STD_VOLUME_DENSITY));
+			}
+			else if (req.std == ATTR_STD_VOLUME_FLAME) {
+				name = ustring(Attribute::standard_name(ATTR_STD_VOLUME_FLAME));
+			}
+			else if (req.std == ATTR_STD_VOLUME_COLOR) {
+				name = ustring(Attribute::standard_name(ATTR_STD_VOLUME_COLOR));
+			}
+			else if (req.std == ATTR_STD_VOLUME_VELOCITY) {
+				name = ustring(Attribute::standard_name(ATTR_STD_VOLUME_VELOCITY));
+			}
+			else if (req.std == ATTR_STD_VOLUME_HEAT) {
+				name = ustring(Attribute::standard_name(ATTR_STD_VOLUME_HEAT));
+			}
+			else if (req.name != "") {
+				name = req.name;
+			}
+			else {
 				continue;
 			}
 
-			create_volume_attribute(b_ob, volume, scene->volume_manager, attribute.name, frame);
+			create_volume_attribute(b_ob, volume, scene->volume_manager, name, frame);
 		}
 	}
 }
 
-void BlenderSync::sync_volume(BL::Object &b_ob)
+Volume *BlenderSync::sync_volume(BL::Object &b_ob)
 {
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
 	vector<uint> used_shaders;
+	BL::ID b_ob_data = b_ob.data();
+
+	fprintf(stderr, "%s: before material assignment\n", __func__);
 
 	BL::Object::material_slots_iterator slot;
 	for(b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot) {
@@ -121,9 +146,17 @@ void BlenderSync::sync_volume(BL::Object &b_ob)
 			used_shaders.push_back(scene->default_volume);
 	}
 
-	Volume *volume;
+	fprintf(stderr, "%s: after material assignment\n", __func__);
+
+	Volume *volume = new Volume;
 	volume->used_shaders = used_shaders;
 	volume->name = ustring(b_ob_data.name().c_str());
 
+	fprintf(stderr, "Number of shaders: %lu\n", volume->used_shaders.size());
+
 	create_volume_attributes(scene, b_ob, volume, b_scene.frame_current());
+
+	return volume;
 }
+
+CCL_NAMESPACE_END

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-#include "volume.h"
 #include "scene.h"
+#include "volume.h"
+
+#include "util_foreach.h"
 #include "util_logging.h"
 #include "util_progress.h"
 #include "util_task.h"
@@ -37,11 +39,13 @@ VolumeManager::VolumeManager()
 #endif
 
 	need_update = true;
+	num_float_volume = 0;
+	num_float3_volume = 0;
 }
 
 VolumeManager::~VolumeManager()
 {
-#ifdef WITH_OPENVDB
+#if 0
 	for(size_t i = 0; i < float_volumes.size(); ++i) {
 		delete float_volumes[i];
 	}
@@ -49,11 +53,30 @@ VolumeManager::~VolumeManager()
 	for(size_t i = 0; i < float3_volumes.size(); ++i) {
 		delete float3_volumes[i];
 	}
+#endif
 
+	for (size_t i = 0; i < volumes.size(); ++i) {
+		Volume *volume = volumes[i];
+
+		for(size_t i = 0; i < volume->float_fields.size(); ++i) {
+			delete volume->float_fields[i];
+		}
+
+		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
+			delete volume->float3_fields[i];
+		}
+
+#ifdef WITH_OPENVDB
+		volume->scalar_grids.clear();
+		volume->vector_grids.clear();
+#endif
+	}
+
+#ifdef WITH_OPENVDB
 	scalar_grids.clear();
 	vector_grids.clear();
-	current_grids.clear();
 #endif
+	current_grids.clear();
 }
 
 static inline void catch_exceptions()
@@ -94,6 +117,38 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 	return slot;
 }
 
+int VolumeManager::add_volume(Volume *volume, const std::string &filename, const std::string &name)
+{
+	size_t slot = -1;
+
+	if((slot = find_existing_slot(volume, filename, name)) != -1) {
+		return slot;
+	}
+
+	if((num_float_volume + num_float3_volume + 1) > MAX_VOLUME) {
+		printf("VolumeManager::add_volume: volume limit reached %d!\n", MAX_VOLUME);
+		return -1;
+	}
+
+	try {
+		if(is_openvdb_file(filename)) {
+			slot = add_openvdb_volume(volume, filename, name);
+		}
+
+		add_grid_description(volume, filename, name, slot);
+
+		volumes.push_back(volume);
+		need_update = true;
+	}
+	catch(...) {
+		catch_exceptions();
+		need_update = false;
+		slot = -1;
+	}
+
+	return slot;
+}
+
 int VolumeManager::find_existing_slot(const string& filename, const string& name, int sampling, int grid_type)
 {
 	for(size_t i = 0; i < current_grids.size(); ++i) {
@@ -118,6 +173,21 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 				std::swap(current_grids[i], current_grids.back());
 				current_grids.pop_back();
 				break;
+			}
+		}
+	}
+
+	return -1;
+}
+
+int VolumeManager::find_existing_slot(Volume *volume, const std::string &filename, const std::string &name)
+{
+	for(size_t i = 0; i < current_grids.size(); ++i) {
+		GridDescription grid = current_grids[i];
+
+		if(grid.volume == volume) {
+			if(grid.filename == filename && grid.name == name) {
+				return grid.slot;
 			}
 		}
 	}
@@ -220,6 +290,50 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 	return slot;
 }
 
+size_t VolumeManager::add_openvdb_volume(Volume *volume, const std::string &filename, const std::string &name)
+{
+	size_t slot = -1;
+
+#ifdef WITH_OPENVDB
+	openvdb::io::File file(filename);
+	file.open();
+
+	if(!file.hasGrid(name)) return -1;
+
+	openvdb::GridBase::Ptr grid = file.readGrid(name);
+	if(grid->getGridClass() == openvdb::GRID_LEVEL_SET) return -1;
+
+	if(grid->isType<openvdb::FloatGrid>()) {
+		openvdb::FloatGrid::Ptr fgrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
+
+		vdb_float_volume *vol = new vdb_float_volume(fgrid);
+		vol->create_threads_utils(TaskScheduler::thread_ids());
+
+		volume->float_fields.push_back(vol);
+		volume->scalar_grids.push_back(fgrid);
+
+		slot = num_float_volume++;
+	}
+	else if(grid->isType<openvdb::Vec3SGrid>()) {
+		openvdb::Vec3SGrid::Ptr vgrid = openvdb::gridPtrCast<openvdb::Vec3SGrid>(grid);
+
+		vdb_float3_volume *vol = new vdb_float3_volume(vgrid);
+		vol->create_threads_utils(TaskScheduler::thread_ids());
+
+		volume->float3_fields.push_back(vol);
+		volume->vector_grids.push_back(vgrid);
+
+		slot = num_float3_volume++;
+	}
+#else
+	(void)volume;
+	(void)filename;
+	(void)name;
+#endif
+
+	return slot;
+}
+
 void VolumeManager::add_grid_description(const string& filename, const string& name, int sampling, int slot)
 {
 	GridDescription descr;
@@ -231,6 +345,127 @@ void VolumeManager::add_grid_description(const string& filename, const string& n
 	current_grids.push_back(descr);
 }
 
+void VolumeManager::add_grid_description(Volume *volume, const std::string &filename, const std::string &name, int slot)
+{
+	GridDescription descr;
+	descr.filename = filename;
+	descr.name = name;
+	descr.volume = volume;
+	descr.slot = slot;
+
+	current_grids.push_back(descr);
+}
+
+static void update_attribute_element_offset(Attribute *vattr,
+                                            TypeDesc& type,
+                                            int& offset,
+                                            AttributeElement& element)
+{
+	if(vattr) {
+		/* store element and type */
+		element = vattr->element;
+		type = vattr->type;
+
+		/* store slot in offset value */
+		VoxelAttribute *voxel_data = vattr->data_voxel();
+		offset = voxel_data->slot;
+	}
+	else {
+		/* attribute not found */
+		element = ATTR_ELEMENT_NONE;
+		offset = 0;
+	}
+}
+
+void VolumeManager::device_update_attributes(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
+{
+	progress.set_status("Updating Volume", "Computing attributes");
+
+	/* gather per volume requested attributes. as volumes may have multiple
+	 * shaders assigned, this merges the requested attributes that have
+	 * been set per shader by the shader manager */
+	vector<AttributeRequestSet> volume_attributes(volumes.size());
+
+	for(size_t i = 0; i < volumes.size(); i++) {
+		Volume *volume = volumes[i];
+
+		foreach(uint sindex, volume->used_shaders) {
+			Shader *shader = scene->shaders[sindex];
+			volume_attributes[i].add(shader->attributes);
+		}
+	}
+
+	for(size_t i = 0; i < volumes.size(); i++) {
+		Volume *volume = volumes[i];
+		AttributeRequestSet& attributes = volume_attributes[i];
+
+		/* todo: we now store std and name attributes from requests even if
+		 * they actually refer to the same mesh attributes, optimize */
+		foreach(AttributeRequest& req, attributes.requests) {
+			Attribute *vattr = volume->attributes.find(req);
+
+			update_attribute_element_offset(vattr,
+			                                req.triangle_type,
+			                                req.triangle_offset,
+			                                req.triangle_element);
+
+			if(progress.get_cancel()) return;
+		}
+	}
+
+	update_svm_attributes(device, dscene, scene, volume_attributes);
+}
+
+void VolumeManager::update_svm_attributes(Device *device, DeviceScene *dscene, Scene *scene, vector<AttributeRequestSet>& mesh_attributes)
+{
+	/* compute array stride */
+	int attr_map_stride = 0;
+
+	for(size_t i = 0; i < volumes.size(); i++) {
+		attr_map_stride = max(attr_map_stride, (mesh_attributes[i].size() + 1));
+	}
+
+	if(attr_map_stride == 0) {
+		return;
+	}
+
+	/* create attribute map */
+	uint4 *attr_map = dscene->attributes_map.resize(attr_map_stride*volumes.size());
+	memset(attr_map, 0, dscene->attributes_map.size()*sizeof(uint));
+
+	for(size_t i = 0; i < volumes.size(); i++) {
+		AttributeRequestSet& attributes = mesh_attributes[i];
+
+		/* set object attributes */
+		int index = i*attr_map_stride;
+
+		foreach(AttributeRequest& req, attributes.requests) {
+			uint id = scene->shader_manager->get_attribute_id(req.name);
+
+			attr_map[index].x = id;
+			attr_map[index].y = req.triangle_element;
+			attr_map[index].z = as_uint(req.triangle_offset);
+
+			if(req.triangle_type == TypeDesc::TypeFloat)
+				attr_map[index].w = NODE_ATTR_FLOAT;
+			else
+				attr_map[index].w = NODE_ATTR_FLOAT3;
+
+			index++;
+		}
+
+		/* terminator */
+		attr_map[index].x = ATTR_STD_NONE;
+		attr_map[index].y = 0;
+		attr_map[index].z = 0;
+		attr_map[index].w = 0;
+
+		index++;
+	}
+
+	device->tex_alloc("__attributes_map", dscene->attributes_map);
+}
+
 void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*scene*/, Progress& progress)
 {
 	if(!need_update) {
@@ -240,6 +475,29 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*
 	device_free(device, dscene);
 	progress.set_status("Updating OpenVDB volumes", "Sending volumes to device.");
 
+	for (size_t i = 0; i < volumes.size(); ++i) {
+		Volume *volume = volumes[i];
+
+		for(size_t i = 0; i < volume->float_fields.size(); ++i) {
+			if(!volume->float_fields[i]) {
+				continue;
+			}
+			device->const_copy_to("__float_volume", volume->float_fields[i], i);
+		}
+
+		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
+			if(!volume->float3_fields[i]) {
+				continue;
+			}
+			device->const_copy_to("__float3_volume", volume->float3_fields[i], i);
+		}
+
+		if(progress.get_cancel()) {
+			return;
+		}
+	}
+
+#if 0
 	for(size_t i = 0; i < float_volumes.size(); ++i) {
 		if(!float_volumes[i]) {
 			continue;
@@ -253,13 +511,14 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*
 		}
 		device->const_copy_to("__float3_volume", float3_volumes[i], i);
 	}
+#endif
 
 	if(progress.get_cancel()) {
 		return;
 	}
 
-	dscene->data.tables.num_volumes = float_volumes.size()/* + float3_volumes.size()*/;
-//	dscene->data.tables.density_index = find_density_slot();
+	dscene->data.tables.num_volumes = num_float_volume/* + float3_volumes.size()*/;
+	dscene->data.tables.density_index = 0;
 
 	VLOG(1) << "Volume allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
 	VLOG(1) << "Volume allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
