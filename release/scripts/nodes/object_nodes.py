@@ -209,6 +209,155 @@ class RigidBodyNode(ObjectNodeBase, ObjectNode):
 
 ###############################################################################
 
+class ObjectComponentSocket(NodeSocket):
+    '''Object data component'''
+    bl_idname = 'ObjectComponentSocket'
+    bl_label = 'Component'
+
+    is_readonly = BoolProperty(name="Is Placeholder",
+                               default=False)
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        alpha = 0.4 if self.is_readonly else 1.0
+        return (1.0, 0.4, 0.216, alpha)
+
+class ComponentsNode(ObjectNodeBase, ObjectNode):
+    '''Object data components'''
+    bl_idname = 'ObjectComponentsNode'
+    bl_label = 'Components'
+
+    def init(self, context):
+        self.outputs.new('ObjectComponentSocket', "Particles")
+        self.outputs.new('ObjectComponentSocket', "Fracture Mesh")
+
+    def compile(self, compiler):
+        pass
+
+class ApplyIslandTransformsNode(ObjectNodeBase, ObjectNode):
+    '''Apply mesh island transforms from particles'''
+    bl_idname = 'ObjectApplyMeshIslandsTransformNode'
+    bl_label = 'Apply Island Transforms'
+
+    def init(self, context):
+        self.inputs.new('ObjectComponentSocket', "Particles").is_readonly = True
+        self.inputs.new('ObjectComponentSocket', "Fracture Mesh").is_readonly = True
+        self.outputs.new('ObjectComponentSocket', "Mesh")
+
+    def compile(self, compiler):
+        pass
+
+class ParticleRigidBodySimNode(ObjectNodeBase, ObjectNode):
+    '''Define particles as rigid bodies in the scene'''
+    bl_idname = 'ObjectParticleRigidBodySimNodeNode'
+    bl_label = 'Particle Rigid Body Simulation'
+
+    def init(self, context):
+        self.inputs.new('ObjectComponentSocket', "Particles")
+        self.inputs.new('ObjectComponentSocket', "Fracture Mesh").is_readonly = True
+        self.outputs.new('ObjectComponentSocket', "RB Particles")
+
+    def compile(self, compiler):
+        pass
+
+class DynamicFractureNode(ObjectNodeBase, ObjectNode):
+    '''Fracture shards based on collision impacts'''
+    bl_idname = 'ObjectDynamicFractureNodeNode'
+    bl_label = 'Dynamic Fracture'
+
+    def init(self, context):
+        self.inputs.new('ObjectComponentSocket', "Particles")
+        self.inputs.new('ObjectComponentSocket', "Fracture Mesh")
+        self.outputs.new('ObjectComponentSocket', "Particles")
+        self.outputs.new('ObjectComponentSocket', "Fracture Mesh")
+
+    def compile(self, compiler):
+        pass
+
+_particle_attribute_set = [
+    ("id", 'NodeSocketInt'),
+    ("location", 'NodeSocketVector'),
+    ("velocity", 'NodeSocketVector'),
+    ]
+def _particle_attribute_items(self, context):
+    return [(attr[0], attr[0], "", 'NONE', 2**i) for i, attr in enumerate(_particle_attribute_set)]
+
+class GetParticleAttributeNode(ObjectNodeBase, ObjectNode):
+    '''Get a particle attribute'''
+    bl_idname = 'GetParticleAttributeNode'
+    bl_label = 'Get Particle Attribute'
+
+    def _update_attributes(self, context):
+        for socket in self.outputs:
+            socket.enabled = (socket.name in self.attributes)
+    attributes = EnumProperty(name="Attribute",
+                              items=_particle_attribute_items,
+                              update=_update_attributes,
+                              options={'ENUM_FLAG'})
+
+    def draw_buttons(self, context, layout):
+        layout.prop_menu_enum(self, "attributes")
+
+    def init(self, context):
+        self.inputs.new('ObjectComponentSocket', "Particles").is_readonly = True
+        for attr in _particle_attribute_set:
+            self.outputs.new(attr[1], attr[0])
+
+        # set default
+        self.attributes = {'location'}
+
+    def compile(self, compiler):
+        pass
+
+class SetParticleAttributeNode(ObjectNodeBase, ObjectNode):
+    '''Set a particle attribute'''
+    bl_idname = 'SetParticleAttributeNode'
+    bl_label = 'Set Particle Attribute'
+
+    def _update_attributes(self, context):
+        for socket in self.inputs[1:]:
+            socket.enabled = (socket.name in self.attributes)
+    attributes = EnumProperty(name="Attribute",
+                              items=_particle_attribute_items,
+                              update=_update_attributes,
+                              options={'ENUM_FLAG'})
+
+    def draw_buttons(self, context, layout):
+        layout.prop_menu_enum(self, "attributes")
+
+    def init(self, context):
+        self.inputs.new('ObjectComponentSocket', "Particles")
+        for attr in _particle_attribute_set:
+            self.inputs.new(attr[1], attr[0])
+        self.outputs.new('ObjectComponentSocket', "Particles")
+
+        # set default
+        self.attributes = {'location'}
+
+    def compile(self, compiler):
+        pass
+
+class DefineRigidBodyNode(ObjectNodeBase, ObjectNode):
+    '''Define rigid bodies for simulation'''
+    bl_idname = 'DefineRigidBodyNode'
+    bl_label = 'Define Rigid Body'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketInt', "ID")
+        self.inputs.new('TransformSocket', "transform")
+        self.inputs.new('NodeSocketVector', "velocity")
+        self.inputs.new('NodeSocketVector', "angular velocity")
+        self.outputs.new('TransformSocket', "transform")
+        self.outputs.new('NodeSocketVector', "velocity")
+        self.outputs.new('NodeSocketVector', "angular velocity")
+
+    def compile(self, compiler):
+        pass
+
+###############################################################################
+
 class ObjectNodesNew(Operator):
     """Create new object node tree"""
     bl_idname = "object_nodes.object_nodes_new"
@@ -280,6 +429,13 @@ def register():
                      settings={"id": "bpy.types.OBJECT_NODES_OT_smokesim_nodes_new.make_node_tree()"}),
             NodeItem("RigidBodyNode",
                      settings={"id": "bpy.types.OBJECT_NODES_OT_rigidbody_nodes_new.make_node_tree()"}),
+            NodeItem("ObjectComponentsNode"),
+            NodeItem("ObjectApplyMeshIslandsTransformNode"),
+            NodeItem("ObjectParticleRigidBodySimNodeNode"),
+            NodeItem("ObjectDynamicFractureNodeNode"),
+            NodeItem("GetParticleAttributeNode"),
+            NodeItem("SetParticleAttributeNode"),
+            NodeItem("DefineRigidBodyNode"),
             ]),
         ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
