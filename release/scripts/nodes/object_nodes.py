@@ -276,68 +276,84 @@ class DynamicFractureNode(ObjectNodeBase, ObjectNode):
     def compile(self, compiler):
         pass
 
+def make_attribute_nodes(attribute_set, attr_default, data_name, data_type):
+    def attribute_items(self, context):
+        return [(attr[0], attr[0], "", 'NONE', 2**i) for i, attr in enumerate(attribute_set)]
+
+    def update_attributes(self, context):
+        for socket in self.outputs:
+            socket.enabled = (socket.name in self.attributes)
+
+    class get_node(ObjectNodeBase, ObjectNode):
+        __doc__ = "Get attribute from %s" % data_name
+        bl_idname = "Get%sAttributeNode" % data_name
+        bl_label = "Get %s Attribute" % data_name
+
+        attributes = EnumProperty(name="Attribute",
+                                  items=attribute_items,
+                                  update=update_attributes,
+                                  options={'ENUM_FLAG'})
+
+        def draw_buttons(self, context, layout):
+            layout.prop_menu_enum(self, "attributes")
+
+        def init(self, context):
+            self.inputs.new(data_type, data_name).is_readonly = True
+            for attr in attribute_set:
+                self.outputs.new(attr[1], attr[0])
+
+            # set default
+            self.attributes = { attr_default }
+
+        def compile(self, compiler):
+            pass
+
+    class set_node(ObjectNodeBase, ObjectNode):
+        __doc__ = "Set attribute of %s" % data_name
+        bl_idname = "Set%sAttributeNode" % data_name
+        bl_label = "Set %s Attribute" % data_name
+
+        def update_attributes(self, context):
+            for socket in self.inputs[1:]:
+                socket.enabled = (socket.name in self.attributes)
+        attributes = EnumProperty(name="Attribute",
+                                  items=attribute_items,
+                                  update=update_attributes,
+                                  options={'ENUM_FLAG'})
+
+        def draw_buttons(self, context, layout):
+            layout.prop_menu_enum(self, "attributes")
+
+        def init(self, context):
+            self.inputs.new(data_type, data_name)
+            for attr in attribute_set:
+                self.inputs.new(attr[1], attr[0])
+            self.outputs.new(data_type, data_name)
+
+            # set default
+            self.attributes = { attr_default }
+
+        def compile(self, compiler):
+            pass
+
+    return get_node, set_node
+
+_mesh_attribute_set = [
+    ("vertex.location", 'NodeSocketVector'),
+    ("vertex.shard", 'NodeSocketInt'),
+    ]
+GetMeshAttributeNode, SetMeshAttributeNode = \
+    make_attribute_nodes(_mesh_attribute_set, 'vertex.location',
+                         "Mesh", 'ObjectComponentSocket')
+
 _particle_attribute_set = [
     ("id", 'NodeSocketInt'),
     ("location", 'NodeSocketVector'),
     ("velocity", 'NodeSocketVector'),
     ]
-def _particle_attribute_items(self, context):
-    return [(attr[0], attr[0], "", 'NONE', 2**i) for i, attr in enumerate(_particle_attribute_set)]
-
-class GetParticleAttributeNode(ObjectNodeBase, ObjectNode):
-    '''Get a particle attribute'''
-    bl_idname = 'GetParticleAttributeNode'
-    bl_label = 'Get Particle Attribute'
-
-    def _update_attributes(self, context):
-        for socket in self.outputs:
-            socket.enabled = (socket.name in self.attributes)
-    attributes = EnumProperty(name="Attribute",
-                              items=_particle_attribute_items,
-                              update=_update_attributes,
-                              options={'ENUM_FLAG'})
-
-    def draw_buttons(self, context, layout):
-        layout.prop_menu_enum(self, "attributes")
-
-    def init(self, context):
-        self.inputs.new('ObjectComponentSocket', "Particles").is_readonly = True
-        for attr in _particle_attribute_set:
-            self.outputs.new(attr[1], attr[0])
-
-        # set default
-        self.attributes = {'location'}
-
-    def compile(self, compiler):
-        pass
-
-class SetParticleAttributeNode(ObjectNodeBase, ObjectNode):
-    '''Set a particle attribute'''
-    bl_idname = 'SetParticleAttributeNode'
-    bl_label = 'Set Particle Attribute'
-
-    def _update_attributes(self, context):
-        for socket in self.inputs[1:]:
-            socket.enabled = (socket.name in self.attributes)
-    attributes = EnumProperty(name="Attribute",
-                              items=_particle_attribute_items,
-                              update=_update_attributes,
-                              options={'ENUM_FLAG'})
-
-    def draw_buttons(self, context, layout):
-        layout.prop_menu_enum(self, "attributes")
-
-    def init(self, context):
-        self.inputs.new('ObjectComponentSocket', "Particles")
-        for attr in _particle_attribute_set:
-            self.inputs.new(attr[1], attr[0])
-        self.outputs.new('ObjectComponentSocket', "Particles")
-
-        # set default
-        self.attributes = {'location'}
-
-    def compile(self, compiler):
-        pass
+GetParticlesAttributeNode, SetParticlesAttributeNode = \
+    make_attribute_nodes(_particle_attribute_set, 'location',
+                         "Particles", 'ObjectComponentSocket')
 
 class DefineRigidBodyNode(ObjectNodeBase, ObjectNode):
     '''Define rigid bodies for simulation'''
@@ -352,6 +368,73 @@ class DefineRigidBodyNode(ObjectNodeBase, ObjectNode):
         self.outputs.new('TransformSocket', "transform")
         self.outputs.new('NodeSocketVector', "velocity")
         self.outputs.new('NodeSocketVector', "angular velocity")
+
+    def compile(self, compiler):
+        pass
+
+class CacheRigidBodyContactsNode(ObjectNodeBase, ObjectNode):
+    '''Contacts of rigid bodies from the collision step'''
+    bl_idname = 'CacheRigidBodyContactsNode'
+    bl_label = 'Cache Rigid Body Contacts'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketInt', "ID")
+        self.outputs.new('ObjectComponentSocket', "contacts")
+
+    def compile(self, compiler):
+        pass
+
+class FindMaxImpactNode(ObjectNodeBase, ObjectNode):
+    '''Find the contact with maximum impact force'''
+    bl_idname = 'FindMaxImpactNode'
+    bl_label = 'Find Maximum Impact'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketInt', "ID")
+        self.inputs.new('ObjectComponentSocket', "contacts")
+        self.outputs.new('NodeSocketVector', "max impact")
+
+    def compile(self, compiler):
+        pass
+
+class SingleImpactFractureNode(ObjectNodeBase, ObjectNode):
+    '''Fracture shards based on a single impact'''
+    bl_idname = 'SingleImpactFractureNode'
+    bl_label = 'Single Impact Fracture'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "impact")
+        self.inputs.new('NodeSocketFloat', "threshold")
+        self.inputs.new('ObjectComponentSocket', "particles")
+        self.inputs.new('ObjectComponentSocket', "shards")
+        self.outputs.new('ObjectComponentSocket', "particles")
+        self.outputs.new('ObjectComponentSocket', "shards")
+
+    def compile(self, compiler):
+        pass
+
+class MapValueNode(ObjectNodeBase, ObjectNode):
+    '''Use an index to map values to a new index domain'''
+    bl_idname = 'MapValueNode'
+    bl_label = 'Map Value'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketInt', "index")
+        self.inputs.new('TransformSocket', "values")
+        self.outputs.new('TransformSocket', "mapped values")
+
+    def compile(self, compiler):
+        pass
+
+class ApplyTransformNode(ObjectNodeBase, ObjectNode):
+    '''Apply transform to a vector'''
+    bl_idname = 'ApplyTransformNode'
+    bl_label = 'Apply Transform'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "transform")
+        self.inputs.new('NodeSocketVector', "vector")
+        self.outputs.new('NodeSocketVector', "vector")
 
     def compile(self, compiler):
         pass
@@ -418,7 +501,7 @@ def register():
     bpy.utils.register_module(__name__)
 
     node_categories = [
-        ObjectNodeCategory("COMPONENTS", "Components", items=[
+        ObjectNodeCategory("OBJ_COMPONENTS", "Components", items=[
             NodeItem("GeometryNode",
                      settings={"id": "bpy.types.OBJECT_NODES_OT_geometry_nodes_new.make_node_tree()"}),
             NodeItem("ForceFieldNode",
@@ -433,9 +516,33 @@ def register():
             NodeItem("ObjectApplyMeshIslandsTransformNode"),
             NodeItem("ObjectParticleRigidBodySimNodeNode"),
             NodeItem("ObjectDynamicFractureNodeNode"),
-            NodeItem("GetParticleAttributeNode"),
-            NodeItem("SetParticleAttributeNode"),
+            NodeItem("GetMeshAttributeNode"),
+            NodeItem("SetMeshAttributeNode"),
+            NodeItem("GetParticlesAttributeNode"),
+            NodeItem("SetParticlesAttributeNode"),
             NodeItem("DefineRigidBodyNode"),
+            NodeItem("CacheRigidBodyContactsNode"),
+            NodeItem("FindMaxImpactNode"),
+            NodeItem("SingleImpactFractureNode"),
+            NodeItem("MapValueNode"),
+            NodeItem("ApplyTransformNode"),
+            ]),
+        ObjectNodeCategory("OBJ_CONVERTER", "Converter", items=[
+            NodeItem("ObjectSeparateVectorNode"),
+            NodeItem("ObjectCombineVectorNode"),
+            ]),
+        ObjectNodeCategory("OBJ_MATH", "Math", items=[
+            NodeItem("ObjectMathNode"),
+            NodeItem("ObjectVectorMathNode"),
+            NodeItem("ObjectTranslationTransformNode"),
+            NodeItem("ObjectEulerTransformNode"),
+            NodeItem("ObjectAxisAngleTransformNode"),
+            NodeItem("ObjectScaleTransformNode"),
+            NodeItem("ObjectGetTranslationNode"),
+            NodeItem("ObjectGetEulerNode"),
+            NodeItem("ObjectGetAxisAngleNode"),
+            NodeItem("ObjectGetScaleNode"),
+            NodeItem("ObjectRandomNode"),
             ]),
         ]
     nodeitems_utils.register_node_categories("OBJECT_NODES", node_categories)
