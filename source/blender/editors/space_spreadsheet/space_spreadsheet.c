@@ -227,10 +227,13 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceSpreadsheet *ssheet = CTX_wm_space_spreadsheet(C);
+	View2D *v2d = &ar->v2d;
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	UI_view2d_view_ortho(v2d);
 
 	spreadsheet_main_area_set_view2d(C, ar);
 

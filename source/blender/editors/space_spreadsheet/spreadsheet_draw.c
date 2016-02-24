@@ -63,4 +63,9 @@ void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
 
 void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion *ar)
 {
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glBegin(GL_LINES);
+	glVertex2f(0.0f, -100.0f);
+	glVertex2f(0.0f, 100.0f);
+	glEnd();
 }
