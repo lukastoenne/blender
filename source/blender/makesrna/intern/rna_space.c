@@ -81,6 +81,7 @@ EnumPropertyItem rna_enum_space_type_items[] = {
 	{SPACE_OUTLINER, "OUTLINER", ICON_OOPS, "Outliner", "Overview of scene graph and all available data-blocks"},
 	{SPACE_USERPREF, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", "Edit persistent configuration settings"},
 	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages (drag down to expand and display)"},
+	{SPACE_SPREADSHEET, "SPREADSHEET", ICON_TEXT, "Spreadsheet", "Tabulated display of large data sets"},
 	{0, "", ICON_NONE, NULL, NULL},
 	{SPACE_FILE, "FILE_BROWSER", ICON_FILESEL, "File Browser", "Browse for files and assets"},
 	{0, "", ICON_NONE, NULL, NULL},
@@ -315,6 +316,8 @@ static StructRNA *rna_Space_refine(struct PointerRNA *ptr)
 			return &RNA_SpaceUserPreferences;
 		case SPACE_CLIP:
 			return &RNA_SpaceClipEditor;
+		case SPACE_SPREADSHEET:
+			return &RNA_SpaceSpreadsheet;
 		default:
 			return &RNA_Space;
 	}
@@ -4715,6 +4718,23 @@ static void rna_def_space_clip(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 }
 
+static void rna_def_space_spreadsheet(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "SpaceSpreadsheet", "Space");
+	RNA_def_struct_sdna(srna, "SpaceSpreadsheet");
+	RNA_def_struct_ui_text(srna, "Space Spreadsheet", "Spreadsheet space data");
+
+	/* show grease pencil */
+	prop = RNA_def_property(srna, "show_grease_pencil", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SPREADSHEET_SHOW_GPENCIL);
+	RNA_def_property_ui_text(prop, "Show Grease Pencil",
+	                         "Show grease pencil");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, NULL);
+}
+
 
 void RNA_def_space(BlenderRNA *brna)
 {
@@ -4741,6 +4761,7 @@ void RNA_def_space(BlenderRNA *brna)
 	rna_def_space_node(brna);
 	rna_def_space_logic(brna);
 	rna_def_space_clip(brna);
+	rna_def_space_spreadsheet(brna);
 }
 
 #endif

@@ -1332,6 +1332,21 @@ typedef enum eSpaceClip_GPencil_Source {
 	SC_GPENCIL_SRC_TRACK = 1,
 } eSpaceClip_GPencil_Source;
 
+/* Spreadsheet Editor =========================================== */
+
+typedef struct SpaceSpreadsheet {
+	SpaceLink *next, *prev;
+	ListBase regionbase;        /* storage of regions for inactive spaces */
+	int spacetype;
+	
+	int flag;
+} SpaceSpreadsheet;
+
+/* SpaceSpreadsheet->flag */
+typedef enum eSpaceSpreadsheet_Flag {
+	SPREADSHEET_SHOW_GPENCIL        = (1 << 0),
+} eSpaceSpreadsheet_Flag;
+
 /* **************** SPACE DEFINES ********************* */
 
 /* space types, moved from DNA_screen_types.h */
@@ -1361,8 +1376,9 @@ typedef enum eSpace_Type {
 	SPACE_CONSOLE  = 18,
 	SPACE_USERPREF = 19,
 	SPACE_CLIP     = 20,
+	SPACE_SPREADSHEET = 21,
 	
-	SPACEICONMAX = SPACE_CLIP
+	SPACEICONMAX = SPACE_SPREADSHEET
 } eSpace_Type;
 
 /* use for function args */
