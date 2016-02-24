@@ -32,6 +32,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BKE_context.h"
@@ -197,9 +198,34 @@ static void spreadsheet_dropboxes(void)
 
 
 /* setup View2D from offset */
-static void spreadsheet_main_area_set_view2d(const bContext *UNUSED(C), ARegion *UNUSED(ar))
+static void spreadsheet_main_area_set_view2d(const bContext *C, ARegion *ar)
 {
-	//TODO
+	int w, h, winx, winy;
+
+	spreadsheet_get_size(C, &w, &h);
+
+	winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	winy = BLI_rcti_size_y(&ar->winrct) + 1;
+
+	ar->v2d.tot.xmin = 0;
+	ar->v2d.tot.ymin = 0;
+	ar->v2d.tot.xmax = w;
+	ar->v2d.tot.ymax = h;
+
+	ar->v2d.mask.xmin = 0;
+	ar->v2d.mask.ymin = 0;
+	ar->v2d.mask.xmax = winx;
+	ar->v2d.mask.ymax = winy;
+
+	CLAMP_MAX(ar->v2d.cur.xmin, w - winx);
+	CLAMP_MIN(ar->v2d.cur.xmin, 0);
+	CLAMP_MAX(ar->v2d.cur.ymin, -winy);
+	CLAMP_MIN(ar->v2d.cur.ymin, -winy - h);
+	
+	CLAMP_MAX(ar->v2d.cur.xmax, w);
+	CLAMP_MIN(ar->v2d.cur.xmax, winx);
+	CLAMP_MAX(ar->v2d.cur.ymax, 0);
+	CLAMP_MIN(ar->v2d.cur.ymax, -h);
 }
 
 /* Initialize main region, setting handlers. */
@@ -233,9 +259,9 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *ar)
 	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	UI_view2d_view_ortho(v2d);
-
 	spreadsheet_main_area_set_view2d(C, ar);
+
+	UI_view2d_view_ortho(v2d);
 
 	spreadsheet_draw_main(C, ssheet, ar);
 

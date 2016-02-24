@@ -48,6 +48,7 @@
 #include "ED_gpencil.h"
 #include "ED_space_api.h"
 
+#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -56,7 +57,30 @@
 #include "spreadsheet_intern.h"  /* own include */
 
 
-/* draw grease pencil */
+int spreadsheet_row_height(void)
+{
+	return U.widget_unit + 3;
+}
+
+void spreadsheet_get_size(const bContext *UNUSED(C), int *width, int *height)
+{
+	// TODO
+	if (width) *width = 32000;
+	if (height) *height = 32000;
+}
+
+static int y_to_row(float y)
+{
+	const int H = spreadsheet_row_height();
+	return (int)ceilf(-y / (float)H);
+}
+
+static float row_to_y(int row)
+{
+	const int H = spreadsheet_row_height();
+	return -row * (float)H;
+}
+
 void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
 {
 	ED_gpencil_draw_view2d(C, onlyv2d);
@@ -64,11 +88,26 @@ void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
 
 void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion *ar)
 {
+	const int H = spreadsheet_row_height();
+	
+	View2D *v2d = &ar->v2d;
+	const rctf *rect = &v2d->cur;
+	int row_first = y_to_row(rect->ymax);
+	int row_last = y_to_row(rect->ymin);
+	int row;
+	
 	glColor3f(1.0f, 1.0f, 0.0f);
 	glBegin(GL_LINES);
-	glVertex2f(0.0f, -100.0f);
-	glVertex2f(0.0f, 100.0f);
+	for (row = row_first; row <= row_last; ++row) {
+		float y = row_to_y(row);
+		
+		glVertex2f(10.0f * (row % 5), y);
+		glVertex2f(10.0f * (row % 5), y + H);
+	}
 	glEnd();
+	
+//	UI_block_begin()
+//	UI_block_layout()
 }
 
 void spreadsheet_set_cursor(wmWindow *win, SpaceSpreadsheet *ssheet, const float cursor[2])
