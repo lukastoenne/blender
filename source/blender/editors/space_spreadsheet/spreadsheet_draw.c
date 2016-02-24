@@ -31,6 +31,7 @@
 #include "DNA_space_types.h"
 
 #include "BLI_math.h"
+#include "BLI_rect.h"
 
 #include "BLT_translation.h"
 
@@ -68,4 +69,11 @@ void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion 
 	glVertex2f(0.0f, -100.0f);
 	glVertex2f(0.0f, 100.0f);
 	glEnd();
+}
+
+void spreadsheet_set_cursor(wmWindow *win, SpaceSpreadsheet *ssheet, const float cursor[2])
+{
+	int wmcursor = CURSOR_STD;
+	
+	WM_cursor_set(win, wmcursor);
 }

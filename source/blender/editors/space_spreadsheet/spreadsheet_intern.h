@@ -33,9 +33,11 @@
 struct bContext;
 struct SpaceSpreadsheet;
 struct ARegion;
+struct wmWindow;
 
 /* spreadsheet_draw.c */
 void spreadsheet_draw_grease_pencil(const struct bContext *C, bool onlyv2d);
 void spreadsheet_draw_main(const struct bContext *C, struct SpaceSpreadsheet *ssheet, struct ARegion *ar);
+void spreadsheet_set_cursor(struct wmWindow *win, struct SpaceSpreadsheet *ssheet, const float cursor[2]);
 
 #endif /* __SPREADSHEET_INTERN_H__ */

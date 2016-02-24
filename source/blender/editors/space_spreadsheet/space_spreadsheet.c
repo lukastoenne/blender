@@ -269,13 +269,14 @@ static void spreadsheet_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSE
 static void spreadsheet_main_region_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
 	SpaceSpreadsheet *ssheet = sa->spacedata.first;
-	UNUSED_VARS(ssheet);
 	
 	float mouse_view[2];
 	
 	/* convert mouse coordinates to v2d space */
 	UI_view2d_region_to_view(&ar->v2d, win->eventstate->x - ar->winrct.xmin, win->eventstate->y - ar->winrct.ymin,
 	                         &mouse_view[0], &mouse_view[1]);
+	
+	spreadsheet_set_cursor(win, ssheet, mouse_view);
 }
 
 
