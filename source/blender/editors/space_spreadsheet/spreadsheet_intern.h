@@ -31,9 +31,28 @@
 #define __SPREADSHEET_INTERN_H__
 
 struct bContext;
+struct ID;
+struct ListBase;
 struct SpaceSpreadsheet;
 struct ARegion;
 struct wmWindow;
+struct PointerRNA;
+struct PropertyRNA;
+
+/* spreadsheet_data.c */
+typedef struct SpreadsheetDataField {
+	PropertyRNA *prop;
+} SpreadsheetDataField;
+
+#define SPREADSHEET_MAX_FIELDS 64
+
+bool spreadsheet_is_supported_context_id(int id_type);
+struct ID *spreadsheet_get_context_id(const struct bContext *C, int id_type);
+struct ID *spreadsheet_get_id(const struct bContext *C, struct SpaceSpreadsheet *ssheet);
+bool spreadsheet_get_data(const struct bContext *C, struct SpaceSpreadsheet *ssheet,
+                          struct PointerRNA *ptr, struct PropertyRNA **prop);
+int spreadsheet_get_data_fields(struct SpaceSpreadsheet *ssheet, struct PointerRNA *ptr, struct PropertyRNA *prop,
+                                struct SpreadsheetDataField *fields, int max_fields);
 
 /* spreadsheet_draw.c */
 int spreadsheet_row_height(void);

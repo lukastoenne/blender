@@ -4769,7 +4769,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 	/* pinning */
 	
 	prop = RNA_def_property(srna, "use_pin_id", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SPREADSHEET_PIN_CONTEXT);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SPREADSHEET_USE_PIN_ID);
 	RNA_def_property_ui_text(prop, "Use Pinned ID", "Use the pinned context");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, NULL);
 	

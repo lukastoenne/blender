@@ -39,17 +39,18 @@ class SPREADSHEET_HT_header(Header):
         row.template_header()
 
         row.separator()
-        sub = row.row(align=True)
-        sub.label("Data:")
-        sub.prop(space, "id_type", icon_only=True)
-        sub.prop(space, "data_path", text="", expand=True)
-
-        row.separator()
+        row.label("Data:")
+        row.prop(space, "id_type", icon_only=True)
+        
         if space.use_pin_id:
-            row.prop(space, "use_pin_id", icon='PINNED', toggle=True, icon_only=True)
-            row.template_ID(space, "pin_id")
+            sub = row.row(align=True)
+            sub.prop(space, "use_pin_id", icon='PINNED', toggle=True, icon_only=True)
+            sub.template_ID(space, "pin_id")
         else:
             row.prop(space, "use_pin_id", icon='UNPINNED', toggle=True, icon_only=True)
+
+        row.separator()
+        row.prop(space, "data_path", text="", expand=True)
 
 
 class SPREADSHEET_MT_view(Menu):

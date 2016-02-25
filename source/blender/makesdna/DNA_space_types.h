@@ -1351,7 +1351,7 @@ typedef struct SpaceSpreadsheet {
 /* SpaceSpreadsheet->flag */
 typedef enum eSpaceSpreadsheet_Flag {
 	SPREADSHEET_SHOW_GPENCIL        = (1 << 0),
-	SPREADSHEET_PIN_CONTEXT         = (1 << 1),
+	SPREADSHEET_USE_PIN_ID         = (1 << 1),
 } eSpaceSpreadsheet_Flag;
 
 /* **************** SPACE DEFINES ********************* */

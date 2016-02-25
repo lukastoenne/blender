@@ -38,6 +38,7 @@ set(INC_SYS
 
 set(SRC
 	space_spreadsheet.c
+	spreadsheet_data.c
 	spreadsheet_draw.c
 
 	spreadsheet_intern.h

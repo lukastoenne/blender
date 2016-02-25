@@ -143,7 +143,7 @@ static void spreadsheet_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifi
 	switch (wmn->category) {
 		case NC_SPACE:
 			if (wmn->data == ND_SPACE_SPREADSHEET)
-				ED_area_tag_refresh(sa);
+				ED_area_tag_redraw(sa);
 			break;
 		case NC_SCREEN:
 			switch (wmn->data) {
@@ -167,7 +167,6 @@ static void spreadsheet_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifi
 
 static void spreadsheet_area_refresh(const struct bContext *UNUSED(C), ScrArea *sa)
 {
-	/* default now: refresh node is starting preview */
 	SpaceSpreadsheet *ssheet = sa->spacedata.first;
 	UNUSED_VARS(ssheet);
 }
