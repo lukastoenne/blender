@@ -35,8 +35,21 @@ class SPREADSHEET_HT_header(Header):
         layout = self.layout
         space = context.space_data
 
-        row = layout.row(align=True)
+        row = layout.row()
         row.template_header()
+
+        row.separator()
+        sub = row.row(align=True)
+        sub.label("Data:")
+        sub.prop(space, "id_type", icon_only=True)
+        sub.prop(space, "data_path", text="", expand=True)
+
+        row.separator()
+        if space.use_pin_id:
+            row.prop(space, "use_pin_id", icon='PINNED', toggle=True, icon_only=True)
+            row.template_ID(space, "pin_id")
+        else:
+            row.prop(space, "use_pin_id", icon='UNPINNED', toggle=True, icon_only=True)
 
 
 class SPREADSHEET_MT_view(Menu):

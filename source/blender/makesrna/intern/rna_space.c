@@ -1860,6 +1860,30 @@ static void rna_FileBrowser_FSMenuRecent_active_range(PointerRNA *ptr, int *min,
 	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_RECENT);
 }
 
+/* Space Spreadsheet */
+
+static void rna_SpaceSpreadsheet_id_type_set(PointerRNA *ptr, int value)
+{
+	SpaceSpreadsheet *ssheet = (SpaceSpreadsheet *)ptr->data;
+	
+	/* set the driver type, then clear the id-block if the type is invalid */
+	ssheet->id_type = value;
+	if ((ssheet->pin_id) && (GS(ssheet->pin_id->name) != ssheet->id_type))
+		ssheet->pin_id = NULL;
+}
+
+static StructRNA *rna_SpaceSpreadsheet_pin_id_typef(PointerRNA *ptr)
+{
+	SpaceSpreadsheet *ssheet = (SpaceSpreadsheet *)ptr->data;
+	return ID_code_to_RNA_type(ssheet->id_type);
+}
+
+static int rna_SpaceSpreadsheet_pin_id_editable(PointerRNA *ptr)
+{
+	SpaceSpreadsheet *ssheet = (SpaceSpreadsheet *)ptr->data;
+	return (ssheet->id_type) ? PROP_EDITABLE : 0;
+}
+
 #else
 
 static EnumPropertyItem dt_uv_items[] = {
@@ -4722,12 +4746,44 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
+	
 	srna = RNA_def_struct(brna, "SpaceSpreadsheet", "Space");
 	RNA_def_struct_sdna(srna, "SpaceSpreadsheet");
 	RNA_def_struct_ui_text(srna, "Space Spreadsheet", "Spreadsheet space data");
-
-	/* show grease pencil */
+	
+	/* data path */
+	
+	prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "id_type");
+	RNA_def_property_enum_items(prop, rna_enum_id_type_items);
+	RNA_def_property_enum_default(prop, ID_OB);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_SpaceSpreadsheet_id_type_set", NULL);
+	RNA_def_property_ui_text(prop, "ID Type", "Type of ID block");
+	RNA_def_property_update(prop, NC_SCENE | ND_SPACE_SPREADSHEET, NULL);
+	
+	prop = RNA_def_property(srna, "data_path", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "data_path");
+	RNA_def_property_ui_text(prop, "Data Path", "Path to collection property inside the ID block");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, NULL);
+	
+	/* pinning */
+	
+	prop = RNA_def_property(srna, "use_pin_id", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SPREADSHEET_PIN_CONTEXT);
+	RNA_def_property_ui_text(prop, "Use Pinned ID", "Use the pinned context");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, NULL);
+	
+	prop = RNA_def_property(srna, "pin_id", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "pin_id");
+	RNA_def_property_struct_type(prop, "ID");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_SpaceSpreadsheet_pin_id_typef", NULL);
+	RNA_def_property_editable_func(prop, "rna_SpaceSpreadsheet_pin_id_editable");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Pin ID", "ID block containing displayed data");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, NULL);
+	
+	/* grease pencil */
+	
 	prop = RNA_def_property(srna, "show_grease_pencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SPREADSHEET_SHOW_GPENCIL);
 	RNA_def_property_ui_text(prop, "Show Grease Pencil",

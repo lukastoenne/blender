@@ -6362,6 +6362,11 @@ static void lib_link_screen(FileData *fd, Main *main)
 						
 						slogic->gpd = newlibadr_us(fd, sc->id.lib, slogic->gpd);
 					}
+					else if (sl->spacetype == SPACE_SPREADSHEET) {
+						SpaceSpreadsheet *ssheet = (SpaceSpreadsheet *)sl;
+						
+						ssheet->pin_id = newlibadr_us(fd, sc->id.lib, ssheet->pin_id);
+					}
 				}
 			}
 			sc->id.tag &= ~LIB_TAG_NEED_LINK;
@@ -6716,6 +6721,11 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					SpaceLogic *slogic = (SpaceLogic *)sl;
 					
 					slogic->gpd = restore_pointer_by_name(newmain, (ID *)slogic->gpd, USER_REAL);
+				}
+				else if (sl->spacetype == SPACE_SPREADSHEET) {
+					SpaceSpreadsheet *ssheet = (SpaceSpreadsheet *)sl;
+					
+					ssheet->pin_id = restore_pointer_by_name(newmain, ssheet->pin_id, USER_REAL);
 				}
 			}
 		}

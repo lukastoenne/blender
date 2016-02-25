@@ -1340,11 +1340,18 @@ typedef struct SpaceSpreadsheet {
 	int spacetype;
 	
 	int flag;
+	
+	int id_type;                /* type of ID block to use */
+	int pad;
+	char data_path[256];        /* path to collection property inside id */
+	
+	struct ID *pin_id;          /* pinned ID block */
 } SpaceSpreadsheet;
 
 /* SpaceSpreadsheet->flag */
 typedef enum eSpaceSpreadsheet_Flag {
 	SPREADSHEET_SHOW_GPENCIL        = (1 << 0),
+	SPREADSHEET_PIN_CONTEXT         = (1 << 1),
 } eSpaceSpreadsheet_Flag;
 
 /* **************** SPACE DEFINES ********************* */

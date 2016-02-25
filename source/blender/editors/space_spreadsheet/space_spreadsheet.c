@@ -63,6 +63,8 @@ static SpaceLink *spreadsheet_new(const bContext *UNUSED(C))
 	ssheet = MEM_callocN(sizeof(SpaceSpreadsheet), "initspreadsheet");
 	ssheet->spacetype = SPACE_SPREADSHEET;
 
+	ssheet->id_type = ID_OB;
+
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for spreadsheet");
 
