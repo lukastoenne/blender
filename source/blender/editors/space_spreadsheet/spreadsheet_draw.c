@@ -124,9 +124,35 @@ static int row_to_y(int row)
 	return -(row * H) - header_height();
 }
 
-void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
+/* setup View2D from offset */
+static void spreadsheet_main_area_set_view2d(const bContext *C, ARegion *ar)
 {
-	ED_gpencil_draw_view2d(C, onlyv2d);
+	int w, h, winx, winy;
+
+	spreadsheet_get_size(C, &w, &h);
+
+	winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	winy = BLI_rcti_size_y(&ar->winrct) + 1;
+
+	ar->v2d.tot.xmin = 0;
+	ar->v2d.tot.ymin = 0;
+	ar->v2d.tot.xmax = w;
+	ar->v2d.tot.ymax = h;
+
+	ar->v2d.mask.xmin = 0;
+	ar->v2d.mask.ymin = 0;
+	ar->v2d.mask.xmax = winx;
+	ar->v2d.mask.ymax = winy;
+
+	CLAMP_MAX(ar->v2d.cur.xmin, w - winx);
+	CLAMP_MIN(ar->v2d.cur.xmin, 0);
+	CLAMP_MAX(ar->v2d.cur.ymin, -winy);
+	CLAMP_MIN(ar->v2d.cur.ymin, -winy - h);
+	
+	CLAMP_MAX(ar->v2d.cur.xmax, w);
+	CLAMP_MIN(ar->v2d.cur.xmax, winx);
+	CLAMP_MAX(ar->v2d.cur.ymax, 0);
+	CLAMP_MIN(ar->v2d.cur.ymax, -h);
 }
 
 static void draw_background_quad(int x, int y, int width, int shade_offset)
@@ -155,10 +181,10 @@ static void draw_background_rows(int row_begin, int row_end, int x, int width)
 	glEnd();
 }
 
-static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
+static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet), const ARegion *ar,
                               PointerRNA *ptr, PropertyRNA *prop,
                               SpreadsheetDataField *fields, int num_fields,
-                              View2D *UNUSED(v2d), int row_begin, int row_end)
+                              int row_begin, int row_end)
 {
 	const int H = spreadsheet_row_height();
 	const int x0 = index_width;
@@ -169,7 +195,6 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	
 	width = 0.0f;
 	for (c = 0; c < num_fields; ++c) {
-		/* TODO this will make more sense with variable field width */
 		width += column_width(&fields[c]);
 	}
 	
@@ -198,17 +223,18 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	UI_block_layout_resolve(block, NULL, NULL);
 	UI_block_end(C, block);
 	
+	glScissor(index_width, 0, ar->winrct.xmax - index_width, ar->winrct.ymax - H);
 	/* background drawing */
 	draw_background_rows(row_begin, row_end, x0, width);
 	/* buttons drawing */
 	UI_block_draw(C, block);
 }
 
-static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
-                            SpreadsheetDataField *fields, int num_fields,
-                            View2D *v2d)
+static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet), const ARegion *ar,
+                            SpreadsheetDataField *fields, int num_fields)
 {
-	const rctf *rect = &v2d->cur;
+	const View2D *v2d = &ar->v2d;
+	const rcti *rect = &v2d->mask;
 	const int H = header_height();
 	const int x0 = index_width;
 	const int y0 = rect->ymax;
@@ -217,13 +243,17 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 	uiBlock *block;
 	int c;
 	
+	width = 0.0f;
+	for (c = 0; c < num_fields; ++c) {
+		width += column_width(&fields[c]);
+	}
+	
 	/* block for fields */
 	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet header row", UI_EMBOSS);
 	/* block ui events on the block: hides data fields behind it */
 	UI_block_flag_enable(block, UI_BLOCK_CLIP_EVENTS);
 	
 	x = x0;
-	width = 0;
 	for (c = 0; c < num_fields; ++c) {
 		const int colw = column_width(&fields[c]);
 		uiLayout *layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
@@ -234,13 +264,12 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 		uiItemL(row, name, ICON_NONE);
 		
 		x += colw;
-		/* TODO this will make more sense with variable field width */
-		width += colw;
 	}
 	
 	UI_block_layout_resolve(block, NULL, NULL);
 	UI_block_end(C, block);
 	
+	glScissor(index_width, ar->winrct.ymax - H, ar->winrct.xmax - index_width, H);
 	/* background drawing */
 	glBegin(GL_QUADS);
 	draw_background_quad(x0, y0, width, 0);
@@ -249,12 +278,11 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 	UI_block_draw(C, block);
 }
 
-static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
-                              View2D *v2d, int row_begin, int row_end)
+static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet), const ARegion *ar,
+                              int row_begin, int row_end)
 {
-	const rctf *rect = &v2d->cur;
 	const int H = spreadsheet_row_height();
-	const int x = rect->xmin;
+	const int x0 = 0;
 	const int width = index_width;
 	
 	uiBlock *block;
@@ -271,7 +299,7 @@ static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 		char buf[64];
 		
 		layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                         x, y, width, H, 0, UI_style_get());
+		                         x0, y, width, H, 0, UI_style_get());
 		uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
 		
 		BLI_snprintf(buf, sizeof(buf), "%d", i+1);
@@ -281,8 +309,9 @@ static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	UI_block_layout_resolve(block, NULL, NULL);
 	UI_block_end(C, block);
 	
+	glScissor(0, 0, index_width, ar->winrct.ymax - H);
 	/* background drawing */
-	draw_background_rows(row_begin, row_end, x, width);
+	draw_background_rows(row_begin, row_end, x0, width);
 	/* buttons drawing */
 	UI_block_draw(C, block);
 }
@@ -305,9 +334,29 @@ void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion 
 	row_begin = max_ii(y_to_row(v2d->cur.ymax), 0);
 	row_end = min_ii(y_to_row(v2d->cur.ymin) + 1, length);
 	
-	draw_data_columns(C, ssheet, &ptr, prop, fields, num_fields, v2d, row_begin, row_end);
-	draw_header_row(C, ssheet, fields, num_fields, v2d);
-	draw_index_column(C, ssheet, v2d, row_begin, row_end);
+	spreadsheet_main_area_set_view2d(C, ar);
+	
+	UI_view2d_view_ortho(v2d);
+	draw_data_columns(C, ssheet, ar, &ptr, prop, fields, num_fields, row_begin, row_end);
+	
+	/* grease pencil for view2d */
+	if (ssheet->flag & SPREADSHEET_SHOW_GPENCIL) {
+		ED_gpencil_draw_view2d(C, true);
+	}
+	
+	UI_view2d_view_orthoSpecial(ar, v2d, true);
+	draw_header_row(C, ssheet, ar, fields, num_fields);
+	
+	UI_view2d_view_orthoSpecial(ar, v2d, false);
+	draw_index_column(C, ssheet, ar, row_begin, row_end);
+	
+	/* reset view matrix */
+	UI_view2d_view_restore(C);
+	
+	/* grease pencil for screen space only */
+	if (ssheet->flag & SPREADSHEET_SHOW_GPENCIL) {
+		ED_gpencil_draw_view2d(C, false);
+	}
 }
 
 void spreadsheet_set_cursor(wmWindow *win, SpaceSpreadsheet *UNUSED(ssheet), const float UNUSED(cursor[2]))

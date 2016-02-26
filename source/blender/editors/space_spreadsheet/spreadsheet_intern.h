@@ -59,7 +59,6 @@ int spreadsheet_get_data_length(struct PointerRNA *ptr, struct PropertyRNA *prop
 int spreadsheet_row_height(void);
 void spreadsheet_get_size(const bContext *C, int *width, int *height);
 
-void spreadsheet_draw_grease_pencil(const struct bContext *C, bool onlyv2d);
 void spreadsheet_draw_main(const struct bContext *C, struct SpaceSpreadsheet *ssheet, struct ARegion *ar);
 void spreadsheet_set_cursor(struct wmWindow *win, struct SpaceSpreadsheet *ssheet, const float cursor[2]);
 

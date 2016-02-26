@@ -198,37 +198,6 @@ static void spreadsheet_dropboxes(void)
 /* ************* end drop *********** */
 
 
-/* setup View2D from offset */
-static void spreadsheet_main_area_set_view2d(const bContext *C, ARegion *ar)
-{
-	int w, h, winx, winy;
-
-	spreadsheet_get_size(C, &w, &h);
-
-	winx = BLI_rcti_size_x(&ar->winrct) + 1;
-	winy = BLI_rcti_size_y(&ar->winrct) + 1;
-
-	ar->v2d.tot.xmin = 0;
-	ar->v2d.tot.ymin = 0;
-	ar->v2d.tot.xmax = w;
-	ar->v2d.tot.ymax = h;
-
-	ar->v2d.mask.xmin = 0;
-	ar->v2d.mask.ymin = 0;
-	ar->v2d.mask.xmax = winx;
-	ar->v2d.mask.ymax = winy;
-
-	CLAMP_MAX(ar->v2d.cur.xmin, w - winx);
-	CLAMP_MIN(ar->v2d.cur.xmin, 0);
-	CLAMP_MAX(ar->v2d.cur.ymin, -winy);
-	CLAMP_MIN(ar->v2d.cur.ymin, -winy - h);
-	
-	CLAMP_MAX(ar->v2d.cur.xmax, w);
-	CLAMP_MIN(ar->v2d.cur.xmax, winx);
-	CLAMP_MAX(ar->v2d.cur.ymax, 0);
-	CLAMP_MIN(ar->v2d.cur.ymax, -h);
-}
-
 /* Initialize main region, setting handlers. */
 static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *ar)
 {
@@ -254,30 +223,12 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceSpreadsheet *ssheet = CTX_wm_space_spreadsheet(C);
-	View2D *v2d = &ar->v2d;
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	spreadsheet_main_area_set_view2d(C, ar);
-
-	UI_view2d_view_ortho(v2d);
-
 	spreadsheet_draw_main(C, ssheet, ar);
-
-	if (ssheet->flag & SPREADSHEET_SHOW_GPENCIL) {
-		/* Grease Pencil */
-		spreadsheet_draw_grease_pencil(C, true);
-	}
-
-	/* reset view matrix */
-	UI_view2d_view_restore(C);
-
-	if (ssheet->flag & SPREADSHEET_SHOW_GPENCIL) {
-		/* draw Grease Pencil - screen space only */
-		spreadsheet_draw_grease_pencil(C, false);
-	}
 }
 
 static void spreadsheet_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
