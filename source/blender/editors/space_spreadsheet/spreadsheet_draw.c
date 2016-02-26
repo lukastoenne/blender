@@ -57,8 +57,17 @@
 
 #include "spreadsheet_intern.h"  /* own include */
 
+int spreadsheet_row_height(void)
+{
+	return U.widget_unit + 3;
+}
+
 // XXX placeholders
 static const int index_width = 50;
+static int header_height(void)
+{
+	return spreadsheet_row_height() + 2;
+}
 static int column_width(const SpreadsheetDataField *field)
 {
 	PropertyType type = RNA_property_type(field->prop);
@@ -96,11 +105,6 @@ static int column_width(const SpreadsheetDataField *field)
 	return w;
 }
 
-int spreadsheet_row_height(void)
-{
-	return U.widget_unit + 3;
-}
-
 void spreadsheet_get_size(const bContext *UNUSED(C), int *width, int *height)
 {
 	// TODO
@@ -111,13 +115,13 @@ void spreadsheet_get_size(const bContext *UNUSED(C), int *width, int *height)
 static int y_to_row(int y)
 {
 	const int H = spreadsheet_row_height();
-	return (-y) / H;
+	return (-(y + header_height())) / H;
 }
 
 static int row_to_y(int row)
 {
 	const int H = spreadsheet_row_height();
-	return -(row * H);
+	return -(row * H) - header_height();
 }
 
 void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
@@ -205,7 +209,7 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
                             View2D *v2d)
 {
 	const rctf *rect = &v2d->cur;
-	const int H = spreadsheet_row_height();
+	const int H = header_height();
 	const int x0 = index_width;
 	const int y0 = rect->ymax;
 	int x, width; /* calculated from data fields below */
@@ -215,6 +219,8 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 	
 	/* block for fields */
 	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet header row", UI_EMBOSS);
+	/* block ui events on the block: hides data fields behind it */
+	UI_block_flag_enable(block, UI_BLOCK_CLIP_EVENTS);
 	
 	x = x0;
 	width = 0;
@@ -256,7 +262,7 @@ static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	
 	/* block for indexing column */
 	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet index column", UI_EMBOSS);
-	/* block ui events on the index block: hides data fields behind it */
+	/* block ui events on the block: hides data fields behind it */
 	UI_block_flag_enable(block, UI_BLOCK_CLIP_EVENTS);
 	
 	for (i = row_begin; i < row_end; ++i) {
