@@ -135,3 +135,8 @@ int spreadsheet_get_data_fields(SpaceSpreadsheet *UNUSED(ssheet), PointerRNA *pt
 	
 	return field - fields;
 }
+
+int spreadsheet_get_data_length(PointerRNA *ptr, PropertyRNA *prop)
+{
+	return RNA_property_collection_length(ptr, prop);
+}

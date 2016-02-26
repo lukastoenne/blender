@@ -53,6 +53,7 @@ bool spreadsheet_get_data(const struct bContext *C, struct SpaceSpreadsheet *ssh
                           struct PointerRNA *ptr, struct PropertyRNA **prop);
 int spreadsheet_get_data_fields(struct SpaceSpreadsheet *ssheet, struct PointerRNA *ptr, struct PropertyRNA *prop,
                                 struct SpreadsheetDataField *fields, int max_fields);
+int spreadsheet_get_data_length(struct PointerRNA *ptr, struct PropertyRNA *prop);
 
 /* spreadsheet_draw.c */
 int spreadsheet_row_height(void);
