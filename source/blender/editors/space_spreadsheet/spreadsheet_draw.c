@@ -70,16 +70,16 @@ void spreadsheet_get_size(const bContext *UNUSED(C), int *width, int *height)
 	if (height) *height = 32000;
 }
 
-static int y_to_row(float y)
+static int y_to_row(int y)
 {
 	const int H = spreadsheet_row_height();
-	return (int)ceilf(-y / (float)H);
+	return (-y + H - 1) / H;
 }
 
-static float row_to_y(int row)
+static int row_to_y(int row)
 {
 	const int H = spreadsheet_row_height();
-	return -row * (float)H;
+	return -(row * H);
 }
 
 void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
@@ -87,28 +87,28 @@ void spreadsheet_draw_grease_pencil(const bContext *C, bool onlyv2d)
 	ED_gpencil_draw_view2d(C, onlyv2d);
 }
 
-static void draw_background(int row_first, int row_last, float x, float width)
+static void draw_background_quad(int x, int y, int width, int shade_offset)
 {
 	const int H = spreadsheet_row_height();
 	
+	UI_ThemeColorShade(TH_BACK, shade_offset);
+	
+	glVertex2i(x, y);
+	glVertex2i(x, y - H);
+	glVertex2i(x + width, y - H);
+	glVertex2i(x + width, y);
+}
+
+static void draw_background_rows(int row_first, int row_last, int x, int width)
+{
 	int i;
 	
 	glBegin(GL_QUADS);
 	for (i = row_first; i <= row_last; ++i) {
-		float y = row_to_y(i);
+		int y = row_to_y(i);
 		
-		{
-			bool even = (i % 2 == 0);
-			if (even)
-				glColor3f(1.0f, 1.0f, 0.0f);
-			else
-				glColor3f(1.0f, 0.4f, 8.0f);
-		
-			glVertex2f(x, y);
-			glVertex2f(x, y + H);
-			glVertex2f(x + width, y + H);
-			glVertex2f(x + width, y);
-		}
+		bool even = (i % 2 == 0);
+		draw_background_quad(x, y, width, even? 0: -20);
 	}
 	glEnd();
 }
@@ -126,24 +126,18 @@ static void cell_draw_fake(uiLayout *layout, int row, int col)
 	uiItemL(layout, buf, ICON_NONE);
 }
 
-static void draw_data_columns(const bContext *C, SpaceSpreadsheet *ssheet, const rctf *UNUSED(rect), int row_first, int row_last)
+static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
+                              SpreadsheetDataField *UNUSED(fields), int num_fields,
+                              View2D *UNUSED(v2d), int row_first, int row_last)
 {
 	const int H = spreadsheet_row_height();
-	const float index_width = 50.0f;
-	const float column_width = 100.0f;
-	const float x = index_width;
-	float width; /* calculated from data fields below */
+	const int index_width = 50;
+	const int column_width = 100;
+	const int x = index_width;
+	int width; /* calculated from data fields below */
 	
-	PointerRNA ptr;
-	PropertyRNA *prop;
-	SpreadsheetDataField fields[SPREADSHEET_MAX_FIELDS];
-	int num_fields;
-	uiBlock *data_block;
+	uiBlock *block;
 	int r, c;
-	
-	if (!spreadsheet_get_data(C, ssheet, &ptr, &prop))
-		return;
-	num_fields = spreadsheet_get_data_fields(ssheet, &ptr, prop, fields, SPREADSHEET_MAX_FIELDS);
 	
 	width = 0.0f;
 	for (c = 0; c < num_fields; ++c) {
@@ -152,13 +146,13 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *ssheet, const
 	}
 	
 	/* block for data column */
-	data_block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet data table", UI_EMBOSS);
+	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet data table", UI_EMBOSS);
 	
 	for (r = row_first; r <= row_last; ++r) {
-		const float y = row_to_y(r);
+		const int y = row_to_y(r);
 		uiLayout *layout, *row;
 		
-		layout = UI_block_layout(data_block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+		layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
 		                         x, y, width, H, 0, UI_style_get());
 		
 		row = uiLayoutRow(layout, false);
@@ -168,34 +162,83 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *ssheet, const
 		}
 	}
 	
-	UI_block_layout_resolve(data_block, NULL, NULL);
-	UI_block_end(C, data_block);
+	UI_block_layout_resolve(block, NULL, NULL);
+	UI_block_end(C, block);
 	
-	draw_background(row_first, row_last, x, width);
-	UI_block_draw(C, data_block);
+	/* background drawing */
+	draw_background_rows(row_first, row_last, x, width);
+	/* buttons drawing */
+	UI_block_draw(C, block);
 }
 
-static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet), const rctf *rect, int row_first, int row_last)
+static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
+                            SpreadsheetDataField *fields, int num_fields,
+                            View2D *v2d)
 {
+	const rctf *rect = &v2d->cur;
 	const int H = spreadsheet_row_height();
-	const float index_width = 50.0f;
-	const float x = rect->xmin;
-	const float width = index_width;
+	const int index_width = 50.0f;
+	const int column_width = 100.0f;
+	const int x = index_width;
+	const int y = rect->ymax;
+	int width; /* calculated from data fields below */
 	
-	uiBlock *index_block;
+	uiBlock *block;
+	uiLayout *layout, *row;
+	int c;
+	
+	width = 0.0f;
+	for (c = 0; c < num_fields; ++c) {
+		/* TODO this will make more sense with variable field width */
+		width += column_width;
+	}
+	
+	/* block for fields */
+	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet header row", UI_EMBOSS);
+	
+	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+	                         x, y, width, H, 0, UI_style_get());
+	
+	row = uiLayoutRow(layout, false);
+	
+	for (c = 0; c < num_fields; ++c) {
+		const char *name = RNA_property_ui_name(fields[c].prop);
+		uiItemL(row, name, ICON_NONE);
+	}
+	
+	UI_block_layout_resolve(block, NULL, NULL);
+	UI_block_end(C, block);
+	
+	/* background drawing */
+	glBegin(GL_QUADS);
+	draw_background_quad(x, y, width, 0);
+	glEnd();
+	/* buttons drawing */
+	UI_block_draw(C, block);
+}
+
+static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet), View2D *v2d, int row_first, int row_last)
+{
+	const rctf *rect = &v2d->cur;
+	const int H = spreadsheet_row_height();
+	const int index_width = 50.0f;
+	const int x = rect->xmin;
+	const int width = index_width;
+	
+	uiBlock *block;
 	int i;
 	
 	/* block for indexing column */
-	index_block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet index column", UI_EMBOSS);
+	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet index column", UI_EMBOSS);
 	/* block ui events on the index block: hides data fields behind it */
-	UI_block_flag_enable(index_block, UI_BLOCK_CLIP_EVENTS);
+	UI_block_flag_enable(block, UI_BLOCK_CLIP_EVENTS);
 	
 	for (i = row_first; i <= row_last; ++i) {
-		const float y = row_to_y(i);
+		const int y = row_to_y(i);
 		uiLayout *layout;
 		char buf[64];
 		
-		layout = UI_block_layout(index_block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+		layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
 		                         x, y, width, H, 0, UI_style_get());
 		uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
 		
@@ -203,22 +246,33 @@ static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 		uiItemL(layout, buf, ICON_NONE);
 	}
 	
-	UI_block_layout_resolve(index_block, NULL, NULL);
-	UI_block_end(C, index_block);
+	UI_block_layout_resolve(block, NULL, NULL);
+	UI_block_end(C, block);
 	
-	draw_background(row_first, row_last, x, width);
-	UI_block_draw(C, index_block);
+	/* background drawing */
+	draw_background_rows(row_first, row_last, x, width);
+	/* buttons drawing */
+	UI_block_draw(C, block);
 }
 
 void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion *ar)
 {
 	View2D *v2d = &ar->v2d;
-	const rctf *rect = &v2d->cur;
-	int row_first = y_to_row(rect->ymax);
-	int row_last = y_to_row(rect->ymin);
+	int row_first = y_to_row(v2d->cur.ymax);
+	int row_last = y_to_row(v2d->cur.ymin);
 	
-	draw_data_columns(C, ssheet, rect, row_first, row_last);
-	draw_index_column(C, ssheet, rect, row_first, row_last);
+	PointerRNA ptr;
+	PropertyRNA *prop;
+	SpreadsheetDataField fields[SPREADSHEET_MAX_FIELDS];
+	int num_fields;
+	
+	if (!spreadsheet_get_data(C, ssheet, &ptr, &prop))
+		return;
+	num_fields = spreadsheet_get_data_fields(ssheet, &ptr, prop, fields, SPREADSHEET_MAX_FIELDS);
+	
+	draw_data_columns(C, ssheet, fields, num_fields, v2d, row_first, row_last);
+	draw_header_row(C, ssheet, fields, num_fields, v2d);
+	draw_index_column(C, ssheet, v2d, row_first, row_last);
 }
 
 void spreadsheet_set_cursor(wmWindow *win, SpaceSpreadsheet *UNUSED(ssheet), const float UNUSED(cursor[2]))
