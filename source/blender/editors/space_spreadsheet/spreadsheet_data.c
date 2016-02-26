@@ -123,7 +123,7 @@ int spreadsheet_get_data_fields(SpaceSpreadsheet *UNUSED(ssheet), PointerRNA *pt
 		PropertyRNA *field_prop = (PropertyRNA *)field_link;
 		PropertyType field_type = RNA_property_type(field_prop);
 		
-		if (ELEM(field_type, PROP_COLLECTION))
+		if (ELEM(field_type, PROP_COLLECTION, PROP_POINTER))
 			continue;
 		
 		field->prop = field_prop;

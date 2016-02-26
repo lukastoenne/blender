@@ -57,6 +57,44 @@
 
 #include "spreadsheet_intern.h"  /* own include */
 
+// XXX placeholders
+static const int index_width = 50;
+static int column_width(const SpreadsheetDataField *field)
+{
+	PropertyType type = RNA_property_type(field->prop);
+	/* Note: RNA_property_array_length works with null ptr,
+	 * will just return static array length then
+	 */
+	PointerRNA dummyptr;
+	int array_length;
+	int w;
+	
+	RNA_pointer_create(NULL, NULL, NULL, &dummyptr);
+	array_length = RNA_property_array_length(&dummyptr, field->prop);
+	
+	switch (type) {
+		case PROP_BOOLEAN:
+			w = 50;
+			break;
+		case PROP_INT:
+		case PROP_FLOAT:
+			w = 80;
+			break;
+		case PROP_ENUM:
+		case PROP_STRING:
+			w = 120;
+			break;
+		
+		default:
+			w = 0;
+			break;
+	}
+	
+	if (array_length > 1)
+		w *= array_length;
+	
+	return w;
+}
 
 int spreadsheet_row_height(void)
 {
@@ -113,28 +151,14 @@ static void draw_background_rows(int row_begin, int row_end, int x, int width)
 	glEnd();
 }
 
-#include "BLI_ghash.h"
-static void cell_draw_fake(uiLayout *layout, int row, int col)
-{
-	char buf[256];
-	unsigned int a = BLI_ghashutil_uinthash(col + 1);
-	unsigned int b = row + a*a;
-	unsigned int c = BLI_ghashutil_uinthash(b);
-	unsigned int d = c % 16;
-	unsigned int e = c % (1 << d);
-	BLI_snprintf(buf, sizeof(buf), "%d", (int)e);
-	uiItemL(layout, buf, ICON_NONE);
-}
-
 static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
-                              SpreadsheetDataField *UNUSED(fields), int num_fields,
+                              PointerRNA *ptr, PropertyRNA *prop,
+                              SpreadsheetDataField *fields, int num_fields,
                               View2D *UNUSED(v2d), int row_begin, int row_end)
 {
 	const int H = spreadsheet_row_height();
-	const int index_width = 50;
-	const int column_width = 100;
-	const int x = index_width;
-	int width; /* calculated from data fields below */
+	const int x0 = index_width;
+	int x, width; /* calculated from data fields below */
 	
 	uiBlock *block;
 	int r, c;
@@ -142,7 +166,7 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	width = 0.0f;
 	for (c = 0; c < num_fields; ++c) {
 		/* TODO this will make more sense with variable field width */
-		width += column_width;
+		width += column_width(&fields[c]);
 	}
 	
 	/* block for data column */
@@ -150,15 +174,20 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	
 	for (r = row_begin; r < row_end; ++r) {
 		const int y = row_to_y(r);
-		uiLayout *layout, *row;
 		
-		layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                         x, y, width, H, 0, UI_style_get());
-		
-		row = uiLayoutRow(layout, false);
-		
+		x = x0;
 		for (c = 0; c < num_fields; ++c) {
-			cell_draw_fake(row, r, c);
+			const int colw = column_width(&fields[c]);
+			uiLayout *layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+			                                   x, y, colw, H, 0, UI_style_get());
+			uiLayout *row = uiLayoutRow(layout, false);
+			PointerRNA dataptr;
+			
+			RNA_property_collection_lookup_int(ptr, prop, r, &dataptr);
+//			uiItemFullR(row, &dataptr, fields[c].prop, -1, 0, UI_ITEM_R_EXPAND | UI_ITEM_R_NO_BG, "", ICON_NONE);
+			uiItemFullR(row, &dataptr, fields[c].prop, -1, 0, UI_ITEM_R_EXPAND, "", ICON_NONE);
+			
+			x += colw;
 		}
 	}
 	
@@ -166,7 +195,7 @@ static void draw_data_columns(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 	UI_block_end(C, block);
 	
 	/* background drawing */
-	draw_background_rows(row_begin, row_end, x, width);
+	draw_background_rows(row_begin, row_end, x0, width);
 	/* buttons drawing */
 	UI_block_draw(C, block);
 }
@@ -177,33 +206,30 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 {
 	const rctf *rect = &v2d->cur;
 	const int H = spreadsheet_row_height();
-	const int index_width = 50.0f;
-	const int column_width = 100.0f;
-	const int x = index_width;
-	const int y = rect->ymax;
-	int width; /* calculated from data fields below */
+	const int x0 = index_width;
+	const int y0 = rect->ymax;
+	int x, width; /* calculated from data fields below */
 	
 	uiBlock *block;
-	uiLayout *layout, *row;
 	int c;
-	
-	width = 0.0f;
-	for (c = 0; c < num_fields; ++c) {
-		/* TODO this will make more sense with variable field width */
-		width += column_width;
-	}
 	
 	/* block for fields */
 	block = UI_block_begin(C, CTX_wm_region(C), "spreadsheet header row", UI_EMBOSS);
 	
-	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-	                         x, y, width, H, 0, UI_style_get());
-	
-	row = uiLayoutRow(layout, false);
-	
+	x = x0;
+	width = 0;
 	for (c = 0; c < num_fields; ++c) {
+		const int colw = column_width(&fields[c]);
+		uiLayout *layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+		                         x, y0, colw, H, 0, UI_style_get());
+		uiLayout *row = uiLayoutRow(layout, false);
 		const char *name = RNA_property_ui_name(fields[c].prop);
+		
 		uiItemL(row, name, ICON_NONE);
+		
+		x += colw;
+		/* TODO this will make more sense with variable field width */
+		width += colw;
 	}
 	
 	UI_block_layout_resolve(block, NULL, NULL);
@@ -211,7 +237,7 @@ static void draw_header_row(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet),
 	
 	/* background drawing */
 	glBegin(GL_QUADS);
-	draw_background_quad(x, y, width, 0);
+	draw_background_quad(x0, y0, width, 0);
 	glEnd();
 	/* buttons drawing */
 	UI_block_draw(C, block);
@@ -222,7 +248,6 @@ static void draw_index_column(const bContext *C, SpaceSpreadsheet *UNUSED(ssheet
 {
 	const rctf *rect = &v2d->cur;
 	const int H = spreadsheet_row_height();
-	const int index_width = 50.0f;
 	const int x = rect->xmin;
 	const int width = index_width;
 	
@@ -274,7 +299,7 @@ void spreadsheet_draw_main(const bContext *C, SpaceSpreadsheet *ssheet, ARegion 
 	row_begin = max_ii(y_to_row(v2d->cur.ymax), 0);
 	row_end = min_ii(y_to_row(v2d->cur.ymin) + 1, length);
 	
-	draw_data_columns(C, ssheet, fields, num_fields, v2d, row_begin, row_end);
+	draw_data_columns(C, ssheet, &ptr, prop, fields, num_fields, v2d, row_begin, row_end);
 	draw_header_row(C, ssheet, fields, num_fields, v2d);
 	draw_index_column(C, ssheet, v2d, row_begin, row_end);
 }
