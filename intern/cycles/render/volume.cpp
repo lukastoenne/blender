@@ -466,7 +466,7 @@ void VolumeManager::update_svm_attributes(Device *device, DeviceScene *dscene, S
 	device->tex_alloc("__attributes_map", dscene->attributes_map);
 }
 
-void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*scene*/, Progress& progress)
+void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
 	if(!need_update) {
 		return;
@@ -475,6 +475,9 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*
 	device_free(device, dscene);
 	progress.set_status("Updating OpenVDB volumes", "Sending volumes to device.");
 
+	uint *vol_shader = dscene->vol_shader.resize(num_float_volume + num_float3_volume);
+	int s = 0;
+
 	for (size_t i = 0; i < volumes.size(); ++i) {
 		Volume *volume = volumes[i];
 
@@ -482,13 +485,17 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*
 			if(!volume->float_fields[i]) {
 				continue;
 			}
+
 			device->const_copy_to("__float_volume", volume->float_fields[i], i);
+			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], NULL, false);
 		}
 
 		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
 			if(!volume->float3_fields[i]) {
 				continue;
 			}
+
+			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], NULL, false);
 			device->const_copy_to("__float3_volume", volume->float3_fields[i], i);
 		}
 
@@ -496,6 +503,8 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene */*
 			return;
 		}
 	}
+
+	device->tex_alloc("__vol_shader", dscene->vol_shader);
 
 #if 0
 	for(size_t i = 0; i < float_volumes.size(); ++i) {
