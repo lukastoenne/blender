@@ -816,6 +816,9 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask, bool
 	if (me->mselect) {
 		MEM_freeN(me->mselect);
 	}
+	if (me->bb) {
+		MEM_freeN(me->bb);
+	}
 
 	/* skip the listbase */
 	MEMCPY_STRUCT_OFS(me, &tmp, id.prev);
@@ -1083,7 +1086,7 @@ void DM_interp_tessface_data(
 
 void DM_swap_tessface_data(DerivedMesh *dm, int index, const int *corner_indices)
 {
-	CustomData_swap(&dm->faceData, index, corner_indices);
+	CustomData_swap_corners(&dm->faceData, index, corner_indices);
 }
 
 void DM_interp_loop_data(

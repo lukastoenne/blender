@@ -40,8 +40,10 @@ set(SRC_HEADERS
 	util_atomic.h
 	util_boundbox.h
 	util_debug.h
+	util_guarded_allocator.cpp
 	util_foreach.h
 	util_function.h
+	util_guarded_allocator.h
 	util_half.h
 	util_hash.h
 	util_image.h
@@ -60,6 +62,9 @@ set(SRC_HEADERS
 	util_queue.h
 	util_set.h
 	util_simd.h
+	util_sky_model.cpp
+	util_sky_model.h
+	util_sky_model_data.h
 	util_sseb.h
 	util_ssef.h
 	util_ssei.h
@@ -76,15 +81,6 @@ set(SRC_HEADERS
 	util_windows.h
 	util_xml.h
 )
-
-if(WITH_CYCLES_DEBUG)
-	list(APPEND SRC
-		util_guarded_allocator.cpp
-	)
-	list(APPEND SRC_HEADERS
-		util_guarded_allocator.h
-	)
-endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

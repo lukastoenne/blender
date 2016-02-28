@@ -103,6 +103,10 @@ endif()
 # Setup the exe sources and buildinfo
 set(SRC
 	creator.c
+	creator_args.c
+	creator_signals.c
+
+	creator_intern.h
 )
 
 # MSVC 2010 gives linking errors with the manifest
@@ -507,7 +511,7 @@ if(UNIX AND NOT APPLE)
 		if(WITH_PYTHON_INSTALL)
 
 			install(
-				FILES ${PYTHON_EXECUTABLE}
+				PROGRAMS ${PYTHON_EXECUTABLE}
 				DESTINATION ${TARGETDIR_VER}/python/bin
 			)
 
@@ -529,7 +533,6 @@ if(UNIX AND NOT APPLE)
 			install(
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
 				DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}
-				PATTERN ".svn" EXCLUDE
 				PATTERN "__pycache__" EXCLUDE               # * any cache *
 				PATTERN "distutils" EXCLUDE                 # ./distutils
 				PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
@@ -626,13 +629,13 @@ elseif(WIN32)
 		# MinGW TODO: This bit of Python configuration diverges from MSVC
 		if(NOT CMAKE_COMPILER_IS_GNUCC)
 			install(
-				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll ${LIBDIR}/python/lib/sqlite3.dll
+				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
 				DESTINATION "."
 				CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 			)
 
 			install(
-				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll ${LIBDIR}/python/lib/sqlite3_d.dll
+				FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
 				DESTINATION "."
 				CONFIGURATIONS Debug
 			)

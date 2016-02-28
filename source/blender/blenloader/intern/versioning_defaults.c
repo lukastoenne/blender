@@ -63,6 +63,11 @@ void BLO_update_defaults_userpref_blend(void)
 
 	/* default from T47064 */
 	U.audiorate = 48000;
+
+	/* Keep this a very small, non-zero number so zero-alpha doesn't mask out objects behind it.
+	 * but take care since some hardware has driver bugs here (T46962).
+	 * Further hardware workarounds should be made in gpu_extensions.c */
+	U.glalphaclip = (1.0f / 255);
 }
 
 /**
@@ -233,6 +238,12 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Twist");
 		if (br) {
 			BKE_libblock_rename(bmain, &br->id, "Rotate");
+		}
+
+		/* use original normal for grab brush (otherwise flickers with normal weighting). */
+		br = (Brush *)BKE_libblock_find_name_ex(bmain, ID_BR, "Grab");
+		if (br) {
+			br->flag |= BRUSH_ORIGINAL_NORMAL;
 		}
 	}
 }

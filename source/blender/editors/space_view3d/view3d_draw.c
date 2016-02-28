@@ -1135,6 +1135,8 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			glEnable(GL_BLEND);
 			glColor4f(0, 0, 0, ca->passepartalpha);
 		}
+		glLineWidth(1.0f);
+
 		if (x1i > 0.0f)
 			glRectf(0.0, winy, x1i, 0.0);
 		if (x2i < winx)
@@ -3382,7 +3384,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 		unsigned int i;
 		int j;
 
-		BLI_jitter_init(jit_ofs, scene->r.osa);
+		BLI_jitter_init(jit_ofs, samples);
 
 		/* first sample buffer, also initializes 'rv3d->persmat' */
 		ED_view3d_draw_offscreen(

@@ -825,7 +825,12 @@ static void cdDM_drawMappedFaces(
 						start_element = tot_element;
 					}
 					else {
-						tot_drawn += tot_tri_verts;
+						if (draw_option != DM_DRAW_OPTION_SKIP) {
+							tot_drawn += tot_tri_verts;
+						}
+						else {
+							start_element = tot_element;
+						}
 					}
 				}
 			}
@@ -1495,7 +1500,7 @@ static void cdDM_buffer_copy_uv_texpaint(
 		}
 	}
 
-	MEM_freeN(uv_base);
+	MEM_freeN((void*)uv_base);
 }
 
 /* treat varray_ as an array of MCol, four MCol's per face */
