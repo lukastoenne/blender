@@ -828,6 +828,7 @@ typedef ccl_addr_space struct ShaderData {
 typedef struct VolumeStack {
 	int object;
 	int shader;
+	int volume;
 } VolumeStack;
 #endif
 

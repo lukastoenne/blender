@@ -35,7 +35,7 @@ class float_volume {
 public:
 	virtual ~float_volume() {}
 	virtual float sample(float x, float y, float z, int sampling) = 0;
-	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
+	virtual bool intersect(const Ray *ray, float *isect_t) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
 	virtual bool has_uniform_voxels() = 0;
 };
@@ -44,7 +44,7 @@ class float3_volume {
 public:
 	virtual ~float3_volume() {}
 	virtual float3 sample(float x, float y, float z, int sampling) = 0;
-	virtual bool intersect(const Ray *ray, Intersection *isect) = 0;
+	virtual bool intersect(const Ray *ray, float *isect_t) = 0;
 	virtual bool march(float *t0, float *t1) = 0;
 	virtual bool has_uniform_voxels() = 0;
 };
@@ -156,7 +156,7 @@ public:
 		}
 	}
 
-	ccl_always_inline bool intersect(const Ray *ray, Intersection *isect)
+	ccl_always_inline bool intersect(const Ray *ray, float *isect_t)
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
@@ -170,15 +170,8 @@ public:
 		vdb_ray_t vdb_ray(P, D, 1e-5f, ray->t);
 
 		if(vdb_isect->setWorldRay(vdb_ray)) {
-			// TODO
-//			isect->t = (float)vdb_ray.t1(); // (kevin) is this correct?
-//			isect->u = isect->v = 1.0f;
-//			isect->type = ;
-//			isect->shad = shader;
-//			isect->norm = ;
-//			isect->prim = 0;
-//			isect->object = 0;
-
+			// TODO(kevin): is this correct?
+			*isect_t = static_cast<float>(vdb_ray.t1());
 			return true;
 		}
 
@@ -307,7 +300,7 @@ public:
 			return sample_ex(x, y, z, sampling);
 	}
 
-	ccl_always_inline bool intersect(const Ray *ray, Intersection */*isect*/)
+	ccl_always_inline bool intersect(const Ray *ray, float *isect_t)
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
@@ -321,15 +314,8 @@ public:
 		vdb_ray_t vdb_ray(P, D, 1e-5f, ray->t);
 
 		if(vdb_isect->setWorldRay(vdb_ray)) {
-			// TODO
-//			isect->t = vdb_ray.t1(); // (kevin) is this correct?
-//			isect->u = isect->v = 1.0f;
-//			isect->type = ;
-//			isect->shad = shader;
-//			isect->norm = ;
-//			isect->prim = 0;
-//			isect->object = 0;
-
+			// TODO(kevin): is this correct?
+			*isect_t = static_cast<float>(vdb_ray.t1());
 			return true;
 		}
 

@@ -1296,6 +1296,7 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 			if(is_enclosed == false) {
 				stack[stack_index].object = sd.object;
 				stack[stack_index].shader = sd.shader;
+				stack[stack_index].volume = sd.prim;
 				++stack_index;
 			}
 		}

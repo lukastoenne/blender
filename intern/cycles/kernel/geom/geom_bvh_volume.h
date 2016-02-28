@@ -93,9 +93,14 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	int num_volumes = kernel_data.tables.num_volumes;
 
 	for(int i = 0; i < num_volumes; i++) {
-		if(kg->float_volumes[i]->intersect(ray, isect)) {
+		float t;
+
+		if(kg->float_volumes[i]->intersect(ray, &t)) {
 			isect->type = PRIMITIVE_VOLUME;
-			kernel_data.tables.density_index = i;
+			isect->prim = i;
+			isect->t = t;
+			isect->u = 1.0f;
+			isect->v = 1.0f;
 			return true;
 		}
 	}

@@ -66,7 +66,13 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 	ccl_fetch(sd, time) = ray->time;
 #endif
 
-	ccl_fetch(sd, prim) = kernel_tex_fetch(__prim_index, isect->prim);
+	if(ccl_fetch(sd, type) & PRIMITIVE_VOLUME) {
+		ccl_fetch(sd, prim) = isect->prim;
+	}
+	else {
+		ccl_fetch(sd, prim) = kernel_tex_fetch(__prim_index, isect->prim);
+	}
+
 	ccl_fetch(sd, ray_length) = isect->t;
 
 #ifdef __UV__
