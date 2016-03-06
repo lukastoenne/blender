@@ -669,11 +669,12 @@ static bool rna_NodeTree_check(bNodeTree *ntree, ReportList *reports)
 static void rna_NodeTree_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
 
 	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
 	WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node);
 }
 
 static bNode *rna_NodeTree_node_new(bNodeTree *ntree, bContext *C, ReportList *reports, const char *type)
@@ -1060,7 +1061,7 @@ static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 	ntree->update |= NTREE_UPDATE_GROUP;
 	ntreeUpdateTree(G.main, ntree);
 	
-	ED_node_tag_update_nodetree(CTX_data_main(C), ntree);
+	ED_node_tag_update_nodetree(CTX_data_main(C), ntree, NULL);
 }
 
 static void rna_NodeTree_bvm_debug_graphviz(struct bNodeTree *ntree, const char *filename,
@@ -1635,7 +1636,13 @@ static int rna_Node_parent_poll(PointerRNA *ptr, PointerRNA value)
 static void rna_Node_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
-	ED_node_tag_update_nodetree(bmain, ntree);
+	bNode *node = (bNode *)ptr->data;
+	ED_node_tag_update_nodetree(bmain, ntree, node);
+}
+
+static void rna_Node_socket_value_update(ID *id, bNode *node, bContext *C)
+{
+	ED_node_tag_update_nodetree(CTX_data_main(C), (bNodeTree *)id, node);
 }
 
 static void rna_ObjectNode_id_update_cb(bContext *C, PointerRNA *ptr)
@@ -1665,11 +1672,6 @@ static void rna_ObjectNode_id_update(bContext *C, PointerRNA *ptr)
 	DEG_relations_tag_update(bmain);
 	
 	rna_ObjectNode_id_update_cb(C, ptr);
-}
-
-static void rna_Node_socket_value_update(ID *id, bNode *UNUSED(node), bContext *C)
-{
-	ED_node_tag_update_nodetree(CTX_data_main(C), (bNodeTree *)id);
 }
 
 static void rna_Node_select_set(PointerRNA *ptr, int value)
@@ -2035,7 +2037,11 @@ static PointerRNA rna_NodeSocket_node_get(PointerRNA *ptr)
 static void rna_NodeSocket_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
-	ED_node_tag_update_nodetree(bmain, ntree);
+	bNodeSocket *sock = (bNodeSocket *)ptr->data;
+	bNode *node;
+	if (nodeFindNode(ntree, sock, &node, NULL)) {
+		ED_node_tag_update_nodetree(bmain, ntree, node);
+	}
 }
 
 static int rna_NodeSocket_is_output_get(PointerRNA *ptr)
@@ -2301,7 +2307,7 @@ static void rna_NodeSocketInterface_update(Main *bmain, Scene *UNUSED(scene), Po
 	ntree->update |= NTREE_UPDATE_GROUP;
 	ntreeUpdateTree(G.main, ntree);
 	
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, NULL);
 }
 
 
@@ -2557,8 +2563,9 @@ static void rna_CompositorNode_tag_need_exec(bNode *node)
 static void rna_Node_tex_image_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node);
 	WM_main_add_notifier(NC_IMAGE, NULL);
 }
 
@@ -2570,7 +2577,7 @@ static void rna_Node_material_update(Main *bmain, Scene *UNUSED(scene), PointerR
 	if (node->id)
 		nodeSetActive(ntree, node);
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node);
 }
 
 static void rna_NodeGroup_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -2581,7 +2588,7 @@ static void rna_NodeGroup_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *
 	if (node->id)
 		ntreeUpdateTree(bmain, (bNodeTree *)node->id);
 	
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node);
 }
 
 static void rna_NodeGroup_node_tree_set(PointerRNA *ptr, const PointerRNA value)
@@ -3091,7 +3098,7 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
 		RE_engine_free(engine);
 	}
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node);
 }
 
 static void rna_ShaderNodeSubsurface_update(Main *bmain, Scene *scene, PointerRNA *ptr)
