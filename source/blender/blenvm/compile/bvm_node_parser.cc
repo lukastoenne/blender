@@ -53,6 +53,9 @@ FunctionDecl *NodeParser::parse(const NodeGraph &graph)
 	TranslationUnitDecl *TUD = TranslationUnitDecl::create(C);
 	FunctionDecl *func = FunctionDecl::create(C, TUD, SourceLocation());
 	
+	const NodeInstance *output_node = find_output_node(graph);
+	node_function_call(output_node);
+	
 	return func;
 }
 

@@ -38,6 +38,7 @@
 namespace bvm {
 
 struct NodeGraph;
+struct NodeInstance;
 
 namespace ast {
 struct FunctionDecl;
@@ -48,6 +49,11 @@ struct NodeParser {
 	~NodeParser();
 	
 	ast::FunctionDecl *parse(const NodeGraph &graph);
+	
+protected:
+	const NodeInstance *find_output_node(const NodeGraph &graph) const;
+	
+	void node_function_call(const NodeInstance *node);
 };
 
 } /* namespace bvm */
