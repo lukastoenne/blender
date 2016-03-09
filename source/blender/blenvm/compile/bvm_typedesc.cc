@@ -30,6 +30,7 @@
  */
 
 #include "bvm_typedesc.h"
+#include "bvm_value.h"
 
 namespace bvm {
 
