@@ -50,12 +50,12 @@ extern "C" {
 #endif
 }
 
-#include "bvm_opcode.h"
-#include "bvm_typedesc.h"
-#include "bvm_value.h"
-#include "bvm_util_string.h"
+#include "value.h"
 
-namespace bvm {
+#include "util_opcode.h"
+#include "util_string.h"
+
+namespace blenvm {
 
 struct NodeGraph;
 struct NodeType;

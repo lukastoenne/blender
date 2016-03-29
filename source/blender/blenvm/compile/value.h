@@ -34,11 +34,12 @@
 
 #include <vector>
 
-#include "bvm_typedesc.h"
-#include "bvm_util_math.h"
-#include "bvm_util_string.h"
+#include "bvm_typedesc.h" /* XXX bad level include, values should be agnostic to runtime backend! */
 
-namespace bvm {
+#include "util_math.h"
+#include "util_string.h"
+
+namespace blenvm {
 
 template <BVMType type>
 struct const_array {

@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) Blender Foundation.
+ * The Original Code is Copyright (C) Blender Foundation
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -25,19 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_UTIL_STRING_H__
-#define __BVM_UTIL_STRING_H__
-
-/** \file bvm_util_string.h
+/** \file blender/blenvm/intern/bvm_value.cc
  *  \ingroup bvm
  */
 
-#include <string>
+#include "value.h"
 
-namespace bvm {
-
-typedef std::string string;
+namespace blenvm {
 
 } /* namespace bvm */
-
-#endif /* __BVM_UTIL_STRING_H__ */

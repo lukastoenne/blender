@@ -29,10 +29,11 @@
  *  \ingroup bvm
  */
 
-#include "bvm_typedesc.h"
-#include "bvm_value.h"
+#include "value.h"
 
-namespace bvm {
+#include "bvm_typedesc.h"
+
+namespace blenvm {
 
 StructSpec::StructSpec()
 {

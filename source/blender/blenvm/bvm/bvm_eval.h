@@ -41,8 +41,8 @@ extern "C" {
 #include "RNA_access.h"
 }
 
-#include "bvm_util_map.h"
-#include "bvm_util_string.h"
+#include "util_map.h"
+#include "util_string.h"
 
 struct ID;
 struct Image;
@@ -51,7 +51,7 @@ struct ImageUser;
 struct ImBuf;
 struct Object;
 
-namespace bvm {
+namespace blenvm {
 
 struct InstructionList;
 

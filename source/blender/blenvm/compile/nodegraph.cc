@@ -37,12 +37,12 @@
 #include <sstream>
 #include <algorithm>
 
-#include "bvm_nodegraph.h"
-#include "bvm_opcode.h"
+#include "nodegraph.h"
 
-#include "bvm_util_math.h"
+#include "util_opcode.h"
+#include "util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 NodeInput::NodeInput(const string &name,
                      const TypeDesc &typedesc,

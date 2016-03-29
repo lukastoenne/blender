@@ -50,7 +50,6 @@ set(SRC
 	bvm_eval_texture.h
 	bvm_instruction_list.cc
 	bvm_instruction_list.h
-	bvm_opcode.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()

@@ -25,85 +25,19 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_UTIL_THREAD_H__
-#define __BVM_UTIL_THREAD_H__
+#ifndef __BVM_UTIL_STRING_H__
+#define __BVM_UTIL_STRING_H__
 
-/** \file bvm_util_thread.h
+/** \file bvm_util_string.h
  *  \ingroup bvm
  */
 
-#include "BLI_threads.h"
+#include <string>
 
-namespace bvm {
+namespace blenvm {
 
-struct mutex {
-	mutex()
-	{
-		BLI_mutex_init(&m);
-	}
-	
-	~mutex()
-	{
-		BLI_mutex_end(&m);
-	}
-	
-	void lock()
-	{
-		BLI_mutex_lock(&m);
-	}
-	
-	void unlock()
-	{
-		BLI_mutex_unlock(&m);
-	}
-	
-private:
-	ThreadMutex m;
-};
-
-struct scoped_lock {
-	scoped_lock(mutex &m_) :
-	    m(&m_)
-	{
-		m->lock();
-	}
-	
-	~scoped_lock()
-	{
-		m->unlock();
-	}
-	
-private:
-	mutex *m;
-};
-
-struct spin_lock {
-	spin_lock(mutex &m_) :
-	    m(&m_)
-	{
-		BLI_spin_init(&m_lock);
-	}
-	
-	~spin_lock()
-	{
-		BLI_spin_end(&m_lock);
-	}
-	
-	void lock()
-	{
-		BLI_spin_lock(&m_lock);
-	}
-	
-	void unlock()
-	{
-		BLI_spin_unlock(&m_lock);
-	}
-	
-private:
-	mutex *m;
-	SpinLock m_lock;
-};
+typedef std::string string;
 
 } /* namespace bvm */
 
-#endif /* __BVM_UTIL_THREAD_H__ */
+#endif /* __BVM_UTIL_STRING_H__ */

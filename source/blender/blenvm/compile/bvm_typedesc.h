@@ -40,11 +40,11 @@ extern "C" {
 }
 
 #include "BVM_types.h"
-#include "bvm_util_data_ptr.h"
-#include "bvm_util_math.h"
-#include "bvm_util_string.h"
+#include "util_data_ptr.h"
+#include "util_math.h"
+#include "util_string.h"
 
-namespace bvm {
+namespace blenvm {
 
 struct NodeGraph;
 struct Value;

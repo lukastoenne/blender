@@ -55,9 +55,9 @@ extern "C" {
 #include "bvm_eval_mesh.h"
 #include "bvm_eval_texture.h"
 
-#include "bvm_util_hash.h"
+#include "util_hash.h"
 
-namespace bvm {
+namespace blenvm {
 
 EvalGlobals::EvalGlobals()
 {

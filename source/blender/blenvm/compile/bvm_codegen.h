@@ -37,12 +37,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "bvm_instruction_list.h"
-#include "bvm_nodegraph.h"
-#include "bvm_opcode.h"
-#include "bvm_util_string.h"
+#include "nodegraph.h"
 
-namespace bvm {
+#include "bvm_instruction_list.h"
+
+#include "util_opcode.h"
+#include "util_string.h"
+
+namespace blenvm {
 
 struct Function;
 struct NodeGraph;

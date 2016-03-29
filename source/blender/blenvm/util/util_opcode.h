@@ -36,7 +36,7 @@ extern "C" {
 #include "BLI_utildefines.h"
 }
 
-namespace bvm {
+namespace blenvm {
 
 /* Macro to handle all opcodes.
  * Expects DEF_OPCODE to be defined locally for this purpose.

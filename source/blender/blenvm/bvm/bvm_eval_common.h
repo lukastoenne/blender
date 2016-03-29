@@ -35,7 +35,7 @@
 #include "bvm_eval.h"
 #include "bvm_instruction_list.h"
 
-namespace bvm {
+namespace blenvm {
 
 struct EvalContext;
 

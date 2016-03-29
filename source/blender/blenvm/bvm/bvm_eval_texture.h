@@ -38,7 +38,7 @@ extern "C" {
 
 #include "bvm_eval_common.h"
 
-namespace bvm {
+namespace blenvm {
 
 inline void eval_op_tex_proc_voronoi(EvalStack *stack, int distance_metric, int color_type,
                                      StackIndex iMinkowskiExponent, StackIndex iScale,

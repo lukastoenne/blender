@@ -33,7 +33,7 @@
 
 #include <map>
 
-#include "bvm_util_hash.h"
+#include "util_hash.h"
 
 using std::map;
 using std::pair;

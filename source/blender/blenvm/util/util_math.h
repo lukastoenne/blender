@@ -38,7 +38,7 @@ extern "C" {
 #include "BLI_math.h"
 }
 
-namespace bvm {
+namespace blenvm {
 
 static inline int int_div_floor(int a, int b)
 {

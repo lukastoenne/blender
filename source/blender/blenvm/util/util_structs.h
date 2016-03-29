@@ -37,7 +37,7 @@
 #include "bvm_util_data_ptr.h"
 #include "bvm_util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 struct TransformedMesh {
 	mesh_ptr mesh;

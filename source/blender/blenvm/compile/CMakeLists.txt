@@ -39,17 +39,18 @@ set(INC_SYS
 )
 
 set(SRC
+	nodegraph.cc
+	nodegraph.h
+	value.cc
+	value.h
+
 	bvm_codegen.cc
 	bvm_codegen_debug.cc
 	bvm_codegen.h
 	bvm_function.h
 	bvm_function.cc
-	bvm_nodegraph.cc
-	bvm_nodegraph.h
 	bvm_typedesc.cc
 	bvm_typedesc.h
-	bvm_value.cc
-	bvm_value.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()

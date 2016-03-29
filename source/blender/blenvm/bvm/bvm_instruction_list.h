@@ -37,13 +37,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "bvm_opcode.h"
-#include "bvm_util_data_ptr.h"
-#include "bvm_util_math.h"
-#include "bvm_util_string.h"
-#include "bvm_util_thread.h"
+#include "util_opcode.h"
+#include "util_data_ptr.h"
+#include "util_math.h"
+#include "util_string.h"
+#include "util_thread.h"
 
-namespace bvm {
+namespace blenvm {
 
 typedef uint32_t Instruction;
 typedef Instruction StackIndex;

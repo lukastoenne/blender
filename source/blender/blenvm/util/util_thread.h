@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) Blender Foundation
+ * The Original Code is Copyright (C) Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -25,12 +25,85 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_value.cc
+#ifndef __BVM_UTIL_THREAD_H__
+#define __BVM_UTIL_THREAD_H__
+
+/** \file bvm_util_thread.h
  *  \ingroup bvm
  */
 
-#include "bvm_value.h"
+#include "BLI_threads.h"
 
-namespace bvm {
+namespace blenvm {
+
+struct mutex {
+	mutex()
+	{
+		BLI_mutex_init(&m);
+	}
+	
+	~mutex()
+	{
+		BLI_mutex_end(&m);
+	}
+	
+	void lock()
+	{
+		BLI_mutex_lock(&m);
+	}
+	
+	void unlock()
+	{
+		BLI_mutex_unlock(&m);
+	}
+	
+private:
+	ThreadMutex m;
+};
+
+struct scoped_lock {
+	scoped_lock(mutex &m_) :
+	    m(&m_)
+	{
+		m->lock();
+	}
+	
+	~scoped_lock()
+	{
+		m->unlock();
+	}
+	
+private:
+	mutex *m;
+};
+
+struct spin_lock {
+	spin_lock(mutex &m_) :
+	    m(&m_)
+	{
+		BLI_spin_init(&m_lock);
+	}
+	
+	~spin_lock()
+	{
+		BLI_spin_end(&m_lock);
+	}
+	
+	void lock()
+	{
+		BLI_spin_lock(&m_lock);
+	}
+	
+	void unlock()
+	{
+		BLI_spin_unlock(&m_lock);
+	}
+	
+private:
+	mutex *m;
+	SpinLock m_lock;
+};
 
 } /* namespace bvm */
+
+#endif /* __BVM_UTIL_THREAD_H__ */

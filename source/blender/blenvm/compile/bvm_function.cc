@@ -32,7 +32,7 @@
 #include "bvm_eval.h"
 #include "bvm_function.h"
 
-namespace bvm {
+namespace blenvm {
 
 mutex Function::users_mutex = mutex();
 spin_lock Function::users_lock = spin_lock(Function::users_mutex);

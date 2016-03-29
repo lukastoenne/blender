@@ -34,9 +34,9 @@
 #include <cstdio>
 #include <sstream>
 
-#include "bvm_nodegraph.h"
+#include "nodegraph.h"
 
-namespace bvm {
+namespace blenvm {
 namespace debug {
 
 #define NL "\r\n"

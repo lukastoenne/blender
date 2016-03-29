@@ -44,7 +44,7 @@ extern "C" {
 
 #include "bvm_eval_common.h"
 
-namespace bvm {
+namespace blenvm {
 
 static void eval_op_mesh_load(EvalStack *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
 {

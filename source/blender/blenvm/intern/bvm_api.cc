@@ -55,23 +55,24 @@ extern "C" {
 #include "RNA_access.h"
 }
 
+#include "nodegraph.h"
+
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
 #include "bvm_function.h"
-#include "bvm_nodegraph.h"
 
-#include "bvm_util_debug.h"
-#include "bvm_util_map.h"
-#include "bvm_util_thread.h"
+#include "util_debug.h"
+#include "util_map.h"
+#include "util_thread.h"
 
-namespace bvm {
+namespace blenvm {
 static mesh_ptr __empty_mesh__;
 static duplis_ptr __empty_duplilist__ = duplis_ptr(new DupliList());
 }
 
 void BVM_init(void)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	create_empty_mesh(__empty_mesh__);
 	
@@ -80,7 +81,7 @@ void BVM_init(void)
 
 void BVM_free(void)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	BVM_function_cache_clear();
 	
@@ -91,13 +92,13 @@ void BVM_free(void)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::Function *_FUNC(struct BVMFunction *fn)
-{ return (bvm::Function *)fn; }
+BLI_INLINE blenvm::Function *_FUNC(struct BVMFunction *fn)
+{ return (blenvm::Function *)fn; }
 
 void BVM_function_free(struct BVMFunction *fn)
 { delete _FUNC(fn); }
 
-namespace bvm {
+namespace blenvm {
 
 typedef unordered_map<void*, Function*> FunctionCache;
 typedef std::pair<void*, Function*> FunctionCachePair;
@@ -110,7 +111,7 @@ static spin_lock bvm_function_cache_lock = spin_lock(bvm_function_cache_mutex);
 
 struct BVMFunction *BVM_function_cache_acquire(void *key)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	bvm_function_cache_lock.lock();
 	FunctionCache::const_iterator it = bvm_function_cache.find(key);
@@ -125,7 +126,7 @@ struct BVMFunction *BVM_function_cache_acquire(void *key)
 
 void BVM_function_release(BVMFunction *_fn)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	Function *fn = _FUNC(_fn);
 	
 	if (!fn)
@@ -150,7 +151,7 @@ void BVM_function_release(BVMFunction *_fn)
 
 void BVM_function_cache_set(void *key, BVMFunction *_fn)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	Function *fn = _FUNC(_fn);
 	
 	bvm_function_cache_lock.lock();
@@ -178,7 +179,7 @@ void BVM_function_cache_set(void *key, BVMFunction *_fn)
 
 void BVM_function_cache_remove(void *key)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	bvm_function_cache_lock.lock();
 	FunctionCache::iterator it = bvm_function_cache.find(key);
@@ -192,7 +193,7 @@ void BVM_function_cache_remove(void *key)
 
 void BVM_function_cache_clear(void)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	bvm_function_cache_lock.lock();
 	for (FunctionCache::iterator it = bvm_function_cache.begin(); it != bvm_function_cache.end(); ++it) {
@@ -204,16 +205,16 @@ void BVM_function_cache_clear(void)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
-{ return (bvm::NodeGraph *)graph; }
-BLI_INLINE bvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
-{ return (bvm::NodeInstance *)node; }
-BLI_INLINE bvm::NodeInput *_INPUT(struct BVMNodeInput *input)
-{ return (bvm::NodeInput *)input; }
-BLI_INLINE bvm::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
-{ return (bvm::NodeOutput *)output; }
-BLI_INLINE bvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
-{ return (bvm::TypeDesc *)typedesc; }
+BLI_INLINE blenvm::NodeGraph *_GRAPH(struct BVMNodeGraph *graph)
+{ return (blenvm::NodeGraph *)graph; }
+BLI_INLINE blenvm::NodeInstance *_NODE(struct BVMNodeInstance *node)
+{ return (blenvm::NodeInstance *)node; }
+BLI_INLINE blenvm::NodeInput *_INPUT(struct BVMNodeInput *input)
+{ return (blenvm::NodeInput *)input; }
+BLI_INLINE blenvm::NodeOutput *_OUTPUT(struct BVMNodeOutput *output)
+{ return (blenvm::NodeOutput *)output; }
+BLI_INLINE blenvm::TypeDesc *_TYPEDESC(struct BVMTypeDesc *typedesc)
+{ return (blenvm::TypeDesc *)typedesc; }
 
 struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *type, const char *name)
 { return (struct BVMNodeInstance *)_GRAPH(graph)->add_node(type, name); }
@@ -221,7 +222,7 @@ struct BVMNodeInstance *BVM_nodegraph_add_node(BVMNodeGraph *graph, const char *
 void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
                              struct BVMNodeInstance **node, const char **socket)
 {
-	const bvm::NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
+	const blenvm::NodeGraph::Input *input = _GRAPH(graph)->get_input(name);
 	if (input) {
 		if (node) *node = (BVMNodeInstance *)input->key.node;
 		if (socket) *socket = input->key.socket->name.c_str();
@@ -235,7 +236,7 @@ void BVM_nodegraph_get_input(struct BVMNodeGraph *graph, const char *name,
 void BVM_nodegraph_get_output(struct BVMNodeGraph *graph, const char *name,
                               struct BVMNodeInstance **node, const char **socket)
 {
-	const bvm::NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
+	const blenvm::NodeGraph::Output *output = _GRAPH(graph)->get_output(name);
 	if (output) {
 		if (node) *node = (BVMNodeInstance *)output->key.node;
 		if (socket) *socket = output->key.socket->name.c_str();
@@ -267,7 +268,7 @@ struct BVMNodeInput *BVM_node_get_input_n(struct BVMNodeInstance *node, int inde
 bool BVM_node_set_input_link(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                              struct BVMNodeInstance *from_node, struct BVMNodeOutput *from_output)
 {
-	return _NODE(node)->link_set(_INPUT(input)->name, bvm::OutputKey(_NODE(from_node), _OUTPUT(from_output)->name));
+	return _NODE(node)->link_set(_INPUT(input)->name, blenvm::OutputKey(_NODE(from_node), _OUTPUT(from_output)->name));
 }
 
 struct BVMNodeOutput *BVM_node_get_output(struct BVMNodeInstance *node, const char *name)
@@ -287,15 +288,15 @@ void BVM_node_set_input_value_float(struct BVMNodeInstance *node, struct BVMNode
 
 void BVM_node_set_input_value_float3(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[3])
-{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::float3::from_data(value)); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, blenvm::float3::from_data(value)); }
 
 void BVM_node_set_input_value_float4(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                      const float value[4])
-{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::float4::from_data(value)); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, blenvm::float4::from_data(value)); }
 
 void BVM_node_set_input_value_matrix44(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                        float value[4][4])
-{ _NODE(node)->input_value_set(_INPUT(input)->name, bvm::matrix44::from_data(&value[0][0])); }
+{ _NODE(node)->input_value_set(_INPUT(input)->name, blenvm::matrix44::from_data(&value[0][0])); }
 
 void BVM_node_set_input_value_int(struct BVMNodeInstance *node, struct BVMNodeInput *input,
                                   int value)
@@ -327,15 +328,15 @@ BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE bvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
-{ return (bvm::EvalGlobals *)globals; }
-BLI_INLINE const bvm::EvalGlobals *_GLOBALS(const struct BVMEvalGlobals *globals)
-{ return (const bvm::EvalGlobals *)globals; }
-BLI_INLINE bvm::EvalContext *_CTX(struct BVMEvalContext *ctx)
-{ return (bvm::EvalContext *)ctx; }
+BLI_INLINE blenvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
+{ return (blenvm::EvalGlobals *)globals; }
+BLI_INLINE const blenvm::EvalGlobals *_GLOBALS(const struct BVMEvalGlobals *globals)
+{ return (const blenvm::EvalGlobals *)globals; }
+BLI_INLINE blenvm::EvalContext *_CTX(struct BVMEvalContext *ctx)
+{ return (blenvm::EvalContext *)ctx; }
 
 struct BVMEvalGlobals *BVM_globals_create(void)
-{ return (BVMEvalGlobals *)(new bvm::EvalGlobals()); }
+{ return (BVMEvalGlobals *)(new blenvm::EvalGlobals()); }
 
 void BVM_globals_free(struct BVMEvalGlobals *globals)
 { delete _GLOBALS(globals); }
@@ -343,7 +344,7 @@ void BVM_globals_free(struct BVMEvalGlobals *globals)
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob)
 { _GLOBALS(globals)->add_object(key, ob); }
 
-namespace bvm {
+namespace blenvm {
 
 struct EvalGlobalsHandle
 {
@@ -378,7 +379,7 @@ struct EvalGlobalsHandle
 	EvalGlobals *globals;
 };
 
-static void rna_globals_update(bNodeTree *ntree, bvm::EvalGlobals *globals)
+static void rna_globals_update(bNodeTree *ntree, blenvm::EvalGlobals *globals)
 {
 	EvalGlobalsHandle handle(globals);
 	DepsNodeHandle *phandle = &handle.handle;
@@ -408,17 +409,17 @@ void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, bNodeTre
 { rna_globals_update(ntree, _GLOBALS(globals)); }
 
 int BVM_get_id_key(struct ID *id)
-{ return bvm::EvalGlobals::get_id_key(id); }
+{ return blenvm::EvalGlobals::get_id_key(id); }
 
 struct BVMEvalContext *BVM_context_create(void)
-{ return (BVMEvalContext *)(new bvm::EvalContext()); }
+{ return (BVMEvalContext *)(new blenvm::EvalContext()); }
 
 void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
 
 /* ------------------------------------------------------------------------- */
 
-static void parse_py_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
+static void parse_py_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 {
 	PointerRNA ptr;
 	ParameterList list;
@@ -437,9 +438,9 @@ static void parse_py_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 	RNA_parameter_list_free(&list);
 }
 
-static void init_forcefield_graph(bvm::NodeGraph &graph)
+static void init_forcefield_graph(blenvm::NodeGraph &graph)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	graph.add_input("effector.object", "RNAPOINTER");
 	graph.add_input("effector.position", "FLOAT3");
@@ -452,7 +453,7 @@ static void init_forcefield_graph(bvm::NodeGraph &graph)
 
 struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_forcefield_graph(graph);
@@ -468,7 +469,7 @@ struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
 
 void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_forcefield_graph(graph);
@@ -494,7 +495,7 @@ void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *
 void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
                          struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	PointerRNA object_ptr;
 	RNA_id_pointer_create((ID *)effob, &object_ptr);
@@ -506,7 +507,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 
 /* ------------------------------------------------------------------------- */
 
-namespace bvm {
+namespace blenvm {
 
 struct bNodeCompiler {
 	typedef std::pair<bNode*, bNodeSocket*> bSocketPair;
@@ -948,9 +949,9 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 
 } /* namespace bvm */
 
-static void parse_tex_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
+static void parse_tex_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	bNodeCompiler comp(graph);
 	
@@ -974,9 +975,9 @@ static void parse_tex_nodes(bNodeTree *btree, bvm::NodeGraph *graph)
 	}
 }
 
-static void init_texture_graph(bvm::NodeGraph &graph)
+static void init_texture_graph(blenvm::NodeGraph &graph)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	graph.add_input("texture.co", "FLOAT3");
 	graph.add_input("texture.dxt", "FLOAT3");
@@ -992,7 +993,7 @@ static void init_texture_graph(bvm::NodeGraph &graph)
 
 struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_texture_graph(graph);
@@ -1008,7 +1009,7 @@ struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
 
 void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_texture_graph(graph);
@@ -1036,7 +1037,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int UNUSED(preview))
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	EvalGlobals globals;
 	
@@ -1064,9 +1065,9 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 
 /* ------------------------------------------------------------------------- */
 
-static void init_modifier_graph(bvm::NodeGraph &graph)
+static void init_modifier_graph(blenvm::NodeGraph &graph)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	graph.add_input("modifier.object", "RNAPOINTER");
 	graph.add_input("modifier.base_mesh", "RNAPOINTER");
@@ -1075,7 +1076,7 @@ static void init_modifier_graph(bvm::NodeGraph &graph)
 
 struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_modifier_graph(graph);
@@ -1091,7 +1092,7 @@ struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
 
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_modifier_graph(graph);
@@ -1120,7 +1121,7 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct Object *object,
                                       struct Mesh *base_mesh)
 {
-	using namespace bvm;
+	using namespace blenvm;
 
 	PointerRNA object_ptr, base_mesh_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);
@@ -1139,9 +1140,9 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-static void init_dupli_graph(bvm::NodeGraph &graph)
+static void init_dupli_graph(blenvm::NodeGraph &graph)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	graph.add_input("dupli.object", "RNAPOINTER");
 	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
@@ -1149,7 +1150,7 @@ static void init_dupli_graph(bvm::NodeGraph &graph)
 
 struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_dupli_graph(graph);
@@ -1165,7 +1166,7 @@ struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
 
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
-	using namespace bvm;
+	using namespace blenvm;
 	
 	NodeGraph graph;
 	init_dupli_graph(graph);
@@ -1195,7 +1196,7 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
                     struct Object *object,
                     struct DupliContainer *duplicont)
 {
-	using namespace bvm;
+	using namespace blenvm;
 
 	PointerRNA object_ptr;
 	RNA_id_pointer_create((ID *)object, &object_ptr);

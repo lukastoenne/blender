@@ -32,13 +32,14 @@
 #include <cstdio>
 #include <set>
 
+#include "nodegraph.h"
+
 #include "bvm_codegen.h"
-#include "bvm_nodegraph.h"
 
-#include "bvm_util_debug.h"
-#include "bvm_util_string.h"
+#include "util_debug.h"
+#include "util_string.h"
 
-namespace bvm {
+namespace blenvm {
 
 using namespace debug;
 

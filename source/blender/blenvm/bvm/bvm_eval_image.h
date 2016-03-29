@@ -47,9 +47,9 @@ extern "C" {
 
 #include "bvm_eval_common.h"
 
-#include "bvm_util_math.h"
+#include "util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 /* nearest sampling mode */
 inline static void imbuf_sample_nearest(struct ImBuf *ibuf, const float3 &uv, float4 &color)

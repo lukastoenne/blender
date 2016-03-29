@@ -46,14 +46,15 @@ set(INC_SYS
 set(SRC
 	intern/bvm_api.cc
 
-	util/bvm_util_data_ptr.h
-	util/bvm_util_debug.h
-	util/bvm_util_hash.h
-	util/bvm_util_map.h
-	util/bvm_util_math.h
-	util/bvm_util_string.h
-	util/bvm_util_structs.h
-	util/bvm_util_thread.h
+	util/util_opcode.h
+	util/util_data_ptr.h
+	util/util_debug.h
+	util/util_hash.h
+	util/util_map.h
+	util/util_math.h
+	util/util_string.h
+	util/util_structs.h
+	util/util_thread.h
 
 	BVM_api.h
 	BVM_types.h

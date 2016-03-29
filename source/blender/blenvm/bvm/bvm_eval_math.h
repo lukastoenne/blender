@@ -39,10 +39,10 @@ extern "C" {
 
 #include "bvm_eval_common.h"
 
-#include "bvm_util_hash.h"
-#include "bvm_util_math.h"
+#include "util_hash.h"
+#include "util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 static void eval_op_matrix44_to_loc(EvalStack *stack, StackIndex offset_mat, StackIndex offset_loc)
 {

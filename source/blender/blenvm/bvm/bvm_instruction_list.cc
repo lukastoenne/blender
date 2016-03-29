@@ -31,7 +31,7 @@
 
 #include "bvm_instruction_list.h"
 
-namespace bvm {
+namespace blenvm {
 
 InstructionList::InstructionList() :
     m_entry_point(0)

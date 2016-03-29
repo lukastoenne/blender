@@ -38,12 +38,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "bvm_instruction_list.h"
-#include "bvm_opcode.h"
 #include "bvm_typedesc.h"
-#include "bvm_util_string.h"
-#include "bvm_util_thread.h"
 
-namespace bvm {
+#include "util_opcode.h"
+#include "util_string.h"
+#include "util_thread.h"
+
+namespace blenvm {
 
 struct Argument {
 	Argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :

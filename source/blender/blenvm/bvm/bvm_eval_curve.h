@@ -40,9 +40,9 @@ extern "C" {
 
 #include "bvm_eval_common.h"
 
-#include "bvm_util_math.h"
+#include "util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 static void eval_op_curve_path(EvalStack *stack,
                                StackIndex offset_object,

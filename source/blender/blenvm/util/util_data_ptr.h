@@ -41,9 +41,9 @@ extern "C" {
 #include "BKE_cdderivedmesh.h"
 }
 
-#include "bvm_util_math.h"
+#include "util_math.h"
 
-namespace bvm {
+namespace blenvm {
 
 /* generic default deleter, using 'delete' operator */
 template <typename T>
