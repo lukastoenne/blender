@@ -359,6 +359,10 @@ static void xml_read_camera(const XMLReadState& state, pugi::xml_node node)
 	xml_read_float(&cam->fisheye_fov, node, "fisheye_fov");
 	xml_read_float(&cam->fisheye_lens, node, "fisheye_lens");
 
+	xml_read_bool(&cam->use_spherical_stereo, node, "use_spherical_stereo");
+	xml_read_float(&cam->interocular_distance, node, "interocular_distance");
+	xml_read_float(&cam->convergence_distance, node, "convergence_distance");
+
 	xml_read_float(&cam->sensorwidth, node, "sensorwidth");
 	xml_read_float(&cam->sensorheight, node, "sensorheight");
 
@@ -1004,6 +1008,8 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 					fdata[2] = make_float3(UV[v2*2], UV[v2*2+1], 0.0);
 					fdata += 3;
 				}
+
+				index_offset += nverts[i];
 			}
 		}
 	}

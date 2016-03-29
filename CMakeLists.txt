@@ -362,18 +362,22 @@ if(UNIX AND NOT APPLE)
 		mark_as_advanced(WITH_BOOST_ICU)
 	endif()
 endif()
+
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
-option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
-set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
-mark_as_advanced(PYTHON_NUMPY_PATH)
+if(WITH_PYTHON_INSTALL)
+	option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
+	set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
+	mark_as_advanced(PYTHON_NUMPY_PATH)
+
+	if(UNIX AND NOT APPLE)
+		option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
+		set(PYTHON_REQUESTS_PATH "" CACHE PATH "Path to python site-packages or dist-packages containing 'requests' module")
+		mark_as_advanced(PYTHON_REQUESTS_PATH)
+	endif()
+endif()
+
 option(WITH_CPU_SSE              "Enable SIMD instruction if they're detected on the host machine" ON)
 mark_as_advanced(WITH_CPU_SSE)
-
-if(UNIX AND NOT APPLE)
-	option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
-	set(PYTHON_REQUESTS_PATH "" CACHE PATH "Path to python site-packages or dist-packages containing 'requests' module")
-	mark_as_advanced(PYTHON_REQUESTS_PATH)
-endif()
 
 # Cycles
 option(WITH_CYCLES					"Enable Cycles Render Engine" ON)
@@ -386,8 +390,10 @@ mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 option(WITH_CYCLES_LOGGING	"Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build Cycles with extra debug capabilities" OFF)
+option(WITH_CYCLES_NATIVE_ONLY	"Build Cycles with native kernel only (which fits current CPU, use for development only)" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
+mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 
 option(WITH_CUDA_DYNLOAD "Dynamically load CUDA libraries at runtime" ON)
 mark_as_advanced(WITH_CUDA_DYNLOAD)
@@ -470,8 +476,8 @@ endif()
 # Experimental support of C11 and C++11
 option(WITH_C11 "Build with C11 standard enabled, for development use only!" OFF)
 mark_as_advanced(WITH_C11)
-option(WITH_CPP11 "Build with C++11 standard enabled, for development use only!" OFF)
-mark_as_advanced(WITH_CPP11)
+option(WITH_CXX11 "Build with C++11 standard enabled, for development use only!" OFF)
+mark_as_advanced(WITH_CXX11)
 
 # Dependency graph
 option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
@@ -503,40 +509,23 @@ endif()
 # Apple
 
 if(APPLE)
-	if(${CMAKE_VERSION} VERSION_LESS 3.0) # else breaks setting CMP0043 policy
-		cmake_minimum_required(VERSION 2.8.8)
-		cmake_policy(VERSION 2.8.8)
-	endif()
+	# require newer cmake on osx because of version handling,
+	# older cmake cannot handle 2 digit subversion!
+	cmake_minimum_required(VERSION 3.0.0)
 
 	if(NOT CMAKE_OSX_ARCHITECTURES)
 		set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
 		"Choose the architecture you want to build Blender for: i386, x86_64 or ppc"
 		FORCE)
 	endif()
-	
-	execute_process(COMMAND uname -r OUTPUT_VARIABLE MAC_SYS) # check for actual system-version
-	if(${MAC_SYS} MATCHES 15)
-		set(OSX_SYSTEM 10.11)
-		# throw an error here, older cmake cannot handle 2 digit subversion!
-		cmake_minimum_required(VERSION 3.0.0)
-	elseif(${MAC_SYS} MATCHES 14)
-		set(OSX_SYSTEM 10.10)
-		# throw an error here, older cmake cannot handle 2 digit subversion!
-		cmake_minimum_required(VERSION 3.0.0)
-	elseif(${MAC_SYS} MATCHES 13)
-		set(OSX_SYSTEM 10.9)
-	elseif(${MAC_SYS} MATCHES 12)
-		set(OSX_SYSTEM 10.8)
-	elseif(${MAC_SYS} MATCHES 11)
-		set(OSX_SYSTEM 10.7)
-	elseif(${MAC_SYS} MATCHES 10)
-		set(OSX_SYSTEM 10.6)
-	elseif(${MAC_SYS} MATCHES 9)
-		set(OSX_SYSTEM 10.5)
-	else()
-		set(OSX_SYSTEM unsupported)
+
+	if(NOT DEFINED OSX_SYSTEM)
+		execute_process(
+		        COMMAND xcodebuild -version -sdk macosx SDKVersion
+		        OUTPUT_VARIABLE OSX_SYSTEM
+		        OUTPUT_STRIP_TRAILING_WHITESPACE)
 	endif()
-	
+
 	# workaround for incorrect cmake xcode lookup for developer previews - XCODE_VERSION does not take xcode-select path into accout
 	# but would always look into /Applications/Xcode.app while dev versions are named Xcode<version>-DP<preview_number>
 	execute_process(COMMAND xcode-select --print-path  OUTPUT_VARIABLE XCODE_CHECK OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -676,7 +665,7 @@ elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL O
 	# Keep enabled
 else()
 	# New dependency graph needs either Boost or C++11 for function bindings.
-	if(NOT USE_CPP11)
+	if(NOT USE_CXX11)
 		# Enabled but we don't need it
 		set(WITH_BOOST OFF)
 	endif()
@@ -719,6 +708,14 @@ else()
 	message(STATUS "SSE and SSE2 optimizations are DISABLED!")
 	set(COMPILER_SSE_FLAG)
 	set(COMPILER_SSE2_FLAG)
+endif()
+
+if(WITH_BUILDINFO)
+	find_package(Git)
+	if(NOT GIT_FOUND)
+		message(WARNING "Git was not found, disabling WITH_BUILDINFO")
+		set(WITH_BUILDINFO OFF)
+	endif()
 endif()
 
 TEST_SHARED_PTR_SUPPORT()
@@ -2892,7 +2889,7 @@ if(WITH_PYTHON)
 	endif()
 endif()
 
-if(WITH_CPP11)
+if(WITH_CXX11)
 	if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 	elseif(MSVC12)

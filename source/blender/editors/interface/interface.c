@@ -2855,14 +2855,16 @@ void ui_but_update_ex(uiBut *but, const bool validate)
 				if (but->block->flag & UI_BLOCK_LOOP) {
 					if (but->rnaprop && (RNA_property_type(but->rnaprop) == PROP_ENUM)) {
 						int value_enum = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
-						const char *buf;
-						if (RNA_property_enum_name_gettexted(
+
+						EnumPropertyItem item;
+						if (RNA_property_enum_item_from_value_gettexted(
 						        but->block->evil_C,
-						        &but->rnapoin, but->rnaprop, value_enum, &buf))
+						        &but->rnapoin, but->rnaprop, value_enum, &item))
 						{
-							size_t slen = strlen(buf);
+							size_t slen = strlen(item.name);
 							ui_but_string_free_internal(but);
-							ui_but_string_set_internal(but, buf, slen);
+							ui_but_string_set_internal(but, item.name, slen);
+							but->icon = item.icon;
 						}
 					}
 				}
@@ -3982,6 +3984,11 @@ void UI_but_flag_disable(uiBut *but, int flag)
 	but->flag &= ~flag;
 }
 
+bool UI_but_flag_is_set(uiBut *but, int flag)
+{
+	return (but->flag & flag) != 0;
+}
+
 void UI_but_drawflag_enable(uiBut *but, int flag)
 {
 	but->drawflag |= flag;
@@ -4335,7 +4342,15 @@ void UI_but_func_search_set(
 	but->search_func = search_func;
 	but->search_arg = arg;
 	
-	UI_but_func_set(but, bfunc, arg, active);
+	if (bfunc) {
+#ifdef DEBUG
+		if (but->func) {
+			/* watch this, can be cause of much confusion, see: T47691 */
+			printf("%s: warning, overwriting button callback with search function callback!\n", __func__);
+		}
+#endif
+		UI_but_func_set(but, bfunc, arg, active);
+	}
 	
 	/* search buttons show red-alert if item doesn't exist, not for menus */
 	if (0 == (but->block->flag & UI_BLOCK_LOOP)) {
