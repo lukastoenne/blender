@@ -893,7 +893,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 		glPushMatrix();
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		wmOrtho2_region_ui(ar);
+		wmOrtho2_region_pixelspace(ar);
 		glLoadIdentity();
 		
 		if (depth_write) {
@@ -7194,12 +7194,8 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
 			else {
-				/* don't show outline on 'wire' with surfaces,
-				 * don't show interior tessellation with curves */
-				drawDispListwire_ex(
-				        &ob->curve_cache->disp,
-				        (ob->type == OB_SURF) ?
-				        (DL_INDEX3 | DL_INDEX4 | DL_SURF) : (DL_SEGM | DL_POLY));
+				/* only draw 'solid' parts of the display list as wire. */
+				drawDispListwire_ex(&ob->curve_cache->disp, (DL_INDEX3 | DL_INDEX4 | DL_SURF));
 			}
 		}
 	}
@@ -8383,6 +8379,8 @@ static void bbs_mesh_solid_verts(Scene *scene, Object *ob)
 	DM_update_materials(dm, ob);
 
 	dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_object_material_bind, NULL, me, DM_DRAW_SKIP_HIDDEN);
+
+	GPU_object_material_unbind();
 
 	bbs_obmode_mesh_verts(ob, dm, 1);
 	bm_vertoffs = me->totvert + 1;

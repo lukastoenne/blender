@@ -258,6 +258,7 @@ set(BLENDER_TEXT_FILES
 	${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/copyright.txt
 	${CMAKE_SOURCE_DIR}/release/text/jemalloc-license.txt
+	${CMAKE_SOURCE_DIR}/release/text/ocio-license.txt
 	# generate this file
 	# ${CMAKE_SOURCE_DIR}/release/text/readme.html
 	${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
@@ -533,10 +534,7 @@ if(UNIX AND NOT APPLE)
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
 				DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}
 				PATTERN "__pycache__" EXCLUDE               # * any cache *
-				PATTERN "distutils" EXCLUDE                 # ./distutils
 				PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
-				PATTERN "config" EXCLUDE                    # ./config
-				PATTERN "config-*" EXCLUDE                  # ./config-*
 				PATTERN "site-packages/*" EXCLUDE           # ./site-packages/*
 				PATTERN "tkinter" EXCLUDE                   # ./tkinter
 				PATTERN "lib-dynload/_tkinter.*" EXCLUDE    # ./lib-dynload/_tkinter.co
@@ -545,6 +543,15 @@ if(UNIX AND NOT APPLE)
 				PATTERN "turtledemo" EXCLUDE                # ./turtledemo
 				PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
 			)
+
+			# Needed for distutils/pip
+			# get the last part of the include dir, will be 'python{version}{abiflag}',
+			get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
+			install(
+				FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
+				DESTINATION ${TARGETDIR_VER}/python/include/${_py_inc_suffix}
+			)
+			unset(_py_inc_suffix)
 
 			# # doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
@@ -563,7 +570,6 @@ if(UNIX AND NOT APPLE)
 					PATTERN "__pycache__" EXCLUDE           # * any cache *
 					PATTERN "*.pyc" EXCLUDE                 # * any cache *
 					PATTERN "*.pyo" EXCLUDE                 # * any cache *
-					PATTERN "distutils" EXCLUDE             # ./distutils
 					PATTERN "oldnumeric" EXCLUDE            # ./oldnumeric
 					PATTERN "doc" EXCLUDE                   # ./doc
 					PATTERN "tests" EXCLUDE                 # ./tests
@@ -588,7 +594,6 @@ if(UNIX AND NOT APPLE)
 					PATTERN "__pycache__" EXCLUDE           # * any cache *
 					PATTERN "*.pyc" EXCLUDE                 # * any cache *
 					PATTERN "*.pyo" EXCLUDE                 # * any cache *
-					PATTERN "cacert.pem" EXCLUDE            # for now we don't deal with security
 				)
 				# On some platforms requests does have extra dependencies.
 				set(_requests_deps "chardet" "urllib3")

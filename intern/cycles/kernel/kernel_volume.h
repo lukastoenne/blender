@@ -1383,7 +1383,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
 
 	Ray volume_ray = *ray;
 
-#ifdef __VOLUME_RECORD_ALL__
+#  ifdef __VOLUME_RECORD_ALL__
 	Intersection hits[2*VOLUME_STACK_SIZE];
 	uint num_hits = scene_intersect_volume_all(kg,
 	                                           &volume_ray,
@@ -1400,7 +1400,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
 			kernel_volume_stack_enter_exit(kg, &sd, stack);
 		}
 	}
-#else
+#  else
 	Intersection isect;
 	int step = 0;
 	while(step < 2 * VOLUME_STACK_SIZE &&
@@ -1415,7 +1415,7 @@ ccl_device void kernel_volume_stack_update_for_subsurface(KernelGlobals *kg,
 		volume_ray.t -= sd.ray_length;
 		++step;
 	}
-#endif
+#  endif
 }
 #endif
 

@@ -720,13 +720,19 @@ void psys_render_restore(Object *ob, ParticleSystem *psys)
 	disp = psys_get_current_display_percentage(psys);
 
 	if (disp != render_disp) {
-		PARTICLE_P;
+		/* Hair can and has to be recalculated if everything isn't displayed. */
+		if (psys->part->type == PART_HAIR) {
+			psys->recalc |= PSYS_RECALC_RESET;
+		}
+		else {
+			PARTICLE_P;
 
-		LOOP_PARTICLES {
-			if (psys_frand(psys, p) > disp)
-				pa->flag |= PARS_NO_DISP;
-			else
-				pa->flag &= ~PARS_NO_DISP;
+			LOOP_PARTICLES {
+				if (psys_frand(psys, p) > disp)
+					pa->flag |= PARS_NO_DISP;
+				else
+					pa->flag &= ~PARS_NO_DISP;
+			}
 		}
 	}
 }
@@ -1603,8 +1609,14 @@ void psys_particle_on_dm(DerivedMesh *dm_final, int from, int index, int index_d
 			normalize_v3(nor);
 		}
 
-		if (orco)
-			copy_v3_v3(orco, orcodata[mapindex]);
+		if (orco) {
+			if (orcodata) {
+				copy_v3_v3(orco, orcodata[mapindex]);
+			}
+			else {
+				copy_v3_v3(orco, vec);
+			}
+		}
 
 		if (ornor) {
 			dm_final->getVertNo(dm_final, mapindex, ornor);
@@ -3499,7 +3511,7 @@ static void get_cpa_texture(DerivedMesh *dm, ParticleSystem *psys, ParticleSetti
 					break;
 			}
 
-			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false);
+			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false, false);
 
 			if ((event & mtex->mapto) & PAMAP_ROUGH)
 				ptex->rough1 = ptex->rough2 = ptex->roughe = texture_value_blend(def, ptex->rough1, value, mtex->roughfac, blend);
@@ -3582,7 +3594,7 @@ void psys_get_texture(ParticleSimulationData *sim, ParticleData *pa, ParticleTex
 					break;
 			}
 
-			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false);
+			externtex(mtex, texvec, &value, rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL, false, false);
 
 			if ((event & mtex->mapto) & PAMAP_TIME) {
 				/* the first time has to set the base value for time regardless of blend mode */

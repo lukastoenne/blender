@@ -269,6 +269,16 @@ static void arg_py_context_restore(
 /* -------------------------------------------------------------------- */
 
 /** \name Handle Argument Callbacks
+ *
+ * \note Doc strings here are used in differently:
+ *
+ * - The `--help` message.
+ * - The man page (for Unix systems),
+ *   see: `doc/manpage/blender.1.py`
+ * - Parsed and extracted for the manual,
+ *   which converts our ad-hoc formatting to reStructuredText.
+ *   see: http://www.blender.org/manual/advanced/command_line.html
+ *
  * \{ */
 
 static const char arg_handle_print_version_doc[] =
@@ -417,7 +427,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	BLI_argsPrintOtherDoc(ba);
 
 	printf("\n");
-	printf("Experimental features:\n");
+	printf("Experimental Features:\n");
 	BLI_argsPrintArgDoc(ba, "--enable-new-depsgraph");
 
 	printf("Argument Parsing:\n");
@@ -432,7 +442,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	printf("\t# blender --background test.blend --render-frame 1 --render-output '/tmp'\n");
 	printf("\t...will not render to '/tmp' because '--render-frame 1' renders before the output path is set\n");
 	printf("\t# blender --background --render-output /tmp test.blend --render-frame 1\n");
-	printf("\t...will not render to '/tmp' because loading the blend file overwrites the render output that was set\n");
+	printf("\t...will not render to '/tmp' because loading the blend-file overwrites the render output that was set\n");
 	printf("\t# blender --background test.blend --render-output /tmp --render-frame 1\n");
 	printf("\t...works as expected.\n\n");
 
@@ -849,7 +859,7 @@ static int arg_handle_audio_set(int argc, const char **argv, void *UNUSED(data))
 static const char arg_handle_output_set_doc[] =
 "<path>\n"
 "\tSet the render path and file name.\n"
-"\tUse '//' at the start of the path to render relative to the blend file.\n"
+"\tUse '//' at the start of the path to render relative to the blend-file.\n"
 "\n"
 "\tThe '#' characters are replaced by the frame number, and used to define zero padding.\n"
 "\t* 'ani_##_test.png' becomes 'ani_01_test.png'\n"
@@ -910,7 +920,8 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
 				}
 			}
 			else {
-				printf("\nError: no blend loaded. order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
+				printf("\nError: no blend loaded. "
+				       "order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
 			}
 		}
 
@@ -925,10 +936,10 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
 static const char arg_handle_image_type_set_doc[] =
 "<format>\n"
 "\tSet the render format, Valid options are...\n"
-"\t\tTGA IRIS JPEG MOVIE IRIZ RAWTGA\n"
-"\t\tAVIRAW AVIJPEG PNG BMP FRAMESERVER\n"
+"\t\tTGA RAWTGA JPEG IRIS IRIZ\n"
+"\t\tAVIRAW AVIJPEG PNG BMP\n"
 "\t(formats that can be compiled into blender, not available on all systems)\n"
-"\t\tHDR TIFF EXR MULTILAYER MPEG AVICODEC QUICKTIME CINEON DPX DDS"
+"\t\tHDR TIFF EXR MULTILAYER MPEG FRAMESERVER QUICKTIME CINEON DPX DDS JP2"
 ;
 static int arg_handle_image_type_set(int argc, const char **argv, void *data)
 {
@@ -947,7 +958,8 @@ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
 			}
 		}
 		else {
-			printf("\nError: no blend loaded. order the arguments so '-F  / --render-format' is after the blend is loaded.\n");
+			printf("\nError: no blend loaded. "
+			       "order the arguments so '-F  / --render-format' is after the blend is loaded.\n");
 		}
 		return 1;
 	}
@@ -1043,7 +1055,8 @@ static int arg_handle_extension_set(int argc, const char **argv, void *data)
 			}
 		}
 		else {
-			printf("\nError: no blend loaded. order the arguments so '-o ' is after '-x '.\n");
+			printf("\nError: no blend loaded. "
+			       "order the arguments so '-o ' is after '-x '.\n");
 		}
 		return 1;
 	}
@@ -1540,7 +1553,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	//BLI_argsAdd(ba, pass, short_arg, long_arg, doc, cb, C);
 
 	/* end argument processing after -- */
-	BLI_argsAdd(ba, -1, "--", NULL, arg_handle_arguments_end_doc, arg_handle_arguments_end, NULL);
+	BLI_argsAdd(ba, -1, "--", NULL, CB(arg_handle_arguments_end), NULL);
 
 	/* first pass: background mode, disable python and commands that exit after usage */
 	BLI_argsAdd(ba, 1, "-h", "--help", CB(arg_handle_print_help), ba);
