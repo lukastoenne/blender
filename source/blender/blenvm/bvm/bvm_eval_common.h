@@ -177,6 +177,6 @@ inline static void stack_store_duplis(EvalStack *stack, StackIndex offset, Dupli
 	((duplis_ptr *)(&stack[offset]))->set(lb);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_COMMON_H__ */

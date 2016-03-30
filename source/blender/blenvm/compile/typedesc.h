@@ -224,6 +224,6 @@ private:
 	FieldList m_fields;
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif

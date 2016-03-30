@@ -99,6 +99,6 @@ static void eval_op_image_sample(const EvalGlobals *globals,
 	stack_store_float4(stack, offset_color, color);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_IMAGE_H__ */

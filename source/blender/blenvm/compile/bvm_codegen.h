@@ -170,6 +170,6 @@ private:
 	mutable int m_current_arg;
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_CODEGEN_H__ */

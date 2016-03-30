@@ -291,7 +291,7 @@ static void rna_globals_update(bNodeTree *ntree, blenvm::EvalGlobals *globals)
 	RNA_parameter_list_free(&list);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, bNodeTree *ntree)
 { rna_globals_update(ntree, _GLOBALS(globals)); }
@@ -868,7 +868,7 @@ static void convert_tex_node(bNodeCompiler *comp, PointerRNA *bnode_ptr)
 	}
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 static void parse_tex_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 {

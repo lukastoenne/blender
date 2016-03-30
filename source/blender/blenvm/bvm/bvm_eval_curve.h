@@ -97,6 +97,6 @@ static void eval_op_curve_path(EvalStack *stack,
 	stack_store_float(stack, offset_tilt, tilt);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_CURVE_H__ */

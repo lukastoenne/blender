@@ -208,6 +208,6 @@ inline static float sqrt_safe(float a)
 		return 0.0f;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_UTIL_MATH_H__ */

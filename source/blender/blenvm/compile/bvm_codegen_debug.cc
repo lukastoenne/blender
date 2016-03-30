@@ -295,4 +295,4 @@ void DebugGraphvizCompiler::compile_function(const NodeGraph &graph, FILE *f, co
 	m_file = NULL;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

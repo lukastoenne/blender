@@ -38,6 +38,6 @@ namespace blenvm {
 
 typedef std::string string;
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_UTIL_STRING_H__ */

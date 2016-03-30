@@ -189,6 +189,6 @@ protected:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:InstructionList")
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_INSTRUCTION_LIST_H__ */

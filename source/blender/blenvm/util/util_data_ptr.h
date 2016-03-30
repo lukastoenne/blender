@@ -309,6 +309,6 @@ inline void destroy_empty_mesh(mesh_ptr &p)
 	dm->release(dm);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif

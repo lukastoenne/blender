@@ -140,4 +140,4 @@ void Function::eval(EvalContext *context, const EvalGlobals *globals, const void
 	}
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

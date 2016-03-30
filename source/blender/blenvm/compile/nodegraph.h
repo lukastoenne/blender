@@ -426,6 +426,6 @@ const NodeInput *NodeType::add_input(const string &name,
 	return add_input(name, type, c, value_type);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif

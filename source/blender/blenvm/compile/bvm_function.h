@@ -97,6 +97,6 @@ private:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_FUNCTION_H__ */

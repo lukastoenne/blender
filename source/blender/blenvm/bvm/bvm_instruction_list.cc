@@ -52,4 +52,4 @@ void InstructionList::set_entry_point(int entry_point)
 	m_entry_point = entry_point;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

@@ -433,6 +433,6 @@ bool Value::get(T *data) const
 	return false;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif

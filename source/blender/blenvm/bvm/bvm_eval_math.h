@@ -455,6 +455,6 @@ static void eval_op_float_to_random(EvalStack *stack, uint64_t seed, StackIndex 
 	stack_store_float(stack, offset_frandom, (float)r / (0xFFFFFFFF));
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_MATH_H__ */

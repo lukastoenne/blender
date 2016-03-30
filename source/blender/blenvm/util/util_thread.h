@@ -104,6 +104,6 @@ private:
 	SpinLock m_lock;
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_UTIL_THREAD_H__ */

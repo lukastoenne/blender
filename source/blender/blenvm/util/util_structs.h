@@ -44,6 +44,6 @@ struct TransformedMesh {
 	matrix44 tfm;
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif

@@ -97,6 +97,6 @@ struct EvalContext {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
 };
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_H__ */

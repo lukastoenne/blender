@@ -2022,4 +2022,4 @@ void nodes_free()
 	destroy_empty_mesh(__empty_mesh__);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

@@ -660,4 +660,4 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 	return result;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

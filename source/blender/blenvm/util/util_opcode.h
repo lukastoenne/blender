@@ -184,6 +184,6 @@ BLI_INLINE const char *opcode_name(OpCode op)
 }
 #undef DEF_OPCODE
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_OPCODE_H__ */

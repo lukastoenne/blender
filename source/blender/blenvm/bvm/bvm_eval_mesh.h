@@ -537,6 +537,6 @@ static void eval_op_mesh_closest_point(EvalStack *stack,
 	stack_store_float3(stack, offset_tangent, tang);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_MESH_H__ */

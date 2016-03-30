@@ -33,4 +33,4 @@
 
 namespace blenvm {
 
-} /* namespace bvm */
+} /* namespace blenvm */

@@ -256,4 +256,4 @@ StructSpec* TypeDesc::make_structure()
 	return m_structure;
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

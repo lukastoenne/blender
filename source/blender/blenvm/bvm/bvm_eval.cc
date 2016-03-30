@@ -1193,4 +1193,4 @@ void EvalContext::eval_expression(const EvalGlobals *globals, const InstructionL
 		eval_instructions(globals, fn, entry_point, stack);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */

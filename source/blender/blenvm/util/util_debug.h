@@ -459,6 +459,6 @@ protected:
 #undef NL
 
 } /* namespace debug */
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif  /* __BVM_UTIL_DEBUG_H__ */

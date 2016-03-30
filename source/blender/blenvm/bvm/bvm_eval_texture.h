@@ -526,6 +526,6 @@ inline void eval_op_tex_proc_distnoise(EvalStack *stack,
 	stack_store_float3(stack, oNormal, normal);
 }
 
-} /* namespace bvm */
+} /* namespace blenvm */
 
 #endif /* __BVM_EVAL_TEXTURE_H__ */
