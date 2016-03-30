@@ -37,8 +37,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "typedesc.h"
+
 #include "bvm_instruction_list.h"
-#include "bvm_typedesc.h"
 
 #include "util_opcode.h"
 #include "util_string.h"

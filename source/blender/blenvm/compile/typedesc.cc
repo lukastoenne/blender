@@ -29,9 +29,8 @@
  *  \ingroup bvm
  */
 
+#include "typedesc.h"
 #include "value.h"
-
-#include "bvm_typedesc.h"
 
 namespace blenvm {
 

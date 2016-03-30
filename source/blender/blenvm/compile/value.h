@@ -34,7 +34,9 @@
 
 #include <vector>
 
-#include "bvm_typedesc.h" /* XXX bad level include, values should be agnostic to runtime backend! */
+#include "BVM_types.h"
+
+#include "typedesc.h"
 
 #include "util_math.h"
 #include "util_string.h"

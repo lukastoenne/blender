@@ -41,6 +41,8 @@ set(INC_SYS
 set(SRC
 	nodegraph.cc
 	nodegraph.h
+	typedesc.cc
+	typedesc.h
 	value.cc
 	value.h
 
@@ -49,8 +51,6 @@ set(SRC
 	bvm_codegen.h
 	bvm_function.h
 	bvm_function.cc
-	bvm_typedesc.cc
-	bvm_typedesc.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
