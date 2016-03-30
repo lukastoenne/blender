@@ -26,6 +26,7 @@
 set(INC
 	.
 	..
+	../modules
 	../util
 	../../blenkernel
 	../../blenlib

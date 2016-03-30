@@ -26,6 +26,7 @@
 set(INC
 	.
 	..
+	../modules
 	../util
 	../../blenkernel
 	../../blenlib
@@ -98,10 +99,10 @@ endmacro()
 
 
 set(LLVM_SRC
-	modules/test.cc
+	../modules/test.cc
 )
 set(LLVM_HEADERS
-	modules/test.h
+	../modules/test.h
 )
 
 foreach(src ${LLVM_SRC})
