@@ -720,6 +720,10 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_openvdb)
 	endif()
 
+	if(WITH_LLVM)
+		list(APPEND BLENDER_SORTED_LIBS "bf_blenvm_llvm" "bf_blenvm_llvm_modules")
+	endif()
+
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})
 		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})

@@ -23,45 +23,24 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-add_subdirectory(bvm)
-add_subdirectory(compile)
-
-if(WITH_LLVM)
-	add_subdirectory(llvm)
-endif()
-
 set(INC
 	.
-	bvm
-	compile
-	util
-	../blenkernel
-	../blenlib
-	../depsgraph
-	../makesdna
-	../makesrna
-	../render/extern/include
-	../../../intern/guardedalloc
+	..
+	../util
+	../../blenkernel
+	../../blenlib
+	../../makesdna
+	../../makesrna
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
+	${LLVM_INCLUDE_DIRS}
 )
 
 set(SRC
-	intern/bvm_api.cc
-
-	util/util_opcode.h
-	util/util_data_ptr.h
-	util/util_debug.h
-	util/util_hash.h
-	util/util_map.h
-	util/util_math.h
-	util/util_string.h
-	util/util_structs.h
-	util/util_thread.h
-
-	BVM_api.h
-	BVM_types.h
+	llvm_function.cc
+	llvm_function.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
@@ -85,4 +64,52 @@ else()
 	endif()
 endif()
 
-blender_add_lib(bf_blenvm "${SRC}" "${INC}" "${INC_SYS}")
+add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
+
+blender_add_lib(bf_blenvm_llvm "${SRC}" "${INC}" "${INC_SYS}")
+
+
+# Modules
+
+# XXX TODO
+set(LLVM_IR_COMPILER "clang-3.5")
+set(LLVM_IR_INSTALL_PATH "scripts/llvm")
+set(llvm_irs)
+
+macro(BLENVM_LLVM_MODULE_ADD src)
+	get_filename_component(llvm_name ${src} NAME_WE)
+	set(llvm_ir "${llvm_name}.ll")
+
+	add_custom_command(
+		OUTPUT ${llvm_ir}
+		COMMAND ${LLVM_IR_COMPILER}
+				-emit-llvm
+				-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+				-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
+				-I${CMAKE_CURRENT_SOURCE_DIR}/util
+				-DBJIT_RUNTIME
+				-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
+				-std=c++0x
+		DEPENDS ${LLVM_SRC})
+
+	delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
+	list(APPEND llvm_irs ${llvm_ir})
+endmacro()
+
+
+set(LLVM_SRC
+	modules/test.cc
+)
+set(LLVM_HEADERS
+	modules/test.h
+)
+
+foreach(src ${LLVM_SRC})
+	# Compile LLVM IR code
+	BLENVM_LLVM_MODULE_ADD(${src})
+endforeach()
+
+add_custom_target(bf_blenvm_llvm_modules ALL DEPENDS ${llvm_irs})
+add_dependencies(bf_blenvm_llvm bf_blenvm_llvm_modules)
+
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${LLVM_HEADERS}" ${LLVM_IR_INSTALL_PATH})
