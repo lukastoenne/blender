@@ -24,7 +24,7 @@ from bpy.app.translations import contexts as i18n_contexts
 
 
 def opengl_lamp_buttons(column, lamp):
-    split = column.split(percentage=0.1)
+    split = column.row()
 
     split.prop(lamp, "use", text="", icon='OUTLINER_OB_LAMP' if lamp.use else 'LAMP_DATA')
 
@@ -300,10 +300,10 @@ class USERPREF_PT_edit(Panel):
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")
         col.separator()
-        col.prop(edit, "use_grease_pencil_smooth_stroke", text="Smooth Stroke")
+        col.prop(edit, "grease_pencil_default_color", text="Default Color")
+        col.separator()
         col.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
         col.separator()
-        col.prop(edit, "grease_pencil_default_color", text="Default Color")
         col.separator()
         col.separator()
         col.separator()
@@ -1456,12 +1456,15 @@ class USERPREF_PT_addons(Panel):
                 # Addon UI Code
                 box = col.column().box()
                 colsub = box.column()
-                row = colsub.row()
+                row = colsub.row(align=True)
 
-                row.label(text=module_name, translate=False, icon='ERROR')
+                row.label(text="", icon='ERROR')
 
                 if is_enabled:
                     row.operator("wm.addon_disable", icon='CHECKBOX_HLT', text="", emboss=False).module = module_name
+
+                row.label(text=module_name, translate=False)
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

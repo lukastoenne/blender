@@ -1424,7 +1424,7 @@ char BKE_imtype_valid_depths(const char imtype)
 
 
 /* string is from command line --render-format arg, keep in sync with
- * creator.c help info */
+ * creator_args.c help info */
 char BKE_imtype_from_arg(const char *imtype_arg)
 {
 	if      (STREQ(imtype_arg, "TGA")) return R_IMF_IMTYPE_TARGA;
@@ -1992,7 +1992,7 @@ void BKE_image_stamp_buf(
 	BLF_wordwrap(mono, width - (BUFF_MARGIN_X * 2));
 
 	BLF_buffer(mono, rectf, rect, width, height, channels, display);
-	BLF_buffer_col(mono, scene->r.fg_stamp[0], scene->r.fg_stamp[1], scene->r.fg_stamp[2], 1.0);
+	BLF_buffer_col(mono, UNPACK4(scene->r.fg_stamp));
 	pad = BLF_width_max(mono);
 
 	/* use 'h_fixed' rather than 'h', aligns better */
