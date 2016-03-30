@@ -57,6 +57,13 @@ if(NOT LLVM_LIBPATH)
 	set(LLVM_LIBPATH ${LLVM_LIBPATH} CACHE PATH "Path to the LLVM library path")
 	mark_as_advanced(LLVM_LIBPATH)
 endif()
+if(NOT LLVM_INCLUDE_DIRS)
+	execute_process(COMMAND ${LLVM_CONFIG} --includedir
+					OUTPUT_VARIABLE LLVM_INCLUDE_DIRS
+					OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(LLVM_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS} CACHE PATH "Path to the LLVM include directory")
+	mark_as_advanced(LLVM_INCLUDE_DIRS)
+endif()
 
 if(LLVM_STATIC)
 	find_library(LLVM_LIBRARY
