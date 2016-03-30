@@ -47,6 +47,9 @@
 
 namespace blenvm {
 
+struct EvalContext;
+struct EvalGlobals;
+
 struct Argument {
 	Argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset) :
 	    typedesc(typedesc),

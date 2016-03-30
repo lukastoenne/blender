@@ -49,6 +49,8 @@ set(INC_SYS
 
 set(SRC
 	intern/bvm_api.cc
+	intern/function_cache.cc
+	intern/function_cache.h
 
 	util/util_opcode.h
 	util/util_data_ptr.h

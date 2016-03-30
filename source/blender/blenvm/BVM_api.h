@@ -48,16 +48,6 @@ void BVM_free(void);
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_function_free(struct BVMFunction *fn);
-
-struct BVMFunction *BVM_function_cache_acquire(void *key);
-void BVM_function_release(struct BVMFunction *_fn);
-void BVM_function_cache_set(void *key, struct BVMFunction *_fn);
-void BVM_function_cache_remove(void *key);
-void BVM_function_cache_clear(void);
-
-/* ------------------------------------------------------------------------- */
-
 struct BVMNodeGraph;
 struct BVMNodeInstance;
 struct BVMNodeInput;
@@ -120,6 +110,16 @@ typedef enum BVMDebugMode {
 	BVM_DEBUG_NODES_UNOPTIMIZED,
 	BVM_DEBUG_CODEGEN,
 } BVMDebugMode;
+
+/* ------------------------------------------------------------------------- */
+
+void BVM_function_free(struct BVMFunction *fn);
+
+struct BVMFunction *BVM_function_cache_acquire(void *key);
+void BVM_function_release(struct BVMFunction *_fn);
+void BVM_function_cache_set(void *key, struct BVMFunction *_fn);
+void BVM_function_cache_remove(void *key);
+void BVM_function_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
 

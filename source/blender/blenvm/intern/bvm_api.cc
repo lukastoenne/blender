@@ -55,6 +55,7 @@ extern "C" {
 #include "RNA_access.h"
 }
 
+#include "function_cache.h"
 #include "nodegraph.h"
 
 #include "bvm_codegen.h"
@@ -88,119 +89,6 @@ void BVM_free(void)
 	nodes_free();
 	
 	destroy_empty_mesh(__empty_mesh__);
-}
-
-/* ------------------------------------------------------------------------- */
-
-BLI_INLINE blenvm::Function *_FUNC(struct BVMFunction *fn)
-{ return (blenvm::Function *)fn; }
-
-void BVM_function_free(struct BVMFunction *fn)
-{ delete _FUNC(fn); }
-
-namespace blenvm {
-
-typedef unordered_map<void*, Function*> FunctionCache;
-typedef std::pair<void*, Function*> FunctionCachePair;
-
-static FunctionCache bvm_function_cache;
-static mutex bvm_function_cache_mutex;
-static spin_lock bvm_function_cache_lock = spin_lock(bvm_function_cache_mutex);
-
-} /* namespace bvm */
-
-struct BVMFunction *BVM_function_cache_acquire(void *key)
-{
-	using namespace blenvm;
-	
-	bvm_function_cache_lock.lock();
-	FunctionCache::const_iterator it = bvm_function_cache.find(key);
-	Function *fn = NULL;
-	if (it != bvm_function_cache.end()) {
-		fn = it->second;
-		Function::retain(fn);
-	}
-	bvm_function_cache_lock.unlock();
-	return (BVMFunction *)fn;
-}
-
-void BVM_function_release(BVMFunction *_fn)
-{
-	using namespace blenvm;
-	Function *fn = _FUNC(_fn);
-	
-	if (!fn)
-		return;
-	
-	Function::release(&fn);
-	
-	if (fn == NULL) {
-		bvm_function_cache_lock.lock();
-		FunctionCache::iterator it = bvm_function_cache.begin();
-		while (it != bvm_function_cache.end()) {
-			if (it->second == fn) {
-				FunctionCache::iterator it_del = it++;
-				bvm_function_cache.erase(it_del);
-			}
-			else
-				++it;
-		}
-		bvm_function_cache_lock.unlock();
-	}
-}
-
-void BVM_function_cache_set(void *key, BVMFunction *_fn)
-{
-	using namespace blenvm;
-	Function *fn = _FUNC(_fn);
-	
-	bvm_function_cache_lock.lock();
-	if (fn) {
-		FunctionCache::iterator it = bvm_function_cache.find(key);
-		if (it == bvm_function_cache.end()) {
-			Function::retain(fn);
-			bvm_function_cache.insert(FunctionCachePair(key, fn));
-		}
-		else if (fn != it->second) {
-			Function::release(&it->second);
-			Function::retain(fn);
-			it->second = fn;
-		}
-	}
-	else {
-		FunctionCache::iterator it = bvm_function_cache.find(key);
-		if (it != bvm_function_cache.end()) {
-			Function::release(&it->second);
-			bvm_function_cache.erase(it);
-		}
-	}
-	bvm_function_cache_lock.unlock();
-}
-
-void BVM_function_cache_remove(void *key)
-{
-	using namespace blenvm;
-	
-	bvm_function_cache_lock.lock();
-	FunctionCache::iterator it = bvm_function_cache.find(key);
-	if (it != bvm_function_cache.end()) {
-		Function::release(&it->second);
-		
-		bvm_function_cache.erase(it);
-	}
-	bvm_function_cache_lock.unlock();
-}
-
-void BVM_function_cache_clear(void)
-{
-	using namespace blenvm;
-	
-	bvm_function_cache_lock.lock();
-	for (FunctionCache::iterator it = bvm_function_cache.begin(); it != bvm_function_cache.end(); ++it) {
-		Function::release(&it->second);
-	}
-	bvm_function_cache.clear();
-	bvm_function_cache_lock.unlock();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -416,6 +304,39 @@ struct BVMEvalContext *BVM_context_create(void)
 
 void BVM_context_free(struct BVMEvalContext *ctx)
 { delete _CTX(ctx); }
+
+/* ------------------------------------------------------------------------- */
+
+BLI_INLINE blenvm::Function *_FUNC(struct BVMFunction *fn)
+{ return (blenvm::Function *)fn; }
+
+void BVM_function_free(struct BVMFunction *fn)
+{ delete _FUNC(fn); }
+
+struct BVMFunction *BVM_function_cache_acquire(void *key)
+{
+	return (BVMFunction *)blenvm::function_cache_acquire(key);
+}
+
+void BVM_function_release(BVMFunction *fn)
+{
+	blenvm::function_release(_FUNC(fn));
+}
+
+void BVM_function_cache_set(void *key, BVMFunction *fn)
+{
+	blenvm::function_cache_set(key, _FUNC(fn));
+}
+
+void BVM_function_cache_remove(void *key)
+{
+	blenvm::function_cache_remove(key);
+}
+
+void BVM_function_cache_clear(void)
+{
+	blenvm::function_cache_clear();
+}
 
 /* ------------------------------------------------------------------------- */
 
