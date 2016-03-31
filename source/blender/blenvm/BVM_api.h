@@ -40,11 +40,10 @@
 extern "C" {
 #endif
 
-/* XXX Stupid naming, sorry ...
- * Rationale: BVM*** is short prefix for "BlenVM" (to be changed later?).
- *            ***FunctionBVM means a function in the bvm backend implementation (see FunctionLLVM etc.)
+/* Generic handle for functions.
+ * Warning: This is used for all backends! Callers must know which backend to use!
  */
-struct BVMFunctionBVM;
+struct BVMFunction;
 
 void BVM_init(void);
 void BVM_free(void);
@@ -116,11 +115,11 @@ typedef enum BVMDebugMode {
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_function_bvm_free(struct BVMFunctionBVM *fn);
+void BVM_function_bvm_free(struct BVMFunction *fn);
 
-struct BVMFunctionBVM *BVM_function_bvm_cache_acquire(void *key);
-void BVM_function_bvm_cache_release(struct BVMFunctionBVM *_fn);
-void BVM_function_bvm_cache_set(void *key, struct BVMFunctionBVM *_fn);
+struct BVMFunction *BVM_function_bvm_cache_acquire(void *key);
+void BVM_function_bvm_cache_release(struct BVMFunction *_fn);
+void BVM_function_bvm_cache_set(void *key, struct BVMFunction *_fn);
 void BVM_function_bvm_cache_remove(void *key);
 void BVM_function_bvm_cache_clear(void);
 
@@ -129,10 +128,10 @@ void BVM_function_bvm_cache_clear(void);
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunctionBVM *BVM_gen_forcefield_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_forcefield_function(struct bNodeTree *btree);
 void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunctionBVM *fn,
+void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
                          struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
@@ -140,10 +139,10 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMFunctionBVM *BVM_gen_texture_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_texture_function(struct bNodeTree *btree);
 void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunctionBVM *fn,
+void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
@@ -153,12 +152,12 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunctionBVM *fn,
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunctionBVM *BVM_gen_modifier_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree);
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
                                       struct BVMEvalContext *context,
-                                      struct BVMFunctionBVM *fn,
+                                      struct BVMFunction *fn,
                                       struct Object *ob,
                                       struct Mesh *base_mesh);
 
@@ -166,12 +165,12 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 struct DupliContainer;
 
-struct BVMFunctionBVM *BVM_gen_dupli_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree);
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_dupli(struct BVMEvalGlobals *globals,
                     struct BVMEvalContext *context,
-                    struct BVMFunctionBVM *fn,
+                    struct BVMFunction *fn,
                     struct Object *object,
                     struct DupliContainer *duplicont);
 
