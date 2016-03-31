@@ -40,8 +40,11 @@ set(INC_SYS
 )
 
 set(SRC
+	llvm_engine.cc
+	llvm_engine.h
 	llvm_function.cc
 	llvm_function.h
+	llvm_headers.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()

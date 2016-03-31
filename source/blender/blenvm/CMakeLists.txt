@@ -28,6 +28,7 @@ add_subdirectory(compile)
 
 if(WITH_LLVM)
 	add_subdirectory(llvm)
+	add_definitions(-DWITH_LLVM)
 endif()
 
 set(INC

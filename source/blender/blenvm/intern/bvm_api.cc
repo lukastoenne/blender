@@ -62,6 +62,10 @@ extern "C" {
 #include "bvm_eval.h"
 #include "bvm_function.h"
 
+#ifdef WITH_LLVM
+#include "llvm/llvm_engine.h"
+#endif
+
 #include "util_debug.h"
 #include "util_map.h"
 #include "util_thread.h"
@@ -77,6 +81,10 @@ void BVM_init(void)
 	
 	create_empty_mesh(__empty_mesh__);
 	
+#ifdef WITH_LLVM
+	llvm_init();
+#endif
+	
 	nodes_init();
 }
 
@@ -87,6 +95,10 @@ void BVM_free(void)
 	BVM_function_cache_clear();
 	
 	nodes_free();
+	
+#ifdef WITH_LLVM
+	llvm_free();
+#endif
 	
 	destroy_empty_mesh(__empty_mesh__);
 }
