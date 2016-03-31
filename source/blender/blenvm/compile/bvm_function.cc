@@ -34,19 +34,19 @@
 
 namespace blenvm {
 
-mutex Function::users_mutex = mutex();
-spin_lock Function::users_lock = spin_lock(Function::users_mutex);
+mutex FunctionBVM::users_mutex = mutex();
+spin_lock FunctionBVM::users_lock = spin_lock(FunctionBVM::users_mutex);
 
-Function::Function() :
+FunctionBVM::FunctionBVM() :
     m_users(0)
 {
 }
 
-Function::~Function()
+FunctionBVM::~FunctionBVM()
 {
 }
 
-void Function::retain(Function *fn)
+void FunctionBVM::retain(FunctionBVM *fn)
 {
 	if (fn) {
 		users_lock.lock();
@@ -55,7 +55,7 @@ void Function::retain(Function *fn)
 	}
 }
 
-void Function::release(Function **fn)
+void FunctionBVM::release(FunctionBVM **fn)
 {
 	if (*fn) {
 		users_lock.lock();
@@ -69,17 +69,17 @@ void Function::release(Function **fn)
 	}
 }
 
-size_t Function::num_arguments() const
+size_t FunctionBVM::num_arguments() const
 {
 	return m_arguments.size();
 }
 
-const Argument &Function::argument(size_t index) const
+const Argument &FunctionBVM::argument(size_t index) const
 {
 	return m_arguments[index];
 }
 
-const Argument &Function::argument(const string &name) const
+const Argument &FunctionBVM::argument(const string &name) const
 {
 	for (ArgumentList::const_iterator it = m_arguments.begin(); it != m_arguments.end(); ++it)
 		if ((*it).name == name)
@@ -87,17 +87,17 @@ const Argument &Function::argument(const string &name) const
 	return *(m_arguments.end());
 }
 
-size_t Function::num_return_values() const
+size_t FunctionBVM::num_return_values() const
 {
 	return m_return_values.size();
 }
 
-const Argument &Function::return_value(size_t index) const
+const Argument &FunctionBVM::return_value(size_t index) const
 {
 	return m_return_values[index];
 }
 
-const Argument &Function::return_value(const string &name) const
+const Argument &FunctionBVM::return_value(const string &name) const
 {
 	for (ArgumentList::const_iterator it = m_return_values.begin(); it != m_return_values.end(); ++it)
 		if ((*it).name == name)
@@ -105,17 +105,17 @@ const Argument &Function::return_value(const string &name) const
 	return *(m_return_values.end());
 }
 
-void Function::add_argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
+void FunctionBVM::add_argument(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
 {
 	m_arguments.push_back(Argument(typedesc, name, stack_offset));
 }
 
-void Function::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
+void FunctionBVM::add_return_value(const TypeDesc &typedesc, const string &name, StackIndex stack_offset)
 {
 	m_return_values.push_back(Argument(typedesc, name, stack_offset));
 }
 
-void Function::eval(EvalContext *context, const EvalGlobals *globals, const void *arguments[], void *results[]) const
+void FunctionBVM::eval(EvalContext *context, const EvalGlobals *globals, const void *arguments[], void *results[]) const
 {
 	EvalStack stack[BVM_STACK_SIZE] = {0};
 	

@@ -286,7 +286,7 @@ void pdEndEffectors(EffectorContext *effctx)
 			if (eff->guide_data)
 				MEM_freeN(eff->guide_data);
 			if (eff->function)
-				BVM_function_free(eff->function);
+				BVM_function_bvm_free(eff->function);
 		}
 		
 		BLI_freelistN(&effctx->effectors);

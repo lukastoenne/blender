@@ -1701,10 +1701,10 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	Mesh *me = ob->data;
 	DerivedMesh *dm, *result;
 	
-	struct BVMFunction *fn = BVM_function_cache_acquire(ntree);
+	struct BVMFunctionBVM *fn = BVM_function_bvm_cache_acquire(ntree);
 	if (!fn) {
 		fn = BVM_gen_modifier_function(ntree);
-		BVM_function_cache_set(ntree, fn);
+		BVM_function_bvm_cache_set(ntree, fn);
 	}
 	
 	{
@@ -1718,7 +1718,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 		BVM_globals_free(globals);
 	}
 	
-	BVM_function_release(fn);
+	BVM_function_bvm_cache_release(fn);
 	
 	/* XXX this is stupid, but currently required because of
 	 * the unreliability of dm->needsFree ...

@@ -92,7 +92,7 @@ void BVM_free(void)
 {
 	using namespace blenvm;
 	
-	BVM_function_cache_clear();
+	BVM_function_bvm_cache_clear();
 	
 	nodes_free();
 	
@@ -319,35 +319,35 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE blenvm::Function *_FUNC(struct BVMFunctionBVM *fn)
-{ return (blenvm::Function *)fn; }
+BLI_INLINE blenvm::FunctionBVM *_FUNC(struct BVMFunctionBVM *fn)
+{ return (blenvm::FunctionBVM *)fn; }
 
-void BVM_function_free(struct BVMFunctionBVM *fn)
+void BVM_function_bvm_free(struct BVMFunctionBVM *fn)
 { delete _FUNC(fn); }
 
-struct BVMFunctionBVM *BVM_function_cache_acquire(void *key)
+struct BVMFunctionBVM *BVM_function_bvm_cache_acquire(void *key)
 {
-	return (BVMFunctionBVM *)blenvm::function_cache_acquire(key);
+	return (BVMFunctionBVM *)blenvm::function_bvm_cache_acquire(key);
 }
 
-void BVM_function_release(BVMFunctionBVM *fn)
+void BVM_function_bvm_cache_release(BVMFunctionBVM *fn)
 {
-	blenvm::function_release(_FUNC(fn));
+	blenvm::function_bvm_cache_release(_FUNC(fn));
 }
 
-void BVM_function_cache_set(void *key, BVMFunctionBVM *fn)
+void BVM_function_bvm_cache_set(void *key, BVMFunctionBVM *fn)
 {
-	blenvm::function_cache_set(key, _FUNC(fn));
+	blenvm::function_bvm_cache_set(key, _FUNC(fn));
 }
 
-void BVM_function_cache_remove(void *key)
+void BVM_function_bvm_cache_remove(void *key)
 {
-	blenvm::function_cache_remove(key);
+	blenvm::function_bvm_cache_remove(key);
 }
 
-void BVM_function_cache_clear(void)
+void BVM_function_bvm_cache_clear(void)
 {
-	blenvm::function_cache_clear();
+	blenvm::function_bvm_cache_clear();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -394,8 +394,8 @@ struct BVMFunctionBVM *BVM_gen_forcefield_function(bNodeTree *btree)
 	graph.finalize();
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.compile_function(graph);
-	Function::retain(fn);
+	FunctionBVM *fn = compiler.compile_function(graph);
+	FunctionBVM::retain(fn);
 	
 	return (BVMFunctionBVM *)fn;
 }
@@ -934,8 +934,8 @@ struct BVMFunctionBVM *BVM_gen_texture_function(bNodeTree *btree)
 	graph.finalize();
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.compile_function(graph);
-	Function::retain(fn);
+	FunctionBVM *fn = compiler.compile_function(graph);
+	FunctionBVM::retain(fn);
 	
 	return (BVMFunctionBVM *)fn;
 }
@@ -1017,8 +1017,8 @@ struct BVMFunctionBVM *BVM_gen_modifier_function(struct bNodeTree *btree)
 	graph.finalize();
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.compile_function(graph);
-	Function::retain(fn);
+	FunctionBVM *fn = compiler.compile_function(graph);
+	FunctionBVM::retain(fn);
 	
 	return (BVMFunctionBVM *)fn;
 }
@@ -1091,8 +1091,8 @@ struct BVMFunctionBVM *BVM_gen_dupli_function(struct bNodeTree *btree)
 	graph.finalize();
 	
 	BVMCompiler compiler;
-	Function *fn = compiler.compile_function(graph);
-	Function::retain(fn);
+	FunctionBVM *fn = compiler.compile_function(graph);
+	FunctionBVM::retain(fn);
 	
 	return (BVMFunctionBVM *)fn;
 }

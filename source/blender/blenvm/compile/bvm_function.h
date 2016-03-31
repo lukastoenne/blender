@@ -64,14 +64,14 @@ struct Argument {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:ReturnValue")
 };
 
-struct Function : public InstructionList {
+struct FunctionBVM : public InstructionList {
 	typedef std::vector<Argument> ArgumentList;
 	
-	Function();
-	~Function();
+	FunctionBVM();
+	~FunctionBVM();
 	
-	static void retain(Function *fn);
-	static void release(Function **fn);
+	static void retain(FunctionBVM *fn);
+	static void release(FunctionBVM **fn);
 	
 	size_t num_return_values() const;
 	const Argument &return_value(size_t index) const;

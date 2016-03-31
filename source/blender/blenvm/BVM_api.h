@@ -116,13 +116,13 @@ typedef enum BVMDebugMode {
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_function_free(struct BVMFunctionBVM *fn);
+void BVM_function_bvm_free(struct BVMFunctionBVM *fn);
 
-struct BVMFunctionBVM *BVM_function_cache_acquire(void *key);
-void BVM_function_release(struct BVMFunctionBVM *_fn);
-void BVM_function_cache_set(void *key, struct BVMFunctionBVM *_fn);
-void BVM_function_cache_remove(void *key);
-void BVM_function_cache_clear(void);
+struct BVMFunctionBVM *BVM_function_bvm_cache_acquire(void *key);
+void BVM_function_bvm_cache_release(struct BVMFunctionBVM *_fn);
+void BVM_function_bvm_cache_set(void *key, struct BVMFunctionBVM *_fn);
+void BVM_function_bvm_cache_remove(void *key);
+void BVM_function_bvm_cache_clear(void);
 
 /* ------------------------------------------------------------------------- */
 

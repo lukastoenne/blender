@@ -36,16 +36,15 @@
 
 namespace blenvm {
 
-struct Function;
+struct FunctionBVM;
 
-typedef unordered_map<void*, Function*> FunctionCache;
-typedef std::pair<void*, Function*> FunctionCachePair;
+typedef unordered_map<void*, FunctionBVM*> FunctionBVMCache;
 
-Function *function_cache_acquire(void *key);
-void function_release(Function *fn);
-void function_cache_set(void *key, Function *fn);
-void function_cache_remove(void *key);
-void function_cache_clear(void);
+FunctionBVM *function_bvm_cache_acquire(void *key);
+void function_bvm_cache_release(FunctionBVM *fn);
+void function_bvm_cache_set(void *key, FunctionBVM *fn);
+void function_bvm_cache_remove(void *key);
+void function_bvm_cache_clear(void);
 
 } /* namespace blenvm */
 

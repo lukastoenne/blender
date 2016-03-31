@@ -46,7 +46,7 @@
 
 namespace blenvm {
 
-struct Function;
+struct FunctionBVM;
 struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
@@ -114,7 +114,7 @@ struct BVMCompiler : public Compiler {
 	BVMCompiler();
 	~BVMCompiler();
 	
-	Function *compile_function(const NodeGraph &graph);
+	FunctionBVM *compile_function(const NodeGraph &graph);
 	
 protected:
 	void push_opcode(OpCode op) const;
@@ -131,7 +131,7 @@ protected:
 	int current_address() const;
 	
 private:
-	Function *fn;
+	FunctionBVM *fn;
 };
 
 struct DebugGraphvizCompiler : public Compiler {

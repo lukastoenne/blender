@@ -1689,6 +1689,6 @@ void BKE_texture_get_value(
 
 void BKE_texture_invalidate(EvaluationContext *UNUSED(eval_ctx), Tex *tex)
 {
-	BVM_function_cache_remove(tex->nodetree);
+	BVM_function_bvm_cache_remove(tex->nodetree);
 }
 

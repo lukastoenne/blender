@@ -622,11 +622,11 @@ int BVMCompiler::current_address() const
 	return fn->get_instruction_count();
 }
 
-Function *BVMCompiler::compile_function(const NodeGraph &graph)
+FunctionBVM *BVMCompiler::compile_function(const NodeGraph &graph)
 {
 	resolve_symbols(graph);
 	
-	fn = new Function();
+	fn = new FunctionBVM();
 	
 	int entry_point = codegen_graph(graph);
 	fn->set_entry_point(entry_point);
@@ -655,7 +655,7 @@ Function *BVMCompiler::compile_function(const NodeGraph &graph)
 		fn->add_return_value(output.typedesc, output.name, stack_index);
 	}
 	
-	Function *result = fn;
+	FunctionBVM *result = fn;
 	fn = NULL;
 	return result;
 }
