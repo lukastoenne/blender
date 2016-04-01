@@ -37,13 +37,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "function.h"
 #include "typedesc.h"
 
 #include "bvm_instruction_list.h"
 
 #include "util_opcode.h"
 #include "util_string.h"
-#include "util_thread.h"
 
 namespace blenvm {
 
@@ -64,14 +64,11 @@ struct Argument {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:ReturnValue")
 };
 
-struct FunctionBVM : public InstructionList {
+struct FunctionBVM : public Function, public InstructionList {
 	typedef std::vector<Argument> ArgumentList;
 	
 	FunctionBVM();
 	~FunctionBVM();
-	
-	static void retain(FunctionBVM *fn);
-	static void release(FunctionBVM **fn);
 	
 	size_t num_return_values() const;
 	const Argument &return_value(size_t index) const;
@@ -89,12 +86,7 @@ private:
 	ArgumentList m_arguments;
 	ArgumentList m_return_values;
 	
-	int m_users;
-	
-	static mutex users_mutex;
-	static spin_lock users_lock;
-	
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:FunctionBVM")
 };
 
 } /* namespace blenvm */

@@ -25,35 +25,39 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __FUNCTION_CACHE_H__
-#define __FUNCTION_CACHE_H__
+#ifndef __FUNCTION_H__
+#define __FUNCTION_H__
 
-/** \file function_cache.h
+/** \file function.h
  *  \ingroup blenvm
  */
 
-#include "util_map.h"
+#include "MEM_guardedalloc.h"
+
+#include "util_thread.h"
 
 namespace blenvm {
 
-struct FunctionBVM;
-
-FunctionBVM *function_bvm_cache_acquire(void *key);
-void function_bvm_cache_release(FunctionBVM *fn);
-void function_bvm_cache_set(void *key, FunctionBVM *fn);
-void function_bvm_cache_remove(void *key);
-void function_bvm_cache_clear(void);
-
-#ifdef WITH_LLVM
-struct FunctionLLVM;
-
-FunctionLLVM *function_llvm_cache_acquire(void *key);
-void function_llvm_cache_release(FunctionLLVM *fn);
-void function_llvm_cache_set(void *key, FunctionLLVM *fn);
-void function_llvm_cache_remove(void *key);
-void function_llvm_cache_clear(void);
-#endif
+struct Function {
+	Function();
+	~Function();
+	
+	/* Increment user count */
+	static void retain(Function *fn);
+	/* Decrement user count.
+	 * Caller should delete the function if result is True!
+	 */
+	static bool release(Function *fn);
+	
+private:
+	int m_users;
+	
+	static mutex users_mutex;
+	static spin_lock users_lock;
+	
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
+};
 
 } /* namespace blenvm */
 
-#endif /* __FUNCTION_CACHE_H__ */
+#endif /* __FUNCTION_H__ */

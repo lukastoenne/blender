@@ -27,6 +27,7 @@ set(INC
 	.
 	..
 	../bvm
+	../intern
 	../util
 	../../blenkernel
 	../../blenlib

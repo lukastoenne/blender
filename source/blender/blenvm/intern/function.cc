@@ -25,35 +25,48 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __FUNCTION_CACHE_H__
-#define __FUNCTION_CACHE_H__
-
-/** \file function_cache.h
+/** \file blender/blenvm/intern/function.cc
  *  \ingroup blenvm
  */
 
-#include "util_map.h"
+#include <assert.h>
+
+#include "function.h"
 
 namespace blenvm {
 
-struct FunctionBVM;
+mutex Function::users_mutex = mutex();
+spin_lock Function::users_lock = spin_lock(Function::users_mutex);
 
-FunctionBVM *function_bvm_cache_acquire(void *key);
-void function_bvm_cache_release(FunctionBVM *fn);
-void function_bvm_cache_set(void *key, FunctionBVM *fn);
-void function_bvm_cache_remove(void *key);
-void function_bvm_cache_clear(void);
+Function::Function() :
+    m_users(0)
+{
+}
 
-#ifdef WITH_LLVM
-struct FunctionLLVM;
+Function::~Function()
+{
+}
 
-FunctionLLVM *function_llvm_cache_acquire(void *key);
-void function_llvm_cache_release(FunctionLLVM *fn);
-void function_llvm_cache_set(void *key, FunctionLLVM *fn);
-void function_llvm_cache_remove(void *key);
-void function_llvm_cache_clear(void);
-#endif
+void Function::retain(Function *fn)
+{
+	if (fn) {
+		users_lock.lock();
+		++fn->m_users;
+		users_lock.unlock();
+	}
+}
+
+bool Function::release(Function *fn)
+{
+	bool released = false;
+	if (fn) {
+		users_lock.lock();
+		assert(fn->m_users > 0);
+		--fn->m_users;
+		released = (fn->m_users == 0);
+		users_lock.unlock();
+	}
+	return released;
+}
 
 } /* namespace blenvm */
-
-#endif /* __FUNCTION_CACHE_H__ */

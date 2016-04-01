@@ -32,10 +32,21 @@
  *  \ingroup llvm
  */
 
+#include "MEM_guardedalloc.h"
+
+#include "function.h"
+
+#include "llvm_engine.h"
+
 #include "util_opcode.h"
 
 namespace blenvm {
 
+struct FunctionLLVM : public Function {
+	uint64_t address;
+	
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:FunctionLLVM")
+};
 
 } /* namespace blenvm */
 

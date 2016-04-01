@@ -35,6 +35,8 @@ set(INC
 	.
 	bvm
 	compile
+	llvm
+	intern
 	util
 	../blenkernel
 	../blenlib
@@ -50,6 +52,8 @@ set(INC_SYS
 
 set(SRC
 	intern/bvm_api.cc
+	intern/function.cc
+	intern/function.h
 	intern/function_cache.cc
 	intern/function_cache.h
 

@@ -34,39 +34,12 @@
 
 namespace blenvm {
 
-mutex FunctionBVM::users_mutex = mutex();
-spin_lock FunctionBVM::users_lock = spin_lock(FunctionBVM::users_mutex);
-
-FunctionBVM::FunctionBVM() :
-    m_users(0)
+FunctionBVM::FunctionBVM()
 {
 }
 
 FunctionBVM::~FunctionBVM()
 {
-}
-
-void FunctionBVM::retain(FunctionBVM *fn)
-{
-	if (fn) {
-		users_lock.lock();
-		++fn->m_users;
-		users_lock.unlock();
-	}
-}
-
-void FunctionBVM::release(FunctionBVM **fn)
-{
-	if (*fn) {
-		users_lock.lock();
-		assert((*fn)->m_users > 0);
-		--(*fn)->m_users;
-		if ((*fn)->m_users == 0) {
-			delete *fn;
-			*fn = NULL;
-		}
-		users_lock.unlock();
-	}
 }
 
 size_t FunctionBVM::num_arguments() const

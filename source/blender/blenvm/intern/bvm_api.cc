@@ -64,6 +64,7 @@ extern "C" {
 
 #ifdef WITH_LLVM
 #include "llvm/llvm_engine.h"
+#include "llvm/llvm_function.h"
 #endif
 
 #include "util_debug.h"
@@ -319,11 +320,11 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 
 /* ------------------------------------------------------------------------- */
 
-BLI_INLINE blenvm::FunctionBVM *_FUNC(struct BVMFunction *fn)
+BLI_INLINE blenvm::FunctionBVM *_FUNC_BVM(struct BVMFunction *fn)
 { return (blenvm::FunctionBVM *)fn; }
 
 void BVM_function_bvm_free(struct BVMFunction *fn)
-{ delete _FUNC(fn); }
+{ delete _FUNC_BVM(fn); }
 
 struct BVMFunction *BVM_function_bvm_cache_acquire(void *key)
 {
@@ -332,12 +333,12 @@ struct BVMFunction *BVM_function_bvm_cache_acquire(void *key)
 
 void BVM_function_bvm_cache_release(BVMFunction *fn)
 {
-	blenvm::function_bvm_cache_release(_FUNC(fn));
+	blenvm::function_bvm_cache_release(_FUNC_BVM(fn));
 }
 
 void BVM_function_bvm_cache_set(void *key, BVMFunction *fn)
 {
-	blenvm::function_bvm_cache_set(key, _FUNC(fn));
+	blenvm::function_bvm_cache_set(key, _FUNC_BVM(fn));
 }
 
 void BVM_function_bvm_cache_remove(void *key)
@@ -349,6 +350,42 @@ void BVM_function_bvm_cache_clear(void)
 {
 	blenvm::function_bvm_cache_clear();
 }
+
+#ifdef WITH_LLVM
+BLI_INLINE blenvm::FunctionLLVM *_FUNC_LLVM(struct BVMFunction *fn)
+{ return (blenvm::FunctionLLVM *)fn; }
+
+struct BVMFunction *BVM_function_llvm_cache_acquire(void *key)
+{
+	return (BVMFunction *)blenvm::function_llvm_cache_acquire(key);
+}
+
+void BVM_function_llvm_cache_release(BVMFunction *fn)
+{
+	blenvm::function_llvm_cache_release(_FUNC_LLVM(fn));
+}
+
+void BVM_function_llvm_cache_set(void *key, BVMFunction *fn)
+{
+	blenvm::function_llvm_cache_set(key, _FUNC_LLVM(fn));
+}
+
+void BVM_function_llvm_cache_remove(void *key)
+{
+	blenvm::function_llvm_cache_remove(key);
+}
+
+void BVM_function_llvm_cache_clear(void)
+{
+	blenvm::function_llvm_cache_clear();
+}
+#else
+struct BVMFunction *BVM_function_llvm_cache_acquire(void */*key*/) { return NULL; }
+void BVM_function_llvm_cache_release(BVMFunction */*fn*/) {}
+void BVM_function_llvm_cache_set(void */*key*/, BVMFunction */*fn*/) {}
+void BVM_function_llvm_cache_remove(void */*key*/) {}
+void BVM_function_llvm_cache_clear(void) {}
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -435,7 +472,7 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 	const void *args[] = { &object_ptr, point->loc, point->vel };
 	void *results[] = { force, impulse };
 	
-	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
+	_FUNC_BVM(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -979,7 +1016,7 @@ void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	const void *args[] = { coord, dxt, dyt, &cfra, &osatex };
 	void *results[] = { &color.x, &normal.x };
 	
-	_FUNC(fn)->eval(_CTX(ctx), &globals, args, results);
+	_FUNC_BVM(fn)->eval(_CTX(ctx), &globals, args, results);
 	
 	target->tr = color.x;
 	target->tg = color.y;
@@ -1063,7 +1100,7 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 	const void *args[] = { &object_ptr, &base_mesh_ptr };
 	void *results[] = { &result };
 	
-	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
+	_FUNC_BVM(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
 	DerivedMesh *dm = result.get();
 	/* destroy the pointer variable */
@@ -1138,7 +1175,7 @@ void BVM_eval_dupli(struct BVMEvalGlobals *globals,
 	duplis_ptr result;
 	void *results[] = { &result };
 	
-	_FUNC(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
+	_FUNC_BVM(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
 	DupliList *duplis = result.get();
 	if (duplis) {
