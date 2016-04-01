@@ -1155,7 +1155,7 @@ static void make_duplis_nodetree(struct bNodeTree *ntree, const DupliContext *du
 {
 	struct BVMFunction *fn = BVM_function_bvm_cache_acquire(ntree);
 	if (!fn) {
-		fn = BVM_gen_dupli_function(ntree);
+		fn = BVM_gen_dupli_function_bvm(ntree);
 		BVM_function_bvm_cache_set(ntree, fn);
 	}
 	
@@ -1164,7 +1164,7 @@ static void make_duplis_nodetree(struct bNodeTree *ntree, const DupliContext *du
 		BVM_globals_add_nodetree_relations(globals, ntree);
 		
 		struct BVMEvalContext *context = BVM_context_create();
-		BVM_eval_dupli(globals, context, fn, dupctx->object, get_dupli_container(dupctx));
+		BVM_eval_dupli_bvm(globals, context, fn, dupctx->object, get_dupli_container(dupctx));
 		BVM_context_free(context);
 		
 		BVM_globals_free(globals);

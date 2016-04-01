@@ -134,10 +134,10 @@ void BVM_function_llvm_cache_clear(void);
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunction *BVM_gen_forcefield_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree);
 void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
+void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
                          struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
@@ -145,10 +145,10 @@ void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *
 struct Tex;
 struct TexResult;
 
-struct BVMFunction *BVM_gen_texture_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_texture_function_bvm(struct bNodeTree *btree);
 void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
+void BVM_eval_texture_bvm(struct BVMEvalContext *context, struct BVMFunction *fn,
                       struct TexResult *target,
                       float coord[3], float dxt[3], float dyt[3], int osatex,
                       short which_output, int cfra, int preview);
@@ -158,10 +158,10 @@ void BVM_eval_texture(struct BVMEvalContext *context, struct BVMFunction *fn,
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree);
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
+struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
                                       struct BVMEvalContext *context,
                                       struct BVMFunction *fn,
                                       struct Object *ob,
@@ -171,10 +171,10 @@ struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
 
 struct DupliContainer;
 
-struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree);
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_dupli(struct BVMEvalGlobals *globals,
+void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
                     struct BVMEvalContext *context,
                     struct BVMFunction *fn,
                     struct Object *object,

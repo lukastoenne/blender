@@ -421,7 +421,7 @@ static void init_forcefield_graph(blenvm::NodeGraph &graph)
 	graph.add_output("impulse", "FLOAT3", zero);
 }
 
-struct BVMFunction *BVM_gen_forcefield_function(bNodeTree *btree)
+struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree)
 {
 	using namespace blenvm;
 	
@@ -462,8 +462,9 @@ void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *
 	}
 }
 
-void BVM_eval_forcefield(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
-                         struct Object *effob, const EffectedPoint *point, float force[3], float impulse[3])
+void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
+                             struct Object *effob, const EffectedPoint *point,
+                             float force[3], float impulse[3])
 {
 	using namespace blenvm;
 	
@@ -961,7 +962,7 @@ static void init_texture_graph(blenvm::NodeGraph &graph)
 	graph.add_output("normal", "FLOAT3", N);
 }
 
-struct BVMFunction *BVM_gen_texture_function(bNodeTree *btree)
+struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree)
 {
 	using namespace blenvm;
 	
@@ -1002,10 +1003,10 @@ void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *lab
 	}
 }
 
-void BVM_eval_texture(struct BVMEvalContext *ctx, struct BVMFunction *fn,
-                      struct TexResult *target,
-                      float coord[3], float dxt[3], float dyt[3], int osatex,
-                      short which_output, int cfra, int UNUSED(preview))
+void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
+                          struct TexResult *target,
+                          float coord[3], float dxt[3], float dyt[3], int osatex,
+                          short which_output, int cfra, int UNUSED(preview))
 {
 	using namespace blenvm;
 	
@@ -1044,7 +1045,7 @@ static void init_modifier_graph(blenvm::NodeGraph &graph)
 	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
-struct BVMFunction *BVM_gen_modifier_function(struct bNodeTree *btree)
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree)
 {
 	using namespace blenvm;
 	
@@ -1085,11 +1086,11 @@ void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const c
 	}
 }
 
-struct DerivedMesh *BVM_eval_modifier(struct BVMEvalGlobals *globals,
-                                      struct BVMEvalContext *ctx,
-                                      struct BVMFunction *fn,
-                                      struct Object *object,
-                                      struct Mesh *base_mesh)
+struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
+                                          struct BVMEvalContext *ctx,
+                                          struct BVMFunction *fn,
+                                          struct Object *object,
+                                          struct Mesh *base_mesh)
 {
 	using namespace blenvm;
 
@@ -1118,7 +1119,7 @@ static void init_dupli_graph(blenvm::NodeGraph &graph)
 	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
 }
 
-struct BVMFunction *BVM_gen_dupli_function(struct bNodeTree *btree)
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree)
 {
 	using namespace blenvm;
 	
@@ -1160,11 +1161,11 @@ void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char
 	}
 }
 
-void BVM_eval_dupli(struct BVMEvalGlobals *globals,
-                    struct BVMEvalContext *ctx,
-                    struct BVMFunction *fn,
-                    struct Object *object,
-                    struct DupliContainer *duplicont)
+void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
+                        struct BVMEvalContext *ctx,
+                        struct BVMFunction *fn,
+                        struct Object *object,
+                        struct DupliContainer *duplicont)
 {
 	using namespace blenvm;
 

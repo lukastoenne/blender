@@ -215,7 +215,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 					BVM_globals_add_nodetree_relations(effctx->eval_globals, ff_ntree);
 					
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->function = BVM_gen_forcefield_function(ff_ntree);
+					eff->function = BVM_gen_forcefield_function_bvm(ff_ntree);
 				}
 				
 				break;
@@ -1028,7 +1028,7 @@ void pdDoEffectors(struct EffectorContext *effctx, ListBase *colliders, Effector
 
 		for (; p<tot; p+=step) {
 			if (eff->function) {
-				BVM_eval_forcefield(effctx->eval_globals, eval_context, eff->function, eff->ob, point, force, impulse);
+				BVM_eval_forcefield_bvm(effctx->eval_globals, eval_context, eff->function, eff->ob, point, force, impulse);
 			}
 			else if (get_effector_data(eff, &efd, point, 0)) {
 				efd.falloff= effector_falloff(eff, &efd, point, weights);

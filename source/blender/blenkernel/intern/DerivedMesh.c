@@ -1703,7 +1703,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	
 	struct BVMFunction *fn = BVM_function_bvm_cache_acquire(ntree);
 	if (!fn) {
-		fn = BVM_gen_modifier_function(ntree);
+		fn = BVM_gen_modifier_function_bvm(ntree);
 		BVM_function_bvm_cache_set(ntree, fn);
 	}
 	
@@ -1712,7 +1712,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 		BVM_globals_add_nodetree_relations(globals, ntree);
 		
 		struct BVMEvalContext *context = BVM_context_create();
-		dm = BVM_eval_modifier(globals, context, fn, ob, me);
+		dm = BVM_eval_modifier_bvm(globals, context, fn, ob, me);
 		BVM_context_free(context);
 		
 		BVM_globals_free(globals);
