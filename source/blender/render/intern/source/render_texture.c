@@ -1122,23 +1122,17 @@ static int multitex(Tex *tex,
 	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
-		struct BVMFunction *fn = BVM_function_bvm_cache_acquire(tex->nodetree);
-		if (!fn) {
-			fn = BVM_gen_texture_function_bvm(tex->nodetree);
-			BVM_function_bvm_cache_set(tex->nodetree, fn);
-		}
-		
+		struct BVMFunction *fn = BVM_gen_texture_function_llvm(tex->nodetree, true);
 		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			
-			BVM_eval_texture_bvm(context, fn, texres, texvec, dxt, dyt, osatex, which_output,
-			                 R.r.cfra, texnode_preview);
+			BVM_eval_texture_llvm(context, fn, texres, texvec, dxt, dyt, osatex, which_output,
+			                      R.r.cfra, texnode_preview);
 			retval = TEX_INT | TEX_RGB | TEX_NOR;
 			
 			BVM_context_free(context);
+			BVM_function_llvm_release(fn);
 		}
-		
-		BVM_function_bvm_cache_release(fn);
 	}
 	else {
 		switch (tex->type) {

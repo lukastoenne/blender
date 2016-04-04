@@ -25,85 +25,49 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_UTIL_THREAD_H__
-#define __BVM_UTIL_THREAD_H__
+#ifndef __LLVM_CODEGEN_H__
+#define __LLVM_CODEGEN_H__
 
-/** \file bvm_util_thread.h
- *  \ingroup bvm
+/** \file llvm_codegen.h
+ *  \ingroup llvm
  */
 
-extern "C" {
-#include "BLI_threads.h"
+#include <set>
+#include <vector>
+
+#include "MEM_guardedalloc.h"
+
+#include "nodegraph.h"
+
+#include "util_opcode.h"
+#include "util_string.h"
+
+namespace llvm {
+class Function;
+class FunctionType;
+class Module;
+class Type;
 }
 
 namespace blenvm {
 
-struct mutex {
-	mutex()
-	{
-		BLI_mutex_init(&m);
-	}
-	
-	~mutex()
-	{
-		BLI_mutex_end(&m);
-	}
-	
-	void lock()
-	{
-		BLI_mutex_lock(&m);
-	}
-	
-	void unlock()
-	{
-		BLI_mutex_unlock(&m);
-	}
-	
-private:
-	ThreadMutex m;
-};
+struct NodeGraph;
+struct NodeInstance;
+struct TypeDesc;
+struct FunctionLLVM;
 
-struct scoped_lock {
-	scoped_lock(mutex &m_) :
-	    m(&m_)
-	{
-		m->lock();
-	}
+struct LLVMCompiler {
+	LLVMCompiler();
+	~LLVMCompiler();
 	
-	~scoped_lock()
-	{
-		m->unlock();
-	}
+	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph);
 	
-private:
-	mutex *m;
-};
-
-struct spin_lock {
-	spin_lock()
-	{
-		BLI_spin_init(&m_lock);
-	}
-	
-	~spin_lock()
-	{
-		BLI_spin_end(&m_lock);
-	}
-	
-	void lock()
-	{
-		BLI_spin_lock(&m_lock);
-	}
-	
-	void unlock()
-	{
-		BLI_spin_unlock(&m_lock);
-	}
-	
-private:
-	SpinLock m_lock;
+protected:
+	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
+	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module);
+	llvm::Type *codegen_typedesc(TypeDesc *td);
 };
 
 } /* namespace blenvm */
 
-#endif /* __BVM_UTIL_THREAD_H__ */
+#endif /* __LLVM_CODEGEN_H__ */

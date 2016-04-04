@@ -32,10 +32,16 @@
  *  \ingroup llvm
  */
 
+namespace llvm {
+class ExecutionEngine;
+}
+
 namespace blenvm {
 
 void llvm_init();
 void llvm_free();
+
+llvm::ExecutionEngine *llvm_execution_engine();
 
 } /* namespace blenvm */
 

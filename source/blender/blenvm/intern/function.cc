@@ -33,21 +33,22 @@
 
 #include "function.h"
 
+#include "util_thread.h"
+
 namespace blenvm {
 
-mutex Function::users_mutex = mutex();
-spin_lock Function::users_lock = spin_lock(Function::users_mutex);
+static spin_lock users_lock = spin_lock();
 
-Function::Function() :
+FunctionBase::FunctionBase() :
     m_users(0)
 {
 }
 
-Function::~Function()
+FunctionBase::~FunctionBase()
 {
 }
 
-void Function::retain(Function *fn)
+void FunctionBase::retain(FunctionBase *fn)
 {
 	if (fn) {
 		users_lock.lock();
@@ -56,7 +57,7 @@ void Function::retain(Function *fn)
 	}
 }
 
-bool Function::release(Function *fn)
+bool FunctionBase::release(FunctionBase *fn)
 {
 	bool released = false;
 	if (fn) {

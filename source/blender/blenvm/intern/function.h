@@ -34,26 +34,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "util_thread.h"
-
 namespace blenvm {
 
-struct Function {
-	Function();
-	~Function();
+struct FunctionBase {
+	FunctionBase();
+	~FunctionBase();
 	
 	/* Increment user count */
-	static void retain(Function *fn);
+	static void retain(FunctionBase *fn);
 	/* Decrement user count.
 	 * Caller should delete the function if result is True!
 	 */
-	static bool release(Function *fn);
+	static bool release(FunctionBase *fn);
 	
 private:
 	int m_users;
-	
-	static mutex users_mutex;
-	static spin_lock users_lock;
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:Function")
 };

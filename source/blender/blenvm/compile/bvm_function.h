@@ -64,7 +64,7 @@ struct Argument {
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:ReturnValue")
 };
 
-struct FunctionBVM : public Function, public InstructionList {
+struct FunctionBVM : public FunctionBase, public InstructionList {
 	typedef std::vector<Argument> ArgumentList;
 	
 	FunctionBVM();

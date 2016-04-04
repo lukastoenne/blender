@@ -123,11 +123,7 @@ void BVM_function_bvm_cache_set(void *key, struct BVMFunction *fn);
 void BVM_function_bvm_cache_remove(void *key);
 void BVM_function_bvm_cache_clear(void);
 
-struct BVMFunction *BVM_function_llvm_cache_acquire(void *key);
-void BVM_function_llvm_cache_release(struct BVMFunction *fn);
-void BVM_function_llvm_cache_set(void *key, struct BVMFunction *fn);
-void BVM_function_llvm_cache_remove(void *key);
-void BVM_function_llvm_cache_clear(void);
+void BVM_function_llvm_release(struct BVMFunction *fn);
 
 /* ------------------------------------------------------------------------- */
 
@@ -145,13 +141,19 @@ void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalConte
 struct Tex;
 struct TexResult;
 
-struct BVMFunction *BVM_gen_texture_function_bvm(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_texture_function_bvm(struct bNodeTree *btree, bool use_cache);
+struct BVMFunction *BVM_gen_texture_function_llvm(struct bNodeTree *btree, bool use_cache);
+
 void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_texture_bvm(struct BVMEvalContext *context, struct BVMFunction *fn,
-                      struct TexResult *target,
-                      float coord[3], float dxt[3], float dyt[3], int osatex,
-                      short which_output, int cfra, int preview);
+                          struct TexResult *target,
+                          float coord[3], float dxt[3], float dyt[3], int osatex,
+                          short which_output, int cfra, int preview);
+void BVM_eval_texture_llvm(struct BVMEvalContext *context, struct BVMFunction *fn,
+                           struct TexResult *target,
+                           float coord[3], float dxt[3], float dyt[3], int osatex,
+                           short which_output, int cfra, int preview);
 
 /* ------------------------------------------------------------------------- */
 

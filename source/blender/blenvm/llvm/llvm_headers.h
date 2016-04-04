@@ -49,5 +49,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 
 #endif /* __LLVM_HEADERS_H__ */

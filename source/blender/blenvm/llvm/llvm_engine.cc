@@ -36,12 +36,10 @@ extern "C" {
 #include "llvm_engine.h"
 #include "llvm_headers.h"
 
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
-
 namespace blenvm {
 
 static llvm::ExecutionEngine *theEngine = NULL;
+static llvm::Module *theModule = NULL;
 
 //static ModuleMap theModules;
 
@@ -52,8 +50,11 @@ static llvm::ExecutionEngine *create_execution_engine()
 	std::string error;
 	
 	Module *mod = new Module("main", getGlobalContext());
+	theModule = mod;
 	
 	EngineBuilder builder = EngineBuilder(mod);
+	builder.setEngineKind(EngineKind::JIT);
+	builder.setUseMCJIT(true);
 	builder.setErrorStr(&error);
 //	builder.setMCJITMemoryManager(std::unique_ptr<HelpingMemoryManager>(new HelpingMemoryManager(this)));
 	
@@ -89,6 +90,11 @@ void llvm_free()
 		delete theEngine;
 		theEngine = NULL;
 	}
+}
+
+llvm::ExecutionEngine *llvm_execution_engine()
+{
+	return theEngine;
 }
 
 } /* namespace llvm */

@@ -62,6 +62,9 @@ extern "C" {
 #include "bvm_eval.h"
 #include "bvm_function.h"
 
+#include "llvm_codegen.h"
+#include "llvm_function.h"
+
 #ifdef WITH_LLVM
 #include "llvm/llvm_engine.h"
 #include "llvm/llvm_function.h"
@@ -70,6 +73,7 @@ extern "C" {
 #include "util_debug.h"
 #include "util_map.h"
 #include "util_thread.h"
+#include "util_string.h"
 
 namespace blenvm {
 static mesh_ptr __empty_mesh__;
@@ -355,39 +359,27 @@ void BVM_function_bvm_cache_clear(void)
 BLI_INLINE blenvm::FunctionLLVM *_FUNC_LLVM(struct BVMFunction *fn)
 { return (blenvm::FunctionLLVM *)fn; }
 
-struct BVMFunction *BVM_function_llvm_cache_acquire(void *key)
-{
-	return (BVMFunction *)blenvm::function_llvm_cache_acquire(key);
-}
+static blenvm::spin_lock llvm_lock = blenvm::spin_lock();
 
-void BVM_function_llvm_cache_release(BVMFunction *fn)
+void BVM_function_llvm_release(BVMFunction *fn)
 {
+	llvm_lock.lock();
 	blenvm::function_llvm_cache_release(_FUNC_LLVM(fn));
-}
-
-void BVM_function_llvm_cache_set(void *key, BVMFunction *fn)
-{
-	blenvm::function_llvm_cache_set(key, _FUNC_LLVM(fn));
-}
-
-void BVM_function_llvm_cache_remove(void *key)
-{
-	blenvm::function_llvm_cache_remove(key);
-}
-
-void BVM_function_llvm_cache_clear(void)
-{
-	blenvm::function_llvm_cache_clear();
+	llvm_lock.unlock();
 }
 #else
-struct BVMFunction *BVM_function_llvm_cache_acquire(void */*key*/) { return NULL; }
-void BVM_function_llvm_cache_release(BVMFunction */*fn*/) {}
-void BVM_function_llvm_cache_set(void */*key*/, BVMFunction */*fn*/) {}
-void BVM_function_llvm_cache_remove(void */*key*/) {}
-void BVM_function_llvm_cache_clear(void) {}
+void BVM_function_llvm_release(BVMFunction */*fn*/) {}
 #endif
 
 /* ------------------------------------------------------------------------- */
+
+static blenvm::string get_ntree_unique_function_name(bNodeTree *ntree)
+{
+	std::stringstream ss;
+	ss << "nodetree_" << ntree;
+//	ss << ntree->id.name << "_" << ntree;
+	return ss.str();
+}
 
 static void parse_py_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 {
@@ -946,6 +938,35 @@ static void parse_tex_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 	}
 }
 
+namespace blenvm {
+
+// TODO
+struct TexNodesResult {
+	float4 color;
+	float3 normal;
+};
+//typedef TexNodesResult (*TexNodesFunc)(float3 co, float3 dxt, float3 dyt, int cfra, int osatex);
+typedef void (*TexNodesFunc)(void);
+
+static void set_texresult(TexResult *result, const float4 &color, const float3 &normal)
+{
+	result->tr = color.x;
+	result->tg = color.y;
+	result->tb = color.z;
+	result->ta = color.w;
+	
+	result->tin = (result->tr + result->tg + result->tb) / 3.0f;
+	result->talpha = true;
+	
+	if (result->nor) {
+		result->nor[0] = normal.x;
+		result->nor[1] = normal.y;
+		result->nor[2] = normal.z;
+	}
+}
+
+}
+
 static void init_texture_graph(blenvm::NodeGraph &graph)
 {
 	using namespace blenvm;
@@ -962,7 +983,7 @@ static void init_texture_graph(blenvm::NodeGraph &graph)
 	graph.add_output("normal", "FLOAT3", N);
 }
 
-struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree)
+struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
 	
@@ -976,6 +997,38 @@ struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree)
 	FunctionBVM::retain(fn);
 	
 	return (BVMFunction *)fn;
+}
+
+struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cache)
+{
+#ifdef WITH_LLVM
+	using namespace blenvm;
+	
+	llvm_lock.lock();
+	
+	FunctionLLVM *fn = NULL;
+	if (use_cache) {
+		fn = function_llvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph;
+		init_texture_graph(graph);
+		parse_tex_nodes(btree, &graph);
+		graph.finalize();
+		
+		LLVMCompiler compiler;
+		fn = compiler.compile_function(get_ntree_unique_function_name(btree), graph);
+		
+		function_llvm_cache_set(btree, fn);
+	}
+	
+	llvm_lock.unlock();
+	
+	return (BVMFunction *)fn;
+#else
+	UNUSED_VARS(btree, use_cache);
+#endif
 }
 
 void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -1019,19 +1072,32 @@ void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	
 	_FUNC_BVM(fn)->eval(_CTX(ctx), &globals, args, results);
 	
-	target->tr = color.x;
-	target->tg = color.y;
-	target->tb = color.z;
-	target->ta = color.w;
+	set_texresult(target, color, normal);
+}
+
+void BVM_eval_texture_llvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
+                           struct TexResult *target,
+                           float coord[3], float dxt[3], float dyt[3], int osatex,
+                           short UNUSED(which_output), int cfra, int UNUSED(preview))
+{
+	using namespace blenvm;
 	
-	target->tin = (target->tr + target->tg + target->tb) / 3.0f;
-	target->talpha = true;
+	EvalGlobals globals;
+	TexNodesResult result;
 	
-	if (target->nor) {
-		target->nor[0] = normal.x;
-		target->nor[1] = normal.y;
-		target->nor[2] = normal.z;
-	}
+	UNUSED_VARS(globals);
+#ifdef WITH_LLVM
+	TexNodesFunc fp = (TexNodesFunc)_FUNC_LLVM(fn)->ptr();
+	
+	// TODO
+//	result = fp(coord, dxt, dyt, cfra, osatex);
+#else
+	UNUSED_VARS(ctx, fn, coord, dxt, dyt, cfra, osatex);
+	result.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	result.normal = float3(0.0f, 0.0f, 1.0f);
+#endif
+	
+	set_texresult(target, result.color, result.normal);
 }
 
 /* ------------------------------------------------------------------------- */

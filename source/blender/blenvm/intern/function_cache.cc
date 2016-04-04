@@ -36,12 +36,7 @@
 #include "bvm_function.h"
 #include "llvm_function.h"
 
-#include "util_thread.h"
-
 namespace blenvm {
-
-static mutex function_cache_mutex;
-static spin_lock function_cache_lock = spin_lock(function_cache_mutex);
 
 template <typename T>
 struct FunctionCache {
@@ -54,14 +49,12 @@ struct FunctionCache {
 	
 	function_type *acquire(void *key)
 	{
-		function_cache_lock.lock();
 		const_iterator it = m_functions.find(key);
 		function_type *fn = NULL;
 		if (it != m_functions.end()) {
 			fn = it->second;
 			function_type::retain(fn);
 		}
-		function_cache_lock.unlock();
 		return fn;
 	}
 	
@@ -71,7 +64,6 @@ struct FunctionCache {
 			return;
 		
 		if (function_type::release(fn)) {
-			function_cache_lock.lock();
 			iterator it = m_functions.begin();
 			while (it != m_functions.end()) {
 				if (it->second == fn) {
@@ -81,7 +73,6 @@ struct FunctionCache {
 				else
 					++it;
 			}
-			function_cache_lock.unlock();
 			
 			delete fn;
 		}
@@ -91,7 +82,6 @@ struct FunctionCache {
 	{
 		typedef std::pair<void*, function_type*> FunctionCachePair;
 		
-		function_cache_lock.lock();
 		if (fn) {
 			iterator it = m_functions.find(key);
 			if (it == m_functions.end()) {
@@ -113,12 +103,10 @@ struct FunctionCache {
 				m_functions.erase(it);
 			}
 		}
-		function_cache_lock.unlock();
 	}
 	
 	void remove(void *key)
 	{
-		function_cache_lock.lock();
 		iterator it = m_functions.find(key);
 		if (it != m_functions.end()) {
 			if (function_type::release(it->second))
@@ -126,18 +114,15 @@ struct FunctionCache {
 			
 			m_functions.erase(it);
 		}
-		function_cache_lock.unlock();
 	}
 	
 	void clear(void)
 	{
-		function_cache_lock.lock();
 		for (iterator it = m_functions.begin(); it != m_functions.end(); ++it) {
 			if (function_type::release(it->second))
 				delete it->second;
 		}
 		m_functions.clear();
-		function_cache_lock.unlock();
 	}
 };
 

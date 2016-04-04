@@ -42,8 +42,14 @@
 
 namespace blenvm {
 
-struct FunctionLLVM : public Function {
-	uint64_t address;
+struct FunctionLLVM : public FunctionBase {
+	FunctionLLVM(uint64_t address);
+	
+	uint64_t address() const { return m_address; }
+	void *ptr() const { return (void *)m_address; }
+	
+private:
+	uint64_t m_address;
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:FunctionLLVM")
 };
