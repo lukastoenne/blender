@@ -215,7 +215,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 					BVM_globals_add_nodetree_relations(effctx->eval_globals, ff_ntree);
 					
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->function = BVM_gen_forcefield_function_bvm(ff_ntree);
+					eff->function = BVM_gen_forcefield_function_bvm(ff_ntree, true);
 				}
 				
 				break;
@@ -286,7 +286,7 @@ void pdEndEffectors(EffectorContext *effctx)
 			if (eff->guide_data)
 				MEM_freeN(eff->guide_data);
 			if (eff->function)
-				BVM_function_bvm_free(eff->function);
+				BVM_function_bvm_release(eff->function);
 		}
 		
 		BLI_freelistN(&effctx->effectors);

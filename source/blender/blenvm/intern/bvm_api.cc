@@ -97,7 +97,8 @@ void BVM_free(void)
 {
 	using namespace blenvm;
 	
-	BVM_function_bvm_cache_clear();
+	blenvm::function_bvm_cache_clear();
+	blenvm::function_llvm_cache_clear();
 	
 	nodes_free();
 	
@@ -327,32 +328,20 @@ void BVM_context_free(struct BVMEvalContext *ctx)
 BLI_INLINE blenvm::FunctionBVM *_FUNC_BVM(struct BVMFunction *fn)
 { return (blenvm::FunctionBVM *)fn; }
 
-void BVM_function_bvm_free(struct BVMFunction *fn)
-{ delete _FUNC_BVM(fn); }
+static blenvm::spin_lock bvm_lock = blenvm::spin_lock();
 
-struct BVMFunction *BVM_function_bvm_cache_acquire(void *key)
+void BVM_function_bvm_release(BVMFunction *fn)
 {
-	return (BVMFunction *)blenvm::function_bvm_cache_acquire(key);
-}
-
-void BVM_function_bvm_cache_release(BVMFunction *fn)
-{
+	bvm_lock.lock();
 	blenvm::function_bvm_cache_release(_FUNC_BVM(fn));
-}
-
-void BVM_function_bvm_cache_set(void *key, BVMFunction *fn)
-{
-	blenvm::function_bvm_cache_set(key, _FUNC_BVM(fn));
+	bvm_lock.unlock();
 }
 
 void BVM_function_bvm_cache_remove(void *key)
 {
+	bvm_lock.lock();
 	blenvm::function_bvm_cache_remove(key);
-}
-
-void BVM_function_bvm_cache_clear(void)
-{
-	blenvm::function_bvm_cache_clear();
+	bvm_lock.unlock();
 }
 
 #ifdef WITH_LLVM
@@ -367,8 +356,16 @@ void BVM_function_llvm_release(BVMFunction *fn)
 	blenvm::function_llvm_cache_release(_FUNC_LLVM(fn));
 	llvm_lock.unlock();
 }
+
+void BVM_function_llvm_cache_remove(void *key)
+{
+	llvm_lock.lock();
+	blenvm::function_llvm_cache_remove(key);
+	llvm_lock.unlock();
+}
 #else
 void BVM_function_llvm_release(BVMFunction */*fn*/) {}
+void BVM_function_llvm_cache_remove(void */*key*/) {}
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -413,7 +410,7 @@ static void init_forcefield_graph(blenvm::NodeGraph &graph)
 	graph.add_output("impulse", "FLOAT3", zero);
 }
 
-struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree)
+struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
 	
@@ -1111,7 +1108,7 @@ static void init_modifier_graph(blenvm::NodeGraph &graph)
 	graph.add_output("mesh", "MESH", __empty_mesh__);
 }
 
-struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree)
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
 	
@@ -1185,7 +1182,7 @@ static void init_dupli_graph(blenvm::NodeGraph &graph)
 	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
 }
 
-struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree)
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
 	

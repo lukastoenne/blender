@@ -115,22 +115,18 @@ typedef enum BVMDebugMode {
 
 /* ------------------------------------------------------------------------- */
 
-void BVM_function_bvm_free(struct BVMFunction *fn);
-
-struct BVMFunction *BVM_function_bvm_cache_acquire(void *key);
-void BVM_function_bvm_cache_release(struct BVMFunction *fn);
-void BVM_function_bvm_cache_set(void *key, struct BVMFunction *fn);
+void BVM_function_bvm_release(struct BVMFunction *fn);
 void BVM_function_bvm_cache_remove(void *key);
-void BVM_function_bvm_cache_clear(void);
 
 void BVM_function_llvm_release(struct BVMFunction *fn);
+void BVM_function_llvm_cache_remove(void *key);
 
 /* ------------------------------------------------------------------------- */
 
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree, bool use_cache);
 void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
@@ -160,7 +156,7 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *context, struct BVMFunction *f
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache);
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
@@ -173,7 +169,7 @@ struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
 
 struct DupliContainer;
 
-struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree);
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use_cache);
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
