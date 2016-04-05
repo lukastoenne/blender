@@ -32,8 +32,12 @@
  *  \ingroup llvm
  */
 
+#include "util_string.h"
+
 namespace llvm {
 class ExecutionEngine;
+class Function;
+class Module;
 }
 
 namespace blenvm {
@@ -42,6 +46,16 @@ void llvm_init();
 void llvm_free();
 
 llvm::ExecutionEngine *llvm_execution_engine();
+
+bool llvm_function_is_external(const llvm::Function *func);
+llvm::Function *llvm_find_external_function(llvm::Module *mod, const string &name);
+string llvm_get_external_function_name(llvm::Function *func);
+
+void llvm_load_module(const string &modfile, const string &modname);
+void llvm_load_all_modules(const string &modpath, bool reload);
+void llvm_unload_all_modules();
+
+void llvm_link_module_full(llvm::Module *mod);
 
 } /* namespace blenvm */
 

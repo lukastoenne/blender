@@ -42,6 +42,7 @@
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/TypeBuilder.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/raw_ostream.h"

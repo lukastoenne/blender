@@ -291,6 +291,8 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	fpm.run(*func);
 	
+	llvm_link_module_full(module);
+	
 	llvm_execution_engine()->finalizeObject();
 	
 	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
