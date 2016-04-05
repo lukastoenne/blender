@@ -195,36 +195,34 @@ llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &gr
 	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
 }
 
-llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module)
+/* Compile nodes as a simple expression.
+ * Every node can be treated as a single statement. Each node is translated
+ * into a function call, with regular value arguments. The resulting value is
+ * assigned to a variable and can be used for subsequent node function calls.
+ */
+llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func)
 {
 	using namespace llvm;
 	
 	IRBuilder<> builder(context());
 	
-	FunctionType *functype = codegen_node_function_type(graph);
-	Function *func = llvm::cast<Function>(module->getOrInsertFunction(name, functype));
-	Argument *retarg = func->getArgumentList().begin();
-	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
+	BasicBlock *entry = BasicBlock::Create(context(), "entry", func);
+	builder.SetInsertPoint(entry);
 	
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
 	
-	if (func->getArgumentList().size() != num_inputs + 1) {
-		printf("Error: Function has wrong number of arguments for node tree\n");
-		return func;
-	}
+	OutputValueMap output_values;
 	
-	Function::ArgumentListType::iterator it = func->getArgumentList().begin();
+	Argument *retarg = func->getArgumentList().begin();
+	Function::ArgumentListType::iterator it = retarg;
 	++it; /* skip return arg */
 	for (int i = 0; i < num_inputs; ++i) {
-//		Argument *arg = &(*it++);
-//		const NodeGraph::Input &input = graph.inputs[i];
+		const NodeGraph::Input &input = graph.inputs[i];
 		
-//		graph.set_input_argument(input.name, arg);
+		Argument *arg = &(*it++);
+		output_values[input.key] = arg;
 	}
-	
-	BasicBlock *entry = BasicBlock::Create(context(), "entry", func);
-	builder.SetInsertPoint(entry);
 	
 #if 0 // TODO
 	NodeRefList sorted_nodes = toposort_nodes(graph);
@@ -238,25 +236,35 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 #endif
 	
 	for (int i = 0; i < num_outputs; ++i) {
-//		Value *retptr = builder.CreateStructGEP(retarg, i);
-		
-#if 0 // TODO
 		const NodeGraph::Output &output = graph.outputs[i];
-		Value *value = NULL;
-		if (output->link_node && output->link_socket) {
-			value = output->link_node->find_output_value(output->link_socket->name);
-		}
-		else {
-			value = output->default_value;
-		}
-		BLI_assert(value);
 		
-		Value *retval = builder.CreateLoad(value);
-		builder.CreateStore(retval, retptr);
-#endif
+		Value *retptr = builder.CreateStructGEP(retarg, i);
+		
+//		Value *value = output_values.at(output.key);
+//		Value *retval = builder.CreateLoad(value);
+//		builder.CreateStore(retval, retptr);
 	}
 	
 	builder.CreateRetVoid();
+	
+	return entry;
+}
+
+llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module)
+{
+	using namespace llvm;
+	
+	FunctionType *functype = codegen_node_function_type(graph);
+	Function *func = llvm::cast<Function>(module->getOrInsertFunction(name, functype));
+	Argument *retarg = func->getArgumentList().begin();
+	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
+	
+	if (func->getArgumentList().size() != graph.inputs.size() + 1) {
+		printf("Error: Function has wrong number of arguments for node tree\n");
+		return func;
+	}
+	
+	codegen_function_body_expression(graph, func);
 	
 	return func;
 }

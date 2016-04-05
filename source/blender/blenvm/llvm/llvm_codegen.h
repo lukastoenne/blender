@@ -44,10 +44,12 @@
 
 namespace llvm {
 class LLVMContext;
+class BasicBlock;
 class Function;
 class FunctionType;
 class Module;
 class Type;
+class Value;
 }
 
 namespace blenvm {
@@ -56,6 +58,8 @@ struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
 struct FunctionLLVM;
+
+typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
 
 struct LLVMCompiler {
 	LLVMCompiler();
@@ -67,6 +71,7 @@ protected:
 	llvm::LLVMContext &context() const;
 	
 	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
+	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module);
 	llvm::Type *codegen_typedesc(const string &name, const TypeDesc *td);
 };
