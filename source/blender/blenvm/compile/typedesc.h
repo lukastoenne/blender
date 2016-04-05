@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_typedesc.h
+/** \file blender/blenvm/intern/typedesc.h
  *  \ingroup bvm
  */
 

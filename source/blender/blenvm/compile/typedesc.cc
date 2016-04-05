@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_typedesc.cc
+/** \file blender/blenvm/intern/typedesc.cc
  *  \ingroup bvm
  */
 

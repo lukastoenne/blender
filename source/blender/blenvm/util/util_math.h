@@ -28,7 +28,7 @@
 #ifndef __BVM_UTIL_MATH_H__
 #define __BVM_UTIL_MATH_H__
 
-/** \file bvm_util_math.h
+/** \file blender/blenvm/util/util_math.h
  *  \ingroup bvm
  */
 

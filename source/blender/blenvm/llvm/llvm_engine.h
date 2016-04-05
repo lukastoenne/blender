@@ -28,7 +28,7 @@
 #ifndef __LLVM_ENGINE_H__
 #define __LLVM_ENGINE_H__
 
-/** \file llvm_engine.h
+/** \file blender/blenvm/llvm/llvm_engine.h
  *  \ingroup llvm
  */
 

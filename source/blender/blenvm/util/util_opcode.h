@@ -28,7 +28,7 @@
 #ifndef __BVM_OPCODE_H__
 #define __BVM_OPCODE_H__
 
-/** \file bvm_opcode.h
+/** \file blender/blenvm/util/util_opcode.h
  *  \ingroup bvm
  */
 

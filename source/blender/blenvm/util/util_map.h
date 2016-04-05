@@ -24,7 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/util/bvm_util_map.h
+/** \file blender/blenvm/util/util_map.h
  *  \ingroup bvm
  */
 

@@ -28,7 +28,7 @@
 #ifndef __LLVM_CODEGEN_H__
 #define __LLVM_CODEGEN_H__
 
-/** \file llvm_codegen.h
+/** \file blender/blenvm/llvm/llvm_codegen.h
  *  \ingroup llvm
  */
 

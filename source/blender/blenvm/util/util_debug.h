@@ -24,7 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/util/bvm_util_debug.h
+/** \file blender/blenvm/util/util_debug.h
  *  \ingroup bvm
  */
 

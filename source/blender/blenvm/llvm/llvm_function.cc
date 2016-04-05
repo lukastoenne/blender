@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file llvm_function.cc
+/** \file blender/blenvm/llvm/llvm_function.cc
  *  \ingroup llvm
  */
 

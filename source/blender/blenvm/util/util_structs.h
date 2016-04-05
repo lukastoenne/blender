@@ -32,10 +32,14 @@
 #ifndef __BVM_UTIL_STRUCTS_H__
 #define __BVM_UTIL_STRUCTS_H__
 
+/** \file blender/blenvm/util/util_structs.h
+ *  \ingroup bvm
+ */
+
 #include "MEM_guardedalloc.h"
 
-#include "bvm_util_data_ptr.h"
-#include "bvm_util_math.h"
+#include "util_data_ptr.h"
+#include "util_math.h"
 
 namespace blenvm {
 

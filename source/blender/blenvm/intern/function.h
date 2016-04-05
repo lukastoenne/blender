@@ -28,7 +28,7 @@
 #ifndef __FUNCTION_H__
 #define __FUNCTION_H__
 
-/** \file function.h
+/** \file blender/blenvm/intern/function.h
  *  \ingroup blenvm
  */
 

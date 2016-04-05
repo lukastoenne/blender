@@ -28,7 +28,7 @@
 #ifndef __BVM_UTIL_STRING_H__
 #define __BVM_UTIL_STRING_H__
 
-/** \file bvm_util_string.h
+/** \file blender/blenvm/util/util_string.h
  *  \ingroup bvm
  */
 

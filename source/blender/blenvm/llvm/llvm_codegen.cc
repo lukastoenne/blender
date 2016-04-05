@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file llvm_codegen.cc
+/** \file blender/blenvm/llvm/llvm_codegen.cc
  *  \ingroup llvm
  */
 

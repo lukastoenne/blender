@@ -28,7 +28,7 @@
 #ifndef __BVM_TYPES_H__
 #define __BVM_TYPES_H__
 
-/** \file BVM_types.h
+/** \file blender/blenvm/BVM_types.h
  *  \ingroup bvm
  */
 

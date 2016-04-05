@@ -28,7 +28,7 @@
 #ifndef __BVM_API_H__
 #define __BVM_API_H__
 
-/** \file BVM_api.h
+/** \file blender/blenvm/BVM_api.h
  *  \ingroup bvm
  */
 

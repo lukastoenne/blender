@@ -28,7 +28,7 @@
 #ifndef __LLVM_HEADERS_H__
 #define __LLVM_HEADERS_H__
 
-/** \file llvm_headers.h
+/** \file blender/blenvm/llvm/llvm_headers.h
  *  \ingroup llvm
  */
 

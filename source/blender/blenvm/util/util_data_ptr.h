@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_util_data_ptr.h
+/** \file blender/blenvm/util/util_data_ptr.h
  *  \ingroup bvm
  */
 

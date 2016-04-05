@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_nodegraph.h
+/** \file blender/blenvm/intern/node_graph.h
  *  \ingroup bvm
  */
 

@@ -28,7 +28,7 @@
 #ifndef __FUNCTION_CACHE_H__
 #define __FUNCTION_CACHE_H__
 
-/** \file function_cache.h
+/** \file blender/blenvm/intern/function_cache.h
  *  \ingroup blenvm
  */
 
