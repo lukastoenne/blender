@@ -285,15 +285,8 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	llvm_execution_engine()->finalizeObject();
 	
-	/* XXX according to docs, getFunctionAddress should be used
-	 * for MCJIT, but always returns 0
-	 */
-//	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
-//	uint64_t address = (uint64_t)llvm_execution_engine()->getPointerToFunction(func);
-	void (*fp)(void) = (void (*)(void))llvm_execution_engine()->getPointerToFunction(func);
-	printf("GOT FUNCTION %s: %p\n", name.c_str(), fp);
-	BLI_assert(fp != 0);
-	uint64_t address = (uint64_t)fp;
+	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
+	BLI_assert(address != 0);
 	
 	llvm_execution_engine()->removeModule(module);
 	delete module;
