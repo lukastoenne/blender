@@ -30,6 +30,7 @@
  */
 
 #include <set>
+#include <sstream>
 
 #include "nodegraph.h"
 
@@ -38,7 +39,85 @@
 #include "llvm_function.h"
 #include "llvm_headers.h"
 
+/* TypeBuilder specializations for own structs */
+
+namespace llvm {
+
+template <bool xcompile>
+class TypeBuilder<blenvm::float3, xcompile> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_X = 0,
+		FIELD_Y = 1,
+		FIELD_Z = 2,
+	};
+};
+
+template <bool xcompile>
+class TypeBuilder<blenvm::float4, xcompile> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            TypeBuilder<types::ieee_float, xcompile>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_X = 0,
+		FIELD_Y = 1,
+		FIELD_Z = 2,
+		FIELD_W = 3,
+	};
+};
+
+template <bool xcompile>
+class TypeBuilder<blenvm::matrix44, xcompile> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            ArrayType::get(
+		                ArrayType::get(
+		                    TypeBuilder<types::ieee_float, xcompile>::get(context),
+		                    4),
+		                4),
+		            NULL);
+	}
+};
+
+} /* namespace llvm */
+
+
 namespace blenvm {
+
+/* XXX Should eventually declare and reference types by name,
+ * rather than storing full TypeDesc in each socket!
+ * These functions just provides per-socket type names in the meantime.
+ */
+static string dummy_type_name(const InputKey &input)
+{
+	size_t hash = std::hash<const NodeInstance *>()(input.node) ^ std::hash<const NodeInput *>()(input.socket);
+	std::stringstream ss;
+	ss << "InputType" << (unsigned short)hash;
+	return ss.str();
+}
+static string dummy_type_name(const OutputKey &output)
+{
+	size_t hash = std::hash<const NodeInstance *>()(output.node) ^ std::hash<const NodeOutput *>()(output.socket);
+	std::stringstream ss;
+	ss << "OutputType" << (unsigned short)hash;
+	return ss.str();
+}
 
 LLVMCompiler::LLVMCompiler()
 {
@@ -48,11 +127,47 @@ LLVMCompiler::~LLVMCompiler()
 {
 }
 
-llvm::Type *LLVMCompiler::codegen_typedesc(TypeDesc *td)
+llvm::LLVMContext &LLVMCompiler::context() const
+{
+	return llvm::getGlobalContext();
+}
+
+llvm::Type *LLVMCompiler::codegen_typedesc(const string &name, const TypeDesc *td)
 {
 	using namespace llvm;
 	
-	// TODO
+	if (td->is_structure()) {
+		const StructSpec *s = td->structure();
+		std::vector<Type*> elemtypes;
+		for (int i = 0; i < s->num_fields(); ++s) {
+			Type *ftype = codegen_typedesc(s->field(i).name, &s->field(i).typedesc);
+			elemtypes.push_back(ftype);
+		}
+		
+		StructType *stype = StructType::create(context(), ArrayRef<Type*>(elemtypes), name);
+		return stype;
+	}
+	else {
+		switch (td->base_type()) {
+			case BVM_FLOAT:
+				return TypeBuilder<types::ieee_float, true>::get(context());
+			case BVM_FLOAT3:
+				return TypeBuilder<float3, true>::get(context());
+			case BVM_FLOAT4:
+				return TypeBuilder<float4, true>::get(context());
+			case BVM_INT:
+				return TypeBuilder<types::i<32>, true>::get(context());
+			case BVM_MATRIX44:
+				return TypeBuilder<matrix44, true>::get(context());
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				return NULL;
+		}
+	}
 	return NULL;
 }
 
@@ -60,47 +175,36 @@ llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &gr
 {
 	using namespace llvm;
 	
-	LLVMContext &context = getGlobalContext();
-	
 	std::vector<Type *> input_types, output_types;
 	
-#if 0
 	for (int i = 0; i < graph.outputs.size(); ++i) {
-#if 0 // TODO
 		const NodeGraph::Output &output = graph.outputs[i];
-		Type *type = bjit_get_socket_llvm_type(output.type, context, module);
+		Type *type = codegen_typedesc(dummy_type_name(output.key), &output.typedesc);
 		output_types.push_back(type);
-#endif
 	}
-	StructType *return_type = StructType::get(context, output_types);
+	StructType *return_type = StructType::get(context(), output_types);
 	
 	input_types.push_back(PointerType::get(return_type, 0));
 	for (int i = 0; i < graph.inputs.size(); ++i) {
-#if 0 // TODO
 		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = bjit_get_socket_llvm_type(input.type, context, module);
-		type = PointerType::get(type, 0);
+		Type *type = codegen_typedesc(dummy_type_name(input.key), &input.typedesc);
+//		type = PointerType::get(type, 0);
 		input_types.push_back(type);
-#endif
 	}
-#endif
 	
-	return FunctionType::get(TypeBuilder<void, true>::get(context), input_types, false);
+	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
 }
 
 llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module)
 {
 	using namespace llvm;
 	
-	LLVMContext &context = getGlobalContext();
-	IRBuilder<> builder(context);
+	IRBuilder<> builder(context());
 	
 	FunctionType *functype = codegen_node_function_type(graph);
-//	Function *func = Function::Create(functype, Function::ExternalLinkage, name, module);
 	Function *func = llvm::cast<Function>(module->getOrInsertFunction(name, functype));
-#if 0
 	Argument *retarg = func->getArgumentList().begin();
-	retarg->addAttr(AttributeSet::get(context, AttributeSet::ReturnIndex, Attribute::StructRet));
+	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
 	
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
@@ -111,16 +215,15 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 	}
 	
 	Function::ArgumentListType::iterator it = func->getArgumentList().begin();
-//	++it; /* skip return arg */
+	++it; /* skip return arg */
 	for (int i = 0; i < num_inputs; ++i) {
 //		Argument *arg = &(*it++);
 //		const NodeGraph::Input &input = graph.inputs[i];
 		
 //		graph.set_input_argument(input.name, arg);
 	}
-#endif
 	
-	BasicBlock *entry = BasicBlock::Create(context, "entry", func);
+	BasicBlock *entry = BasicBlock::Create(context(), "entry", func);
 	builder.SetInsertPoint(entry);
 	
 #if 0 // TODO
@@ -134,9 +237,8 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 	}
 #endif
 	
-#if 0
 	for (int i = 0; i < num_outputs; ++i) {
-		Value *retptr = builder.CreateStructGEP(retarg, i);
+//		Value *retptr = builder.CreateStructGEP(retarg, i);
 		
 #if 0 // TODO
 		const NodeGraph::Output &output = graph.outputs[i];
@@ -153,7 +255,6 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 		builder.CreateStore(retval, retptr);
 #endif
 	}
-#endif
 	
 	builder.CreateRetVoid();
 	
@@ -164,11 +265,15 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 {
 	using namespace llvm;
 	
-	Module *module = new Module(name, getGlobalContext());
+	Module *module = new Module(name, context());
 	llvm_execution_engine()->addModule(module);
 	
 	Function *func = codegen_node_function(name, graph, module);
 	assert(func != NULL && "codegen_node_function returned NULL!");
+	
+	printf("=== NODE FUNCTION ===\n");
+	func->dump();
+	printf("=====================\n");
 	
 	FunctionPassManager fpm(module);
 	PassManagerBuilder builder;

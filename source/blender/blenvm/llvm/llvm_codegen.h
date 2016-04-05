@@ -43,6 +43,7 @@
 #include "util_string.h"
 
 namespace llvm {
+class LLVMContext;
 class Function;
 class FunctionType;
 class Module;
@@ -63,9 +64,11 @@ struct LLVMCompiler {
 	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph);
 	
 protected:
+	llvm::LLVMContext &context() const;
+	
 	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module);
-	llvm::Type *codegen_typedesc(TypeDesc *td);
+	llvm::Type *codegen_typedesc(const string &name, const TypeDesc *td);
 };
 
 } /* namespace blenvm */
