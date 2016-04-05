@@ -98,7 +98,9 @@ void BVM_free(void)
 	using namespace blenvm;
 	
 	blenvm::function_bvm_cache_clear();
+#ifdef WITH_LLVM
 	blenvm::function_llvm_cache_clear();
+#endif
 	
 	nodes_free();
 	
@@ -434,6 +436,8 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_c
 			function_bvm_cache_set(btree, fn);
 		}
 	}
+	
+	fn->retain(fn);
 	
 	bvm_lock.unlock();
 	
@@ -1019,6 +1023,8 @@ struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cach
 		}
 	}
 	
+	fn->retain(fn);
+	
 	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
@@ -1049,6 +1055,8 @@ struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cac
 			function_llvm_cache_set(btree, fn);
 		}
 	}
+	
+	fn->retain(fn);
 	
 	llvm_lock.unlock();
 	
@@ -1163,6 +1171,8 @@ struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool 
 		}
 	}
 	
+	fn->retain(fn);
+	
 	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
@@ -1250,6 +1260,8 @@ struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use
 			function_bvm_cache_set(btree, fn);
 		}
 	}
+	
+	fn->retain(fn);
 	
 	bvm_lock.unlock();
 	

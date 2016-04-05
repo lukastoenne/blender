@@ -53,7 +53,6 @@ struct FunctionCache {
 		function_type *fn = NULL;
 		if (it != m_functions.end()) {
 			fn = it->second;
-			function_type::retain(fn);
 		}
 		return fn;
 	}
