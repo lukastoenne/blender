@@ -430,7 +430,9 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_c
 		BVMCompiler compiler;
 		fn = compiler.compile_function(graph);
 		
-		function_bvm_cache_set(btree, fn);
+		if (use_cache) {
+			function_bvm_cache_set(btree, fn);
+		}
 	}
 	
 	bvm_lock.unlock();
@@ -1012,7 +1014,9 @@ struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cach
 		BVMCompiler compiler;
 		fn = compiler.compile_function(graph);
 		
-		function_bvm_cache_set(btree, fn);
+		if (use_cache) {
+			function_bvm_cache_set(btree, fn);
+		}
 	}
 	
 	bvm_lock.unlock();
@@ -1041,7 +1045,9 @@ struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cac
 		LLVMCompiler compiler;
 		fn = compiler.compile_function(get_ntree_unique_function_name(btree), graph);
 		
-		function_llvm_cache_set(btree, fn);
+		if (use_cache) {
+			function_llvm_cache_set(btree, fn);
+		}
 	}
 	
 	llvm_lock.unlock();
@@ -1152,7 +1158,9 @@ struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool 
 		BVMCompiler compiler;
 		fn = compiler.compile_function(graph);
 		
-		function_bvm_cache_set(btree, fn);
+		if (use_cache) {
+			function_bvm_cache_set(btree, fn);
+		}
 	}
 	
 	bvm_lock.unlock();
@@ -1238,7 +1246,9 @@ struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use
 		BVMCompiler compiler;
 		fn = compiler.compile_function(graph);
 		
-		function_bvm_cache_set(btree, fn);
+		if (use_cache) {
+			function_bvm_cache_set(btree, fn);
+		}
 	}
 	
 	bvm_lock.unlock();
