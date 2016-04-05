@@ -32,7 +32,7 @@
 #include <set>
 #include <sstream>
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "llvm_codegen.h"
 #include "llvm_engine.h"

@@ -32,7 +32,7 @@
 #include <cstdio>
 #include <set>
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "bvm_codegen.h"
 

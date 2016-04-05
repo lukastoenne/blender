@@ -56,7 +56,7 @@ extern "C" {
 }
 
 #include "function_cache.h"
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"

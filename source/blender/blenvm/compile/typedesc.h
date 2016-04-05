@@ -47,7 +47,7 @@ extern "C" {
 namespace blenvm {
 
 struct NodeGraph;
-struct Value;
+struct NodeValue;
 
 template <BVMType type>
 struct BaseTypeTraits;

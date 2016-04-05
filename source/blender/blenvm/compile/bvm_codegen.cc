@@ -32,7 +32,7 @@
 #include <cstdio>
 #include <set>
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
@@ -232,7 +232,7 @@ void Compiler::resolve_symbols(const NodeGraph &graph)
 }
 
 
-void Compiler::push_constant(const Value *value) const
+void Compiler::push_constant(const NodeValue *value) const
 {
 	BLI_assert(value != NULL);
 	switch (value->typedesc().base_type()) {
@@ -294,7 +294,7 @@ void Compiler::push_constant(const Value *value) const
 	}
 }
 
-void Compiler::codegen_value(const Value *value, StackIndex offset) const
+void Compiler::codegen_value(const NodeValue *value, StackIndex offset) const
 {
 	switch (value->typedesc().base_type()) {
 		case BVM_FLOAT: {

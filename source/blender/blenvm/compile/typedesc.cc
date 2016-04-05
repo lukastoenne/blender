@@ -30,7 +30,7 @@
  */
 
 #include "typedesc.h"
-#include "value.h"
+#include "node_value.h"
 
 namespace blenvm {
 

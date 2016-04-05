@@ -37,7 +37,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "util_opcode.h"
 #include "util_string.h"

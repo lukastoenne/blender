@@ -34,7 +34,7 @@
 #include <cstdio>
 #include <sstream>
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 namespace blenvm {
 namespace debug {

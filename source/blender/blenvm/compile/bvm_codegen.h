@@ -37,7 +37,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "nodegraph.h"
+#include "node_graph.h"
 
 #include "bvm_instruction_list.h"
 
@@ -92,9 +92,9 @@ protected:
 	
 	virtual int current_address() const = 0;
 	
-	void push_constant(const Value *value) const;
+	void push_constant(const NodeValue *value) const;
 	
-	void codegen_value(const Value *value, StackIndex offset) const;
+	void codegen_value(const NodeValue *value, StackIndex offset) const;
 	int codegen_node_block(const NodeBlock &block);
 	int codegen_graph(const NodeGraph &graph);
 	

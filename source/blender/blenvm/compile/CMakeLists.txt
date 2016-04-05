@@ -40,12 +40,12 @@ set(INC_SYS
 )
 
 set(SRC
-	nodegraph.cc
-	nodegraph.h
+	node_graph.cc
+	node_graph.h
+	node_value.cc
+	node_value.h
 	typedesc.cc
 	typedesc.h
-	value.cc
-	value.h
 
 	bvm_codegen.cc
 	bvm_codegen_debug.cc

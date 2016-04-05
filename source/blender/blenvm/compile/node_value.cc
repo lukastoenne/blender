@@ -25,11 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenvm/intern/bvm_value.cc
+/** \file blender/blenvm/intern/node_value.cc
  *  \ingroup bvm
  */
 
-#include "value.h"
+#include "node_value.h"
 
 namespace blenvm {
 
