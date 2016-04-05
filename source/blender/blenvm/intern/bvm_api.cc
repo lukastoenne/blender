@@ -955,13 +955,11 @@ static void parse_tex_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 
 namespace blenvm {
 
-// TODO
 struct TexNodesResult {
 	float4 color;
 	float3 normal;
 };
-//typedef TexNodesResult (*TexNodesFunc)(float3 co, float3 dxt, float3 dyt, int cfra, int osatex);
-typedef void (*TexNodesFunc)(void);
+typedef TexNodesResult (*TexNodesFunc)(float3 co, float3 dxt, float3 dyt, int cfra, int osatex);
 
 static void set_texresult(TexResult *result, const float4 &color, const float3 &normal)
 {
@@ -1094,7 +1092,7 @@ void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *lab
 void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
                           struct TexResult *target,
                           float coord[3], float dxt[3], float dyt[3], int osatex,
-                          short which_output, int cfra, int UNUSED(preview))
+                          short UNUSED(which_output), int cfra, int UNUSED(preview))
 {
 	using namespace blenvm;
 	
@@ -1110,7 +1108,7 @@ void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 	set_texresult(target, color, normal);
 }
 
-void BVM_eval_texture_llvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
+void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunction *fn,
                            struct TexResult *target,
                            float coord[3], float dxt[3], float dyt[3], int osatex,
                            short UNUSED(which_output), int cfra, int UNUSED(preview))
@@ -1124,8 +1122,17 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 #ifdef WITH_LLVM
 	TexNodesFunc fp = (TexNodesFunc)_FUNC_LLVM(fn)->ptr();
 	
-	// TODO
-//	result = fp(coord, dxt, dyt, cfra, osatex);
+	float3 coord_v, dxt_v, dyt_v;
+	copy_v3_v3(coord_v.data(), coord);
+	if (dxt)
+		copy_v3_v3(dxt_v.data(), dxt);
+	else
+		zero_v3(dxt_v.data());
+	if (dyt)
+		copy_v3_v3(dyt_v.data(), dyt);
+	else
+		zero_v3(dyt_v.data());
+	result = fp(coord_v, dxt_v, dyt_v, cfra, osatex);
 #else
 	UNUSED_VARS(ctx, fn, coord, dxt, dyt, cfra, osatex);
 	result.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
