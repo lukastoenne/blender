@@ -414,14 +414,26 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_c
 {
 	using namespace blenvm;
 	
-	NodeGraph graph;
-	init_forcefield_graph(graph);
-	parse_py_nodes(btree, &graph);
-	graph.finalize();
+	bvm_lock.lock();
 	
-	BVMCompiler compiler;
-	FunctionBVM *fn = compiler.compile_function(graph);
-	FunctionBVM::retain(fn);
+	FunctionBVM *fn = NULL;
+	if (use_cache) {
+		fn = function_bvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph;
+		init_forcefield_graph(graph);
+		parse_py_nodes(btree, &graph);
+		graph.finalize();
+		
+		BVMCompiler compiler;
+		fn = compiler.compile_function(graph);
+		
+		function_bvm_cache_set(btree, fn);
+	}
+	
+	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
 }
@@ -984,14 +996,26 @@ struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cach
 {
 	using namespace blenvm;
 	
-	NodeGraph graph;
-	init_texture_graph(graph);
-	parse_tex_nodes(btree, &graph);
-	graph.finalize();
+	bvm_lock.lock();
 	
-	BVMCompiler compiler;
-	FunctionBVM *fn = compiler.compile_function(graph);
-	FunctionBVM::retain(fn);
+	FunctionBVM *fn = NULL;
+	if (use_cache) {
+		fn = function_bvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph;
+		init_texture_graph(graph);
+		parse_tex_nodes(btree, &graph);
+		graph.finalize();
+		
+		BVMCompiler compiler;
+		fn = compiler.compile_function(graph);
+		
+		function_bvm_cache_set(btree, fn);
+	}
+	
+	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
 }
@@ -1112,14 +1136,26 @@ struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool 
 {
 	using namespace blenvm;
 	
-	NodeGraph graph;
-	init_modifier_graph(graph);
-	parse_py_nodes(btree, &graph);
-	graph.finalize();
+	bvm_lock.lock();
 	
-	BVMCompiler compiler;
-	FunctionBVM *fn = compiler.compile_function(graph);
-	FunctionBVM::retain(fn);
+	FunctionBVM *fn = NULL;
+	if (use_cache) {
+		fn = function_bvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph;
+		init_modifier_graph(graph);
+		parse_py_nodes(btree, &graph);
+		graph.finalize();
+		
+		BVMCompiler compiler;
+		fn = compiler.compile_function(graph);
+		
+		function_bvm_cache_set(btree, fn);
+	}
+	
+	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
 }
@@ -1186,14 +1222,26 @@ struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use
 {
 	using namespace blenvm;
 	
-	NodeGraph graph;
-	init_dupli_graph(graph);
-	parse_py_nodes(btree, &graph);
-	graph.finalize();
+	bvm_lock.lock();
 	
-	BVMCompiler compiler;
-	FunctionBVM *fn = compiler.compile_function(graph);
-	FunctionBVM::retain(fn);
+	FunctionBVM *fn = NULL;
+	if (use_cache) {
+		fn = function_bvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph;
+		init_dupli_graph(graph);
+		parse_py_nodes(btree, &graph);
+		graph.finalize();
+		
+		BVMCompiler compiler;
+		fn = compiler.compile_function(graph);
+		
+		function_bvm_cache_set(btree, fn);
+	}
+	
+	bvm_lock.unlock();
 	
 	return (BVMFunction *)fn;
 }
