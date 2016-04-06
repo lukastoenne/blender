@@ -1260,10 +1260,10 @@ void NodeGraph::finalize()
 {
 	ensure_valid_expression_inputs();
 	skip_pass_nodes();
-	inline_function_calls();
+//	inline_function_calls();
 	remove_unused_nodes();
 	sort_nodes();
-	blockify_nodes();
+//	blockify_nodes();
 }
 
 /* ------------------------------------------------------------------------- */

@@ -45,9 +45,12 @@
 namespace llvm {
 class LLVMContext;
 class BasicBlock;
+class CallInst;
+class Constant;
 class Function;
 class FunctionType;
 class Module;
+class StructType;
 class Type;
 class Value;
 }
@@ -60,6 +63,7 @@ struct TypeDesc;
 struct FunctionLLVM;
 
 typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+typedef std::pair<ConstOutputKey, llvm::Value*> OutputValuePair;
 
 struct LLVMCompiler {
 	LLVMCompiler();
@@ -69,11 +73,19 @@ struct LLVMCompiler {
 	
 protected:
 	llvm::LLVMContext &context() const;
+	llvm::Module *module() const { return m_module; }
 	
-	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
+	llvm::StructType *codegen_struct_type(const string &name, const StructSpec *s);
+	llvm::Type *codegen_type(const string &name, const TypeDesc *td);
+	llvm::Constant *codegen_constant(const NodeValue *node_value);
+	
+	llvm::CallInst *codegen_node_call(llvm::BasicBlock *block, const NodeInstance *node, OutputValueMap &output_values);
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
-	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module);
-	llvm::Type *codegen_typedesc(const string &name, const TypeDesc *td);
+	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
+	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
+	
+private:
+	llvm::Module *m_module;
 };
 
 } /* namespace blenvm */

@@ -91,11 +91,12 @@ macro(BLENVM_LLVM_MODULE_ADD src)
 	add_custom_command(
 		OUTPUT ${llvm_ir}
 		COMMAND ${LLVM_IR_COMPILER}
+				-cc1
+				-S
+				${CMAKE_CURRENT_SOURCE_DIR}/${src}
 				-emit-llvm
-				-S ${CMAKE_CURRENT_SOURCE_DIR}/${src}
 				-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
-				-I${CMAKE_CURRENT_SOURCE_DIR}/util
-				-DBJIT_RUNTIME
+				-DBLENVM_RUNTIME
 				-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
 				-std=c++0x
 		DEPENDS ${LLVM_SRC})
@@ -106,10 +107,10 @@ endmacro()
 
 
 set(LLVM_SRC
-	../modules/test.cc
+	../modules/mod_value.cc
 )
 set(LLVM_HEADERS
-	../modules/test.h
+	../modules/mod_value.h
 )
 
 foreach(src ${LLVM_SRC})

@@ -119,7 +119,8 @@ static string dummy_type_name(const OutputKey &output)
 	return ss.str();
 }
 
-LLVMCompiler::LLVMCompiler()
+LLVMCompiler::LLVMCompiler() :
+    m_module(NULL)
 {
 }
 
@@ -132,20 +133,25 @@ llvm::LLVMContext &LLVMCompiler::context() const
 	return llvm::getGlobalContext();
 }
 
-llvm::Type *LLVMCompiler::codegen_typedesc(const string &name, const TypeDesc *td)
+llvm::StructType *LLVMCompiler::codegen_struct_type(const string &name, const StructSpec *s)
+{
+	using namespace llvm;
+	
+	std::vector<Type*> elemtypes;
+	for (int i = 0; i < s->num_fields(); ++s) {
+		Type *ftype = codegen_type(s->field(i).name, &s->field(i).typedesc);
+		elemtypes.push_back(ftype);
+	}
+	
+	return StructType::create(context(), ArrayRef<Type*>(elemtypes), name);
+}
+
+llvm::Type *LLVMCompiler::codegen_type(const string &name, const TypeDesc *td)
 {
 	using namespace llvm;
 	
 	if (td->is_structure()) {
-		const StructSpec *s = td->structure();
-		std::vector<Type*> elemtypes;
-		for (int i = 0; i < s->num_fields(); ++s) {
-			Type *ftype = codegen_typedesc(s->field(i).name, &s->field(i).typedesc);
-			elemtypes.push_back(ftype);
-		}
-		
-		StructType *stype = StructType::create(context(), ArrayRef<Type*>(elemtypes), name);
-		return stype;
+		return codegen_struct_type(name, td->structure());
 	}
 	else {
 		switch (td->base_type()) {
@@ -171,6 +177,82 @@ llvm::Type *LLVMCompiler::codegen_typedesc(const string &name, const TypeDesc *t
 	return NULL;
 }
 
+llvm::Constant *LLVMCompiler::codegen_constant(const NodeValue *node_value)
+{
+	using namespace llvm;
+	
+	const TypeDesc &td = node_value->typedesc();
+	if (td.is_structure()) {
+//		const StructSpec *s = td.structure();
+		/* TODO don't have value storage for this yet */
+		return NULL;
+	}
+	else {
+		switch (td.base_type()) {
+			case BVM_FLOAT: {
+				float f;
+				node_value->get(&f);
+				return ConstantFP::get(context(), APFloat(f));
+			}
+			case BVM_FLOAT3: {
+				StructType *stype = TypeBuilder<float3, true>::get(context());
+				
+				float3 f;
+				node_value->get(&f);
+				return ConstantStruct::get(stype,
+				                           ConstantFP::get(context(), APFloat(f.x)),
+				                           ConstantFP::get(context(), APFloat(f.y)),
+				                           ConstantFP::get(context(), APFloat(f.z)),
+				                           NULL);
+			}
+			case BVM_FLOAT4: {
+				StructType *stype = TypeBuilder<float4, true>::get(context());
+				
+				float4 f;
+				node_value->get(&f);
+				return ConstantStruct::get(stype,
+				                           ConstantFP::get(context(), APFloat(f.x)),
+				                           ConstantFP::get(context(), APFloat(f.y)),
+				                           ConstantFP::get(context(), APFloat(f.z)),
+				                           ConstantFP::get(context(), APFloat(f.w)),
+				                           NULL);
+			}
+			case BVM_INT: {
+				int i;
+				node_value->get(&i);
+				return ConstantInt::get(context(), APInt(32, i, true));
+			}
+			case BVM_MATRIX44: {
+				Type *elem_t = TypeBuilder<types::ieee_float, true>::get(context());
+				ArrayType *inner_t = ArrayType::get(elem_t, 4);
+				ArrayType *outer_t = ArrayType::get(inner_t, 4);
+				StructType *matrix_t = StructType::get(outer_t, NULL);
+				
+				matrix44 m;
+				node_value->get(&m);
+				Constant *constants[4][4];
+				for (int i = 0; i < 4; ++i)
+					for (int j = 0; j < 4; ++j)
+						constants[i][j] = ConstantFP::get(context(), APFloat(m.data[i][j]));
+				Constant *cols[4];
+				for (int i = 0; i < 4; ++i)
+					cols[i] = ConstantArray::get(inner_t, ArrayRef<Constant*>(constants[i], 4));
+				Constant *data = ConstantArray::get(outer_t, ArrayRef<Constant*>(cols, 4));
+				return ConstantStruct::get(matrix_t,
+				                           data, NULL);
+			}
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				return NULL;
+		}
+	}
+	return NULL;
+}
+
 llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &graph)
 {
 	using namespace llvm;
@@ -179,7 +261,7 @@ llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &gr
 	
 	for (int i = 0; i < graph.outputs.size(); ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		Type *type = codegen_typedesc(dummy_type_name(output.key), &output.typedesc);
+		Type *type = codegen_type(dummy_type_name(output.key), &output.typedesc);
 		output_types.push_back(type);
 	}
 	StructType *return_type = StructType::get(context(), output_types);
@@ -187,12 +269,79 @@ llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &gr
 	input_types.push_back(PointerType::get(return_type, 0));
 	for (int i = 0; i < graph.inputs.size(); ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = codegen_typedesc(dummy_type_name(input.key), &input.typedesc);
+		Type *type = codegen_type(dummy_type_name(input.key), &input.typedesc);
 //		type = PointerType::get(type, 0);
 		input_types.push_back(type);
 	}
 	
 	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
+}
+
+llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
+                                                const NodeInstance *node,
+                                                OutputValueMap &output_values)
+{
+	using namespace llvm;
+	
+	const bool use_struct_return = (node->num_outputs() > 1);
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	/* get evaluation function */
+	const std::string &evalname = node->type->name();
+	Function *evalfunc = module()->getFunction(evalname);
+	if (!evalfunc) {
+		printf("Could not find node function '%s'\n", evalname.c_str());
+		return NULL;
+	}
+	
+	/* function call arguments (including possible return struct if MRV is used) */
+	std::vector<Value *> args;
+	
+	Value *retval = NULL;
+	if (evalfunc->hasStructRetAttr()) {
+		Argument *retarg = &(*evalfunc->getArgumentList().begin());
+		retval = builder.CreateAlloca(retarg->getType()->getPointerElementType());
+		
+		args.push_back(retval);
+	}
+	
+	/* set input arguments */
+	for (int i = 0; i < node->num_inputs(); ++i) {
+		ConstInputKey input = node->input(i);
+		
+		switch (input.value_type()) {
+			case INPUT_CONSTANT:
+				args.push_back(codegen_constant(input.value()));
+				break;
+			case INPUT_EXPRESSION:
+				args.push_back(output_values.at(input.link()));
+				break;
+			case INPUT_VARIABLE:
+				/* TODO */
+				BLI_assert(false && "Variable inputs not supported yet!");
+				break;
+		}
+	}
+	
+	CallInst *call = builder.CreateCall(evalfunc, args);
+	if (!retval)
+		retval = call;
+	
+	for (int i = 0; i < node->num_outputs(); ++i) {
+		ConstOutputKey output = node->output(i);
+		Value *value = builder.CreateStructGEP(retval, i);
+		if (!value) {
+			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), output.socket->name.c_str());
+		}
+		
+		/* use as node output values */
+		bool ok = output_values.insert(OutputValuePair(output, value)).second;
+		BLI_assert(ok && "Value for node output already defined!");
+	}
+	
+	return call;
 }
 
 /* Compile nodes as a simple expression.
@@ -206,8 +355,8 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 	
 	IRBuilder<> builder(context());
 	
-	BasicBlock *entry = BasicBlock::Create(context(), "entry", func);
-	builder.SetInsertPoint(entry);
+	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
+	builder.SetInsertPoint(block);
 	
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
@@ -224,16 +373,21 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 		output_values[input.key] = arg;
 	}
 	
-#if 0 // TODO
-	NodeRefList sorted_nodes = toposort_nodes(graph);
-	for (NodeRefList::iterator it = sorted_nodes.begin(); it != sorted_nodes.end(); ++it) {
-		NodeInstance *node = *it;
+	OrderedNodeSet nodes;
+	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it)
+		nodes.insert(it->second);
+	
+	printf("DOING THE NODES: ---\n");
+	module()->dump();
+	printf("--------------------\n");
+	
+	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+		const NodeInstance &node = **it;
 		
-		CallInst *call = codegen_node_function_call(builder, module, node);
+		CallInst *call = codegen_node_call(block, &node, output_values);
 		if (!call)
 			continue;
 	}
-#endif
 	
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
@@ -247,15 +401,15 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 	
 	builder.CreateRetVoid();
 	
-	return entry;
+	return block;
 }
 
-llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph, llvm::Module *module)
+llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph)
 {
 	using namespace llvm;
 	
 	FunctionType *functype = codegen_node_function_type(graph);
-	Function *func = llvm::cast<Function>(module->getOrInsertFunction(name, functype));
+	Function *func = llvm::cast<Function>(module()->getOrInsertFunction(name, functype));
 	Argument *retarg = func->getArgumentList().begin();
 	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
 	
@@ -273,17 +427,18 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 {
 	using namespace llvm;
 	
-	Module *module = new Module(name, context());
-	llvm_execution_engine()->addModule(module);
+	m_module = new Module(name, context());
+	llvm_execution_engine()->addModule(m_module);
+	llvm_link_module_full(m_module);
 	
-	Function *func = codegen_node_function(name, graph, module);
+	Function *func = codegen_node_function(name, graph);
 	assert(func != NULL && "codegen_node_function returned NULL!");
 	
 	printf("=== NODE FUNCTION ===\n");
 	func->dump();
 	printf("=====================\n");
 	
-	FunctionPassManager fpm(module);
+	FunctionPassManager fpm(m_module);
 	PassManagerBuilder builder;
 	builder.OptLevel = 0;
 	builder.populateFunctionPassManager(fpm);
@@ -291,15 +446,13 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	fpm.run(*func);
 	
-	llvm_link_module_full(module);
-	
 	llvm_execution_engine()->finalizeObject();
 	
 	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
 	BLI_assert(address != 0);
 	
-	llvm_execution_engine()->removeModule(module);
-	delete module;
+	llvm_execution_engine()->removeModule(m_module);
+	delete m_module;
 	
 	FunctionLLVM *fn = new FunctionLLVM(address);
 	return fn;

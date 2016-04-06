@@ -125,7 +125,7 @@ llvm::Function *llvm_find_external_function(llvm::Module *mod, const string &nam
 	return NULL;
 }
 
-string llvm_get_external_function_name(llvm::Function *func)
+string llvm_get_external_function_name(const llvm::Function *func)
 {
 	if (func->hasFnAttribute("name"))
 		return func->getFnAttribute("name").getValueAsString().str();
@@ -175,6 +175,11 @@ void llvm_load_module(const string &modfile, const string &modname)
 	printf("Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
 	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
 		const Function &func = *it;
+		
+//		if (!llvm_function_is_external(&func))
+//			continue;
+//		printf("    %s\n", llvm_get_external_function_name(&func).c_str());
+		
 		printf("    %s\n", func.getName().str().c_str());
 		
 //		func.dump();
