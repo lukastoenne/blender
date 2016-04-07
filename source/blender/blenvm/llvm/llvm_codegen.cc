@@ -104,14 +104,14 @@ namespace blenvm {
  * rather than storing full TypeDesc in each socket!
  * These functions just provides per-socket type names in the meantime.
  */
-static string dummy_type_name(const InputKey &input)
+inline string dummy_type_name(const InputKey &input)
 {
 	size_t hash = std::hash<const NodeInstance *>()(input.node) ^ std::hash<const NodeInput *>()(input.socket);
 	std::stringstream ss;
 	ss << "InputType" << (unsigned short)hash;
 	return ss.str();
 }
-static string dummy_type_name(const OutputKey &output)
+inline string dummy_type_name(const OutputKey &output)
 {
 	size_t hash = std::hash<const NodeInstance *>()(output.node) ^ std::hash<const NodeOutput *>()(output.socket);
 	std::stringstream ss;
@@ -283,14 +283,12 @@ llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
 {
 	using namespace llvm;
 	
-	const bool use_struct_return = (node->num_outputs() > 1);
-	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
 	/* get evaluation function */
 	const std::string &evalname = node->type->name();
-	Function *evalfunc = module()->getFunction(evalname);
+	Function *evalfunc = llvm_find_external_function(module(), evalname);
 	if (!evalfunc) {
 		printf("Could not find node function '%s'\n", evalname.c_str());
 		return NULL;

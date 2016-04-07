@@ -133,7 +133,6 @@ string llvm_get_external_function_name(const llvm::Function *func)
 		return func->getName().str();
 }
 
-#if 0
 /* Based on
  * http://homes.cs.washington.edu/~bholt/posts/llvm-quick-tricks.html
  */
@@ -148,14 +147,13 @@ static void llvm_parse_function_annotations(llvm::Module *mod)
 			ConstantStruct *e = static_cast<ConstantStruct*>(a->getOperand(i));
 			StringRef anno = static_cast<ConstantDataArray*>(static_cast<GlobalVariable*>(e->getOperand(1)->getOperand(0))->getOperand(0))->getAsCString();
 			
-			Function *fn = dynamic_cast<Function*>(e->getOperand(0)->getOperand(0));
-			if (fn) {
+			if (e->getOperand(0)->getOperand(0)->getValueID() == Value::FunctionVal) {
+				Function *fn = static_cast<Function*>(e->getOperand(0)->getOperand(0));
 				fn->addFnAttr("name", anno); /* add function annotation */
 			}
 		}
 	}
 }
-#endif
 
 void llvm_load_module(const string &modfile, const string &modname)
 {
@@ -172,31 +170,27 @@ void llvm_load_module(const string &modfile, const string &modname)
 		return;
 	}
 	
-	printf("Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
-	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
-		const Function &func = *it;
-		
-//		if (!llvm_function_is_external(&func))
-//			continue;
-//		printf("    %s\n", llvm_get_external_function_name(&func).c_str());
-		
-		printf("    %s\n", func.getName().str().c_str());
-		
-//		func.dump();
-//		printf("++++++++++++++++++++++++++++++++++\n");
-	}
-	
-	/* XXX this code was used to identify special node functions,
-	 * similar to the "shader" keyword in OSL.
-	 * Not sure if needed eventually.
-	 */
-//	bjit_parse_function_annotations(mod);
+	llvm_parse_function_annotations(mod);
 	mod->setModuleIdentifier(modname);
 	
 	verifyModule(*mod, &outs());
 	
 	theEngine->addModule(mod);
 	theModules[mod->getModuleIdentifier()] = mod;
+	
+	printf("Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
+	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
+		const Function &func = *it;
+		
+		if (!llvm_function_is_external(&func))
+			continue;
+		printf("    %s\n", llvm_get_external_function_name(&func).c_str());
+		
+//		printf("    %s\n", func.getName().str().c_str());
+		
+//		func.dump();
+//		printf("++++++++++++++++++++++++++++++++++\n");
+	}
 }
 
 void llvm_load_all_modules(const string &modpath, bool reload)

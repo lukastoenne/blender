@@ -28,27 +28,27 @@
 #include "mod_math.h"
 #include "mod_value.h"
 
-float VALUE_FLOAT(float value)
+void VALUE_FLOAT(float *result, const float *value)
 {
-	return value;
+	*result = *value;
 }
 
-float3 VALUE_FLOAT3(float3 value)
+void VALUE_FLOAT3(float3 &result, const float3 &value)
 {
-	return value;
+	result = value;
 }
 
-float4 VALUE_FLOAT4(float4 value)
+void VALUE_FLOAT4(float4 &result, const float4 &value)
 {
-	return value;
+	result = value;
 }
 
-int VALUE_INT(int value)
+void VALUE_INT(int &result, const int &value)
 {
-	return value;
+	result = value;
 }
 
-matrix44 VALUE_MATRIX44(matrix44 value)
+void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
 {
-	return value;
+	result = value;
 }
