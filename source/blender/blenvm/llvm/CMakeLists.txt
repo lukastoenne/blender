@@ -99,7 +99,7 @@ macro(BLENVM_LLVM_MODULE_ADD src)
 				-DBLENVM_RUNTIME
 				-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
 				-std=c++0x
-		DEPENDS ${LLVM_SRC})
+		DEPENDS ${LLVM_SRC} ${LLVM_HEADERS})
 
 	delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
 	list(APPEND llvm_irs ${llvm_ir})
