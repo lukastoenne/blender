@@ -28,9 +28,9 @@
 #include "mod_math.h"
 #include "mod_value.h"
 
-void VALUE_FLOAT(float *result, const float *value)
+void VALUE_FLOAT(float &result, const float &value)
 {
-	*result = *value;
+	result = value;
 }
 
 void VALUE_FLOAT3(float3 &result, const float3 &value)

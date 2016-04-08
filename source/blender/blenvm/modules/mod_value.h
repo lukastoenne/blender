@@ -28,7 +28,7 @@
 #ifndef __MOD_VALUE_H__
 #define __MOD_VALUE_H__
 
-__attribute__((annotate("VALUE_FLOAT"))) void VALUE_FLOAT(float *result, const float *value);
+__attribute__((annotate("VALUE_FLOAT"))) void VALUE_FLOAT(float &result, const float &value);
 __attribute__((annotate("VALUE_FLOAT3"))) void VALUE_FLOAT3(float3 &result, const float3 &value);
 __attribute__((annotate("VALUE_FLOAT4"))) void VALUE_FLOAT4(float4 &result, const float4 &value);
 __attribute__((annotate("VALUE_INT"))) void VALUE_INT(int &result, const int &value);

@@ -39,6 +39,20 @@
 #include "llvm_function.h"
 #include "llvm_headers.h"
 
+/* call signature convention in llvm modules:
+ * BYVALUE:   Pass struct types directly into (inlined) functions,
+ *            Return type is a struct with all outputs, or a single
+ *            value if node has just one output.
+ * BYPOINTER: Pass arguments as pointers/references.
+ *            First function args are output pointers, followed by
+ *            inputs const pointers.
+ *            This call style is necessary to avoid type coercion by
+ *            the clang compiler! See
+ *            http://stackoverflow.com/questions/22776391/why-does-clang-coerce-struct-parameters-to-ints
+ */
+//#define BVM_NODE_CALL_BYVALUE
+#define BVM_NODE_CALL_BYPOINTER
+
 /* TypeBuilder specializations for own structs */
 
 namespace llvm {
@@ -104,14 +118,14 @@ namespace blenvm {
  * rather than storing full TypeDesc in each socket!
  * These functions just provides per-socket type names in the meantime.
  */
-inline string dummy_type_name(const InputKey &input)
+inline string dummy_type_name(ConstInputKey input)
 {
 	size_t hash = std::hash<const NodeInstance *>()(input.node) ^ std::hash<const NodeInput *>()(input.socket);
 	std::stringstream ss;
 	ss << "InputType" << (unsigned short)hash;
 	return ss.str();
 }
-inline string dummy_type_name(const OutputKey &output)
+inline string dummy_type_name(ConstOutputKey output)
 {
 	size_t hash = std::hash<const NodeInstance *>()(output.node) ^ std::hash<const NodeOutput *>()(output.socket);
 	std::stringstream ss;
@@ -298,21 +312,47 @@ llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
 	std::vector<Value *> args;
 	
 	Value *retval = NULL;
+#ifdef BVM_NODE_CALL_BYVALUE
 	if (evalfunc->hasStructRetAttr()) {
 		Argument *retarg = &(*evalfunc->getArgumentList().begin());
 		retval = builder.CreateAlloca(retarg->getType()->getPointerElementType());
 		
 		args.push_back(retval);
 	}
+#endif
+#ifdef BVM_NODE_CALL_BYPOINTER
+	for (int i = 0; i < node->num_outputs(); ++i) {
+		ConstOutputKey output = node->output(i);
+		Type *output_type = codegen_type(dummy_type_name(output), &output.socket->typedesc);
+		AllocaInst *outputmem = builder.CreateAlloca(output_type);
+		
+		Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
+		Value *value = builder.CreatePointerBitCastOrAddrSpaceCast(outputmem, arg_type);
+		args.push_back(value);
+		
+		/* use as node output values */
+		bool ok = output_values.insert(OutputValuePair(output, outputmem)).second;
+		BLI_assert(ok && "Value for node output already defined!");
+	}
+#endif
 	
 	/* set input arguments */
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		ConstInputKey input = node->input(i);
 		
 		switch (input.value_type()) {
-			case INPUT_CONSTANT:
-				args.push_back(codegen_constant(input.value()));
+			case INPUT_CONSTANT: {
+				/* create storage for the global value */
+				Constant *constval = codegen_constant(input.value());
+				AllocaInst *constmem = builder.CreateAlloca(constval->getType());
+				builder.CreateStore(constval, constmem);
+				
+				/* use the pointer as function argument */
+				Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
+				Value *value = builder.CreatePointerBitCastOrAddrSpaceCast(constmem, arg_type);
+				args.push_back(value);
 				break;
+			}
 			case INPUT_EXPRESSION:
 				args.push_back(output_values.at(input.link()));
 				break;
@@ -327,16 +367,32 @@ llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
 	if (!retval)
 		retval = call;
 	
-	for (int i = 0; i < node->num_outputs(); ++i) {
-		ConstOutputKey output = node->output(i);
-		Value *value = builder.CreateStructGEP(retval, i);
-		if (!value) {
-			printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), output.socket->name.c_str());
+	if (node->num_outputs() == 0) {
+		/* nothing to return */
+	}
+	else {
+#ifdef BVM_NODE_CALL_BYVALUE
+		if (evalfunc->hasStructRetAttr()) {
+			for (int i = 0; i < node->num_outputs(); ++i) {
+				ConstOutputKey output = node->output(i);
+				Value *value = builder.CreateStructGEP(retval, i);
+				if (!value) {
+					printf("Error: no output value defined for '%s':'%s'\n", node->name.c_str(), output.socket->name.c_str());
+				}
+				
+				/* use as node output values */
+				bool ok = output_values.insert(OutputValuePair(output, value)).second;
+				BLI_assert(ok && "Value for node output already defined!");
+			}
 		}
-		
-		/* use as node output values */
-		bool ok = output_values.insert(OutputValuePair(output, value)).second;
-		BLI_assert(ok && "Value for node output already defined!");
+		else {
+			BLI_assert(node->num_outputs() == 1);
+			ConstOutputKey output = node->output(0);
+			/* use as node output values */
+			bool ok = output_values.insert(OutputValuePair(output, retval)).second;
+			BLI_assert(ok && "Value for node output already defined!");
+		}
+#endif
 	}
 	
 	return call;
@@ -375,10 +431,6 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it)
 		nodes.insert(it->second);
 	
-	printf("DOING THE NODES: ---\n");
-	module()->dump();
-	printf("--------------------\n");
-	
 	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
@@ -392,9 +444,9 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 		
 		Value *retptr = builder.CreateStructGEP(retarg, i);
 		
-//		Value *value = output_values.at(output.key);
-//		Value *retval = builder.CreateLoad(value);
-//		builder.CreateStore(retval, retptr);
+		Value *value = output_values.at(output.key);
+		Value *retval = builder.CreateLoad(value);
+		builder.CreateStore(retval, retptr);
 	}
 	
 	builder.CreateRetVoid();
@@ -407,7 +459,7 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 	using namespace llvm;
 	
 	FunctionType *functype = codegen_node_function_type(graph);
-	Function *func = llvm::cast<Function>(module()->getOrInsertFunction(name, functype));
+	Function *func = Function::Create(functype, Function::ExternalLinkage, name, module());
 	Argument *retarg = func->getArgumentList().begin();
 	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
 	
@@ -426,15 +478,20 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	using namespace llvm;
 	
 	m_module = new Module(name, context());
-	llvm_execution_engine()->addModule(m_module);
 	llvm_link_module_full(m_module);
 	
 	Function *func = codegen_node_function(name, graph);
-	assert(func != NULL && "codegen_node_function returned NULL!");
+	BLI_assert(m_module->getFunction(name) && "Function not registered in module!");
+	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
 	printf("=== NODE FUNCTION ===\n");
+	fflush(stdout);
 	func->dump();
 	printf("=====================\n");
+	fflush(stdout);
+	
+	verifyFunction(*func, &outs());
+	verifyModule(*m_module, &outs());
 	
 	FunctionPassManager fpm(m_module);
 	PassManagerBuilder builder;
@@ -444,13 +501,14 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	fpm.run(*func);
 	
-	llvm_execution_engine()->finalizeObject();
-	
+	/* Note: Adding module to exec engine before creating the function prevents compilation! */
+	llvm_execution_engine()->addModule(m_module);
 	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
 	BLI_assert(address != 0);
 	
 	llvm_execution_engine()->removeModule(m_module);
 	delete m_module;
+	m_module = NULL;
 	
 	FunctionLLVM *fn = new FunctionLLVM(address);
 	return fn;
