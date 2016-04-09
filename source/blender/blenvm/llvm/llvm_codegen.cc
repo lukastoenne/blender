@@ -473,6 +473,20 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 	return func;
 }
 
+void LLVMCompiler::optimize_function(llvm::Function *func, int opt_level)
+{
+	using namespace llvm;
+	using legacy::FunctionPassManager;
+	
+	FunctionPassManager FPM(module());
+	
+	PassManagerBuilder builder;
+	builder.OptLevel = opt_level;
+	builder.populateFunctionPassManager(FPM);
+	
+	FPM.run(*func);
+}
+
 FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph &graph)
 {
 	using namespace llvm;
@@ -484,6 +498,8 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	BLI_assert(m_module->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
+	optimize_function(func, 2);
+	
 	printf("=== NODE FUNCTION ===\n");
 	fflush(stdout);
 	func->dump();
@@ -492,14 +508,6 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	verifyFunction(*func, &outs());
 	verifyModule(*m_module, &outs());
-	
-	FunctionPassManager fpm(m_module);
-	PassManagerBuilder builder;
-	builder.OptLevel = 0;
-	builder.populateFunctionPassManager(fpm);
-//	builder.populateModulePassManager(MPM);
-	
-	fpm.run(*func);
 	
 	/* Note: Adding module to exec engine before creating the function prevents compilation! */
 	llvm_execution_engine()->addModule(m_module);

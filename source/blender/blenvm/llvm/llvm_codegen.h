@@ -75,6 +75,8 @@ protected:
 	llvm::LLVMContext &context() const;
 	llvm::Module *module() const { return m_module; }
 	
+	void optimize_function(llvm::Function *func, int opt_level);
+	
 	llvm::StructType *codegen_struct_type(const string &name, const StructSpec *s);
 	llvm::Type *codegen_type(const string &name, const TypeDesc *td);
 	llvm::Constant *codegen_constant(const NodeValue *node_value);
