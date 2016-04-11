@@ -28,27 +28,16 @@
 #include "mod_math.h"
 #include "mod_value.h"
 
-void VALUE_FLOAT(float &result, const float &value)
+inline int force_linking()
 {
-	result = value;
+	int i = 0;
+	i += (long int)VALUE_FLOAT;
+	i += (long int)VALUE_FLOAT3;
+	i += (long int)VALUE_FLOAT4;
+	i += (long int)VALUE_INT;
+	i += (long int)VALUE_MATRIX44;
+	
+	return i;
 }
 
-void VALUE_FLOAT3(float3 &result, const float3 &value)
-{
-	result = value;
-}
-
-void VALUE_FLOAT4(float4 &result, const float4 &value)
-{
-	result = value;
-}
-
-void VALUE_INT(int &result, const int &value)
-{
-	result = value;
-}
-
-void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
-{
-	result = value;
-}
+static int f = force_linking();

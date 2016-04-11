@@ -53,5 +53,7 @@
 #include "llvm/PassManager.h"
 #include "llvm/IR/LegacyPassManagers.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Scalar.h"
 
 #endif /* __LLVM_HEADERS_H__ */

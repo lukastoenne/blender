@@ -477,13 +477,41 @@ void LLVMCompiler::optimize_function(llvm::Function *func, int opt_level)
 {
 	using namespace llvm;
 	using legacy::FunctionPassManager;
+	using legacy::PassManager;
 	
 	FunctionPassManager FPM(module());
+	PassManager MPM;
+	
+#if 0
+	/* Set up the optimizer pipeline.
+	 * Start with registering info about how the
+	 * target lays out data structures.
+	 */
+	FPM.add(new DataLayoutPass(*llvm_execution_engine()->getDataLayout()));
+	/* Provide basic AliasAnalysis support for GVN. */
+	FPM.add(createBasicAliasAnalysisPass());
+	/* Do simple "peephole" optimizations and bit-twiddling optzns. */
+	FPM.add(createInstructionCombiningPass());
+	/* Reassociate expressions. */
+	FPM.add(createReassociatePass());
+	/* Eliminate Common SubExpressions. */
+	FPM.add(createGVNPass());
+	/* Simplify the control flow graph (deleting unreachable blocks, etc). */
+	FPM.add(createCFGSimplificationPass());
+	
+	FPM.doInitialization();
+#endif
 	
 	PassManagerBuilder builder;
 	builder.OptLevel = opt_level;
+	
+	builder.populateModulePassManager(MPM);
+	/* Basic function inlining */
+	MPM.add(createFunctionInliningPass());
+	
 	builder.populateFunctionPassManager(FPM);
 	
+	MPM.run(*module());
 	FPM.run(*func);
 }
 
