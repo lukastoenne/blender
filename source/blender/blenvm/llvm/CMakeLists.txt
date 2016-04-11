@@ -91,14 +91,14 @@ macro(BLENVM_LLVM_MODULE_ADD src)
 	add_custom_command(
 		OUTPUT ${llvm_ir}
 		COMMAND ${LLVM_IR_COMPILER}
-				-cc1
 				-S
 				${CMAKE_CURRENT_SOURCE_DIR}/${src}
 				-emit-llvm
+				-std=c++0x
 				-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
 				-DBLENVM_RUNTIME
 				-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
-				-std=c++0x
+				-I${CMAKE_CURRENT_SOURCE_DIR}/../../blenlib
 		DEPENDS ${LLVM_SRC} ${LLVM_HEADERS})
 
 	delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
@@ -107,9 +107,11 @@ endmacro()
 
 
 set(LLVM_SRC
-	../modules/mod_value.cc
+	../modules/modules.cc
 )
 set(LLVM_HEADERS
+	../modules/mod_color.h
+	../modules/mod_math.h
 	../modules/mod_value.h
 )
 

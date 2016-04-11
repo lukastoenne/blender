@@ -28,6 +28,10 @@
 #ifndef __MOD_MATH_H__
 #define __MOD_MATH_H__
 
+extern "C" {
+#include "BLI_math.h"
+}
+
 struct float3 {
 	float3()
 	{}

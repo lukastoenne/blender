@@ -353,13 +353,18 @@ llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
 				args.push_back(value);
 				break;
 			}
-			case INPUT_EXPRESSION:
-				args.push_back(output_values.at(input.link()));
+			case INPUT_EXPRESSION: {
+				Value *valuemem = output_values.at(input.link());
+				Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
+				Value *value = builder.CreatePointerBitCastOrAddrSpaceCast(valuemem, arg_type);
+				args.push_back(value);
 				break;
-			case INPUT_VARIABLE:
+			}
+			case INPUT_VARIABLE: {
 				/* TODO */
 				BLI_assert(false && "Variable inputs not supported yet!");
 				break;
+			}
 		}
 	}
 	
@@ -526,13 +531,13 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	BLI_assert(m_module->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
-	optimize_function(func, 2);
-	
 	printf("=== NODE FUNCTION ===\n");
 	fflush(stdout);
 	func->dump();
 	printf("=====================\n");
 	fflush(stdout);
+	
+	optimize_function(func, 2);
 	
 	verifyFunction(*func, &outs());
 	verifyModule(*m_module, &outs());

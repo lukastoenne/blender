@@ -25,6 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "mod_color.h"
 #include "mod_math.h"
 #include "mod_value.h"
 
@@ -36,6 +37,8 @@ inline int force_linking()
 	i += (long int)VALUE_FLOAT4;
 	i += (long int)VALUE_INT;
 	i += (long int)VALUE_MATRIX44;
+	i += (long int)MIX_RGB3;
+	i += (long int)MIX_RGB4;
 	
 	return i;
 }
