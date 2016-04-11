@@ -1061,6 +1061,7 @@ struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cac
 	return (BVMFunction *)fn;
 #else
 	UNUSED_VARS(btree, use_cache);
+	return NULL;
 #endif
 }
 
@@ -1134,7 +1135,7 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunctio
 		zero_v3(dyt_v.data());
 	result = fp(coord_v, dxt_v, dyt_v, cfra, osatex);
 #else
-	UNUSED_VARS(ctx, fn, coord, dxt, dyt, cfra, osatex);
+	UNUSED_VARS(fn, coord, dxt, dyt, cfra, osatex);
 	result.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	result.normal = float3(0.0f, 0.0f, 1.0f);
 #endif
