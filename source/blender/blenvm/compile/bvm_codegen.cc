@@ -40,12 +40,12 @@
 
 namespace blenvm {
 
-Compiler::Compiler()
+BVMCompilerBase::BVMCompilerBase()
 {
 	stack_users.resize(BVM_STACK_SIZE, 0);
 }
 
-Compiler::~Compiler()
+BVMCompilerBase::~BVMCompilerBase()
 {
 }
 
@@ -59,7 +59,7 @@ static bool is_parent_block(const NodeBlock *parent, const NodeBlock *block)
 	return false;
 }
 
-void Compiler::calc_node_dependencies(const NodeInstance *node, BlockDependencyMap &block_deps_map)
+void BVMCompilerBase::calc_node_dependencies(const NodeInstance *node, BlockDependencyMap &block_deps_map)
 {
 	if (node_deps_map.find(node) != node_deps_map.end())
 		return;
@@ -91,7 +91,7 @@ void Compiler::calc_node_dependencies(const NodeInstance *node, BlockDependencyM
 	}
 }
 
-void Compiler::calc_block_dependencies(const NodeBlock *block, BlockDependencyMap &block_deps_map)
+void BVMCompilerBase::calc_block_dependencies(const NodeBlock *block, BlockDependencyMap &block_deps_map)
 {
 	if (block_deps_map.find(block) != block_deps_map.end())
 		return;
@@ -103,7 +103,7 @@ void Compiler::calc_block_dependencies(const NodeBlock *block, BlockDependencyMa
 	}
 }
 
-void Compiler::calc_symbol_scope(const NodeGraph &graph)
+void BVMCompilerBase::calc_symbol_scope(const NodeGraph &graph)
 {
 	{
 		BlockDependencyMap block_deps_map;
@@ -128,7 +128,7 @@ void Compiler::calc_symbol_scope(const NodeGraph &graph)
 	}
 }
 
-StackIndex Compiler::find_stack_index(int size) const
+StackIndex BVMCompilerBase::find_stack_index(int size) const
 {
 	int unused = 0;
 	
@@ -148,7 +148,7 @@ StackIndex Compiler::find_stack_index(int size) const
 	return BVM_STACK_INVALID;
 }
 
-StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
+StackIndex BVMCompilerBase::assign_stack_index(const TypeDesc &typedesc)
 {
 	int stack_size = EvalStack::stack_size(typedesc.size());
 	
@@ -161,7 +161,7 @@ StackIndex Compiler::assign_stack_index(const TypeDesc &typedesc)
 	return stack_offset;
 }
 
-void Compiler::get_local_arg_indices(const NodeInstance *node, const NodeBlock *local_block)
+void BVMCompilerBase::get_local_arg_indices(const NodeInstance *node, const NodeBlock *local_block)
 {
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
@@ -173,7 +173,7 @@ void Compiler::get_local_arg_indices(const NodeInstance *node, const NodeBlock *
 	}
 }
 
-void Compiler::resolve_node_block_symbols(const NodeBlock *block)
+void BVMCompilerBase::resolve_node_block_symbols(const NodeBlock *block)
 {
 	assert(block_info.find(block) == block_info.end());
 	block_info[block] = BlockInfo();
@@ -225,14 +225,14 @@ void Compiler::resolve_node_block_symbols(const NodeBlock *block)
 	}
 }
 
-void Compiler::resolve_symbols(const NodeGraph &graph)
+void BVMCompilerBase::resolve_symbols(const NodeGraph &graph)
 {
 	/* recursively assign stack indices to outputs */
 	resolve_node_block_symbols(&graph.main_block());
 }
 
 
-void Compiler::push_constant(const NodeValue *value) const
+void BVMCompilerBase::push_constant(const NodeValue *value) const
 {
 	BLI_assert(value != NULL);
 	switch (value->typedesc().base_type()) {
@@ -294,7 +294,7 @@ void Compiler::push_constant(const NodeValue *value) const
 	}
 }
 
-void Compiler::codegen_value(const NodeValue *value, StackIndex offset) const
+void BVMCompilerBase::codegen_value(const NodeValue *value, StackIndex offset) const
 {
 	switch (value->typedesc().base_type()) {
 		case BVM_FLOAT: {
@@ -410,7 +410,7 @@ static OpCode ptr_release_opcode(const TypeDesc &typedesc)
 	return OP_NOOP;
 }
 
-int Compiler::codegen_node_block(const NodeBlock &block)
+int BVMCompilerBase::codegen_node_block(const NodeBlock &block)
 {
 	int entry_point = current_address();
 	BlockInfo &info = block_info[&block];
@@ -522,7 +522,7 @@ int Compiler::codegen_node_block(const NodeBlock &block)
 	return entry_point;
 }
 
-int Compiler::codegen_graph(const NodeGraph &graph)
+int BVMCompilerBase::codegen_graph(const NodeGraph &graph)
 {
 	calc_symbol_scope(graph);
 	

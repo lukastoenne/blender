@@ -65,15 +65,16 @@ struct FunctionLLVM;
 typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
 typedef std::pair<ConstOutputKey, llvm::Value*> OutputValuePair;
 
-struct LLVMCompiler {
-	LLVMCompiler();
-	~LLVMCompiler();
-	
-	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph);
+struct LLVMCompilerBase {
+	~LLVMCompilerBase();
 	
 protected:
+	LLVMCompilerBase();
+	
 	llvm::LLVMContext &context() const;
 	llvm::Module *module() const { return m_module; }
+	void create_module(const string &name);
+	void destroy_module();
 	
 	void optimize_function(llvm::Function *func, int opt_level);
 	
@@ -88,6 +89,14 @@ protected:
 	
 private:
 	llvm::Module *m_module;
+};
+
+struct LLVMCompiler : public LLVMCompilerBase {
+	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
+};
+
+struct DebugLLVMCompiler : public LLVMCompilerBase {
+	void compile_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file);
 };
 
 } /* namespace blenvm */

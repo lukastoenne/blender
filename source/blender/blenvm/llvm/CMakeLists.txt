@@ -72,6 +72,8 @@ else()
 	endif()
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
+
 add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
 
 blender_add_lib(bf_blenvm_llvm "${SRC}" "${INC}" "${INC_SYS}")

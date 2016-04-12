@@ -23,14 +23,6 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-add_subdirectory(bvm)
-add_subdirectory(compile)
-
-if(WITH_LLVM)
-	add_subdirectory(llvm)
-	add_definitions(-DWITH_LLVM)
-endif()
-
 set(INC
 	.
 	bvm
@@ -90,6 +82,20 @@ else()
 		add_definitions(-DBVM_NO_UNORDERED_MAP)
 		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 	endif()
+endif()
+
+if(WIN32 AND MSVC)
+	set(RTTI_DISABLE_FLAGS "/GR- -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
+elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+	set(RTTI_DISABLE_FLAGS "-fno-rtti -DBOOST_NO_RTTI -DBOOST_NO_TYPEID")
+endif()
+
+add_subdirectory(bvm)
+add_subdirectory(compile)
+
+if(WITH_LLVM)
+	add_subdirectory(llvm)
+	add_definitions(-DWITH_LLVM)
 endif()
 
 blender_add_lib(bf_blenvm "${SRC}" "${INC}" "${INC_SYS}")

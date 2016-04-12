@@ -59,14 +59,14 @@ typedef std::map<const NodeBlock *, OutputSet> BlockDependencyMap;
 
 typedef std::vector<int> StackUsers;
 
-struct Compiler {
+struct BVMCompilerBase {
 	struct BlockInfo {
 		int entry_point;
 	};
 	typedef std::map<const NodeBlock*, BlockInfo> BlockInfoMap;
 	
-	Compiler();
-	virtual ~Compiler();
+	BVMCompilerBase();
+	virtual ~BVMCompilerBase();
 	
 protected:
 	void calc_node_dependencies(const NodeInstance *node, BlockDependencyMap &block_deps_map);
@@ -110,7 +110,7 @@ protected:
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:BVMCompiler")
 };
 
-struct BVMCompiler : public Compiler {
+struct BVMCompiler : public BVMCompilerBase {
 	BVMCompiler();
 	~BVMCompiler();
 	
@@ -134,11 +134,11 @@ private:
 	FunctionBVM *fn;
 };
 
-struct DebugGraphvizCompiler : public Compiler {
-	DebugGraphvizCompiler();
-	~DebugGraphvizCompiler();
+struct DebugGraphvizBVMCompiler : public BVMCompilerBase {
+	DebugGraphvizBVMCompiler();
+	~DebugGraphvizBVMCompiler();
 	
-	void compile_function(const NodeGraph &graph, FILE *m_file, const string &label);
+	void compile_function(const NodeGraph &graph, FILE *file, const string &label);
 	
 protected:
 	void push_opcode(OpCode op) const;

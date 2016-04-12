@@ -23,6 +23,7 @@ import bpy
 from bpy.types import Operator, Panel
 from bpy.props import EnumProperty
 
+txtfile = '/tmp/bvm_nodes.txt'
 dotfile = '/tmp/bvm_nodes.dot'
 imgfile = '/tmp/bvm_nodes.svg'
 dotformat = 'svg'
@@ -43,16 +44,22 @@ class BVMNodeGraphvizOperator(Operator):
     debug_mode = enum_property_copy(bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['debug_mode'])
 
     def execute(self, context):
-        if hasattr(context, "debug_nodetree"):
-            ntree = context.debug_nodetree
-            ntree.bvm_debug_graphviz(dotfile, self.function_type, self.debug_mode, label=ntree.name)
-        else:
+        if not hasattr(context, "debug_nodetree"):
             return {'CANCELLED'}
+
+        ntree = context.debug_nodetree
+
+        if (self.debug_mode in {'NODES', 'NODES_UNOPTIMIZED', 'BVM_CODE'}):
+            ntree.bvm_debug_graphviz(dotfile, self.function_type, self.debug_mode, label=ntree.name)
+
+            process = subprocess.Popen(['dot', '-T'+dotformat, '-o', imgfile, dotfile])
+            process.wait()
         
-        process = subprocess.Popen(['dot', '-T'+dotformat, '-o', imgfile, dotfile])
-        process.wait()
-        
-        subprocess.Popen(['xdg-open', imgfile])
+            subprocess.Popen(['xdg-open', imgfile])
+        else:
+            ntree.bvm_debug_graphviz(txtfile, self.function_type, self.debug_mode, label=ntree.name)
+            
+            subprocess.Popen(['xdg-open', txtfile])
         
         return {'FINISHED'}
 
@@ -77,9 +84,15 @@ def draw_depshow_op(layout, ntree):
     props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Nodes (unoptimized)")
     props.function_type = funtype
     props.debug_mode = 'NODES_UNOPTIMIZED'
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Code")
+    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="BVM Code")
     props.function_type = funtype
-    props.debug_mode = 'CODEGEN'
+    props.debug_mode = 'BVM_CODE'
+    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="LLVM Code")
+    props.function_type = funtype
+    props.debug_mode = 'LLVM_CODE'
+    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="LLVM Code (unoptimized)")
+    props.function_type = funtype
+    props.debug_mode = 'LLVM_CODE_UNOPTIMIZED'
 
 class BVMNodeGraphvizPanel(Panel):
     bl_idname = "node.bvm_graphviz_panel"

@@ -29,6 +29,7 @@
  *  \ingroup llvm
  */
 
+#include <cstdio>
 #include <set>
 #include <sstream>
 
@@ -133,21 +134,32 @@ inline string dummy_type_name(ConstOutputKey output)
 	return ss.str();
 }
 
-LLVMCompiler::LLVMCompiler() :
+LLVMCompilerBase::LLVMCompilerBase() :
     m_module(NULL)
 {
 }
 
-LLVMCompiler::~LLVMCompiler()
+LLVMCompilerBase::~LLVMCompilerBase()
 {
 }
 
-llvm::LLVMContext &LLVMCompiler::context() const
+llvm::LLVMContext &LLVMCompilerBase::context() const
 {
 	return llvm::getGlobalContext();
 }
 
-llvm::StructType *LLVMCompiler::codegen_struct_type(const string &name, const StructSpec *s)
+void LLVMCompilerBase::create_module(const string &name)
+{
+	m_module = new llvm::Module(name, context());
+}
+
+void LLVMCompilerBase::destroy_module()
+{
+	delete m_module;
+	m_module = NULL;
+}
+
+llvm::StructType *LLVMCompilerBase::codegen_struct_type(const string &name, const StructSpec *s)
 {
 	using namespace llvm;
 	
@@ -160,7 +172,7 @@ llvm::StructType *LLVMCompiler::codegen_struct_type(const string &name, const St
 	return StructType::create(context(), ArrayRef<Type*>(elemtypes), name);
 }
 
-llvm::Type *LLVMCompiler::codegen_type(const string &name, const TypeDesc *td)
+llvm::Type *LLVMCompilerBase::codegen_type(const string &name, const TypeDesc *td)
 {
 	using namespace llvm;
 	
@@ -191,7 +203,7 @@ llvm::Type *LLVMCompiler::codegen_type(const string &name, const TypeDesc *td)
 	return NULL;
 }
 
-llvm::Constant *LLVMCompiler::codegen_constant(const NodeValue *node_value)
+llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 {
 	using namespace llvm;
 	
@@ -267,7 +279,7 @@ llvm::Constant *LLVMCompiler::codegen_constant(const NodeValue *node_value)
 	return NULL;
 }
 
-llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &graph)
+llvm::FunctionType *LLVMCompilerBase::codegen_node_function_type(const NodeGraph &graph)
 {
 	using namespace llvm;
 	
@@ -291,7 +303,7 @@ llvm::FunctionType *LLVMCompiler::codegen_node_function_type(const NodeGraph &gr
 	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
 }
 
-llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
+llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
                                                 const NodeInstance *node,
                                                 OutputValueMap &output_values)
 {
@@ -408,7 +420,7 @@ llvm::CallInst *LLVMCompiler::codegen_node_call(llvm::BasicBlock *block,
  * into a function call, with regular value arguments. The resulting value is
  * assigned to a variable and can be used for subsequent node function calls.
  */
-llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func)
+llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func)
 {
 	using namespace llvm;
 	
@@ -459,7 +471,7 @@ llvm::BasicBlock *LLVMCompiler::codegen_function_body_expression(const NodeGraph
 	return block;
 }
 
-llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const NodeGraph &graph)
+llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, const NodeGraph &graph)
 {
 	using namespace llvm;
 	
@@ -478,7 +490,7 @@ llvm::Function *LLVMCompiler::codegen_node_function(const string &name, const No
 	return func;
 }
 
-void LLVMCompiler::optimize_function(llvm::Function *func, int opt_level)
+void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 {
 	using namespace llvm;
 	using legacy::FunctionPassManager;
@@ -511,8 +523,10 @@ void LLVMCompiler::optimize_function(llvm::Function *func, int opt_level)
 	builder.OptLevel = opt_level;
 	
 	builder.populateModulePassManager(MPM);
-	/* Basic function inlining */
-	MPM.add(createFunctionInliningPass());
+	if (opt_level > 1) {
+		/* Inline small functions */
+		MPM.add(createFunctionInliningPass());
+	}
 	
 	builder.populateFunctionPassManager(FPM);
 	
@@ -520,39 +534,93 @@ void LLVMCompiler::optimize_function(llvm::Function *func, int opt_level)
 	FPM.run(*func);
 }
 
-FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph &graph)
+/* ------------------------------------------------------------------------- */
+
+FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph &graph, int opt_level)
 {
 	using namespace llvm;
 	
-	m_module = new Module(name, context());
-	llvm_link_module_full(m_module);
+	create_module(name);
+	llvm_link_module_full(module());
 	
 	Function *func = codegen_node_function(name, graph);
-	BLI_assert(m_module->getFunction(name) && "Function not registered in module!");
+	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
+	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
+	optimize_function(func, opt_level);
+	
+#if 0
 	printf("=== NODE FUNCTION ===\n");
 	fflush(stdout);
-	func->dump();
+//	func->dump();
+	module()->dump();
 	printf("=====================\n");
 	fflush(stdout);
-	
-	optimize_function(func, 2);
+#endif
 	
 	verifyFunction(*func, &outs());
-	verifyModule(*m_module, &outs());
+	verifyModule(*module(), &outs());
 	
 	/* Note: Adding module to exec engine before creating the function prevents compilation! */
-	llvm_execution_engine()->addModule(m_module);
+	llvm_execution_engine()->addModule(module());
 	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
 	BLI_assert(address != 0);
 	
-	llvm_execution_engine()->removeModule(m_module);
-	delete m_module;
-	m_module = NULL;
+	llvm_execution_engine()->removeModule(module());
+	destroy_module();
 	
 	FunctionLLVM *fn = new FunctionLLVM(address);
 	return fn;
+}
+
+/* ------------------------------------------------------------------------- */
+
+/* llvm::ostream that writes to a FILE. */
+class file_ostream : public llvm::raw_ostream {
+	FILE *file;
+	
+	/* write_impl - See raw_ostream::write_impl. */
+	void write_impl(const char *ptr, size_t size) override {
+		fwrite(ptr, sizeof(char), size, file);
+	}
+	
+	/* current_pos - Return the current position within the stream, not
+	 * counting the bytes currently in the buffer.
+	 */
+	uint64_t current_pos() const override { return ftell(file); }
+	
+public:
+	explicit file_ostream(FILE *f) : file(f) {}
+	~file_ostream() {
+		fflush(file);
+	}
+};
+
+class debug_assembly_annotation_writer : public llvm::AssemblyAnnotationWriter
+{
+	/* add implementation here if needed */
+};
+
+void DebugLLVMCompiler::compile_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file)
+{
+	using namespace llvm;
+	
+	create_module(name);
+	llvm_link_module_full(module());
+	
+	Function *func = codegen_node_function(name, graph);
+	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
+	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
+	
+	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
+	optimize_function(func, opt_level);
+	
+	file_ostream stream(file);
+	debug_assembly_annotation_writer aaw;
+	module()->print(stream, &aaw);
+	
+	destroy_module();
 }
 
 } /* namespace blenvm */

@@ -87,7 +87,7 @@ inline void print_gap(FILE *f)
 	debug_fprintf(f, "</TR>" NL);
 }
 
-DebugGraphvizCompiler::DebugGraphvizCompiler() :
+DebugGraphvizBVMCompiler::DebugGraphvizBVMCompiler() :
     m_file(NULL),
     m_current_address(0),
     m_current_opnode(NULL),
@@ -95,11 +95,11 @@ DebugGraphvizCompiler::DebugGraphvizCompiler() :
 {
 }
 
-DebugGraphvizCompiler::~DebugGraphvizCompiler()
+DebugGraphvizBVMCompiler::~DebugGraphvizBVMCompiler()
 {
 }
 
-void DebugGraphvizCompiler::push_opcode(OpCode op) const
+void DebugGraphvizBVMCompiler::push_opcode(OpCode op) const
 {
 	const char *opname = opcode_name(op);
 	
@@ -111,43 +111,43 @@ void DebugGraphvizCompiler::push_opcode(OpCode op) const
 	m_current_arg = 0;
 }
 
-void DebugGraphvizCompiler::push_stack_index(StackIndex arg) const
+void DebugGraphvizBVMCompiler::push_stack_index(StackIndex arg) const
 {
 	const char *load_or_store = is_arg_output() ? "store" : "load";
 	print_rows(m_file, &m_current_address, 1, color_stack_index, "%s %d [%s]", load_or_store, (int)arg, get_arg_name());
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_jump_address(int address) const
+void DebugGraphvizBVMCompiler::push_jump_address(int address) const
 {
 	print_rows(m_file, &m_current_address, 1, color_jump_address, "JMP %d", (int)address);
 }
 
-void DebugGraphvizCompiler::push_float(float f) const
+void DebugGraphvizBVMCompiler::push_float(float f) const
 {
 	print_rows(m_file, &m_current_address, 1, color_value, "%f [%s]", f, get_arg_name());
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_float3(float3 f) const
+void DebugGraphvizBVMCompiler::push_float3(float3 f) const
 {
 	print_rows(m_file, &m_current_address, 3, color_value, "(%.2f, %.2f, %.2f)<BR/>[%s]", f.x, f.y, f.z, get_arg_name());
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_float4(float4 f) const
+void DebugGraphvizBVMCompiler::push_float4(float4 f) const
 {
 	print_rows(m_file, &m_current_address, 4, color_value, "(%.2f, %.2f, %.2f, %.2f)<BR/>[%s]", f.x, f.y, f.z, f.w, get_arg_name());
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_int(int i) const
+void DebugGraphvizBVMCompiler::push_int(int i) const
 {
 	print_rows(m_file, &m_current_address, 1, color_value, "%d [%s]", i, get_arg_name());
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_matrix44(matrix44 m) const
+void DebugGraphvizBVMCompiler::push_matrix44(matrix44 m) const
 {
 	print_rows(m_file, &m_current_address, 16, color_value, "%.2f, %.2f, %.2f, %.2f<BR/>%.2f, %.2f, %.2f, %.2f<BR/>%.2f, %.2f, %.2f, %.2f<BR/>%.2f, %.2f, %.2f, %.2f<BR/>[%s]",
 	           m.data[0][0], m.data[1][0], m.data[2][0], m.data[3][0],
@@ -158,7 +158,7 @@ void DebugGraphvizCompiler::push_matrix44(matrix44 m) const
 	++m_current_arg;
 }
 
-void DebugGraphvizCompiler::push_string(const char *s) const
+void DebugGraphvizBVMCompiler::push_string(const char *s) const
 {
 	const char *c = s;
 	int rows = 0;
@@ -172,12 +172,12 @@ void DebugGraphvizCompiler::push_string(const char *s) const
 	++m_current_arg;
 }
 
-int DebugGraphvizCompiler::current_address() const
+int DebugGraphvizBVMCompiler::current_address() const
 {
 	return m_current_address;
 }
 
-const char *DebugGraphvizCompiler::get_arg_name() const
+const char *DebugGraphvizBVMCompiler::get_arg_name() const
 {
 	if (m_current_opnode) {
 		if (m_current_arg < m_current_opnode->num_inputs())
@@ -188,7 +188,7 @@ const char *DebugGraphvizCompiler::get_arg_name() const
 	return "";
 }
 
-bool DebugGraphvizCompiler::is_arg_output() const
+bool DebugGraphvizBVMCompiler::is_arg_output() const
 {
 	if (m_current_opnode) {
 		return m_current_arg >= m_current_opnode->num_inputs();
@@ -196,7 +196,7 @@ bool DebugGraphvizCompiler::is_arg_output() const
 	return false;
 }
 
-void DebugGraphvizCompiler::init_graph(const string &label)
+void DebugGraphvizBVMCompiler::init_graph(const string &label)
 {
 	static float label_size = 20.0f;
 	
@@ -211,12 +211,12 @@ void DebugGraphvizCompiler::init_graph(const string &label)
 	debug_fprintf(m_file, "];" NL);
 }
 
-void DebugGraphvizCompiler::close_graph()
+void DebugGraphvizBVMCompiler::close_graph()
 {
 	debug_fprintf(m_file, "}" NL);
 }
 
-void DebugGraphvizCompiler::init_node()
+void DebugGraphvizBVMCompiler::init_node()
 {
 	static float label_size = 14.0f;
 	const char *shape = "box";
@@ -239,13 +239,13 @@ void DebugGraphvizCompiler::init_node()
 	debug_fprintf(m_file, ",label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
 }
 
-void DebugGraphvizCompiler::close_node()
+void DebugGraphvizBVMCompiler::close_node()
 {
 	debug_fprintf(m_file, "</TABLE>>");
 	debug_fprintf(m_file, "];" NL);
 }
 
-void DebugGraphvizCompiler::compile_function(const NodeGraph &graph, FILE *f, const string &label)
+void DebugGraphvizBVMCompiler::compile_function(const NodeGraph &graph, FILE *f, const string &label)
 {
 	m_file = f;
 	m_current_address = 0;

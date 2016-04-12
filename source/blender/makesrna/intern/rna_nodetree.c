@@ -8234,7 +8234,9 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	static EnumPropertyItem bvm_debug_mode_items[] = {
 	    {BVM_DEBUG_NODES, "NODES", 0, "Nodes", ""},
 	    {BVM_DEBUG_NODES_UNOPTIMIZED, "NODES_UNOPTIMIZED", 0, "Nodes (unoptimized)", ""},
-	    {BVM_DEBUG_CODEGEN, "CODEGEN", 0, "Generated Code", ""},
+	    {BVM_DEBUG_BVM_CODE, "BVM_CODE", 0, "Generated BVM Code", ""},
+	    {BVM_DEBUG_LLVM_CODE, "LLVM_CODE", 0, "Generated LLVM Code", ""},
+	    {BVM_DEBUG_LLVM_CODE_UNOPTIMIZED, "LLVM_CODE_UNOPTIMIZED", 0, "Generated LLVM Code (unoptimized)", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
