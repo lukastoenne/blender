@@ -51,27 +51,6 @@ set(SRC
 	llvm_headers.h
 )
 
-TEST_UNORDERED_MAP_SUPPORT()
-if(HAVE_STD_UNORDERED_MAP_HEADER)
-	if(HAVE_UNORDERED_MAP_IN_STD_NAMESPACE)
-		add_definitions(-DBVM_STD_UNORDERED_MAP)
-	else()
-		if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
-			add_definitions(-DBVM_STD_UNORDERED_MAP_IN_TR1_NAMESPACE)
-		else()
-			add_definitions(-DBVM_NO_UNORDERED_MAP)
-			message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
-		endif()
-	endif()
-else()
-	if(HAVE_UNORDERED_MAP_IN_TR1_NAMESPACE)
-		add_definitions(-DBVM_TR1_UNORDERED_MAP)
-	else()
-		add_definitions(-DBVM_NO_UNORDERED_MAP)
-		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
-	endif()
-endif()
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 
 add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
