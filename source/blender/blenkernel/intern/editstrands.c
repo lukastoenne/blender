@@ -172,10 +172,10 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 
 	bm = BM_mesh_create(&allocsize);
 
-	if (psmd && psmd->dm) {
-		DM_ensure_tessface(psmd->dm);
+	if (psmd && psmd->dm_final) {
+		DM_ensure_tessface(psmd->dm_final);
 		
-		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm, true, /*psys->shapenr*/ -1);
+		BM_strands_bm_from_psys(bm, ob, psys, psmd->dm_final, true, /*psys->shapenr*/ -1);
 		
 		editstrands_calc_segment_lengths(bm);
 	}
@@ -189,14 +189,14 @@ void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys)
 	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
 	
 	if (bm) {
-		if (psmd && psmd->dm) {
+		if (psmd && psmd->dm_final) {
 			BVHTreeFromMesh bvhtree = {NULL};
 			
-			DM_ensure_tessface(psmd->dm);
+			DM_ensure_tessface(psmd->dm_final);
 			
-			bvhtree_from_mesh_faces(&bvhtree, psmd->dm, 0.0, 2, 6);
+			bvhtree_from_mesh_faces(&bvhtree, psmd->dm_final, 0.0, 2, 6);
 			
-			BM_strands_bm_to_psys(bm, ob, psys, psmd->dm, &bvhtree);
+			BM_strands_bm_to_psys(bm, ob, psys, psmd->dm_final, &bvhtree);
 			
 			free_bvhtree_from_mesh(&bvhtree);
 		}

@@ -51,7 +51,10 @@ typedef struct bGPDspoint {
 /* bGPDspoint->flag */
 typedef enum eGPDspoint_Flag {
 	/* stroke point is selected (for editing) */
-	GP_SPOINT_SELECT	= (1 << 0)
+	GP_SPOINT_SELECT	= (1 << 0),
+	
+	/* stroke point is tagged (for some editing operation) */
+	GP_SPOINT_TAG       = (1 << 1),
 } eGPSPoint_Flag;
 
 /* Grease-Pencil Annotations - 'Stroke'
@@ -127,6 +130,10 @@ typedef struct bGPDlayer {
 	
 	char info[128];			/* optional reference info about this layer (i.e. "director's comments, 12/3")
 							 * this is used for the name of the layer  too and kept unique. */
+	
+	float draw_smoothfac;   /* amount of smoothing to apply to newly created strokes */
+	short sublevel;         /* number of times to subdivide new strokes */
+	short pad[5];           /* padding for compiler error */
 } bGPDlayer;
 
 /* bGPDlayer->flag */
@@ -190,6 +197,7 @@ typedef enum eGPdata_Flag {
 	/* is the block overriding all clicks? */
 	/* GP_DATA_EDITPAINT = (1 << 3), */
 	
+/* ------------------------------------------------ DEPRECATED */
 	/* new strokes are added in viewport space */
 	GP_DATA_VIEWALIGN	= (1 << 4),
 	
@@ -198,9 +206,13 @@ typedef enum eGPdata_Flag {
 	GP_DATA_DEPTH_STROKE = (1 << 6),
 
 	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
+/* ------------------------------------------------ DEPRECATED */
 	
 	/* Stroke Editing Mode - Toggle to enable alternative keymap for easier editing of stroke points */
-	GP_DATA_STROKE_EDITMODE	= (1 << 8)
+	GP_DATA_STROKE_EDITMODE	= (1 << 8),
+	
+	/* Convenience/cache flag to make it easier to quickly toggle onion skinning on/off */
+	GP_DATA_SHOW_ONIONSKINS = (1 << 9)
 } eGPdata_Flag;
 
 #endif /*  __DNA_GPENCIL_TYPES_H__ */

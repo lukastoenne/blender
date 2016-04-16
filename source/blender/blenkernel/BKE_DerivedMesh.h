@@ -151,7 +151,8 @@ typedef enum DMDrawFlag {
 	DM_DRAW_USE_TEXPAINT_UV     = (1 << 3),
 	DM_DRAW_SKIP_HIDDEN         = (1 << 4),
 	DM_DRAW_SKIP_SELECT         = (1 << 5),
-	DM_DRAW_SELECT_USE_EDITMODE = (1 << 6)
+	DM_DRAW_SELECT_USE_EDITMODE = (1 << 6),
+	DM_DRAW_NEED_NORMALS        = (1 << 7)
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {
@@ -409,7 +410,7 @@ struct DerivedMesh {
 	void (*drawFacesTex)(DerivedMesh *dm,
 	                     DMSetDrawOptionsTex setDrawOptions,
 	                     DMCompareDrawOptions compareDrawOptions,
-	                     void *userData, DMDrawFlag uvflag);
+	                     void *userData, DMDrawFlag flag);
 
 	/** Draw all faces with GLSL materials
 	 *  o setMaterial is called for every different material nr
@@ -443,7 +444,7 @@ struct DerivedMesh {
 	void (*drawMappedFacesTex)(DerivedMesh *dm,
 	                           DMSetDrawOptionsMappedTex setDrawOptions,
 	                           DMCompareDrawOptions compareDrawOptions,
-	                           void *userData, DMDrawFlag uvflag);
+	                           void *userData, DMDrawFlag flag);
 
 	/** Draw mapped faces with GLSL materials
 	 * - setMaterial is called for every different material nr
@@ -498,6 +499,11 @@ void DM_init(
         DerivedMesh *dm, DerivedMeshType type, int numVerts, int numEdges,
         int numFaces, int numLoops, int numPolys);
 
+void DM_from_template_ex(
+        DerivedMesh *dm, DerivedMesh *source, DerivedMeshType type,
+        int numVerts, int numEdges, int numTessFaces,
+        int numLoops, int numPolys,
+        CustomDataMask mask);
 void DM_from_template(
         DerivedMesh *dm, DerivedMesh *source,
         DerivedMeshType type,

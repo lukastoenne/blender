@@ -62,6 +62,8 @@
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
 
+#include "data_transfer_intern.h"
+
 #include "bmesh.h"
 
 #include <math.h>
@@ -306,13 +308,16 @@ static void layerInterp_normal(
         const void **sources, const float *weights,
         const float *UNUSED(sub_weights), int count, void *dest)
 {
+	/* Note: This is linear interpolation, which is not optimal for vectors.
+	 *       Unfortunately, spherical interpolation of more than two values is hairy, so for now it will do... */
 	float no[3] = {0.0f};
 
 	while (count--) {
 		madd_v3_v3fl(no, (const float *)sources[count], weights[count]);
 	}
 
-	copy_v3_v3((float *)dest, no);
+	/* Weighted sum of normalized vectors will **not** be normalized, even if weights are. */
+	normalize_v3_v3((float *)dest, no);
 }
 
 static void layerCopyValue_normal(const void *source, void *dest, const int mixmode, const float mixfactor)
@@ -905,6 +910,7 @@ static void layerInterp_mloopuv(
         const float *sub_weights, int count, void *dest)
 {
 	float uv[2];
+	int flag = 0;
 	int i;
 
 	zero_v2(uv);
@@ -912,9 +918,12 @@ static void layerInterp_mloopuv(
 	if (sub_weights) {
 		const float *sub_weight = sub_weights;
 		for (i = 0; i < count; i++) {
-			float weight = weights ? weights[i] : 1.0f;
+			float weight = (weights ? weights[i] : 1.0f) * (*sub_weight);
 			const MLoopUV *src = sources[i];
-			madd_v2_v2fl(uv, src->uv, (*sub_weight) * weight);
+			madd_v2_v2fl(uv, src->uv, weight);
+			if (weight > 0.0f) {
+				flag |= src->flag;
+			}
 			sub_weight++;
 		}
 	}
@@ -923,11 +932,15 @@ static void layerInterp_mloopuv(
 			float weight = weights ? weights[i] : 1;
 			const MLoopUV *src = sources[i];
 			madd_v2_v2fl(uv, src->uv, weight);
+			if (weight > 0.0f) {
+				flag |= src->flag;
+			}
 		}
 	}
 
 	/* delay writing to the destination incase dest is in sources */
 	copy_v2_v2(((MLoopUV *)dest)->uv, uv);
+	((MLoopUV *)dest)->flag = flag;
 }
 
 /* origspace is almost exact copy of mloopuv's, keep in sync */
@@ -1298,7 +1311,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 35: CD_GRID_PAINT_MASK */
 	{sizeof(GridPaintMask), "GridPaintMask", 1, NULL, layerCopy_grid_paint_mask,
 	 layerFree_grid_paint_mask, NULL, NULL, NULL},
-	/* 36: CD_SKIN_NODE */
+	/* 36: CD_MVERT_SKIN */
 	{sizeof(MVertSkin), "MVertSkin", 1, NULL, NULL, NULL,
 	 layerInterp_mvert_skin, NULL, layerDefault_mvert_skin},
 	/* 37: CD_FREESTYLE_EDGE */
@@ -1315,7 +1328,6 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(MeshSample), "MeshSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
-/* note, numbers are from trunk and need updating for bmesh */
 
 static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/*   0-4 */ "CDMVert", "CDMSticky", "CDMDeformVert", "CDMEdge", "CDMFace",
@@ -1364,9 +1376,16 @@ const CustomDataMask CD_MASK_BMESH =
     CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
     CD_MASK_CUSTOMLOOPNORMAL;
-const CustomDataMask CD_MASK_FACECORNERS =  /* XXX Not used anywhere! */
-    CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
-    CD_MASK_MLOOPCOL | CD_MASK_NORMAL | CD_MASK_MLOOPTANGENT;
+/**
+ * cover values copied by #BKE_mesh_loops_to_tessdata
+ */
+const CustomDataMask CD_MASK_FACECORNERS =
+    CD_MASK_MTFACE | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
+    CD_MASK_MCOL | CD_MASK_MLOOPCOL |
+    CD_MASK_PREVIEW_MCOL | CD_MASK_PREVIEW_MLOOPCOL |
+    CD_MASK_ORIGSPACE | CD_MASK_ORIGSPACE_MLOOP |
+    CD_MASK_TESSLOOPNORMAL | CD_MASK_NORMAL |
+    CD_MASK_TANGENT | CD_MASK_MLOOPTANGENT;
 const CustomDataMask CD_MASK_STRANDS =
     CD_MASK_MVERT | CD_MASK_MEDGE |
     CD_MASK_MDEFORMVERT | CD_MASK_MCOL |
@@ -2328,7 +2347,14 @@ void CustomData_interp(const CustomData *source, CustomData *dest,
 	if (count > SOURCE_BUF_SIZE) MEM_freeN((void *)sources);
 }
 
-void CustomData_swap(struct CustomData *data, int index, const int *corner_indices)
+/**
+ * Swap data inside each item, for all layers.
+ * This only applies to item types that may store several sub-item data (e.g. corner data [UVs, VCol, ...] of
+ * tessellated faces).
+ *
+ * \param corner_indices A mapping 'new_index -> old_index' of sub-item data.
+ */
+void CustomData_swap_corners(struct CustomData *data, int index, const int *corner_indices)
 {
 	const LayerTypeInfo *typeInfo;
 	int i;
@@ -2340,6 +2366,35 @@ void CustomData_swap(struct CustomData *data, int index, const int *corner_indic
 			const int offset = index * typeInfo->size;
 
 			typeInfo->swap(POINTER_OFFSET(data->layers[i].data, offset), corner_indices);
+		}
+	}
+}
+
+/**
+ * Swap two items of given custom data, in all available layers.
+ */
+void CustomData_swap(struct CustomData *data, const int index_a, const int index_b)
+{
+	int i;
+	char buff_static[256];
+
+	if (index_a == index_b) {
+		return;
+	}
+
+	for (i = 0; i < data->totlayer; ++i) {
+		const LayerTypeInfo *typeInfo = layerType_getInfo(data->layers[i].type);
+		const size_t size = typeInfo->size;
+		const size_t offset_a = size * index_a;
+		const size_t offset_b = size * index_b;
+
+		void *buff = size <= sizeof(buff_static) ? buff_static : MEM_mallocN(size, __func__);
+		memcpy(buff, POINTER_OFFSET(data->layers[i].data, offset_a), size);
+		memcpy(POINTER_OFFSET(data->layers[i].data, offset_a), POINTER_OFFSET(data->layers[i].data, offset_b), size);
+		memcpy(POINTER_OFFSET(data->layers[i].data, offset_b), buff, size);
+
+		if (buff != buff_static) {
+			MEM_freeN(buff);
 		}
 	}
 }
@@ -3548,6 +3603,7 @@ void CustomData_external_read(CustomData *data, ID *id, CustomDataMask mask, int
 
 	cdf = cdf_create(CDF_TYPE_MESH);
 	if (!cdf_read_open(cdf, filename)) {
+		cdf_free(cdf);
 		fprintf(stderr, "Failed to read %s layer from %s.\n", layerType_getName(layer->type), filename);
 		return;
 	}
@@ -3638,6 +3694,7 @@ void CustomData_external_write(CustomData *data, ID *id, CustomDataMask mask, in
 
 	if (!cdf_write_open(cdf, filename)) {
 		fprintf(stderr, "Failed to open %s for writing.\n", filename);
+		cdf_free(cdf);
 		return;
 	}
 
@@ -3664,6 +3721,7 @@ void CustomData_external_write(CustomData *data, ID *id, CustomDataMask mask, in
 
 	if (i != data->totlayer) {
 		fprintf(stderr, "Failed to write data to %s.\n", filename);
+		cdf_write_close(cdf);
 		cdf_free(cdf);
 		return;
 	}
@@ -3929,6 +3987,38 @@ static void customdata_data_transfer_interp_generic(
 	}
 
 	MEM_freeN(tmp_dst);
+}
+
+/* Normals are special, we need to take care of source & destination spaces... */
+void customdata_data_transfer_interp_normal_normals(
+        const CustomDataTransferLayerMap *laymap, void *data_dst,
+        const void **sources, const float *weights, const int count,
+        const float mix_factor)
+{
+	const int data_type = laymap->data_type;
+	const int mix_mode = laymap->mix_mode;
+
+	SpaceTransform *space_transform = laymap->interp_data;
+
+	const LayerTypeInfo *type_info = layerType_getInfo(data_type);
+	cd_interp interp_cd = type_info->interp;
+
+	float tmp_dst[3];
+
+	BLI_assert(data_type == CD_NORMAL);
+
+	if (!sources) {
+		/* Not supported here, abort. */
+		return;
+	}
+
+	interp_cd(sources, weights, NULL, count, tmp_dst);
+	if (space_transform) {
+		/* tmp_dst is in source space so far, bring it back in destination space. */
+		BLI_space_transform_invert_normal(space_transform, tmp_dst);
+	}
+
+	CustomData_data_mix_value(data_type, tmp_dst, data_dst, mix_mode, mix_factor);
 }
 
 void CustomData_data_transfer(const MeshPairRemap *me_remap, const CustomDataTransferLayerMap *laymap)

@@ -260,7 +260,9 @@ void CustomData_bmesh_interp(
 /* swaps the data in the element corners, to new corners with indices as
  * specified in corner_indices. for edges this is an array of length 2, for
  * faces an array of length 4 */
-void CustomData_swap(struct CustomData *data, int index, const int *corner_indices);
+void CustomData_swap_corners(struct CustomData *data, int index, const int *corner_indices);
+
+void CustomData_swap(struct CustomData *data, const int index_a, const int index_b);
 
 /* gets a pointer to the data element at index from the first layer of type
  * returns NULL if there is no layer of type
@@ -474,6 +476,8 @@ typedef struct CustomDataTransferLayerMap {
 	size_t data_size;    /* Size of actual data we transfer. */
 	size_t data_offset;  /* Offset of actual data we transfer (in element contained in data_src/dst). */
 	uint64_t data_flag;  /* For bitflag transfer, flag(s) to affect in transfered data. */
+
+	void *interp_data;   /* Opaque pointer, to be used by specific interp callback (e.g. transformspace for normals). */
 
 	cd_datatransfer_interp interp;
 } CustomDataTransferLayerMap;

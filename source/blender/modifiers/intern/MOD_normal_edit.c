@@ -38,6 +38,7 @@
 #include "BLI_bitmap.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_library_query.h"
 #include "BKE_mesh.h"
 #include "BKE_deform.h"
 
@@ -84,7 +85,7 @@ static void generate_vert_coordinates(
 
 		/* Translate our coordinates so that center of ob_center is at (0, 0, 0). */
 		/* Get ob_center (world) coordinates in ob local coordinates.
-		 * No need to take into accound ob_center's space here, see T44027. */
+		 * No need to take into account ob_center's space here, see T44027. */
 		invert_m4_m4(inv_obmat, ob->obmat);
 		mul_v3_m4v3(diff, inv_obmat, ob_center->obmat[3]);
 		negate_v3(diff);
@@ -146,6 +147,40 @@ static void mix_normals(
 	}
 
 	MEM_SAFE_FREE(facs);
+}
+
+/* Check poly normals and new loop normals are compatible, otherwise flip polygons
+ * (and invert matching poly normals). */
+static bool polygons_check_flip(
+        MLoop *mloop, float (*nos)[3], CustomData *ldata,
+        MPoly *mpoly, float (*polynors)[3], const int num_polys)
+{
+	MPoly *mp;
+	int i;
+	bool flipped = false;
+
+	for (i = 0, mp = mpoly; i < num_polys; i++, mp++) {
+		float norsum[3] = {0.0f};
+		float (*no)[3];
+		int j;
+
+		for (j = 0, no = &nos[mp->loopstart]; j < mp->totloop; j++, no++) {
+			add_v3_v3(norsum, *no);
+		}
+
+		if (!normalize_v3(norsum)) {
+			continue;
+		}
+
+		/* If average of new loop normals is opposed to polygon normal, flip polygon. */
+		if (dot_v3v3(polynors[i], norsum) < 0.0f) {
+			BKE_mesh_polygon_flip(mp, mloop, ldata);
+			negate_v3(polynors[i]);
+			flipped = true;
+		}
+	}
+
+	return flipped;
 }
 
 static void normalEditModifier_do_radial(
@@ -233,6 +268,10 @@ static void normalEditModifier_do_radial(
 		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
 	}
 
+	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
+		dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
+	}
+
 	BKE_mesh_normals_loop_custom_set(mvert, num_verts, medge, num_edges, mloop, nos, num_loops,
 	                                 mpoly, (const float(*)[3])polynors, num_polys, clnors);
 
@@ -304,6 +343,10 @@ static void normalEditModifier_do_directional(
 	if (loopnors) {
 		mix_normals(mix_factor, dvert, defgrp_index, use_invert_vgroup,
 		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
+	}
+
+	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
+		dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
 	}
 
 	BKE_mesh_normals_loop_custom_set(mvert, num_verts, medge, num_edges, mloop, nos, num_loops,
@@ -387,7 +430,7 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	polynors = dm->getPolyDataArray(dm, CD_NORMAL);
 	if (!polynors) {
 		polynors = MEM_mallocN(sizeof(*polynors) * num_polys, __func__);
-		BKE_mesh_calc_normals_poly(mvert, num_verts, mloop, mpoly, num_loops, num_polys, polynors, false);
+		BKE_mesh_calc_normals_poly(mvert, NULL, num_verts, mloop, mpoly, num_loops, num_polys, polynors, false);
 		free_polynors = true;
 	}
 
@@ -450,14 +493,7 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 {
 	NormalEditModifierData *smd = (NormalEditModifierData *) md;
 
-	walk(userData, ob, &smd->target);
-}
-
-static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
-{
-	NormalEditModifierData *smd = (NormalEditModifierData *) md;
-
-	walk(userData, ob, (ID **)&smd->target);
+	walk(userData, ob, &smd->target, IDWALK_NOP);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
@@ -504,7 +540,6 @@ ModifierTypeInfo modifierType_NormalEdit = {
 	/* structSize */        sizeof(NormalEditModifierData),
 	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
-	                        eModifierTypeFlag_AcceptsCVs |
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_EnableInEditmode,
@@ -524,6 +559,6 @@ ModifierTypeInfo modifierType_NormalEdit = {
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,
-	/* foreachIDLink */     foreachIDLink,
+	/* foreachIDLink */     NULL,
 	/* foreachTexLink */    NULL,
 };

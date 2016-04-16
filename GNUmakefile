@@ -87,13 +87,13 @@ ifndef NPROCS
 		NPROCS:=$(shell nproc)
 	endif
 	ifeq ($(OS), Darwin)
-		NPROCS:=$(shell sysctl -a | grep "hw.ncpu" | cut -d" " -f3)
+		NPROCS:=$(shell sysctl -n hw.ncpu)
 	endif
 	ifeq ($(OS), FreeBSD)
-		NPROCS:=$(shell sysctl -a | grep "hw.ncpu" | cut -d" " -f2 )
+		NPROCS:=$(shell sysctl -n hw.ncpu)
 	endif
 	ifeq ($(OS), NetBSD)
-		NPROCS:=$(shell sysctl -a | grep "hw.ncpu" | cut -d" " -f2 )
+		NPROCS:=$(shell sysctl -n hw.ncpu)
 	endif
 endif
 
@@ -122,7 +122,7 @@ endif
 # Build Blender
 all: FORCE
 	@echo
-	@echo Configuring Blender ...
+	@echo Configuring Blender in \"$(BUILD_DIR)\" ...
 
 #	# if test ! -f $(BUILD_DIR)/CMakeCache.txt ; then \
 #	# 	$(CMAKE_CONFIG); \
@@ -136,7 +136,7 @@ all: FORCE
 	$(MAKE) -C "$(BUILD_DIR)" -s -j $(NPROCS) install
 	@echo
 	@echo edit build configuration with: "$(BUILD_DIR)/CMakeCache.txt" run make again to rebuild.
-	@echo blender installed, run from: "$(BUILD_DIR)/bin/blender"
+	@echo Blender successfully built, run from: "$(BUILD_DIR)/bin/blender"
 	@echo
 
 debug: all

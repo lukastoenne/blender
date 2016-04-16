@@ -22,6 +22,7 @@
 #include "util_image.h"
 #include "util_path.h"
 #include "util_progress.h"
+#include "util_texture.h"
 
 #ifdef WITH_OSL
 #include <OSL/oslexec.h>
@@ -68,6 +69,9 @@ void ImageManager::set_extended_image_limits(const DeviceInfo& info)
 	}
 	else if((info.type == DEVICE_CUDA || info.type == DEVICE_MULTI) && info.extended_images) {
 		tex_num_images = TEX_EXTENDED_NUM_IMAGES_GPU;
+	}
+	else if(info.pack_images) {
+		tex_num_images = TEX_PACKED_NUM_IMAGES;
 	}
 }
 
@@ -350,7 +354,8 @@ void ImageManager::remove_image(const string& filename,
 			                                      filename,
 			                                      builtin_data,
 			                                      interpolation,
-			                                      extension)) {
+			                                      extension))
+			{
 				remove_image(slot);
 				break;
 			}
@@ -374,7 +379,8 @@ void ImageManager::tag_reload_image(const string& filename,
 		                                filename,
 		                                builtin_data,
 		                                interpolation,
-		                                extension)) {
+		                                extension))
+		{
 			images[slot]->need_load = true;
 			break;
 		}
@@ -387,7 +393,8 @@ void ImageManager::tag_reload_image(const string& filename,
 			                                      filename,
 			                                      builtin_data,
 			                                      interpolation,
-			                                      extension)) {
+			                                      extension))
+			{
 				float_images[slot]->need_load = true;
 				break;
 			}
@@ -447,6 +454,9 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 
 	/* read RGBA pixels */
 	uchar *pixels = (uchar*)tex_img.resize(width, height, depth);
+	if(pixels == NULL) {
+		return false;
+	}
 	bool cmyk = false;
 
 	if(in) {
@@ -570,6 +580,9 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 
 	/* read RGBA pixels */
 	float *pixels = (float*)tex_img.resize(width, height, depth);
+	if(pixels == NULL) {
+		return false;
+	}
 	bool cmyk = false;
 
 	if(in) {

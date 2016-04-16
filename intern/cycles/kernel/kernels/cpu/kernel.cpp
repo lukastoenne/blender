@@ -16,15 +16,47 @@
 
 /* CPU kernel entry points */
 
-#include "kernel_compat_cpu.h"
+/* On x86-64, we can assume SSE2, so avoid the extra kernel and compile this
+ * one with SSE2 intrinsics.
+ */
+#if defined(__x86_64__) || defined(_M_X64)
+#  define __KERNEL_SSE2__
+#endif
+
+/* When building kernel for native machine detect kernel features from the flags
+ * set by compiler.
+ */
+#ifdef WITH_KERNEL_NATIVE
+#  ifdef __SSE2__
+#    ifndef __KERNEL_SSE2__
+#      define __KERNEL_SSE2__
+#    endif
+#  endif
+#  ifdef __SSE3__
+#    define __KERNEL_SSE3__
+#  endif
+#  ifdef __SSSE3__
+#    define __KERNEL_SSSE3__
+#  endif
+#  ifdef __SSE4_1__
+#    define __KERNEL_SSE41__
+#  endif
+#  ifdef __AVX__
+#    define __KERNEL_AVX__
+#  endif
+#  ifdef __AVX2__
+#    define __KERNEL_AVX2__
+#  endif
+#endif
+
+/* quiet unused define warnings */
+#if defined(__KERNEL_SSE2__)
+    /* do nothing */
+#endif
+
 #include "kernel.h"
-#include "kernel_math.h"
-#include "kernel_types.h"
-#include "kernel_globals.h"
-#include "kernel_film.h"
-#include "kernel_path.h"
-#include "kernel_path_branched.h"
-#include "kernel_bake.h"
+#define KERNEL_ARCH cpu
+#include "kernel_cpu_impl.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -94,49 +126,4 @@ void kernel_tex_copy(KernelGlobals *kg,
 		assert(0);
 }
 
-/* On x86-64, we can assume SSE2, so avoid the extra kernel and compile this one with SSE2 intrinsics */
-#if defined(__x86_64__) || defined(_M_X64)
-#define __KERNEL_SSE2__
-#endif
-
-/* quiet unused define warnings */
-#if defined(__KERNEL_SSE2__)
-	/* do nothing */
-#endif
-
-/* Path Tracing */
-
-void kernel_cpu_path_trace(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride)
-{
-#ifdef __BRANCHED_PATH__
-	if(kernel_data.integrator.branched)
-		kernel_branched_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
-	else
-#endif
-		kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
-}
-
-/* Film */
-
-void kernel_cpu_convert_to_byte(KernelGlobals *kg, uchar4 *rgba, float *buffer, float sample_scale, int x, int y, int offset, int stride)
-{
-	kernel_film_convert_to_byte(kg, rgba, buffer, sample_scale, x, y, offset, stride);
-}
-
-void kernel_cpu_convert_to_half_float(KernelGlobals *kg, uchar4 *rgba, float *buffer, float sample_scale, int x, int y, int offset, int stride)
-{
-	kernel_film_convert_to_half_float(kg, rgba, buffer, sample_scale, x, y, offset, stride);
-}
-
-/* Shader Evaluation */
-
-void kernel_cpu_shader(KernelGlobals *kg, uint4 *input, float4 *output, int type, int i, int offset, int sample)
-{
-	if(type >= SHADER_EVAL_BAKE)
-		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, i, offset, sample);
-	else
-		kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, i, sample);
-}
-
 CCL_NAMESPACE_END
-

@@ -30,11 +30,13 @@
 
 #include "osl_globals.h"
 
-#include "util_cache.h"
 #include "util_foreach.h"
 #include "util_logging.h"
 #include "util_progress.h"
 #include "util_set.h"
+
+#include "subd_split.h"
+#include "subd_patch.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -98,6 +100,7 @@ Mesh::Mesh()
 	curve_attributes.curve_mesh = this;
 
 	has_volume = false;
+	has_surface_bssrdf = false;
 }
 
 Mesh::~Mesh()
@@ -112,6 +115,9 @@ void Mesh::reserve(int numverts, int numtris, int numcurves, int numcurvekeys)
 	triangles.resize(numtris);
 	shader.resize(numtris);
 	smooth.resize(numtris);
+
+	forms_quad.resize(numtris);
+
 	curve_keys.resize(numcurvekeys);
 	curves.resize(numcurves);
 
@@ -126,6 +132,8 @@ void Mesh::clear()
 	triangles.clear();
 	shader.clear();
 	smooth.clear();
+
+	forms_quad.clear();
 
 	curve_keys.clear();
 	curves.clear();
@@ -156,7 +164,7 @@ int Mesh::split_vertex(int vertex)
 	return verts.size() - 1;
 }
 
-void Mesh::set_triangle(int i, int v0, int v1, int v2, int shader_, bool smooth_)
+void Mesh::set_triangle(int i, int v0, int v1, int v2, int shader_, bool smooth_, bool forms_quad_)
 {
 	Triangle tri;
 	tri.v[0] = v0;
@@ -166,9 +174,10 @@ void Mesh::set_triangle(int i, int v0, int v1, int v2, int shader_, bool smooth_
 	triangles[i] = tri;
 	shader[i] = shader_;
 	smooth[i] = smooth_;
+	forms_quad[i] = forms_quad_;
 }
 
-void Mesh::add_triangle(int v0, int v1, int v2, int shader_, bool smooth_)
+void Mesh::add_triangle(int v0, int v1, int v2, int shader_, bool smooth_, bool forms_quad_)
 {
 	Triangle tri;
 	tri.v[0] = v0;
@@ -178,6 +187,7 @@ void Mesh::add_triangle(int v0, int v1, int v2, int shader_, bool smooth_)
 	triangles.push_back(tri);
 	shader.push_back(shader_);
 	smooth.push_back(smooth_);
+	forms_quad.push_back(forms_quad_);
 }
 
 void Mesh::add_curve_key(float3 co, float radius)
@@ -491,7 +501,7 @@ void Mesh::compute_bvh(SceneParams *params, Progress *progress, int n, int total
 
 	compute_bounds();
 
-	if(!transform_applied) {
+	if(need_build_bvh()) {
 		string msg = "Updating Mesh BVH ";
 		if(name == "")
 			msg += string_printf("%u/%u", (uint)(n+1), (uint)total);
@@ -513,7 +523,6 @@ void Mesh::compute_bvh(SceneParams *params, Progress *progress, int n, int total
 			progress->set_status(msg, "Building BVH");
 
 			BVHParams bparams;
-			bparams.use_cache = params->use_bvh_cache;
 			bparams.use_spatial_split = params->use_bvh_spatial_split;
 			bparams.use_qbvh = params->use_qbvh;
 
@@ -550,6 +559,21 @@ bool Mesh::has_motion_blur() const
 	return (use_motion_blur &&
 	        (attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
 	         curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)));
+}
+
+bool Mesh::need_build_bvh() const
+{
+	return !transform_applied || has_surface_bssrdf;
+}
+
+bool Mesh::is_instanced() const
+{
+	/* Currently we treat subsurface objects as instanced.
+	 *
+	 * While it might be not very optimal for ray traversal, it avoids having
+	 * duplicated BVH in the memory, saving quite some space.
+	 */
+	return !transform_applied || has_surface_bssrdf;
 }
 
 /* Mesh Manager */
@@ -1084,7 +1108,6 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	bparams.top_level = true;
 	bparams.use_qbvh = scene->params.use_qbvh;
 	bparams.use_spatial_split = scene->params.use_bvh_spatial_split;
-	bparams.use_cache = scene->params.use_bvh_cache;
 
 	delete bvh;
 	bvh = BVH::create(bparams, scene->objects);
@@ -1109,9 +1132,9 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 		dscene->object_node.reference((uint*)&pack.object_node[0], pack.object_node.size());
 		device->tex_alloc("__object_node", dscene->object_node);
 	}
-	if(pack.tri_woop.size()) {
-		dscene->tri_woop.reference(&pack.tri_woop[0], pack.tri_woop.size());
-		device->tex_alloc("__tri_woop", dscene->tri_woop);
+	if(pack.tri_storage.size()) {
+		dscene->tri_storage.reference(&pack.tri_storage[0], pack.tri_storage.size());
+		device->tex_alloc("__tri_storage", dscene->tri_storage);
 	}
 	if(pack.prim_type.size()) {
 		dscene->prim_type.reference((uint*)&pack.prim_type[0], pack.prim_type.size());
@@ -1145,9 +1168,13 @@ void MeshManager::device_update_flags(Device * /*device*/,
 	/* update flags */
 	foreach(Mesh *mesh, scene->meshes) {
 		mesh->has_volume = false;
-		foreach(uint shader, mesh->used_shaders) {
-			if(scene->shaders[shader]->has_volume) {
+		foreach(uint shader_index, mesh->used_shaders) {
+			const Shader *shader = scene->shaders[shader_index];
+			if(shader->has_volume) {
 				mesh->has_volume = true;
+			}
+			if(shader->has_surface_bssrdf) {
+				mesh->has_surface_bssrdf = true;
 			}
 		}
 	}
@@ -1281,7 +1308,7 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	size_t i = 0, num_bvh = 0;
 
 	foreach(Mesh *mesh, scene->meshes)
-		if(mesh->need_update && !mesh->transform_applied)
+		if(mesh->need_update && mesh->need_build_bvh())
 			num_bvh++;
 
 	TaskPool pool;
@@ -1294,13 +1321,17 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			                        &progress,
 			                        i,
 			                        num_bvh));
-			if(!mesh->transform_applied) {
+			if(mesh->need_build_bvh()) {
 				i++;
 			}
 		}
 	}
 
-	pool.wait_work();
+	TaskPool::Summary summary;
+	pool.wait_work(&summary);
+	VLOG(2) << "Objects BVH build pool statistics:\n"
+	        << summary.full_report();
+
 	foreach(Shader *shader, scene->shaders)
 		shader->need_update_attributes = false;
 
@@ -1338,7 +1369,7 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 	device->tex_free(dscene->bvh_nodes);
 	device->tex_free(dscene->bvh_leaf_nodes);
 	device->tex_free(dscene->object_node);
-	device->tex_free(dscene->tri_woop);
+	device->tex_free(dscene->tri_storage);
 	device->tex_free(dscene->prim_type);
 	device->tex_free(dscene->prim_visibility);
 	device->tex_free(dscene->prim_index);
@@ -1356,7 +1387,7 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 
 	dscene->bvh_nodes.clear();
 	dscene->object_node.clear();
-	dscene->tri_woop.clear();
+	dscene->tri_storage.clear();
 	dscene->prim_type.clear();
 	dscene->prim_visibility.clear();
 	dscene->prim_index.clear();
@@ -1414,6 +1445,75 @@ bool Mesh::need_attribute(Scene *scene, ustring name)
 			return true;
 	
 	return false;
+}
+
+void Mesh::tessellate(DiagSplit *split)
+{
+	int num_faces = triangles.size();
+
+	add_face_normals();
+	add_vertex_normals();
+
+	Attribute *attr_fN = attributes.find(ATTR_STD_FACE_NORMAL);
+	float3 *fN = attr_fN->data_float3();
+
+	Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
+	float3 *vN = attr_vN->data_float3();
+
+	for(int f = 0; f < num_faces; f++) {
+		if(!forms_quad[f]) {
+			/* triangle */
+			LinearTrianglePatch patch;
+			float3 *hull = patch.hull;
+			float3 *normals = patch.normals;
+
+			for(int i = 0; i < 3; i++) {
+				hull[i] = verts[triangles[f].v[i]];
+			}
+
+			if(smooth[f]) {
+				for(int i = 0; i < 3; i++) {
+					normals[i] = vN[triangles[f].v[i]];
+				}
+			}
+			else {
+				for(int i = 0; i < 3; i++) {
+					normals[i] = fN[f];
+				}
+			}
+
+			split->split_triangle(&patch);
+		}
+		else {
+			/* quad */
+			LinearQuadPatch patch;
+			float3 *hull = patch.hull;
+			float3 *normals = patch.normals;
+
+			hull[0] = verts[triangles[f  ].v[0]];
+			hull[1] = verts[triangles[f  ].v[1]];
+			hull[3] = verts[triangles[f  ].v[2]];
+			hull[2] = verts[triangles[f+1].v[2]];
+
+			if(smooth[f]) {
+				normals[0] = vN[triangles[f  ].v[0]];
+				normals[1] = vN[triangles[f  ].v[1]];
+				normals[3] = vN[triangles[f  ].v[2]];
+				normals[2] = vN[triangles[f+1].v[2]];
+			}
+			else {
+				for(int i = 0; i < 4; i++) {
+					normals[i] = fN[f];
+				}
+			}
+
+			split->split_quad(&patch);
+
+			// consume second triangle in quad
+			f++;
+		}
+
+	}
 }
 
 CCL_NAMESPACE_END

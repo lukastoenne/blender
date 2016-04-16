@@ -747,7 +747,6 @@ void BM_mesh_bm_to_me_ex(BMesh *bm, Mesh *me, CustomDataMask mask, bool do_tessf
 		Object *ob;
 		ModifierData *md;
 		BMVert **vertMap = NULL;
-		int i, j;
 
 		for (ob = G.main->object.first; ob; ob = ob->id.next) {
 			if ((ob->parent) && (ob->parent->data == me) && ELEM(ob->partype, PARVERT1, PARVERT3)) {

@@ -150,7 +150,7 @@ static void node_remove_linked(bNodeTree *ntree, bNode *rem_node)
 
 		if (node->flag & NODE_TEST) {
 			if (node->id)
-				node->id->us--;
+				id_us_min(node->id);
 			nodeFreeNode(ntree, node);
 		}
 	}
@@ -168,7 +168,7 @@ static void node_socket_disconnect(Main *bmain, bNodeTree *ntree, bNode *node_to
 	nodeUpdate(ntree, node_to);
 	ntreeUpdateTree(bmain, ntree);
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node_to);
 }
 
 /* remove all nodes connected to this socket, if they aren't connected to other nodes */
@@ -183,7 +183,7 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
 	nodeUpdate(ntree, node_to);
 	ntreeUpdateTree(bmain, ntree);
 
-	ED_node_tag_update_nodetree(bmain, ntree);
+	ED_node_tag_update_nodetree(bmain, ntree, node_to);
 }
 
 /* add new node connected to this socket, or replace an existing one */
@@ -279,7 +279,7 @@ static void node_socket_add_replace(const bContext *C, bNodeTree *ntree, bNode *
 	nodeUpdate(ntree, node_to);
 	ntreeUpdateTree(CTX_data_main(C), ntree);
 
-	ED_node_tag_update_nodetree(CTX_data_main(C), ntree);
+	ED_node_tag_update_nodetree(CTX_data_main(C), ntree, node_to);
 }
 
 /****************************** Node Link Menu *******************************/
@@ -524,7 +524,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 	bNodeSocket *sock = arg->sock;
 	bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
-	UI_block_flag_enable(block, UI_BLOCK_NO_FLIP);
+	UI_block_flag_enable(block, UI_BLOCK_NO_FLIP | UI_BLOCK_IS_FLIP);
 	UI_block_layout_set_current(block, layout);
 	split = uiLayoutSplit(layout, 0.0f, false);
 
@@ -622,7 +622,7 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 	uiLayout *split, *row, *col;
 	bNode *lnode;
 	char label[UI_MAX_NAME_STR];
-	int indent = (depth > 1) ? 2 * (depth - 1) : 0;
+	int i, indent = (depth > 1) ? 2 * (depth - 1) : 0;
 	int dependency_loop;
 
 	if (input->flag & SOCK_UNAVAIL)
@@ -641,7 +641,8 @@ static void ui_node_draw_input(uiLayout *layout, bContext *C, bNodeTree *ntree, 
 	RNA_pointer_create(&ntree->id, &RNA_Node, node, &nodeptr);
 
 	/* indented label */
-	memset(label, ' ', indent);
+	for (i = 0; i < indent; i++)
+		label[i] = ' ';
 	label[indent] = '\0';
 	BLI_snprintf(label, UI_MAX_NAME_STR, "%s%s:", label, IFACE_(input->name));
 

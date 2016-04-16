@@ -48,7 +48,7 @@
 #include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
 
-EnumPropertyItem fmodifier_type_items[] = {
+EnumPropertyItem rna_enum_fmodifier_type_items[] = {
 	{FMODIFIER_TYPE_NULL, "NULL", 0, "Invalid", ""},
 	{FMODIFIER_TYPE_GENERATOR, "GENERATOR", 0, "Generator",
 	                           "Generate a curve using a factorized or expanded polynomial"},
@@ -61,7 +61,7 @@ EnumPropertyItem fmodifier_type_items[] = {
 	{FMODIFIER_TYPE_NOISE, "NOISE", 0, "Noise",
 	                       "Add pseudo-random noise on top of F-Curves"},
 	/*{FMODIFIER_TYPE_FILTER, "FILTER", 0, "Filter", ""},*/ /* FIXME: not implemented yet! */
-	{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},
+	/*{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},*/ /* FIXME: not implemented yet! */
 	{FMODIFIER_TYPE_LIMITS, "LIMITS", 0, "Limits",
 	                        "Restrict maximum and minimum values of F-Curve"},
 	{FMODIFIER_TYPE_STEPPED, "STEPPED", 0, "Stepped Interpolation",
@@ -69,15 +69,15 @@ EnumPropertyItem fmodifier_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem beztriple_keyframe_type_items[] = {
-	{BEZT_KEYTYPE_KEYFRAME, "KEYFRAME", 0, "Keyframe", "Normal keyframe - e.g. for key poses"},
-	{BEZT_KEYTYPE_BREAKDOWN, "BREAKDOWN", 0, "Breakdown", "A breakdown pose - e.g. for transitions between key poses"},
-	{BEZT_KEYTYPE_EXTREME, "EXTREME", 0, "Extreme", "An 'extreme' pose, or some other purpose as needed"},
-	{BEZT_KEYTYPE_JITTER, "JITTER", 0, "Jitter", "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
+EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
+	{BEZT_KEYTYPE_KEYFRAME, "KEYFRAME", VICO_KEYTYPE_KEYFRAME_VEC, "Keyframe", "Normal keyframe - e.g. for key poses"},
+	{BEZT_KEYTYPE_BREAKDOWN, "BREAKDOWN", VICO_KEYTYPE_BREAKDOWN_VEC, "Breakdown", "A breakdown pose - e.g. for transitions between key poses"},
+	{BEZT_KEYTYPE_EXTREME, "EXTREME", VICO_KEYTYPE_EXTREME_VEC, "Extreme", "An 'extreme' pose, or some other purpose as needed"},
+	{BEZT_KEYTYPE_JITTER, "JITTER", VICO_KEYTYPE_JITTER_VEC, "Jitter", "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
 	{0, NULL, 0, NULL, NULL}
 };
 
-EnumPropertyItem beztriple_interpolation_easing_items[] =  {
+EnumPropertyItem rna_enum_beztriple_interpolation_easing_items[] =  {
 	/* XXX: auto-easing is currently using a placeholder icon... */
 	{BEZT_IPO_EASE_AUTO, "AUTO", ICON_IPO_EASE_IN_OUT, "Automatic Easing",
 	                     "Easing type is chosen automatically based on what the type of interpolation used "
@@ -275,6 +275,15 @@ static void rna_DriverVariable_type_set(PointerRNA *ptr, int value)
 	driver_change_variable_type(dvar, value);
 }
 
+void rna_DriverVariable_name_set(PointerRNA *ptr, const char *value)
+{
+	DriverVar *data = (DriverVar *)(ptr->data);
+	
+	BLI_strncpy_utf8(data->name, value, 64);
+	driver_variable_name_validate(data);
+}
+
+
 /* ----------- */
 
 static DriverVar *rna_Driver_new_variable(ChannelDriver *driver)
@@ -291,7 +300,7 @@ static void rna_Driver_remove_variable(ChannelDriver *driver, ReportList *report
 		return;
 	}
 
-	driver_free_variable(driver, dvar);
+	driver_free_variable_ex(driver, dvar);
 	RNA_POINTER_INVALIDATE(dvar_ptr);
 }
 
@@ -740,9 +749,9 @@ static void rna_FModifierStepped_end_frame_range(PointerRNA *ptr, float *min, fl
 	*max = MAXFRAMEF;
 }
 
-static BezTriple *rna_FKeyframe_points_insert(FCurve *fcu, float frame, float value, int flag)
+static BezTriple *rna_FKeyframe_points_insert(FCurve *fcu, float frame, float value, int keyframe_type, int flag)
 {
-	int index = insert_vert_fcurve(fcu, frame, value, flag | INSERTKEY_NO_USERPREF);
+	int index = insert_vert_fcurve(fcu, frame, value, (char)keyframe_type, flag | INSERTKEY_NO_USERPREF);
 	return ((fcu->bezt) && (index >= 0)) ? (fcu->bezt + index) : NULL;
 }
 
@@ -1293,7 +1302,7 @@ static void rna_def_fmodifier(BlenderRNA *brna)
 	/* type */
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_enum_items(prop, fmodifier_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_fmodifier_type_items);
 	RNA_def_property_ui_text(prop, "Type", "F-Curve Modifier Type");
 	
 	/* settings */
@@ -1420,7 +1429,7 @@ static void rna_def_drivertarget(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "idtype");
-	RNA_def_property_enum_items(prop, id_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_id_type_items);
 	RNA_def_property_enum_default(prop, ID_OB);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_DriverTarget_id_type_set", NULL);
 	RNA_def_property_editable_func(prop, "rna_DriverTarget_id_type_editable");
@@ -1458,11 +1467,11 @@ static void rna_def_drivervar(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem prop_type_items[] = {
-		{DVAR_TYPE_SINGLE_PROP, "SINGLE_PROP", 0, "Single Property", "Use the value from some RNA property (Default)"},
-		{DVAR_TYPE_TRANSFORM_CHAN, "TRANSFORMS", 0, "Transform Channel",
+		{DVAR_TYPE_SINGLE_PROP, "SINGLE_PROP", ICON_RNA, "Single Property", "Use the value from some RNA property (Default)"},
+		{DVAR_TYPE_TRANSFORM_CHAN, "TRANSFORMS", ICON_MANIPUL, "Transform Channel",
 		                           "Final transformation value of object or bone"},
-		{DVAR_TYPE_ROT_DIFF, "ROTATION_DIFF", 0, "Rotational Difference", "Use the angle between two bones"},
-		{DVAR_TYPE_LOC_DIFF, "LOC_DIFF", 0, "Distance", "Distance between two bones or objects"},
+		{DVAR_TYPE_ROT_DIFF, "ROTATION_DIFF", ICON_PARTICLE_TIP, "Rotational Difference", "Use the angle between two bones"},  /* XXX: Icon... */
+		{DVAR_TYPE_LOC_DIFF, "LOC_DIFF", ICON_FULLSCREEN_ENTER, "Distance", "Distance between two bones or objects"},          /* XXX: Icon... */
 		{0, NULL, 0, NULL, NULL}
 	};
 		
@@ -1474,6 +1483,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
 	/* Variable Name */
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_struct_name_property(srna, prop);
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_DriverVariable_name_set");
 	RNA_def_property_ui_text(prop, "Name",
 	                         "Name to use in scripted expressions/functions (no spaces or dots are allowed, "
 	                         "and must start with a letter)");
@@ -1493,6 +1503,12 @@ static void rna_def_drivervar(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "targets", "num_targets");
 	RNA_def_property_struct_type(prop, "DriverTarget");
 	RNA_def_property_ui_text(prop, "Targets", "Sources of input data for evaluating this variable");
+	
+	/* Name Validity Flags */
+	prop = RNA_def_property(srna, "is_name_valid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", DVAR_FLAG_INVALID_NAME);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Is Name Valid", "Is this a valid name for a driver variable");	
 }
 
 
@@ -1638,19 +1654,19 @@ static void rna_def_fkeyframe(BlenderRNA *brna)
 	/* Enums */
 	prop = RNA_def_property(srna, "handle_left_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "h1");
-	RNA_def_property_enum_items(prop, keyframe_handle_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_keyframe_handle_type_items);
 	RNA_def_property_ui_text(prop, "Left Handle Type", "Handle types");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
 	
 	prop = RNA_def_property(srna, "handle_right_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "h2");
-	RNA_def_property_enum_items(prop, keyframe_handle_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_keyframe_handle_type_items);
 	RNA_def_property_ui_text(prop, "Right Handle Type", "Handle types");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
 	
 	prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ipo");
-	RNA_def_property_enum_items(prop, beztriple_interpolation_mode_items);
+	RNA_def_property_enum_items(prop, rna_enum_beztriple_interpolation_mode_items);
 	RNA_def_property_ui_text(prop, "Interpolation",
 	                         "Interpolation method to use for segment of the F-Curve from "
 	                         "this Keyframe until the next Keyframe");
@@ -1658,14 +1674,14 @@ static void rna_def_fkeyframe(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "hide");
-	RNA_def_property_enum_items(prop, beztriple_keyframe_type_items);
+	RNA_def_property_enum_items(prop, rna_enum_beztriple_keyframe_type_items);
 	RNA_def_property_ui_text(prop, "Type", "Type of keyframe (for visual purposes only)");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
 	
 	
 	prop = RNA_def_property(srna, "easing", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "easing");
-	RNA_def_property_enum_items(prop, beztriple_interpolation_easing_items);
+	RNA_def_property_enum_items(prop, rna_enum_beztriple_interpolation_easing_items);
 	RNA_def_property_ui_text(prop, "Easing", 
 	                         "Which ends of the segment between this and the next keyframe easing "
 	                         "interpolation is applied to");
@@ -1737,7 +1753,7 @@ static void rna_def_fcurve_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_pointer(func, "fmodifier", "FModifier", "", "New fmodifier");
 	RNA_def_function_return(func, parm);
 	/* object to add */
-	parm = RNA_def_enum(func, "type", fmodifier_type_items, 1, "", "Constraint type to add");
+	parm = RNA_def_enum(func, "type", rna_enum_fmodifier_type_items, 1, "", "Constraint type to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "remove", "rna_FCurve_modifiers_remove");
@@ -1777,8 +1793,9 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_float(func, "value", 0.0f, -FLT_MAX, FLT_MAX, "",
 	                     "Y Value of this keyframe point", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-
 	RNA_def_enum_flag(func, "options", keyframe_flag_items, 0, "", "Keyframe options");
+	RNA_def_enum(func, "keyframe_type", rna_enum_beztriple_keyframe_type_items, BEZT_KEYTYPE_KEYFRAME, "",
+	             "Type of keyframe to insert");
 
 	parm = RNA_def_pointer(func, "keyframe", "Keyframe", "", "Newly created keyframe");
 	RNA_def_function_return(func, parm);

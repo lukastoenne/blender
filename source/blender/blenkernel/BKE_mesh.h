@@ -48,6 +48,7 @@ struct MFace;
 struct MEdge;
 struct MVert;
 struct MDeformVert;
+struct MDisps;
 struct Object;
 struct CustomData;
 struct DerivedMesh;
@@ -82,6 +83,7 @@ int BKE_mesh_edge_other_vert(const struct MEdge *e, int v);
 
 void BKE_mesh_unlink(struct Mesh *me);
 void BKE_mesh_free(struct Mesh *me, int unlink);
+void BKE_mesh_init(struct Mesh *me);
 struct Mesh *BKE_mesh_add(struct Main *bmain, const char *name);
 struct Mesh *BKE_mesh_copy_ex(struct Main *bmain, struct Mesh *me);
 struct Mesh *BKE_mesh_copy(struct Mesh *me);
@@ -170,7 +172,7 @@ void BKE_mesh_calc_normals_mapping_ex(
         const struct MFace *mfaces, int numFaces, const int *origIndexFace, float (*r_faceNors)[3],
         const bool only_face_normals);
 void BKE_mesh_calc_normals_poly(
-        struct MVert *mverts, int numVerts,
+        struct MVert *mverts, float (*r_vertnors)[3], int numVerts,
         const struct MLoop *mloop, const struct MPoly *mpolys,
         int numLoops, int numPolys, float (*r_polyNors)[3],
         const bool only_face_normals);
@@ -315,6 +317,14 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(
         struct MEdge *medge, struct MFace *mface,
         int *r_totloop, int *r_totpoly,
         struct MLoop **r_mloop, struct MPoly **r_mpoly);
+
+void BKE_mesh_mdisp_flip(struct MDisps *md, const bool use_loop_mdisp_flip);
+
+void BKE_mesh_polygon_flip_ex(
+        struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata,
+        struct MDisps *mdisp, const bool use_loop_mdisp_flip);
+void BKE_mesh_polygon_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata);
+void BKE_mesh_polygons_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata, int totpoly);
 
 /* flush flags */
 void BKE_mesh_flush_hidden_from_verts_ex(

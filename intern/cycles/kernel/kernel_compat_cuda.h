@@ -62,6 +62,7 @@ typedef texture<int, 1> texture_int;
 typedef texture<uint4, 1> texture_uint4;
 typedef texture<uchar4, 1> texture_uchar4;
 typedef texture<float4, 2> texture_image_float4;
+typedef texture<float4, 3> texture_image3d_float4;
 typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
 
 /* Macros to handle different memory storage on different devices */
@@ -70,15 +71,16 @@ typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> texture_image_uchar4;
  * of textures. On earlier cards this seems slower, but on Titan it is
  * actually slightly faster in tests. */
 #if __CUDA_ARCH__ < 300
-#define __KERNEL_CUDA_TEX_STORAGE__
+#  define __KERNEL_CUDA_TEX_STORAGE__
 #endif
 
 #ifdef __KERNEL_CUDA_TEX_STORAGE__
-#define kernel_tex_fetch(t, index) tex1Dfetch(t, index)
+#  define kernel_tex_fetch(t, index) tex1Dfetch(t, index)
 #else
-#define kernel_tex_fetch(t, index) t[(index)]
+#  define kernel_tex_fetch(t, index) t[(index)]
 #endif
 #define kernel_tex_image_interp(t, x, y) tex2D(t, x, y)
+#define kernel_tex_image_interp_3d(t, x, y, z) tex3D(t, x, y, z)
 
 #define kernel_data __data
 

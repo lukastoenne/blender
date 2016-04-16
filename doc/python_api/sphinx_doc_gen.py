@@ -261,9 +261,11 @@ else:
         "bpy.utils.previews",
         "bpy_extras",
         "gpu",
+        "gpu.offscreen",
         "mathutils",
-        "mathutils.geometry",
         "mathutils.bvhtree",
+        "mathutils.geometry",
+        "mathutils.interpolate",
         "mathutils.kdtree",
         "mathutils.noise",
         "freestyle",
@@ -1000,9 +1002,11 @@ context_type_map = {
     "edit_movieclip": ("MovieClip", False),
     "edit_object": ("Object", False),
     "edit_text": ("Text", False),
+    "editable_bases": ("ObjectBase", True),
     "editable_bones": ("EditBone", True),
     "editable_gpencil_layers": ("GPencilLayer", True),
     "editable_gpencil_strokes": ("GPencilStroke", True),
+    "editable_objects": ("Object", True),
     "fluid": ("FluidSimulationModifier", False),
     "gpencil_data": ("GreasePencel", False),
     "gpencil_data_owner": ("ID", False),
@@ -1344,7 +1348,10 @@ def pyrna2sphinx(basepath):
                     descr = prop.description
                     if not descr:
                         descr = prop.name
-                    fw("         `%s`, %s, %s\n\n" % (prop.identifier, descr, type_descr))
+                    # In rare cases descr may be empty
+                    fw("         `%s`, %s\n\n" %
+                       (prop.identifier,
+                        ", ".join((val for val in (descr, type_descr) if val))))
 
             write_example_ref("      ", fw, "bpy.types." + struct_id + "." + func.identifier)
 
@@ -1657,9 +1664,15 @@ def write_rst_contents(basepath):
 
     standalone_modules = (
         # mathutils
-        "mathutils", "mathutils.geometry", "mathutils.bvhtree", "mathutils.kdtree", "mathutils.noise",
+        "mathutils",
+        "mathutils.geometry",
+        "mathutils.bvhtree", "mathutils.kdtree",
+        "mathutils.interpolate",
+        "mathutils.noise",
         # misc
-        "freestyle", "bgl", "blf", "gpu", "aud", "bpy_extras",
+        "freestyle", "bgl", "blf",
+        "gpu", "gpu.offscreen",
+        "aud", "bpy_extras",
         # bmesh, submodules are in own page
         "bmesh",
         )
@@ -1799,6 +1812,7 @@ def write_rst_importable_modules(basepath):
         # C_modules
         "aud"                  : "Audio System",
         "blf"                  : "Font Drawing",
+        "gpu.offscreen"        : "GPU Off-Screen Buffer",
         "bmesh"                : "BMesh Module",
         "bmesh.types"          : "BMesh Types",
         "bmesh.utils"          : "BMesh Utilities",
@@ -1811,6 +1825,7 @@ def write_rst_importable_modules(basepath):
         "mathutils.geometry"   : "Geometry Utilities",
         "mathutils.bvhtree"    : "BVHTree Utilities",
         "mathutils.kdtree"     : "KDTree Utilities",
+        "mathutils.interpolate": "Interpolation Utilities",
         "mathutils.noise"      : "Noise Utilities",
         "freestyle"            : "Freestyle Module",
         "freestyle.types"      : "Freestyle Types",

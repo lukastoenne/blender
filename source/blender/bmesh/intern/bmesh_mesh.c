@@ -143,7 +143,7 @@ BMesh *BM_mesh_create(const BMAllocTemplate *allocsize)
 	bm_mempool_init(bm, allocsize);
 
 	/* allocate one flag pool that we don't get rid of. */
-	bm->stackdepth = 1;
+	bm->toolflag_index = 0;
 	bm->totflags = 0;
 
 	CustomData_reset(&bm->vdata);
@@ -246,7 +246,7 @@ void BM_mesh_clear(BMesh *bm)
 	/* allocate the memory pools for the mesh elements */
 	bm_mempool_init(bm, &bm_mesh_allocsize_default);
 
-	bm->stackdepth = 1;
+	bm->toolflag_index = 0;
 	bm->totflags = 0;
 
 	CustomData_reset(&bm->vdata);
@@ -1662,6 +1662,40 @@ void BM_mesh_remap(
 				lo->f = BLI_ghash_lookup(fptr_map, lo->f);
 				BLI_assert(lo->f);
 			}
+		}
+	}
+
+	/* Selection history */
+	{
+		BMEditSelection *ese;
+		for (ese = bm->selected.first; ese; ese = ese->next) {
+			switch (ese->htype) {
+				case BM_VERT:
+					if (vptr_map) {
+						ese->ele = BLI_ghash_lookup(vptr_map, ese->ele);
+						BLI_assert(ese->ele);
+					}
+					break;
+				case BM_EDGE:
+					if (eptr_map) {
+						ese->ele = BLI_ghash_lookup(eptr_map, ese->ele);
+						BLI_assert(ese->ele);
+					}
+					break;
+				case BM_FACE:
+					if (fptr_map) {
+						ese->ele = BLI_ghash_lookup(fptr_map, ese->ele);
+						BLI_assert(ese->ele);
+					}
+					break;
+			}
+		}
+	}
+
+	if (fptr_map) {
+		if (bm->act_face) {
+			bm->act_face = BLI_ghash_lookup(fptr_map, bm->act_face);
+			BLI_assert(bm->act_face);
 		}
 	}
 

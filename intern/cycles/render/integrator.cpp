@@ -16,8 +16,10 @@
 
 #include "device.h"
 #include "integrator.h"
+#include "film.h"
 #include "light.h"
 #include "scene.h"
+#include "shader.h"
 #include "sobol.h"
 
 #include "util_foreach.h"
@@ -173,6 +175,14 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
 	device->tex_alloc("__sobol_directions", dscene->sobol_directions);
 
+	/* Clamping. */
+	bool use_sample_clamp = (sample_clamp_direct != 0.0f ||
+	                         sample_clamp_indirect != 0.0f);
+	if(use_sample_clamp != scene->film->use_sample_clamp) {
+		scene->film->use_sample_clamp = use_sample_clamp;
+		scene->film->tag_update(scene);
+	}
+
 	need_update = false;
 }
 
@@ -217,8 +227,14 @@ bool Integrator::modified(const Integrator& integrator)
 		sample_all_lights_indirect == integrator.sample_all_lights_indirect);
 }
 
-void Integrator::tag_update(Scene * /*scene*/)
+void Integrator::tag_update(Scene *scene)
 {
+	foreach(Shader *shader, scene->shaders) {
+		if(shader->has_integrator_dependency) {
+			scene->shader_manager->need_update = true;
+			break;
+		}
+	}
 	need_update = true;
 }
 

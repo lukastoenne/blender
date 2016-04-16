@@ -36,15 +36,15 @@ ccl_device void kernel_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	bool is_lamp;
 
 	/* connect to light from given point where shader has been evaluated */
-#ifdef __OBJECT_MOTION__
+#  ifdef __OBJECT_MOTION__
 	light_ray.time = sd->time;
-#endif
+#  endif
 
 	light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
 	if(ls.pdf == 0.0f)
 		return;
 	
-	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+	if(direct_emission(kg, sd, &ls, state, &light_ray, &L_light, &is_lamp)) {
 		/* trace shadow ray */
 		float3 shadow;
 
@@ -117,9 +117,9 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 	BsdfEval L_light;
 	bool is_lamp;
 
-#ifdef __OBJECT_MOTION__
+#  ifdef __OBJECT_MOTION__
 	light_ray.time = sd->time;
-#endif
+#  endif
 
 	if(sample_all_lights) {
 		/* lamp sampling */
@@ -160,7 +160,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				if(ls.pdf == 0.0f)
 					continue;
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, state, &light_ray, &L_light, &is_lamp)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -211,7 +211,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				if(ls.pdf == 0.0f)
 					continue;
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, state, &light_ray, &L_light, &is_lamp)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -251,7 +251,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			return;
 
 		/* sample random light */
-		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+		if(direct_emission(kg, sd, &ls, state, &light_ray, &L_light, &is_lamp)) {
 			/* trace shadow ray */
 			float3 shadow;
 

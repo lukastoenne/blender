@@ -485,6 +485,9 @@ bPoseChannel *BKE_pose_channel_verify(bPose *pose, const char *name)
 	chan = MEM_callocN(sizeof(bPoseChannel), "verifyPoseChannel");
 	
 	BLI_strncpy(chan->name, name, sizeof(chan->name));
+
+	chan->custom_scale = 1.0f;
+
 	/* init vars to prevent math errors */
 	unit_qt(chan->quat);
 	unit_axis_angle(chan->rotAxis, &chan->rotAngle);
@@ -919,6 +922,8 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 	if (pchan->custom) {
 		id_us_plus(&pchan->custom->id);
 	}
+
+	pchan->custom_scale = pchan_from->custom_scale;
 }
 
 

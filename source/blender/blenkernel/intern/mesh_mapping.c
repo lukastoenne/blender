@@ -97,7 +97,7 @@ UvVertMap *BKE_mesh_uv_vert_map_create(
 			float (*tf_uv)[2] = NULL;
 
 			if (use_winding) {
-				tf_uv = (float (*)[2])BLI_buffer_resize_data(&tf_uv_buf, vec2f, mp->totloop);
+				tf_uv = (float (*)[2])BLI_buffer_reinit_data(&tf_uv_buf, vec2f, (size_t)mp->totloop);
 			}
 
 			nverts = mp->totloop;
@@ -295,6 +295,49 @@ void BKE_mesh_vert_edge_map_create(MeshElemMap **r_map, int **r_mem,
 
 		map[v[0]].indices[map[v[0]].count] = i;
 		map[v[1]].indices[map[v[1]].count] = i;
+
+		map[v[0]].count++;
+		map[v[1]].count++;
+	}
+
+	*r_map = map;
+	*r_mem = indices;
+}
+
+/**
+ * A version of #BKE_mesh_vert_edge_map_create that references connected vertices directly (not their edges).
+ */
+void BKE_mesh_vert_edge_vert_map_create(
+        MeshElemMap **r_map, int **r_mem,
+        const MEdge *medge, int totvert, int totedge)
+{
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * (size_t)totvert, "vert-edge map");
+	int *indices = MEM_mallocN(sizeof(int[2]) * (size_t)totedge, "vert-edge map mem");
+	int *i_pt = indices;
+
+	int i;
+
+	/* Count number of edges for each vertex */
+	for (i = 0; i < totedge; i++) {
+		map[medge[i].v1].count++;
+		map[medge[i].v2].count++;
+	}
+
+	/* Assign indices mem */
+	for (i = 0; i < totvert; i++) {
+		map[i].indices = i_pt;
+		i_pt += map[i].count;
+
+		/* Reset 'count' for use as index in last loop */
+		map[i].count = 0;
+	}
+
+	/* Find the users */
+	for (i = 0; i < totedge; i++) {
+		const unsigned int v[2] = {medge[i].v1, medge[i].v2};
+
+		map[v[0]].indices[map[v[0]].count] = (int)v[1];
+		map[v[1]].indices[map[v[1]].count] = (int)v[0];
 
 		map[v[0]].count++;
 		map[v[1]].count++;

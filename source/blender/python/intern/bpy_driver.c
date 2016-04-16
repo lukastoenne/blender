@@ -42,10 +42,13 @@
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 
+#include "bpy_rna_driver.h"  /* for pyrna_driver_get_variable_value */
+
 #include "bpy_driver.h"
 
 extern void BPY_update_rna_module(void);
 
+#define USE_RNA_AS_PYOBJECT
 
 /* for pydrivers (drivers using one-line Python expressions to express relationships between targets) */
 PyObject *bpy_pydriver_Dict = NULL;
@@ -211,7 +214,7 @@ float BPY_driver_exec(ChannelDriver *driver, const float evaltime)
 	/* init global dictionary for py-driver evaluation settings */
 	if (!bpy_pydriver_Dict) {
 		if (bpy_pydriver_create_dict() != 0) {
-			fprintf(stderr, "Pydriver error: couldn't create Python dictionary");
+			fprintf(stderr, "PyDriver error: couldn't create Python dictionary\n");
 			if (use_gil)
 				PyGILState_Release(gilstate);
 			return 0.0f;
@@ -259,15 +262,27 @@ float BPY_driver_exec(ChannelDriver *driver, const float evaltime)
 	}
 
 	/* add target values to a dict that will be used as '__locals__' dict */
-	driver_vars = PyDict_New(); // XXX do we need to decref this?
+	driver_vars = PyDict_New();
 	for (dvar = driver->variables.first, i = 0; dvar; dvar = dvar->next) {
 		PyObject *driver_arg = NULL;
-		float tval = 0.0f;
-		
-		/* try to get variable value */
-		tval = driver_get_variable_value(driver, dvar);
-		driver_arg = PyFloat_FromDouble((double)tval);
-		
+
+	/* support for any RNA data */
+#ifdef USE_RNA_AS_PYOBJECT
+		if (dvar->type == DVAR_TYPE_SINGLE_PROP) {
+			driver_arg = pyrna_driver_get_variable_value(driver, &dvar->targets[0]);
+
+			if (driver_arg == NULL) {
+				driver_arg = PyFloat_FromDouble(0.0);
+			}
+		}
+		else
+#endif
+		{
+			/* try to get variable value */
+			float tval = driver_get_variable_value(driver, dvar);
+			driver_arg = PyFloat_FromDouble((double)tval);
+		}
+
 		/* try to add to dictionary */
 		/* if (PyDict_SetItemString(driver_vars, dvar->name, driver_arg)) { */
 		if (PyDict_SetItem(driver_vars, PyTuple_GET_ITEM(expr_vars, i++), driver_arg) < 0) {

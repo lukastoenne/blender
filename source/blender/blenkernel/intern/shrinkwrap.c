@@ -96,6 +96,11 @@ static void shrinkwrap_calc_nearest_vertex(ShrinkwrapCalcData *calc)
 		float *co = calc->vertexCos[i];
 		float tmp_co[3];
 		float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+
+		if (calc->invert_vgroup) {
+			weight = 1.0f - weight;
+		}
+
 		if (weight == 0.0f) {
 			continue;
 		}
@@ -282,9 +287,11 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool for
 	/* use editmesh to avoid array allocation */
 	if (calc->smd->target && calc->target->type == DM_TYPE_EDITBMESH) {
 		treeData.em_evil = BKE_editmesh_from_object(calc->smd->target);
+		treeData.em_evil_all = true;
 	}
 	if (calc->smd->auxTarget && auxMesh->type == DM_TYPE_EDITBMESH) {
 		auxData.em_evil = BKE_editmesh_from_object(calc->smd->auxTarget);
+		auxData.em_evil_all = true;
 	}
 
 	/* After sucessufuly build the trees, start projection vertexs */
@@ -298,7 +305,11 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool for
 		for (i = 0; i < calc->numVerts; ++i) {
 			float *co = calc->vertexCos[i];
 			float tmp_co[3], tmp_no[3];
-			const float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+			float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+
+			if (calc->invert_vgroup) {
+				weight = 1.0f - weight;
+			}
 
 			if (weight == 0.0f) {
 				continue;
@@ -324,7 +335,7 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool for
 
 
 			hit.index = -1;
-			hit.dist = 10000.0f; /* TODO: we should use FLT_MAX here, but sweepsphere code isn't prepared for that */
+			hit.dist = BVH_RAYCAST_DIST_MAX; /* TODO: we should use FLT_MAX here, but sweepsphere code isn't prepared for that */
 
 			/* Project over positive direction of axis */
 			if (calc->smd->shrinkOpts & MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR) {
@@ -409,6 +420,11 @@ static void shrinkwrap_calc_nearest_surface_point(ShrinkwrapCalcData *calc)
 		float *co = calc->vertexCos[i];
 		float tmp_co[3];
 		float weight = defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
+
+		if (calc->invert_vgroup) {
+			weight = 1.0f - weight;
+		}
+
 		if (weight == 0.0f) continue;
 
 		/* Convert the vertex to tree coordinates */
@@ -478,6 +494,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedM
 	calc.ob = ob;
 	calc.numVerts = numVerts;
 	calc.vertexCos = vertexCos;
+	calc.invert_vgroup = (smd->shrinkOpts & MOD_SHRINKWRAP_INVERT_VGROUP) != 0;
 
 	/* DeformVertex */
 	calc.vgroup = defgroup_name_index(calc.ob, calc.smd->vgroup_name);

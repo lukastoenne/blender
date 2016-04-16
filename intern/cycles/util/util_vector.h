@@ -24,11 +24,8 @@
 #include <vector>
 
 #include "util_aligned_malloc.h"
+#include "util_guarded_allocator.h"
 #include "util_types.h"
-
-#ifdef WITH_CYCLES_DEBUG
-#  include "util_guarded_allocator.h"
-#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,18 +33,12 @@ CCL_NAMESPACE_BEGIN
  *
  * Own subclass-ed vestion of std::vector. Subclass is needed because:
  *
- * - When building with WITH_CYCLES_DEBUG we need to use own allocator which
- *   keeps track of used/peak memory.
+ * - Use own allocator which keeps track of used/peak memory.
  *
  * - Have method to ensure capacity is re-set to 0.
  */
 template<typename value_type,
-#ifdef WITH_CYCLES_DEBUG
-         typename allocator_type = GuardedAllocator<value_type>
-#else
-         typename allocator_type = std::allocator<value_type>
-#endif
-        >
+         typename allocator_type = GuardedAllocator<value_type> >
 class vector : public std::vector<value_type, allocator_type>
 {
 public:
@@ -84,7 +75,7 @@ public:
 	/* Some external API might demand working with std::vector. */
 	operator std::vector<value_type>()
 	{
-		return std::vector<value_type>(*this);
+		return std::vector<value_type>(this->begin(), this->end());
 	}
 };
 
@@ -102,23 +93,22 @@ class array
 {
 public:
 	array()
-	{
-		data = NULL;
-		datasize = 0;
-		capacity = 0;
-	}
+	: data_(NULL),
+	  datasize_(0),
+	  capacity_(0)
+	{}
 
 	array(size_t newsize)
 	{
 		if(newsize == 0) {
-			data = NULL;
-			datasize = 0;
-			capacity = 0;
+			data_ = NULL;
+			datasize_ = 0;
+			capacity_ = 0;
 		}
 		else {
-			data = (T*)util_aligned_malloc(sizeof(T)*newsize, alignment);
-			datasize = newsize;
-			capacity = datasize;
+			data_ = mem_allocate(newsize);
+			datasize_ = newsize;
+			capacity_ = datasize_;
 		}
 	}
 
@@ -130,15 +120,15 @@ public:
 	array& operator=(const array& from)
 	{
 		if(from.datasize == 0) {
-			data = NULL;
-			datasize = 0;
-			capacity = 0;
+			data_ = NULL;
+			datasize_ = 0;
+			capacity_ = 0;
 		}
 		else {
-			data = (T*)util_aligned_malloc(sizeof(T)*from.datasize, alignment);
-			memcpy(data, from.data, from.datasize*sizeof(T));
-			datasize = from.datasize;
-			capacity = datasize;
+			data_ = mem_allocate(from.datasize);
+			memcpy(data_, from.data, from.datasize*sizeof(T));
+			datasize_ = from.datasize_;
+			capacity_ = datasize_;
 		}
 
 		return *this;
@@ -146,13 +136,13 @@ public:
 
 	array& operator=(const vector<T>& from)
 	{
-		datasize = from.size();
-		capacity = datasize;
-		data = NULL;
+		datasize_ = from.size();
+		capacity_ = datasize_;
+		data_ = NULL;
 
-		if(datasize > 0) {
-			data = (T*)util_aligned_malloc(sizeof(T)*datasize, alignment);
-			memcpy(data, &from[0], datasize*sizeof(T));
+		if(datasize_ > 0) {
+			data_ = mem_allocate(datasize_);
+			memcpy(data_, &from[0], datasize_*sizeof(T));
 		}
 
 		return *this;
@@ -160,63 +150,92 @@ public:
 
 	~array()
 	{
-		util_aligned_free(data);
+		mem_free(data_, capacity_);
 	}
 
-	void resize(size_t newsize)
+	T* resize(size_t newsize)
 	{
 		if(newsize == 0) {
 			clear();
 		}
-		else if(newsize != datasize) {
-			if(newsize > capacity) {
-				T *newdata = (T*)util_aligned_malloc(sizeof(T)*newsize, alignment);
-				if(data) {
-					memcpy(newdata, data, ((datasize < newsize)? datasize: newsize)*sizeof(T));
-					util_aligned_free(data);
+		else if(newsize != datasize_) {
+			if(newsize > capacity_) {
+				T *newdata = mem_allocate(newsize);
+				if(newdata == NULL) {
+					/* Allocation failed, likely out of memory. */
+					clear();
+					return NULL;
 				}
-				data = newdata;
-				capacity = newsize;
+				else if(data_ != NULL) {
+					memcpy(newdata, data_, ((datasize_ < newsize)? datasize_: newsize)*sizeof(T));
+					mem_free(data_, capacity_);
+				}
+				data_ = newdata;
+				capacity_ = newsize;
 			}
-			datasize = newsize;
+			datasize_ = newsize;
 		}
+		return data_;
 	}
 
 	void clear()
 	{
-		util_aligned_free(data);
-		data = NULL;
-		datasize = 0;
-		capacity = 0;
+		if(data_ != NULL) {
+			mem_free(data_, capacity_);
+			data_ = NULL;
+		}
+		datasize_ = 0;
+		capacity_ = 0;
 	}
 
 	size_t size() const
 	{
-		return datasize;
+		return datasize_;
 	}
 
 	T& operator[](size_t i) const
 	{
-		assert(i < datasize);
-		return data[i];
+		assert(i < datasize_);
+		return data_[i];
 	}
 
 	void reserve(size_t newcapacity) {
-		if(newcapacity > capacity) {
-			T *newdata = (T*)util_aligned_malloc(sizeof(T)*newcapacity, alignment);
-			if(data) {
-				memcpy(newdata, data, ((datasize < newcapacity)? datasize: newcapacity)*sizeof(T));
-				util_aligned_free(data);
+		if(newcapacity > capacity_) {
+			T *newdata = mem_allocate(newcapacity);
+			if(data_ != NULL) {
+				memcpy(newdata, data_, ((datasize_ < newcapacity)? datasize_: newcapacity)*sizeof(T));
+				mem_free(data_, capacity_);
 			}
-			data = newdata;
-			capacity = newcapacity;
+			data_ = newdata;
+			capacity_ = newcapacity;
 		}
 	}
 
+	size_t capacity() const {
+		return capacity_;
+	}
+
 protected:
-	T *data;
-	size_t datasize;
-	size_t capacity;
+	inline T* mem_allocate(size_t N)
+	{
+		T *mem = (T*)util_aligned_malloc(sizeof(T)*N, alignment);
+		if(mem != NULL) {
+			util_guarded_mem_alloc(sizeof(T)*N);
+		}
+		return mem;
+	}
+
+	inline void mem_free(T *mem, size_t N)
+	{
+		if(mem != NULL) {
+			util_guarded_mem_free(sizeof(T)*N);
+			util_aligned_free(mem);
+		}
+	}
+
+	T *data_;
+	size_t datasize_;
+	size_t capacity_;
 };
 
 CCL_NAMESPACE_END

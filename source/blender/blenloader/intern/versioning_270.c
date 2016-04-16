@@ -38,6 +38,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
@@ -53,6 +54,8 @@
 
 #include "DNA_genfile.h"
 
+#include "BKE_colortools.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
@@ -581,34 +584,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 273, 7)) {
-		bScreen *scr;
-		ScrArea *sa;
-		SpaceLink *sl;
-		ARegion *ar;
-
-		for (scr = main->screen.first; scr; scr = scr->id.next) {
-			/* Remove old deprecated region from filebrowsers */
-			for (sa = scr->areabase.first; sa; sa = sa->next) {
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_FILE) {
-						for (ar = sl->regionbase.first; ar; ar = ar->next) {
-							if (ar->regiontype == RGN_TYPE_CHANNELS) {
-								break;
-							}
-						}
-
-						if (ar) {
-							/* Free old deprecated 'channel' region... */
-							BKE_area_region_free(NULL, ar);
-							BLI_freelinkN(&sl->regionbase, ar);
-						}
-					}
-				}
-			}
-		}
-	}
-
 	if (!MAIN_VERSION_ATLEAST(main, 273, 8)) {
 		Object *ob;
 		for (ob = main->object.first; ob != NULL; ob = ob->id.next) {
@@ -852,5 +827,262 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			br->flag &= ~BRUSH_TORUS;
 		}
 #undef BRUSH_TORUS
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 276, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "bPoseChannel", "float", "custom_scale")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				if (ob->pose) {
+					bPoseChannel *pchan;
+					for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+						pchan->custom_scale = 1.0f;
+					}
+				}
+			}
+		}
+
+		{
+			bScreen *screen;
+#define RV3D_VIEW_PERSPORTHO	 7
+			for (screen = main->screen.first; screen; screen = screen->id.next) {
+				ScrArea *sa;
+				for (sa = screen->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_VIEW3D) {
+							ARegion *ar;
+							ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+							for (ar = lb->first; ar; ar = ar->next) {
+								if (ar->regiontype == RGN_TYPE_WINDOW) {
+									if (ar->regiondata) {
+										RegionView3D *rv3d = ar->regiondata;
+										if (rv3d->view == RV3D_VIEW_PERSPORTHO) {
+											rv3d->view = RV3D_VIEW_USER;
+										}
+									}
+								}
+							}
+							break;
+						}
+					}
+				}
+			}
+#undef RV3D_VIEW_PERSPORTHO
+		}
+
+		{
+			Lamp *lamp;
+#define LA_YF_PHOTON	5
+			for (lamp = main->lamp.first; lamp; lamp = lamp->id.next) {
+				if (lamp->type == LA_YF_PHOTON) {
+					lamp->type = LA_LOCAL;
+				}
+			}
+#undef LA_YF_PHOTON
+		}
+
+		{
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				if (ob->body_type == OB_BODY_TYPE_CHARACTER && (ob->gameflag & OB_BOUNDS) && ob->collision_boundtype == OB_BOUND_TRIANGLE_MESH) {
+					ob->boundtype = ob->collision_boundtype = OB_BOUND_BOX;
+				}
+			}
+		}
+
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 276, 3)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "CurveMapping", "mblur_shutter_curve")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+				CurveMapping *curve_mapping = &scene->r.mblur_shutter_curve;
+				curvemapping_set_defaults(curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f);
+				curvemapping_initialize(curve_mapping);
+				curvemap_reset(curve_mapping->cm,
+				               &curve_mapping->clipr,
+				               CURVE_PRESET_MAX,
+				               CURVEMAP_SLOPE_POS_NEG);
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 276, 4)) {
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			ToolSettings *ts = scene->toolsettings;
+			
+			if (ts->gp_sculpt.brush[0].size == 0) {
+				GP_BrushEdit_Settings *gset = &ts->gp_sculpt;
+				GP_EditBrush_Data *brush;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_SMOOTH];
+				brush->size = 25;
+				brush->strength = 0.3f;
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF | GP_EDITBRUSH_FLAG_SMOOTH_PRESSURE;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_THICKNESS];
+				brush->size = 25;
+				brush->strength = 0.5f;
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_GRAB];
+				brush->size = 50;
+				brush->strength = 0.3f;
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_PUSH];
+				brush->size = 25;
+				brush->strength = 0.3f;
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_TWIST];
+				brush->size = 50;
+				brush->strength = 0.3f; // XXX?
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_PINCH];
+				brush->size = 50;
+				brush->strength = 0.5f; // XXX?
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_RANDOMIZE];
+				brush->size = 25;
+				brush->strength = 0.5f;
+				brush->flag = GP_EDITBRUSH_FLAG_USE_FALLOFF;
+				
+				brush = &gset->brush[GP_EDITBRUSH_TYPE_CLONE];
+				brush->size = 50;
+				brush->strength = 1.0f;
+			}
+			
+			if (!DNA_struct_elem_find(fd->filesdna, "ToolSettings", "char", "gpencil_v3d_align")) {
+#if 0 /* XXX: Cannot do this, as we get random crashes... */
+				if (scene->gpd) {
+					bGPdata *gpd = scene->gpd;
+					
+					/* Copy over the settings stored in the GP datablock linked to the scene, for minimal disruption */
+					ts->gpencil_v3d_align = 0;
+					
+					if (gpd->flag & GP_DATA_VIEWALIGN)    ts->gpencil_v3d_align |= GP_PROJECT_VIEWSPACE;
+					if (gpd->flag & GP_DATA_DEPTH_VIEW)   ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_VIEW;
+					if (gpd->flag & GP_DATA_DEPTH_STROKE) ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE;
+					
+					if (gpd->flag & GP_DATA_DEPTH_STROKE_ENDPOINTS)
+						ts->gpencil_v3d_align |= GP_PROJECT_DEPTH_STROKE_ENDPOINTS;
+				}
+				else {
+					/* Default to cursor for all standard 3D views */
+					ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+				}
+#endif
+				
+				ts->gpencil_v3d_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_v2d_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_seq_align = GP_PROJECT_VIEWSPACE;
+				ts->gpencil_ima_align = GP_PROJECT_VIEWSPACE;
+			}
+		}
+		
+		for (bGPdata *gpd = main->gpencil.first; gpd; gpd = gpd->id.next) {
+			bool enabled = false;
+			
+			/* Ensure that the datablock's onionskinning toggle flag
+			 * stays in sync with the status of the actual layers
+			 */
+			for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+				if (gpl->flag & GP_LAYER_ONIONSKIN) {
+					enabled = true;
+				}
+			}
+			
+			if (enabled)
+				gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
+			else
+				gpd->flag &= ~GP_DATA_SHOW_ONIONSKINS;
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Object", "unsigned char", "max_jumps")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				ob->max_jumps = 1;
+			}
+		}
+	}
+	if (!MAIN_VERSION_ATLEAST(main, 276, 5)) {
+		ListBase *lbarray[MAX_LIBARRAY];
+		int a;
+
+		/* Important to clear all non-persistent flags from older versions here, otherwise they could collide
+		 * with any new persistent flag we may add in the future. */
+		a = set_listbasepointers(main, lbarray);
+		while (a--) {
+			for (ID *id = lbarray[a]->first; id; id = id->next) {
+				id->flag &= LIB_FAKEUSER;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 276, 7)) {
+		Scene *scene;
+		for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+			scene->r.bake.pass_filter = R_BAKE_PASS_FILTER_ALL;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 277, 1)) {
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			ParticleEditSettings *pset = &scene->toolsettings->particle;
+			for (int a = 0; a < PE_TOT_BRUSH; a++) {
+				if (pset->brush[a].strength > 1.0f) {
+					pset->brush[a].strength *= 0.01f;
+				}
+			}
+		}
+
+		for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
+			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					ListBase *regionbase = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+					/* Bug: Was possible to add preview region to sequencer view by using AZones. */
+					if (sl->spacetype == SPACE_SEQ) {
+						SpaceSeq *sseq = (SpaceSeq *)sl;
+						if (sseq->view == SEQ_VIEW_SEQUENCE) {
+							for (ARegion *ar = regionbase->first; ar; ar = ar->next) {
+								/* remove preview region for sequencer-only view! */
+								if (ar->regiontype == RGN_TYPE_PREVIEW) {
+									ar->flag |= RGN_FLAG_HIDDEN;
+									ar->alignment = RGN_ALIGN_NONE;
+									break;
+								}
+							}
+						}
+					}
+					/* Remove old deprecated region from filebrowsers */
+					else if (sl->spacetype == SPACE_FILE) {
+						for (ARegion *ar = regionbase->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_CHANNELS) {
+								/* Free old deprecated 'channel' region... */
+								BKE_area_region_free(NULL, ar);
+								BLI_freelinkN(regionbase, ar);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			CurvePaintSettings *cps = &scene->toolsettings->curve_paint_settings;
+			if (cps->error_threshold == 0) {
+				cps->curve_type = CU_BEZIER;
+				cps->flag |= CURVE_PAINT_FLAG_CORNERS_DETECT;
+				cps->error_threshold = 8;
+				cps->radius_max = 1.0f;
+				cps->corner_angle = DEG2RADF(70.0f);
+			}
+		}
+
 	}
 }
