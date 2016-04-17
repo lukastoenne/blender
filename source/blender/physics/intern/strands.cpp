@@ -139,54 +139,55 @@ static void strands_adjust_segment_lengths(BMesh *bm)
 static void strands_solve_edge_relaxation(BMEditStrands *edit)
 {
 	BMesh *bm = edit->bm;
+	const int Nmax = BM_strands_keys_count_max(bm);
+	/* cache for vertex positions and segment lengths, for easier indexing */
+	float **co = (float **)MEM_mallocN(sizeof(float*) * Nmax, "strand positions");
+	float *target_length = (float *)MEM_mallocN(sizeof(float) * Nmax, "strand segment lengths");
+	
 	BMVert *root;
 	BMIter iter;
-	
-	if (!edit)
-		return;
-//	if (!(pset->flag & PE_KEEP_LENGTHS)) // XXX TODO
-//		return;
-	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		const int numvert = BM_strands_keys_count(root);
-		float relax_factor = numvert > 0 ? 1.0f / numvert : 0.0f;
+		const int S = 1; /* TODO particles use PE_LOCK_FIRST option */
+		const int N = BM_strands_keys_count(root);
+		const float divN = 1.0f / (float)N;
 		
-		BMVert *vj;
-		BMIter iterj;
-		int j;
-		
-		BM_ITER_STRANDS_ELEM_INDEX(vj, &iterj, root, BM_VERTS_OF_STRAND, j) {
-			BMVert *vk, *vk_prev;
-			float lenk, lenk_prev;
-			BMIter iterk;
+		/* setup positions cache */
+		{
+			BMVert *v;
+			BMIter viter;
 			int k;
-			bool skip_first;
+			BM_ITER_STRANDS_ELEM_INDEX(v, &viter, root, BM_VERTS_OF_STRAND, k) {
+				co[k] = v->co;
+				target_length[k] = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+			}
+		}
+		
+		for (int iter = 1; iter < N; iter++) {
+			float correct_first[3] = {0.0f, 0.0f, 0.0f};
+			float correct_second[3] = {0.0f, 0.0f, 0.0f};
 			
-			if (j == 0)
-				continue;
-			
-			if (true /* XXX particles use PE_LOCK_FIRST option */)
-				skip_first = true;
-			else
-				skip_first = false;
-			
-			BM_ITER_STRANDS_ELEM_INDEX(vk, &iterk, root, BM_VERTS_OF_STRAND, k) {
-				float dir[3], tlen, relax;
-				
-				lenk = BM_elem_float_data_named_get(&bm->vdata, vk, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
-				
+			for (int k = S; k < N; k++) {
 				if (k > 0) {
-					sub_v3_v3v3(dir, vk->co, vk_prev->co);
-					tlen = normalize_v3(dir);
-					relax = relax_factor * (tlen - lenk_prev);
+					/* calculate correction for the first vertex */
+					float dir[3];
+					sub_v3_v3v3(dir, co[k-1], co[k]);
+					float length = normalize_v3(dir);
 					
-					if (!(k == 1 && skip_first))
-						madd_v3_v3fl(vk_prev->co, dir, relax);
-					madd_v3_v3fl(vk->co, dir, -relax);
+					mul_v3_v3fl(correct_first, dir, divN * (length - target_length[k]));
 				}
 				
-				vk_prev = vk;
-				lenk_prev = lenk;
+				if (k < N-1) {
+					/* calculate correction for the second vertex */
+					float dir[3];
+					sub_v3_v3v3(dir, co[k+1], co[k]);
+					float length_next = normalize_v3(dir);
+					
+					mul_v3_v3fl(correct_second, dir, divN * (length_next - target_length[k+1]));
+				}
+				
+				/* apply both corrections (try to satisfy both sides equally) */
+				add_v3_v3(co[k], correct_first);
+				add_v3_v3(co[k], correct_second);
 			}
 		}
 	}

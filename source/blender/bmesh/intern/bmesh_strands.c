@@ -116,6 +116,19 @@ int BM_strands_keys_count(BMVert *root)
 	return count;
 }
 
+int BM_strands_keys_count_max(BMesh *bm)
+{
+	BMVert *v;
+	BMIter iter;
+	int maxkeys = 0;
+	BM_ITER_STRANDS(v, &iter, bm, BM_STRANDS_OF_MESH) {
+		int n = BM_strands_keys_count(v);
+		if (n > maxkeys)
+			maxkeys = n;
+	}
+	return maxkeys;
+}
+
 /* ------------------------------------------------------------------------- */
 
 /* Create a new strand */
