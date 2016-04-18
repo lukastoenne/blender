@@ -191,6 +191,8 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 			}
 		}
 	}
+	
+	strands_adjust_segment_lengths(edit->bm);
 }
 
 typedef struct IKTarget {
@@ -218,7 +220,7 @@ static int strand_find_ik_targets(BMVert *root, IKTarget *targets)
 	return index;
 }
 
-static void calc_jacobian_entry(Object *ob, BMEditStrands *edit, IKTarget *target, int index_target, int index_angle,
+static void calc_jacobian_entry(Object *ob, BMEditStrands *UNUSED(edit), IKTarget *target, int index_target, int index_angle,
                                 const float point[3], const float axis1[3], const float axis2[3], MatrixX &J)
 {
 	float (*obmat)[4] = ob->obmat;
@@ -301,7 +303,7 @@ static MatrixX strand_calc_target_jacobian(Object *ob, BMEditStrands *edit, BMVe
 	return J;
 }
 
-static VectorX strand_angles_to_loc(Object *ob, BMEditStrands *edit, BMVert *root, int numjoints, const VectorX &angles)
+static VectorX strand_angles_to_loc(Object *UNUSED(ob), BMEditStrands *edit, BMVert *root, int numjoints, const VectorX &angles)
 {
 	BMVert *v, *vprev;
 	BMIter iter_strand;
@@ -421,6 +423,4 @@ void BPH_strands_solve_constraints(Object *ob, BMEditStrands *edit, float (*orig
 		if (orig)
 			strands_solve_inverse_kinematics(ob, edit, orig);
 	}
-	
-	strands_adjust_segment_lengths(edit->bm);
 }

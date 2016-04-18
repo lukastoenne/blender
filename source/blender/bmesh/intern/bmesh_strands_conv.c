@@ -52,18 +52,6 @@ const char *CD_HAIR_ROOT_LOCATION = "HAIR_ROOT_LOCATION";
 
 /* ------------------------------------------------------------------------- */
 
-int BM_strands_count_psys_keys(ParticleSystem *psys)
-{
-	ParticleData *pa;
-	int p;
-	int totkeys = 0;
-	
-	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa)
-		totkeys += pa->totkey;
-	
-	return totkeys;
-}
-
 /**
  * Currently this is only used for Python scripts
  * which may fail to keep matching UV/TexFace layers.
@@ -108,6 +96,19 @@ char BM_strands_cd_flag_from_bmesh(BMesh *UNUSED(bm))
 	return cd_flag;
 }
 
+/* particles */
+
+int BM_strands_count_psys_keys(ParticleSystem *psys)
+{
+	ParticleData *pa;
+	int p;
+	int totkeys = 0;
+	
+	for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa)
+		totkeys += pa->totkey;
+	
+	return totkeys;
+}
 
 #if 0
 static KeyBlock *bm_set_shapekey_from_psys(BMesh *bm, ParticleSystem *psys, int totvert, int act_key_nr)

@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/hair/hair_object_particles.c
+/** \file blender/editors/hair/hair_object_mesh.c
  *  \ingroup edhair
  */
 
@@ -37,43 +37,28 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_editstrands.h"
-#include "BKE_particle.h"
 
 #include "bmesh.h"
 
 #include "hair_intern.h"
 
-bool ED_hair_object_has_hair_particle_data(Object *ob)
+bool ED_hair_object_init_mesh_edit(Scene *UNUSED(scene), Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys && psys->part->type == PART_HAIR)
-		return true;
-	
-	return false;
-}
-
-bool ED_hair_object_init_particle_edit(Scene *scene, Object *ob)
-{
-	ParticleSystem *psys = psys_get_current(ob);
-	BMesh *bm;
-	DerivedMesh *dm;
-	
-	if (psys && psys->part->type == PART_HAIR) {
-		if (!psys->hairedit) {
-			bm = BKE_editstrands_particles_to_bmesh(ob, psys);
+	if (ob->type == OB_MESH) {
+		Mesh *me = ob->data;
+		
+		if (!me->edit_strands) {
+			BMesh *bm = BKE_editstrands_mesh_to_bmesh(ob, me);
+			DerivedMesh *root_dm = CDDM_new(0, 0, 0, 0, 0);
 			
-			if (ob->type == OB_MESH || ob->derivedFinal)
-				dm = ob->derivedFinal ? ob->derivedFinal : mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-			else
-				dm = NULL;
+			me->edit_strands = BKE_editstrands_create(bm, root_dm);
 			
-			psys->hairedit = BKE_editstrands_create(bm, dm);
+			root_dm->release(root_dm);
 		}
 		return true;
 	}
@@ -81,17 +66,17 @@ bool ED_hair_object_init_particle_edit(Scene *scene, Object *ob)
 	return false;
 }
 
-bool ED_hair_object_apply_particle_edit(Object *ob)
+bool ED_hair_object_apply_mesh_edit(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys->part->type == PART_HAIR) {
-		if (psys->hairedit) {
-			BKE_editstrands_particles_from_bmesh(ob, psys);
-			psys->flag |= PSYS_EDITED;
+	if (ob->type == OB_MESH) {
+		Mesh *me = ob->data;
+		
+		if (me->edit_strands) {
+			BKE_editstrands_mesh_from_bmesh(ob);
 			
-			BKE_editstrands_free(psys->hairedit);
-			MEM_freeN(psys->hairedit);
-			psys->hairedit = NULL;
+			BKE_editstrands_free(me->edit_strands);
+			MEM_freeN(me->edit_strands);
+			me->edit_strands = NULL;
 		}
 		
 		return true;

@@ -31,10 +31,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
 
 #include "DNA_customdata_types.h"
+#include "DNA_key_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
@@ -46,10 +49,12 @@
 #include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_mesh_sample.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 
 #include "BPH_strands.h"
 
+#include "intern/bmesh_mesh_conv.h"
 #include "intern/bmesh_strands_conv.h"
 
 BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
@@ -78,10 +83,18 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
  */
 BMEditStrands *BKE_editstrands_from_object(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys) {
-		return psys->hairedit;
+	if (ob->type == OB_MESH) {
+		Mesh *me = ob->data;
+		if (me->edit_strands)
+			return me->edit_strands;
 	}
+	
+	{
+		ParticleSystem *psys = psys_get_current(ob);
+		if (psys && psys->hairedit)
+			return psys->hairedit;
+	}
+	
 	return NULL;
 }
 
@@ -163,7 +176,7 @@ void BKE_editstrands_ensure(BMEditStrands *es)
 
 /* === particle conversion === */
 
-BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
+BMesh *BKE_editstrands_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 	
@@ -183,7 +196,7 @@ BMesh *BKE_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 	return bm;
 }
 
-void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys)
+void BKE_editstrands_particles_from_bmesh(Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
@@ -201,4 +214,45 @@ void BKE_particles_from_bmesh(Object *ob, ParticleSystem *psys)
 			free_bvhtree_from_mesh(&bvhtree);
 		}
 	}
+}
+
+
+/* === mesh conversion === */
+
+BMesh *BKE_editstrands_mesh_to_bmesh(Object *ob, Mesh *me)
+{
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(me);
+	BMesh *bm;
+	
+	bm = BM_mesh_create(&allocsize);
+	
+	BM_mesh_bm_from_me(bm, me, false, true, ob->shapenr);
+	BM_strands_cd_flag_ensure(bm, 0);
+	
+	editstrands_calc_segment_lengths(bm);
+	
+	return bm;
+}
+
+void BKE_editstrands_mesh_from_bmesh(Object *ob)
+{
+	Mesh *me = ob->data;
+	BMesh *bm = me->edit_strands->bm;
+
+	/* Workaround for T42360, 'ob->shapenr' should be 1 in this case.
+	 * however this isn't synchronized between objects at the moment. */
+	if (UNLIKELY((ob->shapenr == 0) && (me->key && !BLI_listbase_is_empty(&me->key->block)))) {
+		bm->shapenr = 1;
+	}
+
+	BM_mesh_bm_to_me(bm, me, false);
+
+#ifdef USE_TESSFACE_DEFAULT
+	BKE_mesh_tessface_calc(me);
+#endif
+
+	/* free derived mesh. usually this would happen through depsgraph but there
+	 * are exceptions like file save that will not cause this, and we want to
+	 * avoid ending up with an invalid derived mesh then */
+	BKE_object_free_derived_caches(ob);
 }

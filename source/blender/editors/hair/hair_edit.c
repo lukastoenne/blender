@@ -65,6 +65,8 @@
 #include "hair_intern.h"
 #include "paint_intern.h"
 
+#define USE_PARTICLES 0
+
 int hair_edit_poll(bContext *C)
 {
 	Object *obact;
@@ -128,7 +130,11 @@ int hair_edit_toggle_poll(bContext *C)
 	if (CTX_data_edit_object(C))
 		return false;
 
-	return ED_hair_object_has_hair_particle_data(ob);
+#if USE_PARTICLES
+		return ED_hair_object_has_hair_particle_data(ob);
+#else
+		return ob->type == OB_MESH;
+#endif
 }
 
 static void toggle_hair_cursor(bContext *C, bool enable)
@@ -162,14 +168,22 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-		ED_hair_object_init_particle_edit(scene, ob);
+#if USE_PARTICLES
+			ED_hair_object_init_particle_edit(scene, ob);
+#else
+			ED_hair_object_init_mesh_edit(scene, ob);
+#endif
 		ob->mode |= mode_flag;
 		
 		toggle_hair_cursor(C, true);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
+#if USE_PARTICLES
 		ED_hair_object_apply_particle_edit(ob);
+#else
+		ED_hair_object_apply_mesh_edit(ob);
+#endif
 		ob->mode &= ~mode_flag;
 		
 		toggle_hair_cursor(C, false);

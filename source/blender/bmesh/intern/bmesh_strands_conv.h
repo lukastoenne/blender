@@ -49,6 +49,8 @@ void BM_strands_cd_flag_ensure(struct BMesh *bm, const char cd_flag);
 void BM_strands_cd_flag_apply(struct BMesh *bm, const char cd_flag);
 char BM_strands_cd_flag_from_bmesh(struct BMesh *bm);
 
+/* particles */
+
 int BM_strands_count_psys_keys(struct ParticleSystem *psys);
 void BM_strands_bm_from_psys(struct BMesh *bm, struct Object *ob, struct ParticleSystem *psys, struct DerivedMesh *emitter_dm,
                              const bool set_key, int act_key_nr);

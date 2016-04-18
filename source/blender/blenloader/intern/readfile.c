@@ -4534,6 +4534,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
+	mesh->edit_strands = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
