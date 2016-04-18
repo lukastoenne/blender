@@ -60,7 +60,12 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MeshSample *sample, float loc[3
 	
 	if (BKE_mesh_sample_is_volume_sample(sample)) {
 		/* VOLUME SAMPLE */
+		
+		if (is_zero_v3(sample->orig_weights))
+			return false;
+		
 		copy_v3_v3(loc, sample->orig_weights);
+		return true;
 	}
 	else {
 		/* SURFACE SAMPLE */
@@ -106,9 +111,9 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MeshSample *sample, float loc[3
 			madd_v3_v3fl(edge, nor, -dot_v3v3(edge, nor));
 			normalize_v3_v3(tang, edge);
 		}
+		
+		return true;
 	}
-	
-	return true;
 }
 
 bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MeshSample *sample, float loc[3])
