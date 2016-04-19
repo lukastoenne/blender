@@ -214,6 +214,7 @@ typedef void (*VertexToolCb)(HairToolData *data, void *userdata, BMVert *v, floa
 /* apply tool directly to each vertex inside the filter area */
 static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *userdata)
 {
+	BMesh *bm = data->edit->base.bm;
 	Scene *scene = data->scene;
 	Brush *brush = data->settings->brush;
 	const float rad = BKE_brush_size_get(scene, brush);
@@ -229,7 +230,7 @@ static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *use
 	if (use_mirror)
 		ED_strands_mirror_cache_begin(data->edit, 0, false, false, hair_use_mirror_topology(data->ob));
 	
-	BM_ITER_MESH(v, &iter, data->edit->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 		if (!hair_test_vertex_inside_circle(&data->viewdata, data->mval, radsq, v, &dist))
 			continue;
 		
@@ -302,6 +303,7 @@ static int hair_tool_apply_strand_edges(HairToolData *data, EdgeToolCb cb, void 
  */
 static int hair_tool_apply_edge(HairToolData *data, EdgeToolCb cb, void *userdata)
 {
+	BMesh *bm = data->edit->base.bm;
 	BMVert *root;
 	BMIter iter;
 	int tot = 0;
@@ -309,7 +311,7 @@ static int hair_tool_apply_edge(HairToolData *data, EdgeToolCb cb, void *userdat
 	if (hair_use_mirror_x(data->ob))
 		ED_strands_mirror_cache_begin(data->edit, 0, false, false, hair_use_mirror_topology(data->ob));
 	
-	BM_ITER_STRANDS(root, &iter, data->edit->bm, BM_STRANDS_OF_MESH) {
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		tot += hair_tool_apply_strand_edges(data, cb, userdata, root);
 	}
 	
@@ -386,6 +388,7 @@ BLI_INLINE void construct_m4_loc_nor_tan(float mat[4][4], const float loc[3], co
 
 static void grow_hair(BMEditStrands *edit, MeshSample *sample)
 {
+	BMesh *bm = edit->base.bm;
 	DerivedMesh *dm = edit->root_dm;
 	const float len = 1.5f;
 	
@@ -400,9 +403,9 @@ static void grow_hair(BMEditStrands *edit, MeshSample *sample)
 		construct_m4_loc_nor_tan(root_mat, co, nor, tang);
 	}
 	
-	root = BM_strands_create(edit->bm, 5, true);
+	root = BM_strands_create(bm, 5, true);
 	
-	BM_elem_meshsample_data_named_set(&edit->bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, sample);
+	BM_elem_meshsample_data_named_set(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, sample);
 	
 	BM_ITER_STRANDS_ELEM_INDEX(v, &iter, root, BM_VERTS_OF_STRAND, i) {
 		float co[3];
@@ -415,7 +418,7 @@ static void grow_hair(BMEditStrands *edit, MeshSample *sample)
 		copy_v3_v3(v->co, co);
 	}
 	
-	BM_mesh_elem_index_ensure(edit->bm, BM_ALL);
+	BM_mesh_elem_index_ensure(bm, BM_ALL);
 }
 
 static bool hair_add_ray_cb(void *vdata, float ray_start[3], float ray_end[3])

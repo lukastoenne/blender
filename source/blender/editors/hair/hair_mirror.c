@@ -66,7 +66,7 @@ void ED_strands_mirror_cache_begin_ex(BMEditStrands *edit, const int axis, const
                                       /* extra args */
                                       const bool UNUSED(use_topology), float maxdist, int *r_index)
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	BMIter iter;
 	BMVert *v;
 	int cd_vmirr_offset;
@@ -79,21 +79,23 @@ void ED_strands_mirror_cache_begin_ex(BMEditStrands *edit, const int axis, const
 
 	if (r_index == NULL) {
 		const char *layer_id = BM_CD_LAYER_ID;
-		edit->mirror_cdlayer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_INT, layer_id);
-		if (edit->mirror_cdlayer == -1) {
+		int mirror_cdlayer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_INT, layer_id);
+		if (mirror_cdlayer == -1) {
 			BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_INT, layer_id);
-			edit->mirror_cdlayer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_INT, layer_id);
+			mirror_cdlayer = CustomData_get_named_layer_index(&bm->vdata, CD_PROP_INT, layer_id);
 		}
 
 		cd_vmirr_offset = CustomData_get_n_offset(&bm->vdata, CD_PROP_INT,
-		                                          edit->mirror_cdlayer - CustomData_get_layer_index(&bm->vdata, CD_PROP_INT));
+		                                          mirror_cdlayer - CustomData_get_layer_index(&bm->vdata, CD_PROP_INT));
 
-		bm->vdata.layers[edit->mirror_cdlayer].flag |= CD_FLAG_TEMPORARY;
+		bm->vdata.layers[mirror_cdlayer].flag |= CD_FLAG_TEMPORARY;
+
+		edit->base.mirror_cdlayer = mirror_cdlayer;
 	}
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 
-	tree = BKE_bmbvh_new(edit->bm, NULL, 0, 0, NULL, false);
+	tree = BKE_bmbvh_new(edit->base.bm, NULL, 0, 0, NULL, false);
 
 #define VERT_INTPTR(_v, _i) r_index ? &r_index[_i] : BM_ELEM_CD_GET_VOID_P(_v, cd_vmirr_offset);
 
@@ -143,18 +145,20 @@ void ED_strands_mirror_cache_begin(BMEditStrands *edit, const int axis,
 
 BMVert *ED_strands_mirror_get(BMEditStrands *edit, BMVert *v)
 {
-	const int *mirr = CustomData_bmesh_get_layer_n(&edit->bm->vdata, v->head.data, edit->mirror_cdlayer);
+	BMesh *bm = edit->base.bm;
+	int mirror_cdlayer = edit->base.mirror_cdlayer;
+	const int *mirr = CustomData_bmesh_get_layer_n(&bm->vdata, v->head.data, mirror_cdlayer);
 
-	BLI_assert(edit->mirror_cdlayer != -1); /* invalid use */
+	BLI_assert(mirror_cdlayer != -1); /* invalid use */
 
-	if (mirr && *mirr >= 0 && *mirr < edit->bm->totvert) {
-		if (!edit->bm->vtable) {
+	if (mirr && *mirr >= 0 && *mirr < bm->totvert) {
+		if (!bm->vtable) {
 			printf("err: should only be called between "
 			       "ED_strands_mirror_cache_begin and ED_strands_mirror_cache_end\n");
 			return NULL;
 		}
 
-		return edit->bm->vtable[*mirr];
+		return bm->vtable[*mirr];
 	}
 
 	return NULL;
@@ -175,9 +179,11 @@ BMEdge *ED_strands_mirror_get_edge(BMEditStrands *edit, BMEdge *e)
 
 void ED_strands_mirror_cache_clear(BMEditStrands *edit, BMVert *v)
 {
-	int *mirr = CustomData_bmesh_get_layer_n(&edit->bm->vdata, v->head.data, edit->mirror_cdlayer);
+	BMesh *bm = edit->base.bm;
+	int mirror_cdlayer = edit->base.mirror_cdlayer;
+	int *mirr = CustomData_bmesh_get_layer_n(&bm->vdata, v->head.data, mirror_cdlayer);
 
-	BLI_assert(edit->mirror_cdlayer != -1); /* invalid use */
+	BLI_assert(mirror_cdlayer != -1); /* invalid use */
 
 	if (mirr) {
 		*mirr = -1;
@@ -186,17 +192,18 @@ void ED_strands_mirror_cache_clear(BMEditStrands *edit, BMVert *v)
 
 void ED_strands_mirror_cache_end(BMEditStrands *edit)
 {
-	edit->mirror_cdlayer = -1;
+	edit->base.mirror_cdlayer = -1;
 }
 
 void ED_strands_mirror_apply(BMEditStrands *edit, const int sel_from, const int sel_to)
 {
+	BMesh *bm = edit->base.bm;
 	BMIter iter;
 	BMVert *v;
 
-	BLI_assert((edit->bm->vtable != NULL) && ((edit->bm->elem_table_dirty & BM_VERT) == 0));
+	BLI_assert((bm->vtable != NULL) && ((bm->elem_table_dirty & BM_VERT) == 0));
 
-	BM_ITER_MESH (v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		if (BM_elem_flag_test(v, BM_ELEM_SELECT) == sel_from) {
 			BMVert *mirr = ED_strands_mirror_get(edit, v);
 			if (mirr) {

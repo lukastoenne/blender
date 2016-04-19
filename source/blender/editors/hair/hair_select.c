@@ -97,7 +97,7 @@ typedef void (*ActionVertexCb)(void *userdata, struct BMVert *v, int action);
 
 static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode select_mode, int action, PollVertexCb cb, void *userdata)
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	
 	BMVert *v;
 	BMIter iter;
@@ -109,7 +109,7 @@ static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode sele
 		case HAIR_SELECT_STRAND:
 			break;
 		case HAIR_SELECT_VERTEX:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				if (!cb(userdata, v))
 					continue;
 				
@@ -118,7 +118,7 @@ static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode sele
 			}
 			break;
 		case HAIR_SELECT_TIP:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				if (!BM_strands_vert_is_tip(v))
 					continue;
 				if (!cb(userdata, v))
@@ -137,7 +137,7 @@ static int hair_select_verts_filter(BMEditStrands *edit, HairEditSelectMode sele
 
 static bool hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode select_mode, int action, DistanceVertexCb cb, ActionVertexCb action_cb, void *userdata)
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	
 	BMVert *v;
 	BMIter iter;
@@ -152,7 +152,7 @@ static bool hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode se
 		case HAIR_SELECT_STRAND:
 			break;
 		case HAIR_SELECT_VERTEX:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				if (!cb(userdata, v, &dist))
 					continue;
 				
@@ -163,7 +163,7 @@ static bool hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode se
 			}
 			break;
 		case HAIR_SELECT_TIP:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				if (!BM_strands_vert_is_tip(v))
 					continue;
 				if (!cb(userdata, v, &dist))
@@ -189,10 +189,12 @@ static bool hair_select_verts_closest(BMEditStrands *edit, HairEditSelectMode se
 
 static void hair_deselect_all(BMEditStrands *edit)
 {
+	BMesh *bm = edit->base.bm;
+	
 	BMVert *v;
 	BMIter iter;
 	
-	BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 		BM_elem_flag_set(v, BM_ELEM_SELECT, false);
 	}
 }
@@ -219,7 +221,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 	
 	/* toggle action depends on current global selection state */
 	if (action == SEL_TOGGLE) {
-		if (edit->bm->totvertsel == 0)
+		if (edit->base.bm->totvertsel == 0)
 			action = SEL_SELECT;
 		else
 			action = SEL_DESELECT;

@@ -141,10 +141,11 @@ static void setup_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = (strands_use_normals(info) ? 2*size_v3 : size_v3);
+	BMesh *bm = edit->base.bm;
 	
 //	int totstrands = BM_strands_count(edit->bm);
-	int totvert = edit->bm->totvert;
-	int totedge = edit->bm->totedge;
+	int totvert = bm->totvert;
+	int totedge = bm->totedge;
 	
 	if (!edit->vertex_glbuf)
 		glGenBuffers(1, &edit->vertex_glbuf);
@@ -172,6 +173,7 @@ static int write_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo 
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = (strands_use_normals(info) ? 2*size_v3 : size_v3);
+	BMesh *bm = edit->base.bm;
 	
 	GLubyte *vertex_data;
 	unsigned int *elem_data;
@@ -185,10 +187,10 @@ static int write_gpu_buffers_strands(BMEditStrands *edit, const StrandsDrawInfo 
 	if (!vertex_data || !elem_data)
 		return 0;
 	
-	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
+	BM_mesh_elem_index_ensure(bm, BM_VERT);
 	
 	index_edge = 0;
-	BM_ITER_STRANDS(root, &iter, edit->bm, BM_STRANDS_OF_MESH) {
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
 			size_t offset_co;
 			
@@ -237,7 +239,7 @@ static void setup_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *i
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = size_v3;
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	
 	BMVert *v;
 	BMIter iter;
@@ -284,6 +286,7 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 {
 	const size_t size_v3 = sizeof(float) * 3;
 	const size_t size_vertex = size_v3;
+	BMesh *bm = edit->base.bm;
 	
 	GLubyte *vertex_data;
 	BMVert *v;
@@ -297,7 +300,7 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 	if (!vertex_data)
 		return 0;
 	
-	BM_mesh_elem_index_ensure(edit->bm, BM_VERT);
+	BM_mesh_elem_index_ensure(bm, BM_VERT);
 	
 	index_dot = 0;
 	switch (info->select_mode) {
@@ -305,7 +308,7 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 			/* already exited, but keep the case for the compiler */
 			break;
 		case HAIR_SELECT_VERTEX:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				size_t offset_co;
 				
 				if (BM_elem_flag_test_bool(v, BM_ELEM_SELECT) != selected)
@@ -317,7 +320,7 @@ static int write_gpu_buffers_dots(BMEditStrands *edit, const StrandsDrawInfo *in
 			}
 			break;
 		case HAIR_SELECT_TIP:
-			BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				size_t offset_co;
 				
 				if (BM_elem_flag_test_bool(v, BM_ELEM_SELECT) != selected)
@@ -354,7 +357,7 @@ static void draw_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool sel
 		glDrawArrays(GL_POINTS, 0, totelem);
 }
 
-void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, BMEditStrands *edit)
+void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *UNUSED(ar), BMEditStrands *edit)
 {
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	

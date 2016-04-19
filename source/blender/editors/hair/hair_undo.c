@@ -87,6 +87,7 @@ typedef struct UndoStrands {
 static void *strands_edit_to_undo(void *editv, void *UNUSED(obdata))
 {
 	BMEditStrands *edit = editv;
+	BMesh *bm = edit->base.bm;
 //	Mesh *obme = obdata;
 	
 	UndoStrands *undo = MEM_callocN(sizeof(UndoStrands), "undo Strands");
@@ -96,10 +97,10 @@ static void *strands_edit_to_undo(void *editv, void *UNUSED(obdata))
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
 
-	BM_mesh_bm_to_me_ex(edit->bm, &undo->me, CD_MASK_STRANDS, false);
+	BM_mesh_bm_to_me_ex(bm, &undo->me, CD_MASK_STRANDS, false);
 
-	undo->selectmode = edit->bm->selectmode;
-	undo->shapenr = edit->bm->shapenr;
+	undo->selectmode = bm->selectmode;
+	undo->shapenr = bm->shapenr;
 
 	return undo;
 }
@@ -108,14 +109,14 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 {
 	UndoStrands *undo = undov;
 	BMEditStrands *edit = editv, *edit_tmp;
-	Object *ob = edit->ob;
+	Object *ob = edit->base.ob;
 	DerivedMesh *dm = edit->root_dm;
 	BMesh *bm;
 //	Key *key = ((Mesh *) obdata)->key;
 	
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&undo->me);
 	
-	edit->bm->shapenr = undo->shapenr;
+	edit->base.bm->shapenr = undo->shapenr;
 	
 	bm = BM_mesh_create(&allocsize);
 	BM_mesh_bm_from_me_ex(bm, &undo->me, CD_MASK_STRANDS_BMESH, false, false, undo->shapenr);
@@ -129,7 +130,7 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	*edit = *edit_tmp;
 	
 	bm->selectmode = undo->selectmode;
-	edit->ob = ob;
+	edit->base.ob = ob;
 	
 #if 0
 	/* T35170: Restore the active key on the RealMesh. Otherwise 'fake' offset propagation happens
@@ -182,7 +183,7 @@ void undo_push_strands(bContext *C, const char *name)
 	 * though we could investigate the matter further. */
 	Object *obact = CTX_data_active_object(C);
 	BMEditStrands *edit = BKE_editstrands_from_object(obact);
-	edit->ob = obact;
+	edit->base.ob = obact;
 	
 	undo_editmode_push(C, name, CTX_data_active_object, strands_get_edit, strands_free_undo, strands_undo_to_edit, strands_edit_to_undo, NULL);
 }

@@ -56,7 +56,7 @@ extern "C" {
 
 static bool strand_get_root_vectors(BMEditStrands *edit, BMVert *root, float loc[3], float nor[3], float tang[3])
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	DerivedMesh *root_dm = edit->root_dm;
 	MeshSample root_sample;
 	
@@ -78,11 +78,12 @@ static int strand_count_vertices(BMVert *root)
 
 static int UNUSED_FUNCTION(strands_get_max_length)(BMEditStrands *edit)
 {
+	BMesh *bm = edit->base.bm;
 	BMVert *root;
 	BMIter iter;
 	int maxlen = 0;
 	
-	BM_ITER_STRANDS(root, &iter, edit->bm, BM_STRANDS_OF_MESH) {
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		int len = strand_count_vertices(root);
 		if (len > maxlen)
 			maxlen = len;
@@ -92,13 +93,14 @@ static int UNUSED_FUNCTION(strands_get_max_length)(BMEditStrands *edit)
 
 static void strands_apply_root_locations(BMEditStrands *edit)
 {
+	BMesh *bm = edit->base.bm;
 	BMVert *root;
 	BMIter iter;
 	
 	if (!edit->root_dm)
 		return;
 	
-	BM_ITER_STRANDS(root, &iter, edit->bm, BM_STRANDS_OF_MESH) {
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		float loc[3], nor[3], tang[3];
 		
 		if (strand_get_root_vectors(edit, root, loc, nor, tang))
@@ -138,7 +140,7 @@ static void strands_adjust_segment_lengths(BMesh *bm)
  */
 static void strands_solve_edge_relaxation(BMEditStrands *edit)
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	const int Nmax = BM_strands_keys_count_max(bm);
 	/* cache for vertex positions and segment lengths, for easier indexing */
 	float **co = (float **)MEM_mallocN(sizeof(float*) * Nmax, "strand positions");
@@ -192,7 +194,7 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 		}
 	}
 	
-	strands_adjust_segment_lengths(edit->bm);
+	strands_adjust_segment_lengths(bm);
 }
 
 typedef struct IKTarget {
@@ -305,6 +307,7 @@ static MatrixX strand_calc_target_jacobian(Object *ob, BMEditStrands *edit, BMVe
 
 static VectorX strand_angles_to_loc(Object *UNUSED(ob), BMEditStrands *edit, BMVert *root, int numjoints, const VectorX &angles)
 {
+	BMesh *bm = edit->base.bm;
 	BMVert *v, *vprev;
 	BMIter iter_strand;
 	int k;
@@ -321,7 +324,7 @@ static VectorX strand_angles_to_loc(Object *UNUSED(ob), BMEditStrands *edit, BMV
 		float dirprev[3];
 		
 		if (k > 0) {
-			const float base_length = BM_elem_float_data_named_get(&edit->bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+			const float base_length = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 			float rot[3][3];
 			
 			copy_v3_v3(dirprev, dir);
@@ -367,7 +370,7 @@ static void UNUSED_FUNCTION(strand_apply_ik_result)(Object *UNUSED(ob), BMEditSt
 
 static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	
 	BMVert *root;
 	BMIter iter;

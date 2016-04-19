@@ -100,13 +100,14 @@ bool hair_use_mirror_topology(Object *ob)
 
 void hair_bm_min_max(BMEditStrands *edit, float min[3], float max[3])
 {
+	BMesh *bm = edit->base.bm;
 	BMVert *v;
 	BMIter iter;
 	
-	if (edit->bm->totvert > 0) {
+	if (bm->totvert > 0) {
 		INIT_MINMAX(min, max);
 		
-		BM_ITER_MESH(v, &iter, edit->bm, BM_VERTS_OF_MESH) {
+		BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 			minmax_v3v3_v3(min, max, v->co);
 		}
 	}

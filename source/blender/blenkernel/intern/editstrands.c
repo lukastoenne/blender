@@ -61,7 +61,7 @@ BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
 {
 	BMEditStrands *es = MEM_callocN(sizeof(BMEditStrands), __func__);
 	
-	es->bm = bm;
+	es->base.bm = bm;
 	es->root_dm = CDDM_copy(root_dm);
 	
 	return es;
@@ -72,7 +72,7 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	BMEditStrands *es_copy = MEM_callocN(sizeof(BMEditStrands), __func__);
 	*es_copy = *es;
 	
-	es_copy->bm = BM_mesh_copy(es->bm);
+	es_copy->base.bm = BM_mesh_copy(es->base.bm);
 	es_copy->root_dm = CDDM_copy(es->root_dm);
 	
 	return es_copy;
@@ -100,7 +100,7 @@ BMEditStrands *BKE_editstrands_from_object(Object *ob)
 
 void BKE_editstrands_update_linked_customdata(BMEditStrands *es)
 {
-	BMesh *bm = es->bm;
+	BMesh *bm = es->base.bm;
 	
 	/* this is done for BMEditMesh, but should never exist for strands */
 	BLI_assert(!CustomData_has_layer(&bm->pdata, CD_MTEXPOLY));
@@ -109,8 +109,8 @@ void BKE_editstrands_update_linked_customdata(BMEditStrands *es)
 /*does not free the BMEditStrands struct itself*/
 void BKE_editstrands_free(BMEditStrands *es)
 {
-	if (es->bm)
-		BM_mesh_free(es->bm);
+	if (es->base.bm)
+		BM_mesh_free(es->base.bm);
 	if (es->root_dm)
 		es->root_dm->release(es->root_dm);
 }
@@ -119,7 +119,7 @@ void BKE_editstrands_free(BMEditStrands *es)
 
 BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)
 {
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	BMEditStrandsLocations locs = MEM_mallocN(3*sizeof(float) * bm->totvert, "editstrands locations");
 	
 	BMVert *v;
@@ -164,10 +164,10 @@ static void editstrands_calc_segment_lengths(BMesh *bm)
 
 void BKE_editstrands_ensure(BMEditStrands *es)
 {
-	BM_strands_cd_flag_ensure(es->bm, 0);
+	BM_strands_cd_flag_ensure(es->base.bm, 0);
 	
 	if (es->flag & BM_STRANDS_DIRTY_SEGLEN) {
-		editstrands_calc_segment_lengths(es->bm);
+		editstrands_calc_segment_lengths(es->base.bm);
 		
 		es->flag &= ~BM_STRANDS_DIRTY_SEGLEN;
 	}
@@ -199,7 +199,7 @@ BMesh *BKE_editstrands_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 void BKE_editstrands_particles_from_bmesh(Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
-	BMesh *bm = psys->hairedit ? psys->hairedit->bm : NULL;
+	BMesh *bm = psys->hairedit ? psys->hairedit->base.bm : NULL;
 	
 	if (bm) {
 		if (psmd && psmd->dm_final) {
@@ -237,7 +237,7 @@ BMesh *BKE_editstrands_mesh_to_bmesh(Object *ob, Mesh *me)
 void BKE_editstrands_mesh_from_bmesh(Object *ob)
 {
 	Mesh *me = ob->data;
-	BMesh *bm = me->edit_strands->bm;
+	BMesh *bm = me->edit_strands->base.bm;
 
 	/* Workaround for T42360, 'ob->shapenr' should be 1 in this case.
 	 * however this isn't synchronized between objects at the moment. */

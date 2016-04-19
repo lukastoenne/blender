@@ -2009,7 +2009,7 @@ static void createTransStrandVerts(TransInfo *t)
 	Scene *scene = t->scene;
 	Object *ob = OBACT;
 	BMEditStrands *edit = BKE_editstrands_from_object(ob);
-	BMesh *bm = edit->bm;
+	BMesh *bm = edit->base.bm;
 	TransData *tob = NULL;
 	BMVert *eve;
 	BMIter iter;
@@ -2066,7 +2066,7 @@ static void createTransStrandVerts(TransInfo *t)
 	}
 
 	if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
-		island_info = bmesh_islands_info_calc(edit->bm, SCE_SELECT_VERTEX, &island_info_tot, &island_vert_map);
+		island_info = bmesh_islands_info_calc(bm, SCE_SELECT_VERTEX, &island_info_tot, &island_vert_map);
 	}
 
 	/* find out which half we do */

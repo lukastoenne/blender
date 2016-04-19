@@ -37,6 +37,8 @@
 #include "DNA_customdata_types.h"
 
 #include "BKE_customdata.h"
+#include "BKE_editmesh.h"
+
 #include "bmesh.h"
 
 struct BMesh;
@@ -45,14 +47,9 @@ struct Mesh;
 struct Object;
 
 typedef struct BMEditStrands {
-	struct BMesh *bm;
+	BMEditMesh base;
 	
-	/*this is for undoing failed operations*/
-	struct BMEditStrands *emcopy;
-	int emcopyusers;
-	
-	/* Object this editmesh came from (if it came from one) */
-	struct Object *ob;
+	/* Scalp mesh for fixing root vertices */
 	struct DerivedMesh *root_dm;
 	
 	int flag;
@@ -60,9 +57,6 @@ typedef struct BMEditStrands {
 	unsigned int vertex_glbuf;
 	unsigned int elem_glbuf;
 	unsigned int dot_glbuf;
-	
-	/*temp variables for x-mirror editing*/
-	int mirror_cdlayer; /* -1 is invalid */
 } BMEditStrands;
 
 /* BMEditStrands->flag */
