@@ -7634,7 +7634,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	if (!skip_object) {
 		/* draw outline for selected objects, mesh does itself */
 		if ((v3d->flag & V3D_SELECT_OUTLINE) && !render_override && ob->type != OB_MESH) {
-			if (dt > OB_WIRE && (ob->mode & OB_MODE_EDIT) == 0 && (dflag & DRAW_SCENESET) == 0) {
+			if (dt > OB_WIRE &&
+			    (ob->mode & (OB_MODE_EDIT | OB_MODE_HAIR_EDIT)) == 0 &&
+			    (dflag & DRAW_SCENESET) == 0)
+			{
 				if (!(ob->dtx & OB_DRAWWIRE) && (ob->flag & SELECT) && !(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR))) {
 					drawObjectSelect(scene, v3d, ar, base, ob_wire_col);
 				}
