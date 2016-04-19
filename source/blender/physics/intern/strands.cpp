@@ -194,6 +194,11 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 		}
 	}
 	
+	if (co)
+		MEM_freeN(co);
+	if (target_length)
+		MEM_freeN(target_length);
+	
 	strands_adjust_segment_lengths(bm);
 }
 
