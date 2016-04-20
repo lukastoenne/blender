@@ -212,7 +212,7 @@ bool hair_test_vertex_inside_lasso(HairViewData *viewdata, const int mcoords[][2
 typedef void (*VertexToolCb)(HairToolData *data, void *userdata, BMVert *v, float factor);
 
 /* apply tool directly to each vertex inside the filter area */
-static int hair_tool_apply_vertex(HairToolData *data, VertexToolCb cb, void *userdata)
+static int UNUSED_FUNCTION(hair_tool_apply_vertex)(HairToolData *data, VertexToolCb cb, void *userdata)
 {
 	BMesh *bm = data->edit->base.bm;
 	Scene *scene = data->scene;
@@ -477,7 +477,6 @@ bool hair_brush_step(HairToolData *data)
 			else
 				combdata.power = 1.0f - combdata.power;
 			
-			/*tot = hair_tool_apply_vertex(data, hair_vertex_comb, &combdata);*/ /* UNUSED */
 			tot = hair_tool_apply_edge(data, hair_edge_comb, &combdata);
 			break;
 		}
