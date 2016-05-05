@@ -109,6 +109,7 @@ extern "C" {
 
 namespace DEG {
 
+#ifdef DEG_OLD_BUILDERS
 /* ***************** */
 /* Relations Builder */
 
@@ -1968,5 +1969,5 @@ bool DepsgraphRelationBuilder::needs_animdata_node(ID *id)
 	}
 	return false;
 }
-
+#endif
 }  // namespace DEG

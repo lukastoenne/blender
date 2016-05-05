@@ -68,6 +68,7 @@ struct PropertyRNA;
 
 namespace DEG {
 
+#ifdef DEG_OLD_BUILDERS
 struct Depsgraph;
 struct DepsNode;
 struct DepsNodeHandle;
@@ -380,5 +381,6 @@ DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(
 {
 	return DepsNodeHandle(this, find_node(key), default_name);
 }
+#endif
 
 }  // namespace DEG

@@ -41,6 +41,7 @@ set(INC_SYS
 
 set(SRC
 	intern/builder/deg_builder.cc
+	intern/builder/deg_builder_components.cc
 	intern/builder/deg_builder_cycle.cc
 	intern/builder/deg_builder_nodes.cc
 	intern/builder/deg_builder_pchanmap.cc

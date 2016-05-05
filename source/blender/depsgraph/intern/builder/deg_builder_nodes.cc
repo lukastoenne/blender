@@ -108,6 +108,7 @@ extern "C" {
 
 namespace DEG {
 
+#ifdef DEG_OLD_BUILDERS
 /* ************ */
 /* Node Builder */
 
@@ -1262,5 +1263,6 @@ void DepsgraphNodeBuilder::build_gpencil(bGPdata *gpd)
 	 */
 	build_animdata(gpd_id);
 }
+#endif
 
 }  // namespace DEG
