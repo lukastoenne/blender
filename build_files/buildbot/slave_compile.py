@@ -74,6 +74,7 @@ if 'cmake' in builder:
         # Set up OSX architecture
         if builder.endswith('x86_64_10_6_cmake'):
             cmake_extra_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64')
+        cmake_extra_options.append('-DCUDA_NVCC_EXECUTABLE=/usr/local/cuda-hack/bin/nvcc')
 
     elif builder.startswith('win'):
         install_dir = None
@@ -187,7 +188,7 @@ if 'cmake' in builder:
             sys.exit(retcode)
 
         if builder.startswith('linux') and target == 'cuda':
-            blender_h = os.path.join(blender_dir, "source", "blender", "blenkernel", "BKE_blender.h")
+            blender_h = os.path.join(blender_dir, "source", "blender", "blenkernel", "BKE_blender_version.h")
             blender_version = int(parse_header_file(blender_h, 'BLENDER_VERSION'))
             blender_version = "%d.%d" % (blender_version // 100, blender_version % 100)
             kernels = os.path.join(target_build_dir, 'intern', 'cycles', 'kernel')

@@ -175,7 +175,7 @@ void Shader::set_graph(ShaderGraph *graph_)
 	 * are needed, since the node attribute callbacks check if their sockets
 	 * are connected but proxy nodes should not count */
 	if(graph_)
-		graph_->remove_unneeded_nodes();
+		graph_->remove_proxy_nodes();
 
 	/* assign graph */
 	delete graph;
@@ -528,6 +528,10 @@ void ShaderManager::get_requested_features(Scene *scene,
 		if(output_node->input("Displacement")->link != NULL) {
 			requested_features->nodes_features |= NODE_FEATURE_BUMP;
 		}
+		/* On top of volume nodes, also check if we need volume sampling because
+		 * e.g. an Emission node would slip through the NODE_FEATURE_VOLUME check */
+		if(shader->has_volume)
+			requested_features->use_volume |= true;
 	}
 }
 

@@ -19,6 +19,7 @@
 #include "util_path.h"
 #include "util_string.h"
 
+#include <OpenImageIO/filesystem.h>
 #include <OpenImageIO/strutil.h>
 #include <OpenImageIO/sysutil.h>
 
@@ -334,6 +335,13 @@ void path_init(const string& path, const string& user_path)
 {
 	cached_path = path;
 	cached_user_path = user_path;
+
+#ifdef _MSC_VER
+	// workaround for https://svn.boost.org/trac/boost/ticket/6320
+	// indirectly init boost codec here since it's not thread safe, and can
+	// cause crashes when it happens in multithreaded image load
+	OIIO::Filesystem::exists(path);
+#endif
 }
 
 string path_get(const string& sub)
@@ -477,9 +485,9 @@ static string path_unc_to_short(const string& path)
 		if((len > 5) && (path[5] ==  ':')) {
 			return path.substr(4, len - 4);
 		}
-		else if ((len > 7) &&
-		         (path.substr(4, 3) == "UNC") &&
-		         ((path[7] ==  DIR_SEP) || (path[7] ==  DIR_SEP_ALT)))
+		else if((len > 7) &&
+		        (path.substr(4, 3) == "UNC") &&
+		        ((path[7] ==  DIR_SEP) || (path[7] ==  DIR_SEP_ALT)))
 		{
 			return "\\\\" + path.substr(8, len - 8);
 		}

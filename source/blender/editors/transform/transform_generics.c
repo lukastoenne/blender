@@ -1421,8 +1421,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	}
 #endif
 
-	setTransformViewMatrices(t);
 	setTransformViewAspect(t, t->aspect);
+	setTransformViewMatrices(t);
 	initNumInput(&t->num);
 }
 
@@ -1502,6 +1502,8 @@ void postTrans(bContext *C, TransInfo *t)
 	if (t->mouse.data) {
 		MEM_freeN(t->mouse.data);
 	}
+
+	freeSnapping(t);
 }
 
 void applyTransObjects(TransInfo *t)
@@ -1582,6 +1584,8 @@ void restoreTransObjects(TransInfo *t)
 
 void calculateCenter2D(TransInfo *t)
 {
+	BLI_assert(!is_zero_v3(t->aspect));
+
 	if (t->flag & (T_EDIT | T_POSE)) {
 		Object *ob = t->obedit ? t->obedit : t->poseobj;
 		float vec[3];

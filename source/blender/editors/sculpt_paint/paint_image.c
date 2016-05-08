@@ -498,8 +498,10 @@ void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short te
 	if (texpaint || (sima && sima->lock)) {
 		int w = imapaintpartial.x2 - imapaintpartial.x1;
 		int h = imapaintpartial.y2 - imapaintpartial.y1;
-		/* Testing with partial update in uv editor too */
-		GPU_paint_update_image(image, (sima ? &sima->iuser : NULL), imapaintpartial.x1, imapaintpartial.y1, w, h); //!texpaint);
+		if (w && h) {
+			/* Testing with partial update in uv editor too */
+			GPU_paint_update_image(image, (sima ? &sima->iuser : NULL), imapaintpartial.x1, imapaintpartial.y1, w, h);
+		}
 	}
 }
 
@@ -1219,7 +1221,6 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 {
 	Scene *scene = CTX_data_scene(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
 	ARegion *ar = CTX_wm_region(C);
@@ -1242,7 +1243,10 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	RNA_int_set_array(op->ptr, "location", event->mval);
 
-	paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == ePaintTextureProjective, false);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	const bool use_sample_texture = (mode == ePaintTextureProjective) && !RNA_boolean_get(op->ptr, "merged");
+
+	paint_sample_color(C, ar, event->mval[0], event->mval[1], use_sample_texture, false);
 	WM_cursor_modal_set(win, BC_EYEDROPPER_CURSOR);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);

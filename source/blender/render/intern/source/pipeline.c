@@ -2860,7 +2860,7 @@ static bool check_valid_camera_multiview(Scene *scene, Object *camera, ReportLis
 	SceneRenderView *srv;
 	bool active_view = false;
 
-	if ((scene->r.scemode & R_MULTIVIEW) == 0)
+	if (camera == NULL || (scene->r.scemode & R_MULTIVIEW) == 0)
 		return true;
 
 	for (srv = scene->r.views.first; srv; srv = srv->next) {
@@ -3074,15 +3074,13 @@ static void update_physics_cache(Render *re, Scene *scene, int UNUSED(anim_init)
 {
 	PTCacheBaker baker;
 
+	memset(&baker, 0, sizeof(baker));
 	baker.main = re->main;
 	baker.scene = scene;
-	baker.pid = NULL;
 	baker.bake = 0;
 	baker.render = 1;
 	baker.anim_init = 1;
 	baker.quick_step = 1;
-	baker.update_progress = NULL;
-	baker.bake_job = NULL;
 
 	BKE_ptcache_bake(&baker);
 }
