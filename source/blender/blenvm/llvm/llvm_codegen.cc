@@ -39,6 +39,7 @@
 #include "llvm_engine.h"
 #include "llvm_function.h"
 #include "llvm_headers.h"
+#include "llvm_modules.h"
 
 /* call signature convention in llvm modules:
  * BYVALUE:   Pass struct types directly into (inlined) functions,

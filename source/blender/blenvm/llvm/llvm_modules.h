@@ -25,26 +25,30 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __LLVM_ENGINE_H__
-#define __LLVM_ENGINE_H__
+#ifndef __LLVM_MODULES_H__
+#define __LLVM_MODULES_H__
 
-/** \file blender/blenvm/llvm/llvm_engine.h
+/** \file blender/blenvm/llvm/llvm_modules.h
  *  \ingroup llvm
  */
 
 #include "util_string.h"
 
 namespace llvm {
-class ExecutionEngine;
+class Function;
+class Module;
 }
 
 namespace blenvm {
 
-void llvm_init();
-void llvm_free();
+llvm::Function *llvm_find_external_function(llvm::Module *mod, const string &name);
 
-llvm::ExecutionEngine *llvm_execution_engine();
+void llvm_load_module(const string &modfile, const string &modname);
+void llvm_load_all_modules(const string &modpath, bool reload);
+void llvm_unload_all_modules();
+
+void llvm_link_module_full(llvm::Module *mod);
 
 } /* namespace blenvm */
 
-#endif /* __LLVM_ENGINE_H__ */
+#endif /* __LLVM_MODULES_H__ */

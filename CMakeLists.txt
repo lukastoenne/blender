@@ -229,6 +229,8 @@ option(WITH_GAMEENGINE    "Enable Game Engine" ${_init_GAMEENGINE})
 option(WITH_PLAYER        "Build Player" OFF)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 
+option(WITH_BLENVM_IRMODULES   "Enable LLVM IR module compilation" OFF)
+
 # Compositor
 option(WITH_COMPOSITOR         "Enable the tile based nodal compositor" ON)
 
