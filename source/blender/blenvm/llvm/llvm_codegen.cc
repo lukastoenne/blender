@@ -40,6 +40,7 @@
 #include "llvm_function.h"
 #include "llvm_headers.h"
 #include "llvm_modules.h"
+#include "llvm_types.h"
 
 /* call signature convention in llvm modules:
  * BYVALUE:   Pass struct types directly into (inlined) functions,
@@ -54,64 +55,6 @@
  */
 //#define BVM_NODE_CALL_BYVALUE
 #define BVM_NODE_CALL_BYPOINTER
-
-/* TypeBuilder specializations for own structs */
-
-namespace llvm {
-
-template <bool xcompile>
-class TypeBuilder<blenvm::float3, xcompile> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            NULL);
-	}
-	
-	enum Fields {
-		FIELD_X = 0,
-		FIELD_Y = 1,
-		FIELD_Z = 2,
-	};
-};
-
-template <bool xcompile>
-class TypeBuilder<blenvm::float4, xcompile> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            NULL);
-	}
-	
-	enum Fields {
-		FIELD_X = 0,
-		FIELD_Y = 1,
-		FIELD_Z = 2,
-		FIELD_W = 3,
-	};
-};
-
-template <bool xcompile>
-class TypeBuilder<blenvm::matrix44, xcompile> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            ArrayType::get(
-		                ArrayType::get(
-		                    TypeBuilder<types::ieee_float, xcompile>::get(context),
-		                    4),
-		                4),
-		            NULL);
-	}
-};
-
-} /* namespace llvm */
 
 
 namespace blenvm {
@@ -158,50 +101,6 @@ void LLVMCompilerBase::destroy_module()
 {
 	delete m_module;
 	m_module = NULL;
-}
-
-llvm::StructType *LLVMCompilerBase::codegen_struct_type(const string &name, const StructSpec *s)
-{
-	using namespace llvm;
-	
-	std::vector<Type*> elemtypes;
-	for (int i = 0; i < s->num_fields(); ++s) {
-		Type *ftype = codegen_type(s->field(i).name, &s->field(i).typedesc);
-		elemtypes.push_back(ftype);
-	}
-	
-	return StructType::create(context(), ArrayRef<Type*>(elemtypes), name);
-}
-
-llvm::Type *LLVMCompilerBase::codegen_type(const string &name, const TypeDesc *td)
-{
-	using namespace llvm;
-	
-	if (td->is_structure()) {
-		return codegen_struct_type(name, td->structure());
-	}
-	else {
-		switch (td->base_type()) {
-			case BVM_FLOAT:
-				return TypeBuilder<types::ieee_float, true>::get(context());
-			case BVM_FLOAT3:
-				return TypeBuilder<float3, true>::get(context());
-			case BVM_FLOAT4:
-				return TypeBuilder<float4, true>::get(context());
-			case BVM_INT:
-				return TypeBuilder<types::i<32>, true>::get(context());
-			case BVM_MATRIX44:
-				return TypeBuilder<matrix44, true>::get(context());
-				
-			case BVM_STRING:
-			case BVM_RNAPOINTER:
-			case BVM_MESH:
-			case BVM_DUPLIS:
-				/* TODO */
-				return NULL;
-		}
-	}
-	return NULL;
 }
 
 llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
@@ -288,7 +187,7 @@ llvm::FunctionType *LLVMCompilerBase::codegen_node_function_type(const NodeGraph
 	
 	for (int i = 0; i < graph.outputs.size(); ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		Type *type = codegen_type(dummy_type_name(output.key), &output.typedesc);
+		Type *type = codegen_type(context(), dummy_type_name(output.key), &output.typedesc);
 		output_types.push_back(type);
 	}
 	StructType *return_type = StructType::get(context(), output_types);
@@ -296,7 +195,7 @@ llvm::FunctionType *LLVMCompilerBase::codegen_node_function_type(const NodeGraph
 	input_types.push_back(PointerType::get(return_type, 0));
 	for (int i = 0; i < graph.inputs.size(); ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = codegen_type(dummy_type_name(input.key), &input.typedesc);
+		Type *type = codegen_type(context(), dummy_type_name(input.key), &input.typedesc);
 //		type = PointerType::get(type, 0);
 		input_types.push_back(type);
 	}
@@ -336,7 +235,7 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 #ifdef BVM_NODE_CALL_BYPOINTER
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
-		Type *output_type = codegen_type(dummy_type_name(output), &output.socket->typedesc);
+		Type *output_type = codegen_type(context(), dummy_type_name(output), &output.socket->typedesc);
 		AllocaInst *outputmem = builder.CreateAlloca(output_type);
 		
 		Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());

@@ -86,11 +86,11 @@ void BVM_init(void)
 	
 	create_empty_mesh(__empty_mesh__);
 	
+	nodes_init();
+	
 #ifdef WITH_LLVM
 	llvm_init();
 #endif
-	
-	nodes_init();
 }
 
 void BVM_free(void)
@@ -100,13 +100,10 @@ void BVM_free(void)
 	blenvm::function_bvm_cache_clear();
 #ifdef WITH_LLVM
 	blenvm::function_llvm_cache_clear();
+	llvm_free();
 #endif
 	
 	nodes_free();
-	
-#ifdef WITH_LLVM
-	llvm_free();
-#endif
 	
 	destroy_empty_mesh(__empty_mesh__);
 }

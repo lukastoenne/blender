@@ -51,6 +51,8 @@ set(SRC
 	llvm_headers.h
 	llvm_modules.cc
 	llvm_modules.h
+	llvm_types.cc
+	llvm_types.h
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")

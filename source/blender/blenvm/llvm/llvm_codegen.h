@@ -78,8 +78,6 @@ protected:
 	
 	void optimize_function(llvm::Function *func, int opt_level);
 	
-	llvm::StructType *codegen_struct_type(const string &name, const StructSpec *s);
-	llvm::Type *codegen_type(const string &name, const TypeDesc *td);
 	llvm::Constant *codegen_constant(const NodeValue *node_value);
 	
 	llvm::CallInst *codegen_node_call(llvm::BasicBlock *block, const NodeInstance *node, OutputValueMap &output_values);
