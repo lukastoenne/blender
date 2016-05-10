@@ -30,6 +30,7 @@
  */
 
 #include <map>
+#include <sstream>
 
 extern "C" {
 #include "BLI_fileops.h"
@@ -40,9 +41,19 @@ extern "C" {
 #include "BKE_appdir.h"
 }
 
+#include "node_graph.h"
+
 #include "llvm_engine.h"
 #include "llvm_modules.h"
 #include "llvm_headers.h"
+#include "llvm_types.h"
+
+#include "util_math.h"
+#include "util_opcode.h"
+
+#include "mod_color.h"
+#include "mod_math.h"
+#include "mod_value.h"
 
 namespace blenvm {
 
@@ -191,6 +202,91 @@ void llvm_unload_all_modules()
 	
 	// TODO
 	theModules.clear();
+}
+
+inline string dummy_input_name(const NodeType *nodetype, int index)
+{
+	std::stringstream ss;
+	ss << "I" << index << "_" << nodetype->name();
+	return ss.str();
+}
+
+inline string dummy_output_name(const NodeType *nodetype, int index)
+{
+	std::stringstream ss;
+	ss << "O" << index << "_" << nodetype->name();
+	return ss.str();
+}
+
+static void declare_node_function(llvm::LLVMContext &context, llvm::Module *mod, const NodeType *nodetype, void *funcptr)
+{
+	using namespace llvm;
+	
+	std::vector<Type *> input_types, output_types;
+	for (int i = 0; i < nodetype->num_inputs(); ++i) {
+		const NodeInput *input = nodetype->find_input(i);
+		Type *type = llvm_create_value_type(context, dummy_input_name(nodetype, i), &input->typedesc);
+		if (type == NULL)
+			break;
+		if (llvm_use_argument_pointer(&input->typedesc))
+			type = type->getPointerTo();
+		input_types.push_back(type);
+	}
+	for (int i = 0; i < nodetype->num_outputs(); ++i) {
+		const NodeOutput *output = nodetype->find_output(i);
+		Type *type = llvm_create_value_type(context, dummy_output_name(nodetype, i), &output->typedesc);
+		if (type == NULL)
+			break;
+		output_types.push_back(type);
+	}
+	if (input_types.size() != nodetype->num_inputs() ||
+	    output_types.size() != nodetype->num_outputs()) {
+		/* some arguments could not be handled */
+		return;
+	}
+	
+	FunctionType *functype = llvm_create_node_function_type(context, input_types, output_types);
+	
+	Function *func = Function::Create(functype, Function::ExternalLinkage, nodetype->name(), mod);
+	
+	printf("Declared function for node type '%s':\n", nodetype->name().c_str());
+	func->dump();
+	
+	/* register implementation of the function */
+	llvm_execution_engine()->addGlobalMapping(func, funcptr);
+}
+
+void llvm_declare_node_functions()
+{
+	using namespace llvm;
+	
+	LLVMContext &context = getGlobalContext();
+	
+	Module *mod = new llvm::Module("nodes", context);
+	
+#define TEST_OPCODES \
+	DEF_OPCODE(VALUE_FLOAT) \
+	DEF_OPCODE(VALUE_FLOAT3) \
+	DEF_OPCODE(VALUE_FLOAT4) \
+	DEF_OPCODE(VALUE_INT) \
+	DEF_OPCODE(VALUE_MATRIX44) \
+	DEF_OPCODE(MIX_RGB) \
+	
+	#define DEF_OPCODE(op) \
+	{ \
+		const NodeType *nodetype = NodeGraph::find_node_type(STRINGIFY(op)); \
+		if (nodetype != NULL) { \
+			declare_node_function(context, mod, nodetype, (void*)(intptr_t)modules::op); \
+		} \
+	}
+	
+//	BVM_DEFINE_OPCODES
+	TEST_OPCODES
+	
+	#undef DEF_OPCODE
+	
+	llvm_execution_engine()->addModule(mod);
+	theModules[mod->getModuleIdentifier()] = mod;
 }
 
 /* links the module to all other modules in the module map */

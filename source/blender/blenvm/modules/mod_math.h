@@ -32,6 +32,8 @@ extern "C" {
 #include "BLI_math.h"
 }
 
+BVM_MOD_NAMESPACE_BEGIN
+
 struct float3 {
 	float3()
 	{}
@@ -154,5 +156,7 @@ struct matrix44 {
 	
 	float data[4][4];
 };
+
+BVM_MOD_NAMESPACE_END
 
 #endif /* __MOD_MATH_H__ */

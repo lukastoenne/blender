@@ -975,11 +975,10 @@ static void parse_tex_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 
 namespace blenvm {
 
-struct TexNodesResult {
-	float4 color;
-	float3 normal;
-};
-typedef TexNodesResult (*TexNodesFunc)(float3 co, float3 dxt, float3 dyt, int cfra, int osatex);
+typedef void (*TexNodesFunc)(float4 *r_color, float3 *r_normal,
+                             const float3 &co,
+                             const float3 &dxt, const float3 &dyt,
+                             int cfra, int osatex);
 
 static void set_texresult(TexResult *result, const float4 &color, const float3 &normal)
 {
@@ -1123,7 +1122,8 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunctio
 	using namespace blenvm;
 	
 	EvalGlobals globals;
-	TexNodesResult result;
+	float4 r_color;
+	float3 r_normal;
 	
 	UNUSED_VARS(globals);
 #ifdef WITH_LLVM
@@ -1139,14 +1139,14 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunctio
 		copy_v3_v3(dyt_v.data(), dyt);
 	else
 		zero_v3(dyt_v.data());
-	result = fp(coord_v, dxt_v, dyt_v, cfra, osatex);
+	fp(&r_color, &r_normal, coord_v, dxt_v, dyt_v, cfra, osatex);
 #else
 	UNUSED_VARS(fn, coord, dxt, dyt, cfra, osatex);
-	result.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	result.normal = float3(0.0f, 0.0f, 1.0f);
+	r_color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	r_normal = float3(0.0f, 0.0f, 1.0f);
 #endif
 	
-	set_texresult(target, result.color, result.normal);
+	set_texresult(target, r_color, r_normal);
 }
 
 /* ------------------------------------------------------------------------- */

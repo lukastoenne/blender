@@ -108,13 +108,14 @@ public:
 namespace blenvm {
 
 struct TypeDesc;
-typedef std::vector<const TypeDesc*> TypeDescList;
 
-llvm::StructType *codegen_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s);
-llvm::Type *codegen_type(llvm::LLVMContext &context, const string &name, const TypeDesc *td);
-//llvm::FunctionType *codegen_node_function_type(llvm::LLVMContext &context,
-//                                               const TypeDescList &inputs,
-//                                               const TypeDescList &outputs);
+llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeDesc *td);
+bool llvm_use_argument_pointer(const TypeDesc *td);
+llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s);
+
+llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
+                                               const std::vector<llvm::Type*> &inputs,
+                                               const std::vector<llvm::Type*> &outputs);
 
 } /* namespace blenvm */
 

@@ -55,24 +55,32 @@ set(SRC
 	llvm_types.h
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
-
-add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
-
-blender_add_lib(bf_blenvm_llvm "${SRC}" "${INC}" "${INC_SYS}")
-
-
-# Modules
-
 set(LLVM_SRC
 	../modules/modules.cc
 )
 set(LLVM_HEADERS
 	../modules/mod_color.h
+	../modules/mod_defines.h
 	../modules/mod_math.h
 	../modules/mod_value.h
 )
 
+#if(NOT WITH_BLENVM_IRMODULES)
+#	list(APPEND SRC ${LLVM_SRC} ${LLVM_HEADERS})
+#endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
+
+add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
+add_definitions(
+	-DBVM_MOD_NAMESPACE_BEGIN=namespace\ blenvm\ {\ namespace\ modules\ {
+	-DBVM_MOD_NAMESPACE_END=}}
+)
+
+blender_add_lib(bf_blenvm_llvm "${SRC}" "${INC}" "${INC_SYS}")
+
+
+# Modules
 
 if(WITH_BLENVM_IRMODULES)
 	# XXX TODO
@@ -94,6 +102,9 @@ if(WITH_BLENVM_IRMODULES)
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
 					-DBLENVM_RUNTIME
 					-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
+					-DBVM_MOD_NAMESPACE_BEGIN
+					-DBVM_MOD_NAMESPACE_END
+					-DBVM_MOD_ANNOTATE_FUNCTIONS
 					-I${CMAKE_CURRENT_SOURCE_DIR}/../../blenlib
 			DEPENDS ${LLVM_SRC} ${LLVM_HEADERS})
 	
@@ -112,6 +123,4 @@ if(WITH_BLENVM_IRMODULES)
 	add_dependencies(bf_blenvm_llvm bf_blenvm_llvm_modules)
 
 	delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${LLVM_HEADERS}" ${LLVM_IR_INSTALL_PATH})
-else()
-
 endif()

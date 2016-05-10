@@ -28,34 +28,40 @@
 #ifndef __MOD_VALUE_H__
 #define __MOD_VALUE_H__
 
-__attribute__((annotate("VALUE_FLOAT")))
-inline void VALUE_FLOAT(float &result, const float &value)
+#include "mod_defines.h"
+
+BVM_MOD_NAMESPACE_BEGIN
+
+BVM_MOD_FUNCTION("VALUE_FLOAT")
+void VALUE_FLOAT(float &result, float value)
 {
 	result = value;
 }
 
-__attribute__((annotate("VALUE_FLOAT3")))
-inline void VALUE_FLOAT3(float3 &result, const float3 &value)
+BVM_MOD_FUNCTION("VALUE_FLOAT3")
+void VALUE_FLOAT3(float3 &result, const float3 &value)
 {
 	result = value;
 }
 
-__attribute__((annotate("VALUE_FLOAT4")))
-inline void VALUE_FLOAT4(float4 &result, const float4 &value)
+BVM_MOD_FUNCTION("VALUE_FLOAT4")
+void VALUE_FLOAT4(float4 &result, const float4 &value)
 {
 	result = value;
 }
 
-__attribute__((annotate("VALUE_INT")))
-inline void VALUE_INT(int &result, const int &value)
+BVM_MOD_FUNCTION("VALUE_INT")
+void VALUE_INT(int &result, int value)
 {
 	result = value;
 }
 
-__attribute__((annotate("VALUE_MATRIX44")))
-inline void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
+BVM_MOD_FUNCTION("VALUE_MATRIX44")
+void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
 {
 	result = value;
 }
+
+BVM_MOD_NAMESPACE_END
 
 #endif /* __MOD_VALUE_H__ */

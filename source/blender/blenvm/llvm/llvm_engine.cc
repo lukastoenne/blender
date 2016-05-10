@@ -77,6 +77,7 @@ void llvm_init()
 	
 	/* load modules */
 	llvm_load_all_modules("", false);
+	llvm_declare_node_functions();
 }
 
 void llvm_free()

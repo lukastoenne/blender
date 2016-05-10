@@ -35,25 +35,12 @@
 
 namespace blenvm {
 
-llvm::StructType *codegen_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s)
-{
-	using namespace llvm;
-	
-	std::vector<Type*> elemtypes;
-	for (int i = 0; i < s->num_fields(); ++s) {
-		Type *ftype = codegen_type(context, s->field(i).name, &s->field(i).typedesc);
-		elemtypes.push_back(ftype);
-	}
-	
-	return StructType::create(context, ArrayRef<Type*>(elemtypes), name);
-}
-
-llvm::Type *codegen_type(llvm::LLVMContext &context, const string &name, const TypeDesc *td)
+llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeDesc *td)
 {
 	using namespace llvm;
 	
 	if (td->is_structure()) {
-		return codegen_struct_type(context, name, td->structure());
+		return llvm_create_struct_type(context, name, td->structure());
 	}
 	else {
 		switch (td->base_type()) {
@@ -79,32 +66,76 @@ llvm::Type *codegen_type(llvm::LLVMContext &context, const string &name, const T
 	return NULL;
 }
 
-#if 0 // TODO
-llvm::FunctionType *codegen_node_function_type(llvm::LLVMContext &context,
-                                               const TypeDescList &inputs,
-                                               const TypeDescList &outputs)
+bool llvm_use_argument_pointer(const TypeDesc *td)
 {
 	using namespace llvm;
 	
-	std::vector<Type *> input_types, output_types;
-	
-	for (int i = 0; i < outputs.size(); ++i) {
-		const TypeDesc *desc = outputs[i];
-		Type *type = codegen_type(context, dummy_type_name(output.key), &output.typedesc);
-		output_types.push_back(type);
+	if (td->is_structure()) {
+		/* pass by reference */
+		return true;
 	}
-	StructType *return_type = StructType::get(context(), output_types);
-	
-	input_types.push_back(PointerType::get(return_type, 0));
-	for (int i = 0; i < graph.inputs.size(); ++i) {
-		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = codegen_type(dummy_type_name(input.key), &input.typedesc);
-//		type = PointerType::get(type, 0);
-		input_types.push_back(type);
+	else {
+		switch (td->base_type()) {
+			case BVM_FLOAT:
+			case BVM_INT:
+				/* pass by value */
+				return false;
+			case BVM_FLOAT3:
+			case BVM_FLOAT4:
+			case BVM_MATRIX44:
+				/* pass by reference */
+				return true;
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				break;
+		}
 	}
 	
-	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
+	return false;
 }
+
+llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s)
+{
+	using namespace llvm;
+	
+	std::vector<Type*> elemtypes;
+	for (int i = 0; i < s->num_fields(); ++s) {
+		Type *ftype = llvm_create_value_type(context, s->field(i).name, &s->field(i).typedesc);
+		elemtypes.push_back(ftype);
+	}
+	
+	return StructType::create(context, ArrayRef<Type*>(elemtypes), name);
+}
+
+llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
+                                              const std::vector<llvm::Type*> &inputs,
+                                              const std::vector<llvm::Type*> &outputs)
+{
+	using namespace llvm;
+	
+#if 0 /* struct return signatures, unused */
+	StructType *return_type = StructType::get(context, outputs);
+	
+	std::vector<llvm::Type*> arg_types;
+	arg_types.push_back(PointerType::get(return_type, 0));
+	arg_types.insert(arg_types.end(), inputs.begin(), inputs.end());
+	
+	return FunctionType::get(TypeBuilder<void, true>::get(context), arg_types, false);
+#else
+	std::vector<llvm::Type*> arg_types;
+	for (int i = 0; i < outputs.size(); ++i) {
+		Type *value_type = outputs[i];
+		/* use a pointer to store output values */
+		arg_types.push_back(value_type->getPointerTo());
+	}
+	arg_types.insert(arg_types.end(), inputs.begin(), inputs.end());
+	
+	return FunctionType::get(TypeBuilder<void, true>::get(context), arg_types, false);
 #endif
+}
 
 } /* namespace blenvm */

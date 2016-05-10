@@ -32,7 +32,10 @@ extern "C" {
 #include "BLI_math_color.h"
 }
 
+#include "mod_defines.h"
 #include "mod_math.h"
+
+BVM_MOD_NAMESPACE_BEGIN
 
 enum BlendMode {
 	MA_RAMP_BLEND       = 0,
@@ -55,7 +58,7 @@ enum BlendMode {
 	MA_RAMP_LINEAR      = 17,
 };
 
-inline void MIX_RGB3(float3 &result, const int &mode, const float &fac,
+inline void MIX_RGB3(float3 &result, int mode, float fac,
                      const float3 &col_a, const float3 &col_b)
 {
 	float tmp, facm = 1.0f - fac;
@@ -271,9 +274,9 @@ inline void MIX_RGB3(float3 &result, const int &mode, const float &fac,
 }
 
 /* wrapper for float4 RGBA mixing (copies alpha from col_a) */
-__attribute__((annotate("MIX_RGB")))
-inline void MIX_RGB4(float4 &result, const int &mode, const float &fac,
-                     const float4 &col_a, const float4 &col_b)
+BVM_MOD_FUNCTION("MIX_RGB")
+void MIX_RGB(float4 &result, int mode, float fac,
+             const float4 &col_a, const float4 &col_b)
 {
 	float3 result3, col_a3(col_a.x, col_a.y, col_a.z), col_b3(col_b.x, col_b.y, col_b.z);
 	MIX_RGB3(result3, mode, fac, col_a3, col_b3);
@@ -282,5 +285,7 @@ inline void MIX_RGB4(float4 &result, const int &mode, const float &fac,
 	result.z = result3.z;
 	result.w = col_a.w;
 }
+
+BVM_MOD_NAMESPACE_END
 
 #endif /* __MOD_COLOR_H__ */

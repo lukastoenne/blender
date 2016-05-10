@@ -82,7 +82,6 @@ protected:
 	
 	llvm::CallInst *codegen_node_call(llvm::BasicBlock *block, const NodeInstance *node, OutputValueMap &output_values);
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
-	llvm::FunctionType *codegen_node_function_type(const NodeGraph &graph);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	
 private:

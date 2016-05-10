@@ -53,8 +53,8 @@
  *            the clang compiler! See
  *            http://stackoverflow.com/questions/22776391/why-does-clang-coerce-struct-parameters-to-ints
  */
-//#define BVM_NODE_CALL_BYVALUE
-#define BVM_NODE_CALL_BYPOINTER
+#define BVM_NODE_CALL_BYVALUE
+//#define BVM_NODE_CALL_BYPOINTER
 
 
 namespace blenvm {
@@ -179,33 +179,9 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 	return NULL;
 }
 
-llvm::FunctionType *LLVMCompilerBase::codegen_node_function_type(const NodeGraph &graph)
-{
-	using namespace llvm;
-	
-	std::vector<Type *> input_types, output_types;
-	
-	for (int i = 0; i < graph.outputs.size(); ++i) {
-		const NodeGraph::Output &output = graph.outputs[i];
-		Type *type = codegen_type(context(), dummy_type_name(output.key), &output.typedesc);
-		output_types.push_back(type);
-	}
-	StructType *return_type = StructType::get(context(), output_types);
-	
-	input_types.push_back(PointerType::get(return_type, 0));
-	for (int i = 0; i < graph.inputs.size(); ++i) {
-		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = codegen_type(context(), dummy_type_name(input.key), &input.typedesc);
-//		type = PointerType::get(type, 0);
-		input_types.push_back(type);
-	}
-	
-	return FunctionType::get(TypeBuilder<void, true>::get(context()), input_types, false);
-}
-
 llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
-                                                const NodeInstance *node,
-                                                OutputValueMap &output_values)
+                                                    const NodeInstance *node,
+                                                    OutputValueMap &output_values)
 {
 	using namespace llvm;
 	
@@ -215,10 +191,7 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 	/* get evaluation function */
 	const std::string &evalname = node->type->name();
 	Function *evalfunc = llvm_find_external_function(module(), evalname);
-	if (!evalfunc) {
-		printf("Could not find node function '%s'\n", evalname.c_str());
-		return NULL;
-	}
+	BLI_assert(evalfunc != NULL && "Could not find node function!");
 	
 	/* function call arguments (including possible return struct if MRV is used) */
 	std::vector<Value *> args;
@@ -231,11 +204,24 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 		
 		args.push_back(retval);
 	}
+	else {
+		for (int i = 0; i < node->num_outputs(); ++i) {
+			ConstOutputKey output = node->output(i);
+			Type *type = llvm_create_value_type(context(), dummy_type_name(output), &output.socket->typedesc);
+			Value *value = builder.CreateAlloca(type);
+			
+			args.push_back(value);
+			
+			/* use as node output values */
+			bool ok = output_values.insert(OutputValuePair(output, value)).second;
+			BLI_assert(ok && "Value for node output already defined!");
+		}
+	}
 #endif
 #ifdef BVM_NODE_CALL_BYPOINTER
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
-		Type *output_type = codegen_type(context(), dummy_type_name(output), &output.socket->typedesc);
+		Type *output_type = create_value_type(context(), dummy_type_name(output), &output.socket->typedesc);
 		AllocaInst *outputmem = builder.CreateAlloca(output_type);
 		
 		Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
@@ -255,20 +241,43 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 		switch (input.value_type()) {
 			case INPUT_CONSTANT: {
 				/* create storage for the global value */
-				Constant *constval = codegen_constant(input.value());
-				AllocaInst *constmem = builder.CreateAlloca(constval->getType());
-				builder.CreateStore(constval, constmem);
+				Constant *cvalue = codegen_constant(input.value());
 				
+#ifdef BVM_NODE_CALL_BYVALUE
+				Value *value;
+				if (llvm_use_argument_pointer(&input.socket->typedesc)) {
+					AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
+					builder.CreateStore(cvalue, pvalue);
+					value = pvalue;
+				}
+				else {
+					value = cvalue;
+				}
+#endif
+#ifdef BVM_NODE_CALL_BYPOINTER
 				/* use the pointer as function argument */
 				Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
 				Value *value = builder.CreatePointerBitCastOrAddrSpaceCast(constmem, arg_type);
+#endif
 				args.push_back(value);
 				break;
 			}
 			case INPUT_EXPRESSION: {
-				Value *valuemem = output_values.at(input.link());
+				Value *pvalue = output_values.at(input.link());
+#ifdef BVM_NODE_CALL_BYVALUE
+				Value *value;
+				if (llvm_use_argument_pointer(&input.socket->typedesc)) {
+					value = pvalue;
+				}
+				else {
+					value = builder.CreateLoad(pvalue);
+				}
+				
+#endif
+#ifdef BVM_NODE_CALL_BYPOINTER
 				Type *arg_type = evalfunc->getFunctionType()->getParamType(args.size());
 				Value *value = builder.CreatePointerBitCastOrAddrSpaceCast(valuemem, arg_type);
+#endif
 				args.push_back(value);
 				break;
 			}
@@ -302,6 +311,7 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 				BLI_assert(ok && "Value for node output already defined!");
 			}
 		}
+#if 0 /* XXX currently we always use result pointers */
 		else {
 			BLI_assert(node->num_outputs() == 1);
 			ConstOutputKey output = node->output(0);
@@ -309,6 +319,7 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 			bool ok = output_values.insert(OutputValuePair(output, retval)).second;
 			BLI_assert(ok && "Value for node output already defined!");
 		}
+#endif
 #endif
 	}
 	
@@ -335,13 +346,18 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	OutputValueMap output_values;
 	
 	Argument *retarg = func->getArgumentList().begin();
-	Function::ArgumentListType::iterator it = retarg;
-	++it; /* skip return arg */
-	for (int i = 0; i < num_inputs; ++i) {
-		const NodeGraph::Input &input = graph.inputs[i];
-		
-		Argument *arg = &(*it++);
-		output_values[input.key] = arg;
+	{
+		Function::ArgumentListType::iterator it = retarg;
+//		++it; /* skip return arg */
+		for (int i = 0; i < num_outputs; ++i) {
+			++it; /* skip output arguments */
+		}
+		for (int i = 0; i < num_inputs; ++i) {
+			const NodeGraph::Input &input = graph.inputs[i];
+			
+			Argument *arg = &(*it++);
+			output_values[input.key] = arg;
+		}
 	}
 	
 	OrderedNodeSet nodes;
@@ -356,6 +372,7 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 			continue;
 	}
 	
+#if 0 /* XXX unused, struct return value construction */
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
 		
@@ -365,6 +382,19 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 		Value *retval = builder.CreateLoad(value);
 		builder.CreateStore(retval, retptr);
 	}
+#else
+	{
+		Function::ArgumentListType::iterator it = func->getArgumentList().begin();
+//		++it; /* skip return arg */
+		for (int i = 0; i < num_outputs; ++i) {
+			const NodeGraph::Output &output = graph.outputs[i];
+			Value *value = output_values.at(output.key);
+			Argument *arg = &(*it++);
+			Value *rvalue = builder.CreateLoad(value);
+			builder.CreateStore(rvalue, arg);
+		}
+	}
+#endif
 	
 	builder.CreateRetVoid();
 	
@@ -375,15 +405,29 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 {
 	using namespace llvm;
 	
-	FunctionType *functype = codegen_node_function_type(graph);
+	std::vector<llvm::Type*> input_types, output_types;
+	for (int i = 0; i < graph.inputs.size(); ++i) {
+		const NodeGraph::Input &input = graph.inputs[i];
+		Type *type = llvm_create_value_type(context(), dummy_type_name(input.key), &input.typedesc);
+		if (llvm_use_argument_pointer(&input.typedesc))
+			type = type->getPointerTo();
+		input_types.push_back(type);
+	}
+	for (int i = 0; i < graph.outputs.size(); ++i) {
+		const NodeGraph::Output &output = graph.outputs[i];
+		Type *type = llvm_create_value_type(context(), dummy_type_name(output.key), &output.typedesc);
+		output_types.push_back(type);
+	}
+	FunctionType *functype = llvm_create_node_function_type(context(), input_types, output_types);
+	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, name, module());
+#if 0 /* unused, declare struct return value */
 	Argument *retarg = func->getArgumentList().begin();
 	retarg->addAttr(AttributeSet::get(context(), AttributeSet::ReturnIndex, Attribute::StructRet));
+#endif
 	
-	if (func->getArgumentList().size() != graph.inputs.size() + 1) {
-		printf("Error: Function has wrong number of arguments for node tree\n");
-		return func;
-	}
+	BLI_assert(func->getArgumentList().size() == graph.inputs.size() + graph.outputs.size() &&
+	           "Error: Function has wrong number of arguments for node tree\n");
 	
 	codegen_function_body_expression(graph, func);
 	

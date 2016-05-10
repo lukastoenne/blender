@@ -25,32 +25,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __LLVM_MODULES_H__
-#define __LLVM_MODULES_H__
+#ifndef __MOD_DEFINES_H__
+#define __MOD_DEFINES_H__
 
-/** \file blender/blenvm/llvm/llvm_modules.h
- *  \ingroup llvm
- */
+BVM_MOD_NAMESPACE_BEGIN
 
-#include "util_string.h"
+#ifdef BVM_MOD_ANNOTATE_FUNCTIONS
+#define BVM_MOD_FUNCTION(name) __attribute__((annotate(name))) inline 
+#else
+#define BVM_MOD_FUNCTION(name) extern "C" inline 
+#endif
 
-namespace llvm {
-class Function;
-class Module;
-}
+BVM_MOD_NAMESPACE_END
 
-namespace blenvm {
-
-llvm::Function *llvm_find_external_function(llvm::Module *mod, const string &name);
-
-void llvm_load_module(const string &modfile, const string &modname);
-void llvm_load_all_modules(const string &modpath, bool reload);
-void llvm_unload_all_modules();
-
-void llvm_declare_node_functions();
-
-void llvm_link_module_full(llvm::Module *mod);
-
-} /* namespace blenvm */
-
-#endif /* __LLVM_MODULES_H__ */
+#endif /* __MOD_DEFINES_H__ */
