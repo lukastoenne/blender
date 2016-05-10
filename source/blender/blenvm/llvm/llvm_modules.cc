@@ -249,8 +249,8 @@ static void declare_node_function(llvm::LLVMContext &context, llvm::Module *mod,
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, nodetype->name(), mod);
 	
-	printf("Declared function for node type '%s':\n", nodetype->name().c_str());
-	func->dump();
+//	printf("Declared function for node type '%s':\n", nodetype->name().c_str());
+//	func->dump();
 	
 	/* register implementation of the function */
 	llvm_execution_engine()->addGlobalMapping(func, funcptr);
