@@ -29,6 +29,8 @@
 #include "mod_math.h"
 #include "mod_value.h"
 
+BVM_MOD_NAMESPACE_BEGIN
+
 inline int force_linking()
 {
 	int i = 0;
@@ -38,9 +40,11 @@ inline int force_linking()
 	i += (long int)VALUE_INT;
 	i += (long int)VALUE_MATRIX44;
 	i += (long int)MIX_RGB3;
-	i += (long int)MIX_RGB4;
+	i += (long int)MIX_RGB;
 	
 	return i;
 }
 
 static int f = force_linking();
+
+BVM_MOD_NAMESPACE_END
