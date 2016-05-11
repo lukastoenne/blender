@@ -206,7 +206,8 @@ void TaskScheduler::init(int num_threads)
 
 		for(size_t i = 0; i < threads.size(); i++) {
 			threads[i] = new thread(function_bind(&TaskScheduler::thread_run, i + 1));
-			threads_ids.push_back(threads[i]->id());
+			threads_ids[i] = threads[i]->id();
+			std::cerr << "Thread " << i << ", id: " << threads[i]->id() << '\n';
 		}
 	}
 	
