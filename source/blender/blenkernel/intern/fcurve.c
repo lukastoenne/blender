@@ -1151,6 +1151,71 @@ static float dtar_get_prop_val(ChannelDriver *driver, DriverTarget *dtar)
 	return value;
 }
 
+/**
+ * Same as 'dtar_get_prop_val'. but get the RNA property.
+ */
+bool driver_get_variable_property(
+        ChannelDriver *driver, DriverTarget *dtar,
+        PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
+{
+	PointerRNA id_ptr;
+	PointerRNA ptr;
+	PropertyRNA *prop;
+	ID *id;
+	int index = -1;
+
+	/* sanity check */
+	if (ELEM(NULL, driver, dtar))
+		return false;
+
+	id = dtar_id_ensure_proxy_from(dtar->id);
+
+	/* error check for missing pointer... */
+	if (id == NULL) {
+		if (G.debug & G_DEBUG) {
+			printf("Error: driver has an invalid target to use (path = %s)\n", dtar->rna_path);
+		}
+
+		driver->flag |= DRIVER_FLAG_INVALID;
+		dtar->flag   |= DTAR_FLAG_INVALID;
+		return false;
+	}
+
+	/* get RNA-pointer for the ID-block given in target */
+	RNA_id_pointer_create(id, &id_ptr);
+
+	/* get property to read from, and get value as appropriate */
+	if (dtar->rna_path == NULL || dtar->rna_path[0] == '\0') {
+		ptr = PointerRNA_NULL;
+		prop = NULL; /* ok */
+	}
+	else if (RNA_path_resolve_property_full(&id_ptr, dtar->rna_path, &ptr, &prop, &index)) {
+		/* ok */
+	}
+	else {
+		/* path couldn't be resolved */
+		if (G.debug & G_DEBUG) {
+			printf("Driver Evaluation Error: cannot resolve target for %s -> %s\n", id->name, dtar->rna_path);
+		}
+
+		ptr = PointerRNA_NULL;
+		*r_prop = NULL;
+		*r_index = -1;
+
+		driver->flag |= DRIVER_FLAG_INVALID;
+		dtar->flag   |= DTAR_FLAG_INVALID;
+		return false;
+	}
+
+	*r_ptr = ptr;
+	*r_prop = prop;
+	*r_index = index;
+
+	/* if we're still here, we should be ok... */
+	dtar->flag &= ~DTAR_FLAG_INVALID;
+	return true;
+}
+
 /* Helper function to obtain a pointer to a Pose Channel (for evaluating drivers) */
 static bPoseChannel *dtar_get_pchan_ptr(ChannelDriver *driver, DriverTarget *dtar)
 {
@@ -1535,8 +1600,8 @@ static const DriverVarTypeInfo *get_dvar_typeinfo(int type)
 
 /* Driver API --------------------------------- */
 
-/* This frees the driver variable itself */
-void driver_free_variable(ChannelDriver *driver, DriverVar *dvar)
+/* Perform actual freeing driver variable and remove it from the given list */
+void driver_free_variable(ListBase *variables, DriverVar *dvar)
 {
 	/* sanity checks */
 	if (dvar == NULL)
@@ -1556,13 +1621,38 @@ void driver_free_variable(ChannelDriver *driver, DriverVar *dvar)
 	DRIVER_TARGETS_LOOPER_END
 	
 	/* remove the variable from the driver */
-	BLI_freelinkN(&driver->variables, dvar);
+	BLI_freelinkN(variables, dvar);
+}
 
+/* Free the driver variable and do extra updates */
+void driver_free_variable_ex(ChannelDriver *driver, DriverVar *dvar)
+{
+	/* remove and free the driver variable */
+	driver_free_variable(&driver->variables, dvar);
+	
 #ifdef WITH_PYTHON
 	/* since driver variables are cached, the expression needs re-compiling too */
 	if (driver->type == DRIVER_TYPE_PYTHON)
 		driver->flag |= DRIVER_FLAG_RENAMEVAR;
 #endif
+}
+
+/* Copy driver variables from src_vars list to dst_vars list */
+void driver_variables_copy(ListBase *dst_vars, const ListBase *src_vars)
+{
+	BLI_assert(BLI_listbase_is_empty(dst_vars));
+	BLI_duplicatelist(dst_vars, src_vars);
+	
+	for (DriverVar *dvar = dst_vars->first; dvar; dvar = dvar->next) {
+		/* need to go over all targets so that we don't leave any dangling paths */
+		DRIVER_TARGETS_LOOPER(dvar) 
+		{
+			/* make a copy of target's rna path if available */
+			if (dtar->rna_path)
+				dtar->rna_path = MEM_dupallocN(dtar->rna_path);
+		}
+		DRIVER_TARGETS_LOOPER_END
+	}
 }
 
 /* Change the type of driver variable */
@@ -1649,15 +1739,12 @@ void driver_variable_name_validate(DriverVar *dvar)
 	 * NOTE: These won't confuse Python, but it will be impossible to use the variable
 	 *       in an expression without Python misinterpreting what these are for
 	 */
-	if (STREQ(dvar->name, "if") || STREQ(dvar->name, "elif") || STREQ(dvar->name, "else") ||
-	    STREQ(dvar->name, "for") || STREQ(dvar->name, "while") || STREQ(dvar->name, "def") ||
-	    STREQ(dvar->name, "True") || STREQ(dvar->name, "False") || STREQ(dvar->name, "import") ||
-	    STREQ(dvar->name, "pass")  || STREQ(dvar->name, "with"))
-	{
+#ifdef WITH_PYTHON
+	if (BPY_string_is_keyword(dvar->name)) {
 		dvar->flag |= DVAR_FLAG_INVALID_PY_KEYWORD;
 	}
-	
-	
+#endif
+
 	/* If any these conditions match, the name is invalid */
 	if (dvar->flag & DVAR_ALL_INVALID_FLAGS)
 		dvar->flag |= DVAR_FLAG_INVALID_NAME;
@@ -1708,7 +1795,7 @@ void fcurve_free_driver(FCurve *fcu)
 	/* free driver targets */
 	for (dvar = driver->variables.first; dvar; dvar = dvarn) {
 		dvarn = dvar->next;
-		driver_free_variable(driver, dvar);
+		driver_free_variable_ex(driver, dvar);
 	}
 
 #ifdef WITH_PYTHON
@@ -1726,7 +1813,6 @@ void fcurve_free_driver(FCurve *fcu)
 ChannelDriver *fcurve_copy_driver(ChannelDriver *driver)
 {
 	ChannelDriver *ndriver;
-	DriverVar *dvar;
 	
 	/* sanity checks */
 	if (driver == NULL)
@@ -1737,19 +1823,8 @@ ChannelDriver *fcurve_copy_driver(ChannelDriver *driver)
 	ndriver->expr_comp = NULL;
 	
 	/* copy variables */
-	BLI_listbase_clear(&ndriver->variables);
-	BLI_duplicatelist(&ndriver->variables, &driver->variables);
-	
-	for (dvar = ndriver->variables.first; dvar; dvar = dvar->next) {
-		/* need to go over all targets so that we don't leave any dangling paths */
-		DRIVER_TARGETS_LOOPER(dvar) 
-		{
-			/* make a copy of target's rna path if available */
-			if (dtar->rna_path)
-				dtar->rna_path = MEM_dupallocN(dtar->rna_path);
-		}
-		DRIVER_TARGETS_LOOPER_END
-	}
+	BLI_listbase_clear(&ndriver->variables); /* to get rid of refs to non-copied data (that's still used on original) */ 
+	driver_variables_copy(&ndriver->variables, &driver->variables);
 	
 	/* return the new driver */
 	return ndriver;

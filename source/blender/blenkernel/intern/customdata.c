@@ -1259,7 +1259,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	 layerDefault_mloopcol, layerEqual_mloopcol, layerMultiply_mloopcol, layerInitMinMax_mloopcol, 
 	 layerAdd_mloopcol, layerDoMinMax_mloopcol, layerCopyValue_mloopcol, NULL, NULL, NULL, layerMaxNum_mloopcol},
 	/* 18: CD_TANGENT */
-	{sizeof(float) * 4 * 4, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(float) * 4 * 4, "", 0, N_("Tangent"), NULL, NULL, NULL, NULL, NULL},
 	/* 19: CD_MDISPS */
 	{sizeof(MDisps), "MDisps", 1, NULL, layerCopy_mdisps,
 	 layerFree_mdisps, NULL, layerSwap_mdisps, NULL,
@@ -3577,6 +3577,7 @@ void CustomData_external_read(CustomData *data, ID *id, CustomDataMask mask, int
 
 	cdf = cdf_create(CDF_TYPE_MESH);
 	if (!cdf_read_open(cdf, filename)) {
+		cdf_free(cdf);
 		fprintf(stderr, "Failed to read %s layer from %s.\n", layerType_getName(layer->type), filename);
 		return;
 	}

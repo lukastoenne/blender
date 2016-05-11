@@ -22,11 +22,10 @@
 
 #include "device_memory.h"
 
-#include "kernel_types.h"
-
 #include "util_param.h"
 #include "util_string.h"
 #include "util_system.h"
+#include "util_texture.h"
 #include "util_thread.h"
 #include "util_types.h"
 #include "util_vector.h"
@@ -65,7 +64,7 @@ public:
 	device_vector<float4> bvh_nodes;
 	device_vector<float4> bvh_leaf_nodes;
 	device_vector<uint> object_node;
-	device_vector<float4> tri_woop;
+	device_vector<float4> tri_storage;
 	device_vector<uint> prim_type;
 	device_vector<uint> prim_visibility;
 	device_vector<uint> prim_index;
@@ -111,11 +110,12 @@ public:
 	device_vector<uint> sobol_directions;
 
 	/* cpu images */
-	device_vector<uchar4> tex_image[TEX_EXTENDED_NUM_IMAGES_CPU];
-	device_vector<float4> tex_float_image[TEX_EXTENDED_NUM_FLOAT_IMAGES];
+	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_IMAGES_CPU];
+	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_IMAGES_CPU];
 
 	/* opencl images */
-	device_vector<uchar4> tex_image_packed;
+	device_vector<uchar4> tex_image_byte4_packed;
+	device_vector<float4> tex_image_float4_packed;
 	device_vector<uint4> tex_image_packed_info;
 
 	KernelData data;
@@ -216,6 +216,11 @@ public:
 	void device_free();
 
 protected:
+	/* Check if some heavy data worth logging was updated.
+	 * Mainly used to suppress extra annoying logging.
+	 */
+	bool need_data_update();
+
 	void free_memory(bool final);
 };
 

@@ -69,6 +69,7 @@ typedef struct {
 	BMBackup mesh_backup;
 	void *draw_handle_pixel;
 	short twtype;
+	float segments;     /* Segments as float so smooth mouse pan works in small increments */
 } BevelData;
 
 #define HEADER_LENGTH 180
@@ -137,8 +138,11 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 		opdata->mesh_backup = EDBM_redo_state_store(em);
 		opdata->draw_handle_pixel = ED_region_draw_cb_activate(ar->type, ED_region_draw_mouse_line_cb, opdata->mcenter, REGION_DRAW_POST_PIXEL);
 		G.moving = G_TRANSFORM_EDIT;
-		opdata->twtype = v3d->twtype;
-		v3d->twtype = 0;
+
+		if (v3d) {
+			opdata->twtype = v3d->twtype;
+			v3d->twtype = 0;
+		}
 	}
 
 	return true;
@@ -206,7 +210,9 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
 		ARegion *ar = CTX_wm_region(C);
 		EDBM_redo_state_free(&opdata->mesh_backup, NULL, false);
 		ED_region_draw_cb_exit(ar->type, opdata->draw_handle_pixel);
-		v3d->twtype = opdata->twtype;
+		if (v3d) {
+			v3d->twtype = opdata->twtype;
+		}
 		G.moving = 0;
 	}
 	MEM_freeN(opdata);
@@ -327,7 +333,6 @@ static float edbm_bevel_mval_factor(wmOperator *op, const wmEvent *event)
 static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	BevelData *opdata = op->customdata;
-	int segments = RNA_int_get(op->ptr, "segments");
 	const bool has_numinput = hasNumInput(&opdata->num_input);
 
 	/* Modal numinput active, try to handle numeric inputs first... */
@@ -368,6 +373,19 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				}
 				break;
 
+			case MOUSEPAN: {
+				float delta = 0.02f * (event->y - event->prevy);
+				if (opdata->segments >= 1 && opdata->segments + delta < 1)
+					opdata->segments = 1;
+				else
+					opdata->segments += delta;
+				RNA_int_set(op->ptr, "segments", (int)opdata->segments);
+				edbm_bevel_calc(op);
+				edbm_bevel_update_header(C, op);
+				handled = true;
+				break;
+			}
+
 			/* Note this will prevent padplus and padminus to ever activate modal numinput.
 			 * This is not really an issue though, as we only expect positive values here...
 			 * Else we could force them to only modify segments number when shift is pressed, or so.
@@ -378,8 +396,8 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				if (event->val == KM_RELEASE)
 					break;
 
-				segments++;
-				RNA_int_set(op->ptr, "segments", segments);
+				opdata->segments = opdata->segments + 1;
+				RNA_int_set(op->ptr, "segments", (int)opdata->segments);
 				edbm_bevel_calc(op);
 				edbm_bevel_update_header(C, op);
 				handled = true;
@@ -390,8 +408,8 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				if (event->val == KM_RELEASE)
 					break;
 
-				segments = max_ii(segments - 1, 1);
-				RNA_int_set(op->ptr, "segments", segments);
+				opdata->segments = max_ff(opdata->segments - 1, 1);
+				RNA_int_set(op->ptr, "segments", (int)opdata->segments);
 				edbm_bevel_calc(op);
 				edbm_bevel_update_header(C, op);
 				handled = true;
