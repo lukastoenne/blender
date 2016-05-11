@@ -101,14 +101,14 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 	else {
 		switch (td.base_type()) {
 			case BVM_FLOAT: {
-				float f;
+				float f = 0.0f;
 				node_value->get(&f);
 				return ConstantFP::get(context(), APFloat(f));
 			}
 			case BVM_FLOAT3: {
 				StructType *stype = TypeBuilder<float3, true>::get(context());
 				
-				float3 f;
+				float3 f = float3(0.0f, 0.0f, 0.0f);
 				node_value->get(&f);
 				return ConstantStruct::get(stype,
 				                           ConstantFP::get(context(), APFloat(f.x)),
@@ -119,7 +119,7 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 			case BVM_FLOAT4: {
 				StructType *stype = TypeBuilder<float4, true>::get(context());
 				
-				float4 f;
+				float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
 				node_value->get(&f);
 				return ConstantStruct::get(stype,
 				                           ConstantFP::get(context(), APFloat(f.x)),
@@ -129,7 +129,7 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 				                           NULL);
 			}
 			case BVM_INT: {
-				int i;
+				int i = 0;
 				node_value->get(&i);
 				return ConstantInt::get(context(), APInt(32, i, true));
 			}
@@ -139,7 +139,7 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 				ArrayType *outer_t = ArrayType::get(inner_t, 4);
 				StructType *matrix_t = StructType::get(outer_t, NULL);
 				
-				matrix44 m;
+				matrix44 m = matrix44::identity();
 				node_value->get(&m);
 				Constant *constants[4][4];
 				for (int i = 0; i < 4; ++i)
@@ -191,6 +191,7 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 		/* use as node output values */
 		bool ok = output_values.insert(OutputValuePair(output, value)).second;
 		BLI_assert(ok && "Value for node output already defined!");
+		UNUSED_VARS(ok);
 	}
 	
 	/* set input arguments */
