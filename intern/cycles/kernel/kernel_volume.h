@@ -219,8 +219,9 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	int v = 0;
 	float_volume *volume = kg->float_volumes[0];
 
+	float isec_t = 0.0f;
 	for(; v < num_volumes; v++, volume++) {
-		if(volume->intersect(ray, NULL)) {
+		if(volume->intersect(ray, &isec_t)) {
 			break;
 		}
 	}
@@ -628,7 +629,8 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 	int i;
 
 	for(i = 0; i < num_volumes; i++) {
-		if(kg->float_volumes[i]->intersect(ray, NULL)) {
+		float isec_t = 0.0f;
+		if(kg->float_volumes[i]->intersect(ray, &isec_t)) {
 			break;
 		}
 	}
@@ -795,7 +797,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 		 * checking if we have an intersection with the boundbox of the volumue
 		 * which in most cases corresponds to the boundbox of the object that has
 		 * this volume. Also it initializes the rays for the ray marching. */
-		if(!kg->float_volumes[vdb_index]->intersect(ray, NULL)) {
+		float isect_t = 0.0f;
+		if(!kg->float_volumes[vdb_index]->intersect(ray, &isect_t)) {
 			return;
 		}
 
