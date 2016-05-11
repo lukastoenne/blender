@@ -137,6 +137,30 @@ static void do_version_constraints_stretch_to_limits(ListBase *lb)
 	}
 }
 
+static void do_version_action_editor_properties_region(ListBase *regionbase)
+{
+	ARegion *ar;
+	
+	for (ar = regionbase->first; ar; ar = ar->next) {
+		if (ar->regiontype == RGN_TYPE_UI) {
+			/* already exists */
+			return;
+		}
+		else if (ar->regiontype == RGN_TYPE_WINDOW) {
+			/* add new region here */
+			ARegion *arnew = MEM_callocN(sizeof(ARegion), "buttons for action");
+			
+			BLI_insertlinkbefore(regionbase, ar, arnew);
+			
+			arnew->regiontype = RGN_TYPE_UI;
+			arnew->alignment = RGN_ALIGN_RIGHT;
+			arnew->flag = RGN_FLAG_HIDDEN;
+			
+			return;
+		}
+	}
+}
+
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 {
 	if (!MAIN_VERSION_ATLEAST(main, 270, 0)) {
@@ -1040,6 +1064,15 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 
+		/* init grease pencil smooth level iterations */
+		for (bGPdata *gpd = main->gpencil.first; gpd; gpd = gpd->id.next) {
+			for (bGPDlayer *gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+				if (gpl->draw_smoothlvl == 0) {
+					gpl->draw_smoothlvl = 1;
+				}
+			}
+		}
+
 		for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
 			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
 				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
@@ -1069,6 +1102,51 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 							}
 						}
 					}
+				}
+			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			CurvePaintSettings *cps = &scene->toolsettings->curve_paint_settings;
+			if (cps->error_threshold == 0) {
+				cps->curve_type = CU_BEZIER;
+				cps->flag |= CURVE_PAINT_FLAG_CORNERS_DETECT;
+				cps->error_threshold = 8;
+				cps->radius_max = 1.0f;
+				cps->corner_angle = DEG2RADF(70.0f);
+			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			Sequence *seq;
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				if (seq->type == SEQ_TYPE_TEXT) {
+					TextVars *data = seq->effectdata;
+					if (data->color[3] == 0.0f) {
+						copy_v4_fl(data->color, 1.0f);
+						data->shadow_color[3] = 1.0f;
+					}
+				}
+			}
+			SEQ_END
+		}
+
+		/* Adding "Properties" region to DopeSheet */
+		for (bScreen *screen = main->screen.first; screen; screen = screen->id.next) {
+			for (ScrArea *sa = screen->areabase.first; sa; sa = sa->next) {
+				/* handle pushed-back space data first */
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_ACTION) {
+						SpaceAction *saction = (SpaceAction *)sl;
+						do_version_action_editor_properties_region(&saction->regionbase);
+					}
+				}
+				
+				/* active spacedata info must be handled too... */
+				if (sa->spacetype == SPACE_ACTION) {
+					do_version_action_editor_properties_region(&sa->regionbase);
 				}
 			}
 		}

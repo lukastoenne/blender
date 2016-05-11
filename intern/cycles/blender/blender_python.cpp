@@ -70,6 +70,8 @@ bool debug_flags_sync_from_scene(BL::Scene b_scene)
 	flags.cpu.sse3 = get_boolean(cscene, "debug_use_cpu_sse3");
 	flags.cpu.sse2 = get_boolean(cscene, "debug_use_cpu_sse2");
 	flags.cpu.qbvh = get_boolean(cscene, "debug_use_qbvh");
+	/* Synchronize CUDA flags. */
+	flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
 	/* Synchronize OpenCL kernel type. */
 	switch(get_enum(cscene, "debug_opencl_kernel_type")) {
 		case 0:
@@ -638,6 +640,41 @@ static PyObject *debug_flags_reset_func(PyObject * /*self*/, PyObject * /*args*/
 	Py_RETURN_NONE;
 }
 
+static PyObject *set_resumable_chunks_func(PyObject * /*self*/, PyObject *args)
+{
+	int num_resumable_chunks, current_resumable_chunk;
+	if(!PyArg_ParseTuple(args, "ii",
+	                     &num_resumable_chunks,
+	                     &current_resumable_chunk)) {
+		Py_RETURN_NONE;
+	}
+
+	if(num_resumable_chunks <= 0) {
+		fprintf(stderr, "Cycles: Bad value for number of resumable chunks.\n");
+		abort();
+		Py_RETURN_NONE;
+	}
+	if(current_resumable_chunk < 1 ||
+	   current_resumable_chunk > num_resumable_chunks)
+	{
+		fprintf(stderr, "Cycles: Bad value for current resumable chunk number.\n");
+		abort();
+		Py_RETURN_NONE;
+	}
+
+	VLOG(1) << "Initialized resumable render: "
+	        << "num_resumable_chunks=" << num_resumable_chunks << ", "
+	        << "current_resumable_chunk=" << current_resumable_chunk;
+	BlenderSession::num_resumable_chunks = num_resumable_chunks;
+	BlenderSession::current_resumable_chunk = current_resumable_chunk;
+
+	printf("Cycles: Will render chunk %d of %d\n",
+	       current_resumable_chunk,
+	       num_resumable_chunks);
+
+	Py_RETURN_NONE;
+}
+
 static PyMethodDef methods[] = {
 	{"init", init_func, METH_VARARGS, ""},
 	{"exit", exit_func, METH_VARARGS, ""},
@@ -657,8 +694,14 @@ static PyMethodDef methods[] = {
 #ifdef WITH_OPENCL
 	{"opencl_disable", opencl_disable_func, METH_NOARGS, ""},
 #endif
+
+	/* Debugging routines */
 	{"debug_flags_update", debug_flags_update_func, METH_VARARGS, ""},
 	{"debug_flags_reset", debug_flags_reset_func, METH_NOARGS, ""},
+
+	/* Resumable render */
+	{"set_resumable_chunks", set_resumable_chunks_func, METH_VARARGS, ""},
+
 	{NULL, NULL, 0, NULL},
 };
 

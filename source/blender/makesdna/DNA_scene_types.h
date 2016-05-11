@@ -795,8 +795,14 @@ typedef struct RecastData {
 	int vertsperpoly;
 	float detailsampledist;
 	float detailsamplemaxerror;
-	short pad1, pad2;
+	char partitioning;
+	char pad1;
+	short pad2;
 } RecastData;
+
+#define RC_PARTITION_WATERSHED 0
+#define RC_PARTITION_MONOTONE 1
+#define RC_PARTITION_LAYERS 2
 
 typedef struct GameData {
 
@@ -1260,6 +1266,41 @@ typedef enum {
 	UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE  = (1 << 4)
 } UnifiedPaintSettingsFlags;
 
+
+typedef struct CurvePaintSettings {
+	char curve_type;
+	char flag;
+	char depth_mode;
+	char surface_plane;
+	int error_threshold;
+	float radius_min, radius_max;
+	float radius_taper_start, radius_taper_end;
+	float surface_offset;
+	float corner_angle;
+} CurvePaintSettings;
+
+/* CurvePaintSettings.flag */
+enum {
+	CURVE_PAINT_FLAG_CORNERS_DETECT             = (1 << 0),
+	CURVE_PAINT_FLAG_PRESSURE_RADIUS            = (1 << 1),
+	CURVE_PAINT_FLAG_DEPTH_STROKE_ENDPOINTS     = (1 << 2),
+	CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS    = (1 << 3),
+};
+
+/* CurvePaintSettings.depth_mode */
+enum {
+	CURVE_PAINT_PROJECT_CURSOR              = 0,
+	CURVE_PAINT_PROJECT_SURFACE             = 1,
+};
+
+/* CurvePaintSettings.surface_plane */
+enum {
+	CURVE_PAINT_SURFACE_PLANE_NORMAL_VIEW           = 0,
+	CURVE_PAINT_SURFACE_PLANE_NORMAL_SURFACE        = 1,
+	CURVE_PAINT_SURFACE_PLANE_VIEW                  = 2,
+};
+
+
 /* *************************************************************** */
 /* Stats */
 
@@ -1410,6 +1451,8 @@ typedef struct ToolSettings {
 
 	/* Unified Paint Settings */
 	struct UnifiedPaintSettings unified_paint_settings;
+
+	struct CurvePaintSettings curve_paint_settings;
 
 	struct MeshStatVis statvis;
 } ToolSettings;

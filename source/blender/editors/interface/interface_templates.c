@@ -2947,7 +2947,11 @@ void uiTemplateList(
 	/* We tag the list id with the list type... */
 	BLI_snprintf(ui_list_id, sizeof(ui_list_id), "%s_%s", ui_list_type->idname, list_id ? list_id : "");
 
-	ar = CTX_wm_region(C);
+	/* Allows to work in popups. */
+	ar = CTX_wm_menu(C);
+	if (ar == NULL) {
+		ar = CTX_wm_region(C);
+	}
 	ui_list = BLI_findstring(&ar->ui_lists, ui_list_id, offsetof(uiList, list_id));
 
 	if (!ui_list) {
@@ -3023,7 +3027,7 @@ void uiTemplateList(
 						/* So that we do not map again activei! */
 						activei_mapping_pending = false;
 					}
-# if 0 /* For now, do not alter active element, even if it will be hidden... */
+#if 0 /* For now, do not alter active element, even if it will be hidden... */
 					else if (activei < i) {
 						/* We do not want an active but invisible item!
 						 * Only exception is when all items are filtered out...
@@ -3044,6 +3048,11 @@ void uiTemplateList(
 				i++;
 			}
 			RNA_PROP_END;
+
+			if (activei_mapping_pending) {
+				/* No active item found, set to 'invalid' -1 value... */
+				activei = -1;
+			}
 		}
 		if (dyn_data->items_shown >= 0) {
 			len = dyn_data->items_shown;
