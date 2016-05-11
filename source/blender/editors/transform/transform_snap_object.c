@@ -1014,7 +1014,7 @@ static bool snapEditMesh(
 			case SCE_SNAP_MODE_EDGE:
 			{
 				BM_mesh_elem_table_ensure(em->bm, BM_EDGE);
-				int totedge = em->bm->totvert;
+				int totedge = em->bm->totedge;
 				for (int i = 0; i < totedge; i++) {
 					BMEdge *eed = BM_edge_at_index(em->bm, i);
 
@@ -1448,6 +1448,12 @@ bool ED_transform_snap_object_project_view3d_ex(
         float r_loc[3], float r_no[3], int *r_index)
 {
 	float ray_start[3], ray_normal[3], ray_orgigin[3];
+
+	float ray_depth_fallback;
+	if (ray_depth == NULL) {
+		ray_depth_fallback = BVH_RAYCAST_DIST_MAX;
+		ray_depth = &ray_depth_fallback;
+	}
 
 	if (!ED_view3d_win_to_ray_ex(
 	        sctx->v3d_data.ar, sctx->v3d_data.v3d,

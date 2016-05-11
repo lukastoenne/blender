@@ -139,20 +139,21 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 static void updateDepsgraph(ModifierData *md,
                             struct Main *UNUSED(bmain),
                             struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
+                            Object *ob,
                             struct DepsNodeHandle *node)
 {
 	HookModifierData *hmd = (HookModifierData *)md;
 	if (hmd->object != NULL) {
 		if (hmd->subtarget[0]) {
-			/* TODO(sergey): Hpw do we add relation to bone here? */
-			//DEG_add_object_relation(node, hmd->object, DEPSNODE_TYPE_EVAL_POSE, "Hook Modifier");
+			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
 			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEPSNODE_TYPE_BONE, "Hook Modifier");
 		}
 		else {
 			DEG_add_object_relation(node, hmd->object, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
 		}
 	}
+	/* We need own transformation as well. */
+	DEG_add_object_relation(node, ob, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
 }
 
 struct HookData_cb {

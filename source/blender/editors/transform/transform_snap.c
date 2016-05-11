@@ -596,20 +596,18 @@ static void initSnappingMode(TransInfo *t)
 		t->tsnap.mode = SCE_SNAP_MODE_INCREMENT;
 	}
 
-	if (t->flag & (T_OBJECT | T_EDIT)) {
-		if (t->spacetype == SPACE_VIEW3D) {
-			if (t->tsnap.object_context == NULL) {
-				t->tsnap.object_context = ED_transform_snap_object_context_create_view3d(
-				        G.main, t->scene, SNAP_OBJECT_USE_CACHE,
-				        t->ar, t->view);
+	if (t->spacetype == SPACE_VIEW3D) {
+		if (t->tsnap.object_context == NULL) {
+			t->tsnap.object_context = ED_transform_snap_object_context_create_view3d(
+					G.main, t->scene, SNAP_OBJECT_USE_CACHE,
+					t->ar, t->view);
 
-				ED_transform_snap_object_context_set_editmesh_callbacks(
-				        t->tsnap.object_context,
-				        (bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
-				        bm_edge_is_snap_target,
-				        bm_face_is_snap_target,
-				        SET_UINT_IN_POINTER((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
-			}
+			ED_transform_snap_object_context_set_editmesh_callbacks(
+					t->tsnap.object_context,
+					(bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
+					bm_edge_is_snap_target,
+					bm_face_is_snap_target,
+					SET_UINT_IN_POINTER((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
 		}
 	}
 }
@@ -1289,8 +1287,6 @@ bool snapObjectsTransform(
         float *dist_px,
         float r_loc[3], float r_no[3])
 {
-	float ray_dist = BVH_RAYCAST_DIST_MAX;
-
 	return ED_transform_snap_object_project_view3d_ex(
 	        t->tsnap.object_context,
 	        &(const struct SnapObjectParams){
@@ -1299,8 +1295,7 @@ bool snapObjectsTransform(
 	            .use_object_edit = (t->flag & T_EDIT) != 0,
 	            .use_object_active = (t->options & CTX_GPENCIL_STROKES) == 0,
 	        },
-	        mval, dist_px,
-	        &ray_dist,
+	        mval, dist_px, NULL,
 	        r_loc, r_no, NULL);
 }
 
@@ -1491,7 +1486,7 @@ static bool peelDerivedMesh(
 				data.depth_peels = depth_peels;
 
 				BLI_bvhtree_ray_cast_all(
-				        data.bvhdata.tree, ray_start_local, ray_normal_local, 0.0f,
+				        data.bvhdata.tree, ray_start_local, ray_normal_local, 0.0f, BVH_RAYCAST_DIST_MAX,
 				        peelRayCast_cb, &data);
 			}
 
@@ -1543,7 +1538,7 @@ static bool peelEditMesh(
 				data.depth_peels = depth_peels;
 
 				BLI_bvhtree_ray_cast_all(
-				        data.bvhdata.tree, ray_start_local, ray_normal_local, 0.0f,
+				        data.bvhdata.tree, ray_start_local, ray_normal_local, 0.0f, BVH_RAYCAST_DIST_MAX,
 				        peelEditMeshRayCast_cb, &data);
 			}
 
