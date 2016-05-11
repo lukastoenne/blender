@@ -16,6 +16,8 @@
 
 #include "util_volume.h"
 
+#include <cstdio>
+
 #if defined(HAS_CPP11_FEATURES) && defined(_MSC_VER)
 
 namespace std {
@@ -39,6 +41,8 @@ void release_map_memory(unordered_map<pthread_t, T> &map)
 	for(iter = map.begin(); iter != map.end(); ++iter) {
 		delete iter->second;
 	}
+
+	map.clear();
 }
 
 template <typename IsectorType>
@@ -46,6 +50,8 @@ void create_isectors_threads(unordered_map<pthread_t, IsectorType *> &isect_map,
                              const vector<pthread_t> &thread_ids,
                              const IsectorType &main_isect)
 {
+	std::fprintf(stderr, "%s", __func__);
+
 	release_map_memory(isect_map);
 
 	pthread_t my_thread = pthread_self();
@@ -59,6 +65,8 @@ void create_isectors_threads(unordered_map<pthread_t, IsectorType *> &isect_map,
 	if (isect_map.find(my_thread) == isect_map.end()) {
 		isect_map[my_thread] = new IsectorType(main_isect);
 	}
+
+	std::fprintf(stderr, ": %ld isectors, %ld threads\n", isect_map.size(), thread_ids.size());
 }
 
 template <typename SamplerType, typename AccessorType>
@@ -68,6 +76,7 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
                              const openvdb::math::Transform *transform,
                              const AccessorType &main_accessor)
 {
+	std::fprintf(stderr, "%s", __func__);
 	release_map_memory(sampler_map);
 
 	pthread_t my_thread = pthread_self();
@@ -86,6 +95,8 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
 		accessors.push_back(accessor);
 		sampler_map[my_thread] = new SamplerType(*accessor, *transform);
 	}
+
+	std::fprintf(stderr, ": %ld samplers, %ld threads\n", sampler_map.size(), thread_ids.size());
 }
 
 /* ********** OpenVDB floating pointing scalar volume ************ */
