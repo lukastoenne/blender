@@ -67,6 +67,7 @@ void create_isectors_threads(unordered_map<pthread_t, IsectorType *> &isect_map,
 	}
 
 	std::fprintf(stderr, ": %ld isectors, %ld threads\n", isect_map.size(), thread_ids.size());
+	std::cerr << "Self thread: " << my_thread << '\n';
 }
 
 template <typename SamplerType, typename AccessorType>
@@ -97,6 +98,7 @@ void create_samplers_threads(unordered_map<pthread_t, SamplerType *> &sampler_ma
 	}
 
 	std::fprintf(stderr, ": %ld samplers, %ld threads\n", sampler_map.size(), thread_ids.size());
+	std::cerr << "Self thread: " << my_thread << '\n';
 }
 
 /* ********** OpenVDB floating pointing scalar volume ************ */

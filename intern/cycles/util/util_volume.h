@@ -160,8 +160,16 @@ public:
 	{
 		pthread_t thread = pthread_self();
 		isect_map::iterator iter = isectors.find(thread);
-		assert(iter != isectors.end());
-		isector_t *vdb_isect = iter->second;
+
+		isector_t *vdb_isect;
+		/* this is not really thread safe. */
+		if (iter == isectors.end()) {
+			vdb_isect = new isector_t(*main_isector);
+			isectors[thread] = vdb_isect;
+		}
+		else {
+			vdb_isect = iter->second;
+		}
 
 		vdb_ray_t::Vec3Type P(ray->P.x, ray->P.y, ray->P.z);
 		vdb_ray_t::Vec3Type D(ray->D.x, ray->D.y, ray->D.z);
