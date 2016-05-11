@@ -62,12 +62,10 @@ extern "C" {
 #include "bvm_eval.h"
 #include "bvm_function.h"
 
-#include "llvm_codegen.h"
-#include "llvm_function.h"
-
 #ifdef WITH_LLVM
-#include "llvm/llvm_engine.h"
-#include "llvm/llvm_function.h"
+#include "llvm_codegen.h"
+#include "llvm_engine.h"
+#include "llvm_function.h"
 #endif
 
 #include "util_debug.h"
