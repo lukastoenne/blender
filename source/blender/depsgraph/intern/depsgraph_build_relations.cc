@@ -1940,6 +1940,10 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	                                DEPSNODE_TYPE_PARAMETERS,
 	                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE,
 	                                "BVM function invalidate");
+	/* invalidate the node function when nodes are changed */
+	add_relation(parameters_key, bvm_invalidate_key,
+	             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Invalidation");
+	/* custom invalidation through internal dependencies */
 	DepsgraphRelationBuilderHandle handle(this, find_node(bvm_invalidate_key));
 	deg_nodetree_bvm_compile_deps(ntree, &handle.handle);
 	
@@ -1993,7 +1997,7 @@ void DepsgraphRelationBuilder::build_texture(ID *owner, Tex *tex)
 	if (tex->nodetree) {
 		build_nodetree(owner, tex->nodetree);
 		ComponentKey nodetree_key(&tex->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
-		add_relation(nodetree_key, parameters_key,
+		add_relation(nodetree_key, invalidate_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree->Texture Parameters");
 	}
 }
