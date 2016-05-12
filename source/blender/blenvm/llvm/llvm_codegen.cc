@@ -406,6 +406,7 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	/* Note: Adding module to exec engine before creating the function prevents compilation! */
 	llvm_execution_engine()->addModule(module());
+	llvm_execution_engine()->generateCodeForModule(module());
 	uint64_t address = llvm_execution_engine()->getFunctionAddress(name);
 	BLI_assert(address != 0);
 	
