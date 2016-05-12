@@ -338,6 +338,9 @@ void BVM_function_bvm_cache_remove(void *key)
 {
 	bvm_lock.lock();
 	blenvm::function_bvm_cache_remove(key);
+#ifdef WITH_LLVM
+	blenvm::function_llvm_cache_remove(key);
+#endif
 	bvm_lock.unlock();
 }
 
