@@ -59,10 +59,10 @@ set(LLVM_SRC
 	../modules/modules.cc
 )
 set(LLVM_HEADERS
+	../modules/mod_base.h
 	../modules/mod_color.h
 	../modules/mod_defines.h
 	../modules/mod_math.h
-	../modules/mod_value.h
 )
 
 if(NOT WITH_BLENVM_IRMODULES)

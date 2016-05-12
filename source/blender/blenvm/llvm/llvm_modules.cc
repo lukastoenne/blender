@@ -51,9 +51,9 @@ extern "C" {
 #include "util_math.h"
 #include "util_opcode.h"
 
+#include "mod_base.h"
 #include "mod_color.h"
 #include "mod_math.h"
-#include "mod_value.h"
 
 namespace blenvm {
 
@@ -265,12 +265,7 @@ void llvm_declare_node_functions()
 	Module *mod = new llvm::Module("nodes", context);
 	
 #define TEST_OPCODES \
-	DEF_OPCODE(VALUE_FLOAT) \
-	DEF_OPCODE(VALUE_FLOAT3) \
-	DEF_OPCODE(VALUE_FLOAT4) \
-	DEF_OPCODE(VALUE_INT) \
-	DEF_OPCODE(VALUE_MATRIX44) \
-	DEF_OPCODE(MIX_RGB) \
+	BVM_DEFINE_OPCODES_BASE \
 	
 	#define DEF_OPCODE(op) \
 	{ \

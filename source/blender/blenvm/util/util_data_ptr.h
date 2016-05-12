@@ -33,6 +33,7 @@
 #define __BVM_UTIL_DATA_PTR_H__
 
 #include <assert.h>
+#include <vector>
 
 #include "MEM_guardedalloc.h"
 

@@ -28,12 +28,9 @@
 #ifndef __MOD_COLOR_H__
 #define __MOD_COLOR_H__
 
-extern "C" {
-#include "BLI_math_color.h"
-}
-
 #include "mod_defines.h"
-#include "mod_math.h"
+
+#include "util_math.h"
 
 BVM_MOD_NAMESPACE_BEGIN
 

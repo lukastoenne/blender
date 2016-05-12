@@ -25,12 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "mod_base.h"
 #include "mod_color.h"
 #include "mod_math.h"
-#include "mod_value.h"
 
 BVM_MOD_NAMESPACE_BEGIN
 
+#if 0
 inline int force_linking()
 {
 	int i = 0;
@@ -46,5 +47,6 @@ inline int force_linking()
 }
 
 static int f = force_linking();
+#endif
 
 BVM_MOD_NAMESPACE_END

@@ -30,7 +30,20 @@
 
 #include "mod_defines.h"
 
+#include "util_data_ptr.h"
+#include "util_math.h"
+#include "util_string.h"
+
+extern "C" {
+#include "RNA_access.h"
+}
+
 BVM_MOD_NAMESPACE_BEGIN
+
+BVM_MOD_FUNCTION("NOOP")
+void NOOP(void)
+{
+}
 
 BVM_MOD_FUNCTION("VALUE_FLOAT")
 void VALUE_FLOAT(float &result, float value)
@@ -60,6 +73,68 @@ BVM_MOD_FUNCTION("VALUE_MATRIX44")
 void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
 {
 	result = value;
+}
+
+BVM_MOD_FUNCTION("VALUE_STRING")
+void VALUE_STRING(const char *&result, const char *value)
+{
+	result = value;
+}
+
+BVM_MOD_FUNCTION("VALUE_RNAPOINTER")
+void VALUE_RNAPOINTER(PointerRNA &result, const PointerRNA &value)
+{
+	result = value;
+}
+
+BVM_MOD_FUNCTION("VALUE_MESH")
+void VALUE_MESH(mesh_ptr &result, const mesh_ptr &value)
+{
+	result = value;
+}
+
+BVM_MOD_FUNCTION("VALUE_DUPLIS")
+void VALUE_DUPLIS(duplis_ptr &result, const duplis_ptr &value)
+{
+	result = value;
+}
+
+BVM_MOD_FUNCTION("FLOAT_TO_INT")
+void FLOAT_TO_INT(int &result, float value)
+{
+	result = (int)value;
+}
+
+BVM_MOD_FUNCTION("INT_TO_FLOAT")
+void INT_TO_FLOAT(float &result, int value)
+{
+	result = (float)value;
+}
+
+BVM_MOD_FUNCTION("SET_FLOAT3")
+void SET_FLOAT3(float3 &result, float x, float y, float z)
+{
+	result = float3(x, y, z);
+}
+
+BVM_MOD_FUNCTION("SET_FLOAT4")
+void GET_ELEM_FLOAT3(float &result, const float3 &f, int index)
+{
+	BLI_assert(index >= 0 && index < 3);
+	result = f[index];
+}
+
+BVM_MOD_FUNCTION("SET_FLOAT4")
+void SET_FLOAT4(float4 &result, float x, float y, float z, float w)
+{
+	result = float4(x, y, z, w);
+}
+
+BVM_MOD_FUNCTION("SET_FLOAT4")
+void GET_ELEM_FLOAT4(float &result, const float4 &f, int index)
+{
+	BLI_assert(index >= 0 && index < 4);
+	result = f[index];
 }
 
 BVM_MOD_NAMESPACE_END
