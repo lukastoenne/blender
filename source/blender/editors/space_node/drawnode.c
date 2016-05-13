@@ -276,8 +276,7 @@ static void node_buts_texture(uiLayout *layout, bContext *UNUSED(C), PointerRNA 
 	short multi = (
 	    node->id &&
 	    ((Tex *)node->id)->use_nodes &&
-	    (node->type != CMP_NODE_TEXTURE) &&
-	    (node->type != TEX_NODE_TEXTURE)
+	    (node->type != CMP_NODE_TEXTURE)
 	    );
 	
 	uiItemR(layout, ptr, "texture", 0, "", ICON_NONE);
@@ -2733,169 +2732,6 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 	}
 }
 
-/* ****************** BUTTON CALLBACKS FOR TEXTURE NODES ***************** */
-
-static void node_texture_buts_bricks(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-	uiLayout *col;
-	
-	col = uiLayoutColumn(layout, true);
-	uiItemR(col, ptr, "offset", UI_ITEM_R_SLIDER, IFACE_("Offset"), ICON_NONE);
-	uiItemR(col, ptr, "offset_frequency", 0, IFACE_("Frequency"), ICON_NONE);
-	
-	col = uiLayoutColumn(layout, true);
-	uiItemR(col, ptr, "squash", 0, IFACE_("Squash"), ICON_NONE);
-	uiItemR(col, ptr, "squash_frequency", 0, IFACE_("Frequency"), ICON_NONE);
-}
-
-static void node_texture_buts_proc(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-	PointerRNA tex_ptr;
-	bNode *node = ptr->data;
-	ID *id = ptr->id.data;
-	Tex *tex = (Tex *)node->storage;
-	uiLayout *col, *row;
-	
-	RNA_pointer_create(id, &RNA_Texture, tex, &tex_ptr);
-
-	col = uiLayoutColumn(layout, false);
-
-	switch (tex->type) {
-		case TEX_BLEND:
-			uiItemR(col, &tex_ptr, "progression", 0, "", ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "use_flip_axis", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			break;
-
-		case TEX_MARBLE:
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "marble_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_basis_2", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			break;
-
-		case TEX_MAGIC:
-			uiItemR(col, &tex_ptr, "noise_depth", 0, NULL, ICON_NONE);
-			break;
-
-		case TEX_STUCCI:
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "stucci_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			uiItemR(col, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			break;
-
-		case TEX_WOOD:
-			uiItemR(col, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			uiItemR(col, &tex_ptr, "wood_type", 0, "", ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_basis_2", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiLayoutSetActive(row, !(ELEM(tex->stype, TEX_BAND, TEX_RING)));
-			uiItemR(row, &tex_ptr, "noise_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			break;
-			
-		case TEX_CLOUDS:
-			uiItemR(col, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "cloud_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			row = uiLayoutRow(col, false);
-			uiItemR(row, &tex_ptr, "noise_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-			uiItemR(col, &tex_ptr, "noise_depth", UI_ITEM_R_EXPAND, IFACE_("Depth"), ICON_NONE);
-			break;
-			
-		case TEX_DISTNOISE:
-			uiItemR(col, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			uiItemR(col, &tex_ptr, "noise_distortion", 0, "", ICON_NONE);
-			break;
-
-		case TEX_MUSGRAVE:
-			uiItemR(col, &tex_ptr, "musgrave_type", 0, "", ICON_NONE);
-			uiItemR(col, &tex_ptr, "noise_basis", 0, "", ICON_NONE);
-			break;
-		case TEX_VORONOI:
-			uiItemR(col, &tex_ptr, "distance_metric", 0, "", ICON_NONE);
-			if (tex->vn_distm == TEX_MINKOVSKY) {
-				uiItemR(col, &tex_ptr, "minkovsky_exponent", 0, NULL, ICON_NONE);
-			}
-			uiItemR(col, &tex_ptr, "color_mode", 0, "", ICON_NONE);
-			break;
-	}
-}
-
-static void node_texture_buts_image(uiLayout *layout, bContext *C, PointerRNA *ptr)
-{
-	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
-}
-
-static void node_texture_buts_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
-{
-	bNode *node = ptr->data;
-	PointerRNA iuserptr;
-
-	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
-	uiTemplateImage(layout, C, ptr, "image", &iuserptr, 0, 0);
-}
-
-static void node_texture_buts_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-	uiItemR(layout, ptr, "filepath", 0, "", ICON_NONE);
-}
-
-/* only once called */
-static void node_texture_set_butfunc(bNodeType *ntype)
-{
-	if (ntype->type >= TEX_NODE_PROC && ntype->type < TEX_NODE_PROC_MAX) {
-		ntype->draw_buttons = node_texture_buts_proc;
-	}
-	else {
-		switch (ntype->type) {
-
-			case TEX_NODE_MATH:
-				ntype->draw_buttons = node_buts_math;
-				break;
-
-			case TEX_NODE_MIX_RGB:
-				ntype->draw_buttons = node_buts_mix_rgb;
-				break;
-
-			case TEX_NODE_VALTORGB:
-				ntype->draw_buttons = node_buts_colorramp;
-				break;
-
-			case TEX_NODE_CURVE_RGB:
-				ntype->draw_buttons = node_buts_curvecol;
-				break;
-
-			case TEX_NODE_CURVE_TIME:
-				ntype->draw_buttons = node_buts_time;
-				break;
-
-			case TEX_NODE_TEXTURE:
-				ntype->draw_buttons = node_buts_texture;
-				break;
-
-			case TEX_NODE_BRICKS:
-				ntype->draw_buttons = node_texture_buts_bricks;
-				break;
-
-			case TEX_NODE_IMAGE:
-				ntype->draw_buttons = node_texture_buts_image;
-				ntype->draw_buttons_ex = node_texture_buts_image_ex;
-				break;
-
-			case TEX_NODE_OUTPUT:
-				ntype->draw_buttons = node_texture_buts_output;
-				break;
-		}
-	}
-}
-
 /* ******* init draw callbacks for all tree types, only called in usiblender.c, once ************* */
 
 static void node_property_update_default(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -2993,7 +2829,6 @@ void ED_node_init_butfuncs(void)
 		
 		node_composit_set_butfunc(ntype);
 		node_shader_set_butfunc(ntype);
-		node_texture_set_butfunc(ntype);
 		
 		/* define update callbacks for socket properties */
 		node_template_properties_update(ntype);

@@ -478,20 +478,6 @@ static EnumPropertyItem *rna_node_static_type_itemf(bContext *UNUSED(C), Pointer
 #include "../../nodes/NOD_static_types.h"
 #undef DefNode
 	}
-	
-	if (RNA_struct_is_a(ptr->type, &RNA_TextureNode)) {
-#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-		if (STREQ(#Category, "TextureNode")) { \
-			tmp.value = ID; \
-			tmp.identifier = EnumName; \
-			tmp.name = UIName; \
-			tmp.description = UIDesc; \
-			tmp.icon = ICON_NONE; \
-			RNA_enum_item_add(&item, &totitem, &tmp); \
-		}
-#include "../../nodes/NOD_static_types.h"
-#undef DefNode
-	}
 
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -698,10 +684,6 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree, bContext *C, ReportList *r
 	
 	node = nodeAddNode(C, ntree, type);
 	BLI_assert(node && node->typeinfo);
-	
-	if (ntree->type == NTREE_TEXTURE) {
-		ntreeTexCheckCyclics(ntree);
-	}
 	
 	ntreeUpdateTree(CTX_data_main(C), ntree);
 	nodeUpdate(ntree, node);
@@ -1498,23 +1480,6 @@ static StructRNA *rna_CompositorNode_register(
         StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_CompositorNode, data, identifier, validate, call, free);
-	if (!nt)
-		return NULL;
-	
-	nodeRegisterType(nt);
-	
-	/* update while blender is running */
-	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
-	
-	return nt->ext.srna;
-}
-
-static StructRNA *rna_TextureNode_register(
-        Main *bmain, ReportList *reports,
-        void *data, const char *identifier,
-        StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
-{
-	bNodeType *nt = rna_Node_register_base(bmain, reports, &RNA_TextureNode, data, identifier, validate, call, free);
 	if (!nt)
 		return NULL;
 	
@@ -6853,68 +6818,6 @@ static void def_cmp_sunbeams(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-/* -- Texture Nodes --------------------------------------------------------- */
-
-static void def_tex_output(StructRNA *srna)
-{
-	PropertyRNA *prop;
-
-	RNA_def_struct_sdna_from(srna, "TexNodeOutput", "storage");
-	
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_ui_text(prop, "Output Name", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
-static void def_tex_image(StructRNA *srna)
-{
-	PropertyRNA *prop;
-
-	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "id");
-	RNA_def_property_struct_type(prop, "Image");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Image", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-
-	prop = RNA_def_property(srna, "image_user", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "storage");
-	RNA_def_property_struct_type(prop, "ImageUser");
-	RNA_def_property_ui_text(prop, "Image User",
-	                         "Parameters defining the image duration, offset and related settings");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
-static void def_tex_bricks(StructRNA *srna)
-{
-	PropertyRNA *prop;
-
-	prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "custom3");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Offset Amount", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "offset_frequency", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "custom1");
-	RNA_def_property_range(prop, 2, 99);
-	RNA_def_property_ui_text(prop, "Offset Frequency", "Offset every N rows");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "squash", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "custom4");
-	RNA_def_property_range(prop, 0.0f, 99.0f);
-	RNA_def_property_ui_text(prop, "Squash Amount", "");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "squash_frequency", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "custom2");
-	RNA_def_property_range(prop, 2, 99);
-	RNA_def_property_ui_text(prop, "Squash Frequency", "Squash every N rows");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 /* -------------------------------------------------------------------------- */
 
 static void rna_def_shader_node(BlenderRNA *brna)
@@ -6940,16 +6843,6 @@ static void rna_def_compositor_node(BlenderRNA *brna)
 	/* compositor node need_exec flag */
 	func = RNA_def_function(srna, "tag_need_exec", "rna_CompositorNode_tag_need_exec");
 	RNA_def_function_ui_description(func, "Tag the node for compositor update");
-}
-
-static void rna_def_texture_node(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	
-	srna = RNA_def_struct(brna, "TextureNode", "NodeInternal");
-	RNA_def_struct_ui_text(srna, "Texture Node", "");
-	RNA_def_struct_sdna(srna, "bNode");
-	RNA_def_struct_register_funcs(srna, "rna_TextureNode_register", "rna_Node_unregister", NULL);
 }
 
 static void rna_def_object_node(BlenderRNA *brna)
@@ -8544,7 +8437,6 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	rna_def_internal_node(brna);
 	rna_def_shader_node(brna);
 	rna_def_compositor_node(brna);
-	rna_def_texture_node(brna);
 	rna_def_object_node(brna);
 	
 	rna_def_nodetree(brna);
@@ -8574,7 +8466,6 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	 */
 	define_specific_node(brna, "ShaderNodeGroup", "ShaderNode", "Group", "", def_group);
 	define_specific_node(brna, "CompositorNodeGroup", "CompositorNode", "Group", "", def_group);
-	define_specific_node(brna, "TextureNodeGroup", "TextureNode", "Group", "", def_group);
 	def_custom_group(brna);
 	
 	/* special socket types */

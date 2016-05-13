@@ -52,12 +52,6 @@ class ShaderOldNodeCategory(SortedNodeCategory):
                 not context.scene.render.use_shading_nodes)
 
 
-class TextureNodeCategory(SortedNodeCategory):
-    @classmethod
-    def poll(cls, context):
-        return context.space_data.tree_type == 'TextureNodeTree'
-
-
 # menu entry for node group tools
 def group_tools_draw(self, layout, context):
     layout.operator("node.group_make")
@@ -68,11 +62,10 @@ def group_tools_draw(self, layout, context):
 node_tree_group_type = {
     'CompositorNodeTree': 'CompositorNodeGroup',
     'ShaderNodeTree': 'ShaderNodeGroup',
-    'TextureNodeTree': 'TextureNodeGroup',
     }
 
 
-# generic node group items generator for shader, compositor and texture node groups
+# generic node group items generator for shader and compositor node groups
 def node_group_items(context):
     if context is None:
         return
@@ -403,75 +396,15 @@ compositor_node_categories = [
         ]),
     ]
 
-texture_node_categories = [
-    # Texture Nodes
-    TextureNodeCategory("TEX_INPUT", "Input", items=[
-        NodeItem("TextureNodeCurveTime"),
-        NodeItem("TextureNodeCoordinates"),
-        NodeItem("TextureNodeTexture"),
-        NodeItem("TextureNodeImage"),
-        NodeItem("NodeGroupInput", poll=group_input_output_item_poll),
-        ]),
-    TextureNodeCategory("TEX_OUTPUT", "Output", items=[
-        NodeItem("TextureNodeOutput"),
-        NodeItem("TextureNodeViewer"),
-        NodeItem("NodeGroupOutput", poll=group_input_output_item_poll),
-        ]),
-    TextureNodeCategory("TEX_OP_COLOR", "Color", items=[
-        NodeItem("TextureNodeMixRGB"),
-        NodeItem("TextureNodeCurveRGB"),
-        NodeItem("TextureNodeInvert"),
-        NodeItem("TextureNodeHueSaturation"),
-        NodeItem("TextureNodeCompose"),
-        NodeItem("TextureNodeDecompose"),
-        ]),
-    TextureNodeCategory("TEX_PATTERN", "Pattern", items=[
-        NodeItem("TextureNodeChecker"),
-        NodeItem("TextureNodeBricks"),
-        ]),
-    TextureNodeCategory("TEX_TEXTURE", "Textures", items=[
-        NodeItem("TextureNodeTexNoise"),
-        NodeItem("TextureNodeTexDistNoise"),
-        NodeItem("TextureNodeTexClouds"),
-        NodeItem("TextureNodeTexBlend"),
-        NodeItem("TextureNodeTexVoronoi"),
-        NodeItem("TextureNodeTexMagic"),
-        NodeItem("TextureNodeTexMarble"),
-        NodeItem("TextureNodeTexWood"),
-        NodeItem("TextureNodeTexMusgrave"),
-        NodeItem("TextureNodeTexStucci"),
-        ]),
-    TextureNodeCategory("TEX_CONVERTOR", "Converter", items=[
-        NodeItem("TextureNodeMath"),
-        NodeItem("TextureNodeValToRGB"),
-        NodeItem("TextureNodeRGBToBW"),
-        NodeItem("TextureNodeValToNor"),
-        NodeItem("TextureNodeDistance"),
-        ]),
-    TextureNodeCategory("TEX_DISTORT", "Distort", items=[
-        NodeItem("TextureNodeScale"),
-        NodeItem("TextureNodeTranslate"),
-        NodeItem("TextureNodeRotate"),
-        NodeItem("TextureNodeAt"),
-        ]),
-    TextureNodeCategory("TEX_GROUP", "Group", items=node_group_items),
-    TextureNodeCategory("TEX_LAYOUT", "Layout", items=[
-        NodeItem("NodeFrame"),
-        NodeItem("NodeReroute"),
-        ]),
-    ]
-
 
 def register():
     nodeitems_utils.register_node_categories('SHADER', shader_node_categories)
     nodeitems_utils.register_node_categories('COMPOSITING', compositor_node_categories)
-    nodeitems_utils.register_node_categories('TEXTURE', texture_node_categories)
 
 
 def unregister():
     nodeitems_utils.unregister_node_categories('SHADER')
     nodeitems_utils.unregister_node_categories('COMPOSITING')
-    nodeitems_utils.unregister_node_categories('TEXTURE')
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@
 
 #include "DNA_texture_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
@@ -44,14 +45,15 @@
 
 #include "BKE_context.h"
 #include "BKE_linestyle.h"
+#include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
+#include "BKE_texture.h"
 
 #include "node_common.h"
 #include "node_exec.h"
 #include "node_util.h"
 #include "NOD_texture.h"
-#include "node_texture_util.h"
 
 #include "RNA_access.h"
 
@@ -200,27 +202,6 @@ void register_node_tree_type_tex(void)
 	tt->ext.srna = &RNA_TextureNodeTree;
 	
 	ntreeTypeAdd(tt);
-}
-
-int ntreeTexTagAnimated(bNodeTree *ntree)
-{
-	bNode *node;
-	
-	if (ntree == NULL) return 0;
-	
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == TEX_NODE_CURVE_TIME) {
-			nodeUpdate(ntree, node);
-			return 1;
-		}
-		else if (node->type == NODE_GROUP) {
-			if (ntreeTexTagAnimated((bNodeTree *)node->id) ) {
-				return 1;
-			}
-		}
-	}
-	
-	return 0;
 }
 
 bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context, bNodeTree *ntree, bNodeInstanceKey parent_key)

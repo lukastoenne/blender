@@ -333,66 +333,6 @@ static void rna_TextureSlot_name_get(PointerRNA *ptr, char *str)
 		str[0] = '\0';
 }
 
-static int rna_TextureSlot_output_node_get(PointerRNA *ptr)
-{
-	MTex *mtex = ptr->data;
-	Tex *tex = mtex->tex;
-	int cur = mtex->which_output;
-	
-	if (tex) {
-		bNodeTree *ntree = tex->nodetree;
-		bNode *node;
-		if (ntree) {
-			for (node = ntree->nodes.first; node; node = node->next) {
-				if (node->type == TEX_NODE_OUTPUT) {
-					if (cur == node->custom1)
-						return cur;
-				}
-			}
-		}
-	}
-	
-	mtex->which_output = 0;
-	return 0;
-}
-
-
-static EnumPropertyItem *rna_TextureSlot_output_node_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                           PropertyRNA *UNUSED(prop), bool *r_free)
-{
-	MTex *mtex = ptr->data;
-	Tex *tex = mtex->tex;
-	EnumPropertyItem *item = NULL;
-	int totitem = 0;
-	
-	if (tex) {
-		bNodeTree *ntree = tex->nodetree;
-		if (ntree) {
-			EnumPropertyItem tmp = {0, "", 0, "", ""};
-			bNode *node;
-			
-			tmp.value = 0;
-			tmp.name = "Not Specified";
-			tmp.identifier = "NOT_SPECIFIED";
-			RNA_enum_item_add(&item, &totitem, &tmp);
-			
-			for (node = ntree->nodes.first; node; node = node->next) {
-				if (node->type == TEX_NODE_OUTPUT) {
-					tmp.value = node->custom1;
-					tmp.name = ((TexNodeOutput *)node->storage)->name;
-					tmp.identifier = tmp.name;
-					RNA_enum_item_add(&item, &totitem, &tmp);
-				}
-			}
-		}
-	}
-	
-	RNA_enum_item_end(&item, &totitem);
-	*r_free = true;
-
-	return item;
-}
-
 static void rna_Texture_use_color_ramp_set(PointerRNA *ptr, int value)
 {
 	Tex *tex = (Tex *)ptr->data;
@@ -631,11 +571,6 @@ static void rna_def_mtex(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem output_node_items[] = {
-		{0, "DUMMY", 0, "Dummy", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-		
 	srna = RNA_def_struct(brna, "TextureSlot", NULL);
 	RNA_def_struct_sdna(srna, "MTex");
 	RNA_def_struct_ui_text(srna, "Texture Slot", "Texture slot defining the mapping and influence of a texture");
@@ -703,13 +638,6 @@ static void rna_def_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Default Value",
 	                         "Value to use for Ref, Spec, Amb, Emit, Alpha, RayMir, TransLu and Hard");
-	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
-	
-	prop = RNA_def_property(srna, "output_node", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "which_output");
-	RNA_def_property_enum_items(prop, output_node_items);
-	RNA_def_property_enum_funcs(prop, "rna_TextureSlot_output_node_get", NULL, "rna_TextureSlot_output_node_itemf");
-	RNA_def_property_ui_text(prop, "Output Node", "Which output node to use, for node-based textures");
 	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 }
 

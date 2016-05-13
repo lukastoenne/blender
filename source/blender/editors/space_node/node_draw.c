@@ -183,9 +183,6 @@ void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree, bNode *node)
 				ED_node_tag_update_id(id);
 		} FOREACH_NODETREE_END
 	}
-
-	if (ntree->type == NTREE_TEXTURE)
-		ntreeTexCheckCyclics(ntree);
 }
 
 static bool compare_nodes(const bNode *a, const bNode *b)

@@ -90,10 +90,6 @@ bNode *node_add_node(const bContext *C, const char *idname, int type, float locx
 	
 	snode_update(snode, node);
 	
-	if (snode->nodetree->type == NTREE_TEXTURE) {
-		ntreeTexCheckCyclics(snode->edittree);
-	}
-	
 	return node;
 }
 
@@ -313,9 +309,6 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 	switch (snode->nodetree->type) {
 		case NTREE_SHADER:
 			type = SH_NODE_TEX_IMAGE;
-			break;
-		case NTREE_TEXTURE:
-			type = TEX_NODE_IMAGE;
 			break;
 		case NTREE_COMPOSIT:
 			type = CMP_NODE_IMAGE;

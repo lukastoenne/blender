@@ -2149,16 +2149,6 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 	/* composite */
 	if (scene->use_nodes && scene->nodetree)
 		ntreeCompositTagAnimated(scene->nodetree);
-	
-	/* update animated texture nodes */
-	{
-		Tex *tex;
-		for (tex = bmain->tex.first; tex; tex = tex->id.next)
-			if (tex->use_nodes && tex->nodetree) {
-				ntreeTexTagAnimated(tex->nodetree);
-			}
-	}
-	
 }
 
 /*

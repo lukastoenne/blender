@@ -856,16 +856,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 
 		/* and texture trees */
 		for (tx = main->tex.first; tx; tx = tx->id.next) {
-			bNode *node;
-
 			if (tx->nodetree) {
 				if (tx->nodetree->id.name[0] == '\0')
 					strcpy(tx->nodetree->id.name, "NTTexture Nodetree");
-
-				/* which_output 0 is now "not specified" */
-				for (node = tx->nodetree->nodes.first; node; node = node->next)
-					if (node->type == TEX_NODE_OUTPUT)
-						node->custom1++;
 			}
 		}
 
