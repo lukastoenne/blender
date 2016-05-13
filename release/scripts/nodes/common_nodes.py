@@ -44,9 +44,6 @@ def enum_property_value_prop(name):
 
 class NodeTreeBase():
     def bvm_compile_dependencies(self, depsnode):
-        # own changes require recompile
-        depsnode.add_nodetree_relation(self, 'PARAMETERS')
-
         for node in self.nodes:
             node.compile_dependencies(depsnode)
 
