@@ -264,10 +264,7 @@ void llvm_declare_node_functions()
 	
 	Module *mod = new llvm::Module("nodes", context);
 	
-#define TEST_OPCODES \
-	BVM_DEFINE_OPCODES_BASE \
-	
-	#define DEF_OPCODE(op) \
+#define DEF_OPCODE(op) \
 	{ \
 		const NodeType *nodetype = NodeGraph::find_node_type(STRINGIFY(op)); \
 		if (nodetype != NULL) { \
@@ -275,10 +272,9 @@ void llvm_declare_node_functions()
 		} \
 	}
 	
-//	BVM_DEFINE_OPCODES
-	TEST_OPCODES
+	BVM_DEFINE_OPCODES
 	
-	#undef DEF_OPCODE
+#undef DEF_OPCODE
 	
 	llvm_execution_engine()->addModule(mod);
 	theModules[mod->getModuleIdentifier()] = mod;

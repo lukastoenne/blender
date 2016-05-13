@@ -177,6 +177,9 @@ struct matrix44 {
 	}
 	
 	float data[4][4];
+	
+	typedef float (*array_t)[4];
+	inline array_t c_data() const { return const_cast<array_t>(data); }
 };
 
 /* utilities */
@@ -204,6 +207,30 @@ inline static float sqrt_safe(float a)
 {
 	if (a > 0.0f)
 		return sqrtf(a);
+	else
+		return 0.0f;
+}
+
+inline static float pow_safe(float a, float b)
+{
+	if (a >= 0.0f)
+		return powf(a, b);
+	else
+		return 0.0f;
+}
+
+inline static float log_safe(float a, float b)
+{
+	if (a >= 0.0f && b >= 0.0f)
+		return logf(a) / logf(b);
+	else
+		return 0.0f;
+}
+
+inline static float modulo_safe(float a, float b)
+{
+	if (b != 0.0f) 
+		return fmodf(a, b);
 	else
 		return 0.0f;
 }

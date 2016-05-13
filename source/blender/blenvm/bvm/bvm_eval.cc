@@ -654,7 +654,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				eval_op_absolute(stack, offset, offset_r);
 				break;
 			}
-			case OP_CLAMP: {
+			case OP_CLAMP_ONE: {
 				StackIndex offset = fn->read_stack_index(&instr);
 				StackIndex offset_r = fn->read_stack_index(&instr);
 				eval_op_clamp(stack, offset, offset_r);

@@ -93,7 +93,7 @@ namespace blenvm {
 	DEF_OPCODE(GREATER_THAN) \
 	DEF_OPCODE(MODULO) \
 	DEF_OPCODE(ABSOLUTE) \
-	DEF_OPCODE(CLAMP) \
+	DEF_OPCODE(CLAMP_ONE) \
 	DEF_OPCODE(SQRT) \
 	\
 	DEF_OPCODE(ADD_FLOAT3) \
@@ -184,7 +184,8 @@ namespace blenvm {
 	
 /*************************************/
 
-#define BVM_DEFINE_OPCODES \
+/* all possible opcodes */
+#define BVM_DEFINE_ALL_OPCODES \
 	BVM_DEFINE_OPCODES_BASE \
 	BVM_DEFINE_OPCODES_COLOR \
 	BVM_DEFINE_OPCODES_CURVE \
@@ -198,11 +199,18 @@ namespace blenvm {
 	BVM_DEFINE_OPCODES_RANDOM \
 	BVM_DEFINE_OPCODES_TEXTURE \
 
+/* implemented subset of opcodes */
+#define BVM_DEFINE_OPCODES \
+	BVM_DEFINE_OPCODES_BASE \
+	BVM_DEFINE_OPCODES_COLOR \
+	BVM_DEFINE_OPCODES_MATH \
+	
+
 /* Define the main enum for opcodes */
 #define DEF_OPCODE(op) \
 	OP_##op,
 enum OpCode {
-	BVM_DEFINE_OPCODES \
+	BVM_DEFINE_ALL_OPCODES \
 	OP_END,
 };
 #undef DEF_OPCODE
@@ -214,7 +222,7 @@ enum OpCode {
 BLI_INLINE const char *opcode_name(OpCode op)
 {
 	switch (op) {
-		BVM_DEFINE_OPCODES
+		BVM_DEFINE_ALL_OPCODES
 		default: return "";
 	}
 }
