@@ -168,12 +168,7 @@ void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree, bNode *node)
 	if (!ntree)
 		return;
 
-	bool do_tag_update = true;
-	if (node != NULL) {
-		if (!node_connected_to_output(ntree, node)) {
-			do_tag_update = false;
-		}
-	}
+	bool do_tag_update = node == NULL || nodeIsUsed(ntree, node);
 
 	/* look through all datablocks, to support groups */
 	if (do_tag_update) {

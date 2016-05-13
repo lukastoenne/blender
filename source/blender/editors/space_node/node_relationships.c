@@ -61,104 +61,6 @@
 
 #include "node_intern.h"  /* own include */
 
-/* ****************** Relations helpers *********************** */
-
-static bool ntree_check_nodes_connected_dfs(bNodeTree *ntree,
-                                            bNode *from,
-                                            bNode *to)
-{
-	if (from->flag & NODE_TEST) {
-		return false;
-	}
-	from->flag |= NODE_TEST;
-	for (bNodeLink *link = ntree->links.first; link != NULL; link = link->next) {
-		if (link->fromnode == from) {
-			if (link->tonode == to) {
-				return true;
-			}
-			else {
-				if (ntree_check_nodes_connected_dfs(ntree, link->tonode, to)) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-static bool ntree_check_nodes_connected(bNodeTree *ntree, bNode *from, bNode *to)
-{
-	if (from == to) {
-		return true;
-	}
-	ntreeNodeFlagSet(ntree, NODE_TEST, false);
-	return ntree_check_nodes_connected_dfs(ntree, from, to);
-}
-
-static bool node_group_has_output_dfs(bNode *node)
-{
-	bNodeTree *ntree = (bNodeTree *)node->id;
-	if (ntree->id.tag & LIB_TAG_DOIT) {
-		return false;
-	}
-	ntree->id.tag |= LIB_TAG_DOIT;
-	for (bNode *current_node = ntree->nodes.first;
-	     current_node != NULL;
-	     current_node = current_node->next)
-	{
-		if (current_node->type == NODE_GROUP) {
-			if (current_node->id && node_group_has_output_dfs(current_node)) {
-				return true;
-			}
-		}
-		if (current_node->flag & NODE_DO_OUTPUT &&
-		    current_node->type != NODE_GROUP_OUTPUT)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool node_group_has_output(bNode *node)
-{
-	Main *bmain = G.main;
-	BLI_assert(node->type == NODE_GROUP);
-	bNodeTree *ntree = (bNodeTree *)node->id;
-	if (ntree == NULL) {
-		return false;
-	}
-	BKE_main_id_tag_listbase(&bmain->nodetree, LIB_TAG_DOIT, false);
-	return node_group_has_output_dfs(node);
-}
-
-bool node_connected_to_output(bNodeTree *ntree, bNode *node)
-{
-	for (bNode *current_node = ntree->nodes.first;
-	     current_node != NULL;
-	     current_node = current_node->next)
-	{
-		/* Special case for group nodes -- if modified node connected to a group
-		 * with active output inside we consider refresh is needed.
-		 *
-		 * We could make check more grained here by taking which socket the node
-		 * is connected to and so eventually.
-		 */
-		if (current_node->type == NODE_GROUP &&
-		    ntree_check_nodes_connected(ntree, node, current_node) &&
-		    node_group_has_output(current_node))
-		{
-			return true;
-		}
-		if (current_node->flag & NODE_DO_OUTPUT) {
-			if (ntree_check_nodes_connected(ntree, node, current_node)) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 /* ****************** Add *********************** */
 
 
@@ -600,7 +502,7 @@ static void node_link_exit(bContext *C, wmOperator *op, bool apply_links)
 			node_remove_extra_links(snode, link);
 
 			if (link->tonode) {
-				do_tag_update |= (do_tag_update || node_connected_to_output(ntree, link->tonode));
+				do_tag_update |= (do_tag_update || nodeIsUsed(ntree, link->tonode));
 			}
 		}
 		else {
@@ -757,7 +659,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], bool det
 					 * using TEST flag.
 					 */
 					oplink->flag &= ~NODE_LINK_TEST;
-					if (node_connected_to_output(snode->edittree, link->tonode)) {
+					if (nodeIsUsed(snode->edittree, link->tonode)) {
 						oplink->flag |= NODE_LINK_TEST;
 					}
 
@@ -776,7 +678,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], bool det
 			oplink->fromsock = sock;
 			oplink->flag |= NODE_LINK_VALID;
 			oplink->flag &= ~NODE_LINK_TEST;
-			if (node_connected_to_output(snode->edittree, node)) {
+			if (nodeIsUsed(snode->edittree, node)) {
 				oplink->flag |= NODE_LINK_TEST;
 			}
 
@@ -801,7 +703,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], bool det
 					oplink->next = oplink->prev = NULL;
 					oplink->flag |= NODE_LINK_VALID;
 					oplink->flag &= ~NODE_LINK_TEST;
-					if (node_connected_to_output(snode->edittree, link->tonode)) {
+					if (nodeIsUsed(snode->edittree, link->tonode)) {
 						oplink->flag |= NODE_LINK_TEST;
 					}
 
@@ -820,7 +722,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], bool det
 			oplink->tosock = sock;
 			oplink->flag |= NODE_LINK_VALID;
 			oplink->flag &= ~NODE_LINK_TEST;
-			if (node_connected_to_output(snode->edittree, node)) {
+			if (nodeIsUsed(snode->edittree, node)) {
 				oplink->flag |= NODE_LINK_TEST;
 			}
 
@@ -986,7 +888,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
 					found = true;
 				}
 
-				do_tag_update |= (do_tag_update || node_connected_to_output(snode->edittree, link->tonode));
+				do_tag_update |= (do_tag_update || nodeIsUsed(snode->edittree, link->tonode));
 
 				snode_update(snode, link->tonode);
 				nodeRemLink(snode->edittree, link);

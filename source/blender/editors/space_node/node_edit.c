@@ -1249,7 +1249,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
 			node->flag &= ~NODE_ACTIVE;
 			nodeSetSelected(newnode, true);
 
-			do_tag_update |= (do_tag_update || node_connected_to_output(ntree, newnode));
+			do_tag_update |= (do_tag_update || nodeIsUsed(ntree, newnode));
 		}
 		
 		/* make sure we don't copy new nodes again! */
@@ -1630,7 +1630,7 @@ static int node_mute_exec(bContext *C, wmOperator *UNUSED(op))
 		if ((node->flag & SELECT) && node->typeinfo->update_internal_links) {
 			node->flag ^= NODE_MUTED;
 			snode_update(snode, node);
-			do_tag_update |= (do_tag_update || node_connected_to_output(snode->edittree, node));
+			do_tag_update |= (do_tag_update || nodeIsUsed(snode->edittree, node));
 		}
 	}
 	
@@ -1671,7 +1671,7 @@ static int node_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		next = node->next;
 		if (node->flag & SELECT) {
 			/* check id user here, nodeFreeNode is called for free dbase too */
-			do_tag_update |= (do_tag_update || node_connected_to_output(snode->edittree, node));
+			do_tag_update |= (do_tag_update || nodeIsUsed(snode->edittree, node));
 			if (node->id)
 				id_us_min(node->id);
 			nodeFreeNode(snode->edittree, node);

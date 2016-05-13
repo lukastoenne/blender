@@ -1087,6 +1087,16 @@ void nodeInternalRelink(bNodeTree *ntree, bNode *node)
 	}
 }
 
+
+bool nodeIsUsed(bNodeTree *ntree, bNode *node)
+{
+	if (node->typeinfo->is_used)
+		return node->typeinfo->is_used(ntree, node);
+	else
+		return true;
+}
+
+
 void nodeToView(bNode *node, float x, float y, float *rx, float *ry)
 {
 	if (node->parent) {

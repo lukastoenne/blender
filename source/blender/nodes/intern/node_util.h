@@ -77,6 +77,10 @@ void node_vect_math_label(struct bNodeTree *ntree, struct bNode *node, char *lab
 void node_filter_label(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
 
 
+/* *** Relations helpers *** */
+bool node_connected_to_output(struct bNodeTree *ntree, struct bNode *node);
+
+
 /*** Link Handling */
 void node_insert_link_default(struct bNodeTree *ntree, struct bNode *node, struct bNodeLink *link);
 void node_update_internal_links_default(struct bNodeTree *ntree, struct bNode *node);

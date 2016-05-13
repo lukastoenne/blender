@@ -185,6 +185,8 @@ typedef struct bNodeType {
 	/// Optional tweak area polling (for grabbing).
 	int (*tweak_area_func)(struct bNode *node, int x, int y);
 	
+	/// Return true when the node is used for final results (connected to output).
+	bool (*is_used)(struct bNodeTree *ntree, struct bNode *node);
 	/// Called when the node is updated in the editor.
 	void (*updatefunc)(struct bNodeTree *ntree, struct bNode *node);
 	/// Check and update if internal ID data has changed.
@@ -462,6 +464,7 @@ void            nodeRemLink(struct bNodeTree *ntree, struct bNodeLink *link);
 void            nodeRemSocketLinks(struct bNodeTree *ntree, struct bNodeSocket *sock);
 bool            nodeLinkIsHidden(struct bNodeLink *link);
 void            nodeInternalRelink(struct bNodeTree *ntree, struct bNode *node);
+bool            nodeIsUsed(struct bNodeTree *ntree, struct bNode *node);
 
 void            nodeToView(struct bNode *node, float x, float y, float *rx, float *ry);
 void            nodeFromView(struct bNode *node, float x, float y, float *rx, float *ry);
