@@ -3721,7 +3721,6 @@ void init_nodesystem(void)
 
 	register_node_tree_type_cmp();
 	register_node_tree_type_sh();
-	register_node_tree_type_tex();
 
 	register_node_type_frame();
 	register_node_type_reroute();

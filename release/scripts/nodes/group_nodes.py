@@ -230,7 +230,7 @@ def ancestor_trees(root_tree, all_trees):
 
 
 def make_node_group_types(prefix, treetype, node_base):
-    ntree_idname = treetype.bl_idname
+    ntree_idname = treetype.bl_rna.identifier
     groupnode_idname = '%sGroupNode' % prefix
 
     class NodeGroupNew(Operator):
@@ -617,7 +617,7 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
 
         all_trees = context.blend_data.node_groups
         ancestors = ancestor_trees(ntree, all_trees)
-        free_trees = [t for t in all_trees if (t.bl_idname == gnode.bl_ntree_idname) and (t != ntree) and (t not in ancestors)]
+        free_trees = [t for t in all_trees if (t.bl_rna.identifier == gnode.bl_ntree_idname) and (t != ntree) and (t not in ancestors)]
 
         for ntree in free_trees:
             yield NodeItem(gnode.bl_idname,

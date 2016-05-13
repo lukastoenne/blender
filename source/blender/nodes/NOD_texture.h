@@ -36,6 +36,4 @@
 
 extern struct bNodeTreeType *ntreeType_Texture;
 
-void register_node_tree_type_tex(void);
-
 #endif

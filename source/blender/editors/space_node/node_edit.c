@@ -383,7 +383,7 @@ bool ED_node_is_shader(struct SpaceNode *snode)
 
 bool ED_node_is_texture(struct SpaceNode *snode)
 {
-	return STREQ(snode->tree_idname, ntreeType_Texture->idname);
+	return STREQ(snode->tree_idname, "TextureNodeTree");
 }
 
 /* assumes nothing being done in ntree yet, sets the default in/out node */
@@ -528,7 +528,7 @@ void ED_node_texture_default(const bContext *C, Tex *tx)
 		return;
 	}
 	
-	tx->nodetree = ntreeAddTree(NULL, "Texture Nodetree", ntreeType_Texture->idname);
+	tx->nodetree = ntreeAddTree(NULL, "Texture Nodetree", "TextureNodeTree");
 	
 	ntreeUpdateTree(CTX_data_main(C), tx->nodetree);
 }
