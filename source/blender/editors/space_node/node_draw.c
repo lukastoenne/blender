@@ -157,6 +157,10 @@ void ED_node_tag_update_id(ID *id)
 	         STREQ(ntree->idname, "InstancingNodeTree")) {
 		WM_main_add_notifier(NC_MATERIAL | ND_NODES, NULL);
 	}
+	else if (STREQ(ntree->idname, "TextureNodeTree")) {
+		DAG_id_tag_update(id, 0);
+		WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
+	}
 	else if (id == &ntree->id) {
 		/* node groups */
 		DAG_id_tag_update(id, 0);
