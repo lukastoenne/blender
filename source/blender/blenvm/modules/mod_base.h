@@ -118,7 +118,7 @@ void SET_FLOAT3(float3 &result, float x, float y, float z)
 }
 
 BVM_MOD_FUNCTION("SET_FLOAT4")
-void GET_ELEM_FLOAT3(float &result, const float3 &f, int index)
+void GET_ELEM_FLOAT3(float &result, int index, const float3 &f)
 {
 	BLI_assert(index >= 0 && index < 3);
 	result = f[index];
@@ -131,7 +131,7 @@ void SET_FLOAT4(float4 &result, float x, float y, float z, float w)
 }
 
 BVM_MOD_FUNCTION("SET_FLOAT4")
-void GET_ELEM_FLOAT4(float &result, const float4 &f, int index)
+void GET_ELEM_FLOAT4(float &result, int index, const float4 &f)
 {
 	BLI_assert(index >= 0 && index < 4);
 	result = f[index];
