@@ -205,6 +205,7 @@ namespace blenvm {
 	BVM_DEFINE_OPCODES_BASE \
 	BVM_DEFINE_OPCODES_COLOR \
 	BVM_DEFINE_OPCODES_MATH \
+	BVM_DEFINE_OPCODES_TEXTURE \
 	
 
 /* Define the main enum for opcodes */

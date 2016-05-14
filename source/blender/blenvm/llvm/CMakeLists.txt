@@ -63,11 +63,13 @@ set(LLVM_SRC
 	../modules/mod_base.h
 	../modules/mod_color.h
 	../modules/mod_math.h
+	../modules/mod_texture.h
 )
 set(LLVM_HEADERS
 	../modules/mod_base.h
 	../modules/mod_color.h
 	../modules/mod_math.h
+	../modules/mod_texture.h
 )
 
 if(NOT WITH_BLENVM_IRMODULES)
