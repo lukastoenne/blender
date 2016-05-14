@@ -80,7 +80,19 @@ protected:
 	
 	llvm::Constant *codegen_constant(const NodeValue *node_value);
 	
-	llvm::CallInst *codegen_node_call(llvm::BasicBlock *block, const NodeInstance *node, OutputValueMap &output_values);
+	void codegen_node_function_call(llvm::BasicBlock *block,
+	                                const NodeInstance *node,
+	                                OutputValueMap &output_values);
+	void codegen_node_pass(llvm::BasicBlock *block,
+	                       const NodeInstance *node,
+	                       OutputValueMap &output_values);
+	void codegen_node_arg(llvm::BasicBlock *block,
+	                      const NodeInstance *node,
+	                      OutputValueMap &output_values);
+	void codegen_node(llvm::BasicBlock *block,
+	                  const NodeInstance *node,
+	                  OutputValueMap &output_values);
+	
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	

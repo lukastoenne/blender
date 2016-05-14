@@ -164,9 +164,9 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 	return NULL;
 }
 
-llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
-                                                    const NodeInstance *node,
-                                                    OutputValueMap &output_values)
+void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
+                                                  const NodeInstance *node,
+                                                  OutputValueMap &output_values)
 {
 	using namespace llvm;
 	
@@ -238,8 +238,58 @@ llvm::CallInst *LLVMCompilerBase::codegen_node_call(llvm::BasicBlock *block,
 	}
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
+	UNUSED_VARS(call);
+}
+
+void LLVMCompilerBase::codegen_node_pass(llvm::BasicBlock *block,
+                                         const NodeInstance *node,
+                                         OutputValueMap &output_values)
+{
+	using namespace llvm;
 	
-	return call;
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	BLI_assert(node->num_inputs() == 1);
+	BLI_assert(node->num_outputs() == 1);
+	
+	ConstInputKey input = node->input(0);
+	ConstOutputKey output = node->output(0);
+	BLI_assert(input.value_type() == INPUT_EXPRESSION);
+	
+	Value *value = output_values.at(input.link());
+	bool ok = output_values.insert(OutputValuePair(output, value)).second;
+	BLI_assert(ok && "Value for node output already defined!");
+	UNUSED_VARS(ok);
+}
+
+void LLVMCompilerBase::codegen_node_arg(llvm::BasicBlock *block,
+                                        const NodeInstance *node,
+                                        OutputValueMap &output_values)
+{
+	using namespace llvm;
+	/* input arguments are mapped in advance */
+	BLI_assert(output_values.find(node->output(0)) != output_values.end() &&
+	           "Input argument value node mapped!");
+	UNUSED_VARS(block, node, output_values);
+}
+
+void LLVMCompilerBase::codegen_node(llvm::BasicBlock *block,
+                                    const NodeInstance *node,
+                                    OutputValueMap &output_values)
+{
+	switch (node->type->kind()) {
+		case NODE_TYPE_FUNCTION:
+		case NODE_TYPE_KERNEL:
+			codegen_node_function_call(block, node, output_values);
+			break;
+		case NODE_TYPE_PASS:
+			codegen_node_pass(block, node, output_values);
+			break;
+		case NODE_TYPE_ARG:
+			codegen_node_arg(block, node, output_values);
+			break;
+	}
 }
 
 /* Compile nodes as a simple expression.
@@ -282,9 +332,7 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
 		const NodeInstance &node = **it;
 		
-		CallInst *call = codegen_node_call(block, &node, output_values);
-		if (!call)
-			continue;
+		codegen_node(block, &node, output_values);
 	}
 	
 	{
