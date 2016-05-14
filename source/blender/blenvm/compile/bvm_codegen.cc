@@ -480,7 +480,7 @@ int BVMCompilerBase::codegen_node_block(const NodeBlock &block)
 						 * of each input variable, so we don't need an extra
 						 * qualifier per input.
 						 */
-						if (node.type->is_kernel_node()) {
+						if (node.type->kind() == NODE_TYPE_KERNEL) {
 							if (link.node->block->parent() == &block) {
 								const NodeBlock *expr_block = input.link().node->block;
 								push_jump_address(block_info.at(expr_block).entry_point);

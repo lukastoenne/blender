@@ -44,6 +44,7 @@ namespace blenvm {
 /*************************************/
 #define BVM_DEFINE_OPCODES_BASE \
 	DEF_OPCODE(NOOP) \
+	\
 	DEF_OPCODE(VALUE_FLOAT) \
 	DEF_OPCODE(VALUE_FLOAT3) \
 	DEF_OPCODE(VALUE_FLOAT4) \

@@ -136,8 +136,8 @@ struct NodeGraphDumper {
 		const char *style = "filled,rounded";
 		const char *color = "black";
 		const char *fillcolor =
-		        (node->type->is_pass_node()) ? node_color_pass :
-		        (node->type->is_kernel_node()) ? node_color_kernel :
+		        (node->type->kind() == NODE_TYPE_PASS) ? node_color_pass :
+		        (node->type->kind() == NODE_TYPE_KERNEL) ? node_color_kernel :
 		        node_color_function;
 		float penwidth = 1.0f;
 		string name = node->type->name();

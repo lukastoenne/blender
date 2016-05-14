@@ -86,16 +86,23 @@ struct NodeOutput {
 	BVMOutputValueType value_type;
 };
 
+/** Special kinds of node types */
+enum eNodeTypeKind {
+	NODE_TYPE_FUNCTION, /* regular function call node */
+	NODE_TYPE_KERNEL,   /* kernel nodes can define local variables */
+	NODE_TYPE_PASS,     /* pass nodes are skipped */
+	NODE_TYPE_ARG,      /* arg nodes represent input values */
+};
+
 struct NodeType {
 	typedef std::vector<NodeInput> InputList;
 	typedef std::vector<NodeOutput> OutputList;
 	
-	NodeType(const string &name, bool is_kernel_node, bool is_pass_node = false);
+	NodeType(const string &name, eNodeTypeKind kind = NODE_TYPE_FUNCTION);
 	~NodeType();
 	
 	const string &name() const { return m_name; }
-	bool is_kernel_node() const { return m_is_kernel_node; }
-	bool is_pass_node() const { return m_is_pass_node; }
+	eNodeTypeKind kind() const { return m_kind; }
 	
 	int num_inputs() const { return m_inputs.size(); }
 	int num_outputs() const { return m_outputs.size(); }
@@ -131,8 +138,7 @@ private:
 	string m_name;
 	InputList m_inputs;
 	OutputList m_outputs;
-	bool m_is_pass_node; /* pass nodes are skipped */
-	bool m_is_kernel_node; /* only kernel nodes can have function inputs */
+	eNodeTypeKind m_kind;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeType")
 };
@@ -333,9 +339,7 @@ struct NodeGraph {
 	static void remove_typedef(const string &name);
 	
 	static const NodeType *find_node_type(const string &name);
-	static NodeType *add_function_node_type(const string &name);
-	static NodeType *add_kernel_node_type(const string &name);
-	static NodeType *add_pass_node_type(const string &name);
+	static NodeType *add_node_type(const string &name, eNodeTypeKind kind = NODE_TYPE_FUNCTION);
 	static void remove_node_type(const string &name);
 	
 	NodeGraph();
@@ -366,8 +370,6 @@ struct NodeGraph {
 	const NodeBlock &main_block() const { return blocks.front(); }
 	
 protected:
-	static NodeType *add_node_type(const string &name, bool is_kernel_node, bool is_pass_node);
-	
 	NodeInstance *add_proxy(const TypeDesc &typedesc, NodeValue *default_value = NULL);
 	OutputKey add_value_node(NodeValue *value);
 	OutputKey add_argument_node(const TypeDesc &typedesc);
