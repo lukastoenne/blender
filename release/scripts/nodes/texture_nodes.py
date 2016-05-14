@@ -119,6 +119,18 @@ class TextureOutputNode(TextureNodeBase, ObjectNode, DynamicSocketListNode):
         compiler.map_input(0, compiler.graph_output("color"))
         compiler.map_input(1, compiler.graph_output("normal"))
 
+
+class TextureCoordinateNode(TextureNodeBase, ObjectNode):
+    '''Texture coordinate'''
+    bl_idname = 'TextureCoordinateNode'
+    bl_label = 'Coordinate'
+
+    def init(self, context):
+        self.outputs.new('NodeSocketVector', "Location")
+
+    def compile(self, compiler):
+        compiler.map_output(0, compiler.graph_input("texture.co"))
+
 ###############################################################################
 
 def register():
@@ -128,6 +140,7 @@ def register():
 
     node_categories = [
         TextureNodeCategory("TEX_INPUT", "Input", items=[
+            NodeItem("TextureCoordinateNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
             NodeItem("ObjectValueIntNode"),
