@@ -216,7 +216,73 @@ inline string dummy_output_name(const NodeType *nodetype, int index)
 	return ss.str();
 }
 
-static void declare_node_function(llvm::LLVMContext &context, llvm::Module *mod, const NodeType *nodetype, void *funcptr)
+static void define_function_OP_VALUE_SINGLE(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                                            llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	builder.CreateStore(value, result);
+	
+	builder.CreateRetVoid();
+}
+
+static void define_function_OP_VALUE_AGGREGATE(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                                               llvm::Value *result, llvm::Value *value, size_t size)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	Value *size_v = ConstantInt::get(context, APInt(32, size));
+	builder.CreateMemCpy(result, value, size_v, 0);
+	
+	builder.CreateRetVoid();
+}
+
+static bool define_internal_function(llvm::LLVMContext &context, OpCode op, llvm::Function *func)
+{
+	using namespace llvm;
+	
+	std::vector<Value*> args;
+	args.reserve(func->arg_size());
+	for (Function::arg_iterator a = func->arg_begin(); a != func->arg_end(); ++a)
+		args.push_back(a);
+	
+	switch (op) {
+		case OP_VALUE_FLOAT:
+		case OP_VALUE_INT: {
+			BasicBlock *block = BasicBlock::Create(context, "entry", func);
+			define_function_OP_VALUE_SINGLE(context, block, args[0], args[1]);
+			return true;
+		}
+		case OP_VALUE_FLOAT3: {
+			BasicBlock *block = BasicBlock::Create(context, "entry", func);
+			define_function_OP_VALUE_AGGREGATE(context, block, args[0], args[1], sizeof(float3));
+			return true;
+		}
+		case OP_VALUE_FLOAT4: {
+			BasicBlock *block = BasicBlock::Create(context, "entry", func);
+			define_function_OP_VALUE_AGGREGATE(context, block, args[0], args[1], sizeof(float4));
+			return true;
+		}
+		case OP_VALUE_MATRIX44: {
+			BasicBlock *block = BasicBlock::Create(context, "entry", func);
+			define_function_OP_VALUE_AGGREGATE(context, block, args[0], args[1], sizeof(matrix44));
+			return true;
+		}
+		
+		default:
+			return false;
+	}
+}
+
+static void define_node_function(llvm::LLVMContext &context, llvm::Module *mod,
+                                 OpCode op, const NodeType *nodetype,
+                                 void *funcptr)
 {
 	using namespace llvm;
 	
@@ -250,11 +316,14 @@ static void declare_node_function(llvm::LLVMContext &context, llvm::Module *mod,
 //	printf("Declared function for node type '%s':\n", nodetype->name().c_str());
 //	func->dump();
 	
-	/* register implementation of the function */
-	llvm_execution_engine()->addGlobalMapping(func, funcptr);
+	bool has_internal_impl = define_internal_function(context, op, func);
+	if (!has_internal_impl) {
+		/* register implementation of the function */
+		llvm_execution_engine()->addGlobalMapping(func, funcptr);
+	}
 }
 
-void llvm_declare_node_functions()
+void llvm_define_node_functions()
 {
 	using namespace llvm;
 	
@@ -266,7 +335,7 @@ void llvm_declare_node_functions()
 	{ \
 		const NodeType *nodetype = NodeGraph::find_node_type(STRINGIFY(op)); \
 		if (nodetype != NULL) { \
-			declare_node_function(context, mod, nodetype, (void*)(intptr_t)modules::op); \
+			define_node_function(context, mod, OP_##op, nodetype, (void*)(intptr_t)modules::op); \
 		} \
 	}
 	

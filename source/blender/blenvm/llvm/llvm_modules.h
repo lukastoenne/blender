@@ -47,7 +47,7 @@ void llvm_load_module(const string &modfile, const string &modname);
 void llvm_load_all_modules(const string &modpath, bool reload);
 void llvm_unload_all_modules();
 
-void llvm_declare_node_functions();
+void llvm_define_node_functions();
 
 void llvm_link_module_full(llvm::Module *mod);
 

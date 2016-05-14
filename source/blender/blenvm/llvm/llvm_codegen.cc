@@ -418,6 +418,10 @@ void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 		MPM.add(createFunctionInliningPass());
 	}
 	
+	if (opt_level > 1) {
+		/* Optimize memcpy intrinsics */
+		FPM.add(createMemCpyOptPass());
+	}
 	builder.populateFunctionPassManager(FPM);
 	
 	MPM.run(*module());
