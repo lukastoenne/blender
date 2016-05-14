@@ -25,26 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "modules.h"
+#ifndef __MODULES_H__
+#define __MODULES_H__
 
-BVM_MOD_NAMESPACE_BEGIN
+#include "mod_base.h"
+#include "mod_color.h"
+#include "mod_math.h"
 
-#if 0
-inline int force_linking()
-{
-	int i = 0;
-	i += (long int)VALUE_FLOAT;
-	i += (long int)VALUE_FLOAT3;
-	i += (long int)VALUE_FLOAT4;
-	i += (long int)VALUE_INT;
-	i += (long int)VALUE_MATRIX44;
-	i += (long int)MIX_RGB3;
-	i += (long int)MIX_RGB;
-	
-	return i;
-}
-
-static int f = force_linking();
-#endif
-
-BVM_MOD_NAMESPACE_END
+#endif /* __MODULES_H__ */

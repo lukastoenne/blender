@@ -51,9 +51,7 @@ extern "C" {
 #include "util_math.h"
 #include "util_opcode.h"
 
-#include "mod_base.h"
-#include "mod_color.h"
-#include "mod_math.h"
+#include "modules.h"
 
 namespace blenvm {
 

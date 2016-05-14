@@ -57,16 +57,21 @@ set(SRC
 
 set(LLVM_SRC
 	../modules/modules.cc
+	../modules/modules.h
+	../modules/mod_defines.h
+
+	../modules/mod_base.h
+	../modules/mod_color.h
+	../modules/mod_math.h
 )
 set(LLVM_HEADERS
 	../modules/mod_base.h
 	../modules/mod_color.h
-	../modules/mod_defines.h
 	../modules/mod_math.h
 )
 
 if(NOT WITH_BLENVM_IRMODULES)
-	list(APPEND SRC ${LLVM_SRC} ${LLVM_HEADERS})
+	list(APPEND SRC ${LLVM_SRC})
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
@@ -106,7 +111,7 @@ if(WITH_BLENVM_IRMODULES)
 					-DBVM_MOD_NAMESPACE_END
 					-DBVM_MOD_ANNOTATE_FUNCTIONS
 					-I${CMAKE_CURRENT_SOURCE_DIR}/../../blenlib
-			DEPENDS ${LLVM_SRC} ${LLVM_HEADERS})
+			DEPENDS ${LLVM_SRC})
 	
 		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
 		list(APPEND llvm_irs ${llvm_ir})
