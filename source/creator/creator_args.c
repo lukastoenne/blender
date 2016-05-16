@@ -622,7 +622,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
 	/* keep last */
 	printf("\n");
 	printf("Experimental Features:\n");
-	BLI_argsPrintArgDoc(ba, "--enable-new-depsgraph");
+	BLI_argsPrintArgDoc(ba, "--enable-legacy-depsgraph");
 
 	exit(0);
 
@@ -1160,13 +1160,13 @@ static int arg_handle_threads_set(int argc, const char **argv, void *UNUSED(data
 	}
 }
 
-static const char arg_handle_depsgraph_use_new_doc[] =
+static const char arg_handle_depsgraph_use_legacy_doc[] =
 "\n\tUse new dependency graph"
 ;
-static int arg_handle_depsgraph_use_new(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+static int arg_handle_depsgraph_use_legacy(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-	printf("Using new dependency graph.\n");
-	DEG_depsgraph_switch_to_new();
+	printf("Using legacy dependency graph.\n");
+	DEG_depsgraph_switch_to_legacy();
 	return 0;
 }
 
@@ -1804,7 +1804,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--debug-gpumem",
 	            CB_EX(arg_handle_debug_mode_generic_set, gpumem), (void *)G_DEBUG_GPU_MEM);
 
-	BLI_argsAdd(ba, 1, NULL, "--enable-new-depsgraph", CB(arg_handle_depsgraph_use_new), NULL);
+	BLI_argsAdd(ba, 1, NULL, "--enable-legacy-depsgraph", CB(arg_handle_depsgraph_use_legacy), NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", CB(arg_handle_verbosity_set), NULL);
 

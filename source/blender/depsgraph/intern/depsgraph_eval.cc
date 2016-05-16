@@ -53,7 +53,7 @@ extern "C" {
 #include "depsgraph_debug.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH
-static bool use_legacy_depsgraph = true;
+static bool use_legacy_depsgraph = false;
 #endif
 
 /* Unfinished and unused, and takes quite some pre-processing time. */
