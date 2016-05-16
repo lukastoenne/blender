@@ -117,15 +117,6 @@ llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
 {
 	using namespace llvm;
 	
-#if 0 /* struct return signatures, unused */
-	StructType *return_type = StructType::get(context, outputs);
-	
-	std::vector<llvm::Type*> arg_types;
-	arg_types.push_back(PointerType::get(return_type, 0));
-	arg_types.insert(arg_types.end(), inputs.begin(), inputs.end());
-	
-	return FunctionType::get(TypeBuilder<void, true>::get(context), arg_types, false);
-#else
 	std::vector<llvm::Type*> arg_types;
 	for (int i = 0; i < outputs.size(); ++i) {
 		Type *value_type = outputs[i];
@@ -135,7 +126,6 @@ llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
 	arg_types.insert(arg_types.end(), inputs.begin(), inputs.end());
 	
 	return FunctionType::get(TypeBuilder<void, true>::get(context), arg_types, false);
-#endif
 }
 
 } /* namespace blenvm */
