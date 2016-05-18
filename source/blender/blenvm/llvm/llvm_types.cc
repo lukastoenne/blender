@@ -119,7 +119,7 @@ llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const stri
 	
 	std::vector<Type*> elemtypes;
 	for (int i = 0; i < s->num_fields(); ++i) {
-		Type *ftype = llvm_create_value_type(context, s->field(i).name, &s->field(i).typespec);
+		Type *ftype = llvm_create_value_type(context, s->field(i).name, s->field(i).typespec);
 		elemtypes.push_back(ftype);
 	}
 	

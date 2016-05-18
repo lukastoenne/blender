@@ -208,7 +208,7 @@ private:
 
 struct StructSpec {
 	struct FieldSpec {
-		FieldSpec(const string &name, const TypeSpec &typespec) :
+		FieldSpec(const string &name, const TypeSpec *typespec) :
 		    name(name),
 		    typespec(typespec)
 		{}
@@ -219,7 +219,7 @@ struct StructSpec {
 		}
 		
 		string name;
-		TypeSpec typespec;
+		const TypeSpec *typespec;
 	};
 	typedef std::vector<FieldSpec> FieldList;
 	
@@ -233,7 +233,7 @@ struct StructSpec {
 	int num_fields() const { return m_fields.size(); }
 	const FieldSpec &field(int i) const { return m_fields[i]; }
 	int find_field(const string &name) const;
-	void add_field(const string &name, const TypeSpec &typespec);
+	void add_field(const string &name, const TypeSpec *typespec);
 	
 private:
 	FieldList m_fields;

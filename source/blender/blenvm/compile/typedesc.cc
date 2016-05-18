@@ -68,7 +68,7 @@ int StructSpec::find_field(const string &name) const
 	return -1;
 }
 
-void StructSpec::add_field(const string &name, const TypeSpec &typespec)
+void StructSpec::add_field(const string &name, const TypeSpec *typespec)
 {
 	m_fields.push_back(FieldSpec(name, typespec));
 }
@@ -182,7 +182,7 @@ size_t TypeSpec::size() const
 	if (m_structure) {
 		size_t size = 0;
 		for (int i = 0; i < m_structure->num_fields(); ++i)
-			size += m_structure->field(i).typespec.size();
+			size += m_structure->field(i).typespec->size();
 		return size;
 	}
 	else {
@@ -234,9 +234,9 @@ void TypeSpec::copy_value(void *to, const void *from) const
 {
 	if (m_structure) {
 		for (int i = 0; i < m_structure->num_fields(); ++i) {
-			m_structure->field(i).typespec.copy_value(to, from);
+			m_structure->field(i).typespec->copy_value(to, from);
 			
-			size_t size = m_structure->field(i).typespec.size();
+			size_t size = m_structure->field(i).typespec->size();
 			to = ((uint8_t *)to) + size;
 			from = ((uint8_t *)from) + size;
 		}

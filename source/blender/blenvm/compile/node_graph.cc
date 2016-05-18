@@ -1219,48 +1219,45 @@ void NodeGraph::finalize()
 
 static void register_typedefs()
 {
-	TypeSpec *t;
 	
-	t = TypeSpec::add_typedef("FLOAT", BVM_FLOAT);
+	TypeSpec *float_t = TypeSpec::add_typedef("FLOAT", BVM_FLOAT);
 	
-	t = TypeSpec::add_typedef("FLOAT3", BVM_FLOAT3);
+	TypeSpec *float3_t = TypeSpec::add_typedef("FLOAT3", BVM_FLOAT3);
 	
-	t = TypeSpec::add_typedef("FLOAT4", BVM_FLOAT4);
+	TypeSpec *float4_t = TypeSpec::add_typedef("FLOAT4", BVM_FLOAT4);
 	
-	t = TypeSpec::add_typedef("INT", BVM_INT);
+	TypeSpec *int_t = TypeSpec::add_typedef("INT", BVM_INT);
 	
-	t = TypeSpec::add_typedef("MATRIX44", BVM_MATRIX44);
+	TypeSpec *matrix44_t = TypeSpec::add_typedef("MATRIX44", BVM_MATRIX44);
 	
-	t = TypeSpec::add_typedef("STRING", BVM_STRING);
+	TypeSpec *string_t = TypeSpec::add_typedef("STRING", BVM_STRING);
 	
-	t = TypeSpec::add_typedef("RNAPOINTER", BVM_RNAPOINTER);
+	TypeSpec *rnapointer_t = TypeSpec::add_typedef("RNAPOINTER", BVM_RNAPOINTER);
 	
-	t = TypeSpec::add_typedef("MESH", BVM_MESH);
+	TypeSpec *mesh_t = TypeSpec::add_typedef("MESH", BVM_MESH);
 	
-	t = TypeSpec::add_typedef("DUPLIS", BVM_DUPLIS);
-	
-	
-	t = TypeSpec::add_typedef("FLOAT_ARRAY", BVM_FLOAT, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("INT_ARRAY", BVM_INT, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("STRING_ARRAY", BVM_STRING, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("MESH_ARRAY", BVM_MESH, BVM_BUFFER_ARRAY);
-	
-	t = TypeSpec::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS, BVM_BUFFER_ARRAY);
+	TypeSpec *duplis_t = TypeSpec::add_typedef("DUPLIS", BVM_DUPLIS);
 	
 	
+	TypeSpec::add_typedef("FLOAT_ARRAY", BVM_FLOAT, BVM_BUFFER_ARRAY);
 	
-	(void)t;
+	TypeSpec::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("INT_ARRAY", BVM_INT, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("STRING_ARRAY", BVM_STRING, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("MESH_ARRAY", BVM_MESH, BVM_BUFFER_ARRAY);
+	
+	TypeSpec::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS, BVM_BUFFER_ARRAY);
+	
+	UNUSED_VARS(float_t, float3_t, float4_t, matrix44_t, int_t, string_t, rnapointer_t, mesh_t, duplis_t);
 }
 
 OpCode get_opcode_from_node_type(const string &node)

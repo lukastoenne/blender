@@ -167,6 +167,7 @@ void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
 		const string &tname = output.socket->typedesc.name();
 		const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 		Type *type = llvm_create_value_type(context(), tname, typespec);
+		BLI_assert(type != NULL);
 		Value *value = builder.CreateAlloca(type);
 		
 		args.push_back(value);
