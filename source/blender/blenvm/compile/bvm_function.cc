@@ -97,8 +97,9 @@ void FunctionBVM::eval(EvalContext *context, const EvalGlobals *globals, const v
 		const Argument &arg = argument(i);
 		if (arg.stack_offset != BVM_STACK_INVALID) {
 			EvalStack *value = &stack[arg.stack_offset];
+			const TypeSpec *typespec = arg.typedesc.get_typespec();
 			
-			arg.typedesc.copy_value((void *)value, arguments[i]);
+			typespec->copy_value((void *)value, arguments[i]);
 		}
 	}
 	
@@ -108,8 +109,9 @@ void FunctionBVM::eval(EvalContext *context, const EvalGlobals *globals, const v
 	for (int i = 0; i < num_return_values(); ++i) {
 		const Argument &rval = return_value(i);
 		EvalStack *value = &stack[rval.stack_offset];
+		const TypeSpec *typespec = rval.typedesc.get_typespec();
 		
-		rval.typedesc.copy_value(results[i], (void *)value);
+		typespec->copy_value(results[i], (void *)value);
 	}
 }
 

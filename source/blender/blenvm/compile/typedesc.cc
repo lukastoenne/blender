@@ -68,21 +68,21 @@ int StructSpec::find_field(const string &name) const
 	return -1;
 }
 
-void StructSpec::add_field(const string &name, const TypeDesc &typedesc)
+void StructSpec::add_field(const string &name, const TypeSpec &typespec)
 {
-	m_fields.push_back(FieldSpec(name, typedesc));
+	m_fields.push_back(FieldSpec(name, typespec));
 }
 
 /* ------------------------------------------------------------------------- */
 
-TypeDesc::TypeDesc(BVMType base_type, BVMBufferType buffer_type) :
+TypeSpec::TypeSpec(BVMType base_type, BVMBufferType buffer_type) :
     m_base_type(base_type),
     m_buffer_type(buffer_type),
     m_structure(NULL)
 {
 }
 
-TypeDesc::TypeDesc(const TypeDesc &other)
+TypeSpec::TypeSpec(const TypeSpec &other)
 {
 	m_base_type = other.m_base_type;
 	m_buffer_type = other.m_buffer_type;
@@ -93,13 +93,13 @@ TypeDesc::TypeDesc(const TypeDesc &other)
 		m_structure = NULL;
 }
 
-TypeDesc::~TypeDesc()
+TypeSpec::~TypeSpec()
 {
 	if (m_structure)
 		delete m_structure;
 }
 
-TypeDesc& TypeDesc::operator = (const TypeDesc &other)
+TypeSpec& TypeSpec::operator = (const TypeSpec &other)
 {
 	m_base_type = other.m_base_type;
 	m_buffer_type = other.m_buffer_type;
@@ -113,7 +113,7 @@ TypeDesc& TypeDesc::operator = (const TypeDesc &other)
 	return *this;
 }
 
-bool TypeDesc::operator == (const TypeDesc &other) const
+bool TypeSpec::operator == (const TypeSpec &other) const
 {
 	if (is_structure() && other.is_structure()) {
 		return *m_structure == *other.m_structure;
@@ -126,17 +126,63 @@ bool TypeDesc::operator == (const TypeDesc &other) const
 		return false;
 }
 
-bool TypeDesc::assignable(const TypeDesc &other) const
+
+bool TypeSpec::operator < (const TypeSpec &other) const
+{
+	const StructSpec *sa = m_structure;
+	const StructSpec *sb = other.m_structure;
+	if (!sa && !sb) {
+		/* neither type is a struct, compare base types */
+		if (m_base_type == other.m_base_type) {
+			return m_buffer_type < other.m_buffer_type;
+		}
+		else {
+			return m_base_type < other.m_base_type;
+		}
+	}
+	else if (sa && sb) {
+		/* both are structs, make deep comparison */
+		if (sa->num_fields() == sb->num_fields()) {
+			int num_fields = sa->num_fields();
+			for (int i = 0; i < num_fields; ++i) {
+				const StructSpec::FieldSpec &fa = sa->field(i);
+				const StructSpec::FieldSpec &fb = sb->field(i);
+				if (fa.typespec < fb.typespec) {
+					return true;
+				}
+				else if (fb.typespec < fa.typespec) {
+					return false;
+				}
+				else {
+					continue;
+				}
+			}
+			/* if we get here: all fields are equivalent */
+			return false;
+		}
+		else {
+			return sa->num_fields() < sb->num_fields();
+		}
+	}
+	else if (!sa && sb) {
+		return true;
+	}
+	else { /* sa && !sb */
+		return false;
+	}
+}
+
+bool TypeSpec::assignable(const TypeSpec &other) const
 {
 	return *this == other;
 }
 
-size_t TypeDesc::size() const
+size_t TypeSpec::size() const
 {
 	if (m_structure) {
 		size_t size = 0;
 		for (int i = 0; i < m_structure->num_fields(); ++i)
-			size += m_structure->field(i).typedesc.size();
+			size += m_structure->field(i).typespec.size();
 		return size;
 	}
 	else {
@@ -184,13 +230,13 @@ size_t TypeDesc::size() const
 	return 0;
 }
 
-void TypeDesc::copy_value(void *to, const void *from) const
+void TypeSpec::copy_value(void *to, const void *from) const
 {
 	if (m_structure) {
 		for (int i = 0; i < m_structure->num_fields(); ++i) {
-			m_structure->field(i).typedesc.copy_value(to, from);
+			m_structure->field(i).typespec.copy_value(to, from);
 			
-			size_t size = m_structure->field(i).typedesc.size();
+			size_t size = m_structure->field(i).typespec.size();
 			to = ((uint8_t *)to) + size;
 			from = ((uint8_t *)from) + size;
 		}
@@ -249,11 +295,88 @@ void TypeDesc::copy_value(void *to, const void *from) const
 	}
 }
 
-StructSpec* TypeDesc::make_structure()
+StructSpec* TypeSpec::make_structure()
 {
 	assert(m_structure == NULL);
 	m_structure = new StructSpec();
 	return m_structure;
+}
+
+
+TypeSpec::TypeDefMap TypeSpec::m_typedefs;
+
+const TypeSpec* TypeSpec::get_typedef(const string &name)
+{
+	TypeDefMap::const_iterator it = m_typedefs.find(name);
+	if (it != m_typedefs.end())
+		return it->second;
+	else
+		return NULL;
+}
+
+TypeSpec *TypeSpec::add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type)
+{
+	BLI_assert (m_typedefs.find(name) == m_typedefs.end());
+	
+	TypeSpec *ts = new TypeSpec(base_type, buffer_type);
+	m_typedefs.insert(TypeDefMap::value_type(name, ts));
+	return ts;
+}
+
+void TypeSpec::remove_typedef(const string &name)
+{
+	TypeDefMap::iterator it = m_typedefs.find(name);
+	if (it != m_typedefs.end()) {
+		delete it->second;
+		m_typedefs.erase(it);
+	}
+}
+
+void TypeSpec::clear_typedefs()
+{
+	for (TypeDefMap::iterator it = m_typedefs.begin(); it != m_typedefs.end(); ++it) {
+		delete it->second;
+	}
+	m_typedefs.clear();
+}
+
+TypeSpec::typedef_iterator TypeSpec::typedef_begin()
+{
+	return m_typedefs.begin();
+}
+
+TypeSpec::typedef_iterator TypeSpec::typedef_end()
+{
+	return m_typedefs.end();
+}
+
+/* ------------------------------------------------------------------------- */
+
+TypeDesc::TypeDesc(const string &name) :
+    m_name(name)
+{
+}
+
+TypeDesc::TypeDesc(const TypeDesc &other)
+{
+	m_name = other.m_name;
+}
+
+TypeDesc::~TypeDesc()
+{
+}
+
+bool TypeDesc::has_typespec() const
+{
+	const TypeSpec *ts = TypeSpec::get_typedef(m_name);
+	return ts != NULL;
+}
+
+const TypeSpec *TypeDesc::get_typespec() const
+{
+	const TypeSpec *ts = TypeSpec::get_typedef(m_name);
+	BLI_assert(ts != NULL);
+	return ts;
 }
 
 } /* namespace blenvm */

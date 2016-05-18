@@ -35,15 +35,30 @@
 
 namespace blenvm {
 
-llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeDesc *td)
+void llvm_create_type_map(llvm::LLVMContext &context, LLVMTypeMap &typemap)
 {
 	using namespace llvm;
 	
-	if (td->is_structure()) {
-		return llvm_create_struct_type(context, name, td->structure());
+	for (TypeSpec::typedef_iterator it = TypeSpec::typedef_begin(); it != TypeSpec::typedef_end(); ++it) {
+		const string &name = it->first;
+		const TypeSpec *typespec = it->second;
+		
+		Type *type = llvm_create_value_type(context, name, typespec);
+		bool ok = typemap.insert(LLVMTypeMap::value_type(name, type)).second;
+		BLI_assert(ok && "Could not insert LLVM type for TypeSpec!");
+		UNUSED_VARS(ok);
+	}
+}
+
+llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeSpec *typespec)
+{
+	using namespace llvm;
+	
+	if (typespec->is_structure()) {
+		return llvm_create_struct_type(context, name, typespec->structure());
 	}
 	else {
-		switch (td->base_type()) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT:
 				return TypeBuilder<types::ieee_float, true>::get(context);
 			case BVM_FLOAT3:
@@ -66,16 +81,16 @@ llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &nam
 	return NULL;
 }
 
-bool llvm_use_argument_pointer(const TypeDesc *td)
+bool llvm_use_argument_pointer(const TypeSpec *typespec)
 {
 	using namespace llvm;
 	
-	if (td->is_structure()) {
+	if (typespec->is_structure()) {
 		/* pass by reference */
 		return true;
 	}
 	else {
-		switch (td->base_type()) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT:
 			case BVM_INT:
 				/* pass by value */
@@ -103,8 +118,8 @@ llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const stri
 	using namespace llvm;
 	
 	std::vector<Type*> elemtypes;
-	for (int i = 0; i < s->num_fields(); ++s) {
-		Type *ftype = llvm_create_value_type(context, s->field(i).name, &s->field(i).typedesc);
+	for (int i = 0; i < s->num_fields(); ++i) {
+		Type *ftype = llvm_create_value_type(context, s->field(i).name, &s->field(i).typespec);
 		elemtypes.push_back(ftype);
 	}
 	

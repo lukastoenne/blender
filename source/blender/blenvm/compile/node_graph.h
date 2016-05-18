@@ -329,14 +329,7 @@ struct NodeGraph {
 	typedef std::pair<string, NodeInstance*> NodeInstanceMapPair;
 	typedef std::list<NodeBlock> NodeBlockList;
 	
-	static TypeDefMap typedefs;
 	static NodeTypeMap node_types;
-	
-	static const TypeDesc &find_typedef(const string &name);
-	static bool has_typedef(const string &name);
-	static TypeDesc *add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type=BVM_BUFFER_SINGLE);
-	static TypeDesc *add_typedef_struct(const string &name);
-	static void remove_typedef(const string &name);
 	
 	static const NodeType *find_node_type(const string &name);
 	static NodeType *add_node_type(const string &name, eNodeTypeKind kind = NODE_TYPE_FUNCTION);
@@ -361,7 +354,8 @@ struct NodeGraph {
 	template <typename T>
 	const Output *add_output(const string &name, const string &type, const T &default_value)
 	{
-		return add_output(name, type, NodeValue::create(find_typedef(type), default_value));
+		TypeDesc td(type);
+		return add_output(name, type, NodeValue::create(td, default_value));
 	}
 	
 	void finalize();
@@ -423,7 +417,7 @@ const NodeInput *NodeType::add_input(const string &name,
                                      T default_value,
                                      BVMInputValueType value_type)
 {
-	NodeValue *c = NodeValue::create(NodeGraph::find_typedef(type), default_value);
+	NodeValue *c = NodeValue::create(TypeDesc(type), default_value);
 	BLI_assert(c != NULL);
 	return add_input(name, type, c, value_type);
 }

@@ -33,6 +33,7 @@
 #define __BVM_TYPEDESC_H__
 
 #include <cassert>
+#include <map>
 #include <vector>
 
 extern "C" {
@@ -164,18 +165,23 @@ struct BaseTypeTraits<BVM_DUPLIS> {
 
 struct StructSpec;
 
-struct TypeDesc {
-	TypeDesc(BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
-	TypeDesc(const TypeDesc &other);
-	~TypeDesc();
+struct TypeSpec {
+	typedef std::map<string, const TypeSpec *> TypeDefMap;
+	typedef typename TypeDefMap::const_iterator typedef_iterator;
 	
-	TypeDesc& operator = (const TypeDesc &other);
-	bool operator == (const TypeDesc &other) const;
+	TypeSpec(BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
+	TypeSpec(const TypeSpec &other);
+	~TypeSpec();
+	
+	TypeSpec& operator = (const TypeSpec &other);
+	bool operator == (const TypeSpec &other) const;
+	
+	bool operator < (const TypeSpec &other) const;
 	
 	BVMType base_type() const { return m_base_type; }
 	BVMBufferType buffer_type() const { return m_buffer_type; }
 	
-	bool assignable(const TypeDesc &other) const;
+	bool assignable(const TypeSpec &other) const;
 	
 	size_t size() const;
 	void copy_value(void *to, const void *from) const;
@@ -185,26 +191,35 @@ struct TypeDesc {
 	StructSpec *structure() { return m_structure; }
 	StructSpec *make_structure();
 	
+	static const TypeSpec* get_typedef(const string &name);
+	static TypeSpec *add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
+	static void remove_typedef(const string &name);
+	static void clear_typedefs();
+	static typedef_iterator typedef_begin();
+	static typedef_iterator typedef_end();
+	
 private:
 	BVMType m_base_type;
 	BVMBufferType m_buffer_type;
 	StructSpec *m_structure;
+	
+	static TypeDefMap m_typedefs;
 };
 
 struct StructSpec {
 	struct FieldSpec {
-		FieldSpec(const string &name, const TypeDesc &typedesc) :
+		FieldSpec(const string &name, const TypeSpec &typespec) :
 		    name(name),
-		    typedesc(typedesc)
+		    typespec(typespec)
 		{}
 		
 		bool operator == (const FieldSpec &other) const
 		{
-			return name == other.name && typedesc == other.typedesc;
+			return name == other.name && typespec == other.typespec;
 		}
 		
 		string name;
-		TypeDesc typedesc;
+		TypeSpec typespec;
 	};
 	typedef std::vector<FieldSpec> FieldList;
 	
@@ -218,10 +233,26 @@ struct StructSpec {
 	int num_fields() const { return m_fields.size(); }
 	const FieldSpec &field(int i) const { return m_fields[i]; }
 	int find_field(const string &name) const;
-	void add_field(const string &name, const TypeDesc &typedesc);
+	void add_field(const string &name, const TypeSpec &typespec);
 	
 private:
 	FieldList m_fields;
+};
+
+/* ------------------------------------------------------------------------- */
+
+struct TypeDesc {
+	TypeDesc(const string &name);
+	TypeDesc(const TypeDesc &other);
+	~TypeDesc();
+	
+	const string &name() const { return m_name; }
+	
+	bool has_typespec() const;
+	const TypeSpec *get_typespec() const;
+	
+private:
+	string m_name;
 };
 
 } /* namespace blenvm */

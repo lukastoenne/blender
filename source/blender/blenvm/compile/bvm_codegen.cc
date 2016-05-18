@@ -150,7 +150,8 @@ StackIndex BVMCompilerBase::find_stack_index(int size) const
 
 StackIndex BVMCompilerBase::assign_stack_index(const TypeDesc &typedesc)
 {
-	int stack_size = EvalStack::stack_size(typedesc.size());
+	const TypeSpec *typespec = typedesc.get_typespec();
+	int stack_size = EvalStack::stack_size(typespec->size());
 	
 	StackIndex stack_offset = find_stack_index(stack_size);
 	for (int i = 0; i < stack_size; ++i) {
@@ -234,8 +235,10 @@ void BVMCompilerBase::resolve_symbols(const NodeGraph &graph)
 
 void BVMCompilerBase::push_constant(const NodeValue *value) const
 {
+	const TypeSpec *typespec = value->typedesc().get_typespec();
+	
 	BLI_assert(value != NULL);
-	switch (value->typedesc().base_type()) {
+	switch (typespec->base_type()) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
 			value->get(&f);
@@ -296,7 +299,9 @@ void BVMCompilerBase::push_constant(const NodeValue *value) const
 
 void BVMCompilerBase::codegen_value(const NodeValue *value, StackIndex offset) const
 {
-	switch (value->typedesc().base_type()) {
+	const TypeSpec *typespec = value->typedesc().get_typespec();
+	
+	switch (typespec->base_type()) {
 		case BVM_FLOAT: {
 			float f = 0.0f;
 			value->get(&f);
@@ -370,9 +375,11 @@ void BVMCompilerBase::codegen_value(const NodeValue *value, StackIndex offset) c
 	}
 }
 
-static OpCode ptr_init_opcode(const TypeDesc &typedesc)
+static OpCode ptr_init_opcode(const TypeDesc &td)
 {
-	switch (typedesc.base_type()) {
+	const TypeSpec *typespec = td.get_typespec();
+	
+	switch (typespec->base_type()) {
 		case BVM_FLOAT:
 		case BVM_FLOAT3:
 		case BVM_FLOAT4:
@@ -390,9 +397,11 @@ static OpCode ptr_init_opcode(const TypeDesc &typedesc)
 	return OP_NOOP;
 }
 
-static OpCode ptr_release_opcode(const TypeDesc &typedesc)
+static OpCode ptr_release_opcode(const TypeDesc &td)
 {
-	switch (typedesc.base_type()) {
+	const TypeSpec *typespec = td.get_typespec();
+	
+	switch (typespec->base_type()) {
 		case BVM_FLOAT:
 		case BVM_FLOAT3:
 		case BVM_FLOAT4:

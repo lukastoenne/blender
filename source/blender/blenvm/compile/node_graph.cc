@@ -215,8 +215,7 @@ const NodeInput *NodeType::add_input(const string &name,
                                      BVMInputValueType value_type)
 {
 	BLI_assert(!find_input(name));
-	BLI_assert(NodeGraph::has_typedef(type));
-	m_inputs.push_back(NodeInput(name, NodeGraph::find_typedef(type), default_value, value_type));
+	m_inputs.push_back(NodeInput(name, TypeDesc(type), default_value, value_type));
 	return &m_inputs.back();
 }
 
@@ -225,10 +224,11 @@ const NodeOutput *NodeType::add_output(const string &name,
                                        BVMOutputValueType value_type)
 {
 	BLI_assert(!find_output(name));
-	BLI_assert(NodeGraph::has_typedef(type));
+	
 	/* local outputs only allowed for kernel nodes */
 	BLI_assert(m_kind == NODE_TYPE_KERNEL || value_type != OUTPUT_VARIABLE);
-	m_outputs.push_back(NodeOutput(name, NodeGraph::find_typedef(type), value_type));
+	
+	m_outputs.push_back(NodeOutput(name, TypeDesc(type), value_type));
 	return &m_outputs.back();
 }
 
@@ -514,8 +514,10 @@ bool NodeInstance::link_set(const string &name, const OutputKey &from)
 {
 	const NodeInput *socket = type->find_input(name);
 	InputInstance &input = inputs[name];
+	const TypeSpec *fromtype = from.socket->typedesc.get_typespec();
+	const TypeSpec *totype = socket->typedesc.get_typespec();
 	
-	if (socket->typedesc.assignable(from.socket->typedesc)) {
+	if (totype->assignable(*fromtype)) {
 		input.link = from;
 		return true;
 	}
@@ -587,50 +589,7 @@ void NodeBlock::prune(const NodeSet &used_nodes)
 
 /* ------------------------------------------------------------------------- */
 
-NodeGraph::TypeDefMap NodeGraph::typedefs;
 NodeGraph::NodeTypeMap NodeGraph::node_types;
-
-const TypeDesc &NodeGraph::find_typedef(const string &name)
-{
-	return typedefs.at(name);
-}
-
-bool NodeGraph::has_typedef(const string &name)
-{
-	return typedefs.find(name) != typedefs.end();
-}
-
-TypeDesc *NodeGraph::add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type)
-{
-	std::pair<TypeDefMap::iterator, bool> result =
-	        typedefs.insert(TypeDefPair(name, TypeDesc(base_type, buffer_type)));
-	if (result.second) {
-		TypeDesc *typedesc = &result.first->second;
-		return typedesc;
-	}
-	else
-		return NULL;
-}
-
-TypeDesc *NodeGraph::add_typedef_struct(const string &name)
-{
-	std::pair<TypeDefMap::iterator, bool> result =
-	        typedefs.insert(TypeDefPair(name, TypeDesc(BVM_INT)));
-	if (result.second) {
-		TypeDesc *typedesc = &result.first->second;
-		typedesc->make_structure();
-		return typedesc;
-	}
-	else
-		return NULL;
-}
-
-void NodeGraph::remove_typedef(const string &name)
-{
-	TypeDefMap::iterator it = typedefs.find(name);
-	if (it != typedefs.end())
-		typedefs.erase(it);
-}
 
 const NodeType *NodeGraph::find_node_type(const string &name)
 {
@@ -758,27 +717,29 @@ void NodeGraph::set_output_socket(const string &name, const OutputKey &key)
 const NodeGraph::Input *NodeGraph::add_input(const string &name, const string &type)
 {
 	BLI_assert(!get_input(name));
-	const TypeDesc &typedesc = find_typedef(type);
-	inputs.push_back(Input(name, typedesc, add_argument_node(typedesc)));
+	TypeDesc td(type);
+	inputs.push_back(Input(name, td, add_argument_node(td)));
 	return &inputs.back();
 }
 
 const NodeGraph::Output *NodeGraph::add_output(const string &name, const string &type, NodeValue *default_value)
 {
 	BLI_assert(!get_output(name));
-	const TypeDesc &typedesc = find_typedef(type);
-	outputs.push_back(Output(name, typedesc, add_proxy(typedesc, default_value)->output(0)));
+	TypeDesc td(type);
+	outputs.push_back(Output(name, td, add_proxy(td, default_value)->output(0)));
 	return &outputs.back();
 }
 
 /* ------------------------------------------------------------------------- */
 
-NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, NodeValue *default_value)
+NodeInstance *NodeGraph::add_proxy(const TypeDesc &td, NodeValue *default_value)
 {
+	const TypeSpec *typespec = td.get_typespec();
+	
 	NodeInstance *node = NULL;
-	switch (typedesc.buffer_type()) {
+	switch (typespec->buffer_type()) {
 		case BVM_BUFFER_SINGLE:
-			switch (typedesc.base_type()) {
+			switch (typespec->base_type()) {
 				case BVM_FLOAT: node = add_node("PASS_FLOAT"); break;
 				case BVM_FLOAT3: node = add_node("PASS_FLOAT3"); break;
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4"); break;
@@ -791,7 +752,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, NodeValue *default_
 			}
 			break;
 		case BVM_BUFFER_ARRAY:
-			switch (typedesc.base_type()) {
+			switch (typespec->base_type()) {
 				case BVM_FLOAT: node = add_node("PASS_FLOAT_ARRAY"); break;
 				case BVM_FLOAT3: node = add_node("PASS_FLOAT3_ARRAY"); break;
 				case BVM_FLOAT4: node = add_node("PASS_FLOAT4_ARRAY"); break;
@@ -804,7 +765,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, NodeValue *default_
 			}
 			break;
 		case BVM_BUFFER_IMAGE:
-			switch (typedesc.base_type()) {
+			switch (typespec->base_type()) {
 				case BVM_FLOAT: node = add_node("PASS_FLOAT_IMAGE"); break;
 				case BVM_INT: node = add_node("PASS_INT_IMAGE"); break;
 			}
@@ -817,8 +778,10 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &typedesc, NodeValue *default_
 
 OutputKey NodeGraph::add_value_node(NodeValue *value)
 {
+	const TypeSpec *typespec = value->typedesc().get_typespec();
+	
 	NodeInstance *node = NULL;
-	switch (value->typedesc().base_type()) {
+	switch (typespec->base_type()) {
 		case BVM_FLOAT: node = add_node("VALUE_FLOAT"); break;
 		case BVM_FLOAT3: node = add_node("VALUE_FLOAT3"); break;
 		case BVM_FLOAT4: node = add_node("VALUE_FLOAT4"); break;
@@ -834,10 +797,12 @@ OutputKey NodeGraph::add_value_node(NodeValue *value)
 	return OutputKey(node, "value");
 }
 
-OutputKey NodeGraph::add_argument_node(const TypeDesc &typedesc)
+OutputKey NodeGraph::add_argument_node(const TypeDesc &td)
 {
+	const TypeSpec *typespec = td.get_typespec();
+	
 	NodeInstance *node = NULL;
-	switch (typedesc.base_type()) {
+	switch (typespec->base_type()) {
 		case BVM_FLOAT: node = add_node("ARG_FLOAT"); break;
 		case BVM_FLOAT3: node = add_node("ARG_FLOAT3"); break;
 		case BVM_FLOAT4: node = add_node("ARG_FLOAT4"); break;
@@ -1254,44 +1219,44 @@ void NodeGraph::finalize()
 
 static void register_typedefs()
 {
-	TypeDesc *t;
+	TypeSpec *t;
 	
-	t = NodeGraph::add_typedef("FLOAT", BVM_FLOAT);
+	t = TypeSpec::add_typedef("FLOAT", BVM_FLOAT);
 	
-	t = NodeGraph::add_typedef("FLOAT3", BVM_FLOAT3);
+	t = TypeSpec::add_typedef("FLOAT3", BVM_FLOAT3);
 	
-	t = NodeGraph::add_typedef("FLOAT4", BVM_FLOAT4);
+	t = TypeSpec::add_typedef("FLOAT4", BVM_FLOAT4);
 	
-	t = NodeGraph::add_typedef("INT", BVM_INT);
+	t = TypeSpec::add_typedef("INT", BVM_INT);
 	
-	t = NodeGraph::add_typedef("MATRIX44", BVM_MATRIX44);
+	t = TypeSpec::add_typedef("MATRIX44", BVM_MATRIX44);
 	
-	t = NodeGraph::add_typedef("STRING", BVM_STRING);
+	t = TypeSpec::add_typedef("STRING", BVM_STRING);
 	
-	t = NodeGraph::add_typedef("RNAPOINTER", BVM_RNAPOINTER);
+	t = TypeSpec::add_typedef("RNAPOINTER", BVM_RNAPOINTER);
 	
-	t = NodeGraph::add_typedef("MESH", BVM_MESH);
+	t = TypeSpec::add_typedef("MESH", BVM_MESH);
 	
-	t = NodeGraph::add_typedef("DUPLIS", BVM_DUPLIS);
+	t = TypeSpec::add_typedef("DUPLIS", BVM_DUPLIS);
 	
 	
-	t = NodeGraph::add_typedef("FLOAT_ARRAY", BVM_FLOAT, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("FLOAT_ARRAY", BVM_FLOAT, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("FLOAT3_ARRAY", BVM_FLOAT3, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("FLOAT4_ARRAY", BVM_FLOAT4, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("INT_ARRAY", BVM_INT, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("INT_ARRAY", BVM_INT, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("MATRIX44_ARRAY", BVM_MATRIX44, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("STRING_ARRAY", BVM_STRING, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("STRING_ARRAY", BVM_STRING, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("RNAPOINTER_ARRAY", BVM_RNAPOINTER, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("MESH_ARRAY", BVM_MESH, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("MESH_ARRAY", BVM_MESH, BVM_BUFFER_ARRAY);
 	
-	t = NodeGraph::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS, BVM_BUFFER_ARRAY);
+	t = TypeSpec::add_typedef("DUPLIS_ARRAY", BVM_DUPLIS, BVM_BUFFER_ARRAY);
 	
 	
 	

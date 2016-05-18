@@ -57,6 +57,7 @@ extern "C" {
 
 #include "function_cache.h"
 #include "node_graph.h"
+#include "typedesc.h"
 
 #include "bvm_codegen.h"
 #include "bvm_eval.h"
@@ -102,6 +103,7 @@ void BVM_free(void)
 #endif
 	
 	nodes_free();
+	TypeSpec::clear_typedefs();
 	
 	destroy_empty_mesh(__empty_mesh__);
 }
@@ -224,10 +226,10 @@ BVMOutputValueType BVM_node_output_value_type(struct BVMNodeOutput *output)
 { return _OUTPUT(output)->value_type; }
 
 BVMType BVM_typedesc_base_type(struct BVMTypeDesc *typedesc)
-{ return _TYPEDESC(typedesc)->base_type(); }
+{ return _TYPEDESC(typedesc)->get_typespec()->base_type(); }
 
 BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc)
-{ return _TYPEDESC(typedesc)->buffer_type(); }
+{ return _TYPEDESC(typedesc)->get_typespec()->buffer_type(); }
 
 /* ------------------------------------------------------------------------- */
 

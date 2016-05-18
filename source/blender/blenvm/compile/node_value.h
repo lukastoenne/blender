@@ -202,14 +202,14 @@ struct SingleNodeValue : public NodeValue {
 	typedef BaseTypeTraits<type> traits;
 	typedef typename traits::POD POD;
 	
-	SingleNodeValue(typename traits::POD data) :
-	    NodeValue(TypeDesc(type)),
+	SingleNodeValue(const TypeDesc &td, typename traits::POD data) :
+	    NodeValue(td),
 	    m_data(data)
 	{}
 	
 	template <typename T>
-	SingleNodeValue(T data) :
-	    NodeValue(TypeDesc(type))
+	SingleNodeValue(const TypeDesc &td, T data) :
+	    NodeValue(td)
 	{ (void)data; }
 	
 	const POD &data() const { return m_data; }
@@ -230,7 +230,7 @@ struct SingleNodeValue : public NodeValue {
 	
 	NodeValue *copy() const
 	{
-		return new SingleNodeValue<type>(m_data);
+		return new SingleNodeValue<type>(m_typedesc, m_data);
 	}
 	
 private:
@@ -244,24 +244,24 @@ struct ArrayNodeValue : public NodeValue {
 	typedef array<type> array_t;
 	typedef const_array<type> const_array_t;
 	
-	ArrayNodeValue(const array_t &data) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	ArrayNodeValue(const TypeDesc &td, const array_t &data) :
+	    NodeValue(td),
 	    m_data(data)
 	{}
 	
-	ArrayNodeValue(POD *data, size_t size) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	ArrayNodeValue(const TypeDesc &td, POD *data, size_t size) :
+	    NodeValue(td),
 	    m_data(array_t(data, size))
 	{}
 	
 	template <typename T>
-	ArrayNodeValue(T data) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY))
+	ArrayNodeValue(const TypeDesc &td, T data) :
+	    NodeValue(td)
 	{ (void)data; }
 	
 	template <typename T>
-	ArrayNodeValue(T *data, size_t size) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY))
+	ArrayNodeValue(const TypeDesc &td, T *data, size_t size) :
+	    NodeValue(td)
 	{ (void)data; (void)size; }
 	
 	const array_t &data() const { return m_data; }
@@ -282,7 +282,7 @@ struct ArrayNodeValue : public NodeValue {
 	
 	NodeValue *copy() const
 	{
-		return new ArrayNodeValue<type>(m_data);
+		return new ArrayNodeValue<type>(m_typedesc, m_data);
 	}
 	
 private:
@@ -297,7 +297,7 @@ struct ImageNodeValue : public NodeValue {
 	typedef const_image<type> const_image_t;
 	
 	ImageNodeValue(const image_t &data) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	    NodeValue(TypeSpec(type, BVM_BUFFER_ARRAY)),
 	    m_data(data)
 	{}
 	
@@ -344,10 +344,12 @@ private:
 /* ========================================================================= */
 
 template <typename T>
-static NodeValue *create(const TypeDesc &typedesc, T *data, size_t size)
+static NodeValue *create(const TypeDesc &td, T *data, size_t size)
 {
-	if (typedesc.buffer_type() == BVM_BUFFER_ARRAY) {
-		switch (typedesc.base_type()) {
+	const TypeSpec *typespec = td.get_typespec();
+	
+	if (typespec->buffer_type() == BVM_BUFFER_ARRAY) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT: return new ArrayNodeValue<BVM_FLOAT>(data, size);
 			case BVM_FLOAT3: return new ArrayNodeValue<BVM_FLOAT3>(data, size);
 			case BVM_FLOAT4: return new ArrayNodeValue<BVM_FLOAT4>(data, size);
@@ -363,32 +365,34 @@ static NodeValue *create(const TypeDesc &typedesc, T *data, size_t size)
 }
 
 template <typename T>
-NodeValue *NodeValue::create(const TypeDesc &typedesc, T data)
+NodeValue *NodeValue::create(const TypeDesc &td, T data)
 {
-	if (typedesc.buffer_type() == BVM_BUFFER_SINGLE) {
-		switch (typedesc.base_type()) {
-			case BVM_FLOAT: return new SingleNodeValue<BVM_FLOAT>(data);
-			case BVM_FLOAT3: return new SingleNodeValue<BVM_FLOAT3>(data);
-			case BVM_FLOAT4: return new SingleNodeValue<BVM_FLOAT4>(data);
-			case BVM_INT: return new SingleNodeValue<BVM_INT>(data);
-			case BVM_MATRIX44: return new SingleNodeValue<BVM_MATRIX44>(data);
-			case BVM_STRING: return new SingleNodeValue<BVM_STRING>(data);
-			case BVM_RNAPOINTER: return new SingleNodeValue<BVM_RNAPOINTER>(data);
-			case BVM_MESH: return new SingleNodeValue<BVM_MESH>(data);
-			case BVM_DUPLIS: return new SingleNodeValue<BVM_DUPLIS>(data);
+	const TypeSpec *typespec = td.get_typespec();
+	
+	if (typespec->buffer_type() == BVM_BUFFER_SINGLE) {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT: return new SingleNodeValue<BVM_FLOAT>(td, data);
+			case BVM_FLOAT3: return new SingleNodeValue<BVM_FLOAT3>(td, data);
+			case BVM_FLOAT4: return new SingleNodeValue<BVM_FLOAT4>(td, data);
+			case BVM_INT: return new SingleNodeValue<BVM_INT>(td, data);
+			case BVM_MATRIX44: return new SingleNodeValue<BVM_MATRIX44>(td, data);
+			case BVM_STRING: return new SingleNodeValue<BVM_STRING>(td, data);
+			case BVM_RNAPOINTER: return new SingleNodeValue<BVM_RNAPOINTER>(td, data);
+			case BVM_MESH: return new SingleNodeValue<BVM_MESH>(td, data);
+			case BVM_DUPLIS: return new SingleNodeValue<BVM_DUPLIS>(td, data);
 		}
 	}
-	else if (typedesc.buffer_type() == BVM_BUFFER_ARRAY) {
-		switch (typedesc.base_type()) {
-			case BVM_FLOAT: return new ArrayNodeValue<BVM_FLOAT>(data);
-			case BVM_FLOAT3: return new ArrayNodeValue<BVM_FLOAT3>(data);
-			case BVM_FLOAT4: return new ArrayNodeValue<BVM_FLOAT4>(data);
-			case BVM_INT: return new ArrayNodeValue<BVM_INT>(data);
-			case BVM_MATRIX44: return new ArrayNodeValue<BVM_MATRIX44>(data);
-			case BVM_STRING: return new ArrayNodeValue<BVM_STRING>(data);
-			case BVM_RNAPOINTER: return new ArrayNodeValue<BVM_RNAPOINTER>(data);
-			case BVM_MESH: return new ArrayNodeValue<BVM_MESH>(data);
-			case BVM_DUPLIS: return new ArrayNodeValue<BVM_DUPLIS>(data);
+	else if (typespec->buffer_type() == BVM_BUFFER_ARRAY) {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT: return new ArrayNodeValue<BVM_FLOAT>(td, data);
+			case BVM_FLOAT3: return new ArrayNodeValue<BVM_FLOAT3>(td, data);
+			case BVM_FLOAT4: return new ArrayNodeValue<BVM_FLOAT4>(td, data);
+			case BVM_INT: return new ArrayNodeValue<BVM_INT>(td, data);
+			case BVM_MATRIX44: return new ArrayNodeValue<BVM_MATRIX44>(td, data);
+			case BVM_STRING: return new ArrayNodeValue<BVM_STRING>(td, data);
+			case BVM_RNAPOINTER: return new ArrayNodeValue<BVM_RNAPOINTER>(td, data);
+			case BVM_MESH: return new ArrayNodeValue<BVM_MESH>(td, data);
+			case BVM_DUPLIS: return new ArrayNodeValue<BVM_DUPLIS>(td, data);
 		}
 	}
 	return NULL;
@@ -398,8 +402,10 @@ NodeValue *NodeValue::create(const TypeDesc &typedesc, T data)
 template <BVMType type>
 bool NodeValue::get(array<type> *data) const
 {
-	if (m_typedesc.buffer_type() == BVM_BUFFER_ARRAY) {
-		switch (m_typedesc.base_type()) {
+	const TypeSpec *typespec = m_typedesc.get_typespec();
+	
+	if (typespec->buffer_type() == BVM_BUFFER_ARRAY) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT: return static_cast< const ArrayNodeValue<BVM_FLOAT>* >(this)->get(data);
 			case BVM_FLOAT3: return static_cast< const ArrayNodeValue<BVM_FLOAT3>* >(this)->get(data);
 			case BVM_FLOAT4: return static_cast< const ArrayNodeValue<BVM_FLOAT4>* >(this)->get(data);
@@ -417,8 +423,10 @@ bool NodeValue::get(array<type> *data) const
 template <typename T>
 bool NodeValue::get(T *data) const
 {
-	if (m_typedesc.buffer_type() == BVM_BUFFER_SINGLE) {
-		switch (m_typedesc.base_type()) {
+	const TypeSpec *typespec = m_typedesc.get_typespec();
+	
+	if (typespec->buffer_type() == BVM_BUFFER_SINGLE) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT: return static_cast< const SingleNodeValue<BVM_FLOAT>* >(this)->get(data);
 			case BVM_FLOAT3: return static_cast< const SingleNodeValue<BVM_FLOAT3>* >(this)->get(data);
 			case BVM_FLOAT4: return static_cast< const SingleNodeValue<BVM_FLOAT4>* >(this)->get(data);

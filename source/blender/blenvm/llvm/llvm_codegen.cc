@@ -44,25 +44,6 @@
 
 namespace blenvm {
 
-/* XXX Should eventually declare and reference types by name,
- * rather than storing full TypeDesc in each socket!
- * These functions just provides per-socket type names in the meantime.
- */
-inline string dummy_type_name(ConstInputKey input)
-{
-	size_t hash = std::hash<const NodeInstance *>()(input.node) ^ std::hash<const NodeInput *>()(input.socket);
-	std::stringstream ss;
-	ss << "InputType" << (unsigned short)hash;
-	return ss.str();
-}
-inline string dummy_type_name(ConstOutputKey output)
-{
-	size_t hash = std::hash<const NodeInstance *>()(output.node) ^ std::hash<const NodeOutput *>()(output.socket);
-	std::stringstream ss;
-	ss << "OutputType" << (unsigned short)hash;
-	return ss.str();
-}
-
 LLVMCompilerBase::LLVMCompilerBase() :
     m_module(NULL)
 {
@@ -92,14 +73,14 @@ llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
 {
 	using namespace llvm;
 	
-	const TypeDesc &td = node_value->typedesc();
-	if (td.is_structure()) {
-//		const StructSpec *s = td.structure();
+	const TypeSpec *typespec = node_value->typedesc().get_typespec();
+	if (typespec->is_structure()) {
+//		const StructSpec *s = typespec->structure();
 		/* TODO don't have value storage for this yet */
 		return NULL;
 	}
 	else {
-		switch (td.base_type()) {
+		switch (typespec->base_type()) {
 			case BVM_FLOAT: {
 				float f = 0.0f;
 				node_value->get(&f);
@@ -183,7 +164,9 @@ void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
 	
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
-		Type *type = llvm_create_value_type(context(), dummy_type_name(output), &output.socket->typedesc);
+		const string &tname = output.socket->typedesc.name();
+		const TypeSpec *typespec = output.socket->typedesc.get_typespec();
+		Type *type = llvm_create_value_type(context(), tname, typespec);
 		Value *value = builder.CreateAlloca(type);
 		
 		args.push_back(value);
@@ -197,6 +180,7 @@ void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
 	/* set input arguments */
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		ConstInputKey input = node->input(i);
+		const TypeSpec *typespec = input.socket->typedesc.get_typespec();
 		
 		switch (input.value_type()) {
 			case INPUT_CONSTANT: {
@@ -204,7 +188,7 @@ void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
 				Constant *cvalue = codegen_constant(input.value());
 				
 				Value *value;
-				if (llvm_use_argument_pointer(&input.socket->typedesc)) {
+				if (llvm_use_argument_pointer(typespec)) {
 					AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
 					builder.CreateStore(cvalue, pvalue);
 					value = pvalue;
@@ -219,7 +203,7 @@ void LLVMCompilerBase::codegen_node_function_call(llvm::BasicBlock *block,
 			case INPUT_EXPRESSION: {
 				Value *pvalue = output_values.at(input.link());
 				Value *value;
-				if (llvm_use_argument_pointer(&input.socket->typedesc)) {
+				if (llvm_use_argument_pointer(typespec)) {
 					value = pvalue;
 				}
 				else {
@@ -358,14 +342,18 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 	std::vector<llvm::Type*> input_types, output_types;
 	for (int i = 0; i < graph.inputs.size(); ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		Type *type = llvm_create_value_type(context(), dummy_type_name(input.key), &input.typedesc);
-		if (llvm_use_argument_pointer(&input.typedesc))
+		const string &tname = input.typedesc.name();
+		const TypeSpec *typespec = input.typedesc.get_typespec();
+		Type *type = llvm_create_value_type(context(), tname, typespec);
+		if (llvm_use_argument_pointer(typespec))
 			type = type->getPointerTo();
 		input_types.push_back(type);
 	}
 	for (int i = 0; i < graph.outputs.size(); ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		Type *type = llvm_create_value_type(context(), dummy_type_name(output.key), &output.typedesc);
+		const string &tname = output.typedesc.name();
+		const TypeSpec *typespec = output.typedesc.get_typespec();
+		Type *type = llvm_create_value_type(context(), tname, typespec);
 		output_types.push_back(type);
 	}
 	FunctionType *functype = llvm_create_node_function_type(context(), input_types, output_types);

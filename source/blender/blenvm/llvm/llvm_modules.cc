@@ -202,20 +202,6 @@ void llvm_unload_all_modules()
 	theModules.clear();
 }
 
-inline string dummy_input_name(const NodeType *nodetype, int index)
-{
-	std::stringstream ss;
-	ss << "I" << index << "_" << nodetype->name();
-	return ss.str();
-}
-
-inline string dummy_output_name(const NodeType *nodetype, int index)
-{
-	std::stringstream ss;
-	ss << "O" << index << "_" << nodetype->name();
-	return ss.str();
-}
-
 static void define_function_OP_VALUE_SINGLE(llvm::LLVMContext &context, llvm::BasicBlock *block,
                                             llvm::Value *result, llvm::Value *value)
 {
@@ -281,24 +267,27 @@ static bool define_internal_function(llvm::LLVMContext &context, OpCode op, llvm
 }
 
 static void define_node_function(llvm::LLVMContext &context, llvm::Module *mod,
-                                 OpCode op, const NodeType *nodetype,
-                                 void *funcptr)
+                                 OpCode op, const NodeType *nodetype, void *funcptr)
 {
 	using namespace llvm;
 	
 	std::vector<Type *> input_types, output_types;
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
-		Type *type = llvm_create_value_type(context, dummy_input_name(nodetype, i), &input->typedesc);
+		const string &tname = input->typedesc.name();
+		const TypeSpec *typespec = input->typedesc.get_typespec();
+		Type *type = llvm_create_value_type(context, tname, typespec);
 		if (type == NULL)
 			break;
-		if (llvm_use_argument_pointer(&input->typedesc))
+		if (llvm_use_argument_pointer(typespec))
 			type = type->getPointerTo();
 		input_types.push_back(type);
 	}
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
-		Type *type = llvm_create_value_type(context, dummy_output_name(nodetype, i), &output->typedesc);
+		const string &tname = output->typedesc.name();
+		const TypeSpec *typespec = output->typedesc.get_typespec();
+		Type *type = llvm_create_value_type(context, tname, typespec);
 		if (type == NULL)
 			break;
 		output_types.push_back(type);
