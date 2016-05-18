@@ -44,6 +44,7 @@
 
 namespace llvm {
 class LLVMContext;
+class Argument;
 class BasicBlock;
 class CallInst;
 class Constant;
@@ -62,11 +63,8 @@ struct NodeInstance;
 struct TypeDesc;
 struct FunctionLLVM;
 
-typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
-typedef std::pair<ConstOutputKey, llvm::Value*> OutputValuePair;
-
 struct LLVMCompilerBase {
-	~LLVMCompilerBase();
+	virtual ~LLVMCompilerBase();
 	
 protected:
 	LLVMCompilerBase();
@@ -80,31 +78,65 @@ protected:
 	
 	llvm::Constant *codegen_constant(const NodeValue *node_value);
 	
-	void codegen_node_function_call(llvm::BasicBlock *block,
-	                                const NodeInstance *node,
-	                                OutputValueMap &output_values);
-	void codegen_node_pass(llvm::BasicBlock *block,
-	                       const NodeInstance *node,
-	                       OutputValueMap &output_values);
-	void codegen_node_arg(llvm::BasicBlock *block,
-	                      const NodeInstance *node,
-	                      OutputValueMap &output_values);
 	void codegen_node(llvm::BasicBlock *block,
-	                  const NodeInstance *node,
-	                  OutputValueMap &output_values);
+	                  const NodeInstance *node);
 	
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
+	
+	virtual void codegen_begin() = 0;
+	virtual void codegen_end() = 0;
+	
+	virtual void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg) = 0;
+	virtual void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg) = 0;
+	
+	virtual void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
+	virtual void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
+	virtual void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
 	
 private:
 	llvm::Module *m_module;
 };
 
-struct LLVMCompiler : public LLVMCompilerBase {
+struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
+	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	
+	void codegen_begin();
+	void codegen_end();
+	
+	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	
+	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	
+private:
+	OutputValueMap m_output_values;
+};
+
+struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
+	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	
+	void codegen_begin();
+	void codegen_end();
+	
+	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	
+	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	
+private:
+	OutputValueMap m_output_values;
+};
+
+struct LLVMCompiler : public LLVMTextureCompilerImpl {
 	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
 };
 
-struct DebugLLVMCompiler : public LLVMCompilerBase {
+struct DebugLLVMCompiler : public LLVMTextureCompilerImpl {
 	void compile_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file);
 };
 

@@ -96,6 +96,8 @@ add_subdirectory(compile)
 if(WITH_LLVM)
 	add_subdirectory(llvm)
 	add_definitions(-DWITH_LLVM)
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 endif()
 
 blender_add_lib(bf_blenvm "${SRC}" "${INC}" "${INC_SYS}")
