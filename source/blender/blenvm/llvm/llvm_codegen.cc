@@ -64,7 +64,23 @@ llvm::LLVMContext &LLVMCompilerBase::context() const
 
 void LLVMCompilerBase::create_module(const string &name)
 {
+	using namespace llvm;
+	
+	std::string error;
+	
+	/* make sure the node base functions are defined */
+	if (get_nodes_module() == NULL) {
+		Module *nodes_mod = define_nodes_module();
+		set_nodes_module(nodes_mod);
+	}
+	
+	/* create an empty module */
 	m_module = new llvm::Module(name, context());
+	
+	/* link the node functions module, so we can call those functions */
+	Linker::LinkModules(module(), get_nodes_module(), Linker::LinkerMode::PreserveSource, &error);
+	
+	verifyModule(*module(), &outs());
 }
 
 void LLVMCompilerBase::destroy_module()
@@ -746,17 +762,7 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 {
 	using namespace llvm;
 	
-	std::string error;
-	
 	create_module(name);
-	
-	if (get_nodes_module() == NULL) {
-		Module *nodes_mod = define_nodes_module();
-		set_nodes_module(nodes_mod);
-	}
-	Linker::LinkModules(module(), get_nodes_module(), Linker::LinkerMode::PreserveSource, &error);
-	
-	verifyModule(*module(), &outs());
 	
 	Function *func = codegen_node_function(name, graph);
 	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
@@ -823,7 +829,6 @@ void DebugLLVMCompiler::compile_function(const string &name, const NodeGraph &gr
 	using namespace llvm;
 	
 	create_module(name);
-	llvm_link_module_full(module());
 	
 	Function *func = codegen_node_function(name, graph);
 	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
