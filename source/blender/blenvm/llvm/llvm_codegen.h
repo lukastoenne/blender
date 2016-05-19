@@ -87,9 +87,6 @@ protected:
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	
-	virtual void codegen_begin() = 0;
-	virtual void codegen_end() = 0;
-	
 	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
 	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
 	
@@ -115,9 +112,6 @@ private:
 };
 
 struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
-	void codegen_begin();
-	void codegen_end();
-	
 	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
@@ -128,9 +122,6 @@ private:
 };
 
 struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
-	void codegen_begin();
-	void codegen_end();
-	
 	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }

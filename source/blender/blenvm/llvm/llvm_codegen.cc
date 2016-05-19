@@ -610,14 +610,6 @@ llvm::Module *LLVMCompilerBase::define_nodes_module()
 
 llvm::Module *LLVMSimpleCompilerImpl::m_nodes_module = NULL;
 
-void LLVMSimpleCompilerImpl::codegen_begin()
-{
-}
-
-void LLVMSimpleCompilerImpl::codegen_end()
-{
-}
-
 llvm::Type *LLVMSimpleCompilerImpl::create_value_type(const string &name, const TypeSpec *spec)
 {
 	using namespace llvm;
@@ -652,14 +644,6 @@ llvm::Type *LLVMSimpleCompilerImpl::create_value_type(const string &name, const 
 /* ------------------------------------------------------------------------- */
 
 llvm::Module *LLVMTextureCompilerImpl::m_nodes_module = NULL;
-
-void LLVMTextureCompilerImpl::codegen_begin()
-{
-}
-
-void LLVMTextureCompilerImpl::codegen_end()
-{
-}
 
 llvm::Type *LLVMTextureCompilerImpl::create_value_type(const string &name, const TypeSpec *spec)
 {
@@ -700,8 +684,6 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	
 	std::string error;
 	
-	codegen_begin();
-	
 	create_module(name);
 	
 	if (get_nodes_module() == NULL) {
@@ -715,8 +697,6 @@ FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph
 	Function *func = codegen_node_function(name, graph);
 	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
-	
-	codegen_end();
 	
 	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
 	optimize_function(func, opt_level);
