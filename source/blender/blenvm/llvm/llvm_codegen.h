@@ -99,6 +99,7 @@ protected:
 	virtual void create_type_map(TypeMap &typemap);
 	virtual llvm::FunctionType *create_node_function_type(const std::vector<llvm::Type*> &inputs,
 	                                                      const std::vector<llvm::Type*> &outputs);
+	virtual bool use_argument_pointer(const TypeSpec *typespec) = 0;
 	
 	void define_node_function(llvm::Module *mod, OpCode op, const NodeType *nodetype, void *funcptr);
 	llvm::Module *define_nodes_module();
@@ -117,6 +118,8 @@ struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
 	
+	bool use_argument_pointer(const TypeSpec *typespec);
+	
 private:
 	static llvm::Module *m_nodes_module;
 };
@@ -126,6 +129,8 @@ struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
+	
+	bool use_argument_pointer(const TypeSpec *typespec);
 	
 private:
 	static llvm::Module *m_nodes_module;

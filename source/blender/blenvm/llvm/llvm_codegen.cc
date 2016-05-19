@@ -234,7 +234,7 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 		const string &tname = input.typedesc.name();
 		const TypeSpec *typespec = input.typedesc.get_typespec();
 		Type *type = create_value_type(tname, typespec);
-		if (llvm_use_argument_pointer(typespec))
+		if (use_argument_pointer(typespec))
 			type = type->getPointerTo();
 		input_types.push_back(type);
 	}
@@ -376,7 +376,7 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 				Constant *cvalue = codegen_constant(input.value());
 				
 				Value *value;
-				if (llvm_use_argument_pointer(typespec)) {
+				if (use_argument_pointer(typespec)) {
 					AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
 					builder.CreateStore(cvalue, pvalue);
 					value = pvalue;
@@ -391,7 +391,7 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 			case INPUT_EXPRESSION: {
 				Value *pvalue = m_output_values.at(input.link());
 				Value *value;
-				if (llvm_use_argument_pointer(typespec)) {
+				if (use_argument_pointer(typespec)) {
 					value = pvalue;
 				}
 				else {
@@ -550,7 +550,7 @@ void LLVMCompilerBase::define_node_function(llvm::Module *mod, OpCode op, const 
 		Type *type = create_value_type(tname, typespec);
 		if (type == NULL)
 			break;
-		if (llvm_use_argument_pointer(typespec))
+		if (use_argument_pointer(typespec))
 			type = type->getPointerTo();
 		input_types.push_back(type);
 	}
@@ -641,6 +641,38 @@ llvm::Type *LLVMSimpleCompilerImpl::create_value_type(const string &name, const 
 	return NULL;
 }
 
+bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec)
+{
+	using namespace llvm;
+	
+	if (typespec->is_structure()) {
+		/* pass by reference */
+		return true;
+	}
+	else {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT:
+			case BVM_INT:
+				/* pass by value */
+				return false;
+			case BVM_FLOAT3:
+			case BVM_FLOAT4:
+			case BVM_MATRIX44:
+				/* pass by reference */
+				return true;
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				break;
+		}
+	}
+	
+	return false;
+}
+
 /* ------------------------------------------------------------------------- */
 
 llvm::Module *LLVMTextureCompilerImpl::m_nodes_module = NULL;
@@ -674,6 +706,38 @@ llvm::Type *LLVMTextureCompilerImpl::create_value_type(const string &name, const
 		}
 	}
 	return NULL;
+}
+
+bool LLVMTextureCompilerImpl::use_argument_pointer(const TypeSpec *typespec)
+{
+	using namespace llvm;
+	
+	if (typespec->is_structure()) {
+		/* pass by reference */
+		return true;
+	}
+	else {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT:
+			case BVM_INT:
+				/* pass by value */
+				return false;
+			case BVM_FLOAT3:
+			case BVM_FLOAT4:
+			case BVM_MATRIX44:
+				/* pass by reference */
+				return true;
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				break;
+		}
+	}
+	
+	return false;
 }
 
 /* ------------------------------------------------------------------------- */

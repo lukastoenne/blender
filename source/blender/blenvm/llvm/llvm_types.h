@@ -104,13 +104,4 @@ public:
 
 } /* namespace llvm */
 
-
-namespace blenvm {
-
-struct TypeSpec;
-
-bool llvm_use_argument_pointer(const TypeSpec *typespec);
-
-} /* namespace blenvm */
-
 #endif /* __LLVM_TYPES_H__ */
