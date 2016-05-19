@@ -235,6 +235,37 @@ inline static float modulo_safe(float a, float b)
 		return 0.0f;
 }
 
+/* ************************************************************/
+/* Dual numbers for representing values and their derivatives */
+
+/* Dual value for functions of two variables */
+template <typename T>
+struct Dual2 {
+	Dual2()
+	{}
+	
+	Dual2(const T &value) :
+	    m_value(value), m_dx(T(0)), m_dy(T(0))
+	{}
+	
+	Dual2(const T &value, const T &dx, const T &dy) :
+	    m_value(value), m_dx(dx), m_dy(dy)
+	{}
+	
+	const T &value() const { return m_value; }
+	const T &dx() const { return m_dx; }
+	const T &dy() const { return m_dy; }
+	
+	void set_value(const T &value) { m_value = value; }
+	void set_dx(const T &dx) { m_dx = dx; }
+	void set_dy(const T &dy) { m_dy = dy; }
+	
+private:
+	T m_value;
+	T m_dx;
+	T m_dy;
+};
+
 } /* namespace blenvm */
 
 #endif /* __BVM_UTIL_MATH_H__ */

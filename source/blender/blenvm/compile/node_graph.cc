@@ -1221,8 +1221,7 @@ static void register_typedefs()
 {
 	
 	TypeSpec *float_t = TypeSpec::add_typedef("FLOAT", BVM_FLOAT);
-	TypeSpec *float_dual_t = TypeSpec::add_typedef("FLOAT_DUAL", BVM_FLOAT);
-	UNUSED_VARS(float_t, float_dual_t);
+	UNUSED_VARS(float_t);
 	
 	TypeSpec *float3_t = TypeSpec::add_typedef("FLOAT3", BVM_FLOAT3);
 	UNUSED_VARS(float3_t);

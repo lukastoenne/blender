@@ -1126,7 +1126,7 @@ static int multitex(Tex *tex,
 		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			
-			BVM_eval_texture_llvm(context, fn, texres, texvec, dxt, dyt, osatex, which_output,
+			BVM_eval_texture_llvm(context, fn, texres, NULL, NULL, texvec, dxt, dyt, osatex, which_output,
 			                      R.r.cfra, texnode_preview);
 			retval = TEX_INT | TEX_RGB | TEX_NOR;
 			

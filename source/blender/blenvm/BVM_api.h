@@ -149,8 +149,10 @@ void BVM_eval_texture_bvm(struct BVMEvalContext *context, struct BVMFunction *fn
                           float coord[3], float dxt[3], float dyt[3], int osatex,
                           short which_output, int cfra, int preview);
 void BVM_eval_texture_llvm(struct BVMEvalContext *context, struct BVMFunction *fn,
-                           struct TexResult *target,
-                           float coord[3], float dxt[3], float dyt[3], int osatex,
+                           struct TexResult *value,
+                           struct TexResult *value_dx,
+                           struct TexResult *value_dy,
+                           const float coord[3], const float dxt[3], const float dyt[3], int osatex,
                            short which_output, int cfra, int preview);
 
 /* ------------------------------------------------------------------------- */

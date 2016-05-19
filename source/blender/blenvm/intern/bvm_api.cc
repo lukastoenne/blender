@@ -510,10 +510,8 @@ void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalConte
 
 namespace blenvm {
 
-typedef void (*TexNodesFunc)(float4 *r_color, float3 *r_normal,
-                             const float3 &co,
-                             const float3 &dxt, const float3 &dyt,
-                             int cfra, int osatex);
+typedef void (*TexNodesFunc)(Dual2<float4> *r_color, Dual2<float3> *r_normal,
+                             const Dual2<float3> *co, int cfra, int osatex);
 
 static void set_texresult(TexResult *result, const float4 &color, const float3 &normal)
 {
@@ -539,8 +537,6 @@ static void init_texture_graph(blenvm::NodeGraph &graph)
 	using namespace blenvm;
 	
 	graph.add_input("texture.co", "FLOAT3");
-	graph.add_input("texture.dxt", "FLOAT3");
-	graph.add_input("texture.dyt", "FLOAT3");
 	graph.add_input("texture.cfra", "INT");
 	graph.add_input("texture.osatex", "INT");
 	
@@ -650,38 +646,40 @@ void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
 }
 
 void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunction *fn,
-                           struct TexResult *target,
-                           float coord[3], float dxt[3], float dyt[3], int osatex,
+                           struct TexResult *value, struct TexResult *value_dx, struct TexResult *value_dy,
+                           const float coord[3], const float dxt[3], const float dyt[3], int osatex,
                            short UNUSED(which_output), int cfra, int UNUSED(preview))
 {
 	using namespace blenvm;
 	
 	EvalGlobals globals;
-	float4 r_color;
-	float3 r_normal;
+	Dual2<float4> r_color;
+	Dual2<float3> r_normal;
 	
 	UNUSED_VARS(globals);
 #ifdef WITH_LLVM
 	TexNodesFunc fp = (TexNodesFunc)_FUNC_LLVM(fn)->ptr();
 	
-	float3 coord_v, dxt_v, dyt_v;
-	copy_v3_v3(coord_v.data(), coord);
+	Dual2<float3> coord_v;
+	coord_v.set_value(float3(coord[0], coord[1], coord[2]));
 	if (dxt)
-		copy_v3_v3(dxt_v.data(), dxt);
-	else
-		zero_v3(dxt_v.data());
+		coord_v.set_dx(float3(dxt[0], dxt[1], dxt[2]));
 	if (dyt)
-		copy_v3_v3(dyt_v.data(), dyt);
-	else
-		zero_v3(dyt_v.data());
-	fp(&r_color, &r_normal, coord_v, dxt_v, dyt_v, cfra, osatex);
+		coord_v.set_dy(float3(dyt[0], dyt[1], dyt[2]));
+	
+	fp(&r_color, &r_normal, &coord_v, cfra, osatex);
 #else
 	UNUSED_VARS(fn, coord, dxt, dyt, cfra, osatex);
-	r_color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	r_normal = float3(0.0f, 0.0f, 1.0f);
+	r_color = Dual2<float4>(float4(0.0f, 0.0f, 0.0f, 0.0f));
+	r_normal = Dual2<float3>(float3(0.0f, 0.0f, 1.0f));
 #endif
 	
-	set_texresult(target, r_color, r_normal);
+	if (value)
+		set_texresult(value, r_color.value(), r_normal.value());
+	if (value_dx)
+		set_texresult(value_dx, r_color.dx(), r_normal.dx());
+	if (value_dy)
+		set_texresult(value_dy, r_color.dy(), r_normal.dy());
 }
 
 /* ------------------------------------------------------------------------- */
