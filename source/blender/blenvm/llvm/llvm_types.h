@@ -109,17 +109,7 @@ namespace blenvm {
 
 struct TypeSpec;
 
-typedef std::map<string, llvm::Type*> LLVMTypeMap;
-
-void llvm_create_type_map(llvm::LLVMContext &context, LLVMTypeMap &typemap);
-
-llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeSpec *typespec);
 bool llvm_use_argument_pointer(const TypeSpec *typespec);
-llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s);
-
-llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
-                                               const std::vector<llvm::Type*> &inputs,
-                                               const std::vector<llvm::Type*> &outputs);
 
 } /* namespace blenvm */
 

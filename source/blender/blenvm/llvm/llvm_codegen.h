@@ -64,6 +64,9 @@ struct TypeDesc;
 struct FunctionLLVM;
 
 struct LLVMCompilerBase {
+	typedef std::map<string, llvm::Type*> TypeMap;
+	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	
 	virtual ~LLVMCompilerBase();
 	
 protected:
@@ -87,49 +90,54 @@ protected:
 	virtual void codegen_begin() = 0;
 	virtual void codegen_end() = 0;
 	
-	virtual void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg) = 0;
-	virtual void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg) = 0;
+	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
 	
-	virtual void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
-	virtual void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
-	virtual void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node) = 0;
+	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	
+	virtual llvm::Type *create_value_type(const string &name, const TypeSpec *spec) = 0;
+	virtual llvm::StructType *create_struct_type(const string &name, const StructSpec *spec);
+	virtual void create_type_map(TypeMap &typemap);
+	virtual llvm::FunctionType *create_node_function_type(const std::vector<llvm::Type*> &inputs,
+	                                                      const std::vector<llvm::Type*> &outputs);
+	
+	void define_node_function(llvm::Module *mod, OpCode op, const NodeType *nodetype, void *funcptr);
+	llvm::Module *define_nodes_module();
+	
+	virtual llvm::Module *get_nodes_module() const = 0;
+	virtual void set_nodes_module(llvm::Module *mod) = 0;
 	
 private:
 	llvm::Module *m_module;
+	OutputValueMap m_output_values;
 };
 
 struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
-	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
-	
 	void codegen_begin();
 	void codegen_end();
 	
-	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
-	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
 	
-	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	llvm::Module *get_nodes_module() const { return m_nodes_module; }
+	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
 	
 private:
-	OutputValueMap m_output_values;
+	static llvm::Module *m_nodes_module;
 };
 
 struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
-	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
-	
 	void codegen_begin();
 	void codegen_end();
 	
-	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
-	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
 	
-	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	llvm::Module *get_nodes_module() const { return m_nodes_module; }
+	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
 	
 private:
-	OutputValueMap m_output_values;
+	static llvm::Module *m_nodes_module;
 };
 
 struct LLVMCompiler : public LLVMTextureCompilerImpl {

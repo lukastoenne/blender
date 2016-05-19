@@ -35,52 +35,6 @@
 
 namespace blenvm {
 
-void llvm_create_type_map(llvm::LLVMContext &context, LLVMTypeMap &typemap)
-{
-	using namespace llvm;
-	
-	for (TypeSpec::typedef_iterator it = TypeSpec::typedef_begin(); it != TypeSpec::typedef_end(); ++it) {
-		const string &name = it->first;
-		const TypeSpec *typespec = it->second;
-		
-		Type *type = llvm_create_value_type(context, name, typespec);
-		bool ok = typemap.insert(LLVMTypeMap::value_type(name, type)).second;
-		BLI_assert(ok && "Could not insert LLVM type for TypeSpec!");
-		UNUSED_VARS(ok);
-	}
-}
-
-llvm::Type *llvm_create_value_type(llvm::LLVMContext &context, const string &name, const TypeSpec *typespec)
-{
-	using namespace llvm;
-	
-	if (typespec->is_structure()) {
-		return llvm_create_struct_type(context, name, typespec->structure());
-	}
-	else {
-		switch (typespec->base_type()) {
-			case BVM_FLOAT:
-				return TypeBuilder<types::ieee_float, true>::get(context);
-			case BVM_FLOAT3:
-				return TypeBuilder<float3, true>::get(context);
-			case BVM_FLOAT4:
-				return TypeBuilder<float4, true>::get(context);
-			case BVM_INT:
-				return TypeBuilder<types::i<32>, true>::get(context);
-			case BVM_MATRIX44:
-				return TypeBuilder<matrix44, true>::get(context);
-				
-			case BVM_STRING:
-			case BVM_RNAPOINTER:
-			case BVM_MESH:
-			case BVM_DUPLIS:
-				/* TODO */
-				return NULL;
-		}
-	}
-	return NULL;
-}
-
 bool llvm_use_argument_pointer(const TypeSpec *typespec)
 {
 	using namespace llvm;
@@ -111,36 +65,6 @@ bool llvm_use_argument_pointer(const TypeSpec *typespec)
 	}
 	
 	return false;
-}
-
-llvm::StructType *llvm_create_struct_type(llvm::LLVMContext &context, const string &name, const StructSpec *s)
-{
-	using namespace llvm;
-	
-	std::vector<Type*> elemtypes;
-	for (int i = 0; i < s->num_fields(); ++i) {
-		Type *ftype = llvm_create_value_type(context, s->field(i).name, s->field(i).typespec);
-		elemtypes.push_back(ftype);
-	}
-	
-	return StructType::create(context, ArrayRef<Type*>(elemtypes), name);
-}
-
-llvm::FunctionType *llvm_create_node_function_type(llvm::LLVMContext &context,
-                                              const std::vector<llvm::Type*> &inputs,
-                                              const std::vector<llvm::Type*> &outputs)
-{
-	using namespace llvm;
-	
-	std::vector<llvm::Type*> arg_types;
-	for (int i = 0; i < outputs.size(); ++i) {
-		Type *value_type = outputs[i];
-		/* use a pointer to store output values */
-		arg_types.push_back(value_type->getPointerTo());
-	}
-	arg_types.insert(arg_types.end(), inputs.begin(), inputs.end());
-	
-	return FunctionType::get(TypeBuilder<void, true>::get(context), arg_types, false);
 }
 
 } /* namespace blenvm */
