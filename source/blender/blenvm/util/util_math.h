@@ -64,6 +64,10 @@ struct float3 {
 	    x(x), y(y), z(z)
 	{}
 	
+	explicit float3(float f) :
+	    x(f), y(f), z(f)
+	{}
+	
 	float* data() { return &x; }
 	const float* data() const { return &x; }
 	
@@ -96,6 +100,10 @@ struct float4 {
 	
 	float4(float x, float y, float z, float w) :
 	    x(x), y(y), z(z), w(w)
+	{}
+	
+	explicit float4(float f) :
+	    x(f), y(f), z(f), w(f)
 	{}
 	
 	float* data() { return &x; }

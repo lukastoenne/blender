@@ -89,82 +89,6 @@ void LLVMCompilerBase::destroy_module()
 	m_module = NULL;
 }
 
-llvm::Constant *LLVMCompilerBase::codegen_constant(const NodeValue *node_value)
-{
-	using namespace llvm;
-	
-	const TypeSpec *typespec = node_value->typedesc().get_typespec();
-	if (typespec->is_structure()) {
-//		const StructSpec *s = typespec->structure();
-		/* TODO don't have value storage for this yet */
-		return NULL;
-	}
-	else {
-		switch (typespec->base_type()) {
-			case BVM_FLOAT: {
-				float f = 0.0f;
-				node_value->get(&f);
-				return ConstantFP::get(context(), APFloat(f));
-			}
-			case BVM_FLOAT3: {
-				StructType *stype = TypeBuilder<float3, true>::get(context());
-				
-				float3 f = float3(0.0f, 0.0f, 0.0f);
-				node_value->get(&f);
-				return ConstantStruct::get(stype,
-				                           ConstantFP::get(context(), APFloat(f.x)),
-				                           ConstantFP::get(context(), APFloat(f.y)),
-				                           ConstantFP::get(context(), APFloat(f.z)),
-				                           NULL);
-			}
-			case BVM_FLOAT4: {
-				StructType *stype = TypeBuilder<float4, true>::get(context());
-				
-				float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
-				node_value->get(&f);
-				return ConstantStruct::get(stype,
-				                           ConstantFP::get(context(), APFloat(f.x)),
-				                           ConstantFP::get(context(), APFloat(f.y)),
-				                           ConstantFP::get(context(), APFloat(f.z)),
-				                           ConstantFP::get(context(), APFloat(f.w)),
-				                           NULL);
-			}
-			case BVM_INT: {
-				int i = 0;
-				node_value->get(&i);
-				return ConstantInt::get(context(), APInt(32, i, true));
-			}
-			case BVM_MATRIX44: {
-				Type *elem_t = TypeBuilder<types::ieee_float, true>::get(context());
-				ArrayType *inner_t = ArrayType::get(elem_t, 4);
-				ArrayType *outer_t = ArrayType::get(inner_t, 4);
-				StructType *matrix_t = StructType::get(outer_t, NULL);
-				
-				matrix44 m = matrix44::identity();
-				node_value->get(&m);
-				Constant *constants[4][4];
-				for (int i = 0; i < 4; ++i)
-					for (int j = 0; j < 4; ++j)
-						constants[i][j] = ConstantFP::get(context(), APFloat(m.data[i][j]));
-				Constant *cols[4];
-				for (int i = 0; i < 4; ++i)
-					cols[i] = ConstantArray::get(inner_t, ArrayRef<Constant*>(constants[i], 4));
-				Constant *data = ConstantArray::get(outer_t, ArrayRef<Constant*>(cols, 4));
-				return ConstantStruct::get(matrix_t,
-				                           data, NULL);
-			}
-				
-			case BVM_STRING:
-			case BVM_RNAPOINTER:
-			case BVM_MESH:
-			case BVM_DUPLIS:
-				/* TODO */
-				return NULL;
-		}
-	}
-	return NULL;
-}
-
 void LLVMCompilerBase::codegen_node(llvm::BasicBlock *block,
                                     const NodeInstance *node)
 {
@@ -321,6 +245,24 @@ void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 	FPM.run(*func);
 }
 
+void LLVMCompilerBase::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
+{
+	m_output_values[output] = arg;
+	UNUSED_VARS(block);
+}
+
+void LLVMCompilerBase::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	Value *value = m_output_values.at(output);
+	Value *rvalue = builder.CreateLoad(value);
+	builder.CreateStore(rvalue, arg);
+}
+
 void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node)
 {
 	using namespace llvm;
@@ -389,7 +331,7 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 		switch (input.value_type()) {
 			case INPUT_CONSTANT: {
 				/* create storage for the global value */
-				Constant *cvalue = codegen_constant(input.value());
+				Constant *cvalue = create_node_value_constant(input.value());
 				
 				Value *value;
 				if (use_argument_pointer(typespec)) {
@@ -427,24 +369,6 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 	
 	CallInst *call = builder.CreateCall(evalfunc, args);
 	UNUSED_VARS(call);
-}
-
-void LLVMCompilerBase::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
-{
-	m_output_values[output] = arg;
-	UNUSED_VARS(block);
-}
-
-void LLVMCompilerBase::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
-{
-	using namespace llvm;
-	
-	IRBuilder<> builder(context());
-	builder.SetInsertPoint(block);
-	
-	Value *value = m_output_values.at(output);
-	Value *rvalue = builder.CreateLoad(value);
-	builder.CreateStore(rvalue, arg);
 }
 
 llvm::StructType *LLVMCompilerBase::create_struct_type(const string &name, const StructSpec *spec)
@@ -689,6 +613,55 @@ bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec)
 	return false;
 }
 
+llvm::Constant *LLVMSimpleCompilerImpl::create_node_value_constant(const NodeValue *node_value)
+{
+	using namespace llvm;
+	
+	const TypeSpec *typespec = node_value->typedesc().get_typespec();
+	if (typespec->is_structure()) {
+//		const StructSpec *s = typespec->structure();
+		/* TODO don't have value storage for this yet */
+		return NULL;
+	}
+	else {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT: {
+				float f = 0.0f;
+				node_value->get(&f);
+				return make_constant(context(), f);
+			}
+			case BVM_FLOAT3: {
+				float3 f = float3(0.0f, 0.0f, 0.0f);
+				node_value->get(&f);
+				return make_constant(context(), f);
+			}
+			case BVM_FLOAT4: {
+				float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				node_value->get(&f);
+				return make_constant(context(), f);
+			}
+			case BVM_INT: {
+				int i = 0;
+				node_value->get(&i);
+				return make_constant(context(), i);
+			}
+			case BVM_MATRIX44: {
+				matrix44 m = matrix44::identity();
+				node_value->get(&m);
+				return make_constant(context(), m);
+			}
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				return NULL;
+		}
+	}
+	return NULL;
+}
+
 /* ------------------------------------------------------------------------- */
 
 llvm::Module *LLVMTextureCompilerImpl::m_nodes_module = NULL;
@@ -703,11 +676,11 @@ llvm::Type *LLVMTextureCompilerImpl::create_value_type(const string &name, const
 	else {
 		switch (spec->base_type()) {
 			case BVM_FLOAT:
-				return TypeBuilder<types::ieee_float, true>::get(context());
+				return TypeBuilder<Dual2<types::ieee_float>, true>::get(context());
 			case BVM_FLOAT3:
-				return TypeBuilder<float3, true>::get(context());
+				return TypeBuilder<Dual2<float3>, true>::get(context());
 			case BVM_FLOAT4:
-				return TypeBuilder<float4, true>::get(context());
+				return TypeBuilder<Dual2<float4>, true>::get(context());
 			case BVM_INT:
 				return TypeBuilder<types::i<32>, true>::get(context());
 			case BVM_MATRIX44:
@@ -754,6 +727,55 @@ bool LLVMTextureCompilerImpl::use_argument_pointer(const TypeSpec *typespec)
 	}
 	
 	return false;
+}
+
+llvm::Constant *LLVMTextureCompilerImpl::create_node_value_constant(const NodeValue *node_value)
+{
+	using namespace llvm;
+	
+	const TypeSpec *typespec = node_value->typedesc().get_typespec();
+	if (typespec->is_structure()) {
+//		const StructSpec *s = typespec->structure();
+		/* TODO don't have value storage for this yet */
+		return NULL;
+	}
+	else {
+		switch (typespec->base_type()) {
+			case BVM_FLOAT: {
+				float f = 0.0f;
+				node_value->get(&f);
+				return make_constant(context(), Dual2<float>(f));
+			}
+			case BVM_FLOAT3: {
+				float3 f = float3(0.0f, 0.0f, 0.0f);
+				node_value->get(&f);
+				return make_constant(context(), Dual2<float3>(f));
+			}
+			case BVM_FLOAT4: {
+				float4 f = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				node_value->get(&f);
+				return make_constant(context(), Dual2<float4>(f));
+			}
+			case BVM_INT: {
+				int i = 0;
+				node_value->get(&i);
+				return make_constant(context(), i);
+			}
+			case BVM_MATRIX44: {
+				matrix44 m = matrix44::identity();
+				node_value->get(&m);
+				return make_constant(context(), m);
+			}
+				
+			case BVM_STRING:
+			case BVM_RNAPOINTER:
+			case BVM_MESH:
+			case BVM_DUPLIS:
+				/* TODO */
+				return NULL;
+		}
+	}
+	return NULL;
 }
 
 /* ------------------------------------------------------------------------- */
