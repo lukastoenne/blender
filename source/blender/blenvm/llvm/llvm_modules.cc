@@ -202,29 +202,17 @@ void llvm_unload_all_modules()
 	theModules.clear();
 }
 
-/* links the module to all other modules in the module map */
-void llvm_link_module_full(llvm::Module *mod)
+
+string llvm_value_function_name(const string &node)
 {
-	using namespace llvm;
-	
-	for (ModuleMap::const_iterator it = theModules.begin(); it != theModules.end(); ++it) {
-		Module *lmod = it->second;
-		std::string error;
-		Linker::LinkModules(mod, lmod, Linker::LinkerMode::PreserveSource, &error);
-	}
-	
-//	printf("Linked Module Functions for '%s'\n", mod->getModuleIdentifier().c_str());
-//	for (Module::FunctionListType::const_iterator it = mod->getFunctionList().begin(); it != mod->getFunctionList().end(); ++it) {
-//		printf("    %s\n", it->getName().str().c_str());
-//	}
-	
-	verifyModule(*mod, &outs());
-	
-//	PassManager *pm = create_pass_manager();
-//	pm->run(*mod);
-//	delete pm;
-	
-	llvm_execution_engine()->finalizeObject();
+	return "VAL__" + node;
+}
+
+string llvm_deriv_function_name(const string &node, int var_n)
+{
+	std::stringstream ss;
+	ss << "D" << var_n << "__" << node;
+	return ss.str();
 }
 
 } /* namespace llvm */

@@ -34,6 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "node_value.h"
 #include "typedesc.h"
 
 #include "util_string.h"
@@ -121,6 +122,7 @@ public:
 	};
 };
 
+#if 0
 /* Specialization to enable TypeBuilder for Dual2<float> */
 template <bool xcompile>
 class TypeBuilder<blenvm::Dual2<float>, xcompile> {
@@ -139,6 +141,7 @@ public:
 		FIELD_DY = 2,
 	};
 };
+#endif
 
 } /* namespace llvm */
 
@@ -157,7 +160,7 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const float3 &f
 {
 	using namespace llvm;
 	
-	StructType *stype = TypeBuilder<float3, true>::get(context);
+	StructType *stype = TypeBuilder<float3, false>::get(context);
 	return ConstantStruct::get(stype,
 	                           ConstantFP::get(context, APFloat(f.x)),
 	                           ConstantFP::get(context, APFloat(f.y)),
@@ -169,7 +172,7 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const float4 &f
 {
 	using namespace llvm;
 	
-	StructType *stype = TypeBuilder<float4, true>::get(context);
+	StructType *stype = TypeBuilder<float4, false>::get(context);
 	return ConstantStruct::get(stype,
 	                           ConstantFP::get(context, APFloat(f.x)),
 	                           ConstantFP::get(context, APFloat(f.y)),
@@ -189,7 +192,7 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const matrix44 
 {
 	using namespace llvm;
 	
-	Type *elem_t = TypeBuilder<types::ieee_float, true>::get(context);
+	Type *elem_t = TypeBuilder<float, false>::get(context);
 	ArrayType *inner_t = ArrayType::get(elem_t, 4);
 	ArrayType *outer_t = ArrayType::get(inner_t, 4);
 	StructType *matrix_t = StructType::get(outer_t, NULL);
@@ -210,13 +213,94 @@ template <typename T>
 inline llvm::Constant *make_constant(llvm::LLVMContext &context, const Dual2<T> &d)
 {
 	using namespace llvm;
-	StructType *stype = TypeBuilder<Dual2<T>, true>::get(context);
+	StructType *stype = TypeBuilder<Dual2<T>, false>::get(context);
 	return ConstantStruct::get(stype,
 	                           make_constant(context, d.value()),
 	                           make_constant(context, d.dx()),
 	                           make_constant(context, d.dy()),
 	                           NULL);
 }
+
+/* ------------------------------------------------------------------------- */
+
+template <BVMType type>
+struct BVMTypeLLVMTraits;
+
+template <>
+struct BVMTypeLLVMTraits<BVM_FLOAT> {
+	enum { use_dual_value = true };
+	
+	typedef float value_type;
+	typedef Dual2<value_type> dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_FLOAT3> {
+	enum { use_dual_value = true };
+	
+	typedef float3 value_type;
+	typedef Dual2<value_type> dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_FLOAT4> {
+	enum { use_dual_value = true };
+	
+	typedef float4 value_type;
+	typedef Dual2<value_type> dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_INT> {
+	enum { use_dual_value = false };
+	
+	typedef int value_type;
+	typedef value_type dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_MATRIX44> {
+	enum { use_dual_value = false };
+	
+	typedef matrix44 value_type;
+	typedef value_type dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_STRING> {
+	enum { use_dual_value = false };
+	
+	typedef int value_type;
+	typedef value_type dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_RNAPOINTER> {
+	enum { use_dual_value = false };
+	
+	typedef int value_type;
+	typedef value_type dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_MESH> {
+	enum { use_dual_value = false };
+	
+	typedef int value_type;
+	typedef value_type dual2_type;
+};
+
+template <>
+struct BVMTypeLLVMTraits<BVM_DUPLIS> {
+	enum { use_dual_value = false };
+	
+	typedef int value_type;
+	typedef value_type dual2_type;
+};
+
+llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual);
+llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeValue *node_value);
+bool bvm_type_has_dual_value(const TypeSpec *spec);
 
 } /* namespace blenvm */
 

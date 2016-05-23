@@ -65,12 +65,12 @@ struct TypeDesc;
 struct FunctionLLVM;
 
 struct LLVMCompilerBase {
-	typedef std::map<string, llvm::Type*> TypeMap;
 	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
 	
 	virtual ~LLVMCompilerBase();
 	
-protected:
+	/* XXX TODO some methods are used by static template functions, which require public access ... */
+//protected:
 	LLVMCompilerBase();
 	
 	llvm::LLVMContext &context() const;
@@ -92,21 +92,17 @@ protected:
 	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	llvm::FunctionType *get_node_function_type(const std::vector<llvm::Type*> &inputs,
+	                                           const std::vector<llvm::Type*> &outputs);
 	
-	virtual llvm::Type *create_value_type(const string &name, const TypeSpec *spec) = 0;
-	virtual llvm::StructType *create_struct_type(const string &name, const StructSpec *spec);
-	virtual void create_type_map(TypeMap &typemap);
-	virtual llvm::FunctionType *create_node_function_type(const std::vector<llvm::Type*> &inputs,
-	                                                      const std::vector<llvm::Type*> &outputs);
-	virtual bool use_argument_pointer(const TypeSpec *typespec) = 0;
+	virtual llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant) = 0;
+	virtual bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) = 0;
 
 	virtual llvm::Constant *create_node_value_constant(const NodeValue *node_value) = 0;
 	
-	void define_node_function(llvm::Module *mod, OpCode op, const NodeType *nodetype, void *funcptr);
-	llvm::Module *define_nodes_module();
-	
+	llvm::Function *declare_node_function(llvm::Module *mod, const NodeType *nodetype);
+	virtual void define_nodes_module() = 0;
 	virtual llvm::Module *get_nodes_module() const = 0;
-	virtual void set_nodes_module(llvm::Module *mod) = 0;
 	
 private:
 	llvm::Module *m_module;
@@ -114,28 +110,35 @@ private:
 };
 
 struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
-	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
+	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
-	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec);
+	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant);
 	
 	llvm::Constant *create_node_value_constant(const NodeValue *node_value);
+	
+	bool set_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func);
+	void define_nodes_module();
 	
 private:
 	static llvm::Module *m_nodes_module;
 };
 
 struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
-	llvm::Type *create_value_type(const string &name, const TypeSpec *spec);
+	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
+	llvm::Function *declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
-	void set_nodes_module(llvm::Module *mod) { m_nodes_module = mod; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec);
+	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant);
+	bool use_elementary_argument_pointer(const TypeSpec *typespec);
 	
 	llvm::Constant *create_node_value_constant(const NodeValue *node_value);
+	
+	bool set_elementary_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func, int deriv);
+	void define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name);
+	void define_nodes_module();
 	
 private:
 	static llvm::Module *m_nodes_module;

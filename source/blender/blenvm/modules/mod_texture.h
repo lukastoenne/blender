@@ -38,8 +38,7 @@ extern "C" {
 
 BVM_MOD_NAMESPACE_BEGIN
 
-BVM_MOD_FUNCTION("TEX_PROC_VORONOI")
-void TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal,
+bvm_extern void TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal,
                       int distance_metric, int color_type,
                       float minkowski_exp, float scale,
                       float noisesize, float nabla,
@@ -116,9 +115,9 @@ void TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal,
 		normal.z = sc * fabsf(w1*da[0] + w2*da[1] + w3*da[2] + w4*da[3]);
 	}
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_VORONOI)
 
-BVM_MOD_FUNCTION("TEX_PROC_CLOUDS")
-void TEX_PROC_CLOUDS(float &intensity, float4 &color, float3 &normal,
+bvm_extern void TEX_PROC_CLOUDS(float &intensity, float4 &color, float3 &normal,
                      const float3 &texvec, float nabla, float size,
                      int depth, int noise_basis, int noise_hard)
 {
@@ -141,6 +140,7 @@ void TEX_PROC_CLOUDS(float &intensity, float4 &color, float3 &normal,
 		color = float4(r, g, b, 1.0f);
 	}
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_CLOUDS)
 
 /* creates a sine wave */
 static float tex_sin(float a)
@@ -207,8 +207,7 @@ static float wood_int(float size, float x, float y, float z, float turb,
 	return wi;
 }
 
-BVM_MOD_FUNCTION("TEX_PROC_WOOD")
-void TEX_PROC_WOOD(float &intensity, float3 &normal,
+bvm_extern void TEX_PROC_WOOD(float &intensity, float3 &normal,
                    const float3 &texvec, float nabla, float size, float turb,
                    int noise_basis, int noise_basis_2, int noise_hard, int wood_type)
 {
@@ -222,6 +221,7 @@ void TEX_PROC_WOOD(float &intensity, float3 &normal,
 		normal = float3(x, y, z);
 	}
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_WOOD)
 
 /* computes basic marble intensity at x,y,z */
 static float marble_int(float size, float x, float y, float z, float turb,
@@ -253,8 +253,7 @@ static float marble_int(float size, float x, float y, float z, float turb,
 	return intensity;
 }
 
-BVM_MOD_FUNCTION("TEX_PROC_MARBLE")
-void TEX_PROC_MARBLE(float &intensity, float3 &normal,
+bvm_extern void TEX_PROC_MARBLE(float &intensity, float3 &normal,
                      const float3 texvec, float nabla, float size, float turb,
                      int depth, int noise_basis, int noise_basis_2,
                      int noise_hard, int marble_type)
@@ -269,9 +268,9 @@ void TEX_PROC_MARBLE(float &intensity, float3 &normal,
 		normal = float3(x, y, z);
 	}
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_MARBLE)
 
-BVM_MOD_FUNCTION("TEX_PROC_MUSGRAVE")
-void TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
+bvm_extern void TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
                        const float3 texvec, float nabla, float size,
                        float dimension, float lacunarity, float octaves,
                        float nintensity, float offset, float gain,
@@ -331,11 +330,11 @@ void TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
 
 	normal = float3(x, y, z);
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_MUSGRAVE)
 
-BVM_MOD_FUNCTION("TEX_PROC_MAGIC")
-void TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
-                    const float3 &texvec, float turbulence,
-                    int depth)
+bvm_extern void TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
+                               const float3 &texvec, float turbulence,
+                               int depth)
 {
 	float turb = turbulence / 5.0f;
 
@@ -398,9 +397,9 @@ void TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
 	color = float4(0.5f - x, 0.5f - y, 0.5f - z, 1.0f);
 	intensity = (1.0f / 3.0f) * (color.x + color.y + color.z);
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_MAGIC)
 
-BVM_MOD_FUNCTION("TEX_PROC_STUCCI")
-void TEX_PROC_STUCCI(float &intensity, float3 &normal,
+bvm_extern void TEX_PROC_STUCCI(float &intensity, float3 &normal,
                      const float3 &texvec, float noisesize, float turbulence,
                      int noise_basis, int noisehard, int noise_type)
 {
@@ -428,9 +427,9 @@ void TEX_PROC_STUCCI(float &intensity, float3 &normal,
 
 	normal = float3(x, y, z);
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_STUCCI)
 
-BVM_MOD_FUNCTION("TEX_PROC_DISTNOISE")
-void TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
+bvm_extern void TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
                         const float3 &texvec, float noisesize,
                         float nabla, float dist_amount,
                         int noise_basis, int noise_basis_2)
@@ -446,6 +445,7 @@ void TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
 
 	normal = float3(x, y, z);
 }
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_DISTNOISE)
 
 BVM_MOD_NAMESPACE_END
 

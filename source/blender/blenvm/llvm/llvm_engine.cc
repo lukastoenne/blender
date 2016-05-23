@@ -29,18 +29,59 @@
  *  \ingroup llvm
  */
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BLI_utildefines.h"
 }
+
+#include "util_opcode.h"
+
+#include "modules.h"
 
 #include "llvm_engine.h"
 #include "llvm_headers.h"
 #include "llvm_modules.h"
 
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+
 namespace blenvm {
 
 static llvm::ExecutionEngine *theEngine = NULL;
 static llvm::Module *theModule = NULL;
+
+class MemoryManager : public llvm::SectionMemoryManager {
+public:
+	MemoryManager()
+	{}
+	virtual ~MemoryManager()
+	{}
+	
+	static void *get_node_function_ptr(const string &name) {
+#define DEF_OPCODE(op) \
+		if (name == llvm_value_function_name(STRINGIFY(op))) \
+			return modules::get_node_impl_value<OP_##op>(); \
+		else
+	
+		BVM_DEFINE_OPCODES
+		return NULL;
+	
+#undef DEF_OPCODE
+	
+	}
+	
+	/// This method returns the address of the specified function or variable.
+	/// It is used to resolve symbols during module linking.
+	uint64_t getSymbolAddress(const std::string &Name) override
+	{
+		uint64_t addr = llvm::SectionMemoryManager::getSymbolAddress(Name);
+		if (addr)
+			return addr;
+		
+		void *ptr = get_node_function_ptr(Name);
+		return (uint64_t)ptr;
+	}
+};
 
 static llvm::ExecutionEngine *create_execution_engine()
 {
@@ -55,7 +96,8 @@ static llvm::ExecutionEngine *create_execution_engine()
 	builder.setEngineKind(EngineKind::JIT);
 	builder.setUseMCJIT(true);
 	builder.setErrorStr(&error);
-//	builder.setMCJITMemoryManager(std::unique_ptr<HelpingMemoryManager>(new HelpingMemoryManager(this)));
+	builder.setCodeModel(CodeModel::Large);
+	builder.setMCJITMemoryManager(new MemoryManager());
 	
 	ExecutionEngine *engine = builder.create();
 	if (!engine) {
