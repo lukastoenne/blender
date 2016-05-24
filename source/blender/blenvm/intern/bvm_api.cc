@@ -64,7 +64,7 @@ extern "C" {
 #include "bvm_function.h"
 
 #ifdef WITH_LLVM
-#include "llvm_codegen.h"
+#include "llvm_compiler.h"
 #include "llvm_engine.h"
 #include "llvm_function.h"
 #endif

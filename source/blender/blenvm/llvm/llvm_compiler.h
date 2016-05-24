@@ -25,10 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __LLVM_CODEGEN_H__
-#define __LLVM_CODEGEN_H__
+#ifndef __LLVM_COMPILER_H__
+#define __LLVM_COMPILER_H__
 
-/** \file blender/blenvm/llvm/llvm_codegen.h
+/** \file blender/blenvm/llvm/llvm_compiler.h
  *  \ingroup llvm
  */
 
@@ -156,4 +156,4 @@ struct DebugLLVMCompiler : public LLVMTextureCompilerImpl {
 
 } /* namespace blenvm */
 
-#endif /* __LLVM_CODEGEN_H__ */
+#endif /* __LLVM_COMPILER_H__ */
