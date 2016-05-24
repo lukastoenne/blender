@@ -136,7 +136,9 @@ struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
 	
 	llvm::Constant *create_node_value_constant(const NodeValue *node_value);
 	
-	bool set_elementary_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func, int deriv);
+	bool set_node_function_impl(OpCode op, const NodeType *nodetype,
+	                            llvm::Function *value_func,
+	                            std::vector<llvm::Function*> deriv_funcs);
 	void define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name);
 	void define_nodes_module();
 	

@@ -215,4 +215,77 @@ string llvm_deriv_function_name(const string &node, int var_n)
 	return ss.str();
 }
 
+/* ------------------------------------------------------------------------- */
+
+void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                          llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	builder.CreateStore(value, result);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                        llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	builder.CreateStore(value, result);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                           llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	size_t size = sizeof(float3);
+	Value *size_val = ConstantInt::get(context, APInt(32, size));
+	builder.CreateMemCpy(result, value, size_val, 0);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                           llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	size_t size = sizeof(float4);
+	Value *size_val = ConstantInt::get(context, APInt(32, size));
+	builder.CreateMemCpy(result, value, size_val, 0);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                             llvm::Value *result, llvm::Value *value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	size_t size = sizeof(matrix44);
+	Value *size_val = ConstantInt::get(context, APInt(32, size));
+	builder.CreateMemCpy(result, value, size_val, 0);
+	
+	builder.CreateRetVoid();
+}
+
 } /* namespace llvm */

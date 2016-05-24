@@ -35,8 +35,11 @@
 #include "util_string.h"
 
 namespace llvm {
+class LLVMContext;
+class BasicBlock;
 class Function;
 class Module;
+class Value;
 }
 
 namespace blenvm {
@@ -49,6 +52,19 @@ void llvm_unload_all_modules();
 
 string llvm_value_function_name(const string &node);
 string llvm_deriv_function_name(const string &node, int var_n);
+
+/* ------------------------------------------------------------------------- */
+
+void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                          llvm::Value *result, llvm::Value *value);
+void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                        llvm::Value *result, llvm::Value *value);
+void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                           llvm::Value *result, llvm::Value *value);
+void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                           llvm::Value *result, llvm::Value *value);
+void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                             llvm::Value *result, llvm::Value *value);
 
 } /* namespace blenvm */
 

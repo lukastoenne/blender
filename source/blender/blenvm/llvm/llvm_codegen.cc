@@ -383,32 +383,6 @@ llvm::FunctionType *LLVMCompilerBase::get_node_function_type(const std::vector<l
 	
 	return FunctionType::get(TypeBuilder<void, true>::get(context()), arg_types, false);
 }
-static void define_function_OP_VALUE_SINGLE(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                                            llvm::Value *result, llvm::Value *value)
-{
-	using namespace llvm;
-	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
-	
-	builder.CreateStore(value, result);
-	
-	builder.CreateRetVoid();
-}
-
-static void define_function_OP_VALUE_AGGREGATE(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                                               llvm::Value *result, llvm::Value *value, size_t size)
-{
-	using namespace llvm;
-	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
-	
-	Value *size_v = ConstantInt::get(context, APInt(32, size));
-	builder.CreateMemCpy(result, value, size_v, 0);
-	
-	builder.CreateRetVoid();
-}
 
 llvm::Function *LLVMCompilerBase::declare_node_function(llvm::Module *mod, const NodeType *nodetype)
 {
@@ -508,25 +482,29 @@ bool LLVMSimpleCompilerImpl::set_node_function_impl(OpCode op, const NodeType *U
 		args.push_back(a);
 	
 	switch (op) {
-		case OP_VALUE_FLOAT:
+		case OP_VALUE_FLOAT: {
+			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
+			def_node_VALUE_FLOAT(context(), block, args[0], args[1]);
+			return true;
+		}
 		case OP_VALUE_INT: {
 			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_SINGLE(context(), block, args[0], args[1]);
+			def_node_VALUE_INT(context(), block, args[0], args[1]);
 			return true;
 		}
 		case OP_VALUE_FLOAT3: {
 			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(float3));
+			def_node_VALUE_FLOAT3(context(), block, args[0], args[1]);
 			return true;
 		}
 		case OP_VALUE_FLOAT4: {
 			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(float4));
+			def_node_VALUE_FLOAT4(context(), block, args[0], args[1]);
 			return true;
 		}
 		case OP_VALUE_MATRIX44: {
 			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(matrix44));
+			def_node_VALUE_MATRIX44(context(), block, args[0], args[1]);
 			return true;
 		}
 		
@@ -683,36 +661,52 @@ llvm::Function *LLVMTextureCompilerImpl::declare_elementary_node_function(llvm::
 	return func;
 }
 
-bool LLVMTextureCompilerImpl::set_elementary_node_function_impl(OpCode op, const NodeType *UNUSED(nodetype),
-                                                                llvm::Function *func, int deriv)
+bool LLVMTextureCompilerImpl::set_node_function_impl(OpCode op, const NodeType *nodetype,
+                                                     llvm::Function *value_func,
+                                                     std::vector<llvm::Function*> deriv_funcs)
 {
 	using namespace llvm;
 	
-	std::vector<Value*> args;
-	args.reserve(func->arg_size());
-	for (Function::arg_iterator a = func->arg_begin(); a != func->arg_end(); ++a)
-		args.push_back(a);
+	typedef std::vector<Value*> ValueList;
+	
+	ValueList value_args;
+	value_args.reserve(value_func->arg_size());
+	for (Function::arg_iterator a = value_func->arg_begin(); a != value_func->arg_end(); ++a)
+		value_args.push_back(a);
+	
+#if 0 /* TODO only do the value function for now */
+	std::vector<ValueList> deriv_args(nodetype->num_inputs());
+	for (int n = 0; n < nodetype->num_inputs(); ++n) {
+		deriv_args[n].reserve(deriv_funcs[n]->arg_size());
+		for (Function::arg_iterator a = deriv_funcs[n]->arg_begin(); a != deriv_funcs[n]->arg_end(); ++a)
+			deriv_args[n].push_back(a);
+	}
+#endif
 	
 	switch (op) {
-		case OP_VALUE_FLOAT:
+		case OP_VALUE_FLOAT: {
+			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
+			def_node_VALUE_FLOAT(context(), block, value_args[0], value_args[1]);
+			return true;
+		}
 		case OP_VALUE_INT: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_SINGLE(context(), block, args[0], args[1]);
+			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
+			def_node_VALUE_INT(context(), block, value_args[0], value_args[1]);
 			return true;
 		}
 		case OP_VALUE_FLOAT3: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(float3));
+			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
+			def_node_VALUE_FLOAT3(context(), block, value_args[0], value_args[1]);
 			return true;
 		}
 		case OP_VALUE_FLOAT4: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(float4));
+			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
+			def_node_VALUE_FLOAT4(context(), block, value_args[0], value_args[1]);
 			return true;
 		}
 		case OP_VALUE_MATRIX44: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-			define_function_OP_VALUE_AGGREGATE(context(), block, args[0], args[1], sizeof(matrix44));
+			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
+			def_node_VALUE_MATRIX44(context(), block, value_args[0], value_args[1]);
 			return true;
 		}
 		
@@ -730,21 +724,19 @@ static void define_elementary_functions(LLVMTextureCompilerImpl &C, llvm::Module
 	if (nodetype == NULL)
 		return;
 	
-	Function *value_func = C.declare_elementary_node_function(mod, nodetype,
-	                                                          llvm_value_function_name(nodetype->name()));
-	/* -1 means the base version, 0..n define the derivative of the n-th argument, if defined */
-	bool has_impl = C.set_elementary_node_function_impl(op, nodetype, value_func, -1);
-	UNUSED_VARS(has_impl);
-	
+	string value_name = llvm_value_function_name(nodetype->name());
+	/* declare function */
+	Function *value_func = C.declare_elementary_node_function(mod, nodetype, value_name);
+	/* declare partial derivatives wrt. the input arguments */
+	std::vector<Function *> deriv_funcs(nodetype->num_inputs());
 #if 0 /* TODO only do the value function for now */
-	/* 0..n define the derivative of the n-th argument, if it is a dependent variable */
 	for (int arg_n = -1; arg_n < nodetype->num_inputs(); ++arg_n) {
-		Function *deriv_func = C.declare_elementary_node_function(mod, nodetype,
-		                                                          llvm_deriv_function_name(nodetype->name(), arg_n));
-		bool has_impl = C.set_elementary_node_function_impl(op, nodetype, deriv_func, arg_n);
-		UNUSED_VARS(has_impl);
+		string deriv_name = llvm_deriv_function_name(nodetype->name(), arg_n);
+		deriv_funcs[arg_n] = C.declare_elementary_node_function(mod, nodetype, deriv_name);
 	}
 #endif
+	
+	C.set_node_function_impl(op, nodetype, value_func, deriv_funcs);
 }
 
 void LLVMTextureCompilerImpl::define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name)
@@ -756,9 +748,19 @@ void LLVMTextureCompilerImpl::define_dual_function_wrapper(llvm::Module *mod, co
 		return;
 	
 	/* get evaluation function(s) */
-	Function *value_func = llvm_find_external_function(mod, llvm_value_function_name(nodetype->name()));
+	string value_name = llvm_value_function_name(nodetype->name());
+	Function *value_func = llvm_find_external_function(mod, value_name);
 	BLI_assert(value_func != NULL && "Could not find node function!");
 	
+#if 0 /* TODO only do the value function for now */
+	std::vector<Function *> deriv_funcs(nodetype->num_inputs());
+	for (int n = -1; n < nodetype->num_inputs(); ++n) {
+		string deriv_name = llvm_deriv_function_name(nodetype->name(), n);
+		deriv_funcs[n] = llvm_find_external_function(mod, deriv_name);
+	}
+#endif
+	
+	/* wrapper function */
 	Function *func = declare_node_function(mod, nodetype);
 	if (func == NULL)
 		return;
@@ -825,8 +827,19 @@ void LLVMTextureCompilerImpl::define_dual_function_wrapper(llvm::Module *mod, co
 		call_args.push_back(val);
 	}
 	
-	/* call primary value function */
+	/* calculate value */
 	builder.CreateCall(value_func, call_args);
+#if 0 /* TODO only do the value function for now */
+	/* calculate partial derivatives wrt. each input */
+	for (int i = 0; i < nodetype->num_inputs(); ++i, ++arg_it) {
+		const NodeInput *input = nodetype->find_input(i);
+		const TypeSpec *typespec = input->typedesc.get_typespec();
+		
+		if (deriv_funcs[i] != NULL) {
+			
+		}
+	}
+#endif
 	
 	builder.CreateRetVoid();
 }
