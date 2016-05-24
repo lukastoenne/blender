@@ -127,31 +127,46 @@ llvm::Constant *LLVMTextureCompiler::create_node_value_constant(const NodeValue 
 	return bvm_create_llvm_constant(context(), node_value);
 }
 
-llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name)
+llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
+        llvm::Module *mod, const NodeType *nodetype, const string &name,
+        bool with_derivatives)
 {
 	using namespace llvm;
+	
+	bool error;
 	
 	std::vector<Type *> input_types, output_types;
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
 		const TypeSpec *typespec = input->typedesc.get_typespec();
+		
 		Type *type = bvm_get_llvm_type(context(), typespec, false);
-		if (type == NULL)
+		if (type == NULL) {
+			error = true;
 			break;
+		}
 		if (use_elementary_argument_pointer(typespec))
 			type = type->getPointerTo();
+		
 		input_types.push_back(type);
+		if (with_derivatives && bvm_type_has_dual_value(typespec)) {
+			/* second argument for derivative */
+			input_types.push_back(type);
+		}
 	}
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
 		const TypeSpec *typespec = output->typedesc.get_typespec();
+		
 		Type *type = bvm_get_llvm_type(context(), typespec, false);
-		if (type == NULL)
+		if (type == NULL) {
+			error = true;
 			break;
+		}
+		
 		output_types.push_back(type);
 	}
-	if (input_types.size() != nodetype->num_inputs() ||
-	    output_types.size() != nodetype->num_outputs()) {
+	if (error) {
 		/* some arguments could not be handled */
 		return NULL;
 	}
@@ -162,27 +177,21 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(llvm::Modu
 	return func;
 }
 
-bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *nodetype,
-                                                     llvm::Function *value_func,
-                                                     std::vector<llvm::Function*> deriv_funcs)
+bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *UNUSED(nodetype),
+                                                 llvm::Function *value_func, llvm::Function *deriv_func)
 {
 	using namespace llvm;
 	
 	typedef std::vector<Value*> ValueList;
 	
+	/* XXX TODO needs implementation for derivatives */
+	UNUSED_VARS(deriv_func);
+	return false;
+	
 	ValueList value_args;
 	value_args.reserve(value_func->arg_size());
 	for (Function::arg_iterator a = value_func->arg_begin(); a != value_func->arg_end(); ++a)
 		value_args.push_back(a);
-	
-#if 0 /* TODO only do the value function for now */
-	std::vector<ValueList> deriv_args(nodetype->num_inputs());
-	for (int n = 0; n < nodetype->num_inputs(); ++n) {
-		deriv_args[n].reserve(deriv_funcs[n]->arg_size());
-		for (Function::arg_iterator a = deriv_funcs[n]->arg_begin(); a != deriv_funcs[n]->arg_end(); ++a)
-			deriv_args[n].push_back(a);
-	}
-#endif
 	
 	switch (op) {
 		case OP_VALUE_FLOAT: {
@@ -216,8 +225,7 @@ bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *node
 	}
 }
 
-template <OpCode op>
-static void define_elementary_functions(LLVMTextureCompiler &C, llvm::Module *mod, const string &nodetype_name)
+void LLVMTextureCompiler::define_elementary_functions(OpCode op, llvm::Module *mod, const string &nodetype_name)
 {
 	using namespace llvm;
 	
@@ -225,19 +233,18 @@ static void define_elementary_functions(LLVMTextureCompiler &C, llvm::Module *mo
 	if (nodetype == NULL)
 		return;
 	
-	string value_name = llvm_value_function_name(nodetype->name());
 	/* declare function */
-	Function *value_func = C.declare_elementary_node_function(mod, nodetype, value_name);
-	/* declare partial derivatives wrt. the input arguments */
-	std::vector<Function *> deriv_funcs(nodetype->num_inputs());
-#if 0 /* TODO only do the value function for now */
-	for (int arg_n = -1; arg_n < nodetype->num_inputs(); ++arg_n) {
-		string deriv_name = llvm_deriv_function_name(nodetype->name(), arg_n);
-		deriv_funcs[arg_n] = C.declare_elementary_node_function(mod, nodetype, deriv_name);
-	}
-#endif
+	BLI_assert(llvm_has_external_impl_value(op));
+	Function *value_func = declare_elementary_node_function(
+	                           mod, nodetype, llvm_value_function_name(nodetype->name()), false);
 	
-	C.set_node_function_impl(op, nodetype, value_func, deriv_funcs);
+	Function *deriv_func = NULL;
+	if (llvm_has_external_impl_deriv(op)) {
+		deriv_func = declare_elementary_node_function(
+		                mod, nodetype, llvm_deriv_function_name(nodetype->name()), true);
+	}
+	
+	set_node_function_impl(op, nodetype, value_func, deriv_func);
 }
 
 void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name)
@@ -253,13 +260,8 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 	Function *value_func = llvm_find_external_function(mod, value_name);
 	BLI_assert(value_func != NULL && "Could not find node function!");
 	
-#if 0 /* TODO only do the value function for now */
-	std::vector<Function *> deriv_funcs(nodetype->num_inputs());
-	for (int n = -1; n < nodetype->num_inputs(); ++n) {
-		string deriv_name = llvm_deriv_function_name(nodetype->name(), n);
-		deriv_funcs[n] = llvm_find_external_function(mod, deriv_name);
-	}
-#endif
+	string deriv_name = llvm_deriv_function_name(nodetype->name());
+	Function *deriv_func = llvm_find_external_function(mod, deriv_name);
 	
 	/* wrapper function */
 	Function *func = declare_node_function(mod, nodetype);
@@ -275,7 +277,7 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 	std::vector<Value*> in_value, in_dx, in_dy;
 	std::vector<Value*> out_value, out_dx, out_dy; 
 	/* arguments for calculating main value and partial derivatives */
-	std::vector<Value*> call_args;
+	std::vector<Value*> call_args_value, call_args_dx, call_args_dy;
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	/* output arguments */
@@ -297,7 +299,10 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		out_value.push_back(val);
 		out_dx.push_back(dx);
 		out_dy.push_back(dy);
-		call_args.push_back(val);
+		
+		call_args_value.push_back(val);
+		call_args_dx.push_back(dx);
+		call_args_dy.push_back(dy);
 	}
 	/* input arguments */
 	for (int i = 0; i < nodetype->num_inputs(); ++i, ++arg_it) {
@@ -325,22 +330,27 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		in_value.push_back(val);
 		in_dx.push_back(dx);
 		in_dy.push_back(dy);
-		call_args.push_back(val);
+		
+		call_args_value.push_back(val);
+		
+		/* derivative functions take input value as well as its derivative */
+		call_args_dx.push_back(val);
+		call_args_dx.push_back(dx);
+		
+		call_args_dy.push_back(val);
+		call_args_dy.push_back(dy);
 	}
 	
 	/* calculate value */
-	builder.CreateCall(value_func, call_args);
-#if 0 /* TODO only do the value function for now */
-	/* calculate partial derivatives wrt. each input */
-	for (int i = 0; i < nodetype->num_inputs(); ++i, ++arg_it) {
-		const NodeInput *input = nodetype->find_input(i);
-		const TypeSpec *typespec = input->typedesc.get_typespec();
-		
-		if (deriv_funcs[i] != NULL) {
-			
-		}
+	builder.CreateCall(value_func, call_args_value);
+	
+	if (deriv_func) {
+		builder.CreateCall(deriv_func, call_args_dx);
+		builder.CreateCall(deriv_func, call_args_dy);
 	}
-#endif
+	else {
+		
+	}
 	
 	builder.CreateRetVoid();
 }
@@ -352,7 +362,7 @@ void LLVMTextureCompiler::define_nodes_module()
 	Module *mod = new llvm::Module("texture_nodes", context());
 	
 #define DEF_OPCODE(op) \
-	define_elementary_functions<OP_##op>(*this, mod, STRINGIFY(op));
+	define_elementary_functions(OP_##op, mod, STRINGIFY(op));
 	
 	BVM_DEFINE_OPCODES
 	

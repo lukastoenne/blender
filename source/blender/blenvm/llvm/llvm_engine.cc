@@ -50,6 +50,30 @@ namespace blenvm {
 static llvm::ExecutionEngine *theEngine = NULL;
 static llvm::Module *theModule = NULL;
 
+bool llvm_has_external_impl_value(OpCode node_op) {
+#define DEF_OPCODE(op) \
+	if (node_op == OP_##op) \
+		return modules::get_node_impl_value<OP_##op>() != NULL; \
+	else
+
+	BVM_DEFINE_OPCODES
+	return false;
+
+#undef DEF_OPCODE
+}
+
+bool llvm_has_external_impl_deriv(OpCode node_op) {
+#define DEF_OPCODE(op) \
+	if (node_op == OP_##op) \
+		return modules::get_node_impl_deriv<OP_##op>() != NULL; \
+	else
+
+	BVM_DEFINE_OPCODES
+	return false;
+
+#undef DEF_OPCODE
+}
+
 class MemoryManager : public llvm::SectionMemoryManager {
 public:
 	MemoryManager()
@@ -61,6 +85,8 @@ public:
 #define DEF_OPCODE(op) \
 		if (name == llvm_value_function_name(STRINGIFY(op))) \
 			return modules::get_node_impl_value<OP_##op>(); \
+		else if (name == llvm_deriv_function_name(STRINGIFY(op))) \
+			return modules::get_node_impl_deriv<OP_##op>(); \
 		else
 	
 		BVM_DEFINE_OPCODES

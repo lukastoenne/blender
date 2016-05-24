@@ -72,8 +72,7 @@ struct LLVMCompilerBase {
 	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
 	void debug_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file);
 	
-	/* XXX TODO some methods are used by static template functions, which require public access ... */
-//protected:
+protected:
 	LLVMCompilerBase();
 	
 	llvm::LLVMContext &context() const;
@@ -130,7 +129,9 @@ private:
 
 struct LLVMTextureCompiler : public LLVMCompilerBase {
 	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
-	llvm::Function *declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name);
+	llvm::Function *declare_elementary_node_function(
+	        llvm::Module *mod, const NodeType *nodetype, const string &name,
+	        bool with_derivatives);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
@@ -140,8 +141,8 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	llvm::Constant *create_node_value_constant(const NodeValue *node_value);
 	
 	bool set_node_function_impl(OpCode op, const NodeType *nodetype,
-	                            llvm::Function *value_func,
-	                            std::vector<llvm::Function*> deriv_funcs);
+	                            llvm::Function *value_func, llvm::Function * dual_func);
+	void define_elementary_functions(OpCode op, llvm::Module *mod, const string &nodetype_name);
 	void define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name);
 	void define_nodes_module();
 	

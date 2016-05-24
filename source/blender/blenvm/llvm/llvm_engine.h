@@ -33,6 +33,7 @@
  */
 
 #include "util_string.h"
+#include "util_opcode.h"
 
 namespace llvm {
 class ExecutionEngine;
@@ -44,6 +45,9 @@ void llvm_init();
 void llvm_free();
 
 llvm::ExecutionEngine *llvm_execution_engine();
+
+bool llvm_has_external_impl_value(OpCode op);
+bool llvm_has_external_impl_deriv(OpCode op);
 
 } /* namespace blenvm */
 

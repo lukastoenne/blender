@@ -42,25 +42,12 @@ BVM_MOD_NAMESPACE_BEGIN
 
 #define BVM_DECL_FUNCTION_VALUE(name) \
 	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)name; }
+#define BVM_DECL_FUNCTION_DUAL(name, name_d) \
+	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)name; } \
+	template <> inline void *get_node_impl_deriv<OP_##name>() { return (void*)(intptr_t)name_d; }
 
 template <OpCode op> static inline void *get_node_impl_value() { return NULL; }
-
-template <OpCode op> static inline void *get_node_impl_deriv0() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv1() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv2() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv3() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv4() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv5() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv6() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv7() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv8() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv9() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv10() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv11() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv12() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv13() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv14() { return NULL; }
-template <OpCode op> static inline void *get_node_impl_deriv15() { return NULL; }
+template <OpCode op> static inline void *get_node_impl_deriv() { return NULL; }
 
 BVM_MOD_NAMESPACE_END
 

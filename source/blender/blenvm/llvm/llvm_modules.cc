@@ -208,11 +208,9 @@ string llvm_value_function_name(const string &node)
 	return "VAL__" + node;
 }
 
-string llvm_deriv_function_name(const string &node, int var_n)
+string llvm_deriv_function_name(const string &node)
 {
-	std::stringstream ss;
-	ss << "D" << var_n << "__" << node;
-	return ss.str();
+	return "D__" + node;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -90,49 +90,91 @@ bvm_extern void ADD_FLOAT(float &r, float a, float b)
 {
 	r = a + b;
 }
-BVM_DECL_FUNCTION_VALUE(ADD_FLOAT)
+bvm_extern void ADD_FLOAT_D(float &dr, float /*a*/, float da, float /*b*/, float db)
+{
+	dr = da + db;
+}
+BVM_DECL_FUNCTION_DUAL(ADD_FLOAT, ADD_FLOAT_D)
 
 bvm_extern void SUB_FLOAT(float &r, float a, float b)
 {
 	r = a - b;
 }
-BVM_DECL_FUNCTION_VALUE(SUB_FLOAT)
+bvm_extern void SUB_FLOAT_D(float &dr, float /*a*/, float da, float /*b*/, float db)
+{
+	dr = da - db;
+}
+BVM_DECL_FUNCTION_DUAL(SUB_FLOAT, SUB_FLOAT_D)
 
 bvm_extern void MUL_FLOAT(float &r, float a, float b)
 {
 	r = a * b;
 }
-BVM_DECL_FUNCTION_VALUE(MUL_FLOAT)
+bvm_extern void MUL_FLOAT_D(float &dr, float a, float da, float b, float db)
+{
+	dr = da * b + a * db;
+}
+BVM_DECL_FUNCTION_DUAL(MUL_FLOAT, MUL_FLOAT_D)
 
 bvm_extern void DIV_FLOAT(float &r, float a, float b)
 {
 	r = div_safe(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(DIV_FLOAT)
+bvm_extern void DIV_FLOAT_D(float &dr, float a, float da, float b, float db)
+{
+	if (b != 0.0f)
+		dr = (da - db * a / b) / b;
+	else
+		dr = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(DIV_FLOAT, DIV_FLOAT_D)
 
 bvm_extern void SINE(float &r, float f)
 {
 	r = sinf(f);
 }
-BVM_DECL_FUNCTION_VALUE(SINE)
+bvm_extern void SINE_D(float &dr, float f, float df)
+{
+	dr = df * cosf(f);
+}
+BVM_DECL_FUNCTION_DUAL(SINE, SINE_D)
 
 bvm_extern void COSINE(float &r, float f)
 {
 	r = cosf(f);
 }
-BVM_DECL_FUNCTION_VALUE(COSINE)
+bvm_extern void COSINE_D(float &dr, float f, float df)
+{
+	dr = df * (-sinf(f));
+}
+BVM_DECL_FUNCTION_DUAL(COSINE, COSINE_D)
 
 bvm_extern void TANGENT(float &r, float f)
 {
 	r = tanf(f);
 }
-BVM_DECL_FUNCTION_VALUE(TANGENT)
+bvm_extern void TANGENT_D(float &dr, float f, float df)
+{
+	float c = cosf(f);
+	dr = df * div_safe(1.0f, c*c);
+}
+BVM_DECL_FUNCTION_DUAL(TANGENT, TANGENT_D)
 
 bvm_extern void ARCSINE(float &r, float f)
 {
-	r = asinf(f);
+	if (f >= -1.0f && f <= 1.0f)
+		r = asinf(f);
+	else
+		r = 0.0f;
 }
-BVM_DECL_FUNCTION_VALUE(ARCSINE)
+bvm_extern void ARCSINE_D(float &dr, float f, float df)
+{
+	if (f >= -1.0f && f <= 1.0f)
+		dr = div_safe(df, sqrtf(1.0f - f*f));
+	else
+		dr = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(ARCSINE, ARCSINE_D)
 
 bvm_extern void ARCCOSINE(float &r, float f)
 {
@@ -210,7 +252,14 @@ bvm_extern void SQRT(float &r, float f)
 {
 	r = sqrt_safe(f);
 }
-BVM_DECL_FUNCTION_VALUE(SQRT)
+bvm_extern void SQRT_D(float &dr, float f, float df)
+{
+	if (f > 0.0f)
+		dr = df / sqrt_safe(f);
+	else
+		dr = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(SQRT, SQRT_D)
 
 bvm_extern void ADD_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
@@ -228,7 +277,14 @@ bvm_extern void MUL_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
 	mul_v3_v3v3(r.data(), a.data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(MUL_FLOAT3)
+bvm_extern void MUL_FLOAT3_D(float3 &dr, const float3 &a, const float3 &da, const float3 &b, const float3 &db)
+{
+	float3 dra, drb;
+	mul_v3_v3v3(dra.data(), da.data(), b.data());
+	mul_v3_v3v3(drb.data(), a.data(), db.data());
+	add_v3_v3v3(dr.data(), dra.data(), drb.data());
+}
+BVM_DECL_FUNCTION_DUAL(MUL_FLOAT3, MUL_FLOAT3_D)
 
 bvm_extern void DIV_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
