@@ -420,15 +420,15 @@ static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const c
 		}
 		case BVM_DEBUG_LLVM_CODE: {
 #ifdef WITH_LLVM
-			DebugLLVMCompiler compiler;
-			compiler.compile_function(label, graph, 2, debug_file);
+			LLVMTextureCompiler compiler;
+			compiler.debug_function(label, graph, 2, debug_file);
 #endif
 			break;
 		}
 		case BVM_DEBUG_LLVM_CODE_UNOPTIMIZED: {
 #ifdef WITH_LLVM
-			DebugLLVMCompiler compiler;
-			compiler.compile_function(label, graph, 0, debug_file);
+			LLVMTextureCompiler compiler;
+			compiler.debug_function(label, graph, 0, debug_file);
 #endif
 			break;
 		}
@@ -596,7 +596,7 @@ struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cac
 		parse_py_nodes(btree, &graph);
 		graph.finalize();
 		
-		LLVMCompiler compiler;
+		LLVMTextureCompiler compiler;
 		fn = compiler.compile_function(get_ntree_unique_function_name(btree), graph, 2);
 		
 		if (use_cache) {

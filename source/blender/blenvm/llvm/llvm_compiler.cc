@@ -427,7 +427,7 @@ llvm::Function *LLVMCompilerBase::declare_node_function(llvm::Module *mod, const
 
 /* ------------------------------------------------------------------------- */
 
-FunctionLLVM *LLVMCompiler::compile_function(const string &name, const NodeGraph &graph, int opt_level)
+FunctionLLVM *LLVMCompilerBase::compile_function(const string &name, const NodeGraph &graph, int opt_level)
 {
 	using namespace llvm;
 	
@@ -493,7 +493,7 @@ class debug_assembly_annotation_writer : public llvm::AssemblyAnnotationWriter
 	/* add implementation here if needed */
 };
 
-void DebugLLVMCompiler::compile_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file)
+void LLVMCompilerBase::debug_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file)
 {
 	using namespace llvm;
 	

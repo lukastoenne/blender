@@ -48,14 +48,14 @@
 
 namespace blenvm {
 
-llvm::Module *LLVMTextureCompilerImpl::m_nodes_module = NULL;
+llvm::Module *LLVMTextureCompiler::m_nodes_module = NULL;
 
-llvm::Type *LLVMTextureCompilerImpl::get_value_type(const TypeSpec *spec, bool is_constant)
+llvm::Type *LLVMTextureCompiler::get_value_type(const TypeSpec *spec, bool is_constant)
 {
 	return bvm_get_llvm_type(context(), spec, !is_constant);
 }
 
-bool LLVMTextureCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool is_constant)
+bool LLVMTextureCompiler::use_argument_pointer(const TypeSpec *typespec, bool is_constant)
 {
 	using namespace llvm;
 	
@@ -90,7 +90,7 @@ bool LLVMTextureCompilerImpl::use_argument_pointer(const TypeSpec *typespec, boo
 	return false;
 }
 
-bool LLVMTextureCompilerImpl::use_elementary_argument_pointer(const TypeSpec *typespec)
+bool LLVMTextureCompiler::use_elementary_argument_pointer(const TypeSpec *typespec)
 {
 	using namespace llvm;
 	
@@ -122,12 +122,12 @@ bool LLVMTextureCompilerImpl::use_elementary_argument_pointer(const TypeSpec *ty
 	return false;
 }
 
-llvm::Constant *LLVMTextureCompilerImpl::create_node_value_constant(const NodeValue *node_value)
+llvm::Constant *LLVMTextureCompiler::create_node_value_constant(const NodeValue *node_value)
 {
 	return bvm_create_llvm_constant(context(), node_value);
 }
 
-llvm::Function *LLVMTextureCompilerImpl::declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name)
+llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name)
 {
 	using namespace llvm;
 	
@@ -162,7 +162,7 @@ llvm::Function *LLVMTextureCompilerImpl::declare_elementary_node_function(llvm::
 	return func;
 }
 
-bool LLVMTextureCompilerImpl::set_node_function_impl(OpCode op, const NodeType *nodetype,
+bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *nodetype,
                                                      llvm::Function *value_func,
                                                      std::vector<llvm::Function*> deriv_funcs)
 {
@@ -217,7 +217,7 @@ bool LLVMTextureCompilerImpl::set_node_function_impl(OpCode op, const NodeType *
 }
 
 template <OpCode op>
-static void define_elementary_functions(LLVMTextureCompilerImpl &C, llvm::Module *mod, const string &nodetype_name)
+static void define_elementary_functions(LLVMTextureCompiler &C, llvm::Module *mod, const string &nodetype_name)
 {
 	using namespace llvm;
 	
@@ -240,7 +240,7 @@ static void define_elementary_functions(LLVMTextureCompilerImpl &C, llvm::Module
 	C.set_node_function_impl(op, nodetype, value_func, deriv_funcs);
 }
 
-void LLVMTextureCompilerImpl::define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name)
+void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name)
 {
 	using namespace llvm;
 	
@@ -345,7 +345,7 @@ void LLVMTextureCompilerImpl::define_dual_function_wrapper(llvm::Module *mod, co
 	builder.CreateRetVoid();
 }
 
-void LLVMTextureCompilerImpl::define_nodes_module()
+void LLVMTextureCompiler::define_nodes_module()
 {
 	using namespace llvm;
 	

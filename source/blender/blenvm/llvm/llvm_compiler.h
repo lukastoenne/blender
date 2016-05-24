@@ -69,6 +69,9 @@ struct LLVMCompilerBase {
 	
 	virtual ~LLVMCompilerBase();
 	
+	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
+	void debug_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file);
+	
 	/* XXX TODO some methods are used by static template functions, which require public access ... */
 //protected:
 	LLVMCompilerBase();
@@ -125,7 +128,7 @@ private:
 	static llvm::Module *m_nodes_module;
 };
 
-struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
+struct LLVMTextureCompiler : public LLVMCompilerBase {
 	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
 	llvm::Function *declare_elementary_node_function(llvm::Module *mod, const NodeType *nodetype, const string &name);
 	
@@ -144,14 +147,6 @@ struct LLVMTextureCompilerImpl : public LLVMCompilerBase {
 	
 private:
 	static llvm::Module *m_nodes_module;
-};
-
-struct LLVMCompiler : public LLVMTextureCompilerImpl {
-	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
-};
-
-struct DebugLLVMCompiler : public LLVMTextureCompilerImpl {
-	void compile_function(const string &name, const NodeGraph &graph, int opt_level, FILE *file);
 };
 
 } /* namespace blenvm */
