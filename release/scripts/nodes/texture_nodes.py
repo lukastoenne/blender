@@ -131,6 +131,50 @@ class TextureCoordinateNode(TextureNodeBase, ObjectNode):
     def compile(self, compiler):
         compiler.map_output(0, compiler.graph_input("texture.co"))
 
+
+class TextureGetDerivativeNode(TextureNodeBase, ObjectNode):
+    '''Get a partial derivative of a value'''
+    bl_idname = 'TextureGetDerivativeNode'
+    bl_label = 'Get Derivative'
+
+    _variable_items = [
+        ('X', 'x', '', 'NONE', 0),
+        ('Y', 'y', '', 'NONE', 1),
+        ]
+    variable = EnumProperty(name="Variable",
+                            description="Get derivative wrt. this variable",
+                            items=_variable_items)
+    @property
+    def variable_index(self):
+        return self.bl_rna.properties['variable'].enum_items_static[self.variable].value
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "variable")
+
+    def init(self, context):
+        self.inputs.new('NodeSocketFloat', "Value")
+        self.inputs.new('NodeSocketVector', "Value")
+        self.inputs.new('NodeSocketColor', "Value")
+        self.outputs.new('NodeSocketFloat', "Derivative")
+        self.outputs.new('NodeSocketVector', "Derivative")
+        self.outputs.new('NodeSocketColor', "Derivative")
+
+    def compile(self, compiler):
+        node = compiler.add_node("GET_DERIVATIVE_FLOAT")
+        node.inputs[0].set_value(self.variable_index)
+        compiler.map_input(0, node.inputs[1])
+        compiler.map_output(0, node.outputs[0])
+
+        node = compiler.add_node("GET_DERIVATIVE_FLOAT3")
+        node.inputs[0].set_value(self.variable_index)
+        compiler.map_input(1, node.inputs[1])
+        compiler.map_output(1, node.outputs[0])
+
+        node = compiler.add_node("GET_DERIVATIVE_FLOAT4")
+        node.inputs[0].set_value(self.variable_index)
+        compiler.map_input(2, node.inputs[1])
+        compiler.map_output(2, node.outputs[0])
+
 ###############################################################################
 
 def register():
@@ -154,6 +198,7 @@ def register():
         TextureNodeCategory("TEX_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
             NodeItem("ObjectCombineVectorNode"),
+            NodeItem("TextureGetDerivativeNode"),
             ]),
         TextureNodeCategory("TEX_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),

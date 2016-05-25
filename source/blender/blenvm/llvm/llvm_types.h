@@ -221,6 +221,30 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const Dual2<T> 
 	                           NULL);
 }
 
+template <typename T>
+inline llvm::Constant *make_zero(llvm::LLVMContext &UNUSED(context))
+{
+	return NULL;
+}
+
+template <>
+inline llvm::Constant *make_zero<float>(llvm::LLVMContext &context)
+{
+	return make_constant(context, 0.0f);
+}
+
+template <>
+inline llvm::Constant *make_zero<float3>(llvm::LLVMContext &context)
+{
+	return make_constant(context, float3(0.0f, 0.0f, 0.0f));
+}
+
+template <>
+inline llvm::Constant *make_zero<float4>(llvm::LLVMContext &context)
+{
+	return make_constant(context, float4(0.0f, 0.0f, 0.0f, 0.0f));
+}
+
 /* ------------------------------------------------------------------------- */
 
 template <BVMType type>
@@ -301,6 +325,7 @@ struct BVMTypeLLVMTraits<BVM_DUPLIS> {
 llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual);
 llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeValue *node_value);
 bool bvm_type_has_dual_value(const TypeSpec *spec);
+llvm::Constant *bvm_make_zero(llvm::LLVMContext &context, const TypeSpec *spec);
 
 } /* namespace blenvm */
 

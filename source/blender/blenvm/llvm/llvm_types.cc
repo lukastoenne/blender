@@ -142,4 +142,32 @@ bool bvm_type_has_dual_value(const TypeSpec *spec)
 	return false;
 }
 
+llvm::Constant *bvm_make_zero(llvm::LLVMContext &context, const TypeSpec *spec)
+{
+	using namespace llvm;
+	
+	if (spec->is_structure()) {
+		return NULL;
+	}
+	else {
+#define BVM_MAKE_ZERO(t) \
+		make_zero<BVMTypeLLVMTraits<t>::value_type>(context)
+		
+		switch (spec->base_type()) {
+			case BVM_FLOAT: return BVM_MAKE_ZERO(BVM_FLOAT);
+			case BVM_FLOAT3: return BVM_MAKE_ZERO(BVM_FLOAT3);
+			case BVM_FLOAT4: return BVM_MAKE_ZERO(BVM_FLOAT4);
+			case BVM_INT: return BVM_MAKE_ZERO(BVM_INT);
+			case BVM_MATRIX44: return BVM_MAKE_ZERO(BVM_MATRIX44);
+			case BVM_STRING: return BVM_MAKE_ZERO(BVM_STRING);
+			case BVM_RNAPOINTER: return BVM_MAKE_ZERO(BVM_RNAPOINTER);
+			case BVM_MESH: return BVM_MAKE_ZERO(BVM_MESH);
+			case BVM_DUPLIS: return BVM_MAKE_ZERO(BVM_DUPLIS);
+		}
+		
+#undef BVM_MAKE_ZERO
+	}
+	return NULL;
+}
+
 } /* namespace blenvm */

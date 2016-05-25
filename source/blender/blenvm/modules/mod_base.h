@@ -49,19 +49,31 @@ bvm_extern void VALUE_FLOAT(float &result, float value)
 {
 	result = value;
 }
-BVM_DECL_FUNCTION_VALUE(VALUE_FLOAT)
+bvm_extern void VALUE_FLOAT_D(float &dr, float /*f*/)
+{
+	dr = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT, VALUE_FLOAT_D)
 
 bvm_extern void VALUE_FLOAT3(float3 &result, const float3 &value)
 {
 	result = value;
 }
-BVM_DECL_FUNCTION_VALUE(VALUE_FLOAT3)
+bvm_extern void VALUE_FLOAT3_D(float3 &dr, const float3 &/*f*/)
+{
+	dr = float3(0.0f, 0.0f, 0.0f);
+}
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT3, VALUE_FLOAT3_D)
 
 bvm_extern void VALUE_FLOAT4(float4 &result, const float4 &value)
 {
 	result = value;
 }
-BVM_DECL_FUNCTION_VALUE(VALUE_FLOAT4)
+bvm_extern void VALUE_FLOAT4_D(float4 &dr, const float4 &/*f*/)
+{
+	dr = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT4, VALUE_FLOAT4_D)
 
 bvm_extern void VALUE_INT(int &result, int value)
 {
@@ -115,27 +127,47 @@ bvm_extern void SET_FLOAT3(float3 &result, float x, float y, float z)
 {
 	result = float3(x, y, z);
 }
-BVM_DECL_FUNCTION_VALUE(SET_FLOAT3)
+bvm_extern void SET_FLOAT3_D(float3 &dr, float /*x*/, float dx, float /*y*/, float dy, float /*z*/, float dz)
+{
+	dr = float3(dx, dy, dz);
+}
+BVM_DECL_FUNCTION_DUAL(SET_FLOAT3, SET_FLOAT3_D)
 
 bvm_extern void GET_ELEM_FLOAT3(float &result, int index, const float3 &f)
 {
 	BLI_assert(index >= 0 && index < 3);
 	result = f[index];
 }
-BVM_DECL_FUNCTION_VALUE(GET_ELEM_FLOAT3)
+bvm_extern void GET_ELEM_FLOAT3_D(float &dr, int index, const float3 &/*f*/, const float3 &df)
+{
+	BLI_assert(index >= 0 && index < 3);
+	dr = df[index];
+}
+BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT3, GET_ELEM_FLOAT3_D)
 
 bvm_extern void SET_FLOAT4(float4 &result, float x, float y, float z, float w)
 {
 	result = float4(x, y, z, w);
 }
-BVM_DECL_FUNCTION_VALUE(SET_FLOAT4)
+bvm_extern void SET_FLOAT4_D(float4 &dr,
+                             float /*x*/, float dx, float /*y*/, float dy,
+                             float /*z*/, float dz, float /*w*/, float dw)
+{
+	dr = float4(dx, dy, dz, dw);
+}
+BVM_DECL_FUNCTION_DUAL(SET_FLOAT4, SET_FLOAT4_D)
 
 bvm_extern void GET_ELEM_FLOAT4(float &result, int index, const float4 &f)
 {
 	BLI_assert(index >= 0 && index < 4);
 	result = f[index];
 }
-BVM_DECL_FUNCTION_VALUE(GET_ELEM_FLOAT4)
+bvm_extern void GET_ELEM_FLOAT4_D(float &dr, int index, const float4 &/*f*/, const float4 &df)
+{
+	BLI_assert(index >= 0 && index < 4);
+	dr = df[index];
+}
+BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT4, GET_ELEM_FLOAT4_D)
 
 BVM_MOD_NAMESPACE_END
 

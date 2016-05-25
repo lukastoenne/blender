@@ -140,11 +140,14 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	
 	llvm::Constant *create_node_value_constant(const NodeValue *node_value);
 	
+	void define_node_function(llvm::Module *mod, OpCode op, const string &nodetype_name);
+	void define_nodes_module();
+	
 	bool set_node_function_impl(OpCode op, const NodeType *nodetype,
 	                            llvm::Function *value_func, llvm::Function * dual_func);
-	void define_elementary_functions(OpCode op, llvm::Module *mod, const string &nodetype_name);
-	void define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name);
-	void define_nodes_module();
+	void define_elementary_functions(llvm::Module *mod, OpCode op, const NodeType *nodetype);
+	void define_dual_function_wrapper(llvm::Module *mod, OpCode op, const NodeType *nodetype);
+	void define_get_derivative(llvm::Module *mod, OpCode op, const NodeType *nodetype);
 	
 private:
 	static llvm::Module *m_nodes_module;

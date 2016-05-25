@@ -127,6 +127,47 @@ llvm::Constant *LLVMTextureCompiler::create_node_value_constant(const NodeValue 
 	return bvm_create_llvm_constant(context(), node_value);
 }
 
+/* ------------------------------------------------------------------------- */
+
+void LLVMTextureCompiler::define_node_function(llvm::Module *mod, OpCode op, const string &nodetype_name)
+{
+	const NodeType *nodetype = NodeGraph::find_node_type(nodetype_name);
+	if (nodetype == NULL)
+		return;
+	
+	switch (op) {
+		/* special cases */
+		case OP_GET_DERIVATIVE_FLOAT:
+		case OP_GET_DERIVATIVE_FLOAT3:
+		case OP_GET_DERIVATIVE_FLOAT4:
+			define_get_derivative(mod, op, nodetype);
+			break;
+		
+		default:
+			define_elementary_functions(mod, op, nodetype);
+			define_dual_function_wrapper(mod, op, nodetype);
+			break;
+	}
+}
+
+void LLVMTextureCompiler::define_nodes_module()
+{
+	using namespace llvm;
+	
+	Module *mod = new llvm::Module("texture_nodes", context());
+	
+#define DEF_OPCODE(op) \
+	define_node_function(mod, OP_##op, STRINGIFY(op));
+	
+	BVM_DEFINE_OPCODES
+	
+#undef DEF_OPCODE
+	
+	m_nodes_module = mod;
+}
+
+/* ------------------------------------------------------------------------- */
+
 llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
         llvm::Module *mod, const NodeType *nodetype, const string &name,
         bool with_derivatives)
@@ -149,7 +190,8 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 			type = type->getPointerTo();
 		
 		input_types.push_back(type);
-		if (with_derivatives && bvm_type_has_dual_value(typespec)) {
+		if (with_derivatives &&
+		    input->value_type != INPUT_CONSTANT && bvm_type_has_dual_value(typespec)) {
 			/* second argument for derivative */
 			input_types.push_back(type);
 		}
@@ -164,7 +206,13 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 			break;
 		}
 		
-		output_types.push_back(type);
+		if (with_derivatives &&
+		    bvm_type_has_dual_value(typespec)) {
+			output_types.push_back(type);
+		}
+		else {
+			output_types.push_back(type);
+		}
 	}
 	if (error) {
 		/* some arguments could not be handled */
@@ -225,35 +273,29 @@ bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *UNUS
 	}
 }
 
-void LLVMTextureCompiler::define_elementary_functions(OpCode op, llvm::Module *mod, const string &nodetype_name)
+void LLVMTextureCompiler::define_elementary_functions(llvm::Module *mod, OpCode op, const NodeType *nodetype)
 {
 	using namespace llvm;
 	
-	const NodeType *nodetype = NodeGraph::find_node_type(nodetype_name);
-	if (nodetype == NULL)
-		return;
+	/* declare functions */
+	Function *value_func = NULL, *deriv_func = NULL;
 	
-	/* declare function */
-	BLI_assert(llvm_has_external_impl_value(op));
-	Function *value_func = declare_elementary_node_function(
-	                           mod, nodetype, llvm_value_function_name(nodetype->name()), false);
+	if (llvm_has_external_impl_value(op)) {
+		value_func = declare_elementary_node_function(
+		                 mod, nodetype, llvm_value_function_name(nodetype->name()), false);
+	}
 	
-	Function *deriv_func = NULL;
 	if (llvm_has_external_impl_deriv(op)) {
 		deriv_func = declare_elementary_node_function(
-		                mod, nodetype, llvm_deriv_function_name(nodetype->name()), true);
+		                 mod, nodetype, llvm_deriv_function_name(nodetype->name()), true);
 	}
 	
 	set_node_function_impl(op, nodetype, value_func, deriv_func);
 }
 
-void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const string &nodetype_name)
+void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode UNUSED(op), const NodeType *nodetype)
 {
 	using namespace llvm;
-	
-	const NodeType *nodetype = NodeGraph::find_node_type(nodetype_name);
-	if (nodetype == NULL)
-		return;
 	
 	/* get evaluation function(s) */
 	string value_name = llvm_value_function_name(nodetype->name());
@@ -273,9 +315,6 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 	builder.SetInsertPoint(block);
 	
 	/* collect arguments for calling internal elementary functions */
-	/* value and derivative components of input/output duals */
-	std::vector<Value*> in_value, in_dx, in_dy;
-	std::vector<Value*> out_value, out_dx, out_dy; 
 	/* arguments for calculating main value and partial derivatives */
 	std::vector<Value*> call_args_value, call_args_dx, call_args_dy;
 	
@@ -293,16 +332,15 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		}
 		else {
 			val = arg;
-			dx = dy = NULL;
+			dx = NULL;
+			dy = NULL;
 		}
 		
-		out_value.push_back(val);
-		out_dx.push_back(dx);
-		out_dy.push_back(dy);
-		
 		call_args_value.push_back(val);
-		call_args_dx.push_back(dx);
-		call_args_dy.push_back(dy);
+		if (dx != NULL)
+			call_args_dx.push_back(dx);
+		if (dy != NULL)
+			call_args_dy.push_back(dy);
 	}
 	/* input arguments */
 	for (int i = 0; i < nodetype->num_inputs(); ++i, ++arg_it) {
@@ -324,21 +362,20 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		}
 		else {
 			val = arg;
-			dx = dy = NULL;
+			dx = NULL;
+			dy = NULL;
 		}
-		
-		in_value.push_back(val);
-		in_dx.push_back(dx);
-		in_dy.push_back(dy);
 		
 		call_args_value.push_back(val);
 		
 		/* derivative functions take input value as well as its derivative */
 		call_args_dx.push_back(val);
-		call_args_dx.push_back(dx);
+		if (dx != NULL)
+			call_args_dx.push_back(dx);
 		
 		call_args_dy.push_back(val);
-		call_args_dy.push_back(dy);
+		if (dy != NULL)
+			call_args_dy.push_back(dy);
 	}
 	
 	/* calculate value */
@@ -349,34 +386,81 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		builder.CreateCall(deriv_func, call_args_dy);
 	}
 	else {
-		/* TODO zero the derivatives */
+		/* zero the derivatives */
+		for (int i = 0; i < nodetype->num_outputs(); ++i, ++arg_it) {
+			const NodeOutput *output = nodetype->find_output(i);
+			const TypeSpec *typespec = output->typedesc.get_typespec();
+			
+			if (bvm_type_has_dual_value(typespec)) {
+				Constant *c = bvm_make_zero(context(), typespec);
+				builder.CreateStore(c, call_args_dx[i]);
+				builder.CreateStore(c, call_args_dy[i]);
+			}
+		}
 	}
 	
 	builder.CreateRetVoid();
 }
 
-void LLVMTextureCompiler::define_nodes_module()
+void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED(op), const NodeType *nodetype)
 {
 	using namespace llvm;
 	
-	Module *mod = new llvm::Module("texture_nodes", context());
+	Function *func = declare_node_function(mod, nodetype);
+	if (func == NULL)
+		return;
 	
-#define DEF_OPCODE(op) \
-	define_elementary_functions(OP_##op, mod, STRINGIFY(op));
+	ConstantInt* idx0 = ConstantInt::get(context(), APInt(32, 0));
+	ConstantInt* idx1 = ConstantInt::get(context(), APInt(32, 1));
 	
-	BVM_DEFINE_OPCODES
+	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
+	BasicBlock *block_var0 = BasicBlock::Create(context(), "var0", func);
+	BasicBlock *block_var1 = BasicBlock::Create(context(), "var1", func);
+	BasicBlock *block_end = BasicBlock::Create(context(), "end", func);
 	
-#undef DEF_OPCODE
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *out = arg_it++;
+	Argument *var = arg_it++;
+	Argument *in = arg_it++;
 	
+	Value *value_ptr;
 	
-#define DEF_OPCODE(op) \
-	define_dual_function_wrapper(mod, STRINGIFY(op));
+	{
+		IRBuilder<> builder(context());
+		builder.SetInsertPoint(block);
+		
+		value_ptr = builder.CreateStructGEP(out, 0);
+		SwitchInst *sw = builder.CreateSwitch(var, block_end, 2);
+		sw->addCase(idx0, block_var0);
+		sw->addCase(idx1, block_var1);
+	}
 	
-	BVM_DEFINE_OPCODES
+	{
+		IRBuilder<> builder(context());
+		builder.SetInsertPoint(block_var0);
+		
+		Value *deriv_ptr = builder.CreateStructGEP(in, 1);
+		Value *data = builder.CreateLoad(deriv_ptr);
+		builder.CreateStore(data, value_ptr);
+		builder.CreateBr(block_end);
+	}
 	
-#undef DEF_OPCODE
+	{
+		IRBuilder<> builder(context());
+		builder.SetInsertPoint(block_var1);
+		
+		Value *deriv_ptr = builder.CreateStructGEP(in, 2);
+		Value *data = builder.CreateLoad(deriv_ptr);
+		builder.CreateStore(data, value_ptr);
+		builder.CreateBr(block_end);
+	}
 	
-	m_nodes_module = mod;
+	{
+		IRBuilder<> builder(context());
+		builder.SetInsertPoint(block_end);
+		
+		builder.CreateRetVoid();
+	}
 }
 
 } /* namespace blenvm */

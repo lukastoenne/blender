@@ -1461,6 +1461,21 @@ static void register_opcode_node_types()
 	nt->add_input("value_w", "FLOAT", 0.0f);
 	nt->add_output("value", "FLOAT4");
 	
+	nt = NodeGraph::add_node_type("GET_DERIVATIVE_FLOAT");
+	nt->add_input("variable", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT", 0.0f);
+	nt->add_output("derivative", "FLOAT");
+	
+	nt = NodeGraph::add_node_type("GET_DERIVATIVE_FLOAT3");
+	nt->add_input("variable", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_output("derivative", "FLOAT3");
+	
+	nt = NodeGraph::add_node_type("GET_DERIVATIVE_FLOAT4");
+	nt->add_input("variable", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "FLOAT4", float4(0.0f, 0.0f, 0.0f, 0.0f));
+	nt->add_output("derivative", "FLOAT4");
+	
 	#define BINARY_MATH_NODE(name) \
 	nt = NodeGraph::add_node_type(STRINGIFY(name)); \
 	nt->add_input("value_a", "FLOAT", 0.0f); \
