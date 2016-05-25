@@ -122,7 +122,6 @@ static llvm::ExecutionEngine *create_execution_engine()
 	builder.setEngineKind(EngineKind::JIT);
 	builder.setUseMCJIT(true);
 	builder.setErrorStr(&error);
-	builder.setCodeModel(CodeModel::Large);
 	builder.setMCJITMemoryManager(new MemoryManager());
 	
 	ExecutionEngine *engine = builder.create();

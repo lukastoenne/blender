@@ -133,7 +133,7 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 {
 	using namespace llvm;
 	
-	bool error;
+	bool error = false;
 	
 	std::vector<Type *> input_types, output_types;
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
@@ -349,7 +349,7 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, const 
 		builder.CreateCall(deriv_func, call_args_dy);
 	}
 	else {
-		
+		/* TODO zero the derivatives */
 	}
 	
 	builder.CreateRetVoid();
@@ -368,9 +368,6 @@ void LLVMTextureCompiler::define_nodes_module()
 	
 #undef DEF_OPCODE
 	
-	/* link base functions into the module */
-//	std::string error;
-//	Linker::LinkModules(mod, mod_basefuncs, Linker::LinkerMode::PreserveSource, &error);
 	
 #define DEF_OPCODE(op) \
 	define_dual_function_wrapper(mod, STRINGIFY(op));
@@ -378,9 +375,6 @@ void LLVMTextureCompiler::define_nodes_module()
 	BVM_DEFINE_OPCODES
 	
 #undef DEF_OPCODE
-	
-//	llvm_execution_engine()->addModule(mod_basefuncs);
-//	llvm_execution_engine()->addModule(mod);
 	
 	m_nodes_module = mod;
 }
