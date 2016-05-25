@@ -1684,6 +1684,43 @@ void BKE_texture_get_value(
 	}
 }
 
+void BKE_texture_get_value_deriv(
+        const Scene *scene, Tex *texture,
+        const float *tex_co, const float *tex_dx, const float *tex_dy,
+        TexResult *texres, TexResult *texres_dx, TexResult *texres_dy,
+        bool UNUSED(use_color_management))
+{
+	int result_type;
+
+	/* no node textures for now */
+	if (texture->use_nodes && texture->nodetree) {
+		struct BVMFunction *fn = BVM_gen_texture_function_llvm(texture->nodetree, true);
+		if (fn) {
+			struct BVMEvalContext *context = BVM_context_create();
+			
+			BVM_eval_texture_llvm(context, fn, 
+			                      texres, texres_dx, texres_dy,
+			                      tex_co, tex_dx, tex_dy,
+			                      0, 0, scene->r.cfra, false);
+			result_type = TEX_INT | TEX_RGB | TEX_NOR;
+			
+			BVM_context_free(context);
+			BVM_function_llvm_release(fn);
+		}
+	}
+
+	/* if the texture gave an RGB value, we assume it didn't give a valid
+	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
+	 * if the texture didn't give an RGB value, copy the intensity across
+	 */
+	if (result_type & TEX_RGB) {
+		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
+	}
+	else {
+		copy_v3_fl(&texres->tr, texres->tin);
+	}
+}
+
 /* -------------------- */
 /* Depsgraph evaluation */
 
