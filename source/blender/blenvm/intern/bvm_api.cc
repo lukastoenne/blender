@@ -665,11 +665,11 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunctio
 	if (dxt)
 		coord_v.set_dx(float3(dxt[0], dxt[1], dxt[2]));
 	else
-		coord_v.set_dx(float3(0.0f, 0.0f, 0.0f));
+		coord_v.set_dx(float3(1.0f, 0.0f, 0.0f));
 	if (dyt)
 		coord_v.set_dy(float3(dyt[0], dyt[1], dyt[2]));
 	else
-		coord_v.set_dy(float3(0.0f, 0.0f, 0.0f));
+		coord_v.set_dy(float3(0.0f, 1.0f, 0.0f));
 	
 	fp(&r_color, &r_normal, &coord_v, cfra, osatex);
 #else
