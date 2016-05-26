@@ -178,9 +178,9 @@ class TextureGetDerivativeNode(TextureNodeBase, ObjectNode):
 ###############################################################################
 
 def register():
+    bpy.utils.register_module(__name__)
     gnode, ginput, goutput = group_nodes.make_node_group_types(
         "Texture", TextureNodeTree, TextureNodeBase)
-    bpy.utils.register_module(__name__)
 
     node_categories = [
         TextureNodeCategory("TEX_INPUT", "Input", items=[

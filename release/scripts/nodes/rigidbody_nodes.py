@@ -97,9 +97,9 @@ class RigidBodyNodesNew(Operator):
 ###############################################################################
 
 def register():
+    bpy.utils.register_module(__name__)
     gnode, ginput, goutput = group_nodes.make_node_group_types(
         "RigidBody", RigidBodyNodeTree, RigidBodyNodeBase)
-    bpy.utils.register_module(__name__)
 
     node_categories = [
         RigidBodyNodeCategory("SMO_INPUT", "Input", items=[
