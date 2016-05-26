@@ -355,6 +355,9 @@ def make_node_group_types(prefix, treetype, node_base):
         def compile_dependencies(self, depsnode):
             ntree = self.id
             if ntree:
+                # changes to the group tree require own recompile
+                depsnode.add_nodetree_relation(ntree, 'PARAMETERS')
+                # add internal dependencies of the group
                 ntree.bvm_compile_dependencies(depsnode)
 
         def eval_dependencies(self, depsnode):
