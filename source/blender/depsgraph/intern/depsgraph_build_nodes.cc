@@ -308,18 +308,18 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 		Object *ob = base->object;
 
 		/* object itself */
-		build_object(scene, base, ob);
+		build_object(bmain, scene, base, ob);
 
 		/* object that this is a proxy for */
 		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
 			ob->proxy->proxy_from = ob;
-			build_object(scene, base, ob->proxy);
+			build_object(bmain, scene, base, ob->proxy);
 		}
 
 		/* Object dupligroup. */
 		if (ob->dup_group) {
-			build_group(scene, base, ob->dup_group);
+			build_group(bmain, scene, base, ob->dup_group);
 		}
 	}
 
@@ -352,7 +352,8 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 }
 
-void DepsgraphNodeBuilder::build_group(Scene *scene,
+void DepsgraphNodeBuilder::build_group(Main *bmain,
+                                       Scene *scene,
                                        Base *base,
                                        Group *group)
 {
@@ -366,7 +367,7 @@ void DepsgraphNodeBuilder::build_group(Scene *scene,
 	     go != NULL;
 	     go = go->next)
 	{
-		build_object(scene, base, go->ob);
+		build_object(bmain, scene, base, go->ob);
 	}
 }
 
@@ -405,7 +406,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	return subgraph_node;
 }
 
-void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
+void DepsgraphNodeBuilder::build_object(Main *bmain, Scene *scene, Base *base, Object *ob)
 {
 	if (ob->id.tag & LIB_TAG_DOIT) {
 		IDDepsNode *id_node = m_graph->find_id_node(&ob->id);
@@ -439,7 +440,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 				add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
 				                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
-				build_obdata_geom(scene, ob);
+				build_obdata_geom(bmain, scene, ob);
 				/* TODO(sergey): Only for until we support granular
 				 * update of curves.
 				 */
@@ -973,7 +974,7 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
 
 /* ObData Geometry Evaluation */
 // XXX: what happens if the datablock is shared!
-void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
+void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
 
@@ -1004,9 +1005,17 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		ModifierData *md;
 
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+			const ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+			
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
 			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
+			
+			/* ensure ID nodes on which the modifier depends are built */
+			if (mti->updateDepsgraph) {
+				DepsgraphNodeBuilderHandle handle(this);
+				mti->updateDepsgraph(md, bmain, scene, ob, &handle.handle);
+			}
 		}
 	}
 

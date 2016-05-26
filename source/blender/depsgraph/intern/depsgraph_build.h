@@ -103,8 +103,8 @@ struct DepsgraphNodeBuilder {
 
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
-	void build_group(Scene *scene, Base *base, Group *group);
-	void build_object(Scene *scene, Base *base, Object *ob);
+	void build_group(Main *bmain, Scene *scene, Base *base, Group *group);
+	void build_object(Main *bmain, Scene *scene, Base *base, Object *ob);
 	void build_object_transform(Scene *scene, Object *ob);
 	void build_object_constraints(Scene *scene, Object *ob);
 	void build_pose_constraints(Object *ob, bPoseChannel *pchan);
@@ -117,7 +117,7 @@ struct DepsgraphNodeBuilder {
 	void build_rig(Scene *scene, Object *ob);
 	void build_proxy_rig(Object *ob);
 	void build_shapekeys(Key *key);
-	void build_obdata_geom(Scene *scene, Object *ob);
+	void build_obdata_geom(Main *bmain, Scene *scene, Object *ob);
 	void build_camera(Object *ob);
 	void build_lamp(Object *ob);
 	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);
