@@ -280,7 +280,7 @@ def make_node_group_types(prefix, treetype, node_base):
     def node_sockets_sync(sockets, items):
         free_sockets = set(s for s in sockets)
         free_items = set(i for i in items)
-        
+
         def find_match(s):
             for i in free_items:
                 if i.name == s.name and isinstance(s, socket_type_to_rna(i.base_type)):
@@ -498,11 +498,7 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
                 return False
             return True
 
-        def execute(self, context):
-            ntree = context.space_data.edit_tree
-
-            # Warning! this has to happen right at the start
-            # because creating a node will make it selected by default!
+        def cache_selection(self, ntree):
             selected_nodes = [node for node in ntree.nodes if node.select]
             internal_links = []
             input_links = []
@@ -520,6 +516,29 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
                     output_links.append(link)
                 elif sel_to:
                     input_links.append(link)
+            return selected_nodes, internal_links, input_links, output_links
+
+        def layout_group(self, group_node, new_nodes, input_node, output_node):
+            bbmin, bbmax = node_bounds(new_nodes)
+            center = (0.5*(bbmin[0] + bbmax[0]), 0.5*(bbmin[1] + bbmax[1]))
+            for node in new_nodes.values():
+                node.location[0] -= center[0]
+                node.location[1] -= center[1]
+            offsetx = 0.5*(bbmax[0] - bbmin[0])
+            input_node.location[0] = -offsetx - input_node.bl_width_default - 50
+            input_node.location[1] = 0.5*input_node.bl_height_default
+            output_node.location[0] = offsetx + 50
+            output_node.location[1] = 0.5*output_node.bl_height_default
+
+            group_node.location[0] = center[0] - 0.5*group_node.bl_width_default
+            group_node.location[1] = center[1] + 0.5*group_node.bl_height_default
+
+        def execute(self, context):
+            ntree = context.space_data.edit_tree
+
+            # Warning! this has to happen right at the start
+            # because creating a node will make it selected by default!
+            selected_nodes, internal_links, input_links, output_links = self.cache_selection(ntree)
 
             groupnode = ntree.nodes.new(gnode.bl_idname)
             if groupnode is None:
@@ -527,27 +546,15 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
             grouptree = bpy.data.node_groups.new(self.name, self.bl_ntree_idname)
             if grouptree is None:
                 return {'CANCELLED'}
-            groupinput = grouptree.nodes.new(ginput.bl_idname)
-            groupoutput = grouptree.nodes.new(goutput.bl_idname)
+            input_node = grouptree.nodes.new(ginput.bl_idname)
+            output_node = grouptree.nodes.new(goutput.bl_idname)
             groupnode.id = grouptree
             
             # copy nodes and attributes
             new_nodes, new_sockets = copy_nodes(selected_nodes, grouptree)
 
             # move nodes to sensible locations
-            bbmin, bbmax = node_bounds(selected_nodes)
-            center = (0.5*(bbmin[0] + bbmax[0]), 0.5*(bbmin[1] + bbmax[1]))
-            for node in new_nodes.values():
-                node.location[0] -= center[0]
-                node.location[1] -= center[1]
-            offsetx = 0.5*(bbmax[0] - bbmin[0])
-            groupinput.location[0] = -offsetx - groupinput.bl_width_default - 50
-            groupinput.location[1] = 0.5*groupinput.bl_height_default
-            groupoutput.location[0] = offsetx + 50
-            groupoutput.location[1] = 0.5*groupoutput.bl_height_default
-
-            groupnode.location[0] = center[0] - 0.5*groupnode.bl_width_default
-            groupnode.location[1] = center[1] + 0.5*groupnode.bl_height_default
+            self.layout_group(groupnode, new_nodes, input_node, output_node)
 
             # define the group interface
             io_inputs = dict()
@@ -570,16 +577,20 @@ def GroupNodeCategory(prefix, gnode, ginput, goutput):
                 grouptree.links.new(ifrom_socket, ito_socket)
             for io, targets in io_inputs.items():
                 grouptree.add_input(io.name, rna_to_socket_type(type(io)))
+                # XXX this shouldn't be necessary, but node updates are terrible
+                groupnode.update()
                 io_extern = groupnode.inputs[-1]
-                io_intern = groupinput.outputs[-1]
+                io_intern = input_node.outputs[-1]
                 
                 ntree.links.new(io, io_extern)
                 for s in targets:
                     grouptree.links.new(io_intern, new_sockets[s])
             for io, targets in io_outputs.items():
                 grouptree.add_output(io.name, rna_to_socket_type(type(io)))
+                # XXX this shouldn't be necessary, but node updates are terrible
+                groupnode.update()
                 io_extern = groupnode.outputs[-1]
-                io_intern = groupoutput.inputs[-1]
+                io_intern = output_node.inputs[-1]
 
                 grouptree.links.new(new_sockets[io], io_intern)
                 for s in targets:
