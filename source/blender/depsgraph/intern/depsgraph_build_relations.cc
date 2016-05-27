@@ -135,6 +135,9 @@ struct DepsgraphRelationBuilderHandle
 	{
 		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
 		ComponentKey comp_key(&tex->id, component);
+		
+		handle->builder->build_texture(NULL, tex);
+		
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
