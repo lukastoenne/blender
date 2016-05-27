@@ -31,6 +31,7 @@
 
 #include <map>
 #include <sstream>
+#include <stdint.h>
 
 extern "C" {
 #include "BLI_fileops.h"

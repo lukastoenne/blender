@@ -167,7 +167,7 @@ struct StructSpec;
 
 struct TypeSpec {
 	typedef std::map<string, const TypeSpec *> TypeDefMap;
-	typedef typename TypeDefMap::const_iterator typedef_iterator;
+	typedef TypeDefMap::const_iterator typedef_iterator;
 	
 	TypeSpec(BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
 	TypeSpec(const TypeSpec &other);
