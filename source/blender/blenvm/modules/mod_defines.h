@@ -41,10 +41,10 @@ BVM_MOD_NAMESPACE_BEGIN
 	extern "C" inline
 
 #define BVM_DECL_FUNCTION_VALUE(name) \
-	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)name; }
-#define BVM_DECL_FUNCTION_DUAL(name, name_d) \
-	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)name; } \
-	template <> inline void *get_node_impl_deriv<OP_##name>() { return (void*)(intptr_t)name_d; }
+	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)V__##name; }
+#define BVM_DECL_FUNCTION_DUAL(name) \
+	template <> inline void *get_node_impl_value<OP_##name>() { return (void*)(intptr_t)V__##name; } \
+	template <> inline void *get_node_impl_deriv<OP_##name>() { return (void*)(intptr_t)D__##name; }
 
 template <OpCode op> static inline void *get_node_impl_value() { return NULL; }
 template <OpCode op> static inline void *get_node_impl_deriv() { return NULL; }

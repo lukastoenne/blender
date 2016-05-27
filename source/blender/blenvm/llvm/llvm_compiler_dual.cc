@@ -282,12 +282,12 @@ void LLVMTextureCompiler::define_elementary_functions(llvm::Module *mod, OpCode 
 	
 	if (llvm_has_external_impl_value(op)) {
 		value_func = declare_elementary_node_function(
-		                 mod, nodetype, llvm_value_function_name(nodetype->name()), false);
+		                 mod, nodetype, bvm_value_function_name(nodetype->name()), false);
 	}
 	
 	if (llvm_has_external_impl_deriv(op)) {
 		deriv_func = declare_elementary_node_function(
-		                 mod, nodetype, llvm_deriv_function_name(nodetype->name()), true);
+		                 mod, nodetype, bvm_deriv_function_name(nodetype->name()), true);
 	}
 	
 	set_node_function_impl(op, nodetype, value_func, deriv_func);
@@ -298,11 +298,11 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 	using namespace llvm;
 	
 	/* get evaluation function(s) */
-	string value_name = llvm_value_function_name(nodetype->name());
+	string value_name = bvm_value_function_name(nodetype->name());
 	Function *value_func = llvm_find_external_function(mod, value_name);
 	BLI_assert(value_func != NULL && "Could not find node function!");
 	
-	string deriv_name = llvm_deriv_function_name(nodetype->name());
+	string deriv_name = bvm_deriv_function_name(nodetype->name());
 	Function *deriv_func = llvm_find_external_function(mod, deriv_name);
 	
 	/* wrapper function */

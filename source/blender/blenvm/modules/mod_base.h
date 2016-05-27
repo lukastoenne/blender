@@ -40,134 +40,134 @@ extern "C" {
 
 BVM_MOD_NAMESPACE_BEGIN
 
-bvm_extern void NOOP(void)
+bvm_extern void V__NOOP(void)
 {
 }
 BVM_DECL_FUNCTION_VALUE(NOOP)
 
-bvm_extern void VALUE_FLOAT(float &result, float value)
+bvm_extern void V__VALUE_FLOAT(float &result, float value)
 {
 	result = value;
 }
-bvm_extern void VALUE_FLOAT_D(float &dr, float /*f*/)
+bvm_extern void D__VALUE_FLOAT(float &dr, float /*f*/)
 {
 	dr = 0.0f;
 }
-BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT, VALUE_FLOAT_D)
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT)
 
-bvm_extern void VALUE_FLOAT3(float3 &result, const float3 &value)
+bvm_extern void V__VALUE_FLOAT3(float3 &result, const float3 &value)
 {
 	result = value;
 }
-bvm_extern void VALUE_FLOAT3_D(float3 &dr, const float3 &/*f*/)
+bvm_extern void D__VALUE_FLOAT3(float3 &dr, const float3 &/*f*/)
 {
 	dr = float3(0.0f, 0.0f, 0.0f);
 }
-BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT3, VALUE_FLOAT3_D)
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT3)
 
-bvm_extern void VALUE_FLOAT4(float4 &result, const float4 &value)
+bvm_extern void V__VALUE_FLOAT4(float4 &result, const float4 &value)
 {
 	result = value;
 }
-bvm_extern void VALUE_FLOAT4_D(float4 &dr, const float4 &/*f*/)
+bvm_extern void D__VALUE_FLOAT4(float4 &dr, const float4 &/*f*/)
 {
 	dr = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
-BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT4, VALUE_FLOAT4_D)
+BVM_DECL_FUNCTION_DUAL(VALUE_FLOAT4)
 
-bvm_extern void VALUE_INT(int &result, int value)
+bvm_extern void V__VALUE_INT(int &result, int value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_INT)
 
-bvm_extern void VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
+bvm_extern void V__VALUE_MATRIX44(matrix44 &result, const matrix44 &value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_MATRIX44)
 
-bvm_extern void VALUE_STRING(const char *&result, const char *value)
+bvm_extern void V__VALUE_STRING(const char *&result, const char *value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_STRING)
 
-bvm_extern void VALUE_RNAPOINTER(PointerRNA &result, const PointerRNA &value)
+bvm_extern void V__VALUE_RNAPOINTER(PointerRNA &result, const PointerRNA &value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_RNAPOINTER)
 
-bvm_extern void VALUE_MESH(mesh_ptr &result, const mesh_ptr &value)
+bvm_extern void V__VALUE_MESH(mesh_ptr &result, const mesh_ptr &value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_MESH)
 
-bvm_extern void VALUE_DUPLIS(duplis_ptr &result, const duplis_ptr &value)
+bvm_extern void V__VALUE_DUPLIS(duplis_ptr &result, const duplis_ptr &value)
 {
 	result = value;
 }
 BVM_DECL_FUNCTION_VALUE(VALUE_DUPLIS)
 
-bvm_extern void FLOAT_TO_INT(int &result, float value)
+bvm_extern void V__FLOAT_TO_INT(int &result, float value)
 {
 	result = (int)value;
 }
 BVM_DECL_FUNCTION_VALUE(FLOAT_TO_INT)
 
-bvm_extern void INT_TO_FLOAT(float &result, int value)
+bvm_extern void V__INT_TO_FLOAT(float &result, int value)
 {
 	result = (float)value;
 }
 BVM_DECL_FUNCTION_VALUE(INT_TO_FLOAT)
 
-bvm_extern void SET_FLOAT3(float3 &result, float x, float y, float z)
+bvm_extern void V__SET_FLOAT3(float3 &result, float x, float y, float z)
 {
 	result = float3(x, y, z);
 }
-bvm_extern void SET_FLOAT3_D(float3 &dr, float /*x*/, float dx, float /*y*/, float dy, float /*z*/, float dz)
+bvm_extern void D__SET_FLOAT3(float3 &dr, float /*x*/, float dx, float /*y*/, float dy, float /*z*/, float dz)
 {
 	dr = float3(dx, dy, dz);
 }
-BVM_DECL_FUNCTION_DUAL(SET_FLOAT3, SET_FLOAT3_D)
+BVM_DECL_FUNCTION_DUAL(SET_FLOAT3)
 
-bvm_extern void GET_ELEM_FLOAT3(float &result, int index, const float3 &f)
+bvm_extern void V__GET_ELEM_FLOAT3(float &result, int index, const float3 &f)
 {
 	BLI_assert(index >= 0 && index < 3);
 	result = f[index];
 }
-bvm_extern void GET_ELEM_FLOAT3_D(float &dr, int index, const float3 &/*f*/, const float3 &df)
+bvm_extern void D__GET_ELEM_FLOAT3(float &dr, int index, const float3 &/*f*/, const float3 &df)
 {
 	BLI_assert(index >= 0 && index < 3);
 	dr = df[index];
 }
-BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT3, GET_ELEM_FLOAT3_D)
+BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT3)
 
-bvm_extern void SET_FLOAT4(float4 &result, float x, float y, float z, float w)
+bvm_extern void V__SET_FLOAT4(float4 &result, float x, float y, float z, float w)
 {
 	result = float4(x, y, z, w);
 }
-bvm_extern void SET_FLOAT4_D(float4 &dr,
+bvm_extern void D__SET_FLOAT4(float4 &dr,
                              float /*x*/, float dx, float /*y*/, float dy,
                              float /*z*/, float dz, float /*w*/, float dw)
 {
 	dr = float4(dx, dy, dz, dw);
 }
-BVM_DECL_FUNCTION_DUAL(SET_FLOAT4, SET_FLOAT4_D)
+BVM_DECL_FUNCTION_DUAL(SET_FLOAT4)
 
-bvm_extern void GET_ELEM_FLOAT4(float &result, int index, const float4 &f)
+bvm_extern void V__GET_ELEM_FLOAT4(float &result, int index, const float4 &f)
 {
 	BLI_assert(index >= 0 && index < 4);
 	result = f[index];
 }
-bvm_extern void GET_ELEM_FLOAT4_D(float &dr, int index, const float4 &/*f*/, const float4 &df)
+bvm_extern void D__GET_ELEM_FLOAT4(float &dr, int index, const float4 &/*f*/, const float4 &df)
 {
 	BLI_assert(index >= 0 && index < 4);
 	dr = df[index];
 }
-BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT4, GET_ELEM_FLOAT4_D)
+BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT4)
 
 BVM_MOD_NAMESPACE_END
 

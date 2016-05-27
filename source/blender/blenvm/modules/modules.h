@@ -33,4 +33,20 @@
 #include "mod_math.h"
 #include "mod_texture.h"
 
+#include "util_string.h"
+
+namespace blenvm {
+
+inline string bvm_value_function_name(const string &node)
+{
+	return "V__" + node;
+}
+
+inline string bvm_deriv_function_name(const string &node)
+{
+	return "D__" + node;
+}
+
+} /* namespace blenvm */
+
 #endif /* __MODULES_H__ */

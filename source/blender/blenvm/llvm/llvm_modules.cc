@@ -202,17 +202,6 @@ void llvm_unload_all_modules()
 	theModules.clear();
 }
 
-
-string llvm_value_function_name(const string &node)
-{
-	return "VAL__" + node;
-}
-
-string llvm_deriv_function_name(const string &node)
-{
-	return "D__" + node;
-}
-
 /* ------------------------------------------------------------------------- */
 
 void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,

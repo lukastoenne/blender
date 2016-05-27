@@ -83,9 +83,9 @@ public:
 	
 	static void *get_node_function_ptr(const string &name) {
 #define DEF_OPCODE(op) \
-		if (name == llvm_value_function_name(STRINGIFY(op))) \
+		if (name == bvm_value_function_name(STRINGIFY(op))) \
 			return modules::get_node_impl_value<OP_##op>(); \
-		else if (name == llvm_deriv_function_name(STRINGIFY(op))) \
+		else if (name == bvm_deriv_function_name(STRINGIFY(op))) \
 			return modules::get_node_impl_deriv<OP_##op>(); \
 		else
 	

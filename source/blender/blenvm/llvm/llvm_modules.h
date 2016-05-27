@@ -50,9 +50,6 @@ void llvm_load_module(const string &modfile, const string &modname);
 void llvm_load_all_modules(const string &modpath, bool reload);
 void llvm_unload_all_modules();
 
-string llvm_value_function_name(const string &node);
-string llvm_deriv_function_name(const string &node);
-
 /* ------------------------------------------------------------------------- */
 
 void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,

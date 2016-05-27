@@ -38,7 +38,7 @@ extern "C" {
 
 BVM_MOD_NAMESPACE_BEGIN
 
-bvm_extern void TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal,
+bvm_extern void V__TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal,
                       int distance_metric, int color_type,
                       float minkowski_exp, float scale,
                       float noisesize, float nabla,
@@ -117,7 +117,7 @@ bvm_extern void TEX_PROC_VORONOI(float &intensity, float4 &color, float3 &normal
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_VORONOI)
 
-bvm_extern void TEX_PROC_CLOUDS(float &intensity, float4 &color, float3 &normal,
+bvm_extern void V__TEX_PROC_CLOUDS(float &intensity, float4 &color, float3 &normal,
                      const float3 &texvec, float nabla, float size,
                      int depth, int noise_basis, int noise_hard)
 {
@@ -207,7 +207,7 @@ static float wood_int(float size, float x, float y, float z, float turb,
 	return wi;
 }
 
-bvm_extern void TEX_PROC_WOOD(float &intensity, float3 &normal,
+bvm_extern void V__TEX_PROC_WOOD(float &intensity, float3 &normal,
                    const float3 &texvec, float nabla, float size, float turb,
                    int noise_basis, int noise_basis_2, int noise_hard, int wood_type)
 {
@@ -253,7 +253,7 @@ static float marble_int(float size, float x, float y, float z, float turb,
 	return intensity;
 }
 
-bvm_extern void TEX_PROC_MARBLE(float &intensity, float3 &normal,
+bvm_extern void V__TEX_PROC_MARBLE(float &intensity, float3 &normal,
                      const float3 texvec, float nabla, float size, float turb,
                      int depth, int noise_basis, int noise_basis_2,
                      int noise_hard, int marble_type)
@@ -270,7 +270,7 @@ bvm_extern void TEX_PROC_MARBLE(float &intensity, float3 &normal,
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_MARBLE)
 
-bvm_extern void TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
+bvm_extern void V__TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
                        const float3 texvec, float nabla, float size,
                        float dimension, float lacunarity, float octaves,
                        float nintensity, float offset, float gain,
@@ -332,7 +332,7 @@ bvm_extern void TEX_PROC_MUSGRAVE(float &intensity, float3 &normal,
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_MUSGRAVE)
 
-bvm_extern void TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
+bvm_extern void V__TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
                                const float3 &texvec, float turbulence,
                                int depth)
 {
@@ -399,7 +399,7 @@ bvm_extern void TEX_PROC_MAGIC(float &intensity, float4 &color, float3 &normal,
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_MAGIC)
 
-bvm_extern void TEX_PROC_STUCCI(float &intensity, float3 &normal,
+bvm_extern void V__TEX_PROC_STUCCI(float &intensity, float3 &normal,
                      const float3 &texvec, float noisesize, float turbulence,
                      int noise_basis, int noisehard, int noise_type)
 {
@@ -429,7 +429,7 @@ bvm_extern void TEX_PROC_STUCCI(float &intensity, float3 &normal,
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_STUCCI)
 
-bvm_extern void TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
+bvm_extern void V__TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
                         const float3 &texvec, float noisesize,
                         float nabla, float dist_amount,
                         int noise_basis, int noise_basis_2)

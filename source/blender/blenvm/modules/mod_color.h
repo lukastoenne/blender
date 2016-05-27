@@ -271,7 +271,7 @@ inline void MIX_RGB3(float3 &result, int mode, float fac,
 }
 
 /* wrapper for float4 RGBA mixing (copies alpha from col_a) */
-bvm_extern void MIX_RGB(float4 &result, int mode, float fac,
+bvm_extern void V__MIX_RGB(float4 &result, int mode, float fac,
                         const float4 &col_a, const float4 &col_b)
 {
 	float3 result3, col_a3(col_a.x, col_a.y, col_a.z), col_b3(col_b.x, col_b.y, col_b.z);
