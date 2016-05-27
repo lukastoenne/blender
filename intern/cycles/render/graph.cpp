@@ -507,7 +507,7 @@ void ShaderGraph::constant_fold()
 		traverse_queue.pop();
 		done.insert(node);
 		foreach(ShaderOutput *output, node->outputs) {
-			if (output->links.size() == 0) {
+			if(output->links.size() == 0) {
 				continue;
 			}
 			/* Schedule node which was depending on the value,
@@ -984,17 +984,18 @@ int ShaderGraph::get_num_closures()
 {
 	int num_closures = 0;
 	foreach(ShaderNode *node, nodes) {
-		if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
-			BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
-			/* TODO(sergey): Make it more generic approach, maybe some utility
-			 * macros like CLOSURE_IS_FOO()?
-			 */
-			if(CLOSURE_IS_BSSRDF(bsdf_node->closure))
-				num_closures = num_closures + 3;
-			else if(CLOSURE_IS_GLASS(bsdf_node->closure))
-				num_closures = num_closures + 2;
-			else
-				num_closures = num_closures + 1;
+		ClosureType closure_type = node->get_closure_type();
+		if(closure_type == CLOSURE_NONE_ID) {
+			continue;
+		}
+		else if(CLOSURE_IS_BSSRDF(closure_type)) {
+			num_closures += 3;
+		}
+		else if(CLOSURE_IS_GLASS(closure_type)) {
+			num_closures += 2;
+		}
+		else {
+			++num_closures;
 		}
 	}
 	return num_closures;

@@ -285,6 +285,9 @@ struct DepsgraphRelationBuilder
 	void build_compositor(Scene *scene);
 	void build_gpencil(ID *owner, bGPdata *gpd);
 
+	template <typename KeyType>
+	OperationDepsNode *find_operation_node(const KeyType &key);
+
 protected:
 	RootDepsNode *find_node(const RootKey &key) const;
 	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
@@ -307,6 +310,12 @@ private:
 
 /* Get unique identifier for FCurves and Drivers */
 string deg_fcurve_id_name(const FCurve *fcu);
+
+template <typename KeyType>
+OperationDepsNode *DepsgraphRelationBuilder::find_operation_node(const KeyType& key) {
+	DepsNode *node = find_node(key);
+	return node != NULL ? node->get_exit_operation() : NULL;
+}
 
 template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,

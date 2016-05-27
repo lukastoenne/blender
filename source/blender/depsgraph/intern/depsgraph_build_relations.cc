@@ -380,6 +380,19 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 	if (scene->gpd) {
 		build_gpencil(&scene->id, scene->gpd);
 	}
+
+	for (Depsgraph::OperationNodes::const_iterator it_op = m_graph->operations.begin();
+	     it_op != m_graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		IDDepsNode *id_node = node->owner->owner;
+		ID *id = id_node->id;
+		if (GS(id->name) == ID_OB) {
+			Object *object = (Object *)id;
+			object->customdata_mask |= node->customdata_mask;
+		}
+	}
 }
 
 void DepsgraphRelationBuilder::build_group(Main *bmain,
@@ -551,8 +564,12 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 		{
 			ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_GEOMETRY);
 			add_relation(parent_key, ob_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
+
 			/* XXX not sure what this is for or how you could be done properly - lukas */
-			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
+			OperationDepsNode *parent_node = find_operation_node(parent_key);
+			if (parent_node != NULL) {
+				parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
+			}
 
 			ComponentKey transform_key(&ob->parent->id, DEPSNODE_TYPE_TRANSFORM);
 			add_relation(transform_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Vertex Parent TFM");
@@ -703,7 +720,10 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_GEOMETRY_EVAL, cti->name);
 
 					if (ct->tar->type == OB_MESH) {
-						//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+						OperationDepsNode *node2 = find_operation_node(target_key);
+						if (node2 != NULL) {
+							node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+						}
 					}
 				}
 				else if (con->type == CONSTRAINT_TYPE_SHRINKWRAP) {
@@ -1278,7 +1298,10 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			add_relation(target_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, con->name);
 
 			if (data->tar->type == OB_MESH) {
-				//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+				OperationDepsNode *node2 = find_operation_node(target_key);
+				if (node2 != NULL) {
+					node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+				}
 			}
 		}
 		else {
@@ -1310,7 +1333,10 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			add_relation(target_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, con->name);
 
 			if (data->poletar->type == OB_MESH) {
-				//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+				OperationDepsNode *node2 = find_operation_node(target_key);
+				if (node2 != NULL) {
+					node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+				}
 			}
 		}
 		else {
@@ -1766,7 +1792,9 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 			if (mom != ob) {
 				/* non-motherball -> cannot be directly evaluated! */
 				ComponentKey mom_key(&mom->id, DEPSNODE_TYPE_GEOMETRY);
+				ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 				add_relation(geom_key, mom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+				add_relation(transform_key, mom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
 			}
 			break;
 		}

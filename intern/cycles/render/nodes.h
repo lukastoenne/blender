@@ -49,12 +49,15 @@ public:
 
 	enum Type { POINT = 0, TEXTURE = 1, VECTOR = 2, NORMAL = 3 };
 	Type type;
+	static ShaderEnum type_enum;
 
 	enum Mapping { NONE = 0, X = 1, Y = 2, Z = 3 };
 	Mapping x_mapping, y_mapping, z_mapping;
+	static ShaderEnum mapping_enum;
 
 	enum Projection { FLAT, CUBE, TUBE, SPHERE };
 	Projection projection;
+	static ShaderEnum projection_enum;
 
 	bool equals(const TextureMapping& other) {
 		return translation == other.translation &&
@@ -384,6 +387,7 @@ public:
 
 	bool has_spatial_varying() { return true; }
 	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3 = NULL, ShaderInput *param4 = NULL);
+	virtual ClosureType get_closure_type() { return closure; }
 
 	ClosureType closure;
 	bool scattering;
@@ -481,6 +485,7 @@ class EmissionNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(EmissionNode)
 	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
+	virtual ClosureType get_closure_type() { return CLOSURE_EMISSION_ID; }
 
 	bool has_surface_emission() { return true; }
 };
@@ -489,12 +494,14 @@ class BackgroundNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BackgroundNode)
 	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
+	virtual ClosureType get_closure_type() { return CLOSURE_BACKGROUND_ID; }
 };
 
 class HoldoutNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(HoldoutNode)
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
+	virtual ClosureType get_closure_type() { return CLOSURE_HOLDOUT_ID; }
 };
 
 class AmbientOcclusionNode : public ShaderNode {
@@ -503,6 +510,7 @@ public:
 
 	bool has_spatial_varying() { return true; }
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
+	virtual ClosureType get_closure_type() { return CLOSURE_AMBIENT_OCCLUSION_ID; }
 };
 
 class VolumeNode : public ShaderNode {
@@ -511,6 +519,10 @@ public:
 
 	void compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2);
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
+	virtual int get_feature() {
+		return ShaderNode::get_feature() | NODE_FEATURE_VOLUME;
+	}
+	virtual ClosureType get_closure_type() { return closure; }
 
 	ClosureType closure;
 
@@ -917,7 +929,7 @@ public:
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
 
-	float4 curves[RAMP_TABLE_SIZE];
+	array<float3> curves;
 	float min_x, max_x;
 };
 
@@ -928,14 +940,15 @@ public:
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
 
-	float4 curves[RAMP_TABLE_SIZE];
+	array<float3> curves;
 	float min_x, max_x;
 };
 
 class RGBRampNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(RGBRampNode)
-	float4 ramp[RAMP_TABLE_SIZE];
+	array<float3> ramp;
+	array<float> ramp_alpha;
 	bool interpolate;
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
