@@ -178,39 +178,82 @@ BVM_DECL_FUNCTION_DUAL(ARCSINE)
 
 bvm_extern void V__ARCCOSINE(float &r, float f)
 {
-	r = acosf(f);
+	if (f >= -1.0f && f <= 1.0f)
+		r = acosf(f);
+	else
+		r = 0.0f;
 }
-BVM_DECL_FUNCTION_VALUE(ARCCOSINE)
+bvm_extern void D__ARCCOSINE(float &dr, float f, float df)
+{
+	if (f >= -1.0f && f <= 1.0f)
+		dr = -div_safe(df, sqrtf(1.0f - f*f));
+	else
+		dr = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(ARCCOSINE)
 
 bvm_extern void V__ARCTANGENT(float &r, float f)
 {
 	r = atanf(f);
 }
-BVM_DECL_FUNCTION_VALUE(ARCTANGENT)
+bvm_extern void D__ARCTANGENT(float &dr, float f, float df)
+{
+	dr = df / (1.0f + f*f);
+}
+BVM_DECL_FUNCTION_DUAL(ARCTANGENT)
 
 bvm_extern void V__POWER(float &r, float a, float b)
 {
 	r = pow_safe(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(POWER)
+bvm_extern void D__POWER(float &dr, float a, float da, float b, float db)
+{
+	if (a > 0.0f) {
+		float ln_a = logf(a);
+		dr = (da * b / a + db * ln_a) * expf(b * ln_a);
+	}
+	else {
+		dr = 0.0f;
+	}
+}
+BVM_DECL_FUNCTION_DUAL(POWER)
 
 bvm_extern void V__LOGARITHM(float &r, float a, float b)
 {
 	r = log_safe(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(LOGARITHM)
+bvm_extern void D__LOGARITHM(float &dr, float a, float da, float b, float db)
+{
+	if (a > 0.0f && b > 0.0f) {
+		float ln_a = logf(a);
+		float ln_b = logf(b);
+		dr = (da/a - db/b * ln_a/ln_b) / ln_b;
+	}
+	else {
+		dr = 0.0f;
+	}
+}
+BVM_DECL_FUNCTION_DUAL(LOGARITHM)
 
 bvm_extern void V__MINIMUM(float &r, float a, float b)
 {
 	r = min_ff(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(MINIMUM)
+bvm_extern void D__MINIMUM(float &dr, float a, float da, float b, float db)
+{
+	dr = (a < b) ? da : db;
+}
+BVM_DECL_FUNCTION_DUAL(MINIMUM)
 
 bvm_extern void V__MAXIMUM(float &r, float a, float b)
 {
 	r = max_ff(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(MAXIMUM)
+bvm_extern void D__MAXIMUM(float &dr, float a, float da, float b, float db)
+{
+	dr = (a > b) ? da : db;
+}
+BVM_DECL_FUNCTION_DUAL(MAXIMUM)
 
 bvm_extern void V__ROUND(float &r, float f)
 {
@@ -234,19 +277,31 @@ bvm_extern void V__MODULO(float &r, float a, float b)
 {
 	r = modulo_safe(a, b);
 }
-BVM_DECL_FUNCTION_VALUE(MODULO)
+bvm_extern void D__MODULO(float &dr, float /*a*/, float da, float /*b*/, float /*db*/)
+{
+	dr = da;
+}
+BVM_DECL_FUNCTION_DUAL(MODULO)
 
 bvm_extern void V__ABSOLUTE(float &r, float f)
 {
 	r = fabs(f);
 }
-BVM_DECL_FUNCTION_VALUE(ABSOLUTE)
+bvm_extern void D__ABSOLUTE(float &dr, float f, float df)
+{
+	dr = (f >= 0.0f) ? df : -df;
+}
+BVM_DECL_FUNCTION_DUAL(ABSOLUTE)
 
 bvm_extern void V__CLAMP_ONE(float &r, float f)
 {
 	r = CLAMPIS(f, 0.0f, 1.0f);
 }
-BVM_DECL_FUNCTION_VALUE(CLAMP_ONE)
+bvm_extern void D__CLAMP_ONE(float &dr, float f, float df)
+{
+	dr = (f >= 0.0f || f <= 1.0f) ? df : 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(CLAMP_ONE)
 
 bvm_extern void V__SQRT(float &r, float f)
 {
@@ -265,13 +320,21 @@ bvm_extern void V__ADD_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
 	add_v3_v3v3(r.data(), a.data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(ADD_FLOAT3)
+bvm_extern void D__ADD_FLOAT3(float3 &dr, const float3 &/*a*/, const float3 &da, const float3 &/*b*/, const float3 &db)
+{
+	add_v3_v3v3(dr.data(), da.data(), db.data());
+}
+BVM_DECL_FUNCTION_DUAL(ADD_FLOAT3)
 
 bvm_extern void V__SUB_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
 	sub_v3_v3v3(r.data(), a.data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(SUB_FLOAT3)
+bvm_extern void D__SUB_FLOAT3(float3 &dr, const float3 &/*a*/, const float3 &da, const float3 &/*b*/, const float3 &db)
+{
+	sub_v3_v3v3(dr.data(), da.data(), db.data());
+}
+BVM_DECL_FUNCTION_DUAL(SUB_FLOAT3)
 
 bvm_extern void V__MUL_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
@@ -290,49 +353,109 @@ bvm_extern void V__DIV_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
 	r = float3(div_safe(a.x, b.x), div_safe(a.y, b.y), div_safe(a.z, b.z));
 }
-BVM_DECL_FUNCTION_VALUE(DIV_FLOAT3)
+bvm_extern void D__DIV_FLOAT3(float3 &dr, const float3 &a, const float3 &da, const float3 &b, const float3 &db)
+{
+	dr = float3((db.x != 0.0f) ? (da.x - db.x * a.x / b.x) / b.x : 0.0f,
+	            (db.y != 0.0f) ? (da.y - db.y * a.y / b.y) / b.y : 0.0f,
+	            (db.z != 0.0f) ? (da.z - db.z * a.z / b.z) / b.z : 0.0f);
+}
+BVM_DECL_FUNCTION_DUAL(DIV_FLOAT3)
 
 bvm_extern void V__MUL_FLOAT3_FLOAT(float3 &r, const float3 &a, float b)
 {
 	mul_v3_v3fl(r.data(), a.data(), b);
 }
-BVM_DECL_FUNCTION_VALUE(MUL_FLOAT3_FLOAT)
+bvm_extern void D__MUL_FLOAT3_FLOAT(float3 &dr, const float3 &a, const float3 &da, float b, float db)
+{
+	mul_v3_v3fl(dr.data(), da.data(), b);
+	madd_v3_v3fl(dr.data(), a.data(), db);
+}
+BVM_DECL_FUNCTION_DUAL(MUL_FLOAT3_FLOAT)
 
 bvm_extern void V__DIV_FLOAT3_FLOAT(float3 &r, const float3 &a, float b)
 {
-	r = float3(div_safe(a.x, b), div_safe(a.y, b), div_safe(a.z, b));
+	if (b != 0.0f)
+		r = float3(a.x/b, a.y/b, a.z/b);
+	else
+		r = float3(0.0f, 0.0f, 0.0f);
 }
-BVM_DECL_FUNCTION_VALUE(DIV_FLOAT3_FLOAT)
+bvm_extern void D__DIV_FLOAT3_FLOAT(float3 &dr, const float3 &a, const float3 &da, float b, float db)
+{
+	if (b != 0.0f)
+		dr = float3((da.x - db * a.x / b) / b,
+		           (da.y - db * a.y / b) / b,
+		           (da.z - db * a.z / b) / b);
+	else
+		dr = float3(0.0f, 0.0f, 0.0f);
+}
+BVM_DECL_FUNCTION_DUAL(DIV_FLOAT3_FLOAT)
 
 bvm_extern void V__AVERAGE_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
 	r = float3(0.5f*(a.x+b.x), 0.5f*(a.y+b.y), 0.5f*(a.z+b.z));
 }
-BVM_DECL_FUNCTION_VALUE(AVERAGE_FLOAT3)
+bvm_extern void D__AVERAGE_FLOAT3(float3 &dr, const float3 &/*a*/, const float3 &da, const float3 &/*b*/, const float3 &db)
+{
+	dr = float3(0.5f*(da.x+db.x), 0.5f*(da.y+db.y), 0.5f*(da.z+db.z));
+}
+BVM_DECL_FUNCTION_DUAL(AVERAGE_FLOAT3)
 
 bvm_extern void V__DOT_FLOAT3(float &r, const float3 &a, const float3 &b)
 {
 	r = dot_v3v3(a.data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(DOT_FLOAT3)
+bvm_extern void D__DOT_FLOAT3(float &dr, const float3 &a, const float3 &da, const float3 &b, const float3 &db)
+{
+	dr = dot_v3v3(da.data(), b.data()) + dot_v3v3(a.data(), db.data());
+}
+BVM_DECL_FUNCTION_DUAL(DOT_FLOAT3)
 
 bvm_extern void V__CROSS_FLOAT3(float3 &r, const float3 &a, const float3 &b)
 {
-	r = float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+	cross_v3_v3v3(r.data(), a.data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(CROSS_FLOAT3)
+bvm_extern void D__CROSS_FLOAT3(float3 &dr, const float3 &a, const float3 &da, const float3 &b, const float3 &db)
+{
+	float3 c, d;
+	cross_v3_v3v3(c.data(), da.data(), b.data());
+	cross_v3_v3v3(d.data(), a.data(), db.data());
+	add_v3_v3v3(dr.data(), c.data(), d.data());
+}
+BVM_DECL_FUNCTION_DUAL(CROSS_FLOAT3)
 
 bvm_extern void V__NORMALIZE_FLOAT3(float3 &r_vec, float &r_len, const float3 &vec)
 {
 	r_len = normalize_v3_v3(r_vec.data(), vec.data());
 }
-BVM_DECL_FUNCTION_VALUE(NORMALIZE_FLOAT3)
+bvm_extern void D__NORMALIZE_FLOAT3(float3 &dr_vec, float &dr_len, const float3 &vec, const float3 &dvec)
+{
+	float3 n;
+	float len = normalize_v3_v3(n.data(), vec.data());
+	if (len > 0.0f) {
+		dr_len = dot_v3v3(n.data(), dvec.data());
+		madd_v3_v3v3fl(dr_vec.data(), dvec.data(), n.data(), -dr_len);
+		mul_v3_fl(dr_vec.data(), 1.0f / len);
+	}
+	else {
+		dr_len = 0.0f;
+		zero_v3(dr_vec.data());
+	}
+}
+BVM_DECL_FUNCTION_DUAL(NORMALIZE_FLOAT3)
 
 bvm_extern void V__LENGTH_FLOAT3(float &len, const float3 &vec)
 {
 	len = len_v3(vec.data());
 }
-BVM_DECL_FUNCTION_VALUE(LENGTH_FLOAT3)
+bvm_extern void D__LENGTH_FLOAT3(float &dlen, const float3 &vec, const float3 &dvec)
+{
+	float len = len_v3(vec.data());
+	if (len > 0.0f)
+		dlen = dot_v3v3(vec.data(), dvec.data()) / len;
+	else
+		dlen = 0.0f;
+}
+BVM_DECL_FUNCTION_DUAL(LENGTH_FLOAT3)
 
 bvm_extern void V__ADD_MATRIX44(matrix44 &r, const matrix44 &a, const matrix44 &b)
 {
@@ -401,13 +524,21 @@ bvm_extern void V__MUL_MATRIX44_FLOAT3(float3 &r, const matrix44 &a, const float
 {
 	mul_v3_m4v3(r.data(), a.c_data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(MUL_MATRIX44_FLOAT3)
+bvm_extern void D__MUL_MATRIX44_FLOAT3(float3 &dr, const matrix44 &a, const float3 &/*b*/, const float3 &db)
+{
+	mul_v3_mat3_m4v3(dr.data(), a.c_data(), db.data());
+}
+BVM_DECL_FUNCTION_DUAL(MUL_MATRIX44_FLOAT3)
 
 bvm_extern void V__MUL_MATRIX44_FLOAT4(float4 &r, const matrix44 &a, const float4 &b)
 {
 	mul_v4_m4v4(r.data(), a.c_data(), b.data());
 }
-BVM_DECL_FUNCTION_VALUE(MUL_MATRIX44_FLOAT4)
+bvm_extern void D__MUL_MATRIX44_FLOAT4(float4 &dr, const matrix44 &a, const float4 &/*b*/, const float4 &db)
+{
+	mul_v4_m4v4(dr.data(), a.c_data(), db.data());
+}
+BVM_DECL_FUNCTION_DUAL(MUL_MATRIX44_FLOAT4)
 
 BVM_MOD_NAMESPACE_END
 

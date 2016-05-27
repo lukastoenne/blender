@@ -229,7 +229,7 @@ inline static float pow_safe(float a, float b)
 
 inline static float log_safe(float a, float b)
 {
-	if (a >= 0.0f && b >= 0.0f)
+	if (a > 0.0f && b >= 0.0f)
 		return logf(a) / logf(b);
 	else
 		return 0.0f;
