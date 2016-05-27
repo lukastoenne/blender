@@ -59,32 +59,13 @@ bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool
 {
 	using namespace llvm;
 	
-	if (typespec->is_structure()) {
+	if (typespec->is_aggregate() || typespec->is_structure()) {
 		/* pass by reference */
 		return true;
 	}
 	else {
-		switch (typespec->base_type()) {
-			case BVM_FLOAT:
-			case BVM_INT:
-				/* pass by value */
-				return false;
-			case BVM_FLOAT3:
-			case BVM_FLOAT4:
-			case BVM_MATRIX44:
-				/* pass by reference */
-				return true;
-				
-			case BVM_STRING:
-			case BVM_RNAPOINTER:
-			case BVM_MESH:
-			case BVM_DUPLIS:
-				/* TODO */
-				break;
-		}
+		return false;
 	}
-	
-	return false;
 }
 
 llvm::Constant *LLVMSimpleCompilerImpl::create_node_value_constant(const NodeValue *node_value)

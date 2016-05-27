@@ -59,35 +59,17 @@ bool LLVMTextureCompiler::use_argument_pointer(const TypeSpec *typespec, bool is
 {
 	using namespace llvm;
 	
-	if (typespec->is_structure()) {
+	if (!is_constant && bvm_type_has_dual_value(typespec)) {
 		/* pass by reference */
 		return true;
 	}
-	else if (!is_constant && bvm_type_has_dual_value(typespec)) {
+	else if (typespec->is_aggregate() || typespec->is_structure()) {
+		/* pass by reference */
 		return true;
 	}
 	else {
-		switch (typespec->base_type()) {
-			case BVM_FLOAT:
-			case BVM_INT:
-				/* pass by value */
-				return false;
-			case BVM_FLOAT3:
-			case BVM_FLOAT4:
-			case BVM_MATRIX44:
-				/* pass by reference */
-				return true;
-				
-			case BVM_STRING:
-			case BVM_RNAPOINTER:
-			case BVM_MESH:
-			case BVM_DUPLIS:
-				/* TODO */
-				break;
-		}
+		return false;
 	}
-	
-	return false;
 }
 
 bool LLVMTextureCompiler::use_elementary_argument_pointer(const TypeSpec *typespec)

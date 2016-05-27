@@ -180,6 +180,7 @@ struct TypeSpec {
 	
 	BVMType base_type() const { return m_base_type; }
 	BVMBufferType buffer_type() const { return m_buffer_type; }
+	bool is_aggregate() const;
 	
 	bool assignable(const TypeSpec &other) const;
 	

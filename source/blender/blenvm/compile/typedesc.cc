@@ -172,6 +172,24 @@ bool TypeSpec::operator < (const TypeSpec &other) const
 	}
 }
 
+bool TypeSpec::is_aggregate() const
+{
+	switch (m_base_type) {
+		case BVM_FLOAT:
+		case BVM_INT:
+			return false;
+		case BVM_FLOAT3:
+		case BVM_FLOAT4:
+		case BVM_MATRIX44:
+		case BVM_STRING:
+		case BVM_RNAPOINTER:
+		case BVM_MESH:
+		case BVM_DUPLIS:
+			return true;
+	}
+	return false;
+}
+
 bool TypeSpec::assignable(const TypeSpec &other) const
 {
 	return *this == other;
