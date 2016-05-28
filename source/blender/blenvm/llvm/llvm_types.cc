@@ -85,7 +85,7 @@ llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, 
 	return NULL;
 }
 
-llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeValue *node_value)
+llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeConstant *node_value)
 {
 	using namespace llvm;
 	

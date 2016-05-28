@@ -233,7 +233,7 @@ void BVMCompilerBase::resolve_symbols(const NodeGraph &graph)
 }
 
 
-void BVMCompilerBase::push_constant(const NodeValue *value) const
+void BVMCompilerBase::push_constant(const NodeConstant *value) const
 {
 	const TypeSpec *typespec = value->typedesc().get_typespec();
 	
@@ -297,7 +297,7 @@ void BVMCompilerBase::push_constant(const NodeValue *value) const
 	}
 }
 
-void BVMCompilerBase::codegen_value(const NodeValue *value, StackIndex offset) const
+void BVMCompilerBase::codegen_value(const NodeConstant *value, StackIndex offset) const
 {
 	const TypeSpec *typespec = value->typedesc().get_typespec();
 	

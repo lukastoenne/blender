@@ -46,7 +46,7 @@ namespace blenvm {
 
 NodeInput::NodeInput(const string &name,
                      const TypeDesc &typedesc,
-                     NodeValue *default_value,
+                     NodeConstant *default_value,
                      BVMInputValueType value_type) :
     name(name),
     typedesc(typedesc),
@@ -211,7 +211,7 @@ bool NodeType::verify_arguments(Module *module, LLVMContext &context, raw_ostrea
 
 const NodeInput *NodeType::add_input(const string &name,
                                      const string &type,
-                                     NodeValue *default_value,
+                                     NodeConstant *default_value,
                                      BVMInputValueType value_type)
 {
 	BLI_assert(!find_input(name));
@@ -342,7 +342,7 @@ ConstOutputKey ConstInputKey::link() const
 		return ConstOutputKey();
 }
 
-const NodeValue *ConstInputKey::value() const
+const NodeConstant *ConstInputKey::value() const
 {
 	return node->input_value(socket->name);
 }
@@ -399,12 +399,12 @@ void InputKey::link_set(const OutputKey &from) const
 	node->link_set(socket->name, from);
 }
 
-const NodeValue *InputKey::value() const
+const NodeConstant *InputKey::value() const
 {
 	return node->input_value(socket->name);
 }
 
-void InputKey::value_set(NodeValue *value) const
+void InputKey::value_set(NodeConstant *value) const
 {
 	node->input_value_set(socket->name, value);
 }
@@ -525,7 +525,7 @@ bool NodeInstance::link_set(const string &name, const OutputKey &from)
 		return false;
 }
 
-const NodeValue *NodeInstance::input_value(const string &name) const
+const NodeConstant *NodeInstance::input_value(const string &name) const
 {
 	InputMap::const_iterator it = inputs.find(name);
 	if (it != inputs.end()) {
@@ -535,13 +535,13 @@ const NodeValue *NodeInstance::input_value(const string &name) const
 	return type->find_input(name)->default_value;
 }
 
-const NodeValue *NodeInstance::input_value(int index) const
+const NodeConstant *NodeInstance::input_value(int index) const
 {
 	const NodeInput *socket = type->find_input(index);
 	return socket ? input_value(socket->name) : NULL;
 }
 
-bool NodeInstance::input_value_set(const string &name, NodeValue *value)
+bool NodeInstance::input_value_set(const string &name, NodeConstant *value)
 {
 	InputInstance &input = inputs[name];
 	if (input.value)
@@ -722,7 +722,7 @@ const NodeGraph::Input *NodeGraph::add_input(const string &name, const string &t
 	return &inputs.back();
 }
 
-const NodeGraph::Output *NodeGraph::add_output(const string &name, const string &type, NodeValue *default_value)
+const NodeGraph::Output *NodeGraph::add_output(const string &name, const string &type, NodeConstant *default_value)
 {
 	BLI_assert(!get_output(name));
 	TypeDesc td(type);
@@ -732,7 +732,7 @@ const NodeGraph::Output *NodeGraph::add_output(const string &name, const string 
 
 /* ------------------------------------------------------------------------- */
 
-NodeInstance *NodeGraph::add_proxy(const TypeDesc &td, NodeValue *default_value)
+NodeInstance *NodeGraph::add_proxy(const TypeDesc &td, NodeConstant *default_value)
 {
 	const TypeSpec *typespec = td.get_typespec();
 	
@@ -776,7 +776,7 @@ NodeInstance *NodeGraph::add_proxy(const TypeDesc &td, NodeValue *default_value)
 	return node;
 }
 
-OutputKey NodeGraph::add_value_node(NodeValue *value)
+OutputKey NodeGraph::add_value_node(NodeConstant *value)
 {
 	const TypeSpec *typespec = value->typedesc().get_typespec();
 	
@@ -913,7 +913,7 @@ OutputKey NodeGraph::find_root(const OutputKey &key)
 {
 	OutputKey root = key;
 	/* value is used to create a valid root node if necessary */
-	const NodeValue *value = NULL;
+	const NodeConstant *value = NULL;
 	while (root && root.node->type->kind() == NODE_TYPE_PASS) {
 		value = root.node->input_value(0);
 		root = root.node->link(0);

@@ -170,13 +170,13 @@ private:
 
 /* ------------------------------------------------------------------------- */
 
-struct NodeValue {
+struct NodeConstant {
 	template <typename T>
-	static NodeValue *create(const TypeDesc &typedesc, T *data, size_t size);
+	static NodeConstant *create(const TypeDesc &typedesc, T *data, size_t size);
 	template <typename T>
-	static NodeValue *create(const TypeDesc &typedesc, T data);
+	static NodeConstant *create(const TypeDesc &typedesc, T data);
 	
-	virtual ~NodeValue()
+	virtual ~NodeConstant()
 	{}
 	
 	const TypeDesc &typedesc() const { return m_typedesc; }
@@ -187,10 +187,10 @@ struct NodeValue {
 	template <typename T>
 	bool get(T *data) const;
 	
-	virtual NodeValue *copy() const = 0;
+	virtual NodeConstant *copy() const = 0;
 	
 protected:
-	NodeValue(const TypeDesc &typedesc) :
+	NodeConstant(const TypeDesc &typedesc) :
 	    m_typedesc(typedesc)
 	{}
 	
@@ -198,18 +198,18 @@ protected:
 };
 
 template <BVMType type>
-struct SingleNodeValue : public NodeValue {
+struct SingleNodeValue : public NodeConstant {
 	typedef BaseTypeTraits<type> traits;
 	typedef typename traits::POD POD;
 	
 	SingleNodeValue(const TypeDesc &td, typename traits::POD data) :
-	    NodeValue(td),
+	    NodeConstant(td),
 	    m_data(data)
 	{}
 	
 	template <typename T>
 	SingleNodeValue(const TypeDesc &td, T data) :
-	    NodeValue(td)
+	    NodeConstant(td)
 	{ (void)data; }
 	
 	const POD &data() const { return m_data; }
@@ -228,7 +228,7 @@ struct SingleNodeValue : public NodeValue {
 		return false;
 	}
 	
-	NodeValue *copy() const
+	NodeConstant *copy() const
 	{
 		return new SingleNodeValue<type>(m_typedesc, m_data);
 	}
@@ -238,30 +238,30 @@ private:
 };
 
 template <BVMType type>
-struct ArrayNodeValue : public NodeValue {
+struct ArrayNodeValue : public NodeConstant {
 	typedef BaseTypeTraits<type> traits;
 	typedef typename traits::POD POD;
 	typedef array<type> array_t;
 	typedef const_array<type> const_array_t;
 	
 	ArrayNodeValue(const TypeDesc &td, const array_t &data) :
-	    NodeValue(td),
+	    NodeConstant(td),
 	    m_data(data)
 	{}
 	
 	ArrayNodeValue(const TypeDesc &td, POD *data, size_t size) :
-	    NodeValue(td),
+	    NodeConstant(td),
 	    m_data(array_t(data, size))
 	{}
 	
 	template <typename T>
 	ArrayNodeValue(const TypeDesc &td, T data) :
-	    NodeValue(td)
+	    NodeConstant(td)
 	{ (void)data; }
 	
 	template <typename T>
 	ArrayNodeValue(const TypeDesc &td, T *data, size_t size) :
-	    NodeValue(td)
+	    NodeConstant(td)
 	{ (void)data; (void)size; }
 	
 	const array_t &data() const { return m_data; }
@@ -280,7 +280,7 @@ struct ArrayNodeValue : public NodeValue {
 		return false;
 	}
 	
-	NodeValue *copy() const
+	NodeConstant *copy() const
 	{
 		return new ArrayNodeValue<type>(m_typedesc, m_data);
 	}
@@ -290,30 +290,30 @@ private:
 };
 
 template <BVMType type>
-struct ImageNodeValue : public NodeValue {
+struct ImageNodeValue : public NodeConstant {
 	typedef BaseTypeTraits<type> traits;
 	typedef typename traits::POD POD;
 	typedef image<type> image_t;
 	typedef const_image<type> const_image_t;
 	
 	ImageNodeValue(const image_t &data) :
-	    NodeValue(TypeSpec(type, BVM_BUFFER_ARRAY)),
+	    NodeConstant(TypeSpec(type, BVM_BUFFER_ARRAY)),
 	    m_data(data)
 	{}
 	
 	ImageNodeValue(POD *data, size_t width, size_t height) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY)),
+	    NodeConstant(TypeDesc(type, BVM_BUFFER_ARRAY)),
 	    m_data(image_t(data, width, height))
 	{}
 	
 	template <typename T>
 	ImageNodeValue(T data) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY))
+	    NodeConstant(TypeDesc(type, BVM_BUFFER_ARRAY))
 	{ (void)data; }
 	
 	template <typename T>
 	ImageNodeValue(T *data, size_t width, size_t height) :
-	    NodeValue(TypeDesc(type, BVM_BUFFER_ARRAY))
+	    NodeConstant(TypeDesc(type, BVM_BUFFER_ARRAY))
 	{ (void)data; (void)width; (void)height; }
 	
 	const image_t &data() const { return m_data; }
@@ -332,7 +332,7 @@ struct ImageNodeValue : public NodeValue {
 		return false;
 	}
 	
-	NodeValue *copy() const
+	NodeConstant *copy() const
 	{
 		return new ImageNodeValue<type>(m_data);
 	}
@@ -344,7 +344,7 @@ private:
 /* ========================================================================= */
 
 template <typename T>
-static NodeValue *create(const TypeDesc &td, T *data, size_t size)
+static NodeConstant *create(const TypeDesc &td, T *data, size_t size)
 {
 	const TypeSpec *typespec = td.get_typespec();
 	
@@ -365,7 +365,7 @@ static NodeValue *create(const TypeDesc &td, T *data, size_t size)
 }
 
 template <typename T>
-NodeValue *NodeValue::create(const TypeDesc &td, T data)
+NodeConstant *NodeConstant::create(const TypeDesc &td, T data)
 {
 	const TypeSpec *typespec = td.get_typespec();
 	
@@ -400,7 +400,7 @@ NodeValue *NodeValue::create(const TypeDesc &td, T data)
 
 
 template <BVMType type>
-bool NodeValue::get(array<type> *data) const
+bool NodeConstant::get(array<type> *data) const
 {
 	const TypeSpec *typespec = m_typedesc.get_typespec();
 	
@@ -421,7 +421,7 @@ bool NodeValue::get(array<type> *data) const
 }
 
 template <typename T>
-bool NodeValue::get(T *data) const
+bool NodeConstant::get(T *data) const
 {
 	const TypeSpec *typespec = m_typedesc.get_typespec();
 	

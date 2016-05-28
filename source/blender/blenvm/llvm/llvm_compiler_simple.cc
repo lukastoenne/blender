@@ -68,7 +68,7 @@ bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool
 	}
 }
 
-llvm::Constant *LLVMSimpleCompilerImpl::create_node_value_constant(const NodeValue *node_value)
+llvm::Constant *LLVMSimpleCompilerImpl::create_node_value_constant(const NodeConstant *node_value)
 {
 	return bvm_create_llvm_constant(context(), node_value);
 }

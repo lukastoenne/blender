@@ -65,13 +65,13 @@ struct NodeBlock;
 struct NodeInput {
 	NodeInput(const string &name,
 	           const TypeDesc &typedesc,
-	           NodeValue *default_value,
+	           NodeConstant *default_value,
 	           BVMInputValueType value_type);
 	~NodeInput();
 	
 	string name;
 	TypeDesc typedesc;
-	NodeValue *default_value;
+	NodeConstant *default_value;
 	BVMInputValueType value_type;
 };
 
@@ -121,7 +121,7 @@ struct NodeType {
 	
 	const NodeInput *add_input(const string &name,
 	                           const string &type,
-	                           NodeValue *default_value,
+	                           NodeConstant *default_value,
 	                           BVMInputValueType value_type = INPUT_EXPRESSION);
 
 	const NodeOutput *add_output(const string &name,
@@ -181,7 +181,7 @@ struct ConstInputKey {
 	operator bool() const;
 	
 	ConstOutputKey link() const;
-	const NodeValue *value() const;
+	const NodeConstant *value() const;
 	BVMInputValueType value_type() const;
 	
 	const NodeInstance *node;
@@ -199,8 +199,8 @@ struct InputKey {
 	
 	OutputKey link() const;
 	void link_set(const OutputKey &from) const;
-	const NodeValue *value() const;
-	void value_set(NodeValue *value) const;
+	const NodeConstant *value() const;
+	void value_set(NodeConstant *value) const;
 	BVMInputValueType value_type() const;
 	
 	NodeInstance *node;
@@ -218,7 +218,7 @@ struct NodeInstance {
 		{}
 		
 		OutputKey link;
-		NodeValue *value;
+		NodeConstant *value;
 	};
 	
 	typedef std::map<string, InputInstance> InputMap;
@@ -244,14 +244,14 @@ struct NodeInstance {
 	OutputKey link(int index) const;
 	bool link_set(const string &name, const OutputKey &from);
 	
-	const NodeValue *input_value(const string &name) const;
-	const NodeValue *input_value(int index) const;
-	bool input_value_set(const string &name, NodeValue *value);
+	const NodeConstant *input_value(const string &name) const;
+	const NodeConstant *input_value(int index) const;
+	bool input_value_set(const string &name, NodeConstant *value);
 	template <typename T>
 	bool input_value_set(const string &name, const T &value)
 	{
 		const NodeInput *socket = type->find_input(name);
-		return socket ? input_value_set(name, NodeValue::create(socket->typedesc, value)) : false;
+		return socket ? input_value_set(name, NodeConstant::create(socket->typedesc, value)) : false;
 	}
 	
 	const NodeType *type;
@@ -349,13 +349,13 @@ struct NodeGraph {
 	void set_output_socket(const string &name, const OutputKey &key);
 	
 	const Input *add_input(const string &name, const string &type);
-	const Output *add_output(const string &name, const string &type, NodeValue *default_value);
+	const Output *add_output(const string &name, const string &type, NodeConstant *default_value);
 	
 	template <typename T>
 	const Output *add_output(const string &name, const string &type, const T &default_value)
 	{
 		TypeDesc td(type);
-		return add_output(name, type, NodeValue::create(td, default_value));
+		return add_output(name, type, NodeConstant::create(td, default_value));
 	}
 	
 	void finalize();
@@ -364,8 +364,8 @@ struct NodeGraph {
 	const NodeBlock &main_block() const { return blocks.front(); }
 	
 protected:
-	NodeInstance *add_proxy(const TypeDesc &typedesc, NodeValue *default_value = NULL);
-	OutputKey add_value_node(NodeValue *value);
+	NodeInstance *add_proxy(const TypeDesc &typedesc, NodeConstant *default_value = NULL);
+	OutputKey add_value_node(NodeConstant *value);
 	OutputKey add_argument_node(const TypeDesc &typedesc);
 	
 	void remove_all_nodes();
@@ -417,7 +417,7 @@ const NodeInput *NodeType::add_input(const string &name,
                                      T default_value,
                                      BVMInputValueType value_type)
 {
-	NodeValue *c = NodeValue::create(TypeDesc(type), default_value);
+	NodeConstant *c = NodeConstant::create(TypeDesc(type), default_value);
 	BLI_assert(c != NULL);
 	return add_input(name, type, c, value_type);
 }
