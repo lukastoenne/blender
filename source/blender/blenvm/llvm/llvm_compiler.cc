@@ -114,6 +114,8 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 {
 	using namespace llvm;
 	
+	node_graph_begin();
+	
 	IRBuilder<> builder(context());
 	
 	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
@@ -158,7 +160,7 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	
 	builder.CreateRetVoid();
 	
-	m_output_values.clear();
+	node_graph_end();
 	
 	return block;
 }
@@ -242,24 +244,6 @@ void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 	FPM.run(*func);
 }
 
-void LLVMCompilerBase::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
-{
-	m_output_values[output] = arg;
-	UNUSED_VARS(block);
-}
-
-void LLVMCompilerBase::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
-{
-	using namespace llvm;
-	
-	IRBuilder<> builder(context());
-	builder.SetInsertPoint(block);
-	
-	Value *value = m_output_values.at(output);
-	Value *rvalue = builder.CreateLoad(value);
-	builder.CreateStore(rvalue, arg);
-}
-
 void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node)
 {
 	using namespace llvm;
@@ -274,18 +258,14 @@ void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInsta
 	ConstOutputKey output = node->output(0);
 	BLI_assert(input.value_type() == INPUT_EXPRESSION);
 	
-	Value *value = m_output_values.at(input.link());
-	bool ok = m_output_values.insert(OutputValueMap::value_type(output, value)).second;
-	BLI_assert(ok && "Value for node output already defined!");
-	UNUSED_VARS(ok);
+	copy_node_value(input.link(), output);
 }
 
 void LLVMCompilerBase::expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node)
 {
 	using namespace llvm;
 	/* input arguments are mapped in advance */
-	BLI_assert(m_output_values.find(node->output(0)) != m_output_values.end() &&
-	           "Input argument value node mapped!");
+	BLI_assert(has_node_value(node->output(0)) && "Input argument value node mapped!");
 	UNUSED_VARS(block, node);
 }
 
@@ -306,54 +286,23 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 	
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
-		const TypeSpec *typespec = output.socket->typedesc.get_typespec();
-		Type *type = get_value_type(typespec, false);
-		BLI_assert(type != NULL);
-		Value *value = builder.CreateAlloca(type);
 		
-		args.push_back(value);
-		
-		/* use as node output values */
-		bool ok = m_output_values.insert(OutputValueMap::value_type(output, value)).second;
-		BLI_assert(ok && "Value for node output already defined!");
-		UNUSED_VARS(ok);
+		alloc_node_value(block, output);
+		append_output_arguments(args, output);
 	}
 	
 	/* set input arguments */
 	for (int i = 0; i < node->num_inputs(); ++i) {
 		ConstInputKey input = node->input(i);
 		const TypeSpec *typespec = input.socket->typedesc.get_typespec();
-		bool is_constant = (input.value_type() == INPUT_CONSTANT);
 		
 		switch (input.value_type()) {
 			case INPUT_CONSTANT: {
-				/* create storage for the global value */
-				Constant *cvalue = create_node_value_constant(input.value());
-				
-				Value *value;
-				if (use_argument_pointer(typespec, is_constant)) {
-					AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
-					builder.CreateStore(cvalue, pvalue);
-					value = pvalue;
-				}
-				else {
-					value = cvalue;
-				}
-				
-				args.push_back(value);
+				append_input_constant(block, args, typespec, input.value());
 				break;
 			}
 			case INPUT_EXPRESSION: {
-				Value *pvalue = m_output_values.at(input.link());
-				Value *value;
-				if (use_argument_pointer(typespec, is_constant)) {
-					value = pvalue;
-				}
-				else {
-					value = builder.CreateLoad(pvalue);
-				}
-				
-				args.push_back(value);
+				append_input_value(block, args, typespec, input.link());
 				break;
 			}
 			case INPUT_VARIABLE: {

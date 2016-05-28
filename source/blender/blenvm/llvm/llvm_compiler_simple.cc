@@ -50,12 +50,123 @@ namespace blenvm {
 
 llvm::Module *LLVMSimpleCompilerImpl::m_nodes_module = NULL;
 
+void LLVMSimpleCompilerImpl::node_graph_begin()
+{
+	
+}
+
+void LLVMSimpleCompilerImpl::node_graph_end()
+{
+	m_output_values.clear();
+}
+
+bool LLVMSimpleCompilerImpl::has_node_value(const ConstOutputKey &output) const
+{
+	return m_output_values.find(output) != m_output_values.end();
+}
+
+void LLVMSimpleCompilerImpl::alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
+	Type *type = get_value_type(typespec, false);
+	BLI_assert(type != NULL);
+	
+	Value *value = builder.CreateAlloca(type);
+	
+	/* use as node output values */
+	bool ok = m_output_values.insert(OutputValueMap::value_type(output, value)).second;
+	BLI_assert(ok && "Value for node output already defined!");
+	UNUSED_VARS(ok);
+}
+
+void LLVMSimpleCompilerImpl::copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to)
+{
+	using namespace llvm;
+	
+	Value *value = m_output_values.at(from);
+	bool ok = m_output_values.insert(OutputValueMap::value_type(to, value)).second;
+	BLI_assert(ok && "Value for node output already defined!");
+	UNUSED_VARS(ok);
+}
+
+void LLVMSimpleCompilerImpl::append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output)
+{
+	args.push_back(m_output_values.at(output));
+}
+
+void LLVMSimpleCompilerImpl::append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+                                                const TypeSpec *typespec, const ConstOutputKey &link)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	Value *pvalue = m_output_values.at(link);
+	Value *value;
+	if (use_argument_pointer(typespec, false)) {
+		value = pvalue;
+	}
+	else {
+		value = builder.CreateLoad(pvalue);
+	}
+	
+	args.push_back(value);
+}
+
+void LLVMSimpleCompilerImpl::append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+                                                   const TypeSpec *typespec, const NodeConstant *node_value)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	/* create storage for the global value */
+	Constant *cvalue = bvm_create_llvm_constant(context(), node_value);
+	
+	Value *value;
+	if (use_argument_pointer(typespec, true)) {
+		AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
+		builder.CreateStore(cvalue, pvalue);
+		value = pvalue;
+	}
+	else {
+		value = cvalue;
+	}
+	
+	args.push_back(value);
+}
+
+void LLVMSimpleCompilerImpl::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
+{
+	m_output_values[output] = arg;
+	UNUSED_VARS(block);
+}
+
+void LLVMSimpleCompilerImpl::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	Value *value = m_output_values.at(output);
+	Value *rvalue = builder.CreateLoad(value);
+	builder.CreateStore(rvalue, arg);
+}
+
 llvm::Type *LLVMSimpleCompilerImpl::get_value_type(const TypeSpec *spec, bool UNUSED(is_constant))
 {
 	return bvm_get_llvm_type(context(), spec, false);
 }
 
-bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool UNUSED(is_constant))
+bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool UNUSED(is_constant)) const
 {
 	using namespace llvm;
 	
@@ -66,11 +177,6 @@ bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool
 	else {
 		return false;
 	}
-}
-
-llvm::Constant *LLVMSimpleCompilerImpl::create_node_value_constant(const NodeConstant *node_value)
-{
-	return bvm_create_llvm_constant(context(), node_value);
 }
 
 bool LLVMSimpleCompilerImpl::set_node_function_impl(OpCode op, const NodeType *UNUSED(nodetype),

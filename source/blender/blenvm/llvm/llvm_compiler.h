@@ -65,8 +65,6 @@ struct TypeDesc;
 struct FunctionLLVM;
 
 struct LLVMCompilerBase {
-	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
-	
 	virtual ~LLVMCompilerBase();
 	
 	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
@@ -88,19 +86,28 @@ protected:
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	
-	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
-	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
-	
 	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
 	llvm::FunctionType *get_node_function_type(const std::vector<llvm::Type*> &inputs,
 	                                           const std::vector<llvm::Type*> &outputs);
 	
+	virtual void node_graph_begin() = 0;
+	virtual void node_graph_end() = 0;
+	
+	virtual bool has_node_value(const ConstOutputKey &output) const = 0;
+	virtual void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output) = 0;
+	virtual void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to) = 0;
+	virtual void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output) = 0;
+	virtual void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                                const TypeSpec *typespec, const ConstOutputKey &link) = 0;
+	virtual void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                                   const TypeSpec *typespec, const NodeConstant *node_value) = 0;
+	virtual void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg) = 0;
+	virtual void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg) = 0;
+	
 	virtual llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant) = 0;
-	virtual bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) = 0;
-
-	virtual llvm::Constant *create_node_value_constant(const NodeConstant *node_value) = 0;
+	virtual bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const = 0;
 	
 	llvm::Function *declare_node_function(llvm::Module *mod, const NodeType *nodetype);
 	virtual void define_nodes_module() = 0;
@@ -108,26 +115,56 @@ protected:
 	
 private:
 	llvm::Module *m_module;
-	OutputValueMap m_output_values;
 };
 
 struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
+	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	
+	void node_graph_begin();
+	void node_graph_end();
+	
+	bool has_node_value(const ConstOutputKey &output) const;
+	void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output);
+	void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to);
+	void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output);
+	void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                            const TypeSpec *typespec, const ConstOutputKey &link);
+	void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                           const TypeSpec *typespec, const NodeConstant *node_value);
+	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	
 	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant);
-	
-	llvm::Constant *create_node_value_constant(const NodeConstant *node_value);
+	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const;
 	
 	bool set_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func);
 	void define_nodes_module();
 	
 private:
 	static llvm::Module *m_nodes_module;
+	OutputValueMap m_output_values;
 };
 
 struct LLVMTextureCompiler : public LLVMCompilerBase {
+	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	
+	void node_graph_begin();
+	void node_graph_end();
+	
+	bool has_node_value(const ConstOutputKey &output) const;
+	void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output);
+	void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to);
+	void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output);
+	void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                            const TypeSpec *typespec, const ConstOutputKey &link);
+	void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
+	                           const TypeSpec *typespec, const NodeConstant *node_value);
+	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	
 	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
 	llvm::Function *declare_elementary_node_function(
 	        llvm::Module *mod, const NodeType *nodetype, const string &name,
@@ -135,10 +172,8 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant);
-	bool use_elementary_argument_pointer(const TypeSpec *typespec);
-	
-	llvm::Constant *create_node_value_constant(const NodeConstant *node_value);
+	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const;
+	bool use_elementary_argument_pointer(const TypeSpec *typespec) const;
 	
 	void define_node_function(llvm::Module *mod, OpCode op, const string &nodetype_name);
 	void define_nodes_module();
@@ -151,6 +186,7 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	
 private:
 	static llvm::Module *m_nodes_module;
+	OutputValueMap m_output_values;
 };
 
 } /* namespace blenvm */
