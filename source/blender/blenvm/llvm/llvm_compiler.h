@@ -64,6 +64,16 @@ struct NodeInstance;
 struct TypeDesc;
 struct FunctionLLVM;
 
+struct FunctionParameter {
+	FunctionParameter(llvm::Type *type, const std::string &name) :
+	    type(type), name(name)
+	{}
+	
+	llvm::Type *type;
+	std::string name;
+};
+typedef std::vector<FunctionParameter> FunctionParameterList;
+
 struct LLVMCompilerBase {
 	virtual ~LLVMCompilerBase();
 	
@@ -89,8 +99,6 @@ protected:
 	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
 	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
-	llvm::FunctionType *get_node_function_type(const std::vector<llvm::Type*> &inputs,
-	                                           const std::vector<llvm::Type*> &outputs);
 	
 	virtual void node_graph_begin() = 0;
 	virtual void node_graph_end() = 0;
@@ -108,10 +116,12 @@ protected:
 	
 	virtual llvm::Type *get_argument_type(const TypeSpec *spec) const = 0;
 	virtual llvm::Type *get_return_type(const TypeSpec *spec) const = 0;
-	virtual void append_input_types(std::vector<llvm::Type*> &params,
-	                                const TypeSpec *spec, bool is_constant) const = 0;
-	virtual void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const = 0;
+	virtual void append_input_types(FunctionParameterList &params, const NodeInput *input) const = 0;
+	virtual void append_output_types(FunctionParameterList &params, const NodeOutput *output) const = 0;
 	
+	llvm::Function *declare_function(llvm::Module *mod, const string &name,
+	                                 const FunctionParameterList &input_types,
+	                                 const FunctionParameterList &output_types);
 	llvm::Function *declare_node_function(llvm::Module *mod, const NodeType *nodetype);
 	virtual void define_nodes_module() = 0;
 	virtual llvm::Module *get_nodes_module() const = 0;
@@ -139,9 +149,8 @@ struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
 	
 	llvm::Type *get_argument_type(const TypeSpec *spec) const;
 	llvm::Type *get_return_type(const TypeSpec *spec) const;
-	void append_input_types(std::vector<llvm::Type*> &params,
-	                        const TypeSpec *spec, bool is_constant) const;
-	void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const;
+	void append_input_types(FunctionParameterList &params, const NodeInput *input) const;
+	void append_output_types(FunctionParameterList &params, const NodeOutput *output) const;
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
@@ -175,9 +184,8 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	
 	llvm::Type *get_argument_type(const TypeSpec *spec) const;
 	llvm::Type *get_return_type(const TypeSpec *spec) const;
-	void append_input_types(std::vector<llvm::Type*> &params,
-	                        const TypeSpec *spec, bool is_constant) const;
-	void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const;
+	void append_input_types(FunctionParameterList &params, const NodeInput *input) const;
+	void append_output_types(FunctionParameterList &params, const NodeOutput *output) const;
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	

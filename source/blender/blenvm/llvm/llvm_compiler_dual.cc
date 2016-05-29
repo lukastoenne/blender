@@ -200,31 +200,42 @@ llvm::Type *LLVMTextureCompiler::get_return_type(const TypeSpec *spec) const
 	return bvm_get_llvm_type(context(), spec, true);
 }
 
-void LLVMTextureCompiler::append_input_types(std::vector<llvm::Type*> &params,
-                                             const TypeSpec *spec, bool is_constant) const
-{
-	llvm::Type *type = bvm_get_llvm_type(context(), spec, false);
-	if (use_argument_pointer(spec, false))
-		type = type->getPointerTo();
-	
-	params.push_back(type);
-	if (!is_constant && bvm_type_has_dual_value(spec)) {
-		/* two derivatives */
-		params.push_back(type);
-		params.push_back(type);
-	}
-}
-
-void LLVMTextureCompiler::append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const
+void LLVMTextureCompiler::append_input_types(FunctionParameterList &params, const NodeInput *input) const
 {
 	using namespace llvm;
 	
+	const TypeSpec *spec = input->typedesc.get_typespec();
+	bool is_constant = (input->value_type == INPUT_CONSTANT);
 	Type *type = bvm_get_llvm_type(context(), spec, false);
-	params.push_back(type);
-	if (bvm_type_has_dual_value(spec)) {
+	if (use_argument_pointer(spec, false))
+		type = type->getPointerTo();
+	
+	if (!is_constant && bvm_type_has_dual_value(spec)) {
+		params.push_back(FunctionParameter(type, "V_" + input->name));
 		/* two derivatives */
-		params.push_back(type);
-		params.push_back(type);
+		params.push_back(FunctionParameter(type, "DX_" + input->name));
+		params.push_back(FunctionParameter(type, "DY_" + input->name));
+	}
+	else {
+		params.push_back(FunctionParameter(type, input->name));
+	}
+}
+
+void LLVMTextureCompiler::append_output_types(FunctionParameterList &params, const NodeOutput *output) const
+{
+	using namespace llvm;
+	
+	const TypeSpec *spec = output->typedesc.get_typespec();
+	Type *type = bvm_get_llvm_type(context(), spec, false);
+	
+	if (bvm_type_has_dual_value(spec)) {
+		params.push_back(FunctionParameter(type, "V_" + output->name));
+		/* two derivatives */
+		params.push_back(FunctionParameter(type, "DX_" + output->name));
+		params.push_back(FunctionParameter(type, "DY_" + output->name));
+	}
+	else {
+		params.push_back(FunctionParameter(type, output->name));
 	}
 }
 
@@ -309,10 +320,11 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 	
 	bool error = false;
 	
-	std::vector<Type *> input_types, output_types;
+	FunctionParameterList input_types, output_types;
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
 		const TypeSpec *typespec = input->typedesc.get_typespec();
+		bool is_constant = (input->value_type == INPUT_CONSTANT);
 		
 		Type *type = bvm_get_llvm_type(context(), typespec, false);
 		if (type == NULL) {
@@ -322,11 +334,13 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 		if (use_elementary_argument_pointer(typespec))
 			type = type->getPointerTo();
 		
-		input_types.push_back(type);
-		if (with_derivatives &&
-		    input->value_type != INPUT_CONSTANT && bvm_type_has_dual_value(typespec)) {
+		if (with_derivatives && !is_constant && bvm_type_has_dual_value(typespec)) {
+			input_types.push_back(FunctionParameter(type, "V_" + input->name));
 			/* second argument for derivative */
-			input_types.push_back(type);
+			input_types.push_back(FunctionParameter(type, "D_" + input->name));
+		}
+		else {
+			input_types.push_back(FunctionParameter(type, input->name));
 		}
 	}
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
@@ -339,12 +353,11 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 			break;
 		}
 		
-		if (with_derivatives &&
-		    bvm_type_has_dual_value(typespec)) {
-			output_types.push_back(type);
+		if (with_derivatives && bvm_type_has_dual_value(typespec)) {
+			output_types.push_back(FunctionParameter(type, "D_" + output->name));
 		}
 		else {
-			output_types.push_back(type);
+			output_types.push_back(FunctionParameter(type, output->name));
 		}
 	}
 	if (error) {
@@ -352,10 +365,7 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 		return NULL;
 	}
 	
-	FunctionType *functype = get_node_function_type(input_types, output_types);
-	
-	Function *func = Function::Create(functype, Function::ExternalLinkage, name, mod);
-	return func;
+	return declare_function(mod, name, input_types, output_types);
 }
 
 bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *UNUSED(nodetype),

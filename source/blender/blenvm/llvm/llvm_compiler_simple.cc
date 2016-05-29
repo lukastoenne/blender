@@ -174,22 +174,26 @@ llvm::Type *LLVMSimpleCompilerImpl::get_return_type(const TypeSpec *spec) const
 	return bvm_get_llvm_type(context(), spec, false)->getPointerTo();
 }
 
-void LLVMSimpleCompilerImpl::append_input_types(std::vector<llvm::Type*> &params,
-                                                const TypeSpec *spec, bool UNUSED(is_constant)) const
-{
-	llvm::Type *type = bvm_get_llvm_type(context(), spec, false);
-	if (use_argument_pointer(spec))
-		type = type->getPointerTo();
-	
-	params.push_back(type);
-}
-
-void LLVMSimpleCompilerImpl::append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const
+void LLVMSimpleCompilerImpl::append_input_types(FunctionParameterList &params, const NodeInput *input) const
 {
 	using namespace llvm;
 	
+	const TypeSpec *spec = input->typedesc.get_typespec();
 	Type *type = bvm_get_llvm_type(context(), spec, false);
-	params.push_back(type);
+	if (use_argument_pointer(spec))
+		type = type->getPointerTo();
+	
+	params.push_back(FunctionParameter(type, input->name));
+}
+
+void LLVMSimpleCompilerImpl::append_output_types(FunctionParameterList &params, const NodeOutput *output) const
+{
+	using namespace llvm;
+	
+	const TypeSpec *spec = output->typedesc.get_typespec();
+	Type *type = bvm_get_llvm_type(context(), spec, false);
+	
+	params.push_back(FunctionParameter(type, output->name));
 }
 
 bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec) const
