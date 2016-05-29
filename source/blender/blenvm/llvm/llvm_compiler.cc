@@ -124,17 +124,18 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	int num_inputs = graph.inputs.size();
 	int num_outputs = graph.outputs.size();
 	
-	Argument *retarg = func->getArgumentList().begin();
 	{
-		Function::ArgumentListType::iterator it = retarg;
+		Function::ArgumentListType::iterator it = func->arg_begin();
 		for (int i = 0; i < num_outputs; ++i) {
-			++it; /* skip output arguments */
+			/* skip output arguments */
+			++it;
 		}
 		for (int i = 0; i < num_inputs; ++i) {
 			const NodeGraph::Input &input = graph.inputs[i];
-			Argument *arg = &(*it++);
+			Argument *arg = it++;
 			
-			map_argument(block, input.key, arg);
+			if (input.key)
+				map_argument(block, input.key, arg);
 		}
 	}
 	
@@ -149,10 +150,10 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	}
 	
 	{
-		Function::ArgumentListType::iterator it = func->getArgumentList().begin();
+		Function::ArgumentListType::iterator it = func->arg_begin();
 		for (int i = 0; i < num_outputs; ++i) {
 			const NodeGraph::Output &output = graph.outputs[i];
-			Argument *arg = &(*it++);
+			Argument *arg = it++;
 			
 			store_return_value(block, output.key, arg);
 		}
@@ -172,16 +173,12 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 	std::vector<llvm::Type*> input_types, output_types;
 	for (int i = 0; i < graph.inputs.size(); ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		const TypeSpec *typespec = input.typedesc.get_typespec();
-		Type *type = get_value_type(typespec, false);
-		if (use_argument_pointer(typespec, false))
-			type = type->getPointerTo();
+		Type *type = get_argument_type(input.typedesc.get_typespec());
 		input_types.push_back(type);
 	}
 	for (int i = 0; i < graph.outputs.size(); ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		const TypeSpec *typespec = output.typedesc.get_typespec();
-		Type *type = get_value_type(typespec, false);
+		Type *type = get_return_type(output.typedesc.get_typespec());
 		output_types.push_back(type);
 	}
 	FunctionType *functype = get_node_function_type(input_types, output_types);
@@ -340,37 +337,19 @@ llvm::Function *LLVMCompilerBase::declare_node_function(llvm::Module *mod, const
 	std::vector<Type *> input_types, output_types;
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
-		const TypeSpec *typespec = input->typedesc.get_typespec();
 		bool is_constant = (input->value_type == INPUT_CONSTANT);
 		
-		Type *type = get_value_type(typespec, is_constant);
-		if (type == NULL)
-			break;
-		if (use_argument_pointer(typespec, is_constant))
-			type = type->getPointerTo();
-		input_types.push_back(type);
+		append_input_types(input_types, input->typedesc.get_typespec(), is_constant);
 	}
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
-		const TypeSpec *typespec = output->typedesc.get_typespec();
-		Type *type = get_value_type(typespec, false);
-		if (type == NULL)
-			break;
-		output_types.push_back(type);
-	}
-	if (input_types.size() != nodetype->num_inputs() ||
-	    output_types.size() != nodetype->num_outputs()) {
-		/* some arguments could not be handled */
-		return NULL;
+		
+		append_output_types(output_types, output->typedesc.get_typespec());
 	}
 	
 	FunctionType *functype = get_node_function_type(input_types, output_types);
 	
 	Function *func = Function::Create(functype, Function::ExternalLinkage, nodetype->name(), mod);
-	
-//	printf("Declared function for node type '%s':\n", nodetype->name().c_str());
-//	func->dump();
-	
 	return func;
 }
 

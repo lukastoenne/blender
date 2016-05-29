@@ -73,7 +73,7 @@ void LLVMSimpleCompilerImpl::alloc_node_value(llvm::BasicBlock *block, const Con
 	builder.SetInsertPoint(block);
 	
 	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
-	Type *type = get_value_type(typespec, false);
+	Type *type = bvm_get_llvm_type(context(), typespec, false);
 	BLI_assert(type != NULL);
 	
 	Value *value = builder.CreateAlloca(type);
@@ -109,7 +109,7 @@ void LLVMSimpleCompilerImpl::append_input_value(llvm::BasicBlock *block, std::ve
 	
 	Value *pvalue = m_output_values.at(link);
 	Value *value;
-	if (use_argument_pointer(typespec, false)) {
+	if (use_argument_pointer(typespec)) {
 		value = pvalue;
 	}
 	else {
@@ -131,7 +131,7 @@ void LLVMSimpleCompilerImpl::append_input_constant(llvm::BasicBlock *block, std:
 	Constant *cvalue = bvm_create_llvm_constant(context(), node_value);
 	
 	Value *value;
-	if (use_argument_pointer(typespec, true)) {
+	if (use_argument_pointer(typespec)) {
 		AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
 		builder.CreateStore(cvalue, pvalue);
 		value = pvalue;
@@ -161,12 +161,38 @@ void LLVMSimpleCompilerImpl::store_return_value(llvm::BasicBlock *block, const O
 	builder.CreateStore(rvalue, arg);
 }
 
-llvm::Type *LLVMSimpleCompilerImpl::get_value_type(const TypeSpec *spec, bool UNUSED(is_constant))
+llvm::Type *LLVMSimpleCompilerImpl::get_argument_type(const TypeSpec *spec) const
 {
-	return bvm_get_llvm_type(context(), spec, false);
+	llvm::Type *type = bvm_get_llvm_type(context(), spec, false);
+	if (use_argument_pointer(spec))
+		type = type->getPointerTo();
+	return type;
 }
 
-bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec, bool UNUSED(is_constant)) const
+llvm::Type *LLVMSimpleCompilerImpl::get_return_type(const TypeSpec *spec) const
+{
+	return bvm_get_llvm_type(context(), spec, false)->getPointerTo();
+}
+
+void LLVMSimpleCompilerImpl::append_input_types(std::vector<llvm::Type*> &params,
+                                                const TypeSpec *spec, bool UNUSED(is_constant)) const
+{
+	llvm::Type *type = bvm_get_llvm_type(context(), spec, false);
+	if (use_argument_pointer(spec))
+		type = type->getPointerTo();
+	
+	params.push_back(type);
+}
+
+void LLVMSimpleCompilerImpl::append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const
+{
+	using namespace llvm;
+	
+	Type *type = bvm_get_llvm_type(context(), spec, false);
+	params.push_back(type);
+}
+
+bool LLVMSimpleCompilerImpl::use_argument_pointer(const TypeSpec *typespec) const
 {
 	using namespace llvm;
 	

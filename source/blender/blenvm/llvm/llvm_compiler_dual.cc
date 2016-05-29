@@ -73,10 +73,12 @@ void LLVMTextureCompiler::alloc_node_value(llvm::BasicBlock *block, const ConstO
 	builder.SetInsertPoint(block);
 	
 	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
-	Type *type = get_value_type(typespec, false);
+	Type *type = bvm_get_llvm_type(context(), typespec, false);
 	BLI_assert(type != NULL);
 	
-	Value *value = builder.CreateAlloca(type);
+	DualValue value(builder.CreateAlloca(type),
+	                builder.CreateAlloca(type),
+	                builder.CreateAlloca(type));
 	
 	/* use as node output values */
 	bool ok = m_output_values.insert(OutputValueMap::value_type(output, value)).second;
@@ -88,7 +90,7 @@ void LLVMTextureCompiler::copy_node_value(const ConstOutputKey &from, const Cons
 {
 	using namespace llvm;
 	
-	Value *value = m_output_values.at(from);
+	DualValue value = m_output_values.at(from);
 	bool ok = m_output_values.insert(OutputValueMap::value_type(to, value)).second;
 	BLI_assert(ok && "Value for node output already defined!");
 	UNUSED_VARS(ok);
@@ -96,7 +98,10 @@ void LLVMTextureCompiler::copy_node_value(const ConstOutputKey &from, const Cons
 
 void LLVMTextureCompiler::append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output)
 {
-	args.push_back(m_output_values.at(output));
+	DualValue val = m_output_values.at(output);
+	args.push_back(val.value());
+	args.push_back(val.dx());
+	args.push_back(val.dy());
 }
 
 void LLVMTextureCompiler::append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
@@ -107,16 +112,17 @@ void LLVMTextureCompiler::append_input_value(llvm::BasicBlock *block, std::vecto
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
-	Value *pvalue = m_output_values.at(link);
-	Value *value;
+	DualValue ptr = m_output_values.at(link);
 	if (use_argument_pointer(typespec, false)) {
-		value = pvalue;
+		args.push_back(ptr.value());
+		args.push_back(ptr.dx());
+		args.push_back(ptr.dy());
 	}
 	else {
-		value = builder.CreateLoad(pvalue);
+		args.push_back(builder.CreateLoad(ptr.value()));
+		args.push_back(builder.CreateLoad(ptr.dx()));
+		args.push_back(builder.CreateLoad(ptr.dy()));
 	}
-	
-	args.push_back(value);
 }
 
 void LLVMTextureCompiler::append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
@@ -130,23 +136,35 @@ void LLVMTextureCompiler::append_input_constant(llvm::BasicBlock *block, std::ve
 	/* create storage for the global value */
 	Constant *cvalue = bvm_create_llvm_constant(context(), node_value);
 	
-	Value *value;
-	if (use_argument_pointer(typespec, true)) {
+	if (use_argument_pointer(typespec, false)) {
 		AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
 		builder.CreateStore(cvalue, pvalue);
-		value = pvalue;
+		
+		args.push_back(pvalue);
 	}
 	else {
-		value = cvalue;
+		args.push_back(cvalue);
 	}
-	
-	args.push_back(value);
 }
 
 void LLVMTextureCompiler::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
 {
-	m_output_values[output] = arg;
-	UNUSED_VARS(block);
+	using namespace llvm;
+	
+	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
+	
+	IRBuilder<> builder(context());
+	builder.SetInsertPoint(block);
+	
+	if (bvm_type_has_dual_value(typespec)) {
+		/* argument is a struct, use GEP instructions to get the individual elements */
+		m_output_values[output] = DualValue(builder.CreateStructGEP(arg, 0),
+		                                    builder.CreateStructGEP(arg, 1),
+		                                    builder.CreateStructGEP(arg, 2));
+	}
+	else {
+		m_output_values[output] = DualValue(arg, NULL, NULL);
+	}
 }
 
 void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
@@ -156,21 +174,65 @@ void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const Outp
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
-	Value *value = m_output_values.at(output);
-	Value *rvalue = builder.CreateLoad(value);
-	builder.CreateStore(rvalue, arg);
+	Value *value_ptr = builder.CreateStructGEP(arg, 0);
+	Value *dx_ptr = builder.CreateStructGEP(arg, 1);
+	Value *dy_ptr = builder.CreateStructGEP(arg, 2);
+	
+	DualValue dual = m_output_values.at(output);
+	Value *rvalue = builder.CreateLoad(dual.value());
+	Value *rdx = builder.CreateLoad(dual.dx());
+	Value *rdy = builder.CreateLoad(dual.dy());
+	builder.CreateStore(rvalue, value_ptr);
+	builder.CreateStore(rdx, dx_ptr);
+	builder.CreateStore(rdy, dy_ptr);
 }
 
-llvm::Type *LLVMTextureCompiler::get_value_type(const TypeSpec *spec, bool is_constant)
+llvm::Type *LLVMTextureCompiler::get_argument_type(const TypeSpec *spec) const
 {
-	return bvm_get_llvm_type(context(), spec, !is_constant);
+	llvm::Type *type = bvm_get_llvm_type(context(), spec, true);
+	if (use_argument_pointer(spec, true))
+		type = type->getPointerTo();
+	return type;
 }
 
-bool LLVMTextureCompiler::use_argument_pointer(const TypeSpec *typespec, bool is_constant) const
+llvm::Type *LLVMTextureCompiler::get_return_type(const TypeSpec *spec) const
+{
+	return bvm_get_llvm_type(context(), spec, true);
+}
+
+void LLVMTextureCompiler::append_input_types(std::vector<llvm::Type*> &params,
+                                             const TypeSpec *spec, bool is_constant) const
+{
+	llvm::Type *type = bvm_get_llvm_type(context(), spec, false);
+	if (use_argument_pointer(spec, false))
+		type = type->getPointerTo();
+	
+	params.push_back(type);
+	if (!is_constant && bvm_type_has_dual_value(spec)) {
+		/* two derivatives */
+		params.push_back(type);
+		params.push_back(type);
+	}
+}
+
+void LLVMTextureCompiler::append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const
 {
 	using namespace llvm;
 	
-	if (!is_constant && bvm_type_has_dual_value(typespec)) {
+	Type *type = bvm_get_llvm_type(context(), spec, false);
+	params.push_back(type);
+	if (bvm_type_has_dual_value(spec)) {
+		/* two derivatives */
+		params.push_back(type);
+		params.push_back(type);
+	}
+}
+
+bool LLVMTextureCompiler::use_argument_pointer(const TypeSpec *typespec, bool use_dual) const
+{
+	using namespace llvm;
+	
+	if (use_dual && bvm_type_has_dual_value(typespec)) {
 		/* pass by reference */
 		return true;
 	}
@@ -391,18 +453,17 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	/* output arguments */
-	for (int i = 0; i < nodetype->num_outputs(); ++i, ++arg_it) {
-		Argument *arg = &(*arg_it);
+	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
 		
 		Value *val, *dx, *dy;
 		if (bvm_type_has_dual_value(output->typedesc.get_typespec())) {
-			val = builder.CreateStructGEP(arg, 0);
-			dx = builder.CreateStructGEP(arg, 1);
-			dy = builder.CreateStructGEP(arg, 2);
+			val = arg_it++;
+			dx = arg_it++;
+			dy = arg_it++;
 		}
 		else {
-			val = arg;
+			val = arg_it++;
 			dx = NULL;
 			dy = NULL;
 		}
@@ -414,25 +475,18 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 			call_args_dy.push_back(dy);
 	}
 	/* input arguments */
-	for (int i = 0; i < nodetype->num_inputs(); ++i, ++arg_it) {
-		Argument *arg = &(*arg_it);
+	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
 		const TypeSpec *typespec = input->typedesc.get_typespec();
 		
 		Value *val, *dx, *dy;
 		if (input->value_type != INPUT_CONSTANT && bvm_type_has_dual_value(typespec)) {
-			val = builder.CreateStructGEP(arg, 0);
-			dx = builder.CreateStructGEP(arg, 1);
-			dy = builder.CreateStructGEP(arg, 2);
-			
-			if (!use_elementary_argument_pointer(typespec)) {
-				val = builder.CreateLoad(val);
-				dx = builder.CreateLoad(dx);
-				dy = builder.CreateLoad(dy);
-			}
+			val = arg_it++;
+			dx = arg_it++;
+			dy = arg_it++;
 		}
 		else {
-			val = arg;
+			val = arg_it++;
 			dx = NULL;
 			dy = NULL;
 		}
@@ -448,6 +502,8 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 		if (dy != NULL)
 			call_args_dy.push_back(dy);
 	}
+	
+	BLI_assert(arg_it == func->arg_end() && "Did not use all the function arguments!");
 	
 	/* calculate value */
 	builder.CreateCall(value_func, call_args_value);
@@ -481,6 +537,8 @@ void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED
 	if (func == NULL)
 		return;
 	
+	const TypeSpec *typespec = nodetype->find_input(1)->typedesc.get_typespec();
+	
 	ConstantInt* idx0 = ConstantInt::get(context(), APInt(32, 0));
 	ConstantInt* idx1 = ConstantInt::get(context(), APInt(32, 1));
 	
@@ -490,17 +548,24 @@ void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED
 	BasicBlock *block_end = BasicBlock::Create(context(), "end", func);
 	
 	Function::arg_iterator arg_it = func->arg_begin();
-	Argument *out = arg_it++;
+	Argument *out_val = arg_it++;
+	Argument *out_dx = arg_it++;
+	Argument *out_dy = arg_it++;
 	Argument *var = arg_it++;
-	Argument *in = arg_it++;
-	
-	Value *value_ptr;
+	Argument *in_val = arg_it++;
+	Argument *in_dx = arg_it++;
+	Argument *in_dy = arg_it++;
+	UNUSED_VARS(in_val);
 	
 	{
 		IRBuilder<> builder(context());
 		builder.SetInsertPoint(block);
 		
-		value_ptr = builder.CreateStructGEP(out, 0);
+		/* zero derivatives */
+		llvm::Constant *zero = bvm_make_zero(context(), typespec);
+		builder.CreateStore(zero, out_dx);
+		builder.CreateStore(zero, out_dy);
+		
 		SwitchInst *sw = builder.CreateSwitch(var, block_end, 2);
 		sw->addCase(idx0, block_var0);
 		sw->addCase(idx1, block_var1);
@@ -510,9 +575,10 @@ void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED
 		IRBuilder<> builder(context());
 		builder.SetInsertPoint(block_var0);
 		
-		Value *deriv_ptr = builder.CreateStructGEP(in, 1);
-		Value *data = builder.CreateLoad(deriv_ptr);
-		builder.CreateStore(data, value_ptr);
+		Value *data = in_dx;
+		if (use_argument_pointer(typespec, false))
+			data = builder.CreateLoad(data);
+		builder.CreateStore(data, out_val);
 		builder.CreateBr(block_end);
 	}
 	
@@ -520,9 +586,10 @@ void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED
 		IRBuilder<> builder(context());
 		builder.SetInsertPoint(block_var1);
 		
-		Value *deriv_ptr = builder.CreateStructGEP(in, 2);
-		Value *data = builder.CreateLoad(deriv_ptr);
-		builder.CreateStore(data, value_ptr);
+		Value *data = in_dy;
+		if (use_argument_pointer(typespec, false))
+			data = builder.CreateLoad(data);
+		builder.CreateStore(data, out_val);
 		builder.CreateBr(block_end);
 	}
 	

@@ -106,8 +106,11 @@ protected:
 	virtual void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg) = 0;
 	virtual void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg) = 0;
 	
-	virtual llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant) = 0;
-	virtual bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const = 0;
+	virtual llvm::Type *get_argument_type(const TypeSpec *spec) const = 0;
+	virtual llvm::Type *get_return_type(const TypeSpec *spec) const = 0;
+	virtual void append_input_types(std::vector<llvm::Type*> &params,
+	                                const TypeSpec *spec, bool is_constant) const = 0;
+	virtual void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const = 0;
 	
 	llvm::Function *declare_node_function(llvm::Module *mod, const NodeType *nodetype);
 	virtual void define_nodes_module() = 0;
@@ -134,11 +137,15 @@ struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
 	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
 	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
 	
-	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
+	llvm::Type *get_argument_type(const TypeSpec *spec) const;
+	llvm::Type *get_return_type(const TypeSpec *spec) const;
+	void append_input_types(std::vector<llvm::Type*> &params,
+	                        const TypeSpec *spec, bool is_constant) const;
+	void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const;
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const;
+	bool use_argument_pointer(const TypeSpec *typespec) const;
 	
 	bool set_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func);
 	void define_nodes_module();
@@ -149,7 +156,8 @@ private:
 };
 
 struct LLVMTextureCompiler : public LLVMCompilerBase {
-	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
+	typedef Dual2<llvm::Value*> DualValue;
+	typedef std::map<ConstOutputKey, DualValue> OutputValueMap;
 	
 	void node_graph_begin();
 	void node_graph_end();
@@ -165,18 +173,23 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
 	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
 	
-	llvm::Type *get_value_type(const TypeSpec *spec, bool is_constant);
-	llvm::Function *declare_elementary_node_function(
-	        llvm::Module *mod, const NodeType *nodetype, const string &name,
-	        bool with_derivatives);
+	llvm::Type *get_argument_type(const TypeSpec *spec) const;
+	llvm::Type *get_return_type(const TypeSpec *spec) const;
+	void append_input_types(std::vector<llvm::Type*> &params,
+	                        const TypeSpec *spec, bool is_constant) const;
+	void append_output_types(std::vector<llvm::Type*> &params, const TypeSpec *spec) const;
 	
 	llvm::Module *get_nodes_module() const { return m_nodes_module; }
 	
-	bool use_argument_pointer(const TypeSpec *typespec, bool is_constant) const;
+	bool use_argument_pointer(const TypeSpec *typespec, bool use_dual) const;
 	bool use_elementary_argument_pointer(const TypeSpec *typespec) const;
 	
 	void define_node_function(llvm::Module *mod, OpCode op, const string &nodetype_name);
 	void define_nodes_module();
+	
+	llvm::Function *declare_elementary_node_function(
+	        llvm::Module *mod, const NodeType *nodetype, const string &name,
+	        bool with_derivatives);
 	
 	bool set_node_function_impl(OpCode op, const NodeType *nodetype,
 	                            llvm::Function *value_func, llvm::Function * dual_func);
