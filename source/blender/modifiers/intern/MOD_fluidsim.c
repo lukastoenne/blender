@@ -145,7 +145,7 @@ static void updateDepsgraph(ModifierData *md,
 
 					/* Only put dependencies from NON-DOMAIN fluids in here. */
 					if (fluidmdtmp && fluidmdtmp->fss && (fluidmdtmp->fss->type != OB_FLUIDSIM_DOMAIN)) {
-						DEG_add_object_relation(node, ob1, DEPSNODE_TYPE_TRANSFORM, "Fluidsim Object");
+						DEG_add_object_relation(node, ob1, DEG_COMPONENT_TRANSFORM, "Fluidsim Object");
 					}
 				}
 			}

@@ -91,6 +91,13 @@ BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc);
 
 /* ------------------------------------------------------------------------- */
 
+struct DepsNodeHandle;
+
+void BVM_nodetree_compile_dependencies(struct bNodeTree *ntree, struct DepsNodeHandle *handle);
+void BVM_nodetree_eval_dependencies(struct bNodeTree *ntree, struct DepsNodeHandle *handle);
+
+/* ------------------------------------------------------------------------- */
+
 struct BVMEvalGlobals;
 struct BVMEvalContext;
 

@@ -256,9 +256,9 @@ static void uv_warp_deps_object_bone_new(struct DepsNodeHandle *node,
 {
 	if (object != NULL) {
 		if (bonename[0])
-			DEG_add_object_relation(node, object, DEPSNODE_TYPE_EVAL_POSE, "UVWarp Modifier");
+			DEG_add_object_relation(node, object, DEG_COMPONENT_EVAL_POSE, "UVWarp Modifier");
 		else
-			DEG_add_object_relation(node, object, DEPSNODE_TYPE_TRANSFORM, "UVWarp Modifier");
+			DEG_add_object_relation(node, object, DEG_COMPONENT_TRANSFORM, "UVWarp Modifier");
 	}
 }
 

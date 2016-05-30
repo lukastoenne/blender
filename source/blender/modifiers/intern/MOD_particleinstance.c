@@ -136,7 +136,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *) md;
 	if (pimd->ob != NULL) {
-		DEG_add_object_relation(node, pimd->ob, DEPSNODE_TYPE_TRANSFORM, "Particle Instance Modifier");
+		DEG_add_object_relation(node, pimd->ob, DEG_COMPONENT_TRANSFORM, "Particle Instance Modifier");
 	}
 }
 

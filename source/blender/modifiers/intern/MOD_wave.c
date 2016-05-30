@@ -162,10 +162,10 @@ static void updateDepsgraph(ModifierData *md,
 {
 	WaveModifierData *wmd = (WaveModifierData *)md;
 	if (wmd->objectcenter != NULL) {
-		DEG_add_object_relation(node, wmd->objectcenter, DEPSNODE_TYPE_TRANSFORM, "Wave Modifier");
+		DEG_add_object_relation(node, wmd->objectcenter, DEG_COMPONENT_TRANSFORM, "Wave Modifier");
 	}
 	if (wmd->map_object != NULL) {
-		DEG_add_object_relation(node, wmd->map_object, DEPSNODE_TYPE_TRANSFORM, "Wave Modifier");
+		DEG_add_object_relation(node, wmd->map_object, DEG_COMPONENT_TRANSFORM, "Wave Modifier");
 	}
 }
 

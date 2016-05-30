@@ -128,16 +128,16 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	PropertyRNA *parm;
 	
 	static EnumPropertyItem depsnode_component_items[] = {
-	    {DEPSNODE_TYPE_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
-	    {DEPSNODE_TYPE_PROXY, "PROXY", ICON_NONE, "Proxy", ""},
-	    {DEPSNODE_TYPE_ANIMATION, "ANIMATION", ICON_NONE, "Animation", ""},
-	    {DEPSNODE_TYPE_TRANSFORM, "TRANSFORM", ICON_NONE, "Transform", ""},
-	    {DEPSNODE_TYPE_GEOMETRY, "GEOMETRY", ICON_NONE, "Geometry", ""},
-	    {DEPSNODE_TYPE_EVAL_POSE, "EVAL_POSE", ICON_NONE, "Pose", ""},
-	    {DEPSNODE_TYPE_BONE, "BONE", ICON_NONE, "Bone", ""},
-	    {DEPSNODE_TYPE_EVAL_PARTICLES, "PARTICLES", ICON_NONE, "Particles", ""},
-	    {DEPSNODE_TYPE_SHADING, "SHADING", ICON_NONE, "Shading", ""},
-	    {DEPSNODE_TYPE_SEQUENCER, "SEQUENCER", ICON_NONE, "Sequencer", ""},
+	    {DEG_COMPONENT_PARAMETERS, "PARAMETERS", ICON_NONE, "Parameters", ""},
+	    {DEG_COMPONENT_PROXY, "PROXY", ICON_NONE, "Proxy", ""},
+	    {DEG_COMPONENT_ANIMATION, "ANIMATION", ICON_NONE, "Animation", ""},
+	    {DEG_COMPONENT_TRANSFORM, "TRANSFORM", ICON_NONE, "Transform", ""},
+	    {DEG_COMPONENT_GEOMETRY, "GEOMETRY", ICON_NONE, "Geometry", ""},
+	    {DEG_COMPONENT_EVAL_POSE, "EVAL_POSE", ICON_NONE, "Pose", ""},
+	    {DEG_COMPONENT_BONE, "BONE", ICON_NONE, "Bone", ""},
+	    {DEG_COMPONENT_EVAL_PARTICLES, "PARTICLES", ICON_NONE, "Particles", ""},
+	    {DEG_COMPONENT_SHADING, "SHADING", ICON_NONE, "Shading", ""},
+	    {DEG_COMPONENT_SEQUENCER, "SEQUENCER", ICON_NONE, "Sequencer", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 	
@@ -148,14 +148,14 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	func = RNA_def_function(srna, "add_scene_relation", "rna_DepsNode_add_scene_relation");
 	parm = RNA_def_pointer(func, "scene", "Scene", "Scene", "Scene the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 	
 	func = RNA_def_function(srna, "add_object_relation", "rna_DepsNode_add_object_relation");
 	parm = RNA_def_pointer(func, "object", "Object", "Object", "Object the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 	
@@ -164,28 +164,28 @@ static void rna_def_depsnode(BlenderRNA *brna)
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
 	parm = RNA_def_string(func, "bone", NULL, 0, "Bone", "Name of the bone the node depends on");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 	
 	func = RNA_def_function(srna, "add_texture_relation", "rna_DepsNode_add_texture_relation");
 	parm = RNA_def_pointer(func, "texture", "Texture", "Texture", "Texture the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 	
 	func = RNA_def_function(srna, "add_nodetree_relation", "rna_DepsNode_add_nodetree_relation");
 	parm = RNA_def_pointer(func, "node_tree", "NodeTree", "Node Tree", "Node tree the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 	
 	func = RNA_def_function(srna, "add_image_relation", "rna_DepsNode_add_image_relation");
 	parm = RNA_def_pointer(func, "image", "Image", "Image", "Image the node depends on");
 	RNA_def_property_flag(parm, PROP_NEVER_NULL | PROP_REQUIRED);
-	RNA_def_enum(func, "component", depsnode_component_items, DEPSNODE_TYPE_PARAMETERS, "Component",
+	RNA_def_enum(func, "component", depsnode_component_items, DEG_COMPONENT_PARAMETERS, "Component",
 	             "Component of data the node depends on");
 	RNA_def_string(func, "description", NULL, 0, "Description", "Description of the relation");
 }

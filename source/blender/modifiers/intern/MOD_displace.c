@@ -185,13 +185,13 @@ static void updateDepsgraph(ModifierData *md,
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 	if (dmd->map_object != NULL && dmd->texmapping == MOD_DISP_MAP_OBJECT) {
-		DEG_add_object_relation(node, dmd->map_object, DEPSNODE_TYPE_TRANSFORM, "Displace Modifier");
+		DEG_add_object_relation(node, dmd->map_object, DEG_COMPONENT_TRANSFORM, "Displace Modifier");
 	}
 	if (dmd->texmapping == MOD_DISP_MAP_GLOBAL) {
-		DEG_add_object_relation(node, ob, DEPSNODE_TYPE_TRANSFORM, "Displace Modifier");
+		DEG_add_object_relation(node, ob, DEG_COMPONENT_TRANSFORM, "Displace Modifier");
 	}
 	if (dmd->texture) {
-		DEG_add_texture_relation(node, dmd->texture, DEPSNODE_TYPE_PARAMETERS, "Displace Modifier");
+		DEG_add_texture_relation(node, dmd->texture, DEG_COMPONENT_PARAMETERS, "Displace Modifier");
 	}
 }
 

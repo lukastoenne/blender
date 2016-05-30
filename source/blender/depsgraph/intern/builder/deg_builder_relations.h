@@ -24,12 +24,27 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/depsgraph_build.h
+/** \file blender/depsgraph/intern/builder/deg_builder_relations.h
  *  \ingroup depsgraph
  */
 
-#ifndef __DEPSGRAPH_BUILD_H__
-#define __DEPSGRAPH_BUILD_H__
+#pragma once
+
+#include <cstdio>
+
+#include "intern/depsgraph_types.h"
+
+#include "DNA_ID.h"
+
+#include "RNA_access.h"
+#include "RNA_types.h"
+
+#include "BLI_utildefines.h"
+#include "BLI_string.h"
+
+#include "intern/depsgraph_types.h"
+#include "intern/nodes/deg_node.h"
+#include "intern/nodes/deg_node_operation.h"
 
 struct Base;
 struct bGPdata;
@@ -53,9 +68,12 @@ struct World;
 
 struct PropertyRNA;
 
+struct DepsNodeHandle;
+
+namespace DEG {
+
 struct Depsgraph;
 struct DepsNode;
-struct DepsNodeHandle;
 struct RootDepsNode;
 struct SubgraphDepsNode;
 struct IDDepsNode;
@@ -63,76 +81,6 @@ struct TimeSourceDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
 struct RootPChanMap;
-
-struct DepsgraphNodeBuilder {
-	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
-	~DepsgraphNodeBuilder();
-
-	RootDepsNode *add_root_node();
-	IDDepsNode *add_id_node(ID *id);
-	TimeSourceDepsNode *add_time_source(ID *id);
-
-	ComponentDepsNode *add_component_node(ID *id, eDepsNode_Type comp_type, const string &comp_name = "");
-
-	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsOperation_Type optype,
-	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "");
-	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
-	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "");
-	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, eDepsOperation_Type optype,
-	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "")
-	{
-		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
-	}
-
-	bool has_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
-	                        eDepsOperation_Code opcode, const string &description = "");
-
-	OperationDepsNode *find_operation_node(ID *id,
-	                                       eDepsNode_Type comp_type,
-	                                       const string &comp_name,
-	                                       eDepsOperation_Code opcode,
-	                                       const string &description = "");
-
-	OperationDepsNode *find_operation_node(ID *id,
-	                                       eDepsNode_Type comp_type,
-	                                       eDepsOperation_Code opcode,
-	                                       const string &description = "")
-	{
-		return find_operation_node(id, comp_type, "", opcode, description);
-	}
-
-	void build_scene(Main *bmain, Scene *scene);
-	SubgraphDepsNode *build_subgraph(Group *group);
-	void build_group(Main *bmain, Scene *scene, Base *base, Group *group);
-	void build_object(Main *bmain, Scene *scene, Base *base, Object *ob);
-	void build_object_transform(Scene *scene, Object *ob);
-	void build_object_constraints(Scene *scene, Object *ob);
-	void build_pose_constraints(Object *ob, bPoseChannel *pchan);
-	void build_rigidbody(Scene *scene);
-	void build_particles(Scene *scene, Object *ob);
-	void build_animdata(ID *id);
-	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
-	void build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_rig(Scene *scene, Object *ob);
-	void build_proxy_rig(Object *ob);
-	void build_shapekeys(Key *key);
-	void build_obdata_geom(Main *bmain, Scene *scene, Object *ob);
-	void build_camera(Object *ob);
-	void build_lamp(Object *ob);
-	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);
-	void build_material(DepsNode *owner_node, Material *ma);
-	void build_texture(DepsNode *owner_node, Tex *tex);
-	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
-	void build_image(Image *ima);
-	void build_world(World *world);
-	void build_compositor(Scene *scene);
-	void build_gpencil(bGPdata *gpd);
-
-private:
-	Main *m_bmain;
-	Depsgraph *m_graph;
-};
 
 struct RootKey
 {
@@ -166,7 +114,7 @@ struct ComponentKey
 		const char *idname = (id) ? id->name : "<None>";
 
 		char typebuf[5];
-		sprintf(typebuf, "%d", type);
+		BLI_snprintf(typebuf, sizeof(typebuf), "%d", type);
 
 		return string("ComponentKey(") + idname + ", " + typebuf + ", '" + name + "')";
 	}
@@ -206,7 +154,7 @@ struct OperationKey
 	string identifier() const
 	{
 		char typebuf[5];
-		sprintf(typebuf, "%d", component_type);
+		BLI_snprintf(typebuf, sizeof(typebuf), "%d", component_type);
 
 		return string("OperationKey(") + "t: " + typebuf + ", cn: '" + component_name + "', c: " + DEG_OPNAMES[opcode] + ", n: '" + name + "')";
 	}
@@ -247,12 +195,16 @@ struct DepsgraphRelationBuilder
 	DepsgraphRelationBuilder(Depsgraph *graph);
 
 	template <typename KeyFrom, typename KeyTo>
-	void add_relation(const KeyFrom &key_from, const KeyTo &key_to,
-	                  eDepsRelation_Type type, const char *description);
+	void add_relation(const KeyFrom& key_from,
+	                  const KeyTo& key_to,
+	                  eDepsRelation_Type type,
+	                  const char *description);
 
 	template <typename KeyTo>
-	void add_relation(const TimeSourceKey &key_from, const KeyTo &key_to,
-	                  eDepsRelation_Type type, const char *description);
+	void add_relation(const TimeSourceKey& key_from,
+	                  const KeyTo& key_to,
+	                  eDepsRelation_Type type,
+	                  const char *description);
 
 	template <typename KeyType>
 	void add_node_relation(const KeyType &key_from, DepsNode *node,
@@ -262,15 +214,24 @@ struct DepsgraphRelationBuilder
 	void build_group(Main *bmain, Scene *scene, Object *object, Group *group);
 	void build_object(Main *bmain, Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
-	                       ListBase *constraints, RootPChanMap *root_map);
+	void build_constraints(Scene *scene, ID *id,
+	                       eDepsNode_Type component_type,
+	                       const char *component_subdata,
+	                       ListBase *constraints,
+	                       RootPChanMap *root_map);
 	void build_animdata(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
 	void build_world(World *world);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Scene *scene, Object *ob);
-	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
-	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
+	void build_ik_pose(Object *ob,
+	                   bPoseChannel *pchan,
+	                   bConstraint *con,
+	                   RootPChanMap *root_map);
+	void build_splineik_pose(Object *ob,
+	                         bPoseChannel *pchan,
+	                         bConstraint *con,
+	                         RootPChanMap *root_map);
 	void build_rig(Scene *scene, Object *ob);
 	void build_proxy_rig(Object *ob);
 	void build_shapekeys(ID *obdata, Key *key);
@@ -296,9 +257,13 @@ protected:
 	DepsNode *find_node(const RNAPathKey &key) const;
 	OperationDepsNode *has_node(const OperationKey &key) const;
 
-	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const char *description);
-	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
-	                            eDepsRelation_Type type, const char *description);
+	void add_time_relation(TimeSourceDepsNode *timesrc,
+	                       DepsNode *node_to,
+	                       const char *description);
+	void add_operation_relation(OperationDepsNode *node_from,
+	                            OperationDepsNode *node_to,
+	                            eDepsRelation_Type type,
+	                            const char *description);
 
 	bool needs_animdata_node(ID *id);
 
@@ -307,9 +272,6 @@ private:
 };
 
 /* Utilities for Builders ----------------------------------------------------- */
-
-/* Get unique identifier for FCurves and Drivers */
-string deg_fcurve_id_name(const FCurve *fcu);
 
 template <typename KeyType>
 OperationDepsNode *DepsgraphRelationBuilder::find_operation_node(const KeyType& key) {
@@ -382,17 +344,6 @@ void DepsgraphRelationBuilder::add_node_relation(const KeyType &key_from,
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
 	}
-	else {
-		if (!op_from) {
-			/* XXX TODO handle as error or report if needed */
-		}
-		if (!op_to) {
-			/* XXX TODO handle as error or report if needed */
-		}
-	}
 }
 
-void deg_nodetree_bvm_compile_deps(bNodeTree *ntree, DepsNodeHandle *handle);
-void deg_nodetree_bvm_eval_deps(bNodeTree *ntree, DepsNodeHandle *handle);
-
-#endif  /* __DEPSGRAPH_BUILD_H__ */
+}  // namespace DEG

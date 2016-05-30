@@ -240,8 +240,8 @@ static void update_depsgraph_flow_coll_object_new(struct DepsNodeHandle *node,
 	if (smd && (((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) ||
 	            ((smd->type & MOD_SMOKE_TYPE_COLL) && smd->coll)))
 	{
-		DEG_add_object_relation(node, object2, DEPSNODE_TYPE_TRANSFORM, "Smoke Flow/Coll");
-		DEG_add_object_relation(node, object2, DEPSNODE_TYPE_GEOMETRY, "Smoke Flow/Coll");
+		DEG_add_object_relation(node, object2, DEG_COMPONENT_TRANSFORM, "Smoke Flow/Coll");
+		DEG_add_object_relation(node, object2, DEG_COMPONENT_GEOMETRY, "Smoke Flow/Coll");
 	}
 	if ((object2->transflag & OB_DUPLIGROUP) && object2->dup_group) {
 		GroupObject *go;
@@ -266,8 +266,8 @@ static void update_depsgraph_field_source_object_new(struct DepsNodeHandle *node
 	}
 	object2->id.tag &= ~LIB_TAG_DOIT;
 	if (object2->pd && object2->pd->forcefield == PFIELD_SMOKEFLOW && object2->pd->f_source == object) {
-		DEG_add_object_relation(node, object2, DEPSNODE_TYPE_TRANSFORM, "Field Source Object");
-		DEG_add_object_relation(node, object2, DEPSNODE_TYPE_GEOMETRY, "Field Source Object");
+		DEG_add_object_relation(node, object2, DEG_COMPONENT_TRANSFORM, "Field Source Object");
+		DEG_add_object_relation(node, object2, DEG_COMPONENT_GEOMETRY, "Field Source Object");
 	}
 	if ((object2->transflag & OB_DUPLIGROUP) && object2->dup_group) {
 		GroupObject *go;
@@ -300,7 +300,7 @@ static void updateDepsgraph(ModifierData *md,
 						SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(go->ob, eModifierType_Smoke);
 						/* Check for initialized smoke object. */
 						if (smd2 && (smd2->type & MOD_SMOKE_TYPE_FLOW) && smd2->flow) {
-							DEG_add_object_relation(node, go->ob, DEPSNODE_TYPE_TRANSFORM, "Smoke Flow");
+							DEG_add_object_relation(node, go->ob, DEG_COMPONENT_TRANSFORM, "Smoke Flow");
 						}
 					}
 				}
@@ -311,7 +311,7 @@ static void updateDepsgraph(ModifierData *md,
 						SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(go->ob, eModifierType_Smoke);
 						/* Check for initialized smoke object. */
 						if (smd2 && (smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll) {
-							DEG_add_object_relation(node, go->ob, DEPSNODE_TYPE_TRANSFORM, "Smoke Coll");
+							DEG_add_object_relation(node, go->ob, DEG_COMPONENT_TRANSFORM, "Smoke Coll");
 						}
 					}
 				}

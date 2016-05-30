@@ -24,11 +24,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/depsgraph_build_nodes.cc
+/** \file blender/depsgraph/intern/builder/deg_build_nodes.cc
  *  \ingroup depsgraph
  *
  * Methods for constructing depsgraph's nodes
  */
+
+#include "intern/builder/deg_builder_nodes.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,55 +92,57 @@ extern "C" {
 #include "BKE_tracking.h"
 #include "BKE_world.h"
 
-#include "BVM_api.h"
-
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
+
+#include "BVM_api.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
 } /* extern "C" */
 
-#include "depsnode.h"
-#include "depsnode_component.h"
-#include "depsnode_operation.h"
-#include "depsgraph_types.h"
-#include "depsgraph_build.h"
-#include "depsgraph_intern.h"
+#include "intern/builder/deg_builder.h"
+#include "intern/nodes/deg_node.h"
+#include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_operation.h"
+#include "intern/depsgraph_types.h"
+#include "intern/depsgraph_intern.h"
+
+namespace DEG {
 
 /* ************ */
 /* Node Builder */
 
-struct DepsgraphNodeBuilderHandle
+struct NodeBuilderHandle
 {
-	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsComponent /*component*/, const char */*description*/)
 	{
-		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		NodeBuilderHandle *handle = (NodeBuilderHandle *)_handle;
 		handle->builder->build_texture(NULL, tex);
 	}
 	
-	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsComponent /*component*/, const char */*description*/)
 	{
-		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		NodeBuilderHandle *handle = (NodeBuilderHandle *)_handle;
 		handle->builder->build_nodetree(NULL, ntree);
 	}
 	
-	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsComponent /*component*/, const char */*description*/)
 	{
-		DepsgraphNodeBuilderHandle *handle = (DepsgraphNodeBuilderHandle *)_handle;
+		NodeBuilderHandle *handle = (NodeBuilderHandle *)_handle;
 		handle->builder->build_image(ima);
 	}
 	
-	DepsgraphNodeBuilderHandle(DepsgraphNodeBuilder *builder) :
+	NodeBuilderHandle(DepsgraphNodeBuilder *builder) :
 	    builder(builder)
 	{
-		memset(&handle, 0, sizeof(handle));
-		handle.add_texture_relation = add_texture_relation;
-		handle.add_nodetree_relation = add_nodetree_relation;
-		handle.add_image_relation = add_image_relation;
+		memset(&base, 0, sizeof(base));
+		base.add_texture_relation = add_texture_relation;
+		base.add_nodetree_relation = add_nodetree_relation;
+		base.add_image_relation = add_image_relation;
 	}
 	
-	DepsNodeHandle handle;
+	DepsNodeHandle base;
 	DepsgraphNodeBuilder *builder;
 };
 
@@ -252,6 +256,17 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
 	return add_operation_node(comp_node, optype, op, opcode, description);
 }
 
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        eDepsOperation_Type optype,
+        DepsEvalOperationCb op,
+        eDepsOperation_Code opcode,
+        const string& description)
+{
+	return add_operation_node(id, comp_type, "", optype, op, opcode, description);
+}
+
 bool DepsgraphNodeBuilder::has_operation_node(ID *id,
                                               eDepsNode_Type comp_type,
                                               const string &comp_name,
@@ -270,6 +285,15 @@ OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
 	return comp_node->has_operation(opcode, description);
+}
+
+OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        eDepsOperation_Code opcode,
+        const string& description)
+{
+	return find_operation_node(id, comp_type, "", opcode, description);
 }
 
 /* **** Build functions for entity nodes **** */
@@ -378,7 +402,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 		return NULL;
 
 	/* create new subgraph's data */
-	Depsgraph *subgraph = DEG_graph_new();
+	Depsgraph *subgraph = reinterpret_cast<Depsgraph *>(DEG_graph_new());
 
 	DepsgraphNodeBuilder subgraph_builder(m_bmain, subgraph);
 
@@ -1013,8 +1037,8 @@ void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *
 			
 			/* ensure ID nodes on which the modifier depends are built */
 			if (mti->updateDepsgraph) {
-				DepsgraphNodeBuilderHandle handle(this);
-				mti->updateDepsgraph(md, bmain, scene, ob, &handle.handle);
+				NodeBuilderHandle handle(this);
+				mti->updateDepsgraph(md, bmain, scene, ob, &handle.base);
 			}
 		}
 	}
@@ -1109,8 +1133,8 @@ void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *
 	}
 
 	if (ob->nodetree) {
-		DepsgraphNodeBuilderHandle handle(this);
-		deg_nodetree_bvm_eval_deps(ob->nodetree, &handle.handle);
+		NodeBuilderHandle handle(this);
+		BVM_nodetree_eval_dependencies(ob->nodetree, &handle.base);
 	}
 
 	add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
@@ -1202,12 +1226,13 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 			}
 		}
 	}
+
 	// TODO: link from nodetree to owner_component?
-	
+
 	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, function_bind(BVM_function_bvm_cache_remove, ntree),
 	                   DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
-	DepsgraphNodeBuilderHandle handle(this);
-	deg_nodetree_bvm_compile_deps(ntree, &handle.handle);
+	NodeBuilderHandle handle(this);
+	BVM_nodetree_compile_dependencies(ntree, &handle.base);
 }
 
 /* Recursively build graph for material */
@@ -1318,3 +1343,5 @@ void DepsgraphNodeBuilder::build_gpencil(bGPdata *gpd)
 	 */
 	build_animdata(gpd_id);
 }
+
+}  // namespace DEG

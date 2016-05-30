@@ -33,8 +33,6 @@
 #ifndef __DEG_DEPSGRAPH_BUILD_H__
 #define __DEG_DEPSGRAPH_BUILD_H__
 
-#include "DEG_depsgraph.h"
-
 /* ************************************************* */
 
 /* Dependency Graph */
@@ -42,15 +40,12 @@ struct Depsgraph;
 
 /* ------------------------------------------------ */
 
+struct bNodeTree;
+struct Image;
 struct Main;
 struct Object;
 struct Scene;
 struct Tex;
-struct bNodeTree;
-struct Image;
-
-struct PointerRNA;
-struct PropertyRNA;
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,22 +81,74 @@ void DEG_scene_graph_free(struct Scene *scene);
  * as a symbolic reference to the current DepsNode.
  * All relations will be defined in reference to that node.
  */
+
+typedef enum {
+	DEG_COMPONENT_PARAMETERS,        /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+	DEG_COMPONENT_PROXY,             /* Generic "Proxy-Inherit" Component */
+	DEG_COMPONENT_ANIMATION,         /* Animation Component */
+	DEG_COMPONENT_TRANSFORM,         /* Transform Component (Parenting/Constraints) */
+	DEG_COMPONENT_GEOMETRY,          /* Geometry Component (DerivedMesh/Displist) */
+	DEG_COMPONENT_SEQUENCER,         /* Sequencer Component (Scene Only) */
+	DEG_COMPONENT_EVAL_POSE,         /* Pose Component - Owner/Container of Bones Eval */
+	DEG_COMPONENT_BONE,              /* Bone Component - Child/Subcomponent of Pose */
+	DEG_COMPONENT_EVAL_PARTICLES,    /* Particle Systems Component */
+	DEG_COMPONENT_SHADING,           /* Material Shading Component */
+} eDepsComponent;
+
 struct DepsNodeHandle
 {
-	void (*add_scene_relation)(struct DepsNodeHandle *node, struct Scene *scene, eDepsNode_Type component, const char *description);
-	void (*add_object_relation)(struct DepsNodeHandle *node, struct Object *ob, eDepsNode_Type component, const char *description);
-	void (*add_bone_relation)(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description);
-	void (*add_texture_relation)(struct DepsNodeHandle *handle, struct Tex *tex, eDepsNode_Type component, const char *description);
-	void (*add_nodetree_relation)(struct DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description);
-	void (*add_image_relation)(struct DepsNodeHandle *handle, struct Image *ima, eDepsNode_Type component, const char *description);
+	void (*add_scene_relation)(struct DepsNodeHandle *handle,
+	                           struct Scene *scene,
+	                           eDepsComponent component,
+	                           const char *description);
+	void (*add_object_relation)(struct DepsNodeHandle *handle,
+	                            struct Object *ob,
+	                            eDepsComponent component,
+	                            const char *description);
+	void (*add_bone_relation)(struct DepsNodeHandle *handle,
+	                          struct Object *ob,
+	                          const char *bone_name,
+	                          eDepsComponent component,
+	                          const char *description);
+	void (*add_texture_relation)(struct DepsNodeHandle *handle,
+	                             struct Tex *tex,
+	                             eDepsComponent component,
+	                             const char *description);
+	void (*add_nodetree_relation)(struct DepsNodeHandle *handle,
+	                              struct bNodeTree *ntree,
+	                              eDepsComponent component,
+	                              const char *description);
+	void (*add_image_relation)(struct DepsNodeHandle *handle,
+	                           struct Image *ima,
+	                           eDepsComponent component,
+	                           const char *description);
 };
 
-void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsNode_Type component, const char *description);
-void DEG_add_object_relation(struct DepsNodeHandle *node, struct Object *ob, eDepsNode_Type component, const char *description);
-void DEG_add_bone_relation(struct DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description);
-void DEG_add_texture_relation(struct DepsNodeHandle *handle, struct Tex *tex, eDepsNode_Type component, const char *description);
-void DEG_add_nodetree_relation(struct DepsNodeHandle *handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description);
-void DEG_add_image_relation(struct DepsNodeHandle *handle, struct Image *ima, eDepsNode_Type component, const char *description);
+void DEG_add_scene_relation(struct DepsNodeHandle *node,
+                            struct Scene *scene,
+                            eDepsComponent component,
+                            const char *description);
+void DEG_add_object_relation(struct DepsNodeHandle *node,
+                             struct Object *ob,
+                             eDepsComponent component,
+                             const char *description);
+void DEG_add_bone_relation(struct DepsNodeHandle *handle,
+                           struct Object *ob,
+                           const char *bone_name,
+                           eDepsComponent component,
+                           const char *description);
+void DEG_add_texture_relation(struct DepsNodeHandle *handle,
+                              struct Tex *tex,
+                              eDepsComponent component,
+                              const char *description);
+void DEG_add_nodetree_relation(struct DepsNodeHandle *handle,
+                               struct bNodeTree *ntree,
+                               eDepsComponent component,
+                               const char *description);
+void DEG_add_image_relation(struct DepsNodeHandle *handle,
+                            struct Image *ima,
+                            eDepsComponent component,
+                            const char *description);
 
 /* TODO(sergey): Remove once all geometry update is granular. */
 void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);

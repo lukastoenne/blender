@@ -115,10 +115,10 @@ static void updateDepsgraph(ModifierData *md,
 {
 	LatticeModifierData *lmd = (LatticeModifierData *)md;
 	if (lmd->object != NULL) {
-		DEG_add_object_relation(node, lmd->object, DEPSNODE_TYPE_GEOMETRY, "Lattice Modifier");
-		DEG_add_object_relation(node, lmd->object, DEPSNODE_TYPE_TRANSFORM, "Lattice Modifier");
+		DEG_add_object_relation(node, lmd->object, DEG_COMPONENT_GEOMETRY, "Lattice Modifier");
+		DEG_add_object_relation(node, lmd->object, DEG_COMPONENT_TRANSFORM, "Lattice Modifier");
 	}
-	DEG_add_object_relation(node, object, DEPSNODE_TYPE_TRANSFORM, "Lattice Modifier");
+	DEG_add_object_relation(node, object, DEG_COMPONENT_TRANSFORM, "Lattice Modifier");
 }
 
 static void deformVerts(ModifierData *md, Object *ob,

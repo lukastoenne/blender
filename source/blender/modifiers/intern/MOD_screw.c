@@ -1085,7 +1085,7 @@ static void updateDepsgraph(ModifierData *md,
 {
 	ScrewModifierData *ltmd = (ScrewModifierData *)md;
 	if (ltmd->ob_axis != NULL) {
-		DEG_add_object_relation(node, ltmd->ob_axis, DEPSNODE_TYPE_TRANSFORM, "Screw Modifier");
+		DEG_add_object_relation(node, ltmd->ob_axis, DEG_COMPONENT_TRANSFORM, "Screw Modifier");
 	}
 }
 

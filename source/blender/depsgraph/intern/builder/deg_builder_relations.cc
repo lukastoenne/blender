@@ -24,11 +24,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/depsgraph_build_relations.cc
+/** \file blender/depsgraph/intern/builder/deg_builder_relations.cc
  *  \ingroup depsgraph
  *
  * Methods for constructing depsgraph
  */
+
+#include "intern/builder/deg_builder_relations.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,94 +91,105 @@ extern "C" {
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
+#include "BVM_api.h"
+
 #include "RNA_access.h"
 #include "RNA_types.h"
 } /* extern "C" */
 
-#include "depsnode.h"
-#include "depsnode_component.h"
-#include "depsnode_operation.h"
-#include "depsgraph_build.h"
-#include "depsgraph_debug.h"
-#include "depsgraph_intern.h"
-#include "depsgraph_types.h"
+#include "intern/builder/deg_builder.h"
+#include "intern/builder/deg_builder_pchanmap.h"
 
-#include "depsgraph_util_pchanmap.h"
+#include "intern/nodes/deg_node.h"
+#include "intern/nodes/deg_node_component.h"
+#include "intern/nodes/deg_node_operation.h"
+
+#include "intern/depsgraph_intern.h"
+#include "intern/depsgraph_types.h"
+
+#include "util/deg_util_foreach.h"
+
+namespace DEG {
 
 /* ***************** */
 /* Relations Builder */
 
-struct DepsgraphRelationBuilderHandle
+struct RelationBuilderHandle
 {
-	static void add_scene_relation(DepsNodeHandle *_handle, struct Scene *scene, eDepsNode_Type component, const char *description)
+	static RelationBuilderHandle *cast(DepsNodeHandle *handle)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&scene->id, component);
+		return reinterpret_cast<RelationBuilderHandle *>(handle);
+	}
+	
+	static void add_scene_relation(DepsNodeHandle *_handle, struct Scene *scene, eDepsComponent component, const char *description)
+	{
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&scene->id, deg_build_get_component_type(component));
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsNode_Type component, const char *description)
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsComponent component, const char *description)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&ob->id, component);
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&ob->id, deg_build_get_component_type(component));
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char *bone_name, eDepsNode_Type component, const char *description)
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char *bone_name, eDepsComponent component, const char *description)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&ob->id, component, bone_name);
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&ob->id, deg_build_get_component_type(component), bone_name);
 		
 		// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 	}
 	
-	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsNode_Type component, const char *description)
+	static void add_texture_relation(DepsNodeHandle *_handle, struct Tex *tex, eDepsComponent component, const char *description)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&tex->id, component);
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&tex->id, deg_build_get_component_type(component));
 		
 		handle->builder->build_texture(NULL, tex);
 		
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
-	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsNode_Type component, const char *description)
+	static void add_nodetree_relation(DepsNodeHandle *_handle, struct bNodeTree *ntree, eDepsComponent component, const char *description)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&ntree->id, component);
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&ntree->id, deg_build_get_component_type(component));
 		
 		handle->builder->build_nodetree(NULL, ntree);
 		
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
-	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type component, const char *description)
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsComponent component, const char *description)
 	{
-		DepsgraphRelationBuilderHandle *handle = (DepsgraphRelationBuilderHandle *)_handle;
-		ComponentKey comp_key(&ima->id, component);
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&ima->id, deg_build_get_component_type(component));
 		
 		handle->builder->build_image(ima);
 		
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
-	DepsgraphRelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
+	RelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
 	    default_name(default_name)
 	{
-		memset(&handle, 0, sizeof(handle));
+		memset(&base, 0, sizeof(base));
 		BLI_assert(node != NULL);
-		handle.add_scene_relation = add_scene_relation;
-		handle.add_object_relation = add_object_relation;
-		handle.add_bone_relation = add_bone_relation;
-		handle.add_texture_relation = add_texture_relation;
-		handle.add_nodetree_relation = add_nodetree_relation;
-		handle.add_image_relation = add_image_relation;
+		base.add_scene_relation = add_scene_relation;
+		base.add_object_relation = add_object_relation;
+		base.add_bone_relation = add_bone_relation;
+		base.add_texture_relation = add_texture_relation;
+		base.add_nodetree_relation = add_nodetree_relation;
+		base.add_image_relation = add_image_relation;
 	}
 	
-	DepsNodeHandle handle;
+	DepsNodeHandle base;
 	DepsgraphRelationBuilder *builder;
 	OperationDepsNode *node;
 	const string &default_name;
@@ -565,7 +578,6 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 			ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_GEOMETRY);
 			add_relation(parent_key, ob_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 
-			/* XXX not sure what this is for or how you could be done properly - lukas */
 			OperationDepsNode *parent_node = find_operation_node(parent_key);
 			if (parent_node != NULL) {
 				parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
@@ -864,8 +876,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 
 		if (arm_node && bone_name) {
 			/* find objects which use this, and make their eval callbacks depend on this */
-			DEPSNODE_RELATIONS_ITER_BEGIN(arm_node->outlinks, rel)
-			{
+			foreach (DepsRelation *rel, arm_node->outlinks) {
 				IDDepsNode *to_node = (IDDepsNode *)rel->to;
 
 				/* we only care about objects with pose data which use this... */
@@ -879,7 +890,6 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 					}
 				}
 			}
-			DEPSNODE_RELATIONS_ITER_END;
 
 			/* free temp data */
 			MEM_freeN(bone_name);
@@ -1711,14 +1721,18 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 			}
 
 			if (mti->updateDepsgraph) {
-				DepsgraphRelationBuilderHandle handle(this, find_node(mod_key));
-				mti->updateDepsgraph(md, bmain, scene, ob, &handle.handle);
+				RelationBuilderHandle handle(this, find_node(mod_key));
+				mti->updateDepsgraph(md,
+				                     bmain,
+				                     scene,
+				                     ob,
+				                     &handle.base);
 			}
 
 			if (BKE_object_modifier_use_time(ob, md)) {
 				TimeSourceKey time_src_key;
 				add_relation(time_src_key, mod_key, DEPSREL_TYPE_TIME, "Time Source");
-				
+
 				/* Hacky fix for T45633 (Animated modifiers aren't updated)
 				 *
 				 * This check works because BKE_object_modifier_use_time() tests
@@ -1850,7 +1864,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		 */
 		add_relation(animation_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Animation");
 	}
-	
+
 	if (ob->nodetree) {
 		/* XXX this is not quite correct:
 		 * the geometry eval should depend only on the internal geometry node trees,
@@ -1860,8 +1874,8 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		OperationKey bvm_invalidate_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS,
 		                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
 		add_relation(bvm_invalidate_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
-		DepsgraphRelationBuilderHandle handle(this, find_node(obdata_geom_eval_key));
-		deg_nodetree_bvm_eval_deps(ob->nodetree, &handle.handle);
+		RelationBuilderHandle handle(this, find_node(obdata_geom_eval_key));
+		BVM_nodetree_eval_dependencies(ob->nodetree, &handle.base);
 	}
 }
 
@@ -1948,7 +1962,6 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 			}
 			else if (bnode->type == NODE_GROUP) {
 				bNodeTree *group_ntree = (bNodeTree *)bnode->id;
-				
 				build_nodetree(owner, group_ntree);
 				
 				OperationKey group_parameters_key(&group_ntree->id,
@@ -1966,7 +1979,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		add_relation(animation_key, parameters_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Parameters");
 	}
-	
+
 	OperationKey bvm_invalidate_key(ntree_id,
 	                                DEPSNODE_TYPE_PARAMETERS,
 	                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE,
@@ -1975,9 +1988,9 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	add_relation(parameters_key, bvm_invalidate_key,
 	             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Invalidation");
 	/* custom invalidation through internal dependencies */
-	DepsgraphRelationBuilderHandle handle(this, find_node(bvm_invalidate_key));
-	deg_nodetree_bvm_compile_deps(ntree, &handle.handle);
-	
+	RelationBuilderHandle handle(this, find_node(bvm_invalidate_key));
+	BVM_nodetree_compile_dependencies(ntree, &handle.base);
+
 	// TODO: link from nodetree to owner_component?
 }
 
@@ -2008,14 +2021,14 @@ void DepsgraphRelationBuilder::build_texture(ID *owner, Tex *tex)
 		return;
 	}
 	tex_id->tag |= LIB_TAG_DOIT;
-	
+
 	ComponentKey parameters_key(tex_id, DEPSNODE_TYPE_PARAMETERS);
 	
 	OperationKey eval_key(tex_id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_TEXTURE_INIT);
 	OperationKey invalidate_key(tex_id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_TEXTURE_INVALIDATE);
 	add_relation(eval_key, invalidate_key,
 	             DEPSREL_TYPE_OPERATION, "Texture Eval");
-	
+
 	/* texture itself */
 	build_animdata(owner);
 	
@@ -2080,3 +2093,4 @@ bool DepsgraphRelationBuilder::needs_animdata_node(ID *id)
 	return false;
 }
 
+}  // namespace DEG

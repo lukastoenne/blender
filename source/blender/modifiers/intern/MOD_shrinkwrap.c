@@ -168,12 +168,12 @@ static void updateDepsgraph(ModifierData *md,
 {
 	ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
 	if (smd->target != NULL) {
-		DEG_add_object_relation(node, smd->target, DEPSNODE_TYPE_TRANSFORM, "Shrinkwrap Modifier");
-		DEG_add_object_relation(node, smd->target, DEPSNODE_TYPE_GEOMETRY, "Shrinkwrap Modifier");
+		DEG_add_object_relation(node, smd->target, DEG_COMPONENT_TRANSFORM, "Shrinkwrap Modifier");
+		DEG_add_object_relation(node, smd->target, DEG_COMPONENT_GEOMETRY, "Shrinkwrap Modifier");
 	}
 	if (smd->auxTarget != NULL) {
-		DEG_add_object_relation(node, smd->auxTarget, DEPSNODE_TYPE_TRANSFORM, "Shrinkwrap Modifier");
-		DEG_add_object_relation(node, smd->auxTarget, DEPSNODE_TYPE_GEOMETRY, "Shrinkwrap Modifier");
+		DEG_add_object_relation(node, smd->auxTarget, DEG_COMPONENT_TRANSFORM, "Shrinkwrap Modifier");
+		DEG_add_object_relation(node, smd->auxTarget, DEG_COMPONENT_GEOMETRY, "Shrinkwrap Modifier");
 	}
 }
 

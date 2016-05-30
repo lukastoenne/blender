@@ -145,15 +145,15 @@ static void updateDepsgraph(ModifierData *md,
 	HookModifierData *hmd = (HookModifierData *)md;
 	if (hmd->object != NULL) {
 		if (hmd->subtarget[0]) {
-			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
-			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEPSNODE_TYPE_BONE, "Hook Modifier");
+			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEG_COMPONENT_TRANSFORM, "Hook Modifier");
+			DEG_add_bone_relation(node, hmd->object, hmd->subtarget, DEG_COMPONENT_BONE, "Hook Modifier");
 		}
 		else {
-			DEG_add_object_relation(node, hmd->object, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
+			DEG_add_object_relation(node, hmd->object, DEG_COMPONENT_TRANSFORM, "Hook Modifier");
 		}
 	}
 	/* We need own transformation as well. */
-	DEG_add_object_relation(node, ob, DEPSNODE_TYPE_TRANSFORM, "Hook Modifier");
+	DEG_add_object_relation(node, ob, DEG_COMPONENT_TRANSFORM, "Hook Modifier");
 }
 
 struct HookData_cb {

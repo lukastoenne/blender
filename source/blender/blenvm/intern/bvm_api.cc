@@ -233,6 +233,52 @@ BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc)
 
 /* ------------------------------------------------------------------------- */
 
+void BVM_nodetree_compile_dependencies(bNodeTree *ntree, DepsNodeHandle *handle)
+{
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	if (!ntree->typeinfo->ext.call)
+		return;
+	
+	RNA_id_pointer_create((ID *)ntree, &ptr);
+	
+	func = RNA_struct_find_function(ptr.type, "bvm_compile_dependencies");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "depsnode", &handle);
+	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+void BVM_nodetree_eval_dependencies(bNodeTree *ntree, DepsNodeHandle *handle)
+{
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	
+	if (!ntree->typeinfo->ext.call)
+		return;
+	
+	RNA_id_pointer_create((ID *)ntree, &ptr);
+	
+	func = RNA_struct_find_function(ptr.type, "bvm_eval_dependencies");
+	if (!func)
+		return;
+	
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "depsnode", &handle);
+	ntree->typeinfo->ext.call(NULL, &ptr, func, &list);
+	
+	RNA_parameter_list_free(&list);
+}
+
+/* ------------------------------------------------------------------------- */
+
 BLI_INLINE blenvm::EvalGlobals *_GLOBALS(struct BVMEvalGlobals *globals)
 { return (blenvm::EvalGlobals *)globals; }
 BLI_INLINE const blenvm::EvalGlobals *_GLOBALS(const struct BVMEvalGlobals *globals)
@@ -253,19 +299,19 @@ namespace blenvm {
 
 struct EvalGlobalsHandle
 {
-	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_object_relation(DepsNodeHandle *_handle, struct Object *ob, eDepsComponent /*component*/, const char */*description*/)
 	{
 		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
 		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
 	}
 	
-	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char */*bone_name*/, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_bone_relation(DepsNodeHandle *_handle, struct Object *ob, const char */*bone_name*/, eDepsComponent /*component*/, const char */*description*/)
 	{
 		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
 		handle->globals->add_object(EvalGlobals::get_id_key((ID *)ob), ob);
 	}
 	
-	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsNode_Type /*component*/, const char */*description*/)
+	static void add_image_relation(DepsNodeHandle *_handle, struct Image *ima, eDepsComponent /*component*/, const char */*description*/)
 	{
 		EvalGlobalsHandle *handle = (EvalGlobalsHandle *)_handle;
 		handle->globals->add_image(EvalGlobals::get_id_key((ID *)ima), ima);
