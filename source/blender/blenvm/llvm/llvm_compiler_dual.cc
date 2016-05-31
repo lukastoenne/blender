@@ -441,12 +441,10 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 	using namespace llvm;
 	
 	/* get evaluation function(s) */
-	string value_name = bvm_value_function_name(nodetype->name());
-	Function *value_func = llvm_find_external_function(mod, value_name);
+	Function *value_func = mod->getFunction(bvm_value_function_name(nodetype->name()));
 	BLI_assert(value_func != NULL && "Could not find node function!");
 	
-	string deriv_name = bvm_deriv_function_name(nodetype->name());
-	Function *deriv_func = llvm_find_external_function(mod, deriv_name);
+	Function *deriv_func = mod->getFunction(bvm_deriv_function_name(nodetype->name()));
 	
 	/* wrapper function */
 	Function *func = declare_node_function(mod, nodetype);

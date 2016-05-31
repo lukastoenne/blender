@@ -49,6 +49,14 @@ set(SRC
 	intern/function_cache.cc
 	intern/function_cache.h
 
+	modules/modules.cc
+	modules/modules.h
+	modules/mod_defines.h
+	modules/mod_base.h
+	modules/mod_color.h
+	modules/mod_math.h
+	modules/mod_texture.h
+
 	util/util_opcode.h
 	util/util_data_ptr.h
 	util/util_debug.h
@@ -61,6 +69,11 @@ set(SRC
 
 	BVM_api.h
 	BVM_types.h
+)
+
+add_definitions(
+	-DBVM_MOD_NAMESPACE_BEGIN=namespace\ blenvm\ {\ namespace\ modules\ {
+	-DBVM_MOD_NAMESPACE_END=}}
 )
 
 TEST_UNORDERED_MAP_SUPPORT()

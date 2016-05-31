@@ -57,79 +57,8 @@ set(SRC
 	llvm_types.h
 )
 
-set(LLVM_SRC
-	../modules/modules.cc
-	../modules/modules.h
-	../modules/mod_defines.h
-
-	../modules/mod_base.h
-	../modules/mod_color.h
-	../modules/mod_math.h
-	../modules/mod_texture.h
-)
-set(LLVM_HEADERS
-	../modules/mod_base.h
-	../modules/mod_color.h
-	../modules/mod_math.h
-	../modules/mod_texture.h
-)
-
-if(NOT WITH_BLENVM_IRMODULES)
-	list(APPEND SRC ${LLVM_SRC})
-endif()
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 
 add_definitions(-DWITH_LLVM -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -std=c++0x)
-add_definitions(
-	-DBVM_MOD_NAMESPACE_BEGIN=namespace\ blenvm\ {\ namespace\ modules\ {
-	-DBVM_MOD_NAMESPACE_END=}}
-)
 
 blender_add_lib(bf_blenvm_llvm "${SRC}" "${INC}" "${INC_SYS}")
-
-
-# Modules
-
-if(WITH_BLENVM_IRMODULES)
-	# XXX TODO
-	set(LLVM_IR_COMPILER "clang-3.5")
-	set(LLVM_IR_INSTALL_PATH "scripts/llvm")
-	set(llvm_irs)
-
-	macro(BLENVM_LLVM_MODULE_ADD src)
-		get_filename_component(llvm_name ${src} NAME_WE)
-		set(llvm_ir "${llvm_name}.ll")
-
-		add_custom_command(
-			OUTPUT ${llvm_ir}
-			COMMAND ${LLVM_IR_COMPILER}
-					-S
-					${CMAKE_CURRENT_SOURCE_DIR}/${src}
-					-emit-llvm
-					-std=c++0x
-					-o ${CMAKE_CURRENT_BINARY_DIR}/${llvm_ir}
-					-DBLENVM_RUNTIME
-					-D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
-					-DBVM_MOD_NAMESPACE_BEGIN
-					-DBVM_MOD_NAMESPACE_END
-					-DBVM_MOD_ANNOTATE_FUNCTIONS
-					-I${CMAKE_CURRENT_SOURCE_DIR}/../../blenlib
-			DEPENDS ${LLVM_SRC})
-	
-		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${llvm_ir}" ${LLVM_IR_INSTALL_PATH}/modules/)
-		list(APPEND llvm_irs ${llvm_ir})
-	endmacro()
-
-	add_definitions(-DWITH_BLENVM_IRMODULES)
-
-	foreach(src ${LLVM_SRC})
-		# Compile LLVM IR code
-		BLENVM_LLVM_MODULE_ADD(${src})
-	endforeach()
-
-	add_custom_target(bf_blenvm_llvm_modules ALL DEPENDS ${llvm_irs})
-	add_dependencies(bf_blenvm_llvm bf_blenvm_llvm_modules)
-
-	delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${LLVM_HEADERS}" ${LLVM_IR_INSTALL_PATH})
-endif()

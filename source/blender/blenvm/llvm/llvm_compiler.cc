@@ -272,8 +272,7 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 	builder.SetInsertPoint(block);
 	
 	/* get evaluation function */
-	const std::string &evalname = node->type->name();
-	Function *evalfunc = llvm_find_external_function(module(), evalname);
+	Function *evalfunc = module()->getFunction(node->type->name());
 	BLI_assert(evalfunc != NULL && "Could not find node function!");
 	
 	/* function call arguments */

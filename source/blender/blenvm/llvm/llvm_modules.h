@@ -44,14 +44,6 @@ class Value;
 
 namespace blenvm {
 
-llvm::Function *llvm_find_external_function(llvm::Module *mod, const string &name);
-
-void llvm_load_module(const string &modfile, const string &modname);
-void llvm_load_all_modules(const string &modpath, bool reload);
-void llvm_unload_all_modules();
-
-/* ------------------------------------------------------------------------- */
-
 void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,
                           llvm::Value *result, llvm::Value *value);
 void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::BasicBlock *block,

@@ -141,15 +141,10 @@ void llvm_init()
 	
 	BLI_assert(theEngine == NULL);
 	theEngine = create_execution_engine();
-	
-	/* load modules */
-	llvm_load_all_modules("", false);
 }
 
 void llvm_free()
 {
-	llvm_unload_all_modules();
-	
 	if (theEngine) {
 		delete theEngine;
 		theEngine = NULL;
