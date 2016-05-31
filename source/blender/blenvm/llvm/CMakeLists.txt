@@ -43,7 +43,6 @@ set(INC_SYS
 
 set(SRC
 	llvm_compiler.cc
-	llvm_compiler_simple.cc
 	llvm_compiler_dual.cc
 	llvm_compiler.h
 	llvm_engine.cc

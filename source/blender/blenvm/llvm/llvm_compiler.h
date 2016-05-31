@@ -130,40 +130,6 @@ private:
 	llvm::Module *m_module;
 };
 
-struct LLVMSimpleCompilerImpl : public LLVMCompilerBase {
-	typedef std::map<ConstOutputKey, llvm::Value*> OutputValueMap;
-	
-	void node_graph_begin();
-	void node_graph_end();
-	
-	bool has_node_value(const ConstOutputKey &output) const;
-	void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output);
-	void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to);
-	void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output);
-	void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
-	                            const TypeSpec *typespec, const ConstOutputKey &link);
-	void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
-	                           const TypeSpec *typespec, const NodeConstant *node_value);
-	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
-	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
-	
-	llvm::Type *get_argument_type(const TypeSpec *spec) const;
-	llvm::Type *get_return_type(const TypeSpec *spec) const;
-	void append_input_types(FunctionParameterList &params, const NodeInput *input) const;
-	void append_output_types(FunctionParameterList &params, const NodeOutput *output) const;
-	
-	llvm::Module *get_nodes_module() const { return m_nodes_module; }
-	
-	bool use_argument_pointer(const TypeSpec *typespec) const;
-	
-	bool set_node_function_impl(OpCode op, const NodeType *nodetype, llvm::Function *func);
-	void define_nodes_module();
-	
-private:
-	static llvm::Module *m_nodes_module;
-	OutputValueMap m_output_values;
-};
-
 struct LLVMTextureCompiler : public LLVMCompilerBase {
 	typedef Dual2<llvm::Value*> DualValue;
 	typedef std::map<ConstOutputKey, DualValue> OutputValueMap;
