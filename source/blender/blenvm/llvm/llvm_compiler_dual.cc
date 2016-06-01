@@ -138,6 +138,7 @@ void LLVMTextureCompiler::append_input_constant(llvm::BasicBlock *block, std::ve
 	
 	if (use_argument_pointer(typespec, false)) {
 		AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
+		/* XXX this may not work for larger aggregate types (matrix44) !! */
 		builder.CreateStore(cvalue, pvalue);
 		
 		args.push_back(pvalue);
@@ -171,6 +172,8 @@ void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const Outp
 {
 	using namespace llvm;
 	
+	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
+	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
@@ -179,12 +182,9 @@ void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const Outp
 	Value *dy_ptr = builder.CreateStructGEP(arg, 2);
 	
 	DualValue dual = m_output_values.at(output);
-	Value *rvalue = builder.CreateLoad(dual.value());
-	Value *rdx = builder.CreateLoad(dual.dx());
-	Value *rdy = builder.CreateLoad(dual.dy());
-	builder.CreateStore(rvalue, value_ptr);
-	builder.CreateStore(rdx, dx_ptr);
-	builder.CreateStore(rdy, dy_ptr);
+	bvm_llvm_copy_value(context(), block, value_ptr, dual.value(), typespec);
+	bvm_llvm_copy_value(context(), block, dx_ptr, dual.dx(), typespec);
+	bvm_llvm_copy_value(context(), block, dy_ptr, dual.dy(), typespec);
 }
 
 llvm::Type *LLVMTextureCompiler::get_argument_type(const TypeSpec *spec) const
@@ -275,21 +275,48 @@ bool LLVMTextureCompiler::use_elementary_argument_pointer(const TypeSpec *typesp
 
 void LLVMTextureCompiler::define_node_function(llvm::Module *mod, OpCode op, const string &nodetype_name)
 {
+	using namespace llvm;
+	
 	const NodeType *nodetype = NodeGraph::find_node_type(nodetype_name);
 	if (nodetype == NULL)
+		return;
+	
+	/* wrapper function */
+	Function *func = declare_node_function(mod, nodetype);
+	if (func == NULL)
 		return;
 	
 	switch (op) {
 		/* special cases */
 		case OP_GET_DERIVATIVE_FLOAT:
+			def_node_GET_DERIVATIVE_FLOAT(context(), func);
+			break;
 		case OP_GET_DERIVATIVE_FLOAT3:
+			def_node_GET_DERIVATIVE_FLOAT3(context(), func);
+			break;
 		case OP_GET_DERIVATIVE_FLOAT4:
-			define_get_derivative(mod, op, nodetype);
+			def_node_GET_DERIVATIVE_FLOAT4(context(), func);
 			break;
 		
+		case OP_VALUE_FLOAT:
+			def_node_VALUE_FLOAT(context(), func);
+			break;
+		case OP_VALUE_INT:
+			def_node_VALUE_INT(context(), func);
+			break;
+		case OP_VALUE_FLOAT3:
+			def_node_VALUE_FLOAT3(context(), func);
+			break;
+		case OP_VALUE_FLOAT4:
+			def_node_VALUE_FLOAT4(context(), func);
+			break;
+		case OP_VALUE_MATRIX44:
+			def_node_VALUE_MATRIX44(context(), func);
+			break;
+			
 		default:
 			define_elementary_functions(mod, op, nodetype);
-			define_dual_function_wrapper(mod, op, nodetype);
+			define_dual_function_wrapper(mod, func, op, nodetype);
 			break;
 	}
 }
@@ -368,54 +395,6 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 	return declare_function(mod, name, input_types, output_types);
 }
 
-bool LLVMTextureCompiler::set_node_function_impl(OpCode op, const NodeType *UNUSED(nodetype),
-                                                 llvm::Function *value_func, llvm::Function *deriv_func)
-{
-	using namespace llvm;
-	
-	typedef std::vector<Value*> ValueList;
-	
-	/* XXX TODO needs implementation for derivatives */
-	UNUSED_VARS(deriv_func);
-	return false;
-	
-	ValueList value_args;
-	value_args.reserve(value_func->arg_size());
-	for (Function::arg_iterator a = value_func->arg_begin(); a != value_func->arg_end(); ++a)
-		value_args.push_back(a);
-	
-	switch (op) {
-		case OP_VALUE_FLOAT: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
-			def_node_VALUE_FLOAT(context(), block, value_args[0], value_args[1]);
-			return true;
-		}
-		case OP_VALUE_INT: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
-			def_node_VALUE_INT(context(), block, value_args[0], value_args[1]);
-			return true;
-		}
-		case OP_VALUE_FLOAT3: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
-			def_node_VALUE_FLOAT3(context(), block, value_args[0], value_args[1]);
-			return true;
-		}
-		case OP_VALUE_FLOAT4: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
-			def_node_VALUE_FLOAT4(context(), block, value_args[0], value_args[1]);
-			return true;
-		}
-		case OP_VALUE_MATRIX44: {
-			BasicBlock *block = BasicBlock::Create(context(), "entry", value_func);
-			def_node_VALUE_MATRIX44(context(), block, value_args[0], value_args[1]);
-			return true;
-		}
-		
-		default:
-			return false;
-	}
-}
-
 void LLVMTextureCompiler::define_elementary_functions(llvm::Module *mod, OpCode op, const NodeType *nodetype)
 {
 	using namespace llvm;
@@ -433,10 +412,13 @@ void LLVMTextureCompiler::define_elementary_functions(llvm::Module *mod, OpCode 
 		                 mod, nodetype, bvm_deriv_function_name(nodetype->name()), true);
 	}
 	
-	set_node_function_impl(op, nodetype, value_func, deriv_func);
+	UNUSED_VARS(value_func, deriv_func);
 }
 
-void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode UNUSED(op), const NodeType *nodetype)
+void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod,
+                                                       llvm::Function *func,
+                                                       OpCode UNUSED(op),
+                                                       const NodeType *nodetype)
 {
 	using namespace llvm;
 	
@@ -445,11 +427,6 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 	BLI_assert(value_func != NULL && "Could not find node function!");
 	
 	Function *deriv_func = mod->getFunction(bvm_deriv_function_name(nodetype->name()));
-	
-	/* wrapper function */
-	Function *func = declare_node_function(mod, nodetype);
-	if (func == NULL)
-		return;
 	
 	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
 	IRBuilder<> builder(context());
@@ -527,86 +504,13 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod, OpCode
 			const TypeSpec *typespec = output->typedesc.get_typespec();
 			
 			if (bvm_type_has_dual_value(typespec)) {
-				Constant *c = bvm_make_zero(context(), typespec);
-				builder.CreateStore(c, call_args_dx[i]);
-				builder.CreateStore(c, call_args_dy[i]);
+				bvm_llvm_set_zero(context(), block, call_args_dx[i], typespec);
+				bvm_llvm_set_zero(context(), block, call_args_dy[i], typespec);
 			}
 		}
 	}
 	
 	builder.CreateRetVoid();
-}
-
-void LLVMTextureCompiler::define_get_derivative(llvm::Module *mod, OpCode UNUSED(op), const NodeType *nodetype)
-{
-	using namespace llvm;
-	
-	Function *func = declare_node_function(mod, nodetype);
-	if (func == NULL)
-		return;
-	
-	const TypeSpec *typespec = nodetype->find_input(1)->typedesc.get_typespec();
-	
-	ConstantInt* idx0 = ConstantInt::get(context(), APInt(32, 0));
-	ConstantInt* idx1 = ConstantInt::get(context(), APInt(32, 1));
-	
-	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
-	BasicBlock *block_var0 = BasicBlock::Create(context(), "var0", func);
-	BasicBlock *block_var1 = BasicBlock::Create(context(), "var1", func);
-	BasicBlock *block_end = BasicBlock::Create(context(), "end", func);
-	
-	Function::arg_iterator arg_it = func->arg_begin();
-	Argument *out_val = arg_it++;
-	Argument *out_dx = arg_it++;
-	Argument *out_dy = arg_it++;
-	Argument *var = arg_it++;
-	Argument *in_val = arg_it++;
-	Argument *in_dx = arg_it++;
-	Argument *in_dy = arg_it++;
-	UNUSED_VARS(in_val);
-	
-	{
-		IRBuilder<> builder(context());
-		builder.SetInsertPoint(block);
-		
-		/* zero derivatives */
-		llvm::Constant *zero = bvm_make_zero(context(), typespec);
-		builder.CreateStore(zero, out_dx);
-		builder.CreateStore(zero, out_dy);
-		
-		SwitchInst *sw = builder.CreateSwitch(var, block_end, 2);
-		sw->addCase(idx0, block_var0);
-		sw->addCase(idx1, block_var1);
-	}
-	
-	{
-		IRBuilder<> builder(context());
-		builder.SetInsertPoint(block_var0);
-		
-		Value *data = in_dx;
-		if (use_argument_pointer(typespec, false))
-			data = builder.CreateLoad(data);
-		builder.CreateStore(data, out_val);
-		builder.CreateBr(block_end);
-	}
-	
-	{
-		IRBuilder<> builder(context());
-		builder.SetInsertPoint(block_var1);
-		
-		Value *data = in_dy;
-		if (use_argument_pointer(typespec, false))
-			data = builder.CreateLoad(data);
-		builder.CreateStore(data, out_val);
-		builder.CreateBr(block_end);
-	}
-	
-	{
-		IRBuilder<> builder(context());
-		builder.SetInsertPoint(block_end);
-		
-		builder.CreateRetVoid();
-	}
 }
 
 } /* namespace blenvm */

@@ -33,6 +33,7 @@
  */
 
 #include "util_string.h"
+#include "util_opcode.h"
 
 namespace llvm {
 class LLVMContext;
@@ -44,16 +45,17 @@ class Value;
 
 namespace blenvm {
 
-void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                          llvm::Value *result, llvm::Value *value);
-void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                        llvm::Value *result, llvm::Value *value);
-void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                           llvm::Value *result, llvm::Value *value);
-void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                           llvm::Value *result, llvm::Value *value);
-void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                             llvm::Value *result, llvm::Value *value);
+struct NodeType;
+
+void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::Function *func);
+
+void def_node_GET_DERIVATIVE_FLOAT(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_GET_DERIVATIVE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_GET_DERIVATIVE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);
 
 } /* namespace blenvm */
 

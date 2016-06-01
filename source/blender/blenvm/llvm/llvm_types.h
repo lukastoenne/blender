@@ -37,6 +37,8 @@
 #include "node_value.h"
 #include "typedesc.h"
 
+#include "llvm_headers.h"
+
 #include "util_string.h"
 
 namespace llvm {
@@ -45,6 +47,7 @@ class Constant;
 class FunctionType;
 class StructType;
 class Type;
+class Value;
 }
 
 
@@ -221,30 +224,6 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const Dual2<T> 
 	                           NULL);
 }
 
-template <typename T>
-inline llvm::Constant *make_zero(llvm::LLVMContext &UNUSED(context))
-{
-	return NULL;
-}
-
-template <>
-inline llvm::Constant *make_zero<float>(llvm::LLVMContext &context)
-{
-	return make_constant(context, 0.0f);
-}
-
-template <>
-inline llvm::Constant *make_zero<float3>(llvm::LLVMContext &context)
-{
-	return make_constant(context, float3(0.0f, 0.0f, 0.0f));
-}
-
-template <>
-inline llvm::Constant *make_zero<float4>(llvm::LLVMContext &context)
-{
-	return make_constant(context, float4(0.0f, 0.0f, 0.0f, 0.0f));
-}
-
 /* ------------------------------------------------------------------------- */
 
 template <BVMType type>
@@ -256,6 +235,21 @@ struct BVMTypeLLVMTraits<BVM_FLOAT> {
 	
 	typedef float value_type;
 	typedef Dual2<value_type> dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		builder.CreateStore(value, ptr);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		Constant *c = ConstantFP::get(builder.getContext(), APFloat(0.0f));
+		builder.CreateStore(c, ptr);
+	}
 };
 
 template <>
@@ -264,6 +258,22 @@ struct BVMTypeLLVMTraits<BVM_FLOAT3> {
 	
 	typedef float3 value_type;
 	typedef Dual2<value_type> dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemCpy(ptr, value, size, 0);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemSet(ptr, builder.getInt8(0), size, 0);
+	}
 };
 
 template <>
@@ -272,6 +282,22 @@ struct BVMTypeLLVMTraits<BVM_FLOAT4> {
 	
 	typedef float4 value_type;
 	typedef Dual2<value_type> dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemCpy(ptr, value, size, 0);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemSet(ptr, builder.getInt8(0), size, 0);
+	}
 };
 
 template <>
@@ -280,6 +306,21 @@ struct BVMTypeLLVMTraits<BVM_INT> {
 	
 	typedef int value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		builder.CreateStore(value, ptr);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		Constant *c = builder.getInt32(0);
+		builder.CreateStore(c, ptr);
+	}
 };
 
 template <>
@@ -288,6 +329,22 @@ struct BVMTypeLLVMTraits<BVM_MATRIX44> {
 	
 	typedef matrix44 value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemCpy(ptr, value, size, 0);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		Constant *size = builder.getInt32(sizeof(value_type));
+		builder.CreateMemSet(ptr, builder.getInt8(0), size, 0);
+	}
 };
 
 template <>
@@ -296,6 +353,24 @@ struct BVMTypeLLVMTraits<BVM_STRING> {
 	
 	typedef int value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr, value);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr);
+	}
 };
 
 template <>
@@ -304,6 +379,24 @@ struct BVMTypeLLVMTraits<BVM_RNAPOINTER> {
 	
 	typedef int value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr, value);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr);
+	}
 };
 
 template <>
@@ -312,6 +405,24 @@ struct BVMTypeLLVMTraits<BVM_MESH> {
 	
 	typedef int value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr, value);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr);
+	}
 };
 
 template <>
@@ -320,12 +431,36 @@ struct BVMTypeLLVMTraits<BVM_DUPLIS> {
 	
 	typedef int value_type;
 	typedef value_type dual2_type;
+	
+	template <typename BuilderT>
+	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr, value);
+	}
+	
+	template <typename BuilderT>
+	static void set_zero(BuilderT &builder, llvm::Value *ptr)
+	{
+		using namespace llvm;
+		/* TODO */
+		BLI_assert(false);
+		UNUSED_VARS(builder, ptr);
+	}
 };
 
 llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual);
 llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeConstant *node_value);
 bool bvm_type_has_dual_value(const TypeSpec *spec);
-llvm::Constant *bvm_make_zero(llvm::LLVMContext &context, const TypeSpec *spec);
+
+void bvm_llvm_set_zero(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                       llvm::Value *ptr,
+                       const TypeSpec *spec);
+void bvm_llvm_copy_value(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                         llvm::Value *ptr, llvm::Value *value,
+                         const TypeSpec *spec);
 
 } /* namespace blenvm */
 

@@ -323,7 +323,7 @@ StructSpec* TypeSpec::make_structure()
 
 TypeSpec::TypeDefMap TypeSpec::m_typedefs;
 
-const TypeSpec* TypeSpec::get_typedef(const string &name)
+const TypeSpec* TypeSpec::get_typespec(const string &name)
 {
 	TypeDefMap::const_iterator it = m_typedefs.find(name);
 	if (it != m_typedefs.end())
@@ -332,7 +332,7 @@ const TypeSpec* TypeSpec::get_typedef(const string &name)
 		return NULL;
 }
 
-TypeSpec *TypeSpec::add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type)
+TypeSpec *TypeSpec::add_typespec(const string &name, BVMType base_type, BVMBufferType buffer_type)
 {
 	BLI_assert (m_typedefs.find(name) == m_typedefs.end());
 	
@@ -341,7 +341,7 @@ TypeSpec *TypeSpec::add_typedef(const string &name, BVMType base_type, BVMBuffer
 	return ts;
 }
 
-void TypeSpec::remove_typedef(const string &name)
+void TypeSpec::remove_typespec(const string &name)
 {
 	TypeDefMap::iterator it = m_typedefs.find(name);
 	if (it != m_typedefs.end()) {
@@ -350,7 +350,7 @@ void TypeSpec::remove_typedef(const string &name)
 	}
 }
 
-void TypeSpec::clear_typedefs()
+void TypeSpec::clear_typespecs()
 {
 	for (TypeDefMap::iterator it = m_typedefs.begin(); it != m_typedefs.end(); ++it) {
 		delete it->second;
@@ -358,12 +358,12 @@ void TypeSpec::clear_typedefs()
 	m_typedefs.clear();
 }
 
-TypeSpec::typedef_iterator TypeSpec::typedef_begin()
+TypeSpec::typedef_iterator TypeSpec::typespec_begin()
 {
 	return m_typedefs.begin();
 }
 
-TypeSpec::typedef_iterator TypeSpec::typedef_end()
+TypeSpec::typedef_iterator TypeSpec::typespec_end()
 {
 	return m_typedefs.end();
 }
@@ -386,13 +386,13 @@ TypeDesc::~TypeDesc()
 
 bool TypeDesc::has_typespec() const
 {
-	const TypeSpec *ts = TypeSpec::get_typedef(m_name);
+	const TypeSpec *ts = TypeSpec::get_typespec(m_name);
 	return ts != NULL;
 }
 
 const TypeSpec *TypeDesc::get_typespec() const
 {
-	const TypeSpec *ts = TypeSpec::get_typedef(m_name);
+	const TypeSpec *ts = TypeSpec::get_typespec(m_name);
 	BLI_assert(ts != NULL);
 	return ts;
 }

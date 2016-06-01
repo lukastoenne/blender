@@ -192,12 +192,12 @@ struct TypeSpec {
 	StructSpec *structure() { return m_structure; }
 	StructSpec *make_structure();
 	
-	static const TypeSpec* get_typedef(const string &name);
-	static TypeSpec *add_typedef(const string &name, BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
-	static void remove_typedef(const string &name);
-	static void clear_typedefs();
-	static typedef_iterator typedef_begin();
-	static typedef_iterator typedef_end();
+	static const TypeSpec* get_typespec(const string &name);
+	static TypeSpec *add_typespec(const string &name, BVMType base_type, BVMBufferType buffer_type = BVM_BUFFER_SINGLE);
+	static void remove_typespec(const string &name);
+	static void clear_typespecs();
+	static typedef_iterator typespec_begin();
+	static typedef_iterator typespec_end();
 	
 private:
 	BVMType m_base_type;

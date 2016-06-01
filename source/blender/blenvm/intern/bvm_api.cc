@@ -103,7 +103,7 @@ void BVM_free(void)
 #endif
 	
 	nodes_free();
-	TypeSpec::clear_typedefs();
+	TypeSpec::clear_typespecs();
 	
 	destroy_empty_mesh(__empty_mesh__);
 }

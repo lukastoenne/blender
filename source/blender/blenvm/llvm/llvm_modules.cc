@@ -56,75 +56,137 @@ extern "C" {
 
 namespace blenvm {
 
-void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                          llvm::Value *result, llvm::Value *value)
+static void def_node_VALUE_t(llvm::LLVMContext &context, llvm::Function *func, const TypeSpec *typespec)
 {
 	using namespace llvm;
+	
+	bool has_derivs = bvm_type_has_dual_value(typespec);
+	
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *p_out_val = arg_it++;
+	Argument *p_out_dx = NULL, *p_out_dy = NULL;
+	if (has_derivs) {
+		p_out_dx = arg_it++;
+		p_out_dy = arg_it++;
+	}
+	Argument *in_val = arg_it++;
+	
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
 	
 	IRBuilder<> builder(context);
 	builder.SetInsertPoint(block);
 	
-	builder.CreateStore(value, result);
+	bvm_llvm_copy_value(context, block, p_out_val, in_val, typespec);
+	if (has_derivs) {
+		bvm_llvm_set_zero(context, block, p_out_dx, typespec);
+		bvm_llvm_set_zero(context, block, p_out_dy, typespec);
+	}
 	
 	builder.CreateRetVoid();
 }
 
-void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                        llvm::Value *result, llvm::Value *value)
+void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::Function *func)
 {
-	using namespace llvm;
-	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
-	
-	builder.CreateStore(value, result);
-	
-	builder.CreateRetVoid();
+	def_node_VALUE_t(context, func, TypeSpec::get_typespec("FLOAT"));
 }
 
-void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                           llvm::Value *result, llvm::Value *value)
+void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::Function *func)
 {
-	using namespace llvm;
-	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
-	
-	size_t size = sizeof(float3);
-	Value *size_val = ConstantInt::get(context, APInt(32, size));
-	builder.CreateMemCpy(result, value, size_val, 0);
-	
-	builder.CreateRetVoid();
+	def_node_VALUE_t(context, func, TypeSpec::get_typespec("INT"));
 }
 
-void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                           llvm::Value *result, llvm::Value *value)
+void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func)
 {
-	using namespace llvm;
-	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
-	
-	size_t size = sizeof(float4);
-	Value *size_val = ConstantInt::get(context, APInt(32, size));
-	builder.CreateMemCpy(result, value, size_val, 0);
-	
-	builder.CreateRetVoid();
+	def_node_VALUE_t(context, func, TypeSpec::get_typespec("FLOAT3"));
 }
 
-void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::BasicBlock *block,
-                             llvm::Value *result, llvm::Value *value)
+void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_VALUE_t(context, func, TypeSpec::get_typespec("FLOAT4"));
+}
+
+void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_VALUE_t(context, func, TypeSpec::get_typespec("MATRIX44"));
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void def_node_GET_DERIVATIVE_t(llvm::LLVMContext &context, llvm::Function *func, const TypeSpec *typespec)
 {
 	using namespace llvm;
 	
-	IRBuilder<> builder(context);
-	builder.SetInsertPoint(block);
+	ConstantInt* idx0 = ConstantInt::get(context, APInt(32, 0));
+	ConstantInt* idx1 = ConstantInt::get(context, APInt(32, 1));
 	
-	size_t size = sizeof(matrix44);
-	Value *size_val = ConstantInt::get(context, APInt(32, size));
-	builder.CreateMemCpy(result, value, size_val, 0);
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *out_val = arg_it++;
+	Argument *out_dx = arg_it++;
+	Argument *out_dy = arg_it++;
+	Argument *var = arg_it++;
+	Argument *in_val = arg_it++;
+	Argument *in_dx = arg_it++;
+	Argument *in_dy = arg_it++;
+	UNUSED_VARS(in_val);
 	
-	builder.CreateRetVoid();
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
+	BasicBlock *block_var0 = BasicBlock::Create(context, "var0", func);
+	BasicBlock *block_var1 = BasicBlock::Create(context, "var1", func);
+	BasicBlock *block_end = BasicBlock::Create(context, "end", func);
+	
+	{
+		IRBuilder<> builder(context);
+		builder.SetInsertPoint(block);
+		
+		/* zero derivatives */
+		bvm_llvm_set_zero(context, block, out_dx, typespec);
+		bvm_llvm_set_zero(context, block, out_dy, typespec);
+		
+		SwitchInst *sw = builder.CreateSwitch(var, block_end, 2);
+		sw->addCase(idx0, block_var0);
+		sw->addCase(idx1, block_var1);
+	}
+	
+	{
+		IRBuilder<> builder(context);
+		builder.SetInsertPoint(block_var0);
+		
+		bvm_llvm_copy_value(context, block_var0, out_val, in_dx, typespec);
+		builder.CreateBr(block_end);
+	}
+	
+	{
+		IRBuilder<> builder(context);
+		builder.SetInsertPoint(block_var1);
+		
+		bvm_llvm_copy_value(context, block_var1, out_val, in_dy, typespec);
+		builder.CreateBr(block_end);
+	}
+	
+	{
+		IRBuilder<> builder(context);
+		builder.SetInsertPoint(block_end);
+		
+		builder.CreateRetVoid();
+	}
+}
+
+void def_node_GET_DERIVATIVE_FLOAT(llvm::LLVMContext &context, llvm::Function *func)
+{
+	const TypeSpec *typespec = TypeSpec::get_typespec("FLOAT");
+	return def_node_GET_DERIVATIVE_t(context, func, typespec);
+}
+
+void def_node_GET_DERIVATIVE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func)
+{
+	const TypeSpec *typespec = TypeSpec::get_typespec("FLOAT3");
+	return def_node_GET_DERIVATIVE_t(context, func, typespec);
+}
+
+void def_node_GET_DERIVATIVE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func)
+{
+	const TypeSpec *typespec = TypeSpec::get_typespec("FLOAT4");
+	return def_node_GET_DERIVATIVE_t(context, func, typespec);
 }
 
 } /* namespace llvm */

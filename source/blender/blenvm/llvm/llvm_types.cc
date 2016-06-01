@@ -142,32 +142,68 @@ bool bvm_type_has_dual_value(const TypeSpec *spec)
 	return false;
 }
 
-llvm::Constant *bvm_make_zero(llvm::LLVMContext &context, const TypeSpec *spec)
+void bvm_llvm_set_zero(llvm::LLVMContext &context, llvm::BasicBlock *block, llvm::Value *ptr, const TypeSpec *spec)
 {
 	using namespace llvm;
 	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
 	if (spec->is_structure()) {
-		return NULL;
+		/* TODO */
+		BLI_assert(false);
 	}
 	else {
-#define BVM_MAKE_ZERO(t) \
-		make_zero<BVMTypeLLVMTraits<t>::value_type>(context)
+#define BVM_SET_ZERO(t) \
+		BVMTypeLLVMTraits<t>::set_zero(builder, ptr)
 		
 		switch (spec->base_type()) {
-			case BVM_FLOAT: return BVM_MAKE_ZERO(BVM_FLOAT);
-			case BVM_FLOAT3: return BVM_MAKE_ZERO(BVM_FLOAT3);
-			case BVM_FLOAT4: return BVM_MAKE_ZERO(BVM_FLOAT4);
-			case BVM_INT: return BVM_MAKE_ZERO(BVM_INT);
-			case BVM_MATRIX44: return BVM_MAKE_ZERO(BVM_MATRIX44);
-			case BVM_STRING: return BVM_MAKE_ZERO(BVM_STRING);
-			case BVM_RNAPOINTER: return BVM_MAKE_ZERO(BVM_RNAPOINTER);
-			case BVM_MESH: return BVM_MAKE_ZERO(BVM_MESH);
-			case BVM_DUPLIS: return BVM_MAKE_ZERO(BVM_DUPLIS);
+			case BVM_FLOAT: BVM_SET_ZERO(BVM_FLOAT); break;
+			case BVM_FLOAT3: BVM_SET_ZERO(BVM_FLOAT3); break;
+			case BVM_FLOAT4: BVM_SET_ZERO(BVM_FLOAT4); break;
+			case BVM_INT: BVM_SET_ZERO(BVM_INT); break;
+			case BVM_MATRIX44: BVM_SET_ZERO(BVM_MATRIX44); break;
+			case BVM_STRING: BVM_SET_ZERO(BVM_STRING); break;
+			case BVM_RNAPOINTER: BVM_SET_ZERO(BVM_RNAPOINTER); break;
+			case BVM_MESH: BVM_SET_ZERO(BVM_MESH); break;
+			case BVM_DUPLIS: BVM_SET_ZERO(BVM_DUPLIS); break;
 		}
 		
-#undef BVM_MAKE_ZERO
+#undef BVM_SET_ZERO
 	}
-	return NULL;
+}
+
+void bvm_llvm_copy_value(llvm::LLVMContext &context, llvm::BasicBlock *block,
+                         llvm::Value *ptr, llvm::Value *value,
+                         const TypeSpec *spec)
+{
+	using namespace llvm;
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	if (spec->is_structure()) {
+		/* XXX TODO */
+		return;
+	}
+	else {
+#define BVM_COPY_VALUE(t) \
+		BVMTypeLLVMTraits<t>::copy_value(builder, ptr, value)
+		
+		switch (spec->base_type()) {
+			case BVM_FLOAT: BVM_COPY_VALUE(BVM_FLOAT); break;
+			case BVM_FLOAT3: BVM_COPY_VALUE(BVM_FLOAT3); break;
+			case BVM_FLOAT4: BVM_COPY_VALUE(BVM_FLOAT4); break;
+			case BVM_INT: BVM_COPY_VALUE(BVM_INT); break;
+			case BVM_MATRIX44: BVM_COPY_VALUE(BVM_MATRIX44); break;
+			case BVM_STRING: BVM_COPY_VALUE(BVM_STRING); break;
+			case BVM_RNAPOINTER: BVM_COPY_VALUE(BVM_RNAPOINTER); break;
+			case BVM_MESH: BVM_COPY_VALUE(BVM_MESH); break;
+			case BVM_DUPLIS: BVM_COPY_VALUE(BVM_DUPLIS); break;
+		}
+		
+#undef BVM_COPY_VALUE
+	}
 }
 
 } /* namespace blenvm */
