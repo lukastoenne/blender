@@ -47,6 +47,8 @@
 #include "BKE_texture.h"
 #include "BKE_deform.h"
 
+#include "BVM_api.h"
+
 #include "depsgraph_private.h"
 #include "MEM_guardedalloc.h"
 
@@ -209,6 +211,7 @@ static void displaceModifier_do(
 	float weight = 1.0f; /* init value unused but some compilers may complain */
 	const float delta_fixed = 1.0f - dmd->midlevel;  /* when no texture is used, we fallback to white */
 	float (*vert_clnors)[3] = NULL;
+	struct BVMEvalGlobals *globals = NULL;
 
 	if (!dmd->texture && dmd->direction == MOD_DISP_DIR_RGB_XYZ) return;
 	if (dmd->strength == 0.0f) return;
@@ -222,6 +225,10 @@ static void displaceModifier_do(
 		get_texture_coords((MappingInfoModifierData *)dmd, ob, dm, vertexCos, tex_co, numVerts);
 
 		modifier_init_texture(dmd->modifier.scene, dmd->texture);
+		
+		globals = BVM_globals_create();
+		if (dmd->texture->use_nodes && dmd->texture->nodetree != NULL)
+			BVM_globals_add_nodetree_relations(globals, dmd->texture->nodetree);
 	}
 	else {
 		tex_co = NULL;
@@ -259,7 +266,11 @@ static void displaceModifier_do(
 
 		if (dmd->texture) {
 			texres.nor = NULL;
-			BKE_texture_get_value(dmd->modifier.scene, dmd->texture, tex_co[i], &texres, false);
+			BKE_texture_get_value_ex(globals,
+			                         dmd->modifier.scene, dmd->texture,
+			                         tex_co[i], NULL, NULL,
+			                         &texres, NULL, NULL,
+			                         false);
 			delta = texres.tin - dmd->midlevel;
 		}
 		else {
@@ -303,6 +314,10 @@ static void displaceModifier_do(
 
 	if (vert_clnors) {
 		MEM_freeN(vert_clnors);
+	}
+
+	if (globals) {
+		BVM_globals_free(globals);
 	}
 }
 

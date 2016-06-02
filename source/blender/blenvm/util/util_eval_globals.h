@@ -25,40 +25,56 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_EVAL_H__
-#define __BVM_EVAL_H__
+#ifndef __UTIL_EVAL_GLOBALS_H__
+#define __UTIL_EVAL_GLOBALS_H__
 
-/** \file bvm_eval.h
+/** \file util_eval_globals.h
  *  \ingroup bvm
  */
 
 #include "MEM_guardedalloc.h"
 
-#include "util_eval_globals.h"
+extern "C" {
+#include "RNA_access.h"
+}
+
+#include "util_map.h"
+#include "util_string.h"
+
+struct ID;
+struct Image;
+struct ImagePool;
+struct ImageUser;
+struct ImBuf;
+struct Object;
 
 namespace blenvm {
 
-struct InstructionList;
+struct EvalGlobals {
+	typedef unordered_map<int, Object *> ObjectMap;
+	typedef unordered_map<int, Image *> ImageMap;
+	
+	EvalGlobals();
+	~EvalGlobals();
+	
+	static int get_id_key(ID *id);
+	
+	ImagePool *image_pool() const { return m_image_pool; }
+	
+	void add_object(int key, Object *ob);
+	PointerRNA lookup_object(int key) const;
+	
+	void add_image(int key, Image *ima);
+	ImBuf *lookup_imbuf(int key, ImageUser *iuser) const;
+	
+private:
+	ObjectMap m_objects;
+	ImageMap m_images;
+	ImagePool *m_image_pool;
 
-#define BVM_STACK_SIZE 4095
-
-struct EvalStack {
-	static int stack_size(size_t datasize);
-	
-	int value;
-};
-
-struct EvalContext {
-	EvalContext();
-	~EvalContext();
-	
-	void eval_expression(const EvalGlobals *globals, const InstructionList *instr, int entry_point, EvalStack *stack) const;
-	
-	void eval_instructions(const EvalGlobals *globals, const InstructionList *instr, int entry_point, EvalStack *stack) const;
-	
-	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalContext")
+	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:EvalGlobals")
 };
 
 } /* namespace blenvm */
 
-#endif /* __BVM_EVAL_H__ */
+#endif /* __UTIL_EVAL_GLOBALS_H__ */

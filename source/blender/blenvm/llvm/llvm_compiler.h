@@ -121,13 +121,15 @@ protected:
 	
 	llvm::Function *declare_function(llvm::Module *mod, const string &name,
 	                                 const FunctionParameterList &input_types,
-	                                 const FunctionParameterList &output_types);
+	                                 const FunctionParameterList &output_types,
+	                                 bool use_globals);
 	llvm::Function *declare_node_function(llvm::Module *mod, const NodeType *nodetype);
 	virtual void define_nodes_module() = 0;
 	virtual llvm::Module *get_nodes_module() const = 0;
 	
 private:
 	llvm::Module *m_module;
+	llvm::Value *m_globals_ptr;
 };
 
 struct LLVMTextureCompiler : public LLVMCompilerBase {

@@ -190,6 +190,7 @@ def register():
             NodeItem("ObjectValueIntNode"),
             NodeItem("ObjectValueVectorNode"),
             NodeItem("ObjectValueColorNode"),
+            NodeItem("ImageSampleNode"),
             ]),
         TextureNodeCategory("TEX_OUTPUT", "Output", items=[
             NodeItem("TextureOutputNode"),

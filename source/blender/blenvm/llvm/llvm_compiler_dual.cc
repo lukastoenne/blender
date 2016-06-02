@@ -400,7 +400,7 @@ llvm::Function *LLVMTextureCompiler::declare_elementary_node_function(
 		return NULL;
 	}
 	
-	return declare_function(mod, name, input_types, output_types);
+	return declare_function(mod, name, input_types, output_types, nodetype->use_globals());
 }
 
 void LLVMTextureCompiler::define_elementary_functions(llvm::Module *mod, OpCode op, const NodeType *nodetype)
@@ -445,6 +445,14 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod,
 	std::vector<Value*> call_args_value, call_args_dx, call_args_dy;
 	
 	Function::arg_iterator arg_it = func->arg_begin();
+	
+	if (nodetype->use_globals()) {
+		Value *globals = arg_it++;
+		call_args_value.push_back(globals);
+		call_args_dx.push_back(globals);
+		call_args_dy.push_back(globals);
+	}
+	
 	/* output arguments */
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
@@ -507,13 +515,14 @@ void LLVMTextureCompiler::define_dual_function_wrapper(llvm::Module *mod,
 	}
 	else {
 		/* zero the derivatives */
-		for (int i = 0; i < nodetype->num_outputs(); ++i, ++arg_it) {
+		for (int i = 0; i < nodetype->num_outputs(); ++i) {
 			const NodeOutput *output = nodetype->find_output(i);
 			const TypeSpec *typespec = output->typedesc.get_typespec();
 			
 			if (bvm_type_has_dual_value(typespec)) {
-				bvm_llvm_set_zero(context(), block, call_args_dx[i], typespec);
-				bvm_llvm_set_zero(context(), block, call_args_dy[i], typespec);
+				int arg_i = nodetype->use_globals() ? i + 1 : i;
+				bvm_llvm_set_zero(context(), block, call_args_dx[arg_i], typespec);
+				bvm_llvm_set_zero(context(), block, call_args_dy[arg_i], typespec);
 			}
 		}
 	}

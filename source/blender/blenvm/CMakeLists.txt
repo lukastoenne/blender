@@ -33,6 +33,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../depsgraph
+	../imbuf
 	../makesdna
 	../makesrna
 	../render/extern/include
@@ -54,12 +55,15 @@ set(SRC
 	modules/mod_defines.h
 	modules/mod_base.h
 	modules/mod_color.h
+	modules/mod_image.h
 	modules/mod_math.h
 	modules/mod_texture.h
 
 	util/util_opcode.h
 	util/util_data_ptr.h
 	util/util_debug.h
+	util/util_eval_globals.cc
+	util/util_eval_globals.h
 	util/util_hash.h
 	util/util_map.h
 	util/util_math.h

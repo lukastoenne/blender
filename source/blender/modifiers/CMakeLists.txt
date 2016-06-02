@@ -30,6 +30,7 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blenfont
+	../blenvm
 	../depsgraph
 	../makesdna
 	../makesrna

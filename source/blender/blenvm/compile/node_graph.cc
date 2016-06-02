@@ -74,9 +74,10 @@ NodeOutput::~NodeOutput()
 
 /* ------------------------------------------------------------------------- */
 
-NodeType::NodeType(const string &name, eNodeTypeKind kind) :
+NodeType::NodeType(const string &name, eNodeTypeKind kind, bool use_globals) :
     m_name(name),
-    m_kind(kind)
+    m_kind(kind),
+    m_use_globals(use_globals)
 {
 }
 
@@ -1773,6 +1774,7 @@ static void register_opcode_node_types()
 	nt->add_output("duplis", "DUPLIS");
 	
 	nt = NodeGraph::add_node_type("IMAGE_SAMPLE");
+	nt->set_use_globals(true);
 	nt->add_input("image", "INT", 0);
 	nt->add_input("uv", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
 	nt->add_output("color", "FLOAT4");

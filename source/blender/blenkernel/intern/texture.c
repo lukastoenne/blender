@@ -1660,7 +1660,21 @@ bool BKE_texture_dependsOnTime(const struct Tex *texture)
 
 void BKE_texture_get_value(
         const Scene *scene, Tex *texture,
-        float *tex_co, TexResult *texres, bool use_color_management)
+        const float *tex_co, TexResult *texres,
+        bool use_color_management)
+{
+	BKE_texture_get_value_ex(NULL, scene, texture,
+	                         tex_co, NULL, NULL,
+	                         texres, NULL, NULL,
+	                         use_color_management);
+}
+
+void BKE_texture_get_value_ex(
+        struct BVMEvalGlobals *globals,
+        const Scene *scene, Tex *texture,
+        const float *tex_co, const float *tex_dx, const float *tex_dy,
+        TexResult *texres, TexResult *texres_dx, TexResult *texres_dy,
+        bool use_color_management)
 {
 	int result_type;
 	bool do_color_manage = false;
@@ -1669,36 +1683,13 @@ void BKE_texture_get_value(
 		do_color_manage = BKE_scene_check_color_management_enabled(scene);
 	}
 
-	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage, false);
-
-	/* if the texture gave an RGB value, we assume it didn't give a valid
-	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
-	 * if the texture didn't give an RGB value, copy the intensity across
-	 */
-	if (result_type & TEX_RGB) {
-		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
-	}
-	else {
-		copy_v3_fl(&texres->tr, texres->tin);
-	}
-}
-
-void BKE_texture_get_value_deriv(
-        const Scene *scene, Tex *texture,
-        const float *tex_co, const float *tex_dx, const float *tex_dy,
-        TexResult *texres, TexResult *texres_dx, TexResult *texres_dy,
-        bool UNUSED(use_color_management))
-{
-	int result_type;
-
-	/* no node textures for now */
 	if (texture->use_nodes && texture->nodetree) {
 		struct BVMFunction *fn = BVM_gen_texture_function_llvm(texture->nodetree, true);
 		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			
-			BVM_eval_texture_llvm(context, fn, 
+			BVM_eval_texture_llvm(globals,
+			                      context, fn,
 			                      texres, texres_dx, texres_dy,
 			                      tex_co, tex_dx, tex_dy,
 			                      0, 0, scene->r.cfra, false);
@@ -1707,6 +1698,10 @@ void BKE_texture_get_value_deriv(
 			BVM_context_free(context);
 			BVM_function_llvm_release(fn);
 		}
+	}
+	else {
+		struct ImagePool *image_pool = (globals ? BVM_globals_image_pool(globals) : NULL);
+		result_type = multitex_ext_safe(texture, (float*)tex_co, texres, image_pool, do_color_manage, false);
 	}
 
 	/* if the texture gave an RGB value, we assume it didn't give a valid

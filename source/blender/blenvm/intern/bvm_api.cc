@@ -77,6 +77,13 @@ extern "C" {
 namespace blenvm {
 static mesh_ptr __empty_mesh__;
 static duplis_ptr __empty_duplilist__ = duplis_ptr(new DupliList());
+
+static blenvm::EvalGlobals *eval_globals_default()
+{
+	static blenvm::EvalGlobals default_globals;
+	return &default_globals;
+}
+
 }
 
 void BVM_init(void)
@@ -291,6 +298,9 @@ struct BVMEvalGlobals *BVM_globals_create(void)
 
 void BVM_globals_free(struct BVMEvalGlobals *globals)
 { delete _GLOBALS(globals); }
+
+struct ImagePool *BVM_globals_image_pool(struct BVMEvalGlobals *globals)
+{ return _GLOBALS(globals)->image_pool(); }
 
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob)
 { _GLOBALS(globals)->add_object(key, ob); }
@@ -556,7 +566,8 @@ void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalConte
 
 namespace blenvm {
 
-typedef void (*TexNodesFunc)(Dual2<float4> *r_color, Dual2<float3> *r_normal,
+typedef void (*TexNodesFunc)(const struct EvalGlobals *globals,
+                             Dual2<float4> *r_color, Dual2<float3> *r_normal,
                              const Dual2<float3> *co, int cfra, int osatex);
 
 static void set_texresult(TexResult *result, const float4 &color, const float3 &normal)
@@ -672,37 +683,41 @@ void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *lab
 	debug_node_graph(graph, debug_file, label, mode);
 }
 
-void BVM_eval_texture_bvm(struct BVMEvalContext *ctx, struct BVMFunction *fn,
+void BVM_eval_texture_bvm(struct BVMEvalGlobals *_globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
                           struct TexResult *target,
                           float coord[3], float dxt[3], float dyt[3], int osatex,
                           short UNUSED(which_output), int cfra, int UNUSED(preview))
 {
 	using namespace blenvm;
 	
-	EvalGlobals globals;
+	EvalGlobals *globals = _GLOBALS(_globals);
+	if (globals == NULL)
+		globals = eval_globals_default();
 	
 	float4 color;
 	float3 normal;
 	const void *args[] = { coord, dxt, dyt, &cfra, &osatex };
 	void *results[] = { &color.x, &normal.x };
 	
-	_FUNC_BVM(fn)->eval(_CTX(ctx), &globals, args, results);
+	_FUNC_BVM(fn)->eval(_CTX(ctx), globals, args, results);
 	
 	set_texresult(target, color, normal);
 }
 
-void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunction *fn,
+void BVM_eval_texture_llvm(struct BVMEvalGlobals *_globals, struct BVMEvalContext *UNUSED(ctx), struct BVMFunction *fn,
                            struct TexResult *value, struct TexResult *value_dx, struct TexResult *value_dy,
                            const float coord[3], const float dxt[3], const float dyt[3], int osatex,
                            short UNUSED(which_output), int cfra, int UNUSED(preview))
 {
 	using namespace blenvm;
 	
-	EvalGlobals globals;
+	EvalGlobals *globals = _GLOBALS(_globals);
+	if (globals == NULL)
+		globals = eval_globals_default();
+	
 	Dual2<float4> r_color;
 	Dual2<float3> r_normal;
 	
-	UNUSED_VARS(globals);
 #ifdef WITH_LLVM
 	TexNodesFunc fp = (TexNodesFunc)_FUNC_LLVM(fn)->ptr();
 	
@@ -717,9 +732,9 @@ void BVM_eval_texture_llvm(struct BVMEvalContext *UNUSED(ctx), struct BVMFunctio
 	else
 		coord_v.set_dy(float3(0.0f, 1.0f, 0.0f));
 	
-	fp(&r_color, &r_normal, &coord_v, cfra, osatex);
+	fp(globals, &r_color, &r_normal, &coord_v, cfra, osatex);
 #else
-	UNUSED_VARS(fn, coord, dxt, dyt, cfra, osatex);
+	UNUSED_VARS(fn, globals, coord, dxt, dyt, cfra, osatex);
 	r_color = Dual2<float4>(float4(0.0f, 0.0f, 0.0f, 0.0f));
 	r_normal = Dual2<float3>(float3(0.0f, 0.0f, 1.0f));
 #endif

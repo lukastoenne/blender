@@ -39,6 +39,7 @@ extern "C" {
 
 struct bNode;
 struct Brush;
+struct BVMEvalGlobals;
 struct ColorBand;
 struct EnvMap;
 struct EvaluationContext;
@@ -136,8 +137,9 @@ bool    BKE_texture_is_image_user(const struct Tex *tex);
 
 void BKE_texture_get_value(
         const struct Scene *scene, struct Tex *texture,
-        float *tex_co, struct TexResult *texres, bool use_color_management);
-void BKE_texture_get_value_deriv(
+        const float *tex_co, struct TexResult *texres, bool use_color_management);
+void BKE_texture_get_value_ex(
+        struct BVMEvalGlobals *globals,
         const struct Scene *scene, struct Tex *texture,
         const float *tex_co, const float *tex_dx, const float *tex_dy,
         struct TexResult *texres, struct TexResult *texres_dx, struct TexResult *texres_dy,

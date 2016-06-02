@@ -32,6 +32,7 @@ set(INC
 	../util
 	../../blenkernel
 	../../blenlib
+	../../imbuf
 	../../makesdna
 	../../makesrna
 	../../../../intern/guardedalloc

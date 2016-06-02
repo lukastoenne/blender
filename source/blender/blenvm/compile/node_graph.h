@@ -98,11 +98,14 @@ struct NodeType {
 	typedef std::vector<NodeInput> InputList;
 	typedef std::vector<NodeOutput> OutputList;
 	
-	NodeType(const string &name, eNodeTypeKind kind = NODE_TYPE_FUNCTION);
+	NodeType(const string &name, eNodeTypeKind kind = NODE_TYPE_FUNCTION, bool use_globals = false);
 	~NodeType();
 	
 	const string &name() const { return m_name; }
 	eNodeTypeKind kind() const { return m_kind; }
+	bool use_globals() const { return m_use_globals; }
+	
+	void set_use_globals(bool use_globals) { m_use_globals = use_globals; }
 	
 	int num_inputs() const { return m_inputs.size(); }
 	int num_outputs() const { return m_outputs.size(); }
@@ -139,6 +142,7 @@ private:
 	InputList m_inputs;
 	OutputList m_outputs;
 	eNodeTypeKind m_kind;
+	bool m_use_globals;
 
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeType")
 };

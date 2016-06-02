@@ -26,6 +26,7 @@
 set(INC
 	.
 	..
+	../intern
 	../modules
 	../util
 	../../blenkernel

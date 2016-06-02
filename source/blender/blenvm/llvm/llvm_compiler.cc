@@ -49,7 +49,8 @@
 namespace blenvm {
 
 LLVMCompilerBase::LLVMCompilerBase() :
-    m_module(NULL)
+    m_module(NULL),
+    m_globals_ptr(NULL)
 {
 }
 
@@ -115,28 +116,28 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	using namespace llvm;
 	
 	node_graph_begin();
+	/* cache function arguments */
+	int num_inputs = graph.inputs.size();
+	int num_outputs = graph.outputs.size();
+	std::vector<Argument*> input_args(num_inputs), output_args(num_outputs);
+	{
+		Function::ArgumentListType::iterator arg_it = func->arg_begin();
+		m_globals_ptr = arg_it++; /* globals, passed to functions which need it */
+		for (int i = 0; i < num_outputs; ++i)
+			output_args[i] = arg_it++;
+		for (int i = 0; i < num_inputs; ++i)
+			input_args[i] = arg_it++;
+	}
 	
 	IRBuilder<> builder(context());
 	
 	BasicBlock *block = BasicBlock::Create(context(), "entry", func);
 	builder.SetInsertPoint(block);
 	
-	int num_inputs = graph.inputs.size();
-	int num_outputs = graph.outputs.size();
-	
-	{
-		Function::ArgumentListType::iterator it = func->arg_begin();
-		for (int i = 0; i < num_outputs; ++i) {
-			/* skip output arguments */
-			++it;
-		}
-		for (int i = 0; i < num_inputs; ++i) {
-			const NodeGraph::Input &input = graph.inputs[i];
-			Argument *arg = it++;
-			
-			if (input.key)
-				map_argument(block, input.key, arg);
-		}
+	for (int i = 0; i < num_inputs; ++i) {
+		const NodeGraph::Input &input = graph.inputs[i];
+		if (input.key)
+			map_argument(block, input.key, input_args[i]);
 	}
 	
 	OrderedNodeSet nodes;
@@ -149,19 +150,15 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 		codegen_node(block, &node);
 	}
 	
-	{
-		Function::ArgumentListType::iterator it = func->arg_begin();
-		for (int i = 0; i < num_outputs; ++i) {
-			const NodeGraph::Output &output = graph.outputs[i];
-			Argument *arg = it++;
-			
-			store_return_value(block, output.key, arg);
-		}
+	for (int i = 0; i < num_outputs; ++i) {
+		const NodeGraph::Output &output = graph.outputs[i];
+		store_return_value(block, output.key, output_args[i]);
 	}
 	
 	builder.CreateRetVoid();
 	
 	node_graph_end();
+	m_globals_ptr = NULL;
 	
 	return block;
 }
@@ -182,8 +179,8 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 		output_types.push_back(FunctionParameter(type, output.name));
 	}
 	
-	Function *func = declare_function(module(), name, input_types, output_types);
-	BLI_assert(func->getArgumentList().size() == graph.inputs.size() + graph.outputs.size() &&
+	Function *func = declare_function(module(), name, input_types, output_types, true);
+	BLI_assert(func->getArgumentList().size() == 1 + graph.inputs.size() + graph.outputs.size() &&
 	           "Error: Function has wrong number of arguments for node tree\n");
 	
 	codegen_function_body_expression(graph, func);
@@ -278,6 +275,10 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 	/* function call arguments */
 	std::vector<Value *> args;
 	
+	if (node->type->use_globals()) {
+		args.push_back(m_globals_ptr);
+	}
+	
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
 		
@@ -313,11 +314,18 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 
 llvm::Function *LLVMCompilerBase::declare_function(llvm::Module *mod, const string &name,
                                                    const FunctionParameterList &input_types,
-                                                   const FunctionParameterList &output_types)
+                                                   const FunctionParameterList &output_types,
+                                                   bool use_globals)
 {
 	using namespace llvm;
 	
 	std::vector<llvm::Type*> arg_types;
+	
+	if (use_globals) {
+		Type *t_globals = llvm::TypeBuilder<void*, false>::get(context());
+		arg_types.push_back(t_globals);
+	}
+	
 	for (int i = 0; i < output_types.size(); ++i) {
 		Type *type = output_types[i].type;
 		/* use a pointer to store output values */
@@ -332,11 +340,14 @@ llvm::Function *LLVMCompilerBase::declare_function(llvm::Module *mod, const stri
 	Function *func = Function::Create(functype, Function::ExternalLinkage, name, mod);
 	
 	Function::arg_iterator it = func->arg_begin();
-	for (size_t i = 0; i < output_types.size(); ++i, ++it) {
-		it->setName(output_types[i].name);
+	if (use_globals) {
+		(it++)->setName("globals");
 	}
-	for (size_t i = 0; i < input_types.size(); ++i, ++it) {
-		it->setName(input_types[i].name);
+	for (size_t i = 0; i < output_types.size(); ++i) {
+		(it++)->setName(output_types[i].name);
+	}
+	for (size_t i = 0; i < input_types.size(); ++i) {
+		(it++)->setName(input_types[i].name);
 	}
 	
 	return func;
@@ -356,7 +367,7 @@ llvm::Function *LLVMCompilerBase::declare_node_function(llvm::Module *mod, const
 		append_output_types(output_types, output);
 	}
 	
-	return declare_function(mod, nodetype->name(), input_types, output_types);
+	return declare_function(mod, nodetype->name(), input_types, output_types, nodetype->use_globals());
 }
 
 /* ------------------------------------------------------------------------- */
@@ -373,15 +384,6 @@ FunctionLLVM *LLVMCompilerBase::compile_function(const string &name, const NodeG
 	
 	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
 	optimize_function(func, opt_level);
-	
-#if 0
-	printf("=== NODE FUNCTION ===\n");
-	fflush(stdout);
-//	func->dump();
-	module()->dump();
-	printf("=====================\n");
-	fflush(stdout);
-#endif
 	
 	verifyFunction(*func, &outs());
 	verifyModule(*module(), &outs());

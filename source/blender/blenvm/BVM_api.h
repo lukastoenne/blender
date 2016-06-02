@@ -91,6 +91,7 @@ BVMBufferType BVM_typedesc_buffer_type(struct BVMTypeDesc *typedesc);
 
 /* ------------------------------------------------------------------------- */
 
+struct bNodeTree;
 struct DepsNodeHandle;
 
 void BVM_nodetree_compile_dependencies(struct bNodeTree *ntree, struct DepsNodeHandle *handle);
@@ -102,10 +103,12 @@ struct BVMEvalGlobals;
 struct BVMEvalContext;
 
 struct bNodeTree;
+struct ImagePool;
 
 struct BVMEvalGlobals *BVM_globals_create(void);
 void BVM_globals_free(struct BVMEvalGlobals *globals);
 
+struct ImagePool *BVM_globals_image_pool(struct BVMEvalGlobals *globals);
 void BVM_globals_add_object(struct BVMEvalGlobals *globals, int key, struct Object *ob);
 void BVM_globals_add_nodetree_relations(struct BVMEvalGlobals *globals, struct bNodeTree *ntree);
 
@@ -139,7 +142,7 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree, boo
 void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
-                         struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
+                             struct Object *effob, const struct EffectedPoint *point, float force[3], float impulse[3]);
 
 /* ------------------------------------------------------------------------- */
 
@@ -151,11 +154,13 @@ struct BVMFunction *BVM_gen_texture_function_llvm(struct bNodeTree *btree, bool 
 
 void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
-void BVM_eval_texture_bvm(struct BVMEvalContext *context, struct BVMFunction *fn,
+void BVM_eval_texture_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context,
+                          struct BVMFunction *fn,
                           struct TexResult *target,
                           float coord[3], float dxt[3], float dyt[3], int osatex,
                           short which_output, int cfra, int preview);
-void BVM_eval_texture_llvm(struct BVMEvalContext *context, struct BVMFunction *fn,
+void BVM_eval_texture_llvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context,
+                           struct BVMFunction *fn,
                            struct TexResult *value,
                            struct TexResult *value_dx,
                            struct TexResult *value_dy,

@@ -30,6 +30,7 @@
 
 #include "mod_base.h"
 #include "mod_color.h"
+#include "mod_image.h"
 #include "mod_math.h"
 #include "mod_texture.h"
 
