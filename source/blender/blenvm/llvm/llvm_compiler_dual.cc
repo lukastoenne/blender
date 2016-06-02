@@ -98,10 +98,14 @@ void LLVMTextureCompiler::copy_node_value(const ConstOutputKey &from, const Cons
 
 void LLVMTextureCompiler::append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output)
 {
+	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
+	
 	DualValue val = m_output_values.at(output);
 	args.push_back(val.value());
-	args.push_back(val.dx());
-	args.push_back(val.dy());
+	if (bvm_type_has_dual_value(typespec)) {
+		args.push_back(val.dx());
+		args.push_back(val.dy());
+	}
 }
 
 void LLVMTextureCompiler::append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
@@ -115,13 +119,17 @@ void LLVMTextureCompiler::append_input_value(llvm::BasicBlock *block, std::vecto
 	DualValue ptr = m_output_values.at(link);
 	if (use_argument_pointer(typespec, false)) {
 		args.push_back(ptr.value());
-		args.push_back(ptr.dx());
-		args.push_back(ptr.dy());
+		if (bvm_type_has_dual_value(typespec)) {
+			args.push_back(ptr.dx());
+			args.push_back(ptr.dy());
+		}
 	}
 	else {
 		args.push_back(builder.CreateLoad(ptr.value()));
-		args.push_back(builder.CreateLoad(ptr.dx()));
-		args.push_back(builder.CreateLoad(ptr.dy()));
+		if (bvm_type_has_dual_value(typespec)) {
+			args.push_back(builder.CreateLoad(ptr.dx()));
+			args.push_back(builder.CreateLoad(ptr.dy()));
+		}
 	}
 }
 
