@@ -975,19 +975,23 @@ static int sk_getStrokeSnapPoint(bContext *C, SK_Point *pt, SK_Sketch *sketch, S
 	        CTX_wm_region(C), CTX_wm_view3d(C));
 
 	float mvalf[2] = {UNPACK2(dd->mval)};
-	float r_loc[3], dummy_no[3];
+	float loc[3], dummy_no[3];
 
 	if (ts->snap_mode == SCE_SNAP_MODE_VOLUME) {
 		float size;
 		if (peelObjectsSnapContext(
-		        snap_context, mvalf, SNAP_ALL,
+		        snap_context, mvalf,
+		        &(const struct SnapObjectParams){
+		            .snap_select = SNAP_NOT_SELECTED,
+		            .use_object_edit_cage = false,
+		        },
 		        (ts->snap_flag & SCE_SNAP_PEEL_OBJECT) != 0,
-		        r_loc, dummy_no, &size))
+		        loc, dummy_no, &size))
 		{
 			pt->type = dd->type;
 			pt->mode = PT_SNAP;
 			pt->size = size / 2;
-			copy_v3_v3(pt->p, r_loc);
+			copy_v3_v3(pt->p, loc);
 
 			point_added = 1;
 		}
@@ -1017,16 +1021,17 @@ static int sk_getStrokeSnapPoint(bContext *C, SK_Point *pt, SK_Sketch *sketch, S
 		{
 			if (ED_transform_snap_object_project_view3d(
 			        snap_context,
+			        ts->snap_mode,
 			        &(const struct SnapObjectParams){
 			            .snap_select = SNAP_NOT_SELECTED,
-			            .snap_to = ts->snap_mode,
+			            .use_object_edit_cage = false,
 			        },
 			        mvalf, &dist_px, NULL,
-			        r_loc, dummy_no))
+			        loc, dummy_no))
 			{
 				pt->type = dd->type;
 				pt->mode = PT_SNAP;
-				copy_v3_v3(pt->p, r_loc);
+				copy_v3_v3(pt->p, loc);
 
 				point_added = 1;
 			}

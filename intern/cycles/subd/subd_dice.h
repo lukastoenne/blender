@@ -70,9 +70,9 @@ public:
 	size_t vert_offset;
 	size_t tri_offset;
 
-	EdgeDice(const SubdParams& params);
+	explicit EdgeDice(const SubdParams& params);
 
-	void reserve(int num_verts, int num_tris);
+	void reserve(int num_verts);
 
 	int add_vert(Patch *patch, float2 uv);
 	void add_triangle(Patch *patch, int v0, int v1, int v2);
@@ -111,7 +111,7 @@ public:
 		int tv1;
 	};
 
-	QuadDice(const SubdParams& params);
+	explicit QuadDice(const SubdParams& params);
 
 	void reserve(EdgeFactors& ef, int Mu, int Mv);
 	float3 eval_projected(SubPatch& sub, float u, float v);
@@ -165,7 +165,7 @@ public:
 		int tw;
 	};
 
-	TriangleDice(const SubdParams& params);
+	explicit TriangleDice(const SubdParams& params);
 
 	void reserve(EdgeFactors& ef, int M);
 

@@ -110,8 +110,10 @@ public:
 	device_vector<uint> sobol_directions;
 
 	/* cpu images */
-	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_IMAGES_CPU];
-	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_IMAGES_CPU];
+	device_vector<uchar4> tex_byte4_image[TEX_NUM_BYTE4_CPU];
+	device_vector<float4> tex_float4_image[TEX_NUM_FLOAT4_CPU];
+	device_vector<float> tex_float_image[TEX_NUM_FLOAT_CPU];
+	device_vector<uchar> tex_byte_image[TEX_NUM_BYTE_CPU];
 
 	/* opencl images */
 	device_vector<uchar4> tex_image_byte4_packed;
@@ -186,11 +188,11 @@ public:
 	VolumeManager *volume_manager;
 
 	/* default shaders */
-	int default_surface;
-	int default_light;
-	int default_background;
-	int default_empty;
-	int default_volume;
+	Shader *default_surface;
+	Shader *default_light;
+	Shader *default_background;
+	Shader *default_empty;
+	Shader *default_volume;
 
 	/* device */
 	Device *device;

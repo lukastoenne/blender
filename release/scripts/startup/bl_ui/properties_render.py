@@ -248,6 +248,7 @@ class RENDER_PT_shading(RenderButtonsPanel, Panel):
         col = split.column()
         col.prop(rd, "use_raytrace", text="Ray Tracing")
         col.prop(rd, "alpha_mode", text="Alpha")
+        col.prop(rd, "use_world_space_shading", text="World Space Shading")
 
 
 class RENDER_PT_performance(RenderButtonsPanel, Panel):
@@ -360,6 +361,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         col.prop(rd, "use_stamp_render_time", text="RenderTime")
         col.prop(rd, "use_stamp_frame", text="Frame")
         col.prop(rd, "use_stamp_scene", text="Scene")
+        col.prop(rd, "use_stamp_memory", text="Memory")
 
         col = split.column()
         col.prop(rd, "use_stamp_camera", text="Camera")
