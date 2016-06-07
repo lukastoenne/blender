@@ -99,7 +99,7 @@ void kernel_tex_copy(KernelGlobals *kg,
 		int id = atoi(name + strlen("__tex_image_float4_"));
 		int array_index = id;
 
-		if(array_index >= 0 && array_index < TEX_NUM_FLOAT4_IMAGES_CPU) {
+		if(array_index >= 0 && array_index < TEX_NUM_FLOAT4_CPU) {
 			tex = &kg->texture_float4_images[array_index];
 		}
 
@@ -110,17 +110,49 @@ void kernel_tex_copy(KernelGlobals *kg,
 			tex->extension = extension;
 		}
 	}
+	else if(strstr(name, "__tex_image_float")) {
+		texture_image_float *tex = NULL;
+		int id = atoi(name + strlen("__tex_image_float_"));
+		int array_index = id - TEX_START_FLOAT_CPU;
+
+		if(array_index >= 0 && array_index < TEX_NUM_FLOAT_CPU) {
+			tex = &kg->texture_float_images[array_index];
+		}
+
+		if(tex) {
+			tex->data = (float*)mem;
+			tex->dimensions_set(width, height, depth);
+			tex->interpolation = interpolation;
+			tex->extension = extension;
+		}
+	}
 	else if(strstr(name, "__tex_image_byte4")) {
 		texture_image_uchar4 *tex = NULL;
 		int id = atoi(name + strlen("__tex_image_byte4_"));
-		int array_index = id - TEX_NUM_FLOAT4_IMAGES_CPU;
+		int array_index = id - TEX_START_BYTE4_CPU;
 
-		if(array_index >= 0 && array_index < TEX_NUM_BYTE4_IMAGES_CPU) {
+		if(array_index >= 0 && array_index < TEX_NUM_BYTE4_CPU) {
 			tex = &kg->texture_byte4_images[array_index];
 		}
 
 		if(tex) {
 			tex->data = (uchar4*)mem;
+			tex->dimensions_set(width, height, depth);
+			tex->interpolation = interpolation;
+			tex->extension = extension;
+		}
+	}
+	else if(strstr(name, "__tex_image_byte")) {
+		texture_image_uchar *tex = NULL;
+		int id = atoi(name + strlen("__tex_image_byte_"));
+		int array_index = id - TEX_START_BYTE_CPU;
+
+		if(array_index >= 0 && array_index < TEX_NUM_BYTE_CPU) {
+			tex = &kg->texture_byte_images[array_index];
+		}
+
+		if(tex) {
+			tex->data = (uchar*)mem;
 			tex->dimensions_set(width, height, depth);
 			tex->interpolation = interpolation;
 			tex->extension = extension;

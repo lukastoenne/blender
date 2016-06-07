@@ -42,6 +42,8 @@
 #include "kernel_montecarlo.h"
 #include "kernel_camera.h"
 
+#include "kernels/cpu/kernel_cpu_image.h"
+
 /* Note: "util_foreach.h" needs to be included after "kernel_compat_cpu.h", as
  * for some reason ccl::foreach conflicts with openvdb::tools::foreach, which is
  * indirectly included through "kernel_compat_cpu.h".

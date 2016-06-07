@@ -67,6 +67,7 @@ set(SRC_KERNELS_CPU_HEADERS
 	kernel.h
 	kernels/cpu/kernel_cpu.h
 	kernels/cpu/kernel_cpu_impl.h
+	kernels/cpu/kernel_cpu_image.h
 )
 
 set(SRC_CLOSURE_HEADERS
@@ -234,6 +235,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			OUTPUT ${cuda_cubin}
 			COMMAND ${CUDA_NVCC_EXECUTABLE}
 					-arch=${arch}
+					${CUDA_NVCC_FLAGS}
 					-m${CUDA_BITS}
 					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/kernel.cu
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin}

@@ -101,11 +101,6 @@
 
 #include "bmesh.h"
 
-#ifdef WIN32
-#else
-#  include <sys/time.h>
-#endif
-
 const char *RE_engine_id_BLENDER_RENDER = "BLENDER_RENDER";
 const char *RE_engine_id_BLENDER_GAME = "BLENDER_GAME";
 const char *RE_engine_id_CYCLES = "CYCLES";
@@ -550,7 +545,7 @@ void BKE_scene_init(Scene *sce)
 	sce->r.bake.im_format.compress = 15;
 
 	sce->r.scemode = R_DOCOMP | R_DOSEQ | R_EXTENSION;
-	sce->r.stamp = R_STAMP_TIME | R_STAMP_FRAME | R_STAMP_DATE | R_STAMP_CAMERA | R_STAMP_SCENE | R_STAMP_FILENAME | R_STAMP_RENDERTIME;
+	sce->r.stamp = R_STAMP_TIME | R_STAMP_FRAME | R_STAMP_DATE | R_STAMP_CAMERA | R_STAMP_SCENE | R_STAMP_FILENAME | R_STAMP_RENDERTIME | R_STAMP_MEMORY;
 	sce->r.stamp_font_id = 12;
 	sce->r.fg_stamp[0] = sce->r.fg_stamp[1] = sce->r.fg_stamp[2] = 0.8f;
 	sce->r.fg_stamp[3] = 1.0f;
@@ -2196,6 +2191,12 @@ bool BKE_scene_use_shading_nodes_custom(Scene *scene)
 {
 	RenderEngineType *type = RE_engines_find(scene->r.engine);
 	return (type && type->flag & RE_USE_SHADING_NODES_CUSTOM);
+}
+
+bool BKE_scene_use_world_space_shading(Scene *scene)
+{
+	const RenderEngineType *type = RE_engines_find(scene->r.engine);
+	return (type && (type->flag & RE_USE_SHADING_NODES) || (scene->r.mode & R_USE_WS_SHADING));
 }
 
 bool BKE_scene_use_spherical_stereo(Scene *scene)

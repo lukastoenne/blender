@@ -1068,7 +1068,7 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op)
 }
 
 /* invoke callback, uses enum property named "type" */
-int WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+int WM_menu_invoke_ex(bContext *C, wmOperator *op, int opcontext)
 {
 	PropertyRNA *prop = op->type->prop;
 	uiPopupMenu *pup;
@@ -1090,13 +1090,18 @@ int WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 		pup = UI_popup_menu_begin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
 		layout = UI_popup_menu_layout(pup);
 		/* set this so the default execution context is the same as submenus */
-		uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);
-		uiItemsFullEnumO(layout, op->type->idname, RNA_property_identifier(prop), op->ptr->data, WM_OP_EXEC_REGION_WIN, 0);
+		uiLayoutSetOperatorContext(layout, opcontext);
+		uiItemsFullEnumO(layout, op->type->idname, RNA_property_identifier(prop), op->ptr->data, opcontext, 0);
 		UI_popup_menu_end(C, pup);
 		return OPERATOR_INTERFACE;
 	}
 
 	return OPERATOR_CANCELLED;
+}
+
+int WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_REGION_WIN);
 }
 
 
@@ -2845,7 +2850,6 @@ void WM_OT_straightline_gesture(wmOperatorType *ot)
 #define WM_RADIAL_CONTROL_DISPLAY_SIZE (200 * U.pixelsize)
 #define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE (35 * U.pixelsize)
 #define WM_RADIAL_CONTROL_DISPLAY_WIDTH (WM_RADIAL_CONTROL_DISPLAY_SIZE - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE)
-#define WM_RADIAL_CONTROL_HEADER_LENGTH 180
 #define WM_RADIAL_MAX_STR 10
 
 typedef struct {
@@ -2871,7 +2875,7 @@ typedef struct {
 static void radial_control_update_header(wmOperator *op, bContext *C)
 {
 	RadialControl *rc = op->customdata;
-	char msg[WM_RADIAL_CONTROL_HEADER_LENGTH];
+	char msg[UI_MAX_DRAW_STR];
 	ScrArea *sa = CTX_wm_area(C);
 	Scene *scene = CTX_data_scene(C);
 	
@@ -2879,34 +2883,33 @@ static void radial_control_update_header(wmOperator *op, bContext *C)
 		if (hasNumInput(&rc->num_input)) {
 			char num_str[NUM_STR_REP_LEN];
 			outputNumInput(&rc->num_input, num_str, &scene->unit);
-			BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %s", RNA_property_ui_name(rc->prop), num_str);
-			ED_area_headerprint(sa, msg);
+			BLI_snprintf(msg, sizeof(msg), "%s: %s", RNA_property_ui_name(rc->prop), num_str);
 		}
 		else {
 			const char *ui_name = RNA_property_ui_name(rc->prop);
 			switch (rc->subtype) {
 				case PROP_NONE:
 				case PROP_DISTANCE:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %0.4f", ui_name, rc->current_value);
+					BLI_snprintf(msg, sizeof(msg), "%s: %0.4f", ui_name, rc->current_value);
 					break;
 				case PROP_PIXEL:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %d", ui_name, (int)rc->current_value); /* XXX: round to nearest? */
+					BLI_snprintf(msg, sizeof(msg), "%s: %d", ui_name, (int)rc->current_value); /* XXX: round to nearest? */
 					break;
 				case PROP_PERCENTAGE:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %3.1f%%", ui_name, rc->current_value);
+					BLI_snprintf(msg, sizeof(msg), "%s: %3.1f%%", ui_name, rc->current_value);
 					break;
 				case PROP_FACTOR:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %1.3f", ui_name, rc->current_value);
+					BLI_snprintf(msg, sizeof(msg), "%s: %1.3f", ui_name, rc->current_value);
 					break;
 				case PROP_ANGLE:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s: %3.2f", ui_name, RAD2DEGF(rc->current_value));
+					BLI_snprintf(msg, sizeof(msg), "%s: %3.2f", ui_name, RAD2DEGF(rc->current_value));
 					break;
 				default:
-					BLI_snprintf(msg, WM_RADIAL_CONTROL_HEADER_LENGTH, "%s", ui_name); /* XXX: No value? */
+					BLI_snprintf(msg, sizeof(msg), "%s", ui_name); /* XXX: No value? */
 					break;
 			}
-			ED_area_headerprint(sa, msg);
 		}
+		ED_area_headerprint(sa, msg);
 	}
 }
 

@@ -495,11 +495,12 @@ static void cdDM_drawFacesTex_common(
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	const MPoly *mpoly = cddm->mpoly;
 	MTexPoly *mtexpoly = DM_get_poly_data_layer(dm, CD_MTEXPOLY);
-	const  MLoopCol *mloopcol;
+	const  MLoopCol *mloopcol = NULL;
 	int i;
 	int colType, start_element, tot_drawn;
 	const bool use_hide = (flag & DM_DRAW_SKIP_HIDDEN) != 0;
 	const bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
+	const bool use_colors = (flag & DM_DRAW_USE_COLORS) != 0;
 	int totpoly;
 	int next_actualFace;
 	int mat_index;
@@ -529,15 +530,17 @@ static void cdDM_drawFacesTex_common(
 		}
 	}
 
-	colType = CD_TEXTURE_MLOOPCOL;
-	mloopcol = dm->getLoopDataArray(dm, colType);
-	if (!mloopcol) {
-		colType = CD_PREVIEW_MLOOPCOL;
+	if (use_colors) {
+		colType = CD_TEXTURE_MLOOPCOL;
 		mloopcol = dm->getLoopDataArray(dm, colType);
-	}
-	if (!mloopcol) {
-		colType = CD_MLOOPCOL;
-		mloopcol = dm->getLoopDataArray(dm, colType);
+		if (!mloopcol) {
+			colType = CD_PREVIEW_MLOOPCOL;
+			mloopcol = dm->getLoopDataArray(dm, colType);
+		}
+		if (!mloopcol) {
+			colType = CD_MLOOPCOL;
+			mloopcol = dm->getLoopDataArray(dm, colType);
+		}
 	}
 
 	GPU_vertex_setup(dm);
@@ -1029,6 +1032,7 @@ static void cdDM_drawMappedFacesGLSL(
 
 				if (matconv[a].attribs.totorco && matconv[a].attribs.orco.array) {
 					matconv[a].datatypes[numdata].index = matconv[a].attribs.orco.gl_index;
+					matconv[a].datatypes[numdata].info_index = matconv[a].attribs.orco.gl_info_index;
 					matconv[a].datatypes[numdata].size = 3;
 					matconv[a].datatypes[numdata].type = GL_FLOAT;
 					numdata++;
@@ -1036,6 +1040,7 @@ static void cdDM_drawMappedFacesGLSL(
 				for (b = 0; b < matconv[a].attribs.tottface; b++) {
 					if (matconv[a].attribs.tface[b].array) {
 						matconv[a].datatypes[numdata].index = matconv[a].attribs.tface[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.tface[b].gl_info_index;
 						matconv[a].datatypes[numdata].size = 2;
 						matconv[a].datatypes[numdata].type = GL_FLOAT;
 						numdata++;
@@ -1044,6 +1049,7 @@ static void cdDM_drawMappedFacesGLSL(
 				for (b = 0; b < matconv[a].attribs.totmcol; b++) {
 					if (matconv[a].attribs.mcol[b].array) {
 						matconv[a].datatypes[numdata].index = matconv[a].attribs.mcol[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.mcol[b].gl_info_index;
 						matconv[a].datatypes[numdata].size = 4;
 						matconv[a].datatypes[numdata].type = GL_UNSIGNED_BYTE;
 						numdata++;
@@ -1052,6 +1058,7 @@ static void cdDM_drawMappedFacesGLSL(
 				for (b = 0; b < matconv[a].attribs.tottang; b++) {
 					if (matconv[a].attribs.tang[b].array) {
 						matconv[a].datatypes[numdata].index = matconv[a].attribs.tang[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.tang[b].gl_info_index;
 						matconv[a].datatypes[numdata].size = 4;
 						matconv[a].datatypes[numdata].type = GL_FLOAT;
 						numdata++;
