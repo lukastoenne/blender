@@ -34,6 +34,9 @@
 
 #include "BLI_noise.h"
 
+/* XXX stub for preventing linker from stripping functions */
+void *__BLI_noise_linker_hack__ = BLI_gabor_noise;
+
 /* local */
 static float noise3_perlin(float vec[3]);
 //static float turbulence_perlin(const float point[3], float lofreq, float hifreq);

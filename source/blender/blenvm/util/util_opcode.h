@@ -155,6 +155,7 @@ namespace blenvm {
 	DEF_OPCODE(TEX_PROC_MUSGRAVE) \
 	DEF_OPCODE(TEX_PROC_STUCCI) \
 	DEF_OPCODE(TEX_PROC_DISTNOISE) \
+	DEF_OPCODE(TEX_PROC_GABORNOISE) \
 	
 /*************************************/
 #define BVM_DEFINE_OPCODES_OBJECT \

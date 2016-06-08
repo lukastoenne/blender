@@ -472,6 +472,7 @@ def register():
             NodeItem("ImageSampleNode"),
             NodeItem("ObjectTextureCloudsNode"),
             NodeItem("ObjectTextureDistNoiseNode"),
+            NodeItem("ObjectTextureGaborNoiseNode"),
             NodeItem("ObjectTextureMagicNode"),
             NodeItem("ObjectTextureMarbleNode"),
             NodeItem("ObjectTextureMusgraveNode"),

@@ -33,6 +33,8 @@
  *  \ingroup bli
  */
 
+#include "BLI_sys_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,6 +60,21 @@ void voronoi(float x, float y, float z, float *da, float *pa, float me, int dtyp
 /* newnoise: cellNoise & cellNoiseV (for vector/point/color) */
 float cellNoise(float x, float y, float z);
 void cellNoiseV(float x, float y, float z, float r_ca[3]);
+
+/* Gabor noise */
+typedef struct GaborNoiseSampler {
+	void (*sample)(struct GaborNoiseSampler *sampler, uint64_t rng,
+	               float *r_omega, float *r_phi);
+	void (*free)(struct GaborNoiseSampler *sampler);
+} GaborNoiseSampler;
+float BLI_gabor_noise(float noisesize, float x, float y, float z,
+                      float impulses, float bandwidth,
+                      struct GaborNoiseSampler *sampler);
+void BLI_gabor_noise_sampler_free(struct GaborNoiseSampler *sampler);
+/* sampler for band-limited isotropic noise */
+struct GaborNoiseSampler *BLI_gabor_noise_sampler_isotropic(float frequency);
+
+extern void *__BLI_noise_linker_hack__;
 
 #ifdef __cplusplus
 }

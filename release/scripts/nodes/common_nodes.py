@@ -966,6 +966,32 @@ class TextureVoronoiNode(CommonNodeBase, ObjectNode):
         compiler.map_output(1, node.outputs["color"])
         compiler.map_output(2, node.outputs["normal"])
 
+
+class TextureGaborNoiseNode(CommonNodeBase, ObjectNode):
+    '''Gabor noise texture'''
+    bl_idname = 'ObjectTextureGaborNoiseNode'
+    bl_label = 'Gabor Noise'
+
+    def draw_buttons(self, context, layout):
+        pass
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Position")
+        self.inputs.new('NodeSocketFloat', "Size").default_value = 1.0
+        self.inputs.new('NodeSocketFloat', "Impulses").default_value = 10.0
+        self.inputs.new('NodeSocketFloat', "Bandwidth").default_value = 0.5
+        self.inputs.new('NodeSocketFloat', "Frequency").default_value = 1.0
+        self.outputs.new('NodeSocketFloat', "Intensity")
+
+    def compile(self, compiler):
+        node = compiler.add_node("TEX_PROC_GABORNOISE")
+        compiler.map_input(0, node.inputs["position"])
+        compiler.map_input(1, node.inputs["size"])
+        compiler.map_input(2, node.inputs["impulses"])
+        compiler.map_input(3, node.inputs["bandwidth"])
+        compiler.map_input(4, node.inputs["frequency"])
+        compiler.map_output(0, node.outputs["intensity"])
+
 ###############################################################################
 
 class ImageSampleNode(CommonNodeBase, ObjectNode):

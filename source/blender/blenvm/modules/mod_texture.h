@@ -447,6 +447,21 @@ bvm_extern void V__TEX_PROC_DISTNOISE(float &intensity, float3 &normal,
 }
 BVM_DECL_FUNCTION_VALUE(TEX_PROC_DISTNOISE)
 
+bvm_extern void V__TEX_PROC_GABORNOISE(
+        float &intensity,
+        const float3 &v, float noisesize,
+        float impulses, float bandwidth,
+        float frequency)
+{
+	GaborNoiseSampler *sampler = BLI_gabor_noise_sampler_isotropic(frequency);
+	intensity = BLI_gabor_noise(noisesize,
+	                            v.x, v.y, v.z,
+	                            impulses, bandwidth,
+	                            sampler);
+	BLI_gabor_noise_sampler_free(sampler);
+}
+BVM_DECL_FUNCTION_VALUE(TEX_PROC_GABORNOISE)
+
 BVM_MOD_NAMESPACE_END
 
 #endif /* __MOD_TEXTURE_H__ */

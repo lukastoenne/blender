@@ -1681,6 +1681,14 @@ static void register_opcode_node_types()
 	nt->add_output("intensity", "FLOAT");
 	nt->add_output("normal", "FLOAT3");
 	
+	nt = NodeGraph::add_node_type("TEX_PROC_GABORNOISE");
+	nt->add_input("position", "FLOAT3", float3(0.0f, 0.0f, 0.0f));
+	nt->add_input("size", "FLOAT", 1.0f);
+	nt->add_input("impulses", "FLOAT", 10.0f);
+	nt->add_input("bandwidth", "FLOAT", 0.5f);
+	nt->add_input("frequency", "FLOAT", 1.0f);
+	nt->add_output("intensity", "FLOAT");
+	
 	nt = NodeGraph::add_node_type("OBJECT_LOOKUP");
 	nt->add_input("key", "INT", 0, INPUT_CONSTANT);
 	nt->add_output("object", "RNAPOINTER");

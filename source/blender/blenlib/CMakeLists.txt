@@ -90,6 +90,7 @@ set(SRC
 	intern/math_vector_inline.c
 	intern/memory_utils.c
 	intern/noise.c
+	intern/noise_gabor.c
 	intern/path_util.c
 	intern/polyfill2d.c
 	intern/polyfill2d_beautify.c
