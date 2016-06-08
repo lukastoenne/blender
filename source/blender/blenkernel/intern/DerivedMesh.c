@@ -2067,15 +2067,10 @@ static void mesh_calc_modifiers(
 					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 					DM_add_poly_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 
-#pragma omp parallel sections if (dm->numVertData + dm->numEdgeData + dm->numPolyData >= BKE_MESH_OMP_LIMIT)
-					{
-#pragma omp section
-						{ range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0); }
-#pragma omp section
-						{ range_vn_i(DM_get_edge_data_layer(dm, CD_ORIGINDEX), dm->numEdgeData, 0); }
-#pragma omp section
-						{ range_vn_i(DM_get_poly_data_layer(dm, CD_ORIGINDEX), dm->numPolyData, 0); }
-					}
+					/* Not worth parallelizing this, gives less than 0.1% overall speedup in best of best cases... */
+					range_vn_i(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0);
+					range_vn_i(DM_get_edge_data_layer(dm, CD_ORIGINDEX), dm->numEdgeData, 0);
+					range_vn_i(DM_get_poly_data_layer(dm, CD_ORIGINDEX), dm->numPolyData, 0);
 				}
 			}
 
@@ -3742,6 +3737,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			}
 
 			attribs->tface[a].gl_index = gattribs->layer[b].glindex;
+			attribs->tface[a].gl_info_index = gattribs->layer[b].glinfoindoex;
 			attribs->tface[a].gl_texco = gattribs->layer[b].gltexco;
 		}
 		else if (type == CD_MCOL) {
@@ -3765,6 +3761,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			}
 
 			attribs->mcol[a].gl_index = gattribs->layer[b].glindex;
+			attribs->mcol[a].gl_info_index = gattribs->layer[b].glinfoindoex;
 		}
 		else if (type == CD_TANGENT) {
 			/* note, even with 'is_editmesh' this uses the derived-meshes loop data */
@@ -3787,6 +3784,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			}
 
 			attribs->tang[a].gl_index = gattribs->layer[b].glindex;
+			attribs->tang[a].gl_info_index = gattribs->layer[b].glinfoindoex;
 		}
 		else if (type == CD_ORCO) {
 			/* original coordinates */
@@ -3806,6 +3804,7 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 
 			attribs->orco.gl_index = gattribs->layer[b].glindex;
 			attribs->orco.gl_texco = gattribs->layer[b].gltexco;
+			attribs->orco.gl_info_index = gattribs->layer[b].glinfoindoex;
 		}
 	}
 }
@@ -3834,6 +3833,7 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 			glTexCoord3fv(orco);
 		else
 			glVertexAttrib3fv(attribs->orco.gl_index, orco);
+		glUniform1i(attribs->orco.gl_info_index, 0);
 	}
 
 	/* uv texture coordinates */
@@ -3852,6 +3852,7 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 			glTexCoord2fv(uv);
 		else
 			glVertexAttrib2fv(attribs->tface[b].gl_index, uv);
+		glUniform1i(attribs->tface[b].gl_info_index, 0);
 	}
 
 	/* vertex colors */
@@ -3867,6 +3868,7 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 		}
 
 		glVertexAttrib4fv(attribs->mcol[b].gl_index, col);
+		glUniform1i(attribs->mcol[b].gl_info_index, GPU_ATTR_INFO_SRGB);
 	}
 
 	/* tangent for normal mapping */
@@ -3876,6 +3878,7 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert,
 			const float *tang = (array) ? array[a * 4 + vert] : zero;
 			glVertexAttrib4fv(attribs->tang[b].gl_index, tang);
 		}
+		glUniform1i(attribs->tang[b].gl_info_index, 0);
 	}
 }
 

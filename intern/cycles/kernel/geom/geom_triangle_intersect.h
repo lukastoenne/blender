@@ -159,16 +159,11 @@ ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
 	if(kernel_tex_fetch(__prim_visibility, triAddr) & visibility)
 #endif
 	{
-#ifdef __KERNEL_GPU__
-		float4 a = tri_b - tri_a, b = tri_c - tri_a;
-		if(len_squared(make_float3(a.y*b.z - a.z*b.y,
-		                           a.z*b.x - a.x*b.z,
-		                           a.x*b.y - a.y*b.x)) == 0.0f)
-		{
+#ifdef __KERNEL_CUDA__
+		if(A == B && B == C) {
 			return false;
 		}
 #endif
-
 		/* Normalize U, V, W, and T. */
 		const float inv_det = 1.0f / det;
 		isect->prim = triAddr;
