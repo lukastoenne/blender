@@ -89,23 +89,6 @@ void LLVMCompilerBase::destroy_module()
 	m_module = NULL;
 }
 
-void LLVMCompilerBase::codegen_node(llvm::BasicBlock *block,
-                                    const NodeInstance *node)
-{
-	switch (node->type->kind()) {
-		case NODE_TYPE_FUNCTION:
-		case NODE_TYPE_KERNEL:
-			expand_function_node(block, node);
-			break;
-		case NODE_TYPE_PASS:
-			expand_pass_node(block, node);
-			break;
-		case NODE_TYPE_ARG:
-			expand_argument_node(block, node);
-			break;
-	}
-}
-
 /* Compile nodes as a simple expression.
  * Every node can be treated as a single statement. Each node is translated
  * into a function call, with regular value arguments. The resulting value is
@@ -136,23 +119,23 @@ llvm::BasicBlock *LLVMCompilerBase::codegen_function_body_expression(const NodeG
 	
 	for (int i = 0; i < num_inputs; ++i) {
 		const NodeGraph::Input &input = graph.inputs[i];
-		if (input.key)
-			map_argument(block, input.key, input_args[i]);
-	}
-	
-	OrderedNodeSet nodes;
-	for (NodeGraph::NodeInstanceMap::const_iterator it = graph.nodes.begin(); it != graph.nodes.end(); ++it)
-		nodes.insert(it->second);
-	
-	for (OrderedNodeSet::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
-		const NodeInstance &node = **it;
+		const TypeSpec *typespec = input.typedesc.get_typespec();
 		
-		codegen_node(block, &node);
+		if (input.key) {
+			ValueHandle handle = map_argument(block, typespec, input_args[i]);
+			m_argument_values.insert(ArgumentValueMap::value_type(input.key, handle));
+		}
 	}
 	
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output &output = graph.outputs[i];
-		store_return_value(block, output.key, output_args[i]);
+		const TypeSpec *typespec = output.typedesc.get_typespec();
+		
+		ExpressionMap node_outputs;
+		expand_node(block, output.key.node, node_outputs);
+		ValueHandle value = node_outputs.at(output.key);
+		
+		store_return_value(block, typespec, value, output_args[i]);
 	}
 	
 	builder.CreateRetVoid();
@@ -236,12 +219,25 @@ void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 	FPM.run(*func);
 }
 
-void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node)
+void LLVMCompilerBase::expand_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs)
+{
+	switch (node->type->kind()) {
+		case NODE_TYPE_FUNCTION:
+		case NODE_TYPE_KERNEL:
+			expand_expression_node(block, node, outputs);
+			break;
+		case NODE_TYPE_PASS:
+			expand_pass_node(block, node, outputs);
+			break;
+		case NODE_TYPE_ARG:
+			expand_argument_node(block, node, outputs);
+			break;
+	}
+}
+
+void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs)
 {
 	using namespace llvm;
-	
-	IRBuilder<> builder(context());
-	builder.SetInsertPoint(block);
 	
 	BLI_assert(node->num_inputs() == 1);
 	BLI_assert(node->num_outputs() == 1);
@@ -250,18 +246,25 @@ void LLVMCompilerBase::expand_pass_node(llvm::BasicBlock *block, const NodeInsta
 	ConstOutputKey output = node->output(0);
 	BLI_assert(input.value_type() == INPUT_EXPRESSION);
 	
-	copy_node_value(input.link(), output);
+	ExpressionMap pass_outputs;
+	expand_node(block, input.link().node, pass_outputs);
+	
+	outputs[output] = pass_outputs.at(input.link());
 }
 
-void LLVMCompilerBase::expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node)
+void LLVMCompilerBase::expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs)
 {
 	using namespace llvm;
-	/* input arguments are mapped in advance */
-	BLI_assert(has_node_value(node->output(0)) && "Input argument value node mapped!");
-	UNUSED_VARS(block, node);
+	
+	BLI_assert(node->num_outputs() == 1);
+	
+	ConstOutputKey output = node->output(0);
+	outputs[output] = m_argument_values.at(output);
+	
+	UNUSED_VARS(block);
 }
 
-void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeInstance *node)
+void LLVMCompilerBase::expand_expression_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs)
 {
 	using namespace llvm;
 	
@@ -281,9 +284,12 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 	
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
+		const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 		
-		alloc_node_value(block, output);
-		append_output_arguments(args, output);
+		ValueHandle value = alloc_node_value(block, typespec);
+		append_output_arguments(args, typespec, value);
+		
+		outputs.insert(ExpressionMap::value_type(output, value));
 	}
 	
 	/* set input arguments */
@@ -297,7 +303,10 @@ void LLVMCompilerBase::expand_function_node(llvm::BasicBlock *block, const NodeI
 				break;
 			}
 			case INPUT_EXPRESSION: {
-				append_input_value(block, args, typespec, input.link());
+				ExpressionMap link_outputs;
+				expand_node(block, input.link().node, link_outputs);
+				
+				append_input_value(block, args, typespec, link_outputs.at(input.link()));
 				break;
 			}
 			case INPUT_VARIABLE: {

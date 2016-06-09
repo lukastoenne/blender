@@ -213,7 +213,9 @@ struct InputKey {
 
 typedef std::set<ConstInputKey> InputSet;
 typedef std::set<ConstOutputKey> OutputSet;
+#if 0
 typedef std::map<string, OutputKey> VariableMap;
+#endif
 
 struct NodeInstance {
 	struct InputInstance {
@@ -388,8 +390,10 @@ protected:
 	
 	void skip_pass_nodes();
 	
+#if 0
 	NodeInstance *inline_node(NodeInstance *old_node, const VariableMap &vars);
 	void inline_function_calls();
+#endif
 	
 	void remove_unused_nodes();
 	

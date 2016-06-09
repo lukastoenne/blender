@@ -50,6 +50,11 @@ namespace blenvm {
 
 llvm::Module *LLVMTextureCompiler::m_nodes_module = NULL;
 
+ValueHandle LLVMTextureCompiler::get_handle(const DualValue &value)
+{
+	return value.value();
+}
+
 void LLVMTextureCompiler::node_graph_begin()
 {
 	
@@ -57,66 +62,51 @@ void LLVMTextureCompiler::node_graph_begin()
 
 void LLVMTextureCompiler::node_graph_end()
 {
-	m_output_values.clear();
+	m_values.clear();
 }
 
-bool LLVMTextureCompiler::has_node_value(const ConstOutputKey &output) const
-{
-	return m_output_values.find(output) != m_output_values.end();
-}
-
-void LLVMTextureCompiler::alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output)
+ValueHandle LLVMTextureCompiler::alloc_node_value(llvm::BasicBlock *block, const TypeSpec *typespec)
 {
 	using namespace llvm;
 	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
-	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 	Type *type = bvm_get_llvm_type(context(), typespec, false);
 	BLI_assert(type != NULL);
 	
-	DualValue value(builder.CreateAlloca(type),
-	                builder.CreateAlloca(type),
-	                builder.CreateAlloca(type));
+	DualValue dval(builder.CreateAlloca(type),
+	               builder.CreateAlloca(type),
+	               builder.CreateAlloca(type));
 	
-	/* use as node output values */
-	bool ok = m_output_values.insert(OutputValueMap::value_type(output, value)).second;
-	BLI_assert(ok && "Value for node output already defined!");
+	ValueHandle handle = get_handle(dval);
+	bool ok = m_values.insert(HandleValueMap::value_type(handle, dval)).second;
+	BLI_assert(ok && "Could not insert value!");
 	UNUSED_VARS(ok);
+	
+	return handle;
 }
 
-void LLVMTextureCompiler::copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to)
+void LLVMTextureCompiler::append_output_arguments(std::vector<llvm::Value*> &args, const TypeSpec *typespec, ValueHandle handle)
 {
-	using namespace llvm;
+	DualValue dval = m_values.at(handle);
 	
-	DualValue value = m_output_values.at(from);
-	bool ok = m_output_values.insert(OutputValueMap::value_type(to, value)).second;
-	BLI_assert(ok && "Value for node output already defined!");
-	UNUSED_VARS(ok);
-}
-
-void LLVMTextureCompiler::append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output)
-{
-	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
-	
-	DualValue val = m_output_values.at(output);
-	args.push_back(val.value());
+	args.push_back(dval.value());
 	if (bvm_type_has_dual_value(typespec)) {
-		args.push_back(val.dx());
-		args.push_back(val.dy());
+		args.push_back(dval.dx());
+		args.push_back(dval.dy());
 	}
 }
 
 void LLVMTextureCompiler::append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
-                                             const TypeSpec *typespec, const ConstOutputKey &link)
+                                             const TypeSpec *typespec, ValueHandle handle)
 {
 	using namespace llvm;
 	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
-	DualValue ptr = m_output_values.at(link);
+	DualValue ptr = m_values.at(handle);
 	if (use_argument_pointer(typespec, false)) {
 		args.push_back(ptr.value());
 		if (bvm_type_has_dual_value(typespec)) {
@@ -156,31 +146,36 @@ void LLVMTextureCompiler::append_input_constant(llvm::BasicBlock *block, std::ve
 	}
 }
 
-void LLVMTextureCompiler::map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg)
+ValueHandle LLVMTextureCompiler::map_argument(llvm::BasicBlock *block, const TypeSpec *typespec, llvm::Argument *arg)
 {
 	using namespace llvm;
-	
-	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
 	
+	DualValue dval;
 	if (bvm_type_has_dual_value(typespec)) {
 		/* argument is a struct, use GEP instructions to get the individual elements */
-		m_output_values[output] = DualValue(builder.CreateStructGEP(arg, 0),
-		                                    builder.CreateStructGEP(arg, 1),
-		                                    builder.CreateStructGEP(arg, 2));
+		dval = DualValue(builder.CreateStructGEP(arg, 0),
+		                 builder.CreateStructGEP(arg, 1),
+		                 builder.CreateStructGEP(arg, 2));
 	}
 	else {
-		m_output_values[output] = DualValue(arg, NULL, NULL);
+		dval = DualValue(arg, NULL, NULL);
 	}
+	
+	ValueHandle handle = get_handle(dval);
+	bool ok = m_values.insert(HandleValueMap::value_type(handle, dval)).second;
+	BLI_assert(ok && "Could not insert value!");
+	UNUSED_VARS(ok);
+	
+	return handle;
 }
 
-void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg)
+void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const TypeSpec *typespec,
+                                             ValueHandle handle, llvm::Value *arg)
 {
 	using namespace llvm;
-	
-	const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 	
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(block);
@@ -189,7 +184,7 @@ void LLVMTextureCompiler::store_return_value(llvm::BasicBlock *block, const Outp
 	Value *dx_ptr = builder.CreateStructGEP(arg, 1);
 	Value *dy_ptr = builder.CreateStructGEP(arg, 2);
 	
-	DualValue dual = m_output_values.at(output);
+	DualValue dual = m_values.at(handle);
 	bvm_llvm_copy_value(context(), block, value_ptr, dual.value(), typespec);
 	bvm_llvm_copy_value(context(), block, dx_ptr, dual.dx(), typespec);
 	bvm_llvm_copy_value(context(), block, dy_ptr, dual.dy(), typespec);

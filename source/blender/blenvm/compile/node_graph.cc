@@ -956,6 +956,7 @@ void NodeGraph::skip_pass_nodes()
 	remap_outputs(replacements);
 }
 
+#if 0
 NodeInstance *NodeGraph::inline_node(NodeInstance *old_node, const VariableMap &vars)
 {
 	/* Note: Don't copy nodes without inputs!
@@ -1039,6 +1040,7 @@ void NodeGraph::inline_function_calls()
 		}
 	}
 }
+#endif
 
 bool NodeGraph::add_block_node(NodeBlock &block, const OutputSet &local_vars,
                                NodeInstance *node, NodeSet &visited)

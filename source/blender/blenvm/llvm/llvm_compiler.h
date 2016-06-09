@@ -74,7 +74,43 @@ struct FunctionParameter {
 };
 typedef std::vector<FunctionParameter> FunctionParameterList;
 
+typedef void* ValueHandle;
+typedef std::map<ConstOutputKey, ValueHandle> ExpressionMap;
+
+#if 0
+struct Expression {
+	explicit Expression(const NodeInstance *node) :
+	    m_node(node)
+	{}
+	
+	bool operator < (const Expression &other) const
+	{
+		if (m_node == other.m_node) {
+			return false;
+		}
+		else
+			return m_node < other.m_node;
+	}
+	
+	bool operator == (const Expression &other) const
+	{
+		if (m_node == other.m_node) {
+			return true;
+		}
+		else
+			return false;
+	}
+	
+	const NodeInstance *node() const { return m_node; }
+	
+private:
+	const NodeInstance *m_node;
+};
+#endif
+
 struct LLVMCompilerBase {
+	typedef std::map<ConstOutputKey, ValueHandle> ArgumentValueMap;
+	
 	virtual ~LLVMCompilerBase();
 	
 	FunctionLLVM *compile_function(const string &name, const NodeGraph &graph, int opt_level);
@@ -90,29 +126,26 @@ protected:
 	
 	void optimize_function(llvm::Function *func, int opt_level);
 	
-	void codegen_node(llvm::BasicBlock *block,
-	                  const NodeInstance *node);
-	
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	
-	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node);
-	void expand_function_node(llvm::BasicBlock *block, const NodeInstance *node);
+	void expand_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
+	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
+	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
+	void expand_expression_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
 	
 	virtual void node_graph_begin() = 0;
 	virtual void node_graph_end() = 0;
 	
-	virtual bool has_node_value(const ConstOutputKey &output) const = 0;
-	virtual void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output) = 0;
-	virtual void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to) = 0;
-	virtual void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output) = 0;
+	virtual ValueHandle alloc_node_value(llvm::BasicBlock *block, const TypeSpec *typespec) = 0;
+	virtual void append_output_arguments(std::vector<llvm::Value*> &args, const TypeSpec *typespec, ValueHandle handle) = 0;
 	virtual void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
-	                                const TypeSpec *typespec, const ConstOutputKey &link) = 0;
+	                                const TypeSpec *typespec, ValueHandle handle) = 0;
 	virtual void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
 	                                   const TypeSpec *typespec, const NodeConstant *node_value) = 0;
-	virtual void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg) = 0;
-	virtual void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg) = 0;
+	virtual ValueHandle map_argument(llvm::BasicBlock *block, const TypeSpec *typespec, llvm::Argument *arg) = 0;
+	virtual void store_return_value(llvm::BasicBlock *block, const TypeSpec *typespec,
+	                                ValueHandle handle, llvm::Value *arg) = 0;
 	
 	virtual llvm::Type *get_argument_type(const TypeSpec *spec) const = 0;
 	virtual llvm::Type *get_return_type(const TypeSpec *spec) const = 0;
@@ -130,25 +163,28 @@ protected:
 private:
 	llvm::Module *m_module;
 	llvm::Value *m_globals_ptr;
+	
+	ArgumentValueMap m_argument_values;
 };
 
 struct LLVMTextureCompiler : public LLVMCompilerBase {
 	typedef Dual2<llvm::Value*> DualValue;
-	typedef std::map<ConstOutputKey, DualValue> OutputValueMap;
+	typedef std::map<ValueHandle, DualValue> HandleValueMap;
+	
+	static ValueHandle get_handle(const DualValue &value);
 	
 	void node_graph_begin();
 	void node_graph_end();
 	
-	bool has_node_value(const ConstOutputKey &output) const;
-	void alloc_node_value(llvm::BasicBlock *block, const ConstOutputKey &output);
-	void copy_node_value(const ConstOutputKey &from, const ConstOutputKey &to);
-	void append_output_arguments(std::vector<llvm::Value*> &args, const ConstOutputKey &output);
+	ValueHandle alloc_node_value(llvm::BasicBlock *block, const TypeSpec *typespec);
+	void append_output_arguments(std::vector<llvm::Value*> &args, const TypeSpec *typespec, ValueHandle handle);
 	void append_input_value(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
-	                            const TypeSpec *typespec, const ConstOutputKey &link);
+	                            const TypeSpec *typespec, ValueHandle handle);
 	void append_input_constant(llvm::BasicBlock *block, std::vector<llvm::Value*> &args,
 	                           const TypeSpec *typespec, const NodeConstant *node_value);
-	void map_argument(llvm::BasicBlock *block, const OutputKey &output, llvm::Argument *arg);
-	void store_return_value(llvm::BasicBlock *block, const OutputKey &output, llvm::Value *arg);
+	ValueHandle map_argument(llvm::BasicBlock *block, const TypeSpec *typespec, llvm::Argument *arg);
+	void store_return_value(llvm::BasicBlock *block, const TypeSpec *typespec,
+	                        ValueHandle handle, llvm::Value *arg);
 	
 	llvm::Type *get_argument_type(const TypeSpec *spec) const;
 	llvm::Type *get_return_type(const TypeSpec *spec) const;
@@ -172,7 +208,7 @@ struct LLVMTextureCompiler : public LLVMCompilerBase {
 	
 private:
 	static llvm::Module *m_nodes_module;
-	OutputValueMap m_output_values;
+	HandleValueMap m_values;
 };
 
 } /* namespace blenvm */
