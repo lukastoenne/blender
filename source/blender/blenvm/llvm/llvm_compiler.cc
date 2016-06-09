@@ -177,6 +177,9 @@ void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
 	using legacy::FunctionPassManager;
 	using legacy::PassManager;
 	
+	module()->setDataLayout(llvm_execution_engine()->getDataLayout());
+	module()->setTargetTriple(llvm_execution_engine()->getTargetMachine()->getTargetTriple());
+	
 	FunctionPassManager FPM(module());
 	PassManager MPM;
 	
