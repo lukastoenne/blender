@@ -124,8 +124,6 @@ protected:
 	void create_module(const string &name);
 	void destroy_module();
 	
-	void optimize_function(llvm::Function *func, int opt_level);
-	
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	

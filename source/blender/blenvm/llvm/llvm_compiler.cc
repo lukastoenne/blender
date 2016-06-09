@@ -171,57 +171,6 @@ llvm::Function *LLVMCompilerBase::codegen_node_function(const string &name, cons
 	return func;
 }
 
-void LLVMCompilerBase::optimize_function(llvm::Function *func, int opt_level)
-{
-	using namespace llvm;
-	using legacy::FunctionPassManager;
-	using legacy::PassManager;
-	
-	module()->setDataLayout(llvm_execution_engine()->getDataLayout());
-	module()->setTargetTriple(llvm_execution_engine()->getTargetMachine()->getTargetTriple());
-	
-	FunctionPassManager FPM(module());
-	PassManager MPM;
-	
-#if 0
-	/* Set up the optimizer pipeline.
-	 * Start with registering info about how the
-	 * target lays out data structures.
-	 */
-	FPM.add(new DataLayoutPass(*llvm_execution_engine()->getDataLayout()));
-	/* Provide basic AliasAnalysis support for GVN. */
-	FPM.add(createBasicAliasAnalysisPass());
-	/* Do simple "peephole" optimizations and bit-twiddling optzns. */
-	FPM.add(createInstructionCombiningPass());
-	/* Reassociate expressions. */
-	FPM.add(createReassociatePass());
-	/* Eliminate Common SubExpressions. */
-	FPM.add(createGVNPass());
-	/* Simplify the control flow graph (deleting unreachable blocks, etc). */
-	FPM.add(createCFGSimplificationPass());
-	
-	FPM.doInitialization();
-#endif
-	
-	PassManagerBuilder builder;
-	builder.OptLevel = opt_level;
-	
-	builder.populateModulePassManager(MPM);
-	if (opt_level > 1) {
-		/* Inline small functions */
-		MPM.add(createFunctionInliningPass());
-	}
-	
-	if (opt_level > 1) {
-		/* Optimize memcpy intrinsics */
-		FPM.add(createMemCpyOptPass());
-	}
-	builder.populateFunctionPassManager(FPM);
-	
-	MPM.run(*module());
-	FPM.run(*func);
-}
-
 void LLVMCompilerBase::expand_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs)
 {
 	switch (node->type->kind()) {
@@ -394,8 +343,8 @@ FunctionLLVM *LLVMCompilerBase::compile_function(const string &name, const NodeG
 	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
-	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
-	optimize_function(func, opt_level);
+	llvm_optimize_module(module(), opt_level);
+	llvm_optimize_function(func, opt_level);
 	
 	verifyFunction(*func, &outs());
 	verifyModule(*module(), &outs());
@@ -451,8 +400,8 @@ void LLVMCompilerBase::debug_function(const string &name, const NodeGraph &graph
 	BLI_assert(module()->getFunction(name) && "Function not registered in module!");
 	BLI_assert(func != NULL && "codegen_node_function returned NULL!");
 	
-	BLI_assert(opt_level >= 0 && opt_level <= 3 && "Invalid optimization level (must be between 0 and 3)");
-	optimize_function(func, opt_level);
+	llvm_optimize_module(module(), opt_level);
+	llvm_optimize_function(func, opt_level);
 	
 	file_ostream stream(file);
 	debug_assembly_annotation_writer aaw;

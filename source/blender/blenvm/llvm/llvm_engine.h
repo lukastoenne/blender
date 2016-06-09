@@ -37,6 +37,8 @@
 
 namespace llvm {
 class ExecutionEngine;
+class Function;
+class Module;
 }
 
 namespace blenvm {
@@ -45,6 +47,9 @@ void llvm_init();
 void llvm_free();
 
 llvm::ExecutionEngine *llvm_execution_engine();
+
+void llvm_optimize_module(llvm::Module *mod, int opt_level);
+void llvm_optimize_function(llvm::Function *func, int opt_level);
 
 bool llvm_has_external_impl_value(OpCode op);
 bool llvm_has_external_impl_deriv(OpCode op);
