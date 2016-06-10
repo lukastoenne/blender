@@ -90,6 +90,7 @@ void FunctionBVM::add_return_value(const TypeDesc &typedesc, const string &name,
 
 void FunctionBVM::eval(EvalContext *context, const EvalGlobals *globals, const void *arguments[], void *results[]) const
 {
+#if 0
 	EvalStack stack[BVM_STACK_SIZE] = {0};
 	
 	/* initialize input arguments */
@@ -113,6 +114,7 @@ void FunctionBVM::eval(EvalContext *context, const EvalGlobals *globals, const v
 		
 		typespec->copy_value(results[i], (void *)value);
 	}
+#endif
 }
 
 } /* namespace blenvm */

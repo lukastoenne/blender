@@ -633,9 +633,10 @@ int BVMCompiler::current_address() const
 
 FunctionBVM *BVMCompiler::compile_function(const NodeGraph &graph)
 {
-	resolve_symbols(graph);
-	
 	fn = new FunctionBVM();
+	
+#if 0
+	resolve_symbols(graph);
 	
 	int entry_point = codegen_graph(graph);
 	fn->set_entry_point(entry_point);
@@ -663,6 +664,7 @@ FunctionBVM *BVMCompiler::compile_function(const NodeGraph &graph)
 		StackIndex stack_index = output_index.at(output.key);
 		fn->add_return_value(output.typedesc, output.name, stack_index);
 	}
+#endif
 	
 	FunctionBVM *result = fn;
 	fn = NULL;

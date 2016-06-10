@@ -818,7 +818,11 @@ struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
 	
 	_FUNC_BVM(fn)->eval(_CTX(ctx), _GLOBALS(globals), args, results);
 	
+#if 0
 	DerivedMesh *dm = result.get();
+#else
+	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
+#endif
 	/* destroy the pointer variable */
 	result.ptr().reset();
 	return dm;
