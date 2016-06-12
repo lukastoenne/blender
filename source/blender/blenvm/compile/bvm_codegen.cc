@@ -164,6 +164,7 @@ StackIndex BVMCompilerBase::assign_stack_index(const TypeDesc &typedesc)
 
 void BVMCompilerBase::get_local_arg_indices(const NodeInstance *node, const NodeBlock *local_block)
 {
+#if 0 /* XXX deprecated */
 	for (int i = 0; i < node->num_outputs(); ++i) {
 		ConstOutputKey output = node->output(i);
 		
@@ -172,6 +173,9 @@ void BVMCompilerBase::get_local_arg_indices(const NodeInstance *node, const Node
 			output_index[local_output] = output_index.at(output);
 		}
 	}
+#else
+	UNUSED_VARS(node, local_block);
+#endif
 }
 
 void BVMCompilerBase::resolve_node_block_symbols(const NodeBlock *block)

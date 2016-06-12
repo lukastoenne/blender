@@ -558,20 +558,7 @@ NodeBlock::NodeBlock(const string &name, NodeBlock *parent) :
     m_parent(parent)
 {}
 
-ConstOutputKey NodeBlock::local_arg(const string &name) const
-{
-	ArgumentMap::const_iterator it = m_local_args.find(name);
-	if (it != m_local_args.end())
-		return it->second;
-	else
-		return ConstOutputKey();
-}
-
-void NodeBlock::local_arg_set(const string &name, const ConstOutputKey &arg)
-{
-	m_local_args[name] = arg;
-}
-
+#if 0 /* unused */
 void NodeBlock::prune(const NodeSet &used_nodes)
 {
 	NodeSet used_block_nodes;
@@ -587,6 +574,7 @@ void NodeBlock::prune(const NodeSet &used_nodes)
 		}
 	}
 }
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -1042,6 +1030,7 @@ void NodeGraph::inline_function_calls()
 }
 #endif
 
+#if 0
 bool NodeGraph::add_block_node(NodeBlock &block, const OutputSet &local_vars,
                                NodeInstance *node, NodeSet &visited)
 {
@@ -1135,6 +1124,7 @@ void NodeGraph::blockify_nodes()
 		}
 	}
 }
+#endif
 
 static void used_nodes_append(NodeInstance *node, NodeSet &used_nodes)
 {
@@ -1212,10 +1202,14 @@ void NodeGraph::finalize()
 {
 	ensure_valid_expression_inputs();
 	skip_pass_nodes();
-//	inline_function_calls();
+#if 0
+	inline_function_calls();
+#endif
 	remove_unused_nodes();
 	sort_nodes();
-//	blockify_nodes();
+#if 0
+	blockify_nodes();
+#endif
 }
 
 /* ------------------------------------------------------------------------- */

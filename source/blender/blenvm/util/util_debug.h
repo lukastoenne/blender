@@ -329,18 +329,6 @@ struct NodeGraphDumper {
 		debug_fprintf(ctx, NL);
 	}
 	
-	inline void dump_local_args(const NodeInstance *node, const NodeBlock *block) const
-	{
-		for (int i = 0; i < node->num_outputs(); ++i) {
-			ConstOutputKey output = node->output(i);
-			if (output.value_type() == OUTPUT_VARIABLE) {
-				ConstOutputKey local_arg = block->local_arg(output.socket->name);
-				if (local_arg)
-					dump_local_arg(node_id(node)+":"+output_id(output), local_arg);
-			}
-		}
-	}
-	
 	inline void dump_node_links(const NodeInstance *node) const
 	{
 		for (NodeInstance::InputMap::const_iterator it = node->inputs.begin(); it != node->inputs.end(); ++it) {

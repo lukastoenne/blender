@@ -283,8 +283,6 @@ struct NodeIndexCmp {
 typedef std::set<const NodeInstance *, NodeIndexCmp> OrderedNodeSet;
 
 struct NodeBlock {
-	typedef std::map<string, ConstOutputKey> ArgumentMap;
-	
 	NodeBlock(const string &name, NodeBlock *parent = NULL);
 	
 	const string &name() const { return m_name; }
@@ -292,16 +290,15 @@ struct NodeBlock {
 	void parent_set(NodeBlock *parent) { m_parent = parent; }
 	NodeSet &nodes() { return m_nodes; }
 	const NodeSet &nodes() const { return m_nodes; }
-	ConstOutputKey local_arg(const string &name) const;
-	void local_arg_set(const string &name, const ConstOutputKey &arg);
-	
+
+#if 0 /* unused */
 	void prune(const NodeSet &used_nodes);
+#endif
 	
 private:
 	string m_name;
 	NodeBlock *m_parent;
 	NodeSet m_nodes;
-	ArgumentMap m_local_args; // XXX REMOVE
 	
 	MEM_CXX_CLASS_ALLOC_FUNCS("BVM:NodeBlock")
 };
@@ -397,15 +394,18 @@ protected:
 	
 	void remove_unused_nodes();
 	
+#if 0
 	bool add_block_node(NodeBlock &block, const OutputSet &local_vars,
 	                    NodeInstance *node, NodeSet &visited);
 	void blockify_nodes();
+#endif
 	
 	void sort_nodes();
 	
 public:
-	NodeBlockList blocks;
 	NodeInstanceMap nodes;
+	NodeBlockList blocks;
+	
 	InputList inputs;
 	OutputList outputs;
 
