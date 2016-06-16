@@ -75,38 +75,18 @@ struct FunctionParameter {
 typedef std::vector<FunctionParameter> FunctionParameterList;
 
 typedef void* ValueHandle;
-typedef std::map<ConstOutputKey, ValueHandle> ExpressionMap;
-
-#if 0
-struct Expression {
-	explicit Expression(const NodeInstance *node) :
-	    m_node(node)
-	{}
+typedef std::map<ConstOutputKey, ValueHandle> SocketValueMap;
+struct Scope {
+	Scope(Scope *parent);
 	
-	bool operator < (const Expression &other) const
-	{
-		if (m_node == other.m_node) {
-			return false;
-		}
-		else
-			return m_node < other.m_node;
-	}
+	bool has_node(const NodeInstance *node) const;
+	bool has_value(const ConstOutputKey &key) const;
+	ValueHandle find_value(const ConstOutputKey &key) const;
+	void set_value(const ConstOutputKey &key, ValueHandle value);
 	
-	bool operator == (const Expression &other) const
-	{
-		if (m_node == other.m_node) {
-			return true;
-		}
-		else
-			return false;
-	}
-	
-	const NodeInstance *node() const { return m_node; }
-	
-private:
-	const NodeInstance *m_node;
+	Scope *parent;
+	SocketValueMap values;
 };
-#endif
 
 struct LLVMCompilerBase {
 	typedef std::map<ConstOutputKey, ValueHandle> ArgumentValueMap;
@@ -127,10 +107,10 @@ protected:
 	llvm::BasicBlock *codegen_function_body_expression(const NodeGraph &graph, llvm::Function *func);
 	llvm::Function *codegen_node_function(const string &name, const NodeGraph &graph);
 	
-	void expand_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
-	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
-	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
-	void expand_expression_node(llvm::BasicBlock *block, const NodeInstance *node, ExpressionMap &outputs);
+	void expand_node(llvm::BasicBlock *block, const NodeInstance *node, Scope &scope);
+	void expand_pass_node(llvm::BasicBlock *block, const NodeInstance *node, Scope &scope);
+	void expand_argument_node(llvm::BasicBlock *block, const NodeInstance *node, Scope &scope);
+	void expand_expression_node(llvm::BasicBlock *block, const NodeInstance *node, Scope &scope);
 	
 	virtual void node_graph_begin() = 0;
 	virtual void node_graph_end() = 0;
