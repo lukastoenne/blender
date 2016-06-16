@@ -6981,13 +6981,15 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		         !IS_EVENT_MOD(event, shift, oskey) &&
 		         (event->val == KM_PRESS))
 		{
-			if (event->alt)
-				ui_but_anim_remove_driver(C);
-			else if (event->ctrl)
-				ui_but_anim_add_driver(C);
-				
-			ED_region_tag_redraw(data->region);
-			
+			/* quick check to prevent this opening within the popup menu its self */
+			if (!ELEM(NULL, but->rnapoin.data, but->rnaprop)) {
+				if (event->alt)
+					ui_but_anim_remove_driver(C);
+				else if (event->ctrl)
+					ui_but_anim_add_driver(C);
+
+				ED_region_tag_redraw(data->region);
+			}
 			return WM_UI_HANDLER_BREAK;
 		}
 		/* handle keyingsets */
@@ -8436,6 +8438,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 	uiListDyn *dyn_data;
 	int retval = WM_UI_HANDLER_CONTINUE;
 	int type = event->type, val = event->val;
+	bool redraw = false;
 	int mx, my;
 
 	ui_list = listbox->custom_data;
@@ -8525,7 +8528,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 				ui_apply_but_undo(listbox);
 
 				ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
-				ED_region_tag_redraw(ar);
+				redraw = true;
 			}
 			retval = WM_UI_HANDLER_BREAK;
 		}
@@ -8537,8 +8540,8 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 			ui_list->list_grip += (type == WHEELUPMOUSE) ? -1 : 1;
 
 			ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
-			ED_region_tag_redraw(ar);
 
+			redraw = true;
 			retval = WM_UI_HANDLER_BREAK;
 		}
 		else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE)) {
@@ -8546,10 +8549,19 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar, 
 				/* list template will clamp */
 				ui_list->list_scroll += (type == WHEELUPMOUSE) ? -1 : 1;
 
-				ED_region_tag_redraw(ar);
-
+				redraw = true;
 				retval = WM_UI_HANDLER_BREAK;
 			}
+		}
+	}
+
+	if (redraw) {
+		if (listbox->block->flag & UI_BLOCK_POPUP) {
+			/* popups need special refreshing */
+			ED_region_tag_refresh_ui(ar);
+		}
+		else {
+			ED_region_tag_redraw(ar);
 		}
 	}
 
@@ -9794,11 +9806,21 @@ static int ui_handle_menus_recursive(
 		}
 		else {
 			uiBlock *block = menu->region->uiblocks.first;
+			uiBut *listbox = ui_list_find_mouse_over(menu->region, event);
 
-			if (block->flag & UI_BLOCK_RADIAL)
+			if (block->flag & UI_BLOCK_RADIAL) {
 				retval = ui_pie_handler(C, event, menu);
-			else if (event->type == LEFTMOUSE || event->val != KM_DBL_CLICK)
-				retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside, is_parent_menu, is_floating);
+			}
+			else if (event->type == LEFTMOUSE || event->val != KM_DBL_CLICK) {
+				if (listbox) {
+					retval = ui_handle_list_event(C, event, menu->region, listbox);
+				}
+				if (retval == WM_UI_HANDLER_CONTINUE) {
+					retval = ui_handle_menu_event(
+					        C, event, menu, level,
+					        is_parent_inside, is_parent_menu, is_floating);
+				}
+			}
 		}
 	}
 

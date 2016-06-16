@@ -51,7 +51,8 @@ typedef enum GPUBasicShaderOption {
 	GPU_SHADER_SOLID_LIGHTING =   (1 << 5),   /* use faster lighting (set automatically) */
 	GPU_SHADER_STIPPLE =          (1 << 6),   /* use stipple */
 	GPU_SHADER_LINE =             (1 << 7),   /* draw lines */
-	GPU_SHADER_OPTIONS_NUM = 8,
+	GPU_SHADER_FLAT_NORMAL =      (1 << 8),   /* use flat normals */
+	GPU_SHADER_OPTIONS_NUM = 9,
 	GPU_SHADER_OPTION_COMBINATIONS = (1 << GPU_SHADER_OPTIONS_NUM)
 } GPUBasicShaderOption;
 
@@ -75,6 +76,9 @@ void GPU_basic_shaders_init(void);
 void GPU_basic_shaders_exit(void);
 
 void GPU_basic_shader_bind(int options);
+void GPU_basic_shader_bind_enable(int options);
+void GPU_basic_shader_bind_disable(int options);
+
 int GPU_basic_shader_bound_options(void);
 
 /* Only use for small blocks of code that don't support glsl shader. */
@@ -93,8 +97,9 @@ if (GPU_basic_shader_use_glsl_get()) { \
 } ((void)0)
 
 
-void GPU_basic_shader_colors(const float diffuse[3], const float specular[3],
-	int shininess, float alpha);
+void GPU_basic_shader_colors(
+        const float diffuse[3], const float specular[3],
+        int shininess, float alpha);
 
 /* Fixed Function Lighting */
 
