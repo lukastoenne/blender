@@ -39,6 +39,7 @@ extern "C" {
 
 #include "modules.h"
 
+#include "llvm_codegen.h"
 #include "llvm_engine.h"
 #include "llvm_headers.h"
 #include "llvm_modules.h"
@@ -197,6 +198,8 @@ void llvm_init()
 	theEngine = create_execution_engine();
 	
 	create_pass_managers();
+	
+	LLVMCodeGenerator::define_nodes_module(getGlobalContext());
 }
 
 void llvm_free()

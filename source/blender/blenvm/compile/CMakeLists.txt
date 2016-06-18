@@ -40,6 +40,8 @@ set(INC_SYS
 )
 
 set(SRC
+	compiler.cc
+	compiler.h
 	node_graph.cc
 	node_graph.h
 	node_value.cc

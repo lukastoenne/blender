@@ -206,8 +206,8 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const matrix44 
 			constants[i][j] = ConstantFP::get(context, APFloat(m.data[i][j]));
 	Constant *cols[4];
 	for (int i = 0; i < 4; ++i)
-		cols[i] = ConstantArray::get(inner_t, ArrayRef<Constant*>(constants[i], 4));
-	Constant *data = ConstantArray::get(outer_t, ArrayRef<Constant*>(cols, 4));
+		cols[i] = ConstantArray::get(inner_t, llvm::ArrayRef<Constant*>(constants[i], 4));
+	Constant *data = ConstantArray::get(outer_t, llvm::ArrayRef<Constant*>(cols, 4));
 	return ConstantStruct::get(matrix_t,
 	                           data, NULL);
 }

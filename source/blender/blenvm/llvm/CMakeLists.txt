@@ -43,9 +43,8 @@ set(INC_SYS
 )
 
 set(SRC
-	llvm_compiler.cc
-	llvm_compiler_dual.cc
-	llvm_compiler.h
+	llvm_codegen.cc
+	llvm_codegen.h
 	llvm_engine.cc
 	llvm_engine.h
 	llvm_function.cc

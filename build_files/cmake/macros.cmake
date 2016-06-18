@@ -705,7 +705,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	endif()
 
 	if(WITH_LLVM)
-		list(APPEND BLENDER_SORTED_LIBS "bf_blenvm_llvm")
+		list_insert_after(BLENDER_SORTED_LIBS "bf_blenvm" "bf_blenvm_llvm")
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

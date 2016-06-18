@@ -64,7 +64,7 @@ extern "C" {
 #include "bvm_function.h"
 
 #ifdef WITH_LLVM
-#include "llvm_compiler.h"
+#include "llvm_codegen.h"
 #include "llvm_engine.h"
 #include "llvm_function.h"
 #endif
@@ -476,15 +476,17 @@ static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const c
 		}
 		case BVM_DEBUG_LLVM_CODE: {
 #ifdef WITH_LLVM
-			LLVMTextureCompiler compiler;
-			compiler.debug_function(label, graph, 2, debug_file);
+			LLVMCodeGenerator codegen(2);
+			Compiler compiler(&codegen);
+			compiler.debug_node_graph(label, graph, debug_file);
 #endif
 			break;
 		}
 		case BVM_DEBUG_LLVM_CODE_UNOPTIMIZED: {
 #ifdef WITH_LLVM
-			LLVMTextureCompiler compiler;
-			compiler.debug_function(label, graph, 0, debug_file);
+			LLVMCodeGenerator codegen(0);
+			Compiler compiler(&codegen);
+			compiler.debug_node_graph(label, graph, debug_file);
 #endif
 			break;
 		}
@@ -653,8 +655,10 @@ struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cac
 		parse_py_nodes(btree, &graph);
 		graph.finalize();
 		
-		LLVMTextureCompiler compiler;
-		fn = compiler.compile_function(get_ntree_unique_function_name(btree), graph, 2);
+		LLVMCodeGenerator codegen(2);
+		Compiler compiler(&codegen);
+		compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
+		fn = new FunctionLLVM(codegen.function_address());
 		
 		if (use_cache) {
 			function_llvm_cache_set(btree, fn);

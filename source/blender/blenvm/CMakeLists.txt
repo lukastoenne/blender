@@ -59,7 +59,7 @@ set(SRC
 	modules/mod_math.h
 	modules/mod_texture.h
 
-	util/util_opcode.h
+	util/util_array.h
 	util/util_data_ptr.h
 	util/util_debug.h
 	util/util_eval_globals.cc
@@ -67,6 +67,7 @@ set(SRC
 	util/util_hash.h
 	util/util_map.h
 	util/util_math.h
+	util/util_opcode.h
 	util/util_string.h
 	util/util_structs.h
 	util/util_thread.h
@@ -113,8 +114,6 @@ add_subdirectory(compile)
 if(WITH_LLVM)
 	add_subdirectory(llvm)
 	add_definitions(-DWITH_LLVM)
-
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RTTI_DISABLE_FLAGS}")
 endif()
 
 blender_add_lib(bf_blenvm "${SRC}" "${INC}" "${INC_SYS}")
