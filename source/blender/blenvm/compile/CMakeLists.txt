@@ -26,7 +26,6 @@
 set(INC
 	.
 	..
-	../bvm
 	../intern
 	../util
 	../../blenkernel
@@ -48,12 +47,6 @@ set(SRC
 	node_value.h
 	typedesc.cc
 	typedesc.h
-
-	bvm_codegen.cc
-	bvm_codegen_debug.cc
-	bvm_codegen.h
-	bvm_function.h
-	bvm_function.cc
 )
 
 blender_add_lib(bf_blenvm_compile "${SRC}" "${INC}" "${INC_SYS}")

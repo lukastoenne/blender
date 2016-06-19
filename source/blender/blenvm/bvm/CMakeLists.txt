@@ -26,6 +26,7 @@
 set(INC
 	.
 	..
+	../compile
 	../intern
 	../modules
 	../util
@@ -42,6 +43,9 @@ set(INC_SYS
 )
 
 set(SRC
+	bvm_codegen.cc
+	bvm_codegen_debug.cc
+	bvm_codegen.h
 	bvm_eval.cc
 	bvm_eval.h
 	bvm_eval_common.h
@@ -50,6 +54,8 @@ set(SRC
 	bvm_eval_math.h
 	bvm_eval_mesh.h
 	bvm_eval_texture.h
+	bvm_function.h
+	bvm_function.cc
 	bvm_instruction_list.cc
 	bvm_instruction_list.h
 )
