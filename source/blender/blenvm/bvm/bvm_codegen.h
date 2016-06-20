@@ -37,6 +37,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "compiler.h"
 #include "node_graph.h"
 
 #include "bvm_instruction_list.h"
@@ -50,6 +51,66 @@ struct FunctionBVM;
 struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
+
+struct Value {
+	Value(StackIndex m_stack_index);
+	~Value();
+	
+	StackIndex stack_index() const { return m_stack_index; }
+	
+	const NodeConstant *constant_value() const { return m_constant_value; }
+	void set_constant_value(const NodeConstant *value);
+	
+private:
+	StackIndex m_stack_index;
+	NodeConstant *m_constant_value;
+};
+
+struct BVMCodeGenerator : public CodeGenerator {
+	typedef std::vector<Value> ValueStack;
+	typedef std::map<ValueHandle, Value*> HandleValueMap;
+	typedef std::vector<int> StackUsers;
+	typedef std::vector<Value*> Arguments;
+	
+	BVMCodeGenerator();
+	~BVMCodeGenerator();
+	
+	void finalize_function();
+	void debug_function(FILE *file);
+	
+	void node_graph_begin(const string &name, const NodeGraph *graph, bool use_globals);
+	void node_graph_end();
+	
+	void store_return_value(size_t output_index, const TypeSpec *typespec, ValueHandle value);
+	ValueHandle map_argument(size_t input_index, const TypeSpec *typespec);
+	
+	ValueHandle alloc_node_value(const TypeSpec *typespec);
+	ValueHandle create_constant(const TypeSpec *typespec, const NodeConstant *node_value);
+	
+	void eval_node(const NodeType *nodetype,
+	               ArrayRef<ValueHandle> input_args,
+	               ArrayRef<ValueHandle> output_args);
+	
+protected:
+	static ValueHandle get_handle(const Value *value);
+	
+	StackIndex find_stack_index(int size) const;
+	StackIndex assign_stack_index(const TypeDesc &typedesc);
+	Value *create_value(const TypeSpec *typespec);
+	
+private:
+	ValueStack m_values;
+	HandleValueMap m_value_map;
+	StackUsers m_stack_users;
+	Arguments m_input_args;
+	Arguments m_output_args;
+	
+	InstructionList m_instructions;
+};
+
+
+/* ========================================================================= */
+
 
 typedef std::map<ConstInputKey, StackIndex> InputIndexMap;
 typedef std::map<ConstOutputKey, StackIndex> OutputIndexMap;

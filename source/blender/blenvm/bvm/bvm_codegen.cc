@@ -40,6 +40,163 @@
 
 namespace blenvm {
 
+Value::Value(StackIndex stack_index) :
+    m_stack_index(stack_index),
+    m_constant_value(NULL)
+{
+}
+
+Value::~Value()
+{
+	if (m_constant_value)
+		delete m_constant_value;
+}
+
+void Value::set_constant_value(const NodeConstant *value)
+{
+	if (m_constant_value)
+		delete m_constant_value;
+	m_constant_value = value->copy();
+}
+
+/* ------------------------------------------------------------------------- */
+
+BVMCodeGenerator::BVMCodeGenerator()
+{
+	m_stack_users.resize(BVM_STACK_SIZE, 0);
+}
+
+BVMCodeGenerator::~BVMCodeGenerator()
+{
+}
+
+ValueHandle BVMCodeGenerator::get_handle(const Value *value)
+{
+	return (ValueHandle)value;
+}
+
+void BVMCodeGenerator::finalize_function()
+{
+}
+
+void BVMCodeGenerator::debug_function(FILE *file)
+{
+}
+
+void BVMCodeGenerator::node_graph_begin(const string &name, const NodeGraph *graph, bool use_globals)
+{
+	/* storage for function arguments */
+	{
+		size_t num_inputs = graph->inputs.size();
+		for (int i = 0; i < num_inputs; ++i) {
+			const NodeGraph::Input *input = graph->get_input(i);
+			const TypeSpec *typespec = input->typedesc.get_typespec();
+			m_input_args.push_back(create_value(typespec));
+		}
+	}
+}
+
+void BVMCodeGenerator::node_graph_end()
+{
+}
+
+void BVMCodeGenerator::store_return_value(size_t output_index, const TypeSpec *UNUSED(typespec), ValueHandle handle)
+{
+	Value *value = m_value_map.at(handle);
+	m_output_args[output_index] = value;
+}
+
+ValueHandle BVMCodeGenerator::map_argument(size_t input_index, const TypeSpec *UNUSED(typespec))
+{
+	Value *arg = m_input_args[input_index];
+	
+	ValueHandle handle = get_handle(arg);
+	bool ok = m_value_map.insert(HandleValueMap::value_type(handle, arg)).second;
+	BLI_assert(ok && "Could not insert value!");
+	UNUSED_VARS(ok);
+	
+	return handle;
+}
+
+Value *BVMCodeGenerator::create_value(const TypeSpec *typespec)
+{
+	StackIndex stack_index = find_stack_index(typespec->size());
+	m_values.push_back(Value(stack_index));
+	Value *value = &m_values.back();
+	
+	return value;
+}
+
+ValueHandle BVMCodeGenerator::alloc_node_value(const TypeSpec *typespec)
+{
+	Value *value = create_value(typespec);
+	ValueHandle handle = get_handle(value);
+	
+	bool ok = m_value_map.insert(HandleValueMap::value_type(handle, value)).second;
+	BLI_assert(ok && "Could not insert value!");
+	UNUSED_VARS(ok);
+	
+	return handle;
+}
+
+ValueHandle BVMCodeGenerator::create_constant(const TypeSpec *UNUSED(typespec), const NodeConstant *node_value)
+{
+	m_values.push_back(Value(BVM_STACK_INVALID));
+	Value *value = &m_values.back();
+	value->set_constant_value(node_value);
+	ValueHandle handle = get_handle(value);
+	
+	bool ok = m_value_map.insert(HandleValueMap::value_type(handle, value)).second;
+	BLI_assert(ok && "Could not insert value!");
+	UNUSED_VARS(ok);
+	
+	return handle;
+}
+
+void BVMCodeGenerator::eval_node(const NodeType *nodetype,
+                                 ArrayRef<ValueHandle> input_args,
+                                 ArrayRef<ValueHandle> output_args)
+{
+}
+
+StackIndex BVMCodeGenerator::find_stack_index(int size) const
+{
+	int unused = 0;
+	
+	for (int i = 0; i < BVM_STACK_SIZE; ++i) {
+		if (m_stack_users[i] == 0) {
+			++unused;
+			if (unused == size)
+				return i + 1 - size;
+		}
+		else
+			unused = 0;
+	}
+	
+	// TODO better reporting ...
+	printf("ERROR: out of stack space");
+	
+	return BVM_STACK_INVALID;
+}
+
+StackIndex BVMCodeGenerator::assign_stack_index(const TypeDesc &typedesc)
+{
+	const TypeSpec *typespec = typedesc.get_typespec();
+	int stack_size = EvalStack::stack_size(typespec->size());
+	
+	StackIndex stack_offset = find_stack_index(stack_size);
+	for (int i = 0; i < stack_size; ++i) {
+		// TODO keep track of value users
+		m_stack_users[stack_offset + i] += 1;
+	}
+	
+	return stack_offset;
+}
+
+
+/* ========================================================================= */
+
+
 BVMCompilerBase::BVMCompilerBase()
 {
 	stack_users.resize(BVM_STACK_SIZE, 0);
