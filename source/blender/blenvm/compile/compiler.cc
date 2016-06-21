@@ -209,7 +209,8 @@ void Compiler::expand_expression_node(const NodeInstance *node, Scope &scope)
 		ConstOutputKey output = node->output(i);
 		const TypeSpec *typespec = output.socket->typedesc.get_typespec();
 		
-		ValueHandle value = m_codegen->alloc_node_value(typespec);
+		ValueHandle value = m_codegen->alloc_node_value(typespec,
+		                                                output.node->name + "__" + output.socket->name);
 		output_args.push_back(value);
 		
 		scope.set_value(output, value);

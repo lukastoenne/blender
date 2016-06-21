@@ -87,7 +87,7 @@ struct LLVMCodeGenerator : public CodeGenerator {
 	void store_return_value(size_t output_index, const TypeSpec *typespec, ValueHandle value);
 	ValueHandle map_argument(size_t input_index, const TypeSpec *typespec);
 	
-	ValueHandle alloc_node_value(const TypeSpec *typespec);
+	ValueHandle alloc_node_value(const TypeSpec *typespec, const string &name);
 	ValueHandle create_constant(const TypeSpec *typespec, const NodeConstant *node_value);
 	
 	void eval_node(const NodeType *nodetype,

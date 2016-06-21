@@ -127,7 +127,7 @@ Value *BVMCodeGenerator::create_value(const TypeSpec *typespec)
 	return value;
 }
 
-ValueHandle BVMCodeGenerator::alloc_node_value(const TypeSpec *typespec)
+ValueHandle BVMCodeGenerator::alloc_node_value(const TypeSpec *typespec, const string &UNUSED(name))
 {
 	Value *value = create_value(typespec);
 	ValueHandle handle = get_handle(value);

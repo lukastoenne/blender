@@ -78,7 +78,7 @@ struct CodeGenerator {
 	virtual void store_return_value(size_t output_index, const TypeSpec *typespec, ValueHandle value) = 0;
 	virtual ValueHandle map_argument(size_t input_index, const TypeSpec *typespec) = 0;
 	
-	virtual ValueHandle alloc_node_value(const TypeSpec *typespec) = 0;
+	virtual ValueHandle alloc_node_value(const TypeSpec *typespec, const string &name) = 0;
 	virtual ValueHandle create_constant(const TypeSpec *typespec, const NodeConstant *node_value) = 0;
 
 	virtual void eval_node(const NodeType *nodetype,

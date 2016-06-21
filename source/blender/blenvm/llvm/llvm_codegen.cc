@@ -29,6 +29,7 @@
  *  \ingroup llvm
  */
 
+#include <cctype>
 #include <cstdio>
 #include <set>
 #include <sstream>
@@ -75,6 +76,18 @@ class debug_assembly_annotation_writer : public llvm::AssemblyAnnotationWriter
 };
 
 /* ------------------------------------------------------------------------- */
+
+/* replace non-alphanumeric chars with underscore */
+static string sanitize_name(const string &name)
+{
+	string s = name;
+	for (string::iterator it = s.begin(); it != s.end(); ++it) {
+		char &c = *it;
+		if (c != '_' && !isalnum(c))
+			c = '_';
+	}
+	return s;
+}
 
 /* forward declaration */
 static llvm::Function *declare_graph_function(
@@ -245,9 +258,9 @@ void LLVMCodeGenerator::store_return_value(size_t output_index, const TypeSpec *
 	builder.SetInsertPoint(m_block);
 	
 	Argument *arg = m_output_args[output_index];
-	Value *value_ptr = builder.CreateStructGEP(arg, 0);
-	Value *dx_ptr = builder.CreateStructGEP(arg, 1);
-	Value *dy_ptr = builder.CreateStructGEP(arg, 2);
+	Value *value_ptr = builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V"));
+	Value *dx_ptr = builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX"));
+	Value *dy_ptr = builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY"));
 	
 	DualValue dual = m_values.at(handle);
 	bvm_llvm_copy_value(context(), m_block, value_ptr, dual.value(), typespec);
@@ -266,9 +279,9 @@ ValueHandle LLVMCodeGenerator::map_argument(size_t input_index, const TypeSpec *
 	DualValue dval;
 	if (bvm_type_has_dual_value(typespec)) {
 		/* argument is a struct, use GEP instructions to get the individual elements */
-		dval = DualValue(builder.CreateStructGEP(arg, 0),
-		                 builder.CreateStructGEP(arg, 1),
-		                 builder.CreateStructGEP(arg, 2));
+		dval = DualValue(builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V")),
+		                 builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX")),
+		                 builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY")));
 	}
 	else {
 		dval = DualValue(arg, NULL, NULL);
@@ -282,7 +295,7 @@ ValueHandle LLVMCodeGenerator::map_argument(size_t input_index, const TypeSpec *
 	return handle;
 }
 
-ValueHandle LLVMCodeGenerator::alloc_node_value(const TypeSpec *typespec)
+ValueHandle LLVMCodeGenerator::alloc_node_value(const TypeSpec *typespec, const string &name)
 {
 	using namespace llvm;
 	
@@ -292,9 +305,9 @@ ValueHandle LLVMCodeGenerator::alloc_node_value(const TypeSpec *typespec)
 	Type *type = bvm_get_llvm_type(context(), typespec, false);
 	BLI_assert(type != NULL);
 	
-	DualValue dval(builder.CreateAlloca(type),
-	               builder.CreateAlloca(type),
-	               builder.CreateAlloca(type));
+	DualValue dval(builder.CreateAlloca(type, NULL, sanitize_name(name + "_V")),
+	               builder.CreateAlloca(type, NULL, sanitize_name(name + "_DX")),
+	               builder.CreateAlloca(type, NULL, sanitize_name(name + "_DY")));
 	
 	ValueHandle handle = get_handle(dval);
 	bool ok = m_values.insert(HandleValueMap::value_type(handle, dval)).second;
@@ -463,7 +476,7 @@ static llvm::Function *declare_graph_function(
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	for (int i = 0; arg_it != func->arg_end(); ++arg_it, ++i) {
-		arg_it->setName(arg_names[i]);
+		arg_it->setName(sanitize_name(arg_names[i]));
 	}
 	
 	return func;
@@ -560,7 +573,7 @@ static llvm::Function *declare_node_function(
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	for (int i = 0; arg_it != func->arg_end(); ++arg_it, ++i) {
-		arg_it->setName(arg_names[i]);
+		arg_it->setName(sanitize_name(arg_names[i]));
 	}
 	
 	return func;
@@ -643,7 +656,7 @@ static llvm::Function *declare_elementary_node_function(
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	for (int i = 0; arg_it != func->arg_end(); ++arg_it, ++i) {
-		arg_it->setName(arg_names[i]);
+		arg_it->setName(sanitize_name(arg_names[i]));
 	}
 	
 	return func;
