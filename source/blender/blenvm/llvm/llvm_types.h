@@ -263,16 +263,16 @@ struct BVMTypeLLVMTraits<BVM_FLOAT3> {
 	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
 	{
 		using namespace llvm;
-		Constant *size = builder.getInt32(sizeof(value_type));
-		builder.CreateMemCpy(ptr, value, size, 0);
+		Value *ivalue = builder.CreateLoad(value);
+		builder.CreateStore(ivalue, ptr);
 	}
 	
 	template <typename BuilderT>
 	static void set_zero(BuilderT &builder, llvm::Value *ptr)
 	{
 		using namespace llvm;
-		Constant *size = builder.getInt32(sizeof(value_type));
-		builder.CreateMemSet(ptr, builder.getInt8(0), size, 0);
+		Constant *zero = ConstantAggregateZero::get(TypeBuilder<value_type, false>::get(builder.getContext()));
+		builder.CreateStore(zero, ptr);
 	}
 };
 
@@ -287,16 +287,16 @@ struct BVMTypeLLVMTraits<BVM_FLOAT4> {
 	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
 	{
 		using namespace llvm;
-		Constant *size = builder.getInt32(sizeof(value_type));
-		builder.CreateMemCpy(ptr, value, size, 0);
+		Value *ivalue = builder.CreateLoad(value);
+		builder.CreateStore(ivalue, ptr);
 	}
 	
 	template <typename BuilderT>
 	static void set_zero(BuilderT &builder, llvm::Value *ptr)
 	{
 		using namespace llvm;
-		Constant *size = builder.getInt32(sizeof(value_type));
-		builder.CreateMemSet(ptr, builder.getInt8(0), size, 0);
+		Constant *zero = ConstantAggregateZero::get(TypeBuilder<value_type, false>::get(builder.getContext()));
+		builder.CreateStore(zero, ptr);
 	}
 };
 
