@@ -360,17 +360,17 @@ Operation ComponentBuilder::define_operation(eDepsOperation_Type optype,
 	return opnode;
 }
 
-void ComponentBuilder::add_relation(eDepsRelation_Type type, const string &description,
+void ComponentBuilder::add_relation(eDepsRelation_Type type, const char *description,
                                     Operation from, Operation to)
 {
 	if (from && to) {
-		m_graph->add_new_relation(from, to, type, description.c_str());
+		m_graph->add_new_relation(from, to, type, description);
 	}
 	else {
 		DEG_DEBUG_PRINTF("add_relation(%p = %s, %p = %s, %d, %s) Failed\n",
 		                 from, (from) ? from->identifier().c_str() : "<None>",
 		                 to,   (to)   ? to->identifier().c_str() : "<None>",
-		                 type, description.c_str());
+		                 type, description);
 	}
 }
 

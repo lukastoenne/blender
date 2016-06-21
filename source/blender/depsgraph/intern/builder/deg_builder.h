@@ -169,7 +169,7 @@ public:
 	                           const string &description = "");
 	
 	/* Add an internal dependency between operations of this component. */
-	void add_relation(eDepsRelation_Type type, const string &description,
+	void add_relation(eDepsRelation_Type type, const char *description,
 	                  Operation from, Operation to);
 	
 	const DependencySet &dependencies() const { return m_dependencies; }
