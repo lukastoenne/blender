@@ -841,7 +841,27 @@ static void define_node_function(
 		case OP_VALUE_MATRIX44:
 			def_node_VALUE_MATRIX44(context, func);
 			break;
-			
+		
+		case OP_FLOAT_TO_INT:
+			def_node_FLOAT_TO_INT(context, func);
+			break;
+		case OP_INT_TO_FLOAT:
+			def_node_INT_TO_FLOAT(context, func);
+			break;
+		
+		case OP_SET_FLOAT3:
+			def_node_SET_FLOAT3(context, func);
+			break;
+		case OP_GET_ELEM_FLOAT3:
+			def_node_GET_ELEM_FLOAT3(context, func);
+			break;
+		case OP_SET_FLOAT4:
+			def_node_SET_FLOAT4(context, func);
+			break;
+		case OP_GET_ELEM_FLOAT4:
+			def_node_GET_ELEM_FLOAT4(context, func);
+			break;
+		
 		default:
 			define_elementary_functions(context, mod, op, nodetype);
 			define_dual_function_wrapper(context, mod, func, op, nodetype);

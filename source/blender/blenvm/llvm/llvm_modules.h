@@ -53,6 +53,14 @@ void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::Function *func);
 
+void def_node_FLOAT_TO_INT(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_INT_TO_FLOAT(llvm::LLVMContext &context, llvm::Function *func);
+
+void def_node_SET_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_GET_ELEM_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_SET_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);
+void def_node_GET_ELEM_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);
+
 void def_node_GET_DERIVATIVE_FLOAT(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_GET_DERIVATIVE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_GET_DERIVATIVE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func);

@@ -56,6 +56,17 @@ extern "C" {
 
 namespace blenvm {
 
+typedef llvm::IRBuilder<> Builder;
+
+static llvm::Value *float_vector_at(Builder &builder, llvm::Value *p_vec, llvm::Value *idx)
+{
+	using namespace llvm;
+	
+	Type *float_ptr_type = bvm_get_llvm_type(builder.getContext(), BVM_FLOAT, false)->getPointerTo();
+	Value *p_elem = builder.CreatePointerCast(p_vec, float_ptr_type);
+	return builder.CreateInBoundsGEP(p_elem, idx);
+}
+
 static void def_node_VALUE_t(llvm::LLVMContext &context, llvm::Function *func, const TypeSpec *typespec)
 {
 	using namespace llvm;
@@ -108,6 +119,127 @@ void def_node_VALUE_FLOAT4(llvm::LLVMContext &context, llvm::Function *func)
 void def_node_VALUE_MATRIX44(llvm::LLVMContext &context, llvm::Function *func)
 {
 	def_node_VALUE_t(context, func, TypeSpec::get_typespec("MATRIX44"));
+}
+
+void def_node_FLOAT_TO_INT(llvm::LLVMContext &context, llvm::Function *func)
+{
+	using namespace llvm;
+	
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *p_out_val = arg_it++;
+	Argument *in_val = arg_it++;
+	Argument *in_dx = arg_it++;
+	Argument *in_dy = arg_it++;
+	UNUSED_VARS(in_dx, in_dy);
+	
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	Type *target_type = bvm_get_llvm_type(context, BVM_INT, false);
+	Value *ival = builder.CreateFPToSI(in_val, target_type);
+	builder.CreateStore(ival, p_out_val);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_INT_TO_FLOAT(llvm::LLVMContext &context, llvm::Function *func)
+{
+	using namespace llvm;
+	
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *p_out_val = arg_it++;
+	Argument *p_out_dx = arg_it++;
+	Argument *p_out_dy = arg_it++;
+	Argument *in_val = arg_it++;
+	
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	Type *target_type = bvm_get_llvm_type(context, BVM_FLOAT, false);
+	Value *fval = builder.CreateSIToFP(in_val, target_type);
+	builder.CreateStore(fval, p_out_val);
+	
+	Constant *fzero = ConstantFP::get(builder.getContext(), APFloat(0.0f));
+	builder.CreateStore(fzero, p_out_dx);
+	builder.CreateStore(fzero, p_out_dy);
+	
+	builder.CreateRetVoid();
+}
+
+static void def_node_SET_FLOATn(llvm::LLVMContext &context, llvm::Function *func, unsigned int n)
+{
+	using namespace llvm;
+	
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *p_out_val = arg_it++;
+	Argument *p_out_dx = arg_it++;
+	Argument *p_out_dy = arg_it++;
+	
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	for (unsigned int i = 0; i < n; ++i) {
+		Argument *val = arg_it++;
+		Argument *dx = arg_it++;
+		Argument *dy = arg_it++;
+		
+		builder.CreateStore(val, builder.CreateStructGEP(p_out_val, i));
+		builder.CreateStore(dx, builder.CreateStructGEP(p_out_dx, i));
+		builder.CreateStore(dy, builder.CreateStructGEP(p_out_dy, i));
+	}
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_SET_FLOAT3(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_SET_FLOATn(context, func, 3);
+}
+
+void def_node_SET_FLOAT4(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_SET_FLOATn(context, func, 4);
+}
+
+static void def_node_GET_ELEM_FLOATn(llvm::LLVMContext &context, llvm::Function *func)
+{
+	using namespace llvm;
+	
+	Function::arg_iterator arg_it = func->arg_begin();
+	Argument *p_out_val = arg_it++;
+	Argument *p_out_dx = arg_it++;
+	Argument *p_out_dy = arg_it++;
+	Argument *index = arg_it++;
+	Argument *vec_val = arg_it++;
+	Argument *vec_dx = arg_it++;
+	Argument *vec_dy = arg_it++;
+	
+	BasicBlock *block = BasicBlock::Create(context, "entry", func);
+	
+	IRBuilder<> builder(context);
+	builder.SetInsertPoint(block);
+	
+	builder.CreateStore(builder.CreateLoad(float_vector_at(builder, vec_val, index)), p_out_val);
+	builder.CreateStore(builder.CreateLoad(float_vector_at(builder, vec_dx, index)), p_out_dx);
+	builder.CreateStore(builder.CreateLoad(float_vector_at(builder, vec_dy, index)), p_out_dy);
+	
+	builder.CreateRetVoid();
+}
+
+void def_node_GET_ELEM_FLOAT3(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_GET_ELEM_FLOATn(context, func);
+}
+
+void def_node_GET_ELEM_FLOAT4(llvm::LLVMContext &context, llvm::Function *func)
+{
+	def_node_GET_ELEM_FLOATn(context, func);
 }
 
 /* ------------------------------------------------------------------------- */

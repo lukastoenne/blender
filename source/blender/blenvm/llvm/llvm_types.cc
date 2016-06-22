@@ -85,6 +85,45 @@ llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, 
 	return NULL;
 }
 
+llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, BVMType type, bool use_dual)
+{
+	using namespace llvm;
+	
+	if (use_dual) {
+#define BVM_BUILD_TYPE(t) \
+	TypeBuilder<BVMTypeLLVMTraits<t>::dual2_type, false>::get(context)
+		switch (type) {
+			case BVM_FLOAT: return BVM_BUILD_TYPE(BVM_FLOAT);
+			case BVM_FLOAT3: return BVM_BUILD_TYPE(BVM_FLOAT3);
+			case BVM_FLOAT4: return BVM_BUILD_TYPE(BVM_FLOAT4);
+			case BVM_INT: return BVM_BUILD_TYPE(BVM_INT);
+			case BVM_MATRIX44: return BVM_BUILD_TYPE(BVM_MATRIX44);
+			case BVM_STRING: return BVM_BUILD_TYPE(BVM_STRING);
+			case BVM_RNAPOINTER: return BVM_BUILD_TYPE(BVM_RNAPOINTER);
+			case BVM_MESH: return BVM_BUILD_TYPE(BVM_MESH);
+			case BVM_DUPLIS: return BVM_BUILD_TYPE(BVM_DUPLIS);
+		}
+#undef BVM_BUILD_TYPE
+	}
+	else {
+#define BVM_BUILD_TYPE(t) \
+	TypeBuilder<BVMTypeLLVMTraits<t>::value_type, false>::get(context)
+		switch (type) {
+			case BVM_FLOAT: return BVM_BUILD_TYPE(BVM_FLOAT);
+			case BVM_FLOAT3: return BVM_BUILD_TYPE(BVM_FLOAT3);
+			case BVM_FLOAT4: return BVM_BUILD_TYPE(BVM_FLOAT4);
+			case BVM_INT: return BVM_BUILD_TYPE(BVM_INT);
+			case BVM_MATRIX44: return BVM_BUILD_TYPE(BVM_MATRIX44);
+			case BVM_STRING: return BVM_BUILD_TYPE(BVM_STRING);
+			case BVM_RNAPOINTER: return BVM_BUILD_TYPE(BVM_RNAPOINTER);
+			case BVM_MESH: return BVM_BUILD_TYPE(BVM_MESH);
+			case BVM_DUPLIS: return BVM_BUILD_TYPE(BVM_DUPLIS);
+		}
+#undef BVM_BUILD_TYPE
+	}
+	return NULL;
+}
+
 llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeConstant *node_value)
 {
 	using namespace llvm;
