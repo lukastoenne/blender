@@ -50,7 +50,6 @@ set(SRC
 	intern/function_cache.cc
 	intern/function_cache.h
 
-	modules/modules.cc
 	modules/modules.h
 	modules/mod_defines.h
 	modules/mod_base.h
