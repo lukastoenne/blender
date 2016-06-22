@@ -608,7 +608,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 	return clip;
 }
 
-static void movieclip_load_get_szie(MovieClip *clip)
+static void movieclip_load_get_size(MovieClip *clip)
 {
 	int width, height;
 	MovieClipUser user = {0};
@@ -670,7 +670,7 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 
 	detect_clip_source(clip);
 
-	movieclip_load_get_szie(clip);
+	movieclip_load_get_size(clip);
 	if (clip->lastsize[0]) {
 		int width = clip->lastsize[0];
 
@@ -1248,7 +1248,7 @@ static void free_buffers(MovieClip *clip)
 		clip->anim = NULL;
 	}
 
-	BKE_animdata_free((ID *) clip);
+	BKE_animdata_free((ID *) clip, false);
 }
 
 void BKE_movieclip_clear_cache(MovieClip *clip)
@@ -1276,7 +1276,7 @@ void BKE_movieclip_reload(MovieClip *clip)
 	detect_clip_source(clip);
 
 	clip->lastsize[0] = clip->lastsize[1] = 0;
-	movieclip_load_get_szie(clip);
+	movieclip_load_get_size(clip);
 
 	movieclip_calc_length(clip);
 
@@ -1482,8 +1482,10 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 	}
 }
 
+/** Free (or release) any data used by this movie clip (does not free the clip itself). */
 void BKE_movieclip_free(MovieClip *clip)
 {
+	/* Also frees animdata. */
 	free_buffers(clip);
 
 	BKE_tracking_free(&clip->tracking);
