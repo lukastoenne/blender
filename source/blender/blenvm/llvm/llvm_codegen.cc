@@ -258,14 +258,20 @@ void LLVMCodeGenerator::store_return_value(size_t output_index, const TypeSpec *
 	builder.SetInsertPoint(m_block);
 	
 	Argument *arg = m_output_args[output_index];
-	Value *value_ptr = builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V"));
-	Value *dx_ptr = builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX"));
-	Value *dy_ptr = builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY"));
+	DualValue dval = m_values.at(handle);
 	
-	DualValue dual = m_values.at(handle);
-	bvm_llvm_copy_value(context(), m_block, value_ptr, dual.value(), typespec);
-	bvm_llvm_copy_value(context(), m_block, dx_ptr, dual.dx(), typespec);
-	bvm_llvm_copy_value(context(), m_block, dy_ptr, dual.dy(), typespec);
+	if (bvm_type_has_dual_value(typespec)) {
+		Value *value_ptr = builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V"));
+		Value *dx_ptr = builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX"));
+		Value *dy_ptr = builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY"));
+		
+		bvm_llvm_copy_value(context(), m_block, value_ptr, dval.value(), typespec);
+		bvm_llvm_copy_value(context(), m_block, dx_ptr, dval.dx(), typespec);
+		bvm_llvm_copy_value(context(), m_block, dy_ptr, dval.dy(), typespec);
+	}
+	else {
+		bvm_llvm_copy_value(context(), m_block, arg, dval.value(), typespec);
+	}
 }
 
 ValueHandle LLVMCodeGenerator::map_argument(size_t input_index, const TypeSpec *typespec)
