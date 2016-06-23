@@ -1704,17 +1704,17 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	Mesh *me = ob->data;
 	DerivedMesh *dm, *result;
 	
-	struct BVMFunction *fn = BVM_gen_modifier_function_bvm(ntree, true);
+	struct BVMFunction *fn = BVM_gen_modifier_function_llvm(ntree, true);
 	if (fn) {
 		struct BVMEvalGlobals *globals = BVM_globals_create();
 		BVM_globals_add_nodetree_relations(globals, ntree);
 		
 		struct BVMEvalContext *context = BVM_context_create();
-		dm = BVM_eval_modifier_bvm(globals, context, fn, ob, me);
+		dm = BVM_eval_modifier_llvm(globals, context, fn, ob, me);
 		
 		BVM_context_free(context);
 		BVM_globals_free(globals);
-		BVM_function_bvm_release(fn);
+		BVM_function_llvm_release(fn);
 	}
 	
 	/* XXX this is stupid, but currently required because of

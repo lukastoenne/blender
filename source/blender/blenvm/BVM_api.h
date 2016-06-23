@@ -177,10 +177,15 @@ struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, bool
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
-                                      struct BVMEvalContext *context,
-                                      struct BVMFunction *fn,
-                                      struct Object *ob,
-                                      struct Mesh *base_mesh);
+                                          struct BVMEvalContext *context,
+                                          struct BVMFunction *fn,
+                                          struct Object *ob,
+                                          struct Mesh *base_mesh);
+struct DerivedMesh *BVM_eval_modifier_llvm(struct BVMEvalGlobals *globals,
+                                           struct BVMEvalContext *context,
+                                           struct BVMFunction *fn,
+                                           struct Object *ob,
+                                           struct Mesh *base_mesh);
 
 /* ------------------------------------------------------------------------- */
 

@@ -756,10 +756,24 @@ void BVM_eval_texture_llvm(struct BVMEvalGlobals *_globals, struct BVMEvalContex
 
 /* ------------------------------------------------------------------------- */
 
+namespace blenvm {
+
+typedef void (*ModNodesFunc)(const struct EvalGlobals *globals,
+                             mesh_ptr *result,
+                             struct PointerRNA *object_ptr, struct PointerRNA *base_mesh_ptr);
+
+}
+
 struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
 	return gen_function_bvm(btree, use_cache, modifier_inputs, modifier_outputs);
+}
+
+struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, bool use_cache)
+{
+	using namespace blenvm;
+	return gen_function_llvm(btree, use_cache, modifier_inputs, modifier_outputs);
 }
 
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -790,6 +804,39 @@ struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
 #else
 	DerivedMesh *dm = CDDM_new(0, 0, 0, 0, 0);
 #endif
+	/* destroy the pointer variable */
+	result.ptr().reset();
+	return dm;
+}
+
+struct DerivedMesh *BVM_eval_modifier_llvm(struct BVMEvalGlobals *_globals,
+                                           struct BVMEvalContext *UNUSED(ctx),
+                                           struct BVMFunction *fn,
+                                           struct Object *object,
+                                           struct Mesh *base_mesh)
+{
+	using namespace blenvm;
+	
+	EvalGlobals *globals = _GLOBALS(_globals);
+	if (globals == NULL)
+		globals = eval_globals_default();
+	
+	mesh_ptr result;
+	
+#ifdef WITH_LLVM
+	PointerRNA object_ptr, base_mesh_ptr;
+	RNA_id_pointer_create((ID *)object, &object_ptr);
+	RNA_id_pointer_create((ID *)base_mesh, &base_mesh_ptr);
+	
+	ModNodesFunc fp = (ModNodesFunc)_FUNC_LLVM(fn)->ptr();
+	
+	fp(globals, &result, &object_ptr, &base_mesh_ptr);
+#else
+	UNUSED_VARS(fn, globals, object, base_mesh);
+	result.set(CDDM_new(0, 0, 0, 0, 0));
+#endif
+	
+	DerivedMesh *dm = result.get();
 	/* destroy the pointer variable */
 	result.ptr().reset();
 	return dm;
