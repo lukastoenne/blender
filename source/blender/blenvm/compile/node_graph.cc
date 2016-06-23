@@ -612,6 +612,15 @@ NodeGraph::NodeGraph()
 {
 }
 
+NodeGraph::NodeGraph(ArrayRef<NodeInputParam> inputs, ArrayRef<NodeOutputParam> outputs)
+{
+	for (size_t i = 0; i < inputs.size(); ++i)
+		add_input(inputs[i].name, inputs[i].type);
+	for (size_t i = 0; i < outputs.size(); ++i)
+		add_output(outputs[i].name, outputs[i].type,
+		           outputs[i].default_value->copy());
+}
+
 NodeGraph::~NodeGraph()
 {
 	remove_all_nodes();
@@ -687,20 +696,6 @@ const NodeGraph::Output *NodeGraph::get_output(const string &name) const
 			return &(*it);
 	}
 	return NULL;
-}
-
-void NodeGraph::set_output_socket(int index, const OutputKey &key)
-{
-	BLI_assert(index >= 0 && index < outputs.size());
-	outputs[index].key = key;
-}
-
-void NodeGraph::set_output_socket(const string &name, const OutputKey &key)
-{
-	for (OutputList::iterator it = outputs.begin(); it != outputs.end(); ++it) {
-		if (it->name == name)
-			it->key = key;
-	}
 }
 
 const NodeGraph::Input *NodeGraph::add_input(const string &name, const string &type)

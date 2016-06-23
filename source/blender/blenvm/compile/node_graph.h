@@ -52,6 +52,7 @@ extern "C" {
 
 #include "node_value.h"
 
+#include "util_array.h"
 #include "util_opcode.h"
 #include "util_string.h"
 
@@ -305,6 +306,52 @@ private:
 
 typedef std::set<NodeBlock *> NodeBlockSet;
 
+/** Formal input parameter of a NodeGraph. */
+struct NodeInputParam {
+	NodeInputParam(const string &name, const string &type) :
+	    name(name), type(type)
+	{}
+	
+	string name;
+	string type;
+};
+
+/** Formal output parameter of a NodeGraph.
+ * \note The parameter takes ownership of the default_value!
+ */
+struct NodeOutputParam {
+	NodeOutputParam(const string &name, const string &type, NodeConstant *default_value) :
+	    name(name), type(type), default_value(default_value)
+	{}
+	
+	NodeOutputParam(const NodeOutputParam &other) :
+	    name(other.name), type(other.type), default_value(other.default_value->copy())
+	{}
+	
+	~NodeOutputParam()
+	{
+		if (default_value)
+			delete default_value;
+	}
+	
+	NodeOutputParam& operator = (const NodeOutputParam &other)
+	{
+		name = other.name;
+		type = other.type;
+		default_value = other.default_value->copy();
+		return *this;
+	}
+	
+	template <typename T>
+	NodeOutputParam(const string &name, const string &type, const T &default_value) :
+	    name(name), type(type), default_value(NodeConstant::create(TypeDesc(type), default_value))
+	{}
+	
+	string name;
+	string type;
+	NodeConstant *default_value;
+};
+
 struct NodeGraph {
 	struct Input {
 		Input(const string &name, const TypeDesc &typedesc, const OutputKey &key) :
@@ -339,6 +386,7 @@ struct NodeGraph {
 	static void remove_node_type(const string &name);
 	
 	NodeGraph();
+	NodeGraph(ArrayRef<NodeInputParam> inputs, ArrayRef<NodeOutputParam> outputs);
 	~NodeGraph();
 	
 	NodeInstance *get_node(const string &name);
@@ -348,18 +396,6 @@ struct NodeGraph {
 	const Input *get_input(const string &name) const;
 	const Output *get_output(int index) const;
 	const Output *get_output(const string &name) const;
-	void set_output_socket(int index, const OutputKey &key);
-	void set_output_socket(const string &name, const OutputKey &key);
-	
-	const Input *add_input(const string &name, const string &type);
-	const Output *add_output(const string &name, const string &type, NodeConstant *default_value);
-	
-	template <typename T>
-	const Output *add_output(const string &name, const string &type, const T &default_value)
-	{
-		TypeDesc td(type);
-		return add_output(name, type, NodeConstant::create(td, default_value));
-	}
 	
 	void finalize();
 	
@@ -367,6 +403,9 @@ struct NodeGraph {
 	const NodeBlock &main_block() const { return blocks.front(); }
 	
 protected:
+	const Input *add_input(const string &name, const string &type);
+	const Output *add_output(const string &name, const string &type, NodeConstant *default_value);
+	
 	NodeInstance *add_proxy(const TypeDesc &typedesc, NodeConstant *default_value = NULL);
 	OutputKey add_value_node(NodeConstant *value);
 	OutputKey add_argument_node(const TypeDesc &typedesc);

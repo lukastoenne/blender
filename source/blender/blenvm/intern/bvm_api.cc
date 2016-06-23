@@ -69,6 +69,7 @@ extern "C" {
 #include "llvm_function.h"
 #endif
 
+#include "util_array.h"
 #include "util_debug.h"
 #include "util_map.h"
 #include "util_thread.h"
@@ -84,6 +85,41 @@ static blenvm::EvalGlobals *eval_globals_default()
 	return &default_globals;
 }
 
+static std::vector<NodeInputParam> forcefield_inputs;
+static std::vector<NodeOutputParam> forcefield_outputs;
+static std::vector<NodeInputParam> texture_inputs;
+static std::vector<NodeOutputParam> texture_outputs;
+static std::vector<NodeInputParam> modifier_inputs;
+static std::vector<NodeOutputParam> modifier_outputs;
+static std::vector<NodeInputParam> dupli_inputs;
+static std::vector<NodeOutputParam> dupli_outputs;
+
+static void register_graph_types()
+{
+	static const float3 zerovec(0.0f, 0.0f, 0.0f);
+	static const float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	static const float N[3] = {0.0f, 0.0f, 0.0f};
+	
+	forcefield_inputs.push_back(NodeInputParam("effector.object", "RNAPOINTER"));
+	forcefield_inputs.push_back(NodeInputParam("effector.position", "FLOAT3"));
+	forcefield_inputs.push_back(NodeInputParam("effector.velocity", "FLOAT3"));
+	forcefield_outputs.push_back(NodeOutputParam("force", "FLOAT3", zerovec));
+	forcefield_outputs.push_back(NodeOutputParam("impulse", "FLOAT3", zerovec));
+	
+	texture_inputs.push_back(NodeInputParam("texture.co", "FLOAT3"));
+	texture_inputs.push_back(NodeInputParam("texture.cfra", "INT"));
+	texture_inputs.push_back(NodeInputParam("texture.osatex", "INT"));
+	texture_outputs.push_back(NodeOutputParam("color", "FLOAT4", C));
+	texture_outputs.push_back(NodeOutputParam("normal", "FLOAT3", N));
+	
+	modifier_inputs.push_back(NodeInputParam("modifier.object", "RNAPOINTER"));
+	modifier_inputs.push_back(NodeInputParam("modifier.base_mesh", "RNAPOINTER"));
+	modifier_outputs.push_back(NodeOutputParam("mesh", "MESH", __empty_mesh__));
+	
+	dupli_inputs.push_back(NodeInputParam("dupli.object", "RNAPOINTER"));
+	dupli_outputs.push_back(NodeOutputParam("dupli.result", "DUPLIS", __empty_duplilist__));
+}
+
 }
 
 void BVM_init(void)
@@ -93,6 +129,7 @@ void BVM_init(void)
 	create_empty_mesh(__empty_mesh__);
 	
 	nodes_init();
+	register_graph_types();
 	
 #ifdef WITH_LLVM
 	llvm_init();
@@ -428,7 +465,9 @@ void BVM_function_llvm_cache_remove(void */*key*/) {}
 
 /* ------------------------------------------------------------------------- */
 
-static blenvm::string get_ntree_unique_function_name(bNodeTree *ntree)
+namespace blenvm {
+
+static string get_ntree_unique_function_name(bNodeTree *ntree)
 {
 	std::stringstream ss;
 	ss << "nodetree_" << ntree;
@@ -436,7 +475,7 @@ static blenvm::string get_ntree_unique_function_name(bNodeTree *ntree)
 	return ss.str();
 }
 
-static void parse_py_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
+static void parse_py_nodes(bNodeTree *btree, NodeGraph *graph)
 {
 	PointerRNA ptr;
 	ParameterList list;
@@ -457,8 +496,6 @@ static void parse_py_nodes(bNodeTree *btree, blenvm::NodeGraph *graph)
 
 static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
-	using namespace blenvm;
-	
 	if (mode != BVM_DEBUG_NODES_UNOPTIMIZED)
 		graph.finalize();
 	
@@ -493,21 +530,9 @@ static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const c
 	}
 }
 
-
-static void init_forcefield_graph(blenvm::NodeGraph &graph)
-{
-	using namespace blenvm;
-	
-	graph.add_input("effector.object", "RNAPOINTER");
-	graph.add_input("effector.position", "FLOAT3");
-	graph.add_input("effector.velocity", "FLOAT3");
-	
-	float zero[3] = {0.0f, 0.0f, 0.0f};
-	graph.add_output("force", "FLOAT3", zero);
-	graph.add_output("impulse", "FLOAT3", zero);
-}
-
-struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_cache)
+static struct BVMFunction *gen_function_bvm(struct bNodeTree *btree, bool use_cache,
+                                            ArrayRef<NodeInputParam> inputs,
+                                            ArrayRef<NodeOutputParam> outputs)
 {
 	using namespace blenvm;
 	
@@ -519,8 +544,7 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_c
 	}
 	
 	if (!fn) {
-		NodeGraph graph;
-		init_forcefield_graph(graph);
+		NodeGraph graph(inputs, outputs);
 		parse_py_nodes(btree, &graph);
 		graph.finalize();
 		
@@ -539,15 +563,72 @@ struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_c
 	return (BVMFunction *)fn;
 }
 
-void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
+static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, bool use_cache,
+                                             ArrayRef<NodeInputParam> inputs,
+                                             ArrayRef<NodeOutputParam> outputs)
+{
+#ifdef WITH_LLVM
+	using namespace blenvm;
+	
+	llvm_lock.lock();
+	
+	FunctionLLVM *fn = NULL;
+	if (use_cache) {
+		fn = function_llvm_cache_acquire(btree);
+	}
+	
+	if (!fn) {
+		NodeGraph graph(inputs, outputs);
+		parse_py_nodes(btree, &graph);
+		graph.finalize();
+		
+		LLVMCodeGenerator codegen(2);
+		Compiler compiler(&codegen);
+		compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
+		fn = new FunctionLLVM(codegen.function_address());
+		
+		if (use_cache) {
+			function_llvm_cache_set(btree, fn);
+		}
+	}
+	
+	fn->retain(fn);
+	
+	llvm_lock.unlock();
+	
+	return (BVMFunction *)fn;
+#else
+	UNUSED_VARS(btree, use_cache);
+	return NULL;
+#endif
+}
+
+static void debug_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode,
+                        ArrayRef<NodeInputParam> inputs,
+                        ArrayRef<NodeOutputParam> outputs)
 {
 	using namespace blenvm;
 	
-	NodeGraph graph;
-	init_forcefield_graph(graph);
+	NodeGraph graph(inputs, outputs);
 	parse_py_nodes(btree, &graph);
 	
 	debug_node_graph(graph, debug_file, label, mode);
+}
+
+} /* namespace blenvm */
+
+/* ========================================================================= */
+
+struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_cache)
+{
+	using namespace blenvm;
+	return gen_function_bvm(btree, use_cache, forcefield_inputs, forcefield_outputs);
+}
+
+void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
+{
+	using namespace blenvm;
+	debug_nodes(btree, debug_file, label, mode, forcefield_inputs, forcefield_outputs);
 }
 
 void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -591,100 +672,22 @@ static void set_texresult(TexResult *result, const float4 &color, const float3 &
 
 }
 
-static void init_texture_graph(blenvm::NodeGraph &graph)
-{
-	using namespace blenvm;
-	
-	graph.add_input("texture.co", "FLOAT3");
-	graph.add_input("texture.cfra", "INT");
-	graph.add_input("texture.osatex", "INT");
-	
-	float C[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-	float N[3] = {0.0f, 0.0f, 0.0f};
-	graph.add_output("color", "FLOAT4", C);
-	graph.add_output("normal", "FLOAT3", N);
-}
-
 struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
-	
-	bvm_lock.lock();
-	
-	FunctionBVM *fn = NULL;
-	if (use_cache) {
-		fn = function_bvm_cache_acquire(btree);
-	}
-	
-	if (!fn) {
-		NodeGraph graph;
-		init_texture_graph(graph);
-		parse_py_nodes(btree, &graph);
-		graph.finalize();
-		
-		BVMCompiler compiler;
-		fn = compiler.compile_function(graph);
-		
-		if (use_cache) {
-			function_bvm_cache_set(btree, fn);
-		}
-	}
-	
-	fn->retain(fn);
-	
-	bvm_lock.unlock();
-	
-	return (BVMFunction *)fn;
+	return gen_function_bvm(btree, use_cache, texture_inputs, texture_outputs);
 }
 
 struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cache)
 {
-#ifdef WITH_LLVM
 	using namespace blenvm;
-	
-	llvm_lock.lock();
-	
-	FunctionLLVM *fn = NULL;
-	if (use_cache) {
-		fn = function_llvm_cache_acquire(btree);
-	}
-	
-	if (!fn) {
-		NodeGraph graph;
-		init_texture_graph(graph);
-		parse_py_nodes(btree, &graph);
-		graph.finalize();
-		
-		LLVMCodeGenerator codegen(2);
-		Compiler compiler(&codegen);
-		compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
-		fn = new FunctionLLVM(codegen.function_address());
-		
-		if (use_cache) {
-			function_llvm_cache_set(btree, fn);
-		}
-	}
-	
-	fn->retain(fn);
-	
-	llvm_lock.unlock();
-	
-	return (BVMFunction *)fn;
-#else
-	UNUSED_VARS(btree, use_cache);
-	return NULL;
-#endif
+	return gen_function_llvm(btree, use_cache, texture_inputs, texture_outputs);
 }
 
 void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace blenvm;
-	
-	NodeGraph graph;
-	init_texture_graph(graph);
-	parse_py_nodes(btree, &graph);
-	
-	debug_node_graph(graph, debug_file, label, mode);
+	debug_nodes(btree, debug_file, label, mode, texture_inputs, texture_outputs);
 }
 
 void BVM_eval_texture_bvm(struct BVMEvalGlobals *_globals, struct BVMEvalContext *ctx, struct BVMFunction *fn,
@@ -753,56 +756,16 @@ void BVM_eval_texture_llvm(struct BVMEvalGlobals *_globals, struct BVMEvalContex
 
 /* ------------------------------------------------------------------------- */
 
-static void init_modifier_graph(blenvm::NodeGraph &graph)
-{
-	using namespace blenvm;
-	
-	graph.add_input("modifier.object", "RNAPOINTER");
-	graph.add_input("modifier.base_mesh", "RNAPOINTER");
-	graph.add_output("mesh", "MESH", __empty_mesh__);
-}
-
 struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
-	
-	bvm_lock.lock();
-	
-	FunctionBVM *fn = NULL;
-	if (use_cache) {
-		fn = function_bvm_cache_acquire(btree);
-	}
-	
-	if (!fn) {
-		NodeGraph graph;
-		init_modifier_graph(graph);
-		parse_py_nodes(btree, &graph);
-		graph.finalize();
-		
-		BVMCompiler compiler;
-		fn = compiler.compile_function(graph);
-		
-		if (use_cache) {
-			function_bvm_cache_set(btree, fn);
-		}
-	}
-	
-	fn->retain(fn);
-	
-	bvm_lock.unlock();
-	
-	return (BVMFunction *)fn;
+	return gen_function_bvm(btree, use_cache, modifier_inputs, modifier_outputs);
 }
 
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace blenvm;
-	
-	NodeGraph graph;
-	init_modifier_graph(graph);
-	parse_py_nodes(btree, &graph);
-	
-	debug_node_graph(graph, debug_file, label, mode);
+	debug_nodes(btree, debug_file, label, mode, modifier_inputs, modifier_outputs);
 }
 
 struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
@@ -834,55 +797,16 @@ struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-static void init_dupli_graph(blenvm::NodeGraph &graph)
-{
-	using namespace blenvm;
-	
-	graph.add_input("dupli.object", "RNAPOINTER");
-	graph.add_output("dupli.result", "DUPLIS", __empty_duplilist__);
-}
-
 struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use_cache)
 {
 	using namespace blenvm;
-	
-	bvm_lock.lock();
-	
-	FunctionBVM *fn = NULL;
-	if (use_cache) {
-		fn = function_bvm_cache_acquire(btree);
-	}
-	
-	if (!fn) {
-		NodeGraph graph;
-		init_dupli_graph(graph);
-		parse_py_nodes(btree, &graph);
-		graph.finalize();
-		
-		BVMCompiler compiler;
-		fn = compiler.compile_function(graph);
-		
-		if (use_cache) {
-			function_bvm_cache_set(btree, fn);
-		}
-	}
-	
-	fn->retain(fn);
-	
-	bvm_lock.unlock();
-	
-	return (BVMFunction *)fn;
+	return gen_function_bvm(btree, use_cache, dupli_inputs, dupli_outputs);
 }
 
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
 {
 	using namespace blenvm;
-	
-	NodeGraph graph;
-	init_dupli_graph(graph);
-	parse_py_nodes(btree, &graph);
-	
-	debug_node_graph(graph, debug_file, label, mode);
+	debug_nodes(btree, debug_file, label, mode, dupli_inputs, dupli_outputs);
 }
 
 void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
