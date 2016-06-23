@@ -420,7 +420,7 @@ static void append_graph_input_args(llvm::LLVMContext &context,
 	
 	const TypeSpec *spec = input->typedesc.get_typespec();
 	llvm::Type *type = bvm_get_llvm_type(context, spec, true);
-	if (bvm_type_has_dual_value(spec))
+	if (bvm_type_has_dual_value(spec) || spec->is_aggregate() || spec->is_structure())
 		type = type->getPointerTo();
 	
 	arg_types.push_back(type);
