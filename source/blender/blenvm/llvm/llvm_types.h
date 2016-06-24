@@ -126,6 +126,22 @@ public:
 };
 
 template <typename T, bool xcompile>
+class TypeBuilder<blenvm::node_counted_ptr<T>, xcompile> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<void*, xcompile>::get(context),
+		            TypeBuilder<size_t*, xcompile>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_DATA = 0,
+		FIELD_REFS = 1,
+	};
+};
+
+template <typename T, bool xcompile>
 class TypeBuilder<blenvm::Dual2<T>, xcompile> {
 public:
 	static StructType *get(LLVMContext &context) {
@@ -426,16 +442,22 @@ template <>
 struct BVMTypeLLVMTraits<BVM_MESH> {
 	enum { use_dual_value = false };
 	
-	typedef void* value_type;
+	typedef struct node_counted_ptr<DerivedMesh> value_type;
 	typedef value_type dual2_type;
 	
 	template <typename BuilderT>
 	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
 	{
 		using namespace llvm;
-		/* TODO */
-		BLI_assert(false);
-		UNUSED_VARS(builder, ptr, value);
+		
+		Value *src_data = builder.CreateStructGEP(value, 0);
+		Value *src_refs = builder.CreateStructGEP(value, 1);
+		
+		Value *dst_data = builder.CreateStructGEP(ptr, 0);
+		Value *dst_refs = builder.CreateStructGEP(ptr, 1);
+		
+		builder.CreateStore(builder.CreateLoad(src_data), dst_data);
+		builder.CreateStore(builder.CreateLoad(src_refs), dst_refs);
 	}
 	
 	template <typename BuilderT>
