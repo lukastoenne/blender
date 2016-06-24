@@ -47,6 +47,11 @@ namespace blenvm {
 
 struct NodeType;
 
+void register_extern_node_functions();
+
+bool llvm_has_external_impl_value(OpCode op);
+bool llvm_has_external_impl_deriv(OpCode op);
+
 void def_node_VALUE_FLOAT(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_VALUE_INT(llvm::LLVMContext &context, llvm::Function *func);
 void def_node_VALUE_FLOAT3(llvm::LLVMContext &context, llvm::Function *func);

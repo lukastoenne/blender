@@ -33,11 +33,11 @@
 
 extern "C" {
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 }
 
 #include "util_opcode.h"
-
-#include "modules.h"
 
 #include "llvm_codegen.h"
 #include "llvm_engine.h"
@@ -53,29 +53,8 @@ static llvm::Module *theModule = NULL;
 static llvm::legacy::PassManager *theModulePassMgr[3] = {0};
 static llvm::legacy::FunctionPassManager *theFunctionPassMgr[3] = {0};
 
-bool llvm_has_external_impl_value(OpCode node_op) {
-#define DEF_OPCODE(op) \
-	if (node_op == OP_##op) \
-		return modules::get_node_impl_value<OP_##op>() != NULL; \
-	else
+static struct GHash *extern_functions = NULL;
 
-	BVM_DEFINE_OPCODES
-	return false;
-
-#undef DEF_OPCODE
-}
-
-bool llvm_has_external_impl_deriv(OpCode node_op) {
-#define DEF_OPCODE(op) \
-	if (node_op == OP_##op) \
-		return modules::get_node_impl_deriv<OP_##op>() != NULL; \
-	else
-
-	BVM_DEFINE_OPCODES
-	return false;
-
-#undef DEF_OPCODE
-}
 
 class MemoryManager : public llvm::SectionMemoryManager {
 public:
@@ -83,21 +62,6 @@ public:
 	{}
 	virtual ~MemoryManager()
 	{}
-	
-	static void *get_node_function_ptr(const string &name) {
-#define DEF_OPCODE(op) \
-		if (name == bvm_value_function_name(STRINGIFY(op))) \
-			return modules::get_node_impl_value<OP_##op>(); \
-		else if (name == bvm_deriv_function_name(STRINGIFY(op))) \
-			return modules::get_node_impl_deriv<OP_##op>(); \
-		else
-	
-		BVM_DEFINE_OPCODES
-		return NULL;
-	
-#undef DEF_OPCODE
-	
-	}
 	
 	/// This method returns the address of the specified function or variable.
 	/// It is used to resolve symbols during module linking.
@@ -107,7 +71,7 @@ public:
 		if (addr)
 			return addr;
 		
-		void *ptr = get_node_function_ptr(Name);
+		void *ptr = BLI_ghash_lookup(extern_functions, Name.c_str());
 		return (uint64_t)ptr;
 	}
 };
@@ -190,6 +154,9 @@ void llvm_init()
 {
 	using namespace llvm;
 	
+	extern_functions = BLI_ghash_str_new("LLVM external functions hash");
+	register_extern_node_functions();
+	
 	InitializeNativeTarget();
 	InitializeNativeTargetAsmPrinter();
 	InitializeNativeTargetAsmParser();
@@ -200,6 +167,11 @@ void llvm_init()
 	create_pass_managers();
 	
 	LLVMCodeGenerator::define_nodes_module(getGlobalContext());
+}
+
+static void extern_functions_keyfree(void *key)
+{
+	MEM_freeN(key);
 }
 
 void llvm_free()
@@ -215,11 +187,24 @@ void llvm_free()
 		if (theFunctionPassMgr[opt_level])
 			delete theFunctionPassMgr[opt_level];
 	}
+	
+	BLI_ghash_free(extern_functions, extern_functions_keyfree, NULL);
 }
 
 llvm::ExecutionEngine *llvm_execution_engine()
 {
 	return theEngine;
+}
+
+void llvm_register_external_function(const string &name, void *func)
+{
+	char *namebuf = BLI_strdup(name.c_str());
+	BLI_ghash_insert(extern_functions, namebuf, func);
+}
+
+bool llvm_has_external_function(const string &name)
+{
+	return BLI_ghash_haskey(extern_functions, name.c_str());
 }
 
 void llvm_optimize_module(llvm::Module *mod, int opt_level)

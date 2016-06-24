@@ -58,6 +58,47 @@ namespace blenvm {
 
 typedef llvm::IRBuilder<> Builder;
 
+void register_extern_node_functions()
+{
+#define DEF_OPCODE(op) \
+	{ \
+		void *func_value = modules::get_node_impl_value<OP_##op>(); \
+		if (func_value != NULL) \
+			llvm_register_external_function(bvm_value_function_name(STRINGIFY(op)), func_value); \
+		void *func_deriv = modules::get_node_impl_deriv<OP_##op>(); \
+		if (func_deriv != NULL) \
+			llvm_register_external_function(bvm_deriv_function_name(STRINGIFY(op)), func_value); \
+	}
+	
+	BVM_DEFINE_OPCODES
+	
+#undef DEF_OPCODE
+}
+
+bool llvm_has_external_impl_value(OpCode node_op) {
+#define DEF_OPCODE(op) \
+	if (node_op == OP_##op) \
+		return modules::get_node_impl_value<OP_##op>() != NULL; \
+	else
+
+	BVM_DEFINE_OPCODES
+	return false;
+
+#undef DEF_OPCODE
+}
+
+bool llvm_has_external_impl_deriv(OpCode node_op) {
+#define DEF_OPCODE(op) \
+	if (node_op == OP_##op) \
+		return modules::get_node_impl_deriv<OP_##op>() != NULL; \
+	else
+
+	BVM_DEFINE_OPCODES
+	return false;
+
+#undef DEF_OPCODE
+}
+
 static llvm::Value *float_vector_at(Builder &builder, llvm::Value *p_vec, llvm::Value *idx)
 {
 	using namespace llvm;

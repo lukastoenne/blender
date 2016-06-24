@@ -48,11 +48,11 @@ void llvm_free();
 
 llvm::ExecutionEngine *llvm_execution_engine();
 
+void llvm_register_external_function(const string &name, void *func);
+bool llvm_has_external_function(const string &name);
+
 void llvm_optimize_module(llvm::Module *mod, int opt_level);
 void llvm_optimize_function(llvm::Function *func, int opt_level);
-
-bool llvm_has_external_impl_value(OpCode op);
-bool llvm_has_external_impl_deriv(OpCode op);
 
 } /* namespace blenvm */
 
