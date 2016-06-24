@@ -25,31 +25,39 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __MODULES_H__
-#define __MODULES_H__
+#ifndef __MOD_OBJECT_H__
+#define __MOD_OBJECT_H__
 
-#include "mod_base.h"
-#include "mod_color.h"
-#include "mod_image.h"
-#include "mod_math.h"
-#include "mod_mesh.h"
-#include "mod_object.h"
-#include "mod_texture.h"
+extern "C" {
+#include "DNA_object_types.h"
 
-#include "util_string.h"
-
-namespace blenvm {
-
-inline string bvm_value_function_name(const string &node)
-{
-	return "V__" + node;
+#include "RNA_access.h"
 }
 
-inline string bvm_deriv_function_name(const string &node)
+#include "mod_defines.h"
+
+#include "util_eval_globals.h"
+#include "util_math.h"
+
+BVM_MOD_NAMESPACE_BEGIN
+
+bvm_extern void V__OBJECT_LOOKUP(const EvalGlobals &globals, PointerRNA &ob_ptr, int key)
 {
-	return "D__" + node;
+	ob_ptr = globals.lookup_object(key);
 }
+BVM_DECL_FUNCTION_VALUE(OBJECT_LOOKUP)
 
-} /* namespace blenvm */
+bvm_extern void V__OBJECT_TRANSFORM(matrix44 &tfm, const PointerRNA &ob_ptr)
+{
+	if (ob_ptr.data && RNA_struct_is_a(&RNA_Object, ob_ptr.type)) {
+		Object *ob = (Object *)ob_ptr.data;
+		copy_m4_m4(tfm.c_data(), ob->obmat);
+	}
+	else
+		tfm = matrix44::identity();
+}
+BVM_DECL_FUNCTION_VALUE(OBJECT_TRANSFORM)
 
-#endif /* __MODULES_H__ */
+BVM_MOD_NAMESPACE_END
+
+#endif /* __MOD_OBJECT_H__ */

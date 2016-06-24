@@ -159,9 +159,9 @@ class GeometryMeshLoadNode(GeometryNodeBase, ObjectNode):
         compiler.map_output(0, node.outputs[0])
 
 
-class GeometryObjectFinalMeshNode(GeometryNodeBase, ObjectNode):
+class GeometryMeshLoadObjectNode(GeometryNodeBase, ObjectNode):
     '''Load the final mesh of an object'''
-    bl_idname = 'GeometryObjectFinalMeshNode'
+    bl_idname = 'GeometryMeshLoadObjectNode'
     bl_label = 'Object Mesh'
 
     bl_id_property_type = 'OBJECT'
@@ -184,7 +184,7 @@ class GeometryObjectFinalMeshNode(GeometryNodeBase, ObjectNode):
             return
         ob, tfm, itfm = compile_modifier_inputs(compiler, self.id)
 
-        node = compiler.add_node("OBJECT_FINAL_MESH")
+        node = compiler.add_node("MESH_LOAD_OBJECT")
         compiler.link(ob, node.inputs[0])
         compiler.map_output(0, node.outputs[0])
 
@@ -432,7 +432,7 @@ def register():
         GeometryNodeCategory("GEO_INPUT", "Input", items=[
             NodeItem("ObjectRangeNode"),
             NodeItem("GeometryMeshLoadNode"),
-            NodeItem("GeometryObjectFinalMeshNode"),
+            NodeItem("GeometryMeshLoadObjectNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("GeometryElementInfoNode"),
             NodeItem("ObjectValueFloatNode"),

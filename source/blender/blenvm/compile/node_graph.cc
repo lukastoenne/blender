@@ -1681,16 +1681,13 @@ static void register_opcode_node_types()
 	nt->add_output("intensity", "FLOAT");
 	
 	nt = NodeGraph::add_node_type("OBJECT_LOOKUP");
+	nt->set_use_globals(true);
 	nt->add_input("key", "INT", 0, INPUT_CONSTANT);
 	nt->add_output("object", "RNAPOINTER");
 	
 	nt = NodeGraph::add_node_type("OBJECT_TRANSFORM");
 	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("transform", "MATRIX44");
-	
-	nt = NodeGraph::add_node_type("OBJECT_FINAL_MESH");
-	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
-	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_node_type("EFFECTOR_TRANSFORM");
 	nt->add_input("object", "INT", 0, INPUT_CONSTANT);
@@ -1705,6 +1702,10 @@ static void register_opcode_node_types()
 	
 	nt = NodeGraph::add_node_type("MESH_LOAD");
 	nt->add_input("base_mesh", "RNAPOINTER", PointerRNA_NULL);
+	nt->add_output("mesh", "MESH");
+	
+	nt = NodeGraph::add_node_type("MESH_LOAD_OBJECT");
+	nt->add_input("object", "RNAPOINTER", PointerRNA_NULL);
 	nt->add_output("mesh", "MESH");
 	
 	nt = NodeGraph::add_node_type("MESH_COMBINE");
