@@ -56,6 +56,7 @@ set(SRC
 	modules/mod_color.h
 	modules/mod_image.h
 	modules/mod_math.h
+	modules/mod_mesh.h
 	modules/mod_texture.h
 
 	util/util_array.h

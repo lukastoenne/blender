@@ -25,56 +25,50 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_EVAL_MESH_H__
-#define __BVM_EVAL_MESH_H__
-
-/** \file bvm_eval_mesh.h
- *  \ingroup bvm
- */
+#ifndef __MOD_MESH_H__
+#define __MOD_MESH_H__
 
 extern "C" {
-#include "BLI_math.h"
-
 #include "DNA_object_types.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
-#include "tools/bmesh_intersect.h"
+#include "BKE_DerivedMesh.h"
+
+#include "RNA_access.h"
 }
 
-#include "bvm_eval_common.h"
+#include "mod_defines.h"
 
-namespace blenvm {
+#include "util_math.h"
+#include "util_data_ptr.h"
 
-static void eval_op_mesh_load(EvalStack *stack, StackIndex offset_base_mesh, StackIndex offset_mesh)
+BVM_MOD_NAMESPACE_BEGIN
+
+bvm_extern void V__MESH_LOAD(mesh_ptr &mesh, const PointerRNA &mesh_ptr)
 {
-	PointerRNA ptr = stack_load_rnapointer(stack, offset_base_mesh);
 	DerivedMesh *dm;
-	if (ptr.data && RNA_struct_is_a(&RNA_Mesh, ptr.type)) {
-		dm = CDDM_from_mesh((Mesh *)ptr.data);
+	if (mesh_ptr.data && RNA_struct_is_a(&RNA_Mesh, mesh_ptr.type)) {
+		dm = CDDM_from_mesh((Mesh *)mesh_ptr.data);
 	}
 	else {
 		dm = CDDM_new(0, 0, 0, 0, 0);
 	}
-	stack_store_mesh(stack, offset_mesh, dm);
+	mesh.set(dm);
 }
+BVM_DECL_FUNCTION_VALUE(MESH_LOAD)
 
-static void eval_op_object_final_mesh(EvalStack *stack,
-                                      StackIndex offset_object,
-                                      StackIndex offset_mesh)
+bvm_extern void V__MESH_LOAD_OBJECT(mesh_ptr &mesh, const PointerRNA &ob_ptr)
 {
-	PointerRNA ptr = stack_load_rnapointer(stack, offset_object);
-	
 	DerivedMesh *result = NULL;
-	if (ptr.data && RNA_struct_is_a(&RNA_Object, ptr.type)) {
-		Object *ob = (Object *)ptr.data;
+	if (ob_ptr.data && RNA_struct_is_a(&RNA_Object, ob_ptr.type)) {
+		Object *ob = (Object *)ob_ptr.data;
 		result = ob->derivedFinal;
 	}
 	if (!result)
 		result = CDDM_new(0, 0, 0, 0, 0);
 	
-	stack_store_mesh(stack, offset_mesh, result);
+	mesh.set(result);
 }
+BVM_DECL_FUNCTION_VALUE(MESH_LOAD_OBJECT)
 
 static void dm_insert(
         DerivedMesh *result, DerivedMesh *dm,
@@ -152,11 +146,10 @@ static void dm_insert(
 	}
 }
 
-static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, EvalStack *stack,
-                                 StackIndex offset_mesh_a, StackIndex offset_mesh_b, StackIndex offset_mesh_out)
+bvm_extern void V__MESH_COMBINE(mesh_ptr &out, const mesh_ptr &a, const mesh_ptr &b)
 {
-	DerivedMesh *dm_a = stack_load_mesh(stack, offset_mesh_a);
-	DerivedMesh *dm_b = stack_load_mesh(stack, offset_mesh_b);
+	DerivedMesh *dm_a = a.get();
+	DerivedMesh *dm_b = b.get();
 	
 	int numVertsA = dm_a->getNumVerts(dm_a);
 	int numEdgesA = dm_a->getNumEdges(dm_a);
@@ -178,8 +171,9 @@ static void eval_op_mesh_combine(const EvalKernelData */*kernel_data*/, EvalStac
 	dm_insert(result, dm_a, 0, 0, 0, 0);
 	dm_insert(result, dm_b, numVertsA, numEdgesA, numLoopsA, numPolysA);
 	
-	stack_store_mesh(stack, offset_mesh_out, result);
+	out.set(result);
 }
+BVM_DECL_FUNCTION_VALUE(MESH_COMBINE)
 
 #if 0
 static DerivedMesh *do_array(const EvalGlobals *globals, const EvalKernelData *kernel_data, EvalStack *stack,
@@ -499,23 +493,23 @@ static void eval_op_mesh_boolean(const EvalGlobals *UNUSED(globals),
 }
 #endif
 
-static void eval_op_mesh_closest_point(EvalStack *stack,
-                                       StackIndex offset_mesh,
-                                       StackIndex offset_transform,
-	                                   StackIndex offset_invtransform,
-                                       StackIndex offset_vector,
-                                       StackIndex offset_position,
-                                       StackIndex offset_normal,
-                                       StackIndex offset_tangent)
+bvm_extern void V__MESH_CLOSEST_POINT(float3 &pos,
+                                      float3 &nor,
+                                      float3 &tang,
+                                      const mesh_ptr &mesh,
+                                      const matrix44 &mat,
+                                      const matrix44 &inv_mat,
+                                      const float3 &vec)
 {
-	DerivedMesh *dm = stack_load_mesh(stack, offset_mesh);
-	SpaceTransform transform = stack_load_space_transform(stack, offset_transform, offset_invtransform);
+	DerivedMesh *dm = mesh.get();
+	SpaceTransform transform = make_space_transform(mat, inv_mat);
 	
-	float3 vec;
-	vec = stack_load_float3(stack, offset_vector);
-	BLI_space_transform_invert(&transform, &vec.x);
+	float3 tvec = vec;
+	BLI_space_transform_invert(&transform, tvec.data());
 	
-	float3 pos(0.0f, 0.0f, 0.0f), nor(0.0f, 0.0f, 0.0f), tang(0.0f, 0.0f, 0.0f);
+	pos = float3(0.0f, 0.0f, 0.0f);
+	nor = float3(0.0f, 0.0f, 0.0f);
+	tang = float3(0.0f, 0.0f, 0.0f);
 	
 	BVHTreeFromMesh treeData = {NULL};
 	bvhtree_from_mesh_looptri(&treeData, dm, 0.0, 2, 6);
@@ -523,7 +517,7 @@ static void eval_op_mesh_closest_point(EvalStack *stack,
 		BVHTreeNearest nearest;
 		nearest.index = -1;
 		nearest.dist_sq = FLT_MAX;
-		BLI_bvhtree_find_nearest(treeData.tree, &vec.x, &nearest, treeData.nearest_callback, &treeData);
+		BLI_bvhtree_find_nearest(treeData.tree, tvec.data(), &nearest, treeData.nearest_callback, &treeData);
 		
 		if (nearest.index != -1) {
 			copy_v3_v3(&pos.x, nearest.co);
@@ -533,12 +527,9 @@ static void eval_op_mesh_closest_point(EvalStack *stack,
 			// TODO tangent is still undefined
 		}
 	}
-	
-	stack_store_float3(stack, offset_position, pos);
-	stack_store_float3(stack, offset_normal, nor);
-	stack_store_float3(stack, offset_tangent, tang);
 }
+BVM_DECL_FUNCTION_VALUE(MESH_CLOSEST_POINT)
 
-} /* namespace blenvm */
+BVM_MOD_NAMESPACE_END
 
-#endif /* __BVM_EVAL_MESH_H__ */
+#endif /* __MOD_MESH_H__ */

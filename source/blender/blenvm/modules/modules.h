@@ -32,6 +32,7 @@
 #include "mod_color.h"
 #include "mod_image.h"
 #include "mod_math.h"
+#include "mod_mesh.h"
 #include "mod_texture.h"
 
 #include "util_string.h"

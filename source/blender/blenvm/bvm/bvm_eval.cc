@@ -978,7 +978,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				eval_op_object_transform(stack, offset_object, offset_transform);
 				break;
 			}
-			case OP_OBJECT_FINAL_MESH: {
+			case OP_MESH_LOAD_OBJECT: {
 				StackIndex offset_object = fn->read_stack_index(&instr);
 				StackIndex offset_mesh = fn->read_stack_index(&instr);
 				eval_op_object_final_mesh(stack, offset_object, offset_mesh);
@@ -1014,6 +1014,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				eval_op_mesh_combine(&kd, stack, offset_mesh_a, offset_mesh_b, offset_mesh_out);
 				break;
 			}
+#if 0
 			case OP_MESH_ARRAY: {
 				fn->read_jump_address(&instr);
 				StackIndex offset_mesh_in = fn->read_stack_index(&instr);
@@ -1057,6 +1058,7 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				                     offset_threshold, offset_mesh_out);
 				break;
 			}
+#endif
 			case OP_MESH_CLOSEST_POINT: {
 				StackIndex offset_mesh = fn->read_stack_index(&instr);
 				StackIndex offset_transform = fn->read_stack_index(&instr);

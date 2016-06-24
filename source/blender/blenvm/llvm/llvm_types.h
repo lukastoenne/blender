@@ -107,6 +107,24 @@ public:
 	}
 };
 
+template <bool xcompile>
+class TypeBuilder<PointerRNA, xcompile> {
+public:
+	static StructType *get(LLVMContext &context) {
+		return StructType::get(
+		            TypeBuilder<void*, xcompile>::get(context),
+		            TypeBuilder<void*, xcompile>::get(context),
+		            TypeBuilder<void*, xcompile>::get(context),
+		            NULL);
+	}
+	
+	enum Fields {
+		FIELD_ID = 0,
+		FIELD_TYPE = 1,
+		FIELD_DATA = 2,
+	};
+};
+
 template <typename T, bool xcompile>
 class TypeBuilder<blenvm::Dual2<T>, xcompile> {
 public:
@@ -124,27 +142,6 @@ public:
 		FIELD_DY = 2,
 	};
 };
-
-#if 0
-/* Specialization to enable TypeBuilder for Dual2<float> */
-template <bool xcompile>
-class TypeBuilder<blenvm::Dual2<float>, xcompile> {
-public:
-	static StructType *get(LLVMContext &context) {
-		return StructType::get(
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            TypeBuilder<types::ieee_float, xcompile>::get(context),
-		            NULL);
-	}
-	
-	enum Fields {
-		FIELD_VALUE = 0,
-		FIELD_DX = 1,
-		FIELD_DY = 2,
-	};
-};
-#endif
 
 } /* namespace llvm */
 
@@ -210,6 +207,24 @@ inline llvm::Constant *make_constant(llvm::LLVMContext &context, const matrix44 
 	Constant *data = ConstantArray::get(outer_t, llvm::ArrayRef<Constant*>(cols, 4));
 	return ConstantStruct::get(matrix_t,
 	                           data, NULL);
+}
+
+inline llvm::Constant *make_constant(llvm::LLVMContext &UNUSED(context), void *UNUSED(p))
+{
+	using namespace llvm;
+	
+	/* Note: pointer constants are not allowed, should never be used */
+	BLI_assert(false);
+	return NULL;
+}
+
+inline llvm::Constant *make_constant(llvm::LLVMContext &UNUSED(context), const PointerRNA &UNUSED(p))
+{
+	using namespace llvm;
+	
+	/* Note: pointer constants are not allowed, should never be used */
+	BLI_assert(false);
+	return NULL;
 }
 
 template <typename T>
@@ -377,23 +392,31 @@ template <>
 struct BVMTypeLLVMTraits<BVM_RNAPOINTER> {
 	enum { use_dual_value = false };
 	
-	typedef int value_type;
+	typedef PointerRNA value_type;
 	typedef value_type dual2_type;
 	
 	template <typename BuilderT>
 	static void copy_value(BuilderT &builder, llvm::Value *ptr, llvm::Value *value)
 	{
 		using namespace llvm;
-		/* TODO */
-		BLI_assert(false);
-		UNUSED_VARS(builder, ptr, value);
+		
+		Value *src_id = builder.CreateStructGEP(value, 0);
+		Value *src_type = builder.CreateStructGEP(value, 1);
+		Value *src_data = builder.CreateStructGEP(value, 2);
+		
+		Value *dst_id = builder.CreateStructGEP(ptr, 0);
+		Value *dst_type = builder.CreateStructGEP(ptr, 1);
+		Value *dst_data = builder.CreateStructGEP(ptr, 2);
+		
+		builder.CreateStore(builder.CreateLoad(src_id), dst_id);
+		builder.CreateStore(builder.CreateLoad(src_type), dst_type);
+		builder.CreateStore(builder.CreateLoad(src_data), dst_data);
 	}
 	
 	template <typename BuilderT>
 	static void set_zero(BuilderT &builder, llvm::Value *ptr)
 	{
 		using namespace llvm;
-		/* TODO */
 		BLI_assert(false);
 		UNUSED_VARS(builder, ptr);
 	}
@@ -403,7 +426,7 @@ template <>
 struct BVMTypeLLVMTraits<BVM_MESH> {
 	enum { use_dual_value = false };
 	
-	typedef int value_type;
+	typedef void* value_type;
 	typedef value_type dual2_type;
 	
 	template <typename BuilderT>
@@ -419,7 +442,6 @@ struct BVMTypeLLVMTraits<BVM_MESH> {
 	static void set_zero(BuilderT &builder, llvm::Value *ptr)
 	{
 		using namespace llvm;
-		/* TODO */
 		BLI_assert(false);
 		UNUSED_VARS(builder, ptr);
 	}

@@ -243,7 +243,7 @@ inline static float modulo_safe(float a, float b)
 		return 0.0f;
 }
 
-/* ************************************************************/
+/* ********************************************************** */
 /* Dual numbers for representing values and their derivatives */
 
 /* Dual value for functions of two variables */
@@ -273,6 +273,17 @@ private:
 	T m_dx;
 	T m_dy;
 };
+
+/* ************************ */
+/* SpaceTransform utilities */
+
+BLI_INLINE SpaceTransform make_space_transform(const matrix44 &tfm, const matrix44 &inv_tfm)
+{
+	SpaceTransform transform;
+	copy_m4_m4(transform.local2target, tfm.c_data());
+	copy_m4_m4(transform.target2local, inv_tfm.c_data());
+	return transform;
+}
 
 } /* namespace blenvm */
 
