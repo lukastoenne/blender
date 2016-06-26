@@ -379,8 +379,8 @@ void LLVMCodeGenerator::eval_node(const NodeType *nodetype,
 		else {
 			evalargs.push_back(dval.value());
 		}
-		
 	}
+	
 	for (int i = 0; i < nodetype->num_inputs(); ++i) {
 		const NodeInput *input = nodetype->find_input(i);
 		const TypeSpec *typespec = input->typedesc.get_typespec();
