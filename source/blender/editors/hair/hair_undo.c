@@ -89,6 +89,7 @@ static void *strands_edit_to_undo(void *editv, void *UNUSED(obdata))
 	BMEditStrands *edit = editv;
 	BMesh *bm = edit->base.bm;
 //	Mesh *obme = obdata;
+	struct BMeshToMeshParams params = {0};
 	
 	UndoStrands *undo = MEM_callocN(sizeof(UndoStrands), "undo Strands");
 	
@@ -97,7 +98,8 @@ static void *strands_edit_to_undo(void *editv, void *UNUSED(obdata))
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
 
-	BM_mesh_bm_to_me_ex(bm, &undo->me, CD_MASK_STRANDS, false);
+	params.cd_mask_extra = CD_MASK_STRANDS;
+	BM_mesh_bm_to_me(bm, &undo->me, &params);
 
 	undo->selectmode = bm->selectmode;
 	undo->shapenr = bm->shapenr;
@@ -113,13 +115,16 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	DerivedMesh *dm = edit->root_dm;
 	BMesh *bm;
 //	Key *key = ((Mesh *) obdata)->key;
+	struct BMeshFromMeshParams params = {0};
 	
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&undo->me);
 	
 	edit->base.bm->shapenr = undo->shapenr;
 	
 	bm = BM_mesh_create(&allocsize);
-	BM_mesh_bm_from_me_ex(bm, &undo->me, CD_MASK_STRANDS_BMESH, false, false, undo->shapenr);
+	params.cd_mask_extra = CD_MASK_STRANDS_BMESH;
+	params.active_shapekey = undo->shapenr;
+	BM_mesh_bm_from_me(bm, &undo->me, &params);
 	
 	/* note: have to create the new edit before freeing the old one,
 	 * because it owns the root_dm and we have to copy it before
@@ -171,7 +176,7 @@ static void strands_free_undo(void *undov)
 		MEM_freeN(undo->me.key);
 	}
 
-	BKE_mesh_free(&undo->me, false);
+	BKE_mesh_free(&undo->me);
 	MEM_freeN(undo);
 }
 

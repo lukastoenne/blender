@@ -59,6 +59,7 @@ struct wmTimer;
 struct ARegion;
 struct ReportList;
 struct EditBone;
+struct SnapObjectContext;
 
 /* transinfo->redraw */
 typedef enum {
@@ -101,6 +102,11 @@ typedef struct TransSnap {
 	 * where the smallest absolute value defines whats closest.
 	 */
 	float  (*distance)(struct TransInfo *, const float p1[3], const float p2[3]);
+
+	/**
+	 * Re-usable snap context data.
+	 */
+	struct SnapObjectContext *object_context;
 } TransSnap;
 
 typedef struct TransCon {
@@ -363,6 +369,11 @@ typedef struct TransCustomData {
 	unsigned int use_free : 1;
 } TransCustomData;
 
+typedef struct TransCenterData {
+	float local[3], global[3];
+	unsigned int is_set : 1;
+} TransCenterData;
+
 typedef struct TransInfo {
 	int         mode;           /* current mode                         */
 	int	        flag;           /* generic flags for special behaviors  */
@@ -390,6 +401,9 @@ typedef struct TransInfo {
 	float       center[3];      /* center of transformation (in local-space) */
 	float       center_global[3];  /* center of transformation (in global-space) */
 	float       center2d[2];    /* center in screen coordinates         */
+	/* Lazy initialize center data for when we need other center values.
+	 * V3D_AROUND_ACTIVE + 1 (static assert checks this) */
+	TransCenterData center_cache[5];
 	short       idx_max;		/* maximum index on the input vector	*/
 	float		snap[3];		/* Snapping Gears						*/
 	float		snap_spatial[3]; /* Spatial snapping gears(even when rotating, scaling... etc) */
@@ -578,6 +592,10 @@ typedef struct TransInfo {
 #define POINT_INIT		4
 #define MULTI_POINTS	8
 
+/* Hard min/max for proportional size. */
+#define T_PROP_SIZE_MIN 1e-6f
+#define T_PROP_SIZE_MAX 1e12f
+
 bool initTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op, const struct wmEvent *event, int mode);
 void saveTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op);
 int  transformEvent(TransInfo *t, const struct wmEvent *event);
@@ -678,6 +696,7 @@ bool activeSnap(TransInfo *t);
 bool validSnap(TransInfo *t);
 
 void initSnapping(struct TransInfo *t, struct wmOperator *op);
+void freeSnapping(struct TransInfo *t);
 void applyProject(TransInfo *t);
 void applyGridAbsolute(TransInfo *t);
 void applySnapping(TransInfo *t, float *vec);
@@ -736,8 +755,11 @@ void restoreTransObjects(TransInfo *t);
 void recalcData(TransInfo *t);
 
 void calculateCenter2D(TransInfo *t);
-void calculateCenterGlobal(TransInfo *t);
+void calculateCenterGlobal(
+        TransInfo *t, const float center_local[3],
+        float r_center_global[3]);
 
+const TransCenterData *transformCenter_from_type(TransInfo *t, int around);
 void calculateCenter(TransInfo *t);
 
 /* API functions for getting center points */
@@ -786,5 +808,9 @@ void projectVertSlideData(TransInfo *t, bool is_final);
 
 /* TODO. transform_queries.c */
 bool checkUseAxisMatrix(TransInfo *t);
+
+#define TRANSFORM_DIST_MAX_PX 1000.0f
+#define TRANSFORM_SNAP_MAX_PX 100.0f
+#define TRANSFORM_DIST_INVALID -FLT_MAX
 
 #endif

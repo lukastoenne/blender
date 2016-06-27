@@ -84,7 +84,7 @@ static float depth_read_zbuf(const ViewContext *vc, int x, int y)
 
 static bool depth_unproject(
         const ARegion *ar, const bglMats *mats,
-        const int mval[2], const float depth,
+        const int mval[2], const double depth,
         float r_location_world[3])
 {
 	double p[3];
@@ -115,7 +115,7 @@ static bool depth_read_normal(
 		for (int y = 0; y < 2; y++) {
 			const int mval_ofs[2] = {mval[0] + (x - 1), mval[1] + (y - 1)};
 
-			float depth = depth_read_zbuf(vc, mval_ofs[0], mval_ofs[1]);
+			const double depth = (double)depth_read_zbuf(vc, mval_ofs[0], mval_ofs[1]);
 			if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
 				if (depth_unproject(ar, mats, mval_ofs, depth, coords[i])) {
 					depths_valid[i] = true;
@@ -170,6 +170,11 @@ struct StrokeElem {
 	float mval[2];
 	float location_world[3];
 	float location_local[3];
+
+	/* surface normal, may be zero'd */
+	float normal_world[3];
+	float normal_local[3];
+
 	float pressure;
 };
 
@@ -189,6 +194,8 @@ struct CurveDrawData {
 		/* offset projection by this value */
 		bool use_offset;
 		float    offset[3];  /* worldspace */
+		float    surface_offset;
+		bool     use_surface_offset_absolute;
 	} project;
 
 	/* cursor sampling */
@@ -199,7 +206,6 @@ struct CurveDrawData {
 
 	struct {
 		float min, max, range;
-		float offset;
 	} radius;
 
 	struct {
@@ -225,10 +231,29 @@ struct CurveDrawData {
 	void *draw_handle_view;
 };
 
-static float stroke_elem_radius(const struct CurveDrawData *cdd, const struct StrokeElem *selem)
+static float stroke_elem_radius_from_pressure(const struct CurveDrawData *cdd, const float pressure)
 {
 	const Curve *cu = cdd->vc.obedit->data;
-	return ((selem->pressure * cdd->radius.range) + cdd->radius.min) * cu->ext2;
+	return ((pressure * cdd->radius.range) + cdd->radius.min) * cu->ext2;
+}
+
+static float stroke_elem_radius(const struct CurveDrawData *cdd, const struct StrokeElem *selem)
+{
+	return stroke_elem_radius_from_pressure(cdd, selem->pressure);
+}
+
+static void stroke_elem_pressure_set(const struct CurveDrawData *cdd, struct StrokeElem *selem, float pressure)
+{
+	if ((cdd->project.surface_offset != 0.0f) &&
+	    !cdd->project.use_surface_offset_absolute &&
+	    !is_zero_v3(selem->normal_local))
+	{
+		const float adjust = stroke_elem_radius_from_pressure(cdd, pressure) -
+		                     stroke_elem_radius_from_pressure(cdd, selem->pressure);
+		madd_v3_v3fl(selem->location_local, selem->normal_local, adjust);
+		mul_v3_m4v3(selem->location_world, cdd->vc.obedit->obmat, selem->location_local);
+	}
+	selem->pressure = pressure;
 }
 
 static void stroke_elem_interp(
@@ -248,8 +273,8 @@ static void stroke_elem_interp(
 static bool stroke_elem_project(
         const struct CurveDrawData *cdd,
         const int mval_i[2], const float mval_fl[2],
-        const float radius_offset, const float radius,
-        float r_location_world[3])
+        float surface_offset, const float radius,
+        float r_location_world[3], float r_normal_world[3])
 {
 	View3D *v3d = cdd->vc.v3d;
 	ARegion *ar = cdd->vc.ar;
@@ -266,6 +291,9 @@ static bool stroke_elem_project(
 		float lambda;
 		if (isect_ray_plane_v3(ray_origin, ray_direction, cdd->project.plane, &lambda, true)) {
 			madd_v3_v3v3fl(r_location_world, ray_origin, ray_direction, lambda);
+			if (r_normal_world) {
+				zero_v3(r_normal_world);
+			}
 			is_location_world_set = true;
 		}
 	}
@@ -275,15 +303,22 @@ static bool stroke_elem_project(
 		    ((unsigned int)mval_i[0] < depths->w) &&
 		    ((unsigned int)mval_i[1] < depths->h))
 		{
-			float depth = depth_read_zbuf(&cdd->vc, mval_i[0], mval_i[1]);
+			const double depth = (double)depth_read_zbuf(&cdd->vc, mval_i[0], mval_i[1]);
 			if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
 				if (depth_unproject(ar, &cdd->mats, mval_i, depth, r_location_world)) {
 					is_location_world_set = true;
+					if (r_normal_world) {
+						zero_v3(r_normal_world);
+					}
 
-					if (radius_offset != 0.0f) {
+					if (surface_offset != 0.0f) {
+						const float offset = cdd->project.use_surface_offset_absolute ? 1.0f : radius;
 						float normal[3];
 						if (depth_read_normal(&cdd->vc, &cdd->mats, mval_i, normal)) {
-							madd_v3_v3fl(r_location_world, normal, radius_offset * radius);
+							madd_v3_v3fl(r_location_world, normal, offset * surface_offset);
+							if (r_normal_world) {
+								copy_v3_v3(r_normal_world, normal);
+							}
 						}
 					}
 				}
@@ -303,18 +338,29 @@ static bool stroke_elem_project(
 static bool stroke_elem_project_fallback(
         const struct CurveDrawData *cdd,
         const int mval_i[2], const float mval_fl[2],
-        const float radius_offset, const float radius,
+        const float surface_offset, const float radius,
         const float location_fallback_depth[3],
-        float r_location_world[3], float r_location_local[3])
+        float r_location_world[3], float r_location_local[3],
+        float r_normal_world[3], float r_normal_local[3])
 {
 	bool is_depth_found = stroke_elem_project(
 	        cdd, mval_i, mval_fl,
-	        radius_offset, radius,
-	        r_location_world);
+	        surface_offset, radius,
+	        r_location_world, r_normal_world);
 	if (is_depth_found == false) {
 		ED_view3d_win_to_3d(cdd->vc.ar, location_fallback_depth, mval_fl, r_location_world);
+		zero_v3(r_normal_local);
 	}
 	mul_v3_m4v3(r_location_local, cdd->vc.obedit->imat, r_location_world);
+
+	if (!is_zero_v3(r_normal_world)) {
+		copy_v3_v3(r_normal_local, r_normal_world);
+		mul_transposed_mat3_m4_v3(cdd->vc.obedit->obmat, r_normal_local);
+		normalize_v3(r_normal_local);
+	}
+	else {
+		zero_v3(r_normal_local);
+	}
 
 	return is_depth_found;
 }
@@ -331,9 +377,10 @@ static bool stroke_elem_project_fallback_elem(
 	const float radius = stroke_elem_radius(cdd, selem);
 	return stroke_elem_project_fallback(
 	        cdd, mval_i, selem->mval,
-	        cdd->radius.offset, radius,
+	        cdd->project.surface_offset, radius,
 	        location_fallback_depth,
-	        selem->location_world, selem->location_local);
+	        selem->location_world, selem->location_local,
+	        selem->normal_world, selem->normal_local);
 }
 
 /** \} */
@@ -438,7 +485,7 @@ static void curve_draw_stroke_3d(const struct bContext *UNUSED(C), ARegion *UNUS
 			        selem->location_local[2] - location_prev[2]);
 			location_prev = selem->location_local;
 			const float radius = stroke_elem_radius(cdd, selem);
-			gluSphere(qobj, radius , 12, 8);
+			gluSphere(qobj, radius, 12, 8);
 
 			location_prev = selem->location_local;
 		}
@@ -595,14 +642,14 @@ static void curve_draw_event_add_first(wmOperator *op, const wmEvent *event)
 
 		/* Special case for when we only have offset applied on the first-hit,
 		 * the remaining stroke must be offset too. */
-		if (cdd->radius.offset != 0.0f) {
+		if (cdd->project.surface_offset != 0.0f) {
 			const float mval_fl[2] = {UNPACK2(event->mval)};
 
 			float location_no_offset[3];
 
 			if (stroke_elem_project(
 			        cdd, event->mval, mval_fl, 0.0f, 0.0f,
-			        location_no_offset))
+			        location_no_offset, NULL))
 			{
 				sub_v3_v3v3(cdd->project.offset, cdd->prev.location_world_valid, location_no_offset);
 				if (!is_zero_v3(cdd->project.offset)) {
@@ -628,7 +675,7 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 		view3d_set_viewcontext(C, &cdd->vc);
 		if (ELEM(NULL, cdd->vc.ar, cdd->vc.rv3d, cdd->vc.v3d, cdd->vc.win, cdd->vc.scene)) {
 			MEM_freeN(cdd);
-			BKE_report(op->reports, RPT_ERROR, "Unable to access 3D viewport.");
+			BKE_report(op->reports, RPT_ERROR, "Unable to access 3D viewport");
 			return false;
 		}
 	}
@@ -646,7 +693,8 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 	cdd->radius.min = cps->radius_min;
 	cdd->radius.max = cps->radius_max;
 	cdd->radius.range = cps->radius_max - cps->radius_min;
-	cdd->radius.offset = cps->radius_offset;
+	cdd->project.surface_offset = cps->surface_offset;
+	cdd->project.use_surface_offset_absolute = (cps->flag & CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS) != 0;
 
 	cdd->stroke_elem_pool = BLI_mempool_create(
 	        sizeof(struct StrokeElem), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
@@ -684,7 +732,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
 
 	prop = RNA_struct_find_property(op->ptr, "corner_angle");
 	if (!RNA_property_is_set(op->ptr, prop)) {
-		const float corner_angle = (cps->flag & CURVE_PAINT_FLAG_CORNERS_DETECT) ? cps->corner_angle : M_PI;
+		const float corner_angle = (cps->flag & CURVE_PAINT_FLAG_CORNERS_DETECT) ? cps->corner_angle : (float)M_PI;
 		RNA_property_float_set(op->ptr, prop, corner_angle);
 	}
 
@@ -738,20 +786,20 @@ static void curve_draw_exec_precalc(wmOperator *op)
 			selem_prev = selem;
 		}
 
-		if (cps->radius_taper_start != 0.0) {
-			selem_array[0]->pressure = 0.0f;
+		if (cps->radius_taper_start != 0.0f) {
 			const float len_taper_max = cps->radius_taper_start * len_3d;
-			for (i = 1; i < stroke_len && lengths[i] < len_taper_max; i++) {
-				selem_array[i]->pressure *=   lengths[i] / len_taper_max;
+			for (i = 0; i < stroke_len && lengths[i] < len_taper_max; i++) {
+				const float pressure_new = selem_array[i]->pressure * (lengths[i] / len_taper_max);
+				stroke_elem_pressure_set(cdd, selem_array[i], pressure_new);
 			}
 		}
 
-		if (cps->radius_taper_end != 0.0) {
-			selem_array[stroke_len - 1]->pressure = 0.0f;
+		if (cps->radius_taper_end != 0.0f) {
 			const float len_taper_max = cps->radius_taper_end * len_3d;
 			const float len_taper_min = len_3d - len_taper_max;
-			for (i = stroke_len - 2; i > 0 && lengths[i] > len_taper_min; i--) {
-				selem_array[i]->pressure *= (len_3d - lengths[i]) / len_taper_max;
+			for (i = stroke_len - 1; i > 0 && lengths[i] > len_taper_min; i--) {
+				const float pressure_new = selem_array[i]->pressure * ((len_3d - lengths[i]) / len_taper_max);
+				stroke_elem_pressure_set(cdd, selem_array[i], pressure_new);
 			}
 		}
 
@@ -787,9 +835,9 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
 
 	ED_curve_deselect_all(cu->editnurb);
 
-	const double radius_min = cps->radius_min;
-	const double radius_max = cps->radius_max;
-	const double radius_range = cps->radius_max - cps->radius_min;
+	const float radius_min = cps->radius_min;
+	const float radius_max = cps->radius_max;
+	const float radius_range = cps->radius_max - cps->radius_min;
 
 	Nurb *nu = MEM_callocN(sizeof(Nurb), __func__);
 	nu->pntsv = 1;
@@ -834,13 +882,19 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
 				if (coords_indices.radius != -1) {
 					co[coords_indices.radius] = selem->pressure;
 				}
+
+				/* remove doubles */
+				if ((co != coords) && UNLIKELY(memcmp(co, co - dims, sizeof(float) * dims) == 0)) {
+					co -= dims;
+					stroke_len--;
+				}
 			}
 		}
 
 		unsigned int *corners = NULL;
 		unsigned int  corners_len = 0;
 
-		if (corner_angle < M_PI) {
+		if (corner_angle < (float)M_PI) {
 			/* this could be configurable... */
 			const float corner_radius_min = error_threshold / 8;
 			const float corner_radius_max = error_threshold * 2;
@@ -857,7 +911,7 @@ static int curve_draw_exec(bContext *C, wmOperator *op)
 		unsigned int  corners_index_len = 0;
 
 		const int result = curve_fit_cubic_to_points_fl(
-		        coords, stroke_len, dims, error_threshold,
+		        coords, stroke_len, dims, error_threshold, CURVE_FIT_CALC_HIGH_QUALIY,
 		        corners, corners_len,
 		        &cubic_spline, &cubic_spline_len,
 		        NULL,
@@ -1058,14 +1112,14 @@ static int curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 					cdd->project.use_depth = true;
 				}
 				else {
-					BKE_report(op->reports, RPT_WARNING, "Unable to access depth buffer, using view plane.");
+					BKE_report(op->reports, RPT_WARNING, "Unable to access depth buffer, using view plane");
 					cdd->project.use_depth = false;
 				}
 			}
 
 			/* use view plane (when set or as fallback when surface can't be found) */
 			if (cdd->project.use_depth == false) {
-				plane_co = ED_view3d_cursor3d_get(cdd->vc.scene, v3d);;
+				plane_co = ED_view3d_cursor3d_get(cdd->vc.scene, v3d);
 				plane_no = rv3d->viewinv[2];
 				cdd->project.use_plane = true;
 			}
@@ -1131,7 +1185,7 @@ static int curve_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	else if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
 		if (cdd->state == CURVE_DRAW_PAINTING) {
 			const float mval_fl[2] = {UNPACK2(event->mval)};
-			if (len_squared_v2v2(mval_fl, cdd->prev.location_world) > SQUARE(STROKE_SAMPLE_DIST_MIN_PX)) {
+			if (len_squared_v2v2(mval_fl, cdd->prev.mouse) > SQUARE(STROKE_SAMPLE_DIST_MIN_PX)) {
 				curve_draw_event_add(op, event);
 			}
 		}

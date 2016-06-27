@@ -86,8 +86,10 @@ typedef struct GPUFunction {
 } GPUFunction;
 
 /* Indices match the GPUType enum */
-static const char *GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
-	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"};
+static const char *GPU_DATATYPE_STR[17] = {
+	"", "float", "vec2", "vec3", "vec4",
+	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4",
+};
 
 /* GLSL code parsing for finding function definitions.
  * These are stored in a hash for lookup when creating a material. */
@@ -749,6 +751,7 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 				BLI_dynstr_appendf(ds, "%s %s att%d;\n",
 					GLEW_VERSION_3_0 ? "in" : "attribute",
 					GPU_DATATYPE_STR[input->type], input->attribid);
+				BLI_dynstr_appendf(ds, "uniform int att%d_info;\n",  input->attribid);
 				BLI_dynstr_appendf(ds, "%s %s var%d;\n",
 					GLEW_VERSION_3_0 ? "out" : "varying",
 					GPU_DATATYPE_STR[input->type], input->attribid);
@@ -801,7 +804,8 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 						BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 					}
 #endif
-					BLI_dynstr_appendf(ds, "\tvar%d = att%d;\n", input->attribid, input->attribid);
+					BLI_dynstr_appendf(ds, "\tset_var_from_attr(att%d, att%d_info, var%d);\n",
+					                   input->attribid, input->attribid, input->attribid);
 #ifdef WITH_OPENSUBDIV
 					if (is_mtface) {
 						BLI_dynstr_appendf(ds, "#endif\n");
@@ -1496,7 +1500,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
 	function = gpu_lookup_function(name);
 	if (!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return 0;
+		return false;
 	}
 
 	node = GPU_node_begin(name);
@@ -1516,7 +1520,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
 
 	gpu_material_add_node(mat, node);
 
-	return 1;
+	return true;
 }
 
 bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
@@ -1530,7 +1534,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 	function = gpu_lookup_function(name);
 	if (!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return 0;
+		return false;
 	}
 
 	node = GPU_node_begin(name);
@@ -1577,7 +1581,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 
 	gpu_material_add_node(mat, node);
 	
-	return 1;
+	return true;
 }
 
 int GPU_link_changed(GPUNodeLink *link)

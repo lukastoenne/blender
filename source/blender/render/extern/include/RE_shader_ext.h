@@ -139,6 +139,7 @@ typedef struct ShadeInput {
 	float refcol[4], displace[3];
 	float strandco, tang[3], nmapnorm[3], nmaptang[4], stress, winspeed[4];
 	float duplilo[3], dupliuv[3];
+	float tangents[8][4]; /* 8 = MAX_MTFACE */
 
 	ShadeInputUV uv[8];   /* 8 = MAX_MTFACE */
 	ShadeInputCol col[8]; /* 8 = MAX_MCOL */
@@ -171,6 +172,7 @@ typedef struct ShadeInput {
 	/* from initialize, part or renderlayer */
 	bool do_preview;		/* for nodes, in previewrender */
 	bool do_manage;			/* color management flag */
+	bool use_world_space_shading;
 	short thread, sample;	/* sample: ShadeSample array index */
 	short nodes;			/* indicate node shading, temp hack to prevent recursion */
 	

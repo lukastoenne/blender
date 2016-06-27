@@ -268,7 +268,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA
 		switch (ob->type) {
 			case OB_MESH:
 				EDBM_mesh_load(ob);
-				EDBM_mesh_make(scene->toolsettings, ob);
+				EDBM_mesh_make(scene->toolsettings, ob, true);
 
 				DAG_id_tag_update(ob->data, 0);
 
@@ -302,7 +302,7 @@ static void rna_Object_select_update(Main *UNUSED(bmain), Scene *scene, PointerR
 {
 	if (scene) {
 		Object *ob = (Object *)ptr->id.data;
-		short mode = ob->flag & SELECT ? BA_SELECT : BA_DESELECT;
+		short mode = (ob->flag & SELECT) ? BA_SELECT : BA_DESELECT;
 		ED_base_object_select(BKE_scene_base_find(scene, ob), mode);
 	}
 }
@@ -310,7 +310,7 @@ static void rna_Object_select_update(Main *UNUSED(bmain), Scene *scene, PointerR
 static void rna_Base_select_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Base *base = (Base *)ptr->data;
-	short mode = base->flag & BA_SELECT ? BA_SELECT : BA_DESELECT;
+	short mode = (base->flag & BA_SELECT) ? BA_SELECT : BA_DESELECT;
 	ED_base_object_select(base, mode);
 }
 
@@ -1135,7 +1135,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
 {
 	Object *ob = (Object *)ptr->data;
 	int i;
-	int all_states = (ob->scaflag & OB_ALLSTATE ? 1 : 0);
+	int all_states = (ob->scaflag & OB_ALLSTATE) ? 1 : 0;
 
 	memset(values, 0, sizeof(int) * OB_MAX_STATES);
 	for (i = 0; i < OB_MAX_STATES; i++) {
@@ -2388,6 +2388,8 @@ static void rna_def_object(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "dimensions", PROP_FLOAT, PROP_XYZ_LENGTH);
 	RNA_def_property_array(prop, 3);
+	/* only for the transform-panel and conflicts with animating scale */
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_float_funcs(prop, "rna_Object_dimensions_get", "rna_Object_dimensions_set", NULL);
 	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 3);
 	RNA_def_property_ui_text(prop, "Dimensions", "Absolute bounding box dimensions of the object");

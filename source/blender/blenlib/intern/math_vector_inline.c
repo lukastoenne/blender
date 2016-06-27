@@ -633,6 +633,13 @@ MINLINE void negate_v3_short(short r[3])
 	r[2] = (short)-r[2];
 }
 
+MINLINE void negate_v3_db(double r[3])
+{
+	r[0] = -r[0];
+	r[1] = -r[1];
+	r[2] = -r[2];
+}
+
 MINLINE void invert_v2(float r[2])
 {
 	BLI_assert(!ELEM(0.0f, r[0], r[1]));
@@ -950,21 +957,6 @@ MINLINE bool is_zero_v3(const float v[3])
 MINLINE bool is_zero_v4(const float v[4])
 {
 	return (v[0] == 0.0f && v[1] == 0.0f && v[2] == 0.0f && v[3] == 0.0f);
-}
-
-MINLINE bool is_finite_v2(const float v[2])
-{
-	return (finite(v[0]) && finite(v[1]));
-}
-
-MINLINE bool is_finite_v3(const float v[3])
-{
-	return (finite(v[0]) && finite(v[1]) && finite(v[2]));
-}
-
-MINLINE bool is_finite_v4(const float v[4])
-{
-	return (finite(v[0]) && finite(v[1]) && finite(v[2]) && finite(v[3]));
 }
 
 MINLINE bool is_one_v3(const float v[3])

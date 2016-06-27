@@ -49,9 +49,6 @@ set(INC
 	../../../intern/smoke/extern
 	../../../intern/atomic
 	../../../intern/libmv
-
-	# XXX - BAD LEVEL CALL WM_api.h
-	../windowmanager
 )
 
 set(INC_SYS
@@ -75,6 +72,9 @@ set(SRC
 	intern/armature_update.c
 	intern/autoexec.c
 	intern/blender.c
+	intern/blender_copybuffer.c
+	intern/blender_undo.c
+	intern/blendfile.c
 	intern/bmfont.c
 	intern/boids.c
 	intern/bpath.c
@@ -119,7 +119,9 @@ set(SRC
 	intern/lamp.c
 	intern/lattice.c
 	intern/library.c
+	intern/library_idmap.c
 	intern/library_query.c
+	intern/library_remap.c
 	intern/linestyle.c
 	intern/mask.c
 	intern/mask_evaluate.c
@@ -196,6 +198,10 @@ set(SRC
 	BKE_armature.h
 	BKE_autoexec.h
 	BKE_blender.h
+	BKE_blender_copybuffer.h
+	BKE_blender_undo.h
+	BKE_blender_version.h
+	BKE_blendfile.h
 	BKE_bmfont.h
 	BKE_bmfont_types.h
 	BKE_boids.h
@@ -240,7 +246,9 @@ set(SRC
 	BKE_lamp.h
 	BKE_lattice.h
 	BKE_library.h
+	BKE_library_idmap.h
 	BKE_library_query.h
+	BKE_library_remap.h
 	BKE_linestyle.h
 	BKE_main.h
 	BKE_mask.h
@@ -418,7 +426,7 @@ if(WITH_PYTHON)
 	endif()
 
 
-	if (PYTHON_EXECUTABLE)
+	if(PYTHON_EXECUTABLE)
 		get_filename_component(_python_exe_name ${PYTHON_EXECUTABLE} NAME)
 		add_definitions(-DPYTHON_EXECUTABLE_NAME=${_python_exe_name})
 		unset(_python_exe_name)

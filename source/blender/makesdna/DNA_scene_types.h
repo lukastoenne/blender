@@ -1301,7 +1301,7 @@ typedef struct CurvePaintSettings {
 	int error_threshold;
 	float radius_min, radius_max;
 	float radius_taper_start, radius_taper_end;
-	float radius_offset;
+	float surface_offset;
 	float corner_angle;
 } CurvePaintSettings;
 
@@ -1310,6 +1310,7 @@ enum {
 	CURVE_PAINT_FLAG_CORNERS_DETECT             = (1 << 0),
 	CURVE_PAINT_FLAG_PRESSURE_RADIUS            = (1 << 1),
 	CURVE_PAINT_FLAG_DEPTH_STROKE_ENDPOINTS     = (1 << 2),
+	CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS    = (1 << 3),
 };
 
 /* CurvePaintSettings.depth_mode */
@@ -1667,6 +1668,7 @@ typedef struct Scene {
 #define R_SIMPLIFY			0x1000000
 #define R_EDGE_FRS			0x2000000 /* R_EDGE reserved for Freestyle */
 #define R_PERSISTENT_DATA	0x4000000 /* keep data around for re-render */
+#define R_USE_WS_SHADING	0x8000000 /* use world space interpretation of lighting data */
 
 /* seq_flag */
 #define R_SEQ_GL_PREV 1
@@ -1742,9 +1744,10 @@ typedef struct Scene {
 #define R_STAMP_RENDERTIME	0x0400
 #define R_STAMP_CAMERALENS	0x0800
 #define R_STAMP_STRIPMETA	0x1000
+#define R_STAMP_MEMORY		0x2000
 #define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
                      R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
-                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS)
+                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS|R_STAMP_MEMORY)
 
 /* alphamode */
 #define R_ADDSKY		0

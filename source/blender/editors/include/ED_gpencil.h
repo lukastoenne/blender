@@ -42,6 +42,7 @@ struct bGPDlayer;
 struct bGPDframe;
 struct bGPDstroke;
 struct bAnimContext;
+struct KeyframeEditData;
 struct PointerRNA;
 struct wmWindowManager;
 struct wmKeyConfig;
@@ -86,6 +87,10 @@ bool ED_gpencil_has_keyframe_v3d(struct Scene *scene, struct Object *ob, int cfr
 bool ED_gpencil_stroke_can_use_direct(const struct ScrArea *sa, const struct bGPDstroke *gps);
 bool ED_gpencil_stroke_can_use(const struct bContext *C, const struct bGPDstroke *gps);
 
+bool ED_gpencil_stroke_minmax(
+        const struct bGPDstroke *gps, const bool use_select,
+        float r_min[3], float r_max[3]);
+
 /* ----------- Grease Pencil Operators ----------------- */
 
 void ED_keymap_gpencil(struct wmKeyConfig *keyconf);
@@ -116,6 +121,7 @@ void ED_gplayer_make_cfra_list(struct bGPDlayer *gpl, ListBase *elems, bool only
 bool  ED_gplayer_frame_select_check(struct bGPDlayer *gpl);
 void  ED_gplayer_frame_select_set(struct bGPDlayer *gpl, short mode);
 void  ED_gplayer_frames_select_border(struct bGPDlayer *gpl, float min, float max, short select_mode);
+void  ED_gplayer_frames_select_region(struct KeyframeEditData *ked, struct bGPDlayer *gpl, short tool, short select_mode);
 void  ED_gpencil_select_frames(struct bGPDlayer *gpl, short select_mode);
 void  ED_gpencil_select_frame(struct bGPDlayer *gpl, int selx, short select_mode);
 

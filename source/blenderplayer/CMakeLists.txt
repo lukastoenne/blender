@@ -111,7 +111,6 @@ endif()
 		ge_player_common 
 		bf_intern_string 
 		bf_intern_ghost
-		bf_intern_ghostndof3dconnexion
 		bf_rna
 		bf_blenkernel
 		bf_depsgraph
@@ -214,6 +213,14 @@ endif()
 
 	if(WITH_INTERNATIONAL)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_locale)
+	endif()
+
+	if(WITH_GAMEENGINE_DECKLINK)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
+	endif()
+
+	if(WIN32)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_gpudirect)
 	endif()
 
 	if(WITH_OPENSUBDIV)

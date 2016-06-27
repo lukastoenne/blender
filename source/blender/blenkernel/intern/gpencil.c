@@ -68,6 +68,7 @@ bool free_gpencil_strokes(bGPDframe *gpf)
 		
 		/* free stroke memory arrays, then stroke itself */
 		if (gps->points) MEM_freeN(gps->points);
+		if (gps->triangles) MEM_freeN(gps->triangles);
 		BLI_freelinkN(&gpf->strokes, gps);
 	}
 
@@ -112,16 +113,13 @@ void free_gpencil_layers(ListBase *list)
 }
 
 /* Free all of GPencil datablock's related data, but not the block itself */
+/** Free (or release) any data used by this grease pencil (does not free the gpencil itself). */
 void BKE_gpencil_free(bGPdata *gpd)
 {
+	BKE_animdata_free(&gpd->id, false);
+
 	/* free layers */
 	free_gpencil_layers(&gpd->layers);
-	
-	/* free animation data */
-	if (gpd->adt) {
-		BKE_animdata_free(&gpd->id);
-		gpd->adt = NULL;
-	}
 }
 
 /* -------- Container Creation ---------- */
@@ -261,6 +259,11 @@ bGPDlayer *gpencil_layer_addnew(bGPdata *gpd, const char *name, bool setactive)
 	ARRAY_SET_ITEMS(gpl->gcolor_prev, 0.145098f, 0.419608f, 0.137255f); /* green */
 	ARRAY_SET_ITEMS(gpl->gcolor_next, 0.125490f, 0.082353f, 0.529412f); /* blue */
 	
+	/* high quality fill by default */
+	gpl->flag |= GP_LAYER_HQ_FILL;
+	
+	/* default smooth iterations */
+	gpl->draw_smoothlvl = 1;
 	
 	/* auto-name */
 	BLI_strncpy(gpl->info, name, sizeof(gpl->info));
@@ -315,7 +318,8 @@ bGPDframe *gpencil_frame_duplicate(bGPDframe *src)
 		/* make copy of source stroke, then adjust pointer to points too */
 		gpsd = MEM_dupallocN(gps);
 		gpsd->points = MEM_dupallocN(gps->points);
-		
+		gpsd->triangles = MEM_dupallocN(gps->triangles);
+		gpsd->flag |= GP_STROKE_RECALC_CACHES;
 		BLI_addtail(&dst->strokes, gpsd);
 	}
 	
@@ -424,6 +428,7 @@ void gpencil_frame_delete_laststroke(bGPDlayer *gpl, bGPDframe *gpf)
 	
 	/* free the stroke and its data */
 	MEM_freeN(gps->points);
+	MEM_freeN(gps->triangles);
 	BLI_freelinkN(&gpf->strokes, gps);
 	
 	/* if frame has no strokes after this, delete it */

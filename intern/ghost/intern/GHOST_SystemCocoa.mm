@@ -240,6 +240,7 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 
 				switch (recvChar) {
 					case '-': 	return GHOST_kKeyMinus;
+					case '+': 	return GHOST_kKeyPlus;
 					case '=': 	return GHOST_kKeyEqual;
 					case ',': 	return GHOST_kKeyComma;
 					case '.': 	return GHOST_kKeyPeriod;
@@ -538,7 +539,7 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 )
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	GHOST_IWindow* window = 0;
+	GHOST_IWindow* window = NULL;
 	
 	//Get the available rect for including window contents
 	NSRect frame = [[NSScreen mainScreen] visibleFrame];
@@ -566,7 +567,7 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 	else {
 		GHOST_PRINT("GHOST_SystemCocoa::createWindow(): window invalid\n");
 		delete window;
-		window = 0;
+		window = NULL;
 	}
 	
 	[pool drain];
@@ -829,7 +830,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType, 
 				window->updateDrawingContext();
 				pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window) );
 				//Mouse up event is trapped by the resizing event loop, so send it anyway to the window manager
-				pushEvent(new GHOST_EventButton(getMilliSeconds(), GHOST_kEventButtonUp, window, convertButton(0)));
+				pushEvent(new GHOST_EventButton(getMilliSeconds(), GHOST_kEventButtonUp, window, GHOST_kButtonMaskLeft));
 				//m_ignoreWindowSizedMessages = true;
 			}
 			break;
@@ -1277,19 +1278,29 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 	
 	switch ([event type]) {
 		case NSLeftMouseDown:
+			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonDown, window, GHOST_kButtonMaskLeft));
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
+			break;
 		case NSRightMouseDown:
+			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonDown, window, GHOST_kButtonMaskRight));
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
+			break;
 		case NSOtherMouseDown:
 			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonDown, window, convertButton([event buttonNumber])));
-			//Handle tablet events combined with mouse events
-			handleTabletEvent(event);
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
 			break;
 
 		case NSLeftMouseUp:
+			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonUp, window, GHOST_kButtonMaskLeft));
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
+			break;
 		case NSRightMouseUp:
+			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonUp, window, GHOST_kButtonMaskRight));
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
+			break;
 		case NSOtherMouseUp:
 			pushEvent(new GHOST_EventButton([event timestamp] * 1000, GHOST_kEventButtonUp, window, convertButton([event buttonNumber])));
-			//Handle tablet events combined with mouse events
-			handleTabletEvent(event);
+			handleTabletEvent(event); //Handle tablet events combined with mouse events
 			break;
 			
 		case NSLeftMouseDragged:

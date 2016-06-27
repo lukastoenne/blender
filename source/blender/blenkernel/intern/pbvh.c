@@ -637,6 +637,7 @@ void BKE_pbvh_free(PBVH *bvh)
 				BLI_gset_free(node->bm_other_verts, NULL);
 		}
 	}
+	GPU_free_pbvh_buffer_multires(&bvh->grid_common_gpu_buffer);
 
 	if (bvh->deformed) {
 		if (bvh->verts) {
@@ -979,16 +980,7 @@ static void pbvh_update_normals_accum_task_cb(void *userdata, const int n)
 					 *       Not exact equivalent though, since atomicity is only ensured for one component
 					 *       of the vector at a time, but here it shall not make any sensible difference. */
 					for (int k = 3; k--; ) {
-						/* Atomic float addition.
-						 * Note that since collision are unlikely, loop will nearly always run once. */
-						float oldval, newval;
-						uint32_t prevval;
-						do {
-							oldval = vnors[v][k];
-							newval = oldval + fn[k];
-							prevval = atomic_cas_uint32(
-							              (uint32_t *)&vnors[v][k], *(uint32_t *)(&oldval), *(uint32_t *)(&newval));
-						} while (UNLIKELY(prevval != *(uint32_t *)(&oldval)));
+						atomic_add_fl(&vnors[v][k], fn[k]);
 					}
 				}
 			}
@@ -1109,7 +1101,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode)
 					                           node->totprim,
 					                           bvh->grid_hidden,
 					                           bvh->gridkey.grid_size,
-					                           &bvh->gridkey);
+					                           &bvh->gridkey, &bvh->grid_common_gpu_buffer);
 					break;
 				case PBVH_FACES:
 					node->draw_buffers =

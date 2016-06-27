@@ -265,13 +265,7 @@ static int graphkeys_view_selected_exec(bContext *C, wmOperator *op)
 	return graphkeys_viewall(C, true, include_handles, smooth_viewtx);
 }
 
-static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
-{
-	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-	ANIM_center_frame(C, smooth_viewtx);
-	return OPERATOR_FINISHED;
-}
-
+/* ......... */
 
 void GRAPH_OT_view_all(wmOperatorType *ot)
 {
@@ -311,17 +305,26 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
 	                           "Include handles of keyframes when calculating extents");
 }
 
+/* ********************** View Frame Operator ****************************** */
+
+static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
+{
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+	ANIM_center_frame(C, smooth_viewtx);
+	return OPERATOR_FINISHED;
+}
+
 void GRAPH_OT_view_frame(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "View Frame";
 	ot->idname = "GRAPH_OT_view_frame";
 	ot->description = "Reset viewable area to show range around current frame";
-
+	
 	/* api callbacks */
 	ot->exec = graphkeys_view_frame_exec;
-	ot->poll = ED_operator_graphedit_active; /* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
-
+	ot->poll = ED_operator_graphedit_active;
+	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -603,10 +606,13 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
 			 * - fcu->driver != NULL: If this is set, then it's a driver. If we don't check for this, we'd end
 			 *                        up adding the keyframes on a new F-Curve in the action data instead.
 			 */
-			if (ale->id && !ale->owner && !fcu->driver)
+			if (ale->id && !ale->owner && !fcu->driver) {
 				insert_keyframe(reports, ale->id, NULL, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, ts->keyframe_type, flag);
-			else
-				insert_vert_fcurve(fcu, cfra, fcu->curval, ts->keyframe_type, 0);
+			}
+			else {
+				const float curval = evaluate_fcurve(fcu, cfra);
+				insert_vert_fcurve(fcu, cfra, curval, ts->keyframe_type, 0);
+			}
 			
 			ale->update |= ANIM_UPDATE_DEFAULT;
 		}
@@ -689,6 +695,14 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 		
 		short mapping_flag = ANIM_get_normalization_flags(&ac);
 		float scale, offset;
+		
+		/* preserve selection? */
+		if (RNA_boolean_get(op->ptr, "extend") == false) {
+			/* deselect all keyframes first, so that we can immediately start manipulating the newly added one(s)
+			 * - only affect the keyframes themselves, as we don't want channels popping in and out...
+			 */
+			deselect_graph_keys(&ac, false, SELECT_SUBTRACT, false);
+		}
 		
 		/* get frame and value from props */
 		frame = RNA_float_get(op->ptr, "frame");
@@ -779,6 +793,8 @@ void GRAPH_OT_click_insert(wmOperatorType *ot)
 	/* properties */
 	RNA_def_float(ot->srna, "frame", 1.0f, -FLT_MAX, FLT_MAX, "Frame Number", "Frame to insert keyframe on", 0, 100);
 	RNA_def_float(ot->srna, "value", 1.0f, -FLT_MAX, FLT_MAX, "Value", "Value for keyframe on", 0, 100);
+	
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection instead of deselecting everything first");
 }
 
 /* ******************** Copy/Paste Keyframes Operator ************************* */
@@ -2390,7 +2406,9 @@ static EnumPropertyItem *graph_fmodifier_itemf(bContext *C, PointerRNA *UNUSED(p
 			continue;
 		
 		index = RNA_enum_from_value(rna_enum_fmodifier_type_items, fmi->type);
-		RNA_enum_item_add(&item, &totitem, &rna_enum_fmodifier_type_items[index]);
+		if (index != -1) {  /* Not all types are implemented yet... */
+			RNA_enum_item_add(&item, &totitem, &rna_enum_fmodifier_type_items[index]);
+		}
 	}
 	
 	RNA_enum_item_end(&item, &totitem);

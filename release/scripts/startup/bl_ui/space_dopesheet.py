@@ -207,6 +207,9 @@ class DOPESHEET_MT_view(Menu):
 
         st = context.space_data
 
+        layout.operator("action.properties", icon='MENU_PANEL')
+        layout.separator()
+
         layout.prop(st, "use_realtime_update")
         layout.prop(st, "show_frame_indicator")
         layout.prop(st, "show_sliders")
@@ -229,8 +232,8 @@ class DOPESHEET_MT_view(Menu):
 
         layout.separator()
         layout.operator("screen.area_dupli")
-        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
-        layout.operator("screen.screen_full_area").use_hide_panels = True
+        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Fullscreen Area").use_hide_panels = True
 
 
 class DOPESHEET_MT_select(Menu):
@@ -246,6 +249,8 @@ class DOPESHEET_MT_select(Menu):
         layout.separator()
         layout.operator("action.select_border").axis_range = False
         layout.operator("action.select_border", text="Border Axis Range").axis_range = True
+
+        layout.operator("action.select_circle")
 
         layout.separator()
         layout.operator("action.select_column", text="Columns on Selected Keys").mode = 'KEYS'

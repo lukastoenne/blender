@@ -241,7 +241,7 @@ void WM_main_remove_notifier_reference(const void *reference)
 	}
 }
 
-void WM_main_remove_editor_id_reference(const ID *id)
+void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 {
 	Main *bmain = G.main;
 	bScreen *sc;
@@ -253,7 +253,7 @@ void WM_main_remove_editor_id_reference(const ID *id)
 			SpaceLink *sl;
 
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
-				ED_spacedata_id_unref(sl, id);
+				ED_spacedata_id_remap(sa, sl, old_id, new_id);
 			}
 		}
 	}
@@ -410,15 +410,15 @@ void wm_event_do_notifiers(bContext *C)
 	CTX_wm_window_set(C, NULL);
 }
 
-static int wm_event_always_pass(wmEvent *event)
+static int wm_event_always_pass(const wmEvent *event)
 {
 	/* some events we always pass on, to ensure proper communication */
-	return ISTIMER(event->type) || (event->type == WINDEACTIVATE) || (event->type == EVT_BUT_OPEN);
+	return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
 }
 
 /* ********************* ui handler ******************* */
 
-static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *event, int always_pass)
+static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, const wmEvent *event, int always_pass)
 {
 	ScrArea *area = CTX_wm_area(C);
 	ARegion *region = CTX_wm_region(C);
@@ -793,7 +793,10 @@ static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, cons
 		wm_operator_finished(C, op, repeat);
 	}
 	else if (repeat == 0) {
-		WM_operator_free(op);
+		/* warning: modal from exec is bad practice, but avoid crashing. */
+		if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
+			WM_operator_free(op);
+		}
 	}
 	
 	return retval | OPERATOR_HANDLED;
@@ -1526,7 +1529,7 @@ int WM_userdef_event_map(int kmitype)
 }
 
 
-static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
+static int wm_eventmatch(const wmEvent *winevent, wmKeyMapItem *kmi)
 {
 	int kmitype = WM_userdef_event_map(kmi->type);
 
@@ -1921,7 +1924,7 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 	return action;
 }
 
-static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event)
+static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, const wmEvent *event)
 {
 	int action = WM_HANDLER_CONTINUE;
 	
@@ -1933,7 +1936,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 	return wm_handler_fileselect_do(C, handlers, handler, event->val);
 }
 
-static bool handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
+static bool handler_boundbox_test(wmEventHandler *handler, const wmEvent *event)
 {
 	if (handler->bbwin) {
 		if (handler->bblocal) {
@@ -2197,12 +2200,6 @@ static int wm_event_inside_i(wmEvent *event, rcti *rect)
 		return 1;
 	if (BLI_rcti_isect_pt_v(rect, &event->x))
 		return 1;
-	if (event->type == MOUSEMOVE) {
-		if (BLI_rcti_isect_pt_v(rect, &event->prevx)) {
-			return 1;
-		}
-		return 0;
-	}
 	return 0;
 }
 
@@ -2245,7 +2242,7 @@ static void wm_paintcursor_tag(bContext *C, wmPaintCursor *pc, ARegion *ar)
 
 /* called on mousemove, check updates for paintcursors */
 /* context was set on active area and region */
-static void wm_paintcursor_test(bContext *C, wmEvent *event)
+static void wm_paintcursor_test(bContext *C, const wmEvent *event)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	
@@ -2312,7 +2309,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 }
 
 /* filter out all events of the pie that spawned the last pie unless it's a release event */
-static bool wm_event_pie_filter(wmWindow *win, wmEvent *event)
+static bool wm_event_pie_filter(wmWindow *win, const wmEvent *event)
 {
 	if (win->lock_pie_event && win->lock_pie_event == event->type) {
 		if (event->val == KM_RELEASE) {
@@ -2365,7 +2362,7 @@ void wm_event_do_handlers(bContext *C)
 					
 					if (is_playing_sound == 0) {
 						const float time = BKE_sound_sync_scene(scene);
-						if (finite(time)) {
+						if (isfinite(time)) {
 							int ncfra = time * (float)FPS + 0.5f;
 							if (ncfra != scene->r.cfra) {
 								scene->r.cfra = ncfra;
@@ -2432,7 +2429,6 @@ void wm_event_do_handlers(bContext *C)
 			if ((action & WM_HANDLER_BREAK) == 0) {
 				ScrArea *sa;
 				ARegion *ar;
-				int doit = 0;
 	
 				/* Note: setting subwin active should be done here, after modal handlers have been done */
 				if (event->type == MOUSEMOVE) {
@@ -2484,8 +2480,6 @@ void wm_event_do_handlers(bContext *C)
 									if (CTX_wm_window(C) == NULL)
 										return;
 
-									doit |= (BLI_rcti_isect_pt_v(&ar->winrct, &event->x));
-									
 									if (action & WM_HANDLER_BREAK)
 										break;
 								}
@@ -2518,18 +2512,12 @@ void wm_event_do_handlers(bContext *C)
 						return;
 				}
 
-				/* XXX hrmf, this gives reliable previous mouse coord for area change, feels bad? 
-				 * doing it on ghost queue gives errors when mousemoves go over area borders */
-				if (doit && win->screen->subwinactive != win->screen->mainwin) {
-					win->eventstate->prevx = event->x;
-					win->eventstate->prevy = event->y;
-					//printf("win->eventstate->prev = %d %d\n", event->x, event->y);
-				}
-				else {
-					//printf("not setting prev to %d %d\n", event->x, event->y);
-				}
 			}
-			
+
+			/* update previous mouse position for following events to use */
+			win->eventstate->prevx = event->x;
+			win->eventstate->prevy = event->y;
+
 			/* unlink and free here, blender-quit then frees all */
 			BLI_remlink(&win->queue, event);
 			wm_event_free(event);
@@ -2912,6 +2900,7 @@ static int convert_key(GHOST_TKey key)
 			case GHOST_kKeyQuote:           return QUOTEKEY;
 			case GHOST_kKeyComma:           return COMMAKEY;
 			case GHOST_kKeyMinus:           return MINUSKEY;
+			case GHOST_kKeyPlus:            return PLUSKEY;
 			case GHOST_kKeyPeriod:          return PERIODKEY;
 			case GHOST_kKeySlash:           return SLASHKEY;
 
@@ -3124,7 +3113,7 @@ static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *wi
 	return NULL;
 }
 
-static bool wm_event_is_double_click(wmEvent *event, wmEvent *event_state)
+static bool wm_event_is_double_click(wmEvent *event, const wmEvent *event_state)
 {
 	if ((event->type == event_state->prevtype) &&
 	    (event_state->prevval == KM_RELEASE) &&

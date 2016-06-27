@@ -76,6 +76,8 @@ void BKE_camera_init(Camera *cam)
 	/* stereoscopy 3d */
 	cam->stereo.interocular_distance = 0.065f;
 	cam->stereo.convergence_distance = 30.f * 0.065f;
+	cam->stereo.pole_merge_angle_from = DEG2RAD(60.0f);
+	cam->stereo.pole_merge_angle_to = DEG2RAD(75.0f);
 }
 
 void *BKE_camera_add(Main *bmain, const char *name)
@@ -151,9 +153,10 @@ void BKE_camera_make_local(Camera *cam)
 	}
 }
 
+/** Free (or release) any data used by this camera (does not free the camera itself). */
 void BKE_camera_free(Camera *ca)
 {
-	BKE_animdata_free((ID *)ca);
+	BKE_animdata_free((ID *)ca, false);
 }
 
 /******************************** Camera Usage *******************************/
@@ -904,7 +907,7 @@ static Object *camera_multiview_advanced(Scene *scene, Object *camera, const cha
 /* returns the camera to be used for render */
 Object *BKE_camera_multiview_render(Scene *scene, Object *camera, const char *viewname)
 {
-	const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
+	const bool is_multiview = (camera != NULL) &&  (scene->r.scemode & R_MULTIVIEW) != 0;
 
 	if (!is_multiview) {
 		return camera;

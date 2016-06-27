@@ -62,7 +62,7 @@ struct AnimData *BKE_animdata_add_id(struct ID *id);
 bool BKE_animdata_set_action(struct ReportList *reports, struct ID *id, struct bAction *act);
 
 /* Free AnimData */
-void BKE_animdata_free(struct ID *id);
+void BKE_animdata_free(struct ID *id, const bool do_id_user);
 
 /* Copy AnimData */
 struct AnimData *BKE_animdata_copy(struct AnimData *adt, const bool do_action);
@@ -177,7 +177,7 @@ void BKE_animsys_evaluate_all_animation(struct Main *main, struct Scene *scene, 
 
 /* TODO(sergey): This is mainly a temp public function. */
 struct FCurve;
-bool BKE_animsys_execute_fcurve(struct PointerRNA *ptr, struct AnimMapper *remap, struct FCurve *fcu);
+bool BKE_animsys_execute_fcurve(struct PointerRNA *ptr, struct AnimMapper *remap, struct FCurve *fcu, float curval);
 
 /* ------------ Specialized API --------------- */
 /* There are a few special tools which require these following functions. They are NOT to be used

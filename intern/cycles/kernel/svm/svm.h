@@ -142,6 +142,7 @@ CCL_NAMESPACE_END
 #include "svm_noise.h"
 #include "svm_texture.h"
 
+#include "svm_color_util.h"
 #include "svm_math_util.h"
 
 #include "svm_attribute.h"
@@ -295,7 +296,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ccl_a
 				break;
 #    endif  /* NODES_FEATURE(NODE_FEATURE_BUMP) */
 			case NODE_HSV:
-				svm_node_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
+				svm_node_hsv(kg, sd, stack, node, &offset);
 				break;
 #  endif  /* __EXTRA_NODES__ */
 #endif  /* NODES_GROUP(NODE_GROUP_LEVEL_0) */

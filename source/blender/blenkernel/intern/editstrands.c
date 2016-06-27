@@ -223,10 +223,13 @@ BMesh *BKE_editstrands_mesh_to_bmesh(Object *ob, Mesh *me)
 {
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(me);
 	BMesh *bm;
+	struct BMeshFromMeshParams params = {0};
 	
 	bm = BM_mesh_create(&allocsize);
 	
-	BM_mesh_bm_from_me(bm, me, false, true, ob->shapenr);
+	params.use_shapekey = true;
+	params.active_shapekey = ob->shapenr;
+	BM_mesh_bm_from_me(bm, me, &params);
 	BM_strands_cd_flag_ensure(bm, 0);
 	
 	editstrands_calc_segment_lengths(bm);
@@ -238,6 +241,7 @@ void BKE_editstrands_mesh_from_bmesh(Object *ob)
 {
 	Mesh *me = ob->data;
 	BMesh *bm = me->edit_strands->base.bm;
+	struct BMeshToMeshParams params = {0};
 
 	/* Workaround for T42360, 'ob->shapenr' should be 1 in this case.
 	 * however this isn't synchronized between objects at the moment. */
@@ -245,7 +249,7 @@ void BKE_editstrands_mesh_from_bmesh(Object *ob)
 		bm->shapenr = 1;
 	}
 
-	BM_mesh_bm_to_me(bm, me, false);
+	BM_mesh_bm_to_me(bm, me, &params);
 
 #ifdef USE_TESSFACE_DEFAULT
 	BKE_mesh_tessface_calc(me);

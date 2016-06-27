@@ -770,7 +770,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Sc
 
 			dag_add_relation(dag, node, node, DAG_RL_OB_DATA, "Particle-Object Relation");
 
-			if (!psys_check_enabled(ob, psys))
+			if (!psys_check_enabled(ob, psys, G.is_rendering))
 				continue;
 
 			if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
@@ -937,6 +937,8 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	}
 	dag->need_update = false;
 
+	BKE_main_id_tag_idcode(bmain, ID_OB, LIB_TAG_DOIT, false);
+
 	/* clear "LIB_TAG_DOIT" flag from all materials, to prevent infinite recursion problems later [#32017] */
 	BKE_main_id_tag_idcode(bmain, ID_MA, LIB_TAG_DOIT, false);
 	BKE_main_id_tag_idcode(bmain, ID_LA, LIB_TAG_DOIT, false);
@@ -948,14 +950,43 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	/* add current scene objects */
 	for (base = sce->base.first; base; base = base->next) {
 		ob = base->object;
-		
+		ob->id.tag |= LIB_TAG_DOIT;
 		build_dag_object(dag, scenenode, bmain, sce, ob, mask);
 		if (ob->proxy)
 			build_dag_object(dag, scenenode, bmain, sce, ob->proxy, mask);
 		if (ob->dup_group) 
 			build_dag_group(dag, scenenode, bmain, sce, ob->dup_group, mask);
 	}
-	
+
+	/* There might be situations when object from current scene depends on
+	 * objects form other scene AND objects from other scene has own
+	 * dependencies on objects from other scene.
+	 *
+	 * This is really important to include such indirect dependencies in order
+	 * to keep threaded update safe but since we don't really know if object is
+	 * coming from current scene or another scene we do rather stupid tag-based
+	 * check here: all the objects for which build_dag_object() was called are
+	 * getting tagged with LIB_TAG_DOIT. This way if some node has untagged
+	 * object we know it's an object from other scene.
+	 *
+	 * It should be enough to to it once, because if there's longer chain of
+	 * indirect dependencies, all the new nodes will be added to the end of the
+	 * list, meaning we'll keep covering them in this for loop.
+	 */
+	for (node = sce->theDag->DagNode.first; node != NULL; node = node->next) {
+		if (node->type == ID_OB) {
+			ob = node->ob;
+			if ((ob->id.tag & LIB_TAG_DOIT) == 0) {
+				ob->id.tag |= LIB_TAG_DOIT;
+				build_dag_object(dag, scenenode, bmain, sce, ob, mask);
+				if (ob->proxy)
+					build_dag_object(dag, scenenode, bmain, sce, ob->proxy, mask);
+				if (ob->dup_group)
+					build_dag_group(dag, scenenode, bmain, sce, ob->dup_group, mask);
+			}
+		}
+	}
+
 	BKE_main_id_tag_idcode(bmain, ID_GR, LIB_TAG_DOIT, false);
 	
 	/* Now all relations were built, but we need to solve 1 exceptional case;
@@ -2254,7 +2285,7 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 			ParticleSystem *psys = ob->particlesystem.first;
 
 			for (; psys; psys = psys->next) {
-				if (psys_check_enabled(ob, psys)) {
+				if (psys_check_enabled(ob, psys, G.is_rendering)) {
 					ob->recalc |= OB_RECALC_DATA;
 					break;
 				}

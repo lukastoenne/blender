@@ -67,6 +67,7 @@ set(SRC_KERNELS_CPU_HEADERS
 	kernel.h
 	kernels/cpu/kernel_cpu.h
 	kernels/cpu/kernel_cpu_impl.h
+	kernels/cpu/kernel_cpu_image.h
 )
 
 set(SRC_CLOSURE_HEADERS
@@ -75,6 +76,8 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_diffuse.h
 	closure/bsdf_diffuse_ramp.h
 	closure/bsdf_microfacet.h
+	closure/bsdf_microfacet_multi.h
+	closure/bsdf_microfacet_multi_impl.h
 	closure/bsdf_oren_nayar.h
 	closure/bsdf_phong_ramp.h
 	closure/bsdf_reflection.h
@@ -97,6 +100,7 @@ set(SRC_SVM_HEADERS
 	svm/svm_closure.h
 	svm/svm_convert.h
 	svm/svm_checker.h
+	svm/svm_color_util.h
 	svm/svm_brick.h
 	svm/svm_displace.h
 	svm/svm_fresnel.h
@@ -195,8 +199,8 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 	# CUDA version
 	execute_process(COMMAND ${CUDA_NVCC_EXECUTABLE} "--version" OUTPUT_VARIABLE NVCC_OUT)
-	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR ${NVCC_OUT})
-	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR ${NVCC_OUT})
+	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR "${NVCC_OUT}")
+	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR "${NVCC_OUT}")
 	set(CUDA_VERSION "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}")
 
 	# warn for other versions
@@ -233,6 +237,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			OUTPUT ${cuda_cubin}
 			COMMAND ${CUDA_NVCC_EXECUTABLE}
 					-arch=${arch}
+					${CUDA_NVCC_FLAGS}
 					-m${CUDA_BITS}
 					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/kernel.cu
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin}

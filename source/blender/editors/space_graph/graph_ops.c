@@ -555,19 +555,20 @@ static void graphedit_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "axis_range", true);
 	RNA_boolean_set(kmi->ptr, "include_handles", false);
-		
+	
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "axis_range", false);
 	RNA_boolean_set(kmi->ptr, "include_handles", true);
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "axis_range", true);
 	RNA_boolean_set(kmi->ptr, "include_handles", true);
-
+	
+	/* region select */
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "deselect", false);
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "deselect", true);
-
+	
 	WM_keymap_add_item(keymap, "GRAPH_OT_select_circle", CKEY, KM_PRESS, 0, 0);
 	
 	/* column select */
@@ -610,7 +611,11 @@ static void graphedit_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	
 	/* insertkey */
 	WM_keymap_add_item(keymap, "GRAPH_OT_keyframe_insert", IKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "GRAPH_OT_click_insert", ACTIONMOUSE, KM_CLICK, KM_CTRL, 0);
+	
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_click_insert", ACTIONMOUSE, KM_CLICK, KM_CTRL, 0);
+	RNA_boolean_set(kmi->ptr, "extend", false);
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_click_insert", ACTIONMOUSE, KM_CLICK, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", true);
 	
 	/* copy/paste */
 	WM_keymap_add_item(keymap, "GRAPH_OT_copy", CKEY, KM_PRESS, KM_CTRL, 0);

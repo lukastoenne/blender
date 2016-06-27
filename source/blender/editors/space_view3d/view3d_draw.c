@@ -315,12 +315,12 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	if (unit->system) {
 		/* Use GRID_MIN_PX * 2 for units because very very small grid
 		 * items are less useful when dealing with units */
-		void *usys;
+		const void *usys;
 		int len, i;
 		double dx_scalar;
 		float blend_fac;
 
-		bUnit_GetSystem(&usys, &len, unit->system, B_UNIT_LENGTH);
+		bUnit_GetSystem(unit->system, B_UNIT_LENGTH, &usys, &len);
 
 		if (usys) {
 			i = len;
@@ -455,10 +455,10 @@ float ED_scene_grid_scale(Scene *scene, const char **grid_unit)
 {
 	/* apply units */
 	if (scene->unit.system) {
-		void *usys;
+		const void *usys;
 		int len;
 
-		bUnit_GetSystem(&usys, &len, scene->unit.system, B_UNIT_LENGTH);
+		bUnit_GetSystem(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
 
 		if (usys) {
 			int i = bUnit_GetBaseUnit(usys);
@@ -657,7 +657,6 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glShadeModel(GL_SMOOTH);
 	glPointSize(5);
 	glEnable(GL_POINT_SMOOTH);
 	glDepthMask(0);  /* don't overwrite zbuf */
@@ -1179,10 +1178,10 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	if (scene->r.mode & R_BORDER) {
 		float x3, y3, x4, y4;
 
-		x3 = x1i + 1 + roundf(scene->r.border.xmin * (x2 - x1));
-		y3 = y1i + 1 + roundf(scene->r.border.ymin * (y2 - y1));
-		x4 = x1i + 1 + roundf(scene->r.border.xmax * (x2 - x1));
-		y4 = y1i + 1 + roundf(scene->r.border.ymax * (y2 - y1));
+		x3 = floorf(x1 + (scene->r.border.xmin * (x2 - x1))) - 1;
+		y3 = floorf(y1 + (scene->r.border.ymin * (y2 - y1))) - 1;
+		x4 = floorf(x1 + (scene->r.border.xmax * (x2 - x1))) + (U.pixelsize - 1);
+		y4 = floorf(y1 + (scene->r.border.ymax * (y2 - y1))) + (U.pixelsize - 1);
 
 		cpack(0x4040FF);
 		sdrawbox(x3,  y3,  x4,  y4);
@@ -1489,7 +1488,7 @@ unsigned int ED_view3d_backbuf_sample(ViewContext *vc, int x, int y)
 		BLI_endian_switch_uint32(&col);
 	}
 	
-	return WM_framebuffer_to_index(col);
+	return GPU_select_to_index(col);
 }
 
 /* reads full rect, converts indices */
@@ -1522,7 +1521,7 @@ ImBuf *ED_view3d_backbuf_read(ViewContext *vc, int xmin, int ymin, int xmax, int
 		IMB_convert_rgba_to_abgr(ibuf_clip);
 	}
 
-	WM_framebuffer_to_index_array(ibuf_clip->rect, size_clip[0] * size_clip[1]);
+	GPU_select_to_index_array(ibuf_clip->rect, size_clip[0] * size_clip[1]);
 	
 	if ((clip.xmin == xmin) &&
 	    (clip.xmax == xmax) &&
@@ -2608,19 +2607,20 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 CustomDataMask ED_view3d_datamask(const Scene *scene, const View3D *v3d)
 {
 	CustomDataMask mask = 0;
+	const int drawtype = view3d_effective_drawtype(v3d);
 
-	if (ELEM(v3d->drawtype, OB_TEXTURE, OB_MATERIAL) ||
-	    ((v3d->drawtype == OB_SOLID) && (v3d->flag2 & V3D_SOLID_TEX)))
+	if (ELEM(drawtype, OB_TEXTURE, OB_MATERIAL) ||
+	    ((drawtype == OB_SOLID) && (v3d->flag2 & V3D_SOLID_TEX)))
 	{
 		mask |= CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL;
 
 		if (BKE_scene_use_new_shading_nodes(scene)) {
-			if (v3d->drawtype == OB_MATERIAL)
+			if (drawtype == OB_MATERIAL)
 				mask |= CD_MASK_ORCO;
 		}
 		else {
-			if ((scene->gm.matmode == GAME_MAT_GLSL && v3d->drawtype == OB_TEXTURE) || 
-			    (v3d->drawtype == OB_MATERIAL))
+			if ((scene->gm.matmode == GAME_MAT_GLSL && drawtype == OB_TEXTURE) || 
+			    (drawtype == OB_MATERIAL))
 			{
 				mask |= CD_MASK_ORCO;
 			}
@@ -2998,18 +2998,16 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 				glLoadIdentity();
 				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 			}
-
+			// Draw world
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
-			glShadeModel(GL_SMOOTH);
 			glBegin(GL_TRIANGLE_STRIP);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
 			glVertex3f(-1.0, 1.0, 1.0);
 			glVertex3f(1.0, 1.0, 1.0);
 			glEnd();
-			glShadeModel(GL_FLAT);
-
+			//
 			if (material_not_bound) {
 				glMatrixMode(GL_PROJECTION);
 				glPopMatrix();
@@ -3046,8 +3044,6 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glMatrixMode(GL_MODELVIEW);
 			glPushMatrix();
 			glLoadIdentity();
-
-			glShadeModel(GL_SMOOTH);
 
 			/* calculate buffers the first time only */
 			if (!buf_calculated) {
@@ -3134,8 +3130,6 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
 
-			glShadeModel(GL_FLAT);
-
 #undef VIEWGRAD_RES_X
 #undef VIEWGRAD_RES_Y
 		}
@@ -3159,7 +3153,6 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
-			glShadeModel(GL_SMOOTH);
 			glBegin(GL_QUADS);
 			UI_ThemeColor(TH_LOW_GRAD);
 			glVertex3f(-1.0, -1.0, 1.0);
@@ -3168,8 +3161,6 @@ static void view3d_main_region_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glVertex3f(1.0, 1.0, 1.0);
 			glVertex3f(-1.0, 1.0, 1.0);
 			glEnd();
-			glShadeModel(GL_FLAT);
-
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);
 
@@ -3976,6 +3967,7 @@ static void view3d_main_region_draw_info(const bContext *C, Scene *scene,
 		drawviewborder(scene, ar, v3d);
 	}
 	else if (v3d->flag2 & V3D_RENDER_BORDER) {
+		glLineWidth(1.0f);
 		setlinestyle(3);
 		cpack(0x4040FF);
 
@@ -4069,6 +4061,10 @@ void view3d_main_region_draw(const bContext *C, ARegion *ar)
 	view3d_main_region_draw_info(C, scene, ar, v3d, grid_unit, render_border);
 
 	v3d->flag |= V3D_INVALID_BACKBUF;
+
+	BLI_assert(BLI_listbase_is_empty(&v3d->afterdraw_transp));
+	BLI_assert(BLI_listbase_is_empty(&v3d->afterdraw_xray));
+	BLI_assert(BLI_listbase_is_empty(&v3d->afterdraw_xraytransp));
 }
 
 #ifdef DEBUG_DRAW

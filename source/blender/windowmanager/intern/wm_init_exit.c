@@ -54,12 +54,14 @@
 #include "BLO_writefile.h"
 
 #include "BKE_blender.h"
+#include "BKE_blender_undo.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_library.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_mball_tessellate.h"
 #include "BKE_node.h"
@@ -139,6 +141,11 @@ static void wm_free_reports(bContext *C)
 	BKE_reports_clear(reports);
 }
 
+static void wm_undo_kill_callback(bContext *C)
+{
+	WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
+}
+
 bool wm_start_with_console = false; /* used in creator.c */
 
 /* only called once, for startup */
@@ -157,11 +164,13 @@ void WM_init(bContext *C, int argc, const char **argv)
 	WM_menutype_init();
 	WM_uilisttype_init();
 
+	BKE_undo_callback_wm_kill_jobs_set(wm_undo_kill_callback);
+
 	BKE_library_callback_free_window_manager_set(wm_close_and_free);   /* library.c */
 	BKE_library_callback_free_notifier_reference_set(WM_main_remove_notifier_reference);   /* library.c */
-	BKE_library_callback_free_editor_id_reference_set(WM_main_remove_editor_id_reference);   /* library.c */
+	BKE_library_callback_remap_editor_id_reference_set(WM_main_remap_editor_id_reference);   /* library.c */
 	BKE_blender_callback_test_break_set(wm_window_testbreak); /* blender.c */
-	BKE_spacedata_callback_id_unref_set(ED_spacedata_id_unref); /* screen.c */
+	BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
 	DAG_editors_update_cb(ED_render_id_flush_update,
 	                      ED_render_scene_update,
 	                      ED_render_scene_update_pre); /* depsgraph.c */
@@ -492,10 +501,10 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	RE_FreeAllRender();
 	RE_engines_exit();
 	
-	ED_preview_free_dbase();  /* frees a Main dbase, before free_blender! */
+	ED_preview_free_dbase();  /* frees a Main dbase, before BKE_blender_free! */
 
 	if (C && wm)
-		wm_free_reports(C);  /* before free_blender! - since the ListBases get freed there */
+		wm_free_reports(C);  /* before BKE_blender_free! - since the ListBases get freed there */
 
 	BKE_sequencer_free_clipboard(); /* sequencer.c */
 	BKE_tracking_clipboard_free();
@@ -506,7 +515,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	COM_deinitialize();
 #endif
 	
-	free_blender();  /* blender.c, does entire library and spacetypes */
+	BKE_blender_free();  /* blender.c, does entire library and spacetypes */
 //	free_matcopybuf();
 	ANIM_fcurves_copybuf_free();
 	ANIM_drivers_copybuf_free();
@@ -532,12 +541,12 @@ void WM_exit_ext(bContext *C, const bool do_python)
 
 #ifdef WITH_PYTHON
 	/* option not to close python so we can use 'atexit' */
-	if (do_python) {
+	if (do_python && ((C == NULL) || CTX_py_init_get(C))) {
 		/* XXX - old note */
-		/* before free_blender so py's gc happens while library still exists */
+		/* before BKE_blender_free so py's gc happens while library still exists */
 		/* needed at least for a rare sigsegv that can happen in pydrivers */
 
-		/* Update for blender 2.5, move after free_blender because blender now holds references to PyObject's
+		/* Update for blender 2.5, move after BKE_blender_free because blender now holds references to PyObject's
 		 * so decref'ing them after python ends causes bad problems every time
 		 * the pyDriver bug can be fixed if it happens again we can deal with it then */
 		BPY_python_end();
@@ -562,7 +571,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	ED_file_exit(); /* for fsmenu */
 
 	UI_exit();
-	BKE_userdef_free();
+	BKE_blender_userdef_free();
 
 	RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 	
@@ -576,6 +585,8 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	GHOST_DisposeSystemPaths();
 
 	BLI_threadapi_exit();
+
+	BKE_blender_atexit();
 
 	if (MEM_get_memory_blocks_in_use() != 0) {
 		size_t mem_in_use = MEM_get_memory_in_use() + MEM_get_memory_in_use();

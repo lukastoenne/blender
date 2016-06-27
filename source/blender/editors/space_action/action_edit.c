@@ -239,6 +239,11 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 			}
 		}
 
+		if (fabsf(*max - *min) < 0.001f) {
+			*min -= 0.0005f;
+			*max += 0.0005f;
+		}
+
 		/* free memory */
 		ANIM_animdata_freelist(&anim_data);
 	}
@@ -431,13 +436,7 @@ static int actkeys_viewsel_exec(bContext *C, wmOperator *UNUSED(op))
 	return actkeys_viewall(C, true);
 }
 
-static int actkeys_view_frame_exec(bContext *C, wmOperator *op)
-{
-	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-	ANIM_center_frame(C, smooth_viewtx);
-
-	return OPERATOR_FINISHED;
-}
+/* ......... */
 
 void ACTION_OT_view_all(wmOperatorType *ot)
 {
@@ -469,17 +468,27 @@ void ACTION_OT_view_selected(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ****************** View-All Operator ****************** */
+
+static int actkeys_view_frame_exec(bContext *C, wmOperator *op)
+{
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+	ANIM_center_frame(C, smooth_viewtx);
+	
+	return OPERATOR_FINISHED;
+}
+
 void ACTION_OT_view_frame(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "View Frame";
 	ot->idname = "ACTION_OT_view_frame";
 	ot->description = "Reset viewable area to show range around current frame";
-
+	
 	/* api callbacks */
 	ot->exec = actkeys_view_frame_exec;
-	ot->poll = ED_operator_action_active; /* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
-
+	ot->poll = ED_operator_action_active;
+	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -698,10 +707,13 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 		 *                       so it's easier for now to just read the F-Curve directly.
 		 *                       (TODO: add the full-blown PointerRNA relative parsing case here...)
 		 */
-		if (ale->id && !ale->owner)
+		if (ale->id && !ale->owner) {
 			insert_keyframe(reports, ale->id, NULL, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, ts->keyframe_type, flag);
-		else
-			insert_vert_fcurve(fcu, cfra, fcu->curval, ts->keyframe_type, 0);
+		}
+		else {
+			const float curval = evaluate_fcurve(fcu, cfra);
+			insert_vert_fcurve(fcu, cfra, curval, ts->keyframe_type, 0);
+		}
 		
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}

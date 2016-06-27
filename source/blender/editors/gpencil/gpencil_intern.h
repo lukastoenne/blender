@@ -177,6 +177,8 @@ void GPENCIL_OT_select_linked(struct wmOperatorType *ot);
 void GPENCIL_OT_select_grouped(struct wmOperatorType *ot);
 void GPENCIL_OT_select_more(struct wmOperatorType *ot);
 void GPENCIL_OT_select_less(struct wmOperatorType *ot);
+void GPENCIL_OT_select_first(struct wmOperatorType *ot);
+void GPENCIL_OT_select_last(struct wmOperatorType *ot);
 
 void GPENCIL_OT_duplicate(struct wmOperatorType *ot);
 void GPENCIL_OT_delete(struct wmOperatorType *ot);
@@ -216,6 +218,7 @@ void GPENCIL_OT_unlock_all(struct wmOperatorType *ot);
 void GPENCIL_OT_layer_isolate(struct wmOperatorType *ot);
 
 void GPENCIL_OT_active_frame_delete(struct wmOperatorType *ot);
+void GPENCIL_OT_active_frames_delete_all(struct wmOperatorType *ot);
 
 void GPENCIL_OT_convert(struct wmOperatorType *ot);
 

@@ -45,6 +45,7 @@
 #include "BKE_image.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
@@ -1064,17 +1065,11 @@ bScreen *ED_screen_duplicate(wmWindow *win, bScreen *sc)
 /* screen sets cursor based on swinid */
 static void region_cursor_set(wmWindow *win, int swinid, int swin_changed)
 {
-	ScrArea *sa = win->screen->areabase.first;
-	
-	for (; sa; sa = sa->next) {
-		ARegion *ar = sa->regionbase.first;
-		for (; ar; ar = ar->next) {
+	for (ScrArea *sa = win->screen->areabase.first; sa; sa = sa->next) {
+		for (ARegion *ar = sa->regionbase.first; ar; ar = ar->next) {
 			if (ar->swinid == swinid) {
 				if (swin_changed || (ar->type && ar->type->event_cursor)) {
-					if (ar->type && ar->type->cursor)
-						ar->type->cursor(win, sa, ar);
-					else
-						WM_cursor_set(win, CURSOR_STD);
+					ED_region_cursor_set(win, sa, ar);
 				}
 				return;
 			}
@@ -1146,7 +1141,7 @@ void ED_screen_draw(wmWindow *win)
 	/* blended join arrow */
 	if (sa1 && sa2) {
 		int dir = area_getorientation(sa1, sa2);
-		int dira;
+		int dira = -1;
 		if (dir != -1) {
 			switch (dir) {
 				case 0: /* W */
@@ -1761,7 +1756,9 @@ bool ED_screen_delete_scene(bContext *C, Scene *scene)
 
 	ED_screen_set_scene(C, CTX_wm_screen(C), newscene);
 
-	BKE_scene_unlink(bmain, scene, newscene);
+	BKE_libblock_remap(bmain, scene, newscene, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
+
+	BKE_libblock_free(bmain, scene);
 
 	return true;
 }
@@ -2076,7 +2073,10 @@ void ED_screen_animation_timer(bContext *C, int redraws, int refresh, int sync, 
 		sad->refresh = refresh;
 		sad->flag |= (enable < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
 		sad->flag |= (sync == 0) ? ANIMPLAY_FLAG_NO_SYNC : (sync == 1) ? ANIMPLAY_FLAG_SYNC : 0;
-		
+
+		ScrArea *sa = CTX_wm_area(C);
+		sad->from_anim_edit = (ELEM(sa->spacetype, SPACE_IPO, SPACE_ACTION, SPACE_NLA, SPACE_TIME));
+
 		screen->animtimer->customdata = sad;
 		
 	}

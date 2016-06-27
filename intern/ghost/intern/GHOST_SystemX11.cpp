@@ -302,7 +302,7 @@ createWindow(const STR_String& title,
 		const bool exclusive,
 		const GHOST_TEmbedderWindowID parentWindow)
 {
-	GHOST_WindowX11 *window = 0;
+	GHOST_WindowX11 *window = NULL;
 	
 	if (!m_display) return 0;
 	
@@ -310,6 +310,7 @@ createWindow(const STR_String& title,
 	                             left, top, width, height,
 	                             state, parentWindow, type,
 	                             ((glSettings.flags & GHOST_glStereoVisual) != 0), exclusive,
+	                             ((glSettings.flags & GHOST_glAlphaBackground) != 0),
 	                             glSettings.numOfAASamples, (glSettings.flags & GHOST_glDebugContext) != 0);
 
 	if (window) {
@@ -324,7 +325,7 @@ createWindow(const STR_String& title,
 		}
 		else {
 			delete window;
-			window = 0;
+			window = NULL;
 		}
 	}
 	return window;
@@ -419,8 +420,7 @@ static Bool init_timestamp_scanner(Display *, XEvent *event, XPointer arg)
 {
 	init_timestamp_data *data =
 	    reinterpret_cast<init_timestamp_data *>(arg);
-	switch (event->type)
-	{
+	switch (event->type) {
 		case ButtonPress:
 		case ButtonRelease:
 			data->timestamp = event->xbutton.time;
@@ -1239,7 +1239,8 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 				 *       events). So we have to check which values this event actually contains!
 				 */
 
-#define AXIS_VALUE_GET(axis, val)  ((axis_first <= axis && axes_end > axis) && ((void)(val = data->axis_data[axis]), true))
+#define AXIS_VALUE_GET(axis, val) \
+	((axis_first <= axis && axes_end > axis) && ((void)(val = data->axis_data[axis - axis_first]), true))
 
 				if (AXIS_VALUE_GET(2, axis_value)) {
 					window->GetTabletData()->Pressure = axis_value / ((float)m_xtablet.PressureLevels);
@@ -1500,6 +1501,7 @@ convertXKey(KeySym key)
 			GXMAP(type, XK_quoteright,   GHOST_kKeyQuote);
 			GXMAP(type, XK_quoteleft,    GHOST_kKeyAccentGrave);
 			GXMAP(type, XK_minus,        GHOST_kKeyMinus);
+			GXMAP(type, XK_plus,         GHOST_kKeyPlus);
 			GXMAP(type, XK_slash,        GHOST_kKeySlash);
 			GXMAP(type, XK_backslash,    GHOST_kKeyBackslash);
 			GXMAP(type, XK_equal,        GHOST_kKeyEqual);
@@ -1925,10 +1927,19 @@ GHOST_TSuccess GHOST_SystemX11::pushDragDropEvent(GHOST_TEventType eventType,
  * Basically it will not crash blender now if you have a X device that
  * is configured but not plugged in.
  */
-int GHOST_X11_ApplicationErrorHandler(Display * /*display*/, XErrorEvent *theEvent)
+int GHOST_X11_ApplicationErrorHandler(Display *display, XErrorEvent *event)
 {
-	fprintf(stderr, "Ignoring Xlib error: error code %d request code %d\n",
-	        theEvent->error_code, theEvent->request_code);
+	char error_code_str[512];
+
+	XGetErrorText(display, event->error_code, error_code_str, sizeof(error_code_str));
+
+	fprintf(stderr,
+	        "Received X11 Error:\n"
+	        "\terror code:   %d\n"
+	        "\trequest code: %d\n"
+	        "\tminor code:   %d\n"
+	        "\terror text:   %s\n",
+	        event->error_code, event->request_code, event->minor_code, error_code_str);
 
 	/* No exit! - but keep lint happy */
 	return 0;
@@ -1952,8 +1963,7 @@ int GHOST_X11_ApplicationIOErrorHandler(Display * /*display*/)
 static bool match_token(const char *haystack, const char *needle)
 {
 	const char *p, *q;
-	for (p = haystack; *p; )
-	{
+	for (p = haystack; *p; ) {
 		while (*p && isspace(*p))
 			p++;
 		if (!*p)

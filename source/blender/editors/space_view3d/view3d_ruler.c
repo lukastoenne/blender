@@ -35,6 +35,8 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 
+#include "BLT_translation.h"
+
 #include "BKE_context.h"
 #include "BKE_unit.h"
 #include "BKE_gpencil.h"
@@ -46,6 +48,8 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_transform.h"
+#include "ED_transform_snap_object_context.h"
 #include "ED_space_api.h"
 
 #include "BLF_api.h"
@@ -109,6 +113,8 @@ typedef struct RulerInfo {
 	int state;
 	float drag_start_co[3];
 
+	struct SnapObjectContext *snap_context;
+
 	/* wm state */
 	wmWindow *win;
 	ScrArea *sa;
@@ -128,6 +134,7 @@ static RulerItem *ruler_item_add(RulerInfo *ruler_info)
 static void ruler_item_remove(RulerInfo *ruler_info, RulerItem *ruler_item)
 {
 	BLI_remlink(&ruler_info->items, ruler_item);
+
 	MEM_freeN(ruler_item);
 }
 
@@ -250,6 +257,37 @@ static bool view3d_ruler_pick(RulerInfo *ruler_info, const float mval[2],
 		*r_co_index = -1;
 		return false;
 	}
+}
+
+/**
+ * Ensure the 'snap_context' is only cached while dragging,
+ * needed since the user may toggle modes between tool use.
+ */
+static void ruler_state_set(bContext *C, RulerInfo *ruler_info, int state)
+{
+	if (state == ruler_info->state) {
+		return;
+	}
+
+	/* always remove */
+	if (ruler_info->snap_context) {
+		ED_transform_snap_object_context_destroy(ruler_info->snap_context);
+		ruler_info->snap_context = NULL;
+	}
+
+	if (state == RULER_STATE_NORMAL) {
+		/* pass */
+	}
+	else if (state == RULER_STATE_DRAG) {
+		ruler_info->snap_context = ED_transform_snap_object_context_create_view3d(
+		        CTX_data_main(C), CTX_data_scene(C), SNAP_OBJECT_USE_CACHE,
+		        ruler_info->ar, CTX_wm_view3d(C));
+	}
+	else {
+		BLI_assert(0);
+	}
+
+	ruler_info->state = state;
 }
 
 #define RULER_ID "RulerData3D"
@@ -632,6 +670,11 @@ static void view3d_ruler_end(const struct bContext *UNUSED(C), RulerInfo *ruler_
 static void view3d_ruler_free(RulerInfo *ruler_info)
 {
 	BLI_freelistN(&ruler_info->items);
+
+	if (ruler_info->snap_context) {
+		ED_transform_snap_object_context_destroy(ruler_info->snap_context);
+	}
+
 	MEM_freeN(ruler_info);
 }
 
@@ -642,11 +685,12 @@ static void view3d_ruler_item_project(RulerInfo *ruler_info, float r_co[3],
 }
 
 /* use for mousemove events */
-static bool view3d_ruler_item_mousemove(bContext *C, RulerInfo *ruler_info, const int mval[2],
-                                        const bool do_thickness, const bool do_snap)
+static bool view3d_ruler_item_mousemove(
+        RulerInfo *ruler_info, const int mval[2],
+        const bool do_thickness, const bool do_snap)
 {
 	const float eps_bias = 0.0002f;
-	const float dist_px = MVAL_MAX_PX_DIST * U.pixelsize;  /* snap dist */
+	float dist_px = MVAL_MAX_PX_DIST * U.pixelsize;  /* snap dist */
 	RulerItem *ruler_item = ruler_item_active_get(ruler_info);
 
 	ruler_info->snap_flag &= ~RULER_SNAP_OK;
@@ -657,8 +701,8 @@ static bool view3d_ruler_item_mousemove(bContext *C, RulerInfo *ruler_info, cons
 		copy_v3_v3(co, ruler_info->drag_start_co);
 		view3d_ruler_item_project(ruler_info, co, mval);
 		if (do_thickness && ruler_item->co_index != 1) {
-			Scene *scene = CTX_data_scene(C);
-			View3D *v3d = ruler_info->sa->spacedata.first;
+			// Scene *scene = CTX_data_scene(C);
+			// View3D *v3d = ruler_info->sa->spacedata.first;
 			const float mval_fl[2] = {UNPACK2(mval)};
 			float ray_normal[3];
 			float ray_start[3];
@@ -666,33 +710,43 @@ static bool view3d_ruler_item_mousemove(bContext *C, RulerInfo *ruler_info, cons
 
 			co_other = ruler_item->co[ruler_item->co_index == 0 ? 2 : 0];
 
-			if (ED_view3d_snap_from_region(
-			        scene, v3d, ruler_info->ar,
-			        mval_fl, dist_px,
-			        true, false,
-			        false, false, true,
+			if (ED_transform_snap_object_project_view3d_mixed(
+			        ruler_info->snap_context,
+			        SCE_SELECT_FACE,
+			        &(const struct SnapObjectParams){
+			            .snap_select = SNAP_ALL,
+			            .use_object_edit_cage = true,
+			        },
+			        mval_fl, &dist_px, true,
 			        co, ray_normal))
 			{
 				negate_v3(ray_normal);
 				/* add some bias */
 				madd_v3_v3v3fl(ray_start, co, ray_normal, eps_bias);
-				ED_view3d_snap_from_ray(
-				        scene,
-				        ray_start, ray_normal,
-				        co_other);
+				ED_transform_snap_object_project_ray(
+				        ruler_info->snap_context,
+				        &(const struct SnapObjectParams){
+				            .snap_select = SNAP_ALL,
+				            .use_object_edit_cage = true,
+				        },
+				        ray_start, ray_normal, NULL,
+				        co_other, NULL);
 			}
 		}
 		else if (do_snap) {
-			Scene *scene = CTX_data_scene(C);
+			// Scene *scene = CTX_data_scene(C);
 			View3D *v3d = ruler_info->sa->spacedata.first;
 			const float mval_fl[2] = {UNPACK2(mval)};
 			bool use_depth = (v3d->drawtype >= OB_SOLID);
 
-			if (ED_view3d_snap_from_region(
-			        scene, v3d, ruler_info->ar,
-			        mval_fl, dist_px,
-			        use_depth, false,
-			        true, true, use_depth,
+			if (ED_transform_snap_object_project_view3d_mixed(
+			        ruler_info->snap_context,
+			        (SCE_SELECT_VERTEX | SCE_SELECT_EDGE) | (use_depth ? SCE_SELECT_FACE : 0),
+			        &(const struct SnapObjectParams){
+			            .snap_select = SNAP_ALL,
+			            .use_object_edit_cage = true,
+			        },
+			        mval_fl, &dist_px, use_depth,
 			        co, NULL))
 			{
 				ruler_info->snap_flag |= RULER_SNAP_OK;
@@ -707,13 +761,13 @@ static bool view3d_ruler_item_mousemove(bContext *C, RulerInfo *ruler_info, cons
 
 static void view3d_ruler_header_update(ScrArea *sa)
 {
-	const char *text = "Ctrl+LMB: Add, "
-	                   "Del: Remove, "
-	                   "Ctrl+Drag: Snap, "
-	                   "Shift+Drag: Thickness, "
-	                   "Ctrl+C: Copy Value, "
-	                   "Enter: Store,  "
-	                   "Esc: Cancel";
+	const char *text = IFACE_("Ctrl+LMB: Add, "
+	                          "Del: Remove, "
+	                          "Ctrl+Drag: Snap, "
+	                          "Shift+Drag: Thickness, "
+	                          "Ctrl+C: Copy Value, "
+	                          "Enter: Store,  "
+	                          "Esc: Cancel");
 
 	ED_area_headerprint(sa, text);
 }
@@ -793,7 +847,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						ruler_info->snap_flag &= ~RULER_SNAP_OK;
 						do_draw = true;
 					}
-					ruler_info->state = RULER_STATE_NORMAL;
+					ruler_state_set(C, ruler_info, RULER_STATE_NORMAL);
 				}
 			}
 			else {
@@ -810,7 +864,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						RulerItem *ruler_item_prev = ruler_item_active_get(ruler_info);
 						RulerItem *ruler_item;
 						/* check if we want to drag an existing point or add a new one */
-						ruler_info->state = RULER_STATE_DRAG;
+						ruler_state_set(C, ruler_info, RULER_STATE_DRAG);
 
 						ruler_item = ruler_item_add(ruler_info);
 						ruler_item_active_set(ruler_info, ruler_item);
@@ -818,7 +872,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						if (use_depth) {
 							/* snap the first point added, not essential but handy */
 							ruler_item->co_index = 0;
-							view3d_ruler_item_mousemove(C, ruler_info, event->mval, false, true);
+							view3d_ruler_item_mousemove(ruler_info, event->mval, false, true);
 							copy_v3_v3(ruler_info->drag_start_co, ruler_item->co[ruler_item->co_index]);
 						}
 						else {
@@ -852,7 +906,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 									ruler_item_active_set(ruler_info, ruler_item_pick);
 									ruler_item_pick->flag |= RULERITEM_USE_ANGLE;
 									ruler_item_pick->co_index = 1;
-									ruler_info->state = RULER_STATE_DRAG;
+									ruler_state_set(C, ruler_info, RULER_STATE_DRAG);
 
 									/* find the factor */
 									{
@@ -871,7 +925,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 									}
 
 									/* update the new location */
-									view3d_ruler_item_mousemove(C, ruler_info, event->mval,
+									view3d_ruler_item_mousemove(ruler_info, event->mval,
 									                            event->shift != 0, event->ctrl != 0);
 									do_draw = true;
 								}
@@ -879,7 +933,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 							else {
 								ruler_item_active_set(ruler_info, ruler_item_pick);
 								ruler_item_pick->co_index = co_index;
-								ruler_info->state = RULER_STATE_DRAG;
+								ruler_state_set(C, ruler_info, RULER_STATE_DRAG);
 
 								/* store the initial depth */
 								copy_v3_v3(ruler_info->drag_start_co, ruler_item_pick->co[ruler_item_pick->co_index]);
@@ -920,7 +974,7 @@ static int view3d_ruler_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case MOUSEMOVE:
 		{
 			if (ruler_info->state == RULER_STATE_DRAG) {
-				if (view3d_ruler_item_mousemove(C, ruler_info, event->mval,
+				if (view3d_ruler_item_mousemove(ruler_info, event->mval,
 				                                event->shift != 0, event->ctrl != 0))
 				{
 					do_draw = true;

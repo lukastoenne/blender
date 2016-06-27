@@ -576,7 +576,7 @@ static void generator_volume_random_cast_ray(MVolumeSampleGenerator_Random *gen)
 	sub_v3_v3v3(ray_dir, ray_end, ray_start);
 	
 	gen->tothits = 0;
-	BLI_bvhtree_ray_cast_all(gen->bvhdata.tree, ray_start, ray_dir, 0.0f,
+	BLI_bvhtree_ray_cast_all(gen->bvhdata.tree, ray_start, ray_dir, 0.0f, BVH_RAYCAST_DIST_MAX,
 	                         generator_volume_ray_cb, gen);
 	
 	gen->cur_seg = 0;

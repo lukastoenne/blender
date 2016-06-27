@@ -69,36 +69,6 @@ static int cu_isectLL(const float v1[3], const float v2[3], const float v3[3], c
                       short cox, short coy,
                       float *lambda, float *mu, float vec[3]);
 
-void BKE_curve_unlink(Curve *cu)
-{
-	int a;
-
-	for (a = 0; a < cu->totcol; a++) {
-		if (cu->mat[a])
-			id_us_min(&cu->mat[a]->id);
-		cu->mat[a] = NULL;
-	}
-	if (cu->vfont)
-		id_us_min(&cu->vfont->id);
-	cu->vfont = NULL;
-
-	if (cu->vfontb)
-		id_us_min(&cu->vfontb->id);
-	cu->vfontb = NULL;
-
-	if (cu->vfonti)
-		id_us_min(&cu->vfonti->id);
-	cu->vfonti = NULL;
-
-	if (cu->vfontbi)
-		id_us_min(&cu->vfontbi->id);
-	cu->vfontbi = NULL;
-
-	if (cu->key)
-		id_us_min(&cu->key->id);
-	cu->key = NULL;
-}
-
 /* frees editcurve entirely */
 void BKE_curve_editfont_free(Curve *cu)
 {
@@ -136,26 +106,21 @@ void BKE_curve_editNurb_free(Curve *cu)
 	}
 }
 
-/* don't free curve itself */
+/** Free (or release) any data used by this curve (does not free the curve itself). */
 void BKE_curve_free(Curve *cu)
 {
+	BKE_animdata_free((ID *)cu, false);
+
 	BKE_nurbList_free(&cu->nurb);
 	BKE_curve_editfont_free(cu);
 
 	BKE_curve_editNurb_free(cu);
-	BKE_curve_unlink(cu);
-	BKE_animdata_free((ID *)cu);
 
-	if (cu->mat)
-		MEM_freeN(cu->mat);
-	if (cu->str)
-		MEM_freeN(cu->str);
-	if (cu->strinfo)
-		MEM_freeN(cu->strinfo);
-	if (cu->bb)
-		MEM_freeN(cu->bb);
-	if (cu->tb)
-		MEM_freeN(cu->tb);
+	MEM_SAFE_FREE(cu->mat);
+	MEM_SAFE_FREE(cu->str);
+	MEM_SAFE_FREE(cu->strinfo);
+	MEM_SAFE_FREE(cu->bb);
+	MEM_SAFE_FREE(cu->tb);
 }
 
 void BKE_curve_init(Curve *cu)
@@ -1402,14 +1367,14 @@ void BKE_nurb_makeCurve(Nurb *nu, float *coord_array, float *tilt_array, float *
 			}
 		}
 
-		coord_fp = (float *)(((char *)coord_fp) + stride);
+		coord_fp = POINTER_OFFSET(coord_fp, stride);
 
 		if (tilt_fp)
-			tilt_fp = (float *)(((char *)tilt_fp) + stride);
+			tilt_fp = POINTER_OFFSET(tilt_fp, stride);
 		if (radius_fp)
-			radius_fp = (float *)(((char *)radius_fp) + stride);
+			radius_fp = POINTER_OFFSET(radius_fp, stride);
 		if (weight_fp)
-			weight_fp = (float *)(((char *)weight_fp) + stride);
+			weight_fp = POINTER_OFFSET(weight_fp, stride);
 
 		u += ustep;
 	}
@@ -1440,7 +1405,7 @@ void BKE_curve_forward_diff_bezier(float q0, float q1, float q2, float q3, float
 
 	for (a = 0; a <= it; a++) {
 		*p = q0;
-		p = (float *)(((char *)p) + stride);
+		p = POINTER_OFFSET(p, stride);
 		q0 += q1;
 		q1 += q2;
 		q2 += q3;
@@ -1465,7 +1430,7 @@ void BKE_curve_forward_diff_tangent_bezier(float q0, float q1, float q2, float q
 
 	for (a = 0; a <= it; a++) {
 		*p = q0;
-		p = (float *)(((char *)p) + stride);
+		p = POINTER_OFFSET(p, stride);
 		q0 += q1;
 		q1 += q2;
 	}
@@ -1490,7 +1455,7 @@ static void forward_diff_bezier_cotangent(const float p0[3], const float p1[3], 
 			       ( 6.0f  * t)         * p3[i];
 		}
 		normalize_v3(p);
-		p = (float *)(((char *)p) + stride);
+		p = POINTER_OFFSET(p, stride);
 	}
 }
 
@@ -2102,7 +2067,7 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 				*tilt_array = t[0] * pprev->alfa + t[1] * prevbezt->alfa + t[2] * bezt->alfa + t[3] * next->alfa;
 			}
 
-			tilt_array = (float *)(((char *)tilt_array) + stride);
+			tilt_array = POINTER_OFFSET(tilt_array, stride);
 		}
 
 		if (radius_array) {
@@ -2123,7 +2088,7 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 					t[2] * bezt->radius + t[3] * next->radius;
 			}
 
-			radius_array = (float *)(((char *)radius_array) + stride);
+			radius_array = POINTER_OFFSET(radius_array, stride);
 		}
 
 		if (weight_array) {
@@ -2131,7 +2096,7 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 			*weight_array = prevbezt->weight +
 				(bezt->weight - prevbezt->weight) * (3.0f * fac * fac - 2.0f * fac * fac * fac);
 
-			weight_array = (float *)(((char *)weight_array) + stride);
+			weight_array = POINTER_OFFSET(weight_array, stride);
 		}
 	}
 }

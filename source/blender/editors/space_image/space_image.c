@@ -28,6 +28,7 @@
  *  \ingroup spimage
  */
 
+#include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_meshdata_types.h"
@@ -44,6 +45,7 @@
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
+#include "BKE_library.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
@@ -232,6 +234,7 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_view_zoom_in);
 	WM_operatortype_append(IMAGE_OT_view_zoom_out);
 	WM_operatortype_append(IMAGE_OT_view_zoom_ratio);
+	WM_operatortype_append(IMAGE_OT_view_zoom_border);
 	WM_operatortype_append(IMAGE_OT_view_ndof);
 
 	WM_operatortype_append(IMAGE_OT_new);
@@ -303,6 +306,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom", MIDDLEMOUSE, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom", MOUSEZOOM, 0, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom", MOUSEPAN, 0, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_border", BKEY, KM_PRESS, KM_SHIFT, 0);
 
 	/* ctrl now works as well, shift + numpad works as arrow keys on Windows */
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD8, KM_PRESS, KM_CTRL, 0)->ptr, "ratio", 8.0f);
@@ -979,6 +983,31 @@ static void image_header_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 	}
 }
 
+static void image_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+{
+	SpaceImage *simg = (SpaceImage *)slink;
+
+	if (!ELEM(GS(old_id->name), ID_IM, ID_GD, ID_MSK)) {
+		return;
+	}
+
+	if ((ID *)simg->image == old_id) {
+		simg->image = (Image *)new_id;
+		id_us_ensure_real(new_id);
+	}
+
+	if ((ID *)simg->gpd == old_id) {
+		simg->gpd = (bGPdata *)new_id;
+		id_us_min(old_id);
+		id_us_plus(new_id);
+	}
+
+	if ((ID *)simg->mask_info.mask == old_id) {
+		simg->mask_info.mask = (Mask *)new_id;
+		id_us_ensure_real(new_id);
+	}
+}
+
 /**************************** spacetype *****************************/
 
 /* only called once, from space/spacetypes.c */
@@ -1000,7 +1029,8 @@ void ED_spacetype_image(void)
 	st->refresh = image_refresh;
 	st->listener = image_listener;
 	st->context = image_context;
-	
+	st->id_remap = image_id_remap;
+
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype image region");
 	art->regionid = RGN_TYPE_WINDOW;

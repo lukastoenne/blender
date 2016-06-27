@@ -2619,7 +2619,6 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		if (BKE_pbvh_has_faces(ccgdm->pbvh)) {
 			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
 			              setMaterial, false, fast);
-			glShadeModel(GL_FLAT);
 		}
 
 		return;
@@ -2996,6 +2995,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 				if (matconv[a].attribs.totorco && matconv[a].attribs.orco.array) {
 					matconv[a].datatypes[numdata].index = matconv[a].attribs.orco.gl_index;
+					matconv[a].datatypes[numdata].info_index = matconv[a].attribs.orco.gl_info_index;
 					matconv[a].datatypes[numdata].size = 3;
 					matconv[a].datatypes[numdata].type = GL_FLOAT;
 					numdata++;
@@ -3003,6 +3003,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				for (b = 0; b < matconv[a].attribs.tottface; b++) {
 					if (matconv[a].attribs.tface[b].array) {
 						matconv[a].datatypes[numdata].index = matconv[a].attribs.tface[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.tface[b].gl_info_index;
 						matconv[a].datatypes[numdata].size = 2;
 						matconv[a].datatypes[numdata].type = GL_FLOAT;
 						numdata++;
@@ -3011,16 +3012,20 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				for (b = 0; b < matconv[a].attribs.totmcol; b++) {
 					if (matconv[a].attribs.mcol[b].array) {
 						matconv[a].datatypes[numdata].index = matconv[a].attribs.mcol[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.mcol[b].gl_info_index;
 						matconv[a].datatypes[numdata].size = 4;
 						matconv[a].datatypes[numdata].type = GL_UNSIGNED_BYTE;
 						numdata++;
 					}
 				}
-				if (matconv[a].attribs.tottang && matconv[a].attribs.tang.array) {
-					matconv[a].datatypes[numdata].index = matconv[a].attribs.tang.gl_index;
-					matconv[a].datatypes[numdata].size = 4;
-					matconv[a].datatypes[numdata].type = GL_FLOAT;
-					numdata++;
+				for (b = 0; b < matconv[a].attribs.tottang; b++) {
+					if (matconv[a].attribs.tottang && matconv[a].attribs.tang[b].array) {
+						matconv[a].datatypes[numdata].index = matconv[a].attribs.tang[b].gl_index;
+						matconv[a].datatypes[numdata].info_index = matconv[a].attribs.tang[b].gl_info_index;
+						matconv[a].datatypes[numdata].size = 4;
+						matconv[a].datatypes[numdata].type = GL_FLOAT;
+						numdata++;
+					}
 				}
 				if (numdata != 0) {
 					matconv[a].numdata = numdata;
@@ -3105,15 +3110,17 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 										offset += sizeof(unsigned char) * 4;
 									}
 								}
-								if (matconv[i].attribs.tottang && matconv[i].attribs.tang.array) {
-									const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang.array + tot_loops;
+								for (b = 0; b < matconv[i].attribs.tottang; b++) {
+									if (matconv[i].attribs.tottang && matconv[i].attribs.tang[b].array) {
+										const float (*looptang)[4] = (const float (*)[4])matconv[i].attribs.tang[b].array + tot_loops;
 
-									copy_v4_v4((float *)&varray[offset], looptang[0]);
-									copy_v4_v4((float *)&varray[offset + max_element_size], looptang[3]);
-									copy_v4_v4((float *)&varray[offset + 2 * max_element_size], looptang[2]);
-									copy_v4_v4((float *)&varray[offset + 3 * max_element_size], looptang[1]);
+										copy_v4_v4((float *)&varray[offset], looptang[0]);
+										copy_v4_v4((float *)&varray[offset + max_element_size], looptang[3]);
+										copy_v4_v4((float *)&varray[offset + 2 * max_element_size], looptang[2]);
+										copy_v4_v4((float *)&varray[offset + 3 * max_element_size], looptang[1]);
 
-									offset += sizeof(float) * 4;
+										offset += sizeof(float) * 4;
+									}
 								}
 
 								tot_loops += 4;
@@ -3156,7 +3163,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		MEM_freeN(matconv);
 	}
 
-	glShadeModel(GL_FLAT);
+	glShadeModel(GL_SMOOTH);
 }
 
 static void ccgDM_drawFacesGLSL(DerivedMesh *dm, DMSetMaterial setMaterial)
@@ -3366,13 +3373,14 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
 	int colType;
-	const  MLoopCol *mloopcol;
+	const MLoopCol *mloopcol = NULL;
 	MTexPoly *mtexpoly = DM_get_poly_data_layer(dm, CD_MTEXPOLY);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	DMDrawOption draw_option;
 	int i, totpoly;
 	bool flush;
-	bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
+	const bool use_tface = (flag & DM_DRAW_USE_ACTIVE_UV) != 0;
+	const bool use_colors = (flag & DM_DRAW_USE_COLORS) != 0;
 	unsigned int next_actualFace;
 	unsigned int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
 	int mat_index;
@@ -3391,15 +3399,17 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
 
-	colType = CD_TEXTURE_MLOOPCOL;
-	mloopcol = dm->getLoopDataArray(dm, colType);
-	if (!mloopcol) {
-		colType = CD_PREVIEW_MLOOPCOL;
+	if (use_colors) {
+		colType = CD_TEXTURE_MLOOPCOL;
 		mloopcol = dm->getLoopDataArray(dm, colType);
-	}
-	if (!mloopcol) {
-		colType = CD_MLOOPCOL;
-		mloopcol = dm->getLoopDataArray(dm, colType);
+		if (!mloopcol) {
+			colType = CD_PREVIEW_MLOOPCOL;
+			mloopcol = dm->getLoopDataArray(dm, colType);
+		}
+		if (!mloopcol) {
+			colType = CD_MLOOPCOL;
+			mloopcol = dm->getLoopDataArray(dm, colType);
+		}
 	}
 
 	GPU_vertex_setup(dm);
@@ -4361,6 +4371,7 @@ static void ccgDM_recalcLoopTri(DerivedMesh *UNUSED(dm))
 
 static const MLoopTri *ccgDM_getLoopTriArray(DerivedMesh *dm)
 {
+	BLI_rw_mutex_lock(&loops_cache_rwlock, THREAD_LOCK_WRITE);
 	if (dm->looptris.array) {
 		BLI_assert(poly_to_tri_count(dm->numPolyData, dm->numLoopData) == dm->looptris.num);
 	}
@@ -4391,6 +4402,7 @@ static const MLoopTri *ccgDM_getLoopTriArray(DerivedMesh *dm)
 			lt->poly = poly_index;
 		}
 	}
+	BLI_rw_mutex_unlock(&loops_cache_rwlock);
 	return dm->looptris.array;
 }
 

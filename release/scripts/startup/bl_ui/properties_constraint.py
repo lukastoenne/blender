@@ -65,9 +65,10 @@ class ConstraintButtonsPanel:
                 layout.prop_search(con, "subtarget", con.target.data, "bones", text="Bone")
 
                 if hasattr(con, "head_tail"):
-                    row = layout.row()
+                    row = layout.row(align=True)
                     row.label(text="Head/Tail:")
                     row.prop(con, "head_tail", text="")
+                    row.prop(con, "use_bbone_shape", text="", icon='IPO_BEZIER')  # XXX icon, and only when bone has segments?
             elif con.target.type in {'MESH', 'LATTICE'}:
                 layout.prop_search(con, "subtarget", con.target, "vertex_groups", text="Vertex Group")
 
@@ -95,25 +96,25 @@ class ConstraintButtonsPanel:
     def CHILD_OF(self, context, layout, con):
         self.target_template(layout, con)
 
-        split = layout.split()
+        #split = layout.split()
 
-        col = split.column()
-        col.label(text="Location:")
-        col.prop(con, "use_location_x", text="X")
-        col.prop(con, "use_location_y", text="Y")
-        col.prop(con, "use_location_z", text="Z")
+        #col = split.column()
+        #col.label(text="Location:")
+        #col.prop(con, "use_location_x", text="X")
+        #col.prop(con, "use_location_y", text="Y")
+        #col.prop(con, "use_location_z", text="Z")
 
-        col = split.column()
-        col.label(text="Rotation:")
-        col.prop(con, "use_rotation_x", text="X")
-        col.prop(con, "use_rotation_y", text="Y")
-        col.prop(con, "use_rotation_z", text="Z")
+        #col = split.column()
+        #col.label(text="Rotation:")
+        #col.prop(con, "use_rotation_x", text="X")
+        #col.prop(con, "use_rotation_y", text="Y")
+        #col.prop(con, "use_rotation_z", text="Z")
 
-        col = split.column()
-        col.label(text="Scale:")
-        col.prop(con, "use_scale_x", text="X")
-        col.prop(con, "use_scale_y", text="Y")
-        col.prop(con, "use_scale_z", text="Z")
+        #col = split.column()
+        #col.label(text="Scale:")
+        #col.prop(con, "use_scale_x", text="X")
+        #col.prop(con, "use_scale_y", text="Y")
+        #col.prop(con, "use_scale_z", text="Z")
 
         row = layout.row()
         row.operator("constraint.childof_set_inverse")

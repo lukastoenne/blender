@@ -139,7 +139,7 @@ static void rna_userdef_dpi_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 	/* font's are stored at each DPI level, without this we can easy load 100's of fonts */
 	BLF_cache_clear();
 
-	BKE_userdef_state();
+	BKE_blender_userdef_refresh();
 	WM_main_add_notifier(NC_WINDOW, NULL);      /* full redraw */
 	WM_main_add_notifier(NC_SCREEN | NA_EDITED, NULL);    /* refresh region sizes */
 }
@@ -149,7 +149,7 @@ static void rna_userdef_virtual_pixel_update(Main *bmain, Scene *UNUSED(scene), 
 	/* font's are stored at each DPI level, without this we can easy load 100's of fonts */
 	BLF_cache_clear();
 	
-	BKE_userdef_state();
+	BKE_blender_userdef_refresh();
 
 	/* force setting drawable again */
 	wmWindowManager *wm = bmain->wm.first;
@@ -408,7 +408,7 @@ static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *path_cmp_p
 {
 	bAddon *bext = path_cmp_ptr->data;
 	if (BLI_findindex(&U.addons, bext) == -1) {
-		BKE_report(reports, RPT_ERROR, "Addon is no longer valid");
+		BKE_report(reports, RPT_ERROR, "Add-on is no longer valid");
 		return;
 	}
 
@@ -705,7 +705,7 @@ static StructRNA *rna_AddonPref_register(Main *bmain, ReportList *reports, void 
 
 	BLI_strncpy(dummyapt.idname, dummyaddon.module, sizeof(dummyapt.idname));
 	if (strlen(identifier) >= sizeof(dummyapt.idname)) {
-		BKE_reportf(reports, RPT_ERROR, "Registering addon-prefs class: '%s' is too long, maximum length is %d",
+		BKE_reportf(reports, RPT_ERROR, "Registering add-on preferences class: '%s' is too long, maximum length is %d",
 		            identifier, (int)sizeof(dummyapt.idname));
 		return NULL;
 	}
@@ -3195,7 +3195,7 @@ static void rna_def_userdef_addon(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "Addon", NULL);
 	RNA_def_struct_sdna(srna, "bAddon");
 	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
-	RNA_def_struct_ui_text(srna, "Addon", "Python addons to be loaded automatically");
+	RNA_def_struct_ui_text(srna, "Add-on", "Python add-ons to be loaded automatically");
 
 	prop = RNA_def_property(srna, "module", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Module", "Module name");
@@ -3232,7 +3232,7 @@ static void rna_def_userdef_addon_pref(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "AddonPreferences", NULL);
-	RNA_def_struct_ui_text(srna, "Addon Preferences", "");
+	RNA_def_struct_ui_text(srna, "Add-on Preferences", "");
 	RNA_def_struct_sdna(srna, "bAddon");  /* WARNING: only a bAddon during registration */
 
 	RNA_def_struct_refine_func(srna, "rna_AddonPref_refine");
@@ -4600,7 +4600,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "pythondir");
 	RNA_def_property_ui_text(prop, "Python Scripts Directory",
 	                         "Alternate script path, matching the default layout with subdirs: "
-	                         "startup, addons & modules (requires restart)");
+	                         "startup, add-ons & modules (requires restart)");
 	/* TODO, editing should reset sys.path! */
 
 	prop = RNA_def_property(srna, "i18n_branches_directory", PROP_STRING, PROP_DIRPATH);
@@ -4692,7 +4692,7 @@ static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cpro
 	func = RNA_def_function(srna, "remove", "rna_userdef_addon_remove");
 	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Remove add-on");
-	parm = RNA_def_pointer(func, "addon", "Addon", "", "Addon to remove");
+	parm = RNA_def_pointer(func, "addon", "Addon", "", "Add-on to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
 	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 }
@@ -4768,7 +4768,7 @@ void RNA_def_userdef(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "addons", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "addons", NULL);
 	RNA_def_property_struct_type(prop, "Addon");
-	RNA_def_property_ui_text(prop, "Addon", "");
+	RNA_def_property_ui_text(prop, "Add-on", "");
 	rna_def_userdef_addon_collection(brna, prop);
 
 	prop = RNA_def_property(srna, "autoexec_paths", PROP_COLLECTION, PROP_NONE);

@@ -308,7 +308,7 @@ static void create_mesh_volume_attribute(BL::Object& b_ob,
 	        is_float,
 	        is_linear,
 	        INTERPOLATION_LINEAR,
-	        EXTENSION_REPEAT,
+	        EXTENSION_CLIP,
 	        true);
 }
 
@@ -532,7 +532,7 @@ static void attr_create_pointiness(Scene *scene,
 static void create_mesh(Scene *scene,
                         Mesh *mesh,
                         BL::Mesh& b_mesh,
-                        const vector<uint>& used_shaders)
+                        const vector<Shader*>& used_shaders)
 {
 	/* count vertices and faces */
 	int numverts = b_mesh.vertices.length();
@@ -548,13 +548,12 @@ static void create_mesh(Scene *scene,
 		numtris += (vi[3] == 0)? 1: 2;
 	}
 
-	/* reserve memory */
-	mesh->reserve(numverts, numtris, 0, 0);
+	/* allocate memory */
+	mesh->reserve_mesh(numverts, numtris);
 
 	/* create vertex coordinates and normals */
-	int i = 0;
-	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v, ++i)
-		mesh->verts[i] = get_float3(v->co());
+	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
+		mesh->add_vertex(get_float3(v->co()));
 
 	Attribute *attr_N = mesh->attributes.add(ATTR_STD_VERTEX_NORMAL);
 	float3 *N = attr_N->data_float3();
@@ -583,13 +582,12 @@ static void create_mesh(Scene *scene,
 	/* create faces */
 	vector<int> nverts(numfaces);
 	vector<int> face_flags(numfaces, FACE_FLAG_NONE);
-	int fi = 0, ti = 0;
+	int fi = 0;
 
 	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++fi) {
 		int4 vi = get_int4(f->vertices_raw());
 		int n = (vi[3] == 0)? 3: 4;
-		int mi = clamp(f->material_index(), 0, used_shaders.size()-1);
-		int shader = used_shaders[mi];
+		int shader = clamp(f->material_index(), 0, used_shaders.size()-1);
 		bool smooth = f->use_smooth() || use_loop_normals;
 
 		/* split vertices if normal is different
@@ -619,18 +617,18 @@ static void create_mesh(Scene *scene,
 			   is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])))
 			{
 				// TODO(mai): order here is probably wrong
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth, true);
-				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth, true);
+				mesh->add_triangle(vi[0], vi[1], vi[3], shader, smooth, true);
+				mesh->add_triangle(vi[2], vi[3], vi[1], shader, smooth, true);
 				face_flags[fi] |= FACE_FLAG_DIVIDE_24;
 			}
 			else {
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth, true);
-				mesh->set_triangle(ti++, vi[0], vi[2], vi[3], shader, smooth, true);
+				mesh->add_triangle(vi[0], vi[1], vi[2], shader, smooth, true);
+				mesh->add_triangle(vi[0], vi[2], vi[3], shader, smooth, true);
 				face_flags[fi] |= FACE_FLAG_DIVIDE_13;
 			}
 		}
 		else
-			mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth, false);
+			mesh->add_triangle(vi[0], vi[1], vi[2], shader, smooth, false);
 
 		nverts[fi] = n;
 	}
@@ -657,16 +655,19 @@ static void create_mesh(Scene *scene,
 
 static void create_subd_mesh(Scene *scene,
                              Mesh *mesh,
-                             BL::Object b_ob,
+                             BL::Object& b_ob,
                              BL::Mesh& b_mesh,
                              PointerRNA *cmesh,
-                             const vector<uint>& used_shaders)
+                             const vector<Shader*>& used_shaders,
+                             float dicing_rate,
+                             int max_subdivisions)
 {
 	Mesh basemesh;
 	create_mesh(scene, &basemesh, b_mesh, used_shaders);
 
-	SubdParams sdparams(mesh, used_shaders[0], true, false);
-	sdparams.dicing_rate = RNA_float_get(cmesh, "dicing_rate");
+	SubdParams sdparams(mesh, 0, true, false);
+	sdparams.dicing_rate = max(0.1f, RNA_float_get(cmesh, "dicing_rate") * dicing_rate);
+	sdparams.max_level = max_subdivisions;
 
 	scene->camera->update();
 	sdparams.camera = scene->camera;
@@ -697,7 +698,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
-	vector<uint> used_shaders;
+	vector<Shader*> used_shaders;
 
 	BL::Object::material_slots_iterator slot;
 	for(b_ob.material_slots.begin(slot); slot != b_ob.material_slots.end(); ++slot) {
@@ -739,8 +740,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 			 * because the shader needs different mesh attributes */
 			bool attribute_recalc = false;
 
-			foreach(uint shader, mesh->used_shaders)
-				if(scene->shaders[shader]->need_update_attributes)
+			foreach(Shader *shader, mesh->used_shaders)
+				if(shader->need_update_attributes)
 					attribute_recalc = true;
 
 			if(!attribute_recalc)
@@ -757,11 +758,12 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 	/* create derived mesh */
 	PointerRNA cmesh = RNA_pointer_get(&b_ob_data.ptr, "cycles");
 
-	vector<Mesh::Triangle> oldtriangle = mesh->triangles;
+	array<int> oldtriangle = mesh->triangles;
 	
 	/* compares curve_keys rather than strands in order to handle quick hair
 	 * adjustments in dynamic BVH - other methods could probably do this better*/
-	vector<float4> oldcurve_keys = mesh->curve_keys;
+	array<float3> oldcurve_keys = mesh->curve_keys;
+	array<float> oldcurve_radius = mesh->curve_radius;
 
 	mesh->clear();
 	mesh->used_shaders = used_shaders;
@@ -783,7 +785,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 		if(b_mesh) {
 			if(render_layer.use_surfaces && !hide_tris) {
 				if(cmesh.data && experimental && RNA_enum_get(&cmesh, "subdivision_type"))
-					create_subd_mesh(scene, mesh, b_ob, b_mesh, &cmesh, used_shaders);
+					create_subd_mesh(scene, mesh, b_ob, b_mesh, &cmesh, used_shaders,
+					                 dicing_rate, max_subdivisions);
 				else
 					create_mesh(scene, mesh, b_mesh, used_shaders);
 
@@ -798,7 +801,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 			}
 
 			/* free derived mesh */
-			b_data.meshes.remove(b_mesh);
+			b_data.meshes.remove(b_mesh, false);
 		}
 	}
 	mesh->geometry_flags = requested_geometry_flags;
@@ -824,14 +827,21 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 	if(oldtriangle.size() != mesh->triangles.size())
 		rebuild = true;
 	else if(oldtriangle.size()) {
-		if(memcmp(&oldtriangle[0], &mesh->triangles[0], sizeof(Mesh::Triangle)*oldtriangle.size()) != 0)
+		if(memcmp(&oldtriangle[0], &mesh->triangles[0], sizeof(int)*oldtriangle.size()) != 0)
 			rebuild = true;
 	}
 
 	if(oldcurve_keys.size() != mesh->curve_keys.size())
 		rebuild = true;
 	else if(oldcurve_keys.size()) {
-		if(memcmp(&oldcurve_keys[0], &mesh->curve_keys[0], sizeof(float4)*oldcurve_keys.size()) != 0)
+		if(memcmp(&oldcurve_keys[0], &mesh->curve_keys[0], sizeof(float3)*oldcurve_keys.size()) != 0)
+			rebuild = true;
+	}
+
+	if(oldcurve_radius.size() != mesh->curve_radius.size())
+		rebuild = true;
+	else if(oldcurve_radius.size()) {
+		if(memcmp(&oldcurve_radius[0], &mesh->curve_radius[0], sizeof(float)*oldcurve_radius.size()) != 0)
 			rebuild = true;
 	}
 	
@@ -928,8 +938,8 @@ void BlenderSync::sync_mesh_motion(BL::Object& b_ob,
 			Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 
 			if(attr_mP) {
-				float4 *keys = &mesh->curve_keys[0];
-				memcpy(attr_mP->data_float4() + time_index*numkeys, keys, sizeof(float4)*numkeys);
+				float3 *keys = &mesh->curve_keys[0];
+				memcpy(attr_mP->data_float3() + time_index*numkeys, keys, sizeof(float3)*numkeys);
 			}
 		}
 
@@ -972,7 +982,12 @@ void BlenderSync::sync_mesh_motion(BL::Object& b_ob,
 			   memcmp(mP, &mesh->verts[0], sizeof(float3)*numverts) == 0)
 			{
 				/* no motion, remove attributes again */
-				VLOG(1) << "No actual deformation motion for object " << b_ob.name();
+				if(b_mesh.vertices.length() != numverts) {
+					VLOG(1) << "Topology differs, disabling motion blur.";
+				}
+				else {
+					VLOG(1) << "No actual deformation motion for object " << b_ob.name();
+				}
 				mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
 				if(attr_mN)
 					mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
@@ -998,7 +1013,7 @@ void BlenderSync::sync_mesh_motion(BL::Object& b_ob,
 		sync_curves(mesh, b_mesh, b_ob, true, time_index);
 
 	/* free derived mesh */
-	b_data.meshes.remove(b_mesh);
+	b_data.meshes.remove(b_mesh, false);
 }
 
 CCL_NAMESPACE_END
