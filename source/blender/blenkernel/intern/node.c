@@ -72,6 +72,8 @@
 #include "NOD_shader.h"
 #include "NOD_texture.h"
 
+#define NODE_DEFAULT_MAX_WIDTH 700
+
 /* Fallback types for undefined tree, nodes, sockets */
 bNodeTreeType NodeTreeTypeUndefined;
 bNodeType NodeTypeUndefined;
@@ -1151,6 +1153,11 @@ void nodeDetachNode(struct bNode *node)
 	}
 }
 
+void ntreeInitDefault(bNodeTree *ntree)
+{
+	ntree_set_typeinfo(ntree, NULL);
+}
+
 bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
 {
 	bNodeTree *ntree;
@@ -1775,21 +1782,21 @@ static void free_localized_node_groups(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == NODE_GROUP && node->id) {
 			bNodeTree *ngroup = (bNodeTree *)node->id;
-			ntreeFreeTree_ex(ngroup, false);
+			ntreeFreeTree(ngroup);
 			MEM_freeN(ngroup);
 		}
 	}
 }
 
-/* do not free ntree itself here, BKE_libblock_free calls this function too */
-void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
+/** Free (or release) any data used by this nodetree (does not free the nodetree itself). */
+void ntreeFreeTree(bNodeTree *ntree)
 {
 	bNodeTree *tntree;
 	bNode *node, *next;
 	bNodeSocket *sock, *nextsock;
-	
-	if (ntree == NULL) return;
-	
+
+	BKE_animdata_free((ID *)ntree, false);
+
 	/* XXX hack! node trees should not store execution graphs at all.
 	 * This should be removed when old tree types no longer require it.
 	 * Currently the execution data for texture nodes remains in the tree
@@ -1813,29 +1820,10 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	/* unregister associated RNA types */
 	ntreeInterfaceTypeFree(ntree);
 	
-	BKE_animdata_free((ID *)ntree);
-	
-	id_us_min((ID *)ntree->gpd);
-
 	BLI_freelistN(&ntree->links);   /* do first, then unlink_node goes fast */
 	
 	for (node = ntree->nodes.first; node; node = next) {
 		next = node->next;
-
-		/* ntreeUserIncrefID inline */
-
-		/* XXX, this is correct, however when freeing the entire database
-		 * this ends up accessing freed data which isn't properly unlinking
-		 * its self from scene nodes, SO - for now prefer invalid usercounts
-		 * on free rather then bad memory access - Campbell */
-#if 0
-		if (do_id_user) {
-			id_us_min(node->id);
-		}
-#else
-		(void)do_id_user;
-#endif
-
 		node_free_node_ex(ntree, node, false, false);
 	}
 
@@ -1866,11 +1854,6 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	if (tntree == NULL) {
 		BKE_libblock_free_data(G.main, &ntree->id);
 	}
-}
-/* same as ntreeFreeTree_ex but always manage users */
-void ntreeFreeTree(bNodeTree *ntree)
-{
-	ntreeFreeTree_ex(ntree, true);
 }
 
 void ntreeFreeCache(bNodeTree *ntree)
@@ -1965,7 +1948,16 @@ bNodeTree *ntreeFromID(ID *id)
 	}
 }
 
-void ntreeMakeLocal(bNodeTree *ntree)
+static void extern_local_ntree(bNodeTree *ntree)
+{
+	for (bNode *node = ntree->nodes.first; node; node = node->next) {
+		if (node->id) {
+			id_lib_extern(node->id);
+		}
+	}
+}
+
+void ntreeMakeLocal(bNodeTree *ntree, bool id_in_mainlist)
 {
 	Main *bmain = G.main;
 	bool lib = false, local = false;
@@ -1977,7 +1969,8 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	
 	if (ntree->id.lib == NULL) return;
 	if (ntree->id.us == 1) {
-		id_clear_lib_data(bmain, (ID *)ntree);
+		id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
+		extern_local_ntree(ntree);
 		return;
 	}
 	
@@ -1997,7 +1990,8 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	
 	/* if all users are local, we simply make tree local */
 	if (local && !lib) {
-		id_clear_lib_data(bmain, (ID *)ntree);
+		id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
+		extern_local_ntree(ntree);
 	}
 	else if (local && lib) {
 		/* this is the mixed case, we copy the tree and assign it to local users */
@@ -2012,8 +2006,8 @@ void ntreeMakeLocal(bNodeTree *ntree)
 				if (node->id == (ID *)ntree) {
 					if (owner_id->lib == NULL) {
 						node->id = (ID *)newtree;
-						newtree->id.us++;
-						ntree->id.us--;
+						id_us_plus(&newtree->id);
+						id_us_min(&ntree->id);
 					}
 				}
 			}
@@ -2101,8 +2095,10 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 			adt->action = ladt->action = action_backup;
 			adt->tmpact = ladt->tmpact = tmpact_backup;
 
-			if (action_backup) action_backup->id.us++;
-			if (tmpact_backup) tmpact_backup->id.us++;
+			if (action_backup)
+				id_us_plus(&action_backup->id);
+			if (tmpact_backup)
+				id_us_plus(&tmpact_backup->id);
 
 		}
 		/* end animdata uglyness */
@@ -2145,7 +2141,7 @@ void ntreeLocalMerge(bNodeTree *localtree, bNodeTree *ntree)
 		if (ntree->typeinfo->local_merge)
 			ntree->typeinfo->local_merge(localtree, ntree);
 		
-		ntreeFreeTree_ex(localtree, false);
+		ntreeFreeTree(localtree);
 		MEM_freeN(localtree);
 	}
 }
@@ -2398,15 +2394,21 @@ void ntreeInterfaceTypeUpdate(bNodeTree *ntree)
 
 /* ************ find stuff *************** */
 
+bNode *ntreeFindType(const bNodeTree *ntree, int type)
+{
+	if (ntree) {
+		for (bNode * node = ntree->nodes.first; node; node = node->next) {
+			if (node->type == type) {
+				return node;
+			}
+		}
+	}
+	return NULL;
+}
+
 bool ntreeHasType(const bNodeTree *ntree, int type)
 {
-	bNode *node;
-	
-	if (ntree)
-		for (node = ntree->nodes.first; node; node = node->next)
-			if (node->type == type)
-				return true;
-	return false;
+	return ntreeFindType(ntree, type) != NULL;
 }
 
 bool ntreeHasTree(const bNodeTree *ntree, const bNodeTree *lookup)
@@ -3405,20 +3407,24 @@ void node_type_size_preset(struct bNodeType *ntype, eNodeSizePreset size)
 {
 	switch (size) {
 		case NODE_SIZE_DEFAULT:
-			node_type_size(ntype, 140, 100, 320);
+			node_type_size(ntype, 140, 100, NODE_DEFAULT_MAX_WIDTH);
 			break;
 		case NODE_SIZE_SMALL:
-			node_type_size(ntype, 100, 80, 320);
+			node_type_size(ntype, 100, 80, NODE_DEFAULT_MAX_WIDTH);
 			break;
 		case NODE_SIZE_MIDDLE:
-			node_type_size(ntype, 150, 120, 320);
+			node_type_size(ntype, 150, 120, NODE_DEFAULT_MAX_WIDTH);
 			break;
 		case NODE_SIZE_LARGE:
-			node_type_size(ntype, 240, 140, 320);
+			node_type_size(ntype, 240, 140, NODE_DEFAULT_MAX_WIDTH);
 			break;
 	}
 }
 
+/**
+ * \warning Nodes defining a storage type _must_ allocate this for new nodes.
+ * Otherwise nodes will reload as undefined (T46619).
+ */
 void node_type_storage(bNodeType *ntype,
 	const char *storagename,
 	void (*freefunc)(struct bNode *node),

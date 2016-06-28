@@ -186,7 +186,13 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		if ((prop = RNA_struct_find_property(op->ptr, "filter_collada")))
 			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? FILE_TYPE_COLLADA : 0;
 		if ((prop = RNA_struct_find_property(op->ptr, "filter_glob"))) {
-			RNA_property_string_get(op->ptr, prop, params->filter_glob);
+			/* Protection against pyscripts not setting proper size limit... */
+			char *tmp = RNA_property_string_get_alloc(
+			                op->ptr, prop, params->filter_glob, sizeof(params->filter_glob), NULL);
+			if (tmp != params->filter_glob) {
+				BLI_strncpy(params->filter_glob, tmp, sizeof(params->filter_glob));
+				MEM_freeN(tmp);
+			}
 			params->filter |= (FILE_TYPE_OPERATOR | FILE_TYPE_FOLDER);
 		}
 		else {
@@ -236,7 +242,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 
 		if (params->display == FILE_DEFAULTDISPLAY) {
 			if (U.uiflag & USER_SHOW_THUMBNAILS) {
-				if (params->filter & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE))
+				if (params->filter & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT))
 					params->display = FILE_IMGDISPLAY;
 				else
 					params->display = FILE_SHORTDISPLAY;
@@ -471,7 +477,7 @@ static void column_widths(FileSelectParams *params, struct FileLayout *layout)
 		layout->column_widths[i] = 0;
 	}
 
-	layout->column_widths[COLUMN_NAME] = ((float)params->thumbnail_size / 8.0f) * UI_UNIT_X;;
+	layout->column_widths[COLUMN_NAME] = ((float)params->thumbnail_size / 8.0f) * UI_UNIT_X;
 	/* Biggest possible reasonable values... */
 	layout->column_widths[COLUMN_DATE] = file_string_width(small_size ? "23/08/89" : "23-Dec-89");
 	layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
@@ -570,7 +576,7 @@ FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, ARegion *ar)
 	return sfile->layout;
 }
 
-void ED_file_change_dir(bContext *C, const bool checkdir)
+void ED_file_change_dir(bContext *C)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
@@ -584,7 +590,7 @@ void ED_file_change_dir(bContext *C, const bool checkdir)
 		sfile->params->filter_search[0] = '\0';
 		sfile->params->active_file = -1;
 
-		if (checkdir && !BLI_is_dir(sfile->params->dir)) {
+		if (!file_is_dir(sfile, sfile->params->dir)) {
 			BLI_strncpy(sfile->params->dir, filelist_dir(sfile->files), sizeof(sfile->params->dir));
 			/* could return but just refresh the current dir */
 		}

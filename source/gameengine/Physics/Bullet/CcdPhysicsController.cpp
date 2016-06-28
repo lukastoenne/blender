@@ -157,7 +157,7 @@ CcdPhysicsController::CcdPhysicsController (const CcdConstructionInfo& ci)
 	m_savedCollisionFlags = 0;
 	m_savedCollisionFilterGroup = 0;
 	m_savedCollisionFilterMask = 0;
-	m_savedMass = 0.0;
+	m_savedMass = 0.0f;
 	m_savedDyna = false;
 	m_suspended = false;
 	
@@ -280,7 +280,7 @@ bool CcdPhysicsController::CreateSoftbody()
 	rbci.m_friction = m_cci.m_friction;
 	rbci.m_restitution = m_cci.m_restitution;
 	
-	btVector3 p(0,0,0);// = getOrigin();
+	btVector3 p(0.0f,0.0f,0.0f);// = getOrigin();
 	//btSoftBody*	psb=btSoftBodyHelpers::CreateRope(worldInfo,	btVector3(-10,0,i*0.25),btVector3(10,0,i*0.25),	16,1+2);
 	btSoftBody* psb  = 0;
 	btSoftBodyWorldInfo& worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
@@ -533,6 +533,7 @@ bool CcdPhysicsController::CreateCharacterController()
 
 	m_characterController->setJumpSpeed(m_cci.m_jumpSpeed);
 	m_characterController->setFallSpeed(m_cci.m_fallSpeed);
+	m_characterController->setMaxJumps(m_cci.m_maxJumps);
 
 	return true;
 }
@@ -1094,7 +1095,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
-			0.0,
+			0.0f,
 			btCollisionObject::CF_STATIC_OBJECT|((ghost)?btCollisionObject::CF_NO_CONTACT_RESPONSE:(m_savedCollisionFlags&btCollisionObject::CF_NO_CONTACT_RESPONSE)),
 			btBroadphaseProxy::StaticFilter,
 			btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter);
@@ -1193,16 +1194,12 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 	btRigidBody *body = GetRigidBody();
 	if (body && !m_suspended && newmass>MT_EPSILON && GetMass()>MT_EPSILON)
 	{
-		btVector3 grav = body->getGravity();
-		btVector3 accel = grav / GetMass();
-
 		btBroadphaseProxy* handle = body->getBroadphaseHandle();
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
 			newmass,
 			body->getCollisionFlags(),
 			handle->m_collisionFilterGroup,
 			handle->m_collisionFilterMask);
-		body->setGravity(accel);
 	}
 }
 		
@@ -1564,9 +1561,9 @@ void    CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController* child)
 	rootBody->getMotionState()->getWorldTransform(rootTrans);
 	childBody->getMotionState()->getWorldTransform(childTrans);
 	btVector3 rootScale = rootShape->getLocalScaling();
-	rootScale[0] = 1.0/rootScale[0];
-	rootScale[1] = 1.0/rootScale[1];
-	rootScale[2] = 1.0/rootScale[2];
+	rootScale[0] = 1.0f/rootScale[0];
+	rootScale[1] = 1.0f/rootScale[1];
+	rootScale[2] = 1.0f/rootScale[2];
 	// relative scale = child_scale/parent_scale
 	btVector3 relativeScale = childShape->getLocalScaling()*rootScale;
 	btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();
@@ -1869,8 +1866,10 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 	if (!dm) {
 		free_dm = true;
 		dm = CDDM_from_mesh(meshobj->GetMesh());
-		DM_ensure_tessface(dm);
 	}
+
+	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
 	MFace *mface = dm->getTessFaceArray(dm);
@@ -1896,10 +1895,10 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = meshobj->GetPolygon(origi);
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
 
 			// only add polygons that have the collision flag set
-			if (poly->IsCollider()) {
+			if (poly && poly->IsCollider()) {
 				if (!vert_tag_array[mf->v1]) {
 					vert_tag_array[mf->v1] = true;
 					tot_bt_verts++;
@@ -1931,7 +1930,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = meshobj->GetPolygon(origi);
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
 
 			// only add polygons that have the collisionflag set
 			if (poly->IsCollider()) {
@@ -1974,10 +1973,10 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = meshobj->GetPolygon(origi);
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
 
 			// only add polygons that have the collision flag set
-			if (poly->IsCollider()) {
+			if (poly && poly->IsCollider()) {
 				if (!vert_tag_array[mf->v1]) {
 					vert_tag_array[mf->v1] = true;
 					vert_remap_array[mf->v1] = tot_bt_verts;
@@ -2026,10 +2025,10 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 			MFace *mf = &mface[p2];
 			MTFace *tf = (tface) ? &tface[p2] : NULL;
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = meshobj->GetPolygon(origi);
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
 
 			// only add polygons that have the collisionflag set
-			if (poly->IsCollider()) {
+			if (poly && poly->IsCollider()) {
 				MVert *v1 = &mvert[mf->v1];
 				MVert *v2 = &mvert[mf->v2];
 				MVert *v3 = &mvert[mf->v3];

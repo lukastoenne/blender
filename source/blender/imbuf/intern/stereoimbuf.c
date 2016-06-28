@@ -508,7 +508,7 @@ static void imb_stereo3d_write_topbottom(Stereo3DData *s3d)
 			uchar *to = rect_to + stride_to * y * channels;
 			const uchar *from[2] = {
 			    rect_left  + stride_from * y * channels,
-				rect_right + stride_from * y * channels,
+			    rect_right + stride_from * y * channels,
 			};
 
 			memcpy(to, from[1], sizeof(uchar) * channels * stride_from);
@@ -718,6 +718,9 @@ ImBuf *IMB_stereo3d_ImBuf(ImageFormatData *im_format, ImBuf *ibuf_left, ImBuf *i
 
 	IMB_stereo3d_write_dimensions(im_format->stereo3d_format.display_mode, false, ibuf_left->x, ibuf_left->y, &width, &height);
 	ibuf_stereo = IMB_allocImBuf(width, height, ibuf_left->planes, (is_float ? IB_rectfloat : IB_rect));
+
+	ibuf_stereo->rect_colorspace = ibuf_left->rect_colorspace;
+	ibuf_stereo->float_colorspace = ibuf_left->float_colorspace;
 
 	/* copy flags for IB_fields and other settings */
 	ibuf_stereo->flags = ibuf_left->flags;
@@ -1201,7 +1204,7 @@ static void imb_stereo3d_read_topbottom(Stereo3DData *s3d)
 			const uchar *from = rect_from + stride_from * y * channels;
 			uchar *to[2] = {
 			    rect_left  + stride_to * y * channels,
-				rect_right + stride_to * y * channels,
+			    rect_right + stride_to * y * channels,
 			};
 
 			memcpy(to[1], from, sizeof(uchar) * channels * stride_to);

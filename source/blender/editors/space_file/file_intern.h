@@ -93,6 +93,7 @@ void FILE_OT_filenum(struct wmOperatorType *ot);
 void FILE_OT_delete(struct wmOperatorType *ot);
 void FILE_OT_rename(struct wmOperatorType *ot);
 void FILE_OT_smoothscroll(struct wmOperatorType *ot);
+void FILE_OT_filepath_drop(struct wmOperatorType *ot);
 
 int file_exec(bContext *C, struct wmOperator *exec_op);
 int file_cancel_exec(bContext *C, struct wmOperator *unused);
@@ -107,7 +108,9 @@ void file_filename_enter_handle(bContext *C, void *arg_unused, void *arg_but);
 
 int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
 
-void file_sfile_to_operator(struct wmOperator *op, struct SpaceFile *sfile, char *filepath);
+void file_sfile_filepath_set(struct SpaceFile *sfile, const char *filepath);
+void file_sfile_to_operator_ex(struct wmOperator *op, struct SpaceFile *sfile, char *filepath);
+void file_sfile_to_operator(struct wmOperator *op, struct SpaceFile *sfile);
 void file_operator_to_sfile(struct SpaceFile *sfile, struct wmOperator *op);
 
 
@@ -125,6 +128,7 @@ void file_panels_register(struct ARegionType *art);
 
 /* file_utils.c */
 void file_tile_boundbox(const ARegion *ar, FileLayout *layout, const int file, rcti *r_bounds);
+bool file_is_dir(struct SpaceFile *sfile, const char *path);
 
 #endif /* __FILE_INTERN_H__ */
 

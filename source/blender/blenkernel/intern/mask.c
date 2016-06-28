@@ -116,7 +116,7 @@ MaskSplinePoint *BKE_mask_spline_point_array(MaskSpline *spline)
 	return spline->points_deform ? spline->points_deform : spline->points;
 }
 
-MaskSplinePoint *BKE_mask_spline_point_array_from_point(MaskSpline *spline, MaskSplinePoint *point_ref)
+MaskSplinePoint *BKE_mask_spline_point_array_from_point(MaskSpline *spline, const MaskSplinePoint *point_ref)
 {
 	if ((point_ref >= spline->points) && (point_ref < &spline->points[spline->tot_point])) {
 		return spline->points;
@@ -804,7 +804,7 @@ static Mask *mask_alloc(Main *bmain, const char *name)
 
 	mask = BKE_libblock_alloc(bmain, ID_MSK, name);
 
-	mask->id.flag |= LIB_FAKEUSER;
+	id_fake_user_set(&mask->id);
 
 	return mask;
 }
@@ -843,10 +843,7 @@ Mask *BKE_mask_copy_nolib(Mask *mask)
 	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
 
 	/* enable fake user by default */
-	if (!(mask_new->id.flag & LIB_FAKEUSER)) {
-		mask_new->id.flag |= LIB_FAKEUSER;
-		mask_new->id.us++;
-	}
+	id_fake_user_set(&mask->id);
 
 	return mask_new;
 }
@@ -862,10 +859,7 @@ Mask *BKE_mask_copy(Mask *mask)
 	BKE_mask_layer_copy_list(&mask_new->masklayers, &mask->masklayers);
 
 	/* enable fake user by default */
-	if (!(mask_new->id.flag & LIB_FAKEUSER)) {
-		mask_new->id.flag |= LIB_FAKEUSER;
-		mask_new->id.us++;
-	}
+	id_fake_user_set(&mask->id);
 
 	if (mask->id.lib) {
 		BKE_id_lib_local_paths(G.main, mask->id.lib, &mask_new->id);
@@ -1016,63 +1010,10 @@ void BKE_mask_layer_free_list(ListBase *masklayers)
 	}
 }
 
-/** free for temp copy, but don't manage unlinking from other pointers */
-void BKE_mask_free_nolib(Mask *mask)
+/** Free (or release) any data used by this mask (does not free the mask itself). */
+void BKE_mask_free(Mask *mask)
 {
-	BKE_mask_layer_free_list(&mask->masklayers);
-}
-
-void BKE_mask_free(Main *bmain, Mask *mask)
-{
-	bScreen *scr;
-	ScrArea *area;
-	SpaceLink *sl;
-	Scene *scene;
-
-	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
-		for (area = scr->areabase.first; area; area = area->next) {
-			for (sl = area->spacedata.first; sl; sl = sl->next) {
-				switch (sl->spacetype) {
-					case SPACE_CLIP:
-					{
-						SpaceClip *sc = (SpaceClip *)sl;
-
-						if (sc->mask_info.mask == mask) {
-							sc->mask_info.mask = NULL;
-						}
-						break;
-					}
-					case SPACE_IMAGE:
-					{
-						SpaceImage *sima = (SpaceImage *)sl;
-
-						if (sima->mask_info.mask == mask) {
-							sima->mask_info.mask = NULL;
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-		if (scene->ed) {
-			Sequence *seq;
-
-			SEQ_BEGIN (scene->ed, seq)
-			{
-				if (seq->mask == mask) {
-					seq->mask = NULL;
-				}
-			}
-			SEQ_END
-		}
-	}
-
-	FOREACH_NODETREE(bmain, ntree, id) {
-		BKE_node_tree_unlink_id((ID *)mask, ntree);
-	} FOREACH_NODETREE_END
+	BKE_animdata_free((ID *)mask, false);
 
 	/* free mask data */
 	BKE_mask_layer_free_list(&mask->masklayers);
@@ -1595,8 +1536,8 @@ void BKE_mask_update_scene(Main *bmain, Scene *scene)
 	Mask *mask;
 
 	for (mask = bmain->mask.first; mask; mask = mask->id.next) {
-		if (mask->id.flag & (LIB_ID_RECALC | LIB_ID_RECALC_DATA)) {
-			bool do_new_frame = (mask->id.flag & LIB_ID_RECALC_DATA) != 0;
+		if (mask->id.tag & (LIB_TAG_ID_RECALC | LIB_TAG_ID_RECALC_DATA)) {
+			bool do_new_frame = (mask->id.tag & LIB_TAG_ID_RECALC_DATA) != 0;
 			BKE_mask_evaluate_all_masks(bmain, CFRA, do_new_frame);
 		}
 	}

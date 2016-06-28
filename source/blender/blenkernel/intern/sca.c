@@ -435,9 +435,6 @@ void init_actuator(bActuator *act)
 		oa= act->data;
 		oa->flag= 15;
 		break;
-	case ACT_IPO:
-		act->data= MEM_callocN(sizeof(bIpoActuator), "ipoact");
-		break;
 	case ACT_PROPERTY:
 		act->data= MEM_callocN(sizeof(bPropertyActuator), "propact");
 		break;
@@ -653,77 +650,6 @@ void set_sca_new_poins(void)
 	while (ob) {
 		set_sca_new_poins_ob(ob);
 		ob= ob->id.next;
-	}
-}
-
-void sca_remove_ob_poin(Object *obt, Object *ob)
-{
-	bSensor *sens;
-	bMessageSensor *ms;
-	bActuator *act;
-	bCameraActuator *ca;
-	bObjectActuator *oa;
-	bSceneActuator *sa;
-	bEditObjectActuator *eoa;
-	bPropertyActuator *pa;
-	bMessageActuator *ma;
-	bParentActuator *para;
-	bArmatureActuator *aa;
-	bSteeringActuator *sta;
-
-
-	sens= obt->sensors.first;
-	while (sens) {
-		switch (sens->type) {
-		case SENS_MESSAGE:
-			ms= sens->data;
-			if (ms->fromObject==ob) ms->fromObject= NULL;
-		}
-		sens= sens->next;
-	}
-
-	act= obt->actuators.first;
-	while (act) {
-		switch (act->type) {
-		case ACT_CAMERA:
-			ca= act->data;
-			if (ca->ob==ob) ca->ob= NULL;
-			break;
-		case ACT_OBJECT:
-			oa= act->data;
-			if (oa->reference==ob) oa->reference= NULL;
-			break;
-		case ACT_PROPERTY:
-			pa= act->data;
-			if (pa->ob==ob) pa->ob= NULL;
-			break;
-		case ACT_SCENE:
-			sa= act->data;
-			if (sa->camera==ob) sa->camera= NULL;
-			break;
-		case ACT_EDIT_OBJECT:
-			eoa= act->data;
-			if (eoa->ob==ob) eoa->ob= NULL;
-			break;
-		case ACT_MESSAGE:
-			ma= act->data;
-			if (ma->toObject==ob) ma->toObject= NULL;
-			break;
-		case ACT_PARENT:
-			para = act->data;
-			if (para->ob==ob) para->ob = NULL;
-			break;
-		case ACT_ARMATURE:
-			aa = act->data;
-			if (aa->target == ob) aa->target = NULL;
-			if (aa->subtarget == ob) aa->subtarget = NULL;
-			break;
-		case ACT_STEERING:
-			sta = act->data;
-			if (sta->navmesh == ob) sta->navmesh = NULL;
-			if (sta->target == ob) sta->target = NULL;
-		}
-		act= act->next;
 	}
 }
 
@@ -1059,7 +985,6 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
 				break;
 			}
 			/* Note: some types seems to be non-implemented? ACT_LAMP, ACT_MATERIAL... */
-			case ACT_IPO:  /* DEPRECATED */
 			case ACT_LAMP:
 			case ACT_MATERIAL:
 			case ACT_END_OBJECT:  /* DEPRECATED */

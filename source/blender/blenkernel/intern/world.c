@@ -31,6 +31,7 @@
 
 
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include "MEM_guardedalloc.h"
 
@@ -51,44 +52,34 @@
 
 #include "GPU_material.h"
 
-void BKE_world_free_ex(World *wrld, bool do_id_user)
+/** Free (or release) any data used by this world (does not free the world itself). */
+void BKE_world_free(World *wrld)
 {
-	MTex *mtex;
 	int a;
-	
-	for (a = 0; a < MAX_MTEX; a++) {
-		mtex = wrld->mtex[a];
-		if (do_id_user && mtex && mtex->tex) mtex->tex->id.us--;
-		if (mtex) MEM_freeN(mtex);
-	}
-	BKE_previewimg_free(&wrld->preview);
 
-	BKE_animdata_free((ID *)wrld);
+	BKE_animdata_free((ID *)wrld, false);
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		MEM_SAFE_FREE(wrld->mtex[a]);
+	}
 
 	/* is no lib link block, but world extension */
 	if (wrld->nodetree) {
-		ntreeFreeTree_ex(wrld->nodetree, do_id_user);
+		ntreeFreeTree(wrld->nodetree);
 		MEM_freeN(wrld->nodetree);
+		wrld->nodetree = NULL;
 	}
 
-	if (wrld->gpumaterial.first)
-		GPU_material_free(&wrld->gpumaterial);
+	GPU_material_free(&wrld->gpumaterial);
 	
 	BKE_icon_id_delete((struct ID *)wrld);
-	wrld->id.icon_id = 0;
+	BKE_previewimg_free(&wrld->preview);
 }
 
-void BKE_world_free(World *wrld)
+void BKE_world_init(World *wrld)
 {
-	BKE_world_free_ex(wrld, true);
-}
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(wrld, id));
 
-World *add_world(Main *bmain, const char *name)
-{
-	World *wrld;
-
-	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
-	
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;
 	wrld->horb = 0.05f;
@@ -113,6 +104,15 @@ World *add_world(Main *bmain, const char *name)
 	wrld->preview = NULL;
 	wrld->miststa = 5.0f;
 	wrld->mistdist = 25.0f;
+}
+
+World *add_world(Main *bmain, const char *name)
+{
+	World *wrld;
+
+	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
+
+	BKE_world_init(wrld);
 
 	return wrld;
 }
@@ -212,8 +212,8 @@ void BKE_world_make_local(World *wrld)
 			if (sce->world == wrld) {
 				if (sce->id.lib == NULL) {
 					sce->world = wrld_new;
-					wrld_new->id.us++;
-					wrld->id.us--;
+					id_us_plus(&wrld_new->id);
+					id_us_min(&wrld->id);
 				}
 			}
 		}

@@ -557,29 +557,46 @@ int colorband_element_remove(struct ColorBand *coba, int index)
 
 /* ******************* TEX ************************ */
 
+/** Free (or release) any data used by this texture (does not free the texure itself). */
 void BKE_texture_free(Tex *tex)
 {
-	if (tex->coba) MEM_freeN(tex->coba);
-	if (tex->env) BKE_texture_envmap_free(tex->env);
-	if (tex->pd) BKE_texture_pointdensity_free(tex->pd);
-	if (tex->vd) BKE_texture_voxeldata_free(tex->vd);
-	if (tex->ot) BKE_texture_ocean_free(tex->ot);
-	BKE_animdata_free((struct ID *)tex);
-	
-	BKE_previewimg_free(&tex->preview);
-	BKE_icon_id_delete((struct ID *)tex);
-	tex->id.icon_id = 0;
-	
+	BKE_animdata_free((ID *)tex, false);
+
+	/* is no lib link block, but texture extension */
 	if (tex->nodetree) {
 		ntreeFreeTree(tex->nodetree);
 		MEM_freeN(tex->nodetree);
+		tex->nodetree = NULL;
 	}
+
+	MEM_SAFE_FREE(tex->coba);
+	if (tex->env) {
+		BKE_texture_envmap_free(tex->env);
+		tex->env = NULL;
+	}
+	if (tex->pd) {
+		BKE_texture_pointdensity_free(tex->pd);
+		tex->pd = NULL;
+	}
+	if (tex->vd) {
+		BKE_texture_voxeldata_free(tex->vd);
+		tex->vd = NULL;
+	}
+	if (tex->ot) {
+		BKE_texture_ocean_free(tex->ot);
+		tex->ot = NULL;
+	}
+	
+	BKE_icon_id_delete((ID *)tex);
+	BKE_previewimg_free(&tex->preview);
 }
 
 /* ------------------------------------------------------------------------- */
 
 void BKE_texture_default(Tex *tex)
 {
+	/* BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(tex, id)); */  /* Not here, can be called with some pointers set. :/ */
+
 	tex->type = TEX_IMAGE;
 	tex->ima = NULL;
 	tex->stype = 0;
@@ -1007,8 +1024,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (ma->mtex[a] && ma->mtex[a]->tex == tex) {
 					if (ma->id.lib == NULL) {
 						ma->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1020,8 +1037,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (la->mtex[a] && la->mtex[a]->tex == tex) {
 					if (la->id.lib == NULL) {
 						la->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1033,8 +1050,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (wrld->mtex[a] && wrld->mtex[a]->tex == tex) {
 					if (wrld->id.lib == NULL) {
 						wrld->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1045,15 +1062,15 @@ void BKE_texture_make_local(Tex *tex)
 			if (br->mtex.tex == tex) {
 				if (br->id.lib == NULL) {
 					br->mtex.tex = tex_new;
-					tex_new->id.us++;
-					tex->id.us--;
+					id_us_plus(&tex_new->id);
+					id_us_min(&tex->id);
 				}
 			}
 			if (br->mask_mtex.tex == tex) {
 				if (br->id.lib == NULL) {
 					br->mask_mtex.tex = tex_new;
-					tex_new->id.us++;
-					tex->id.us--;
+					id_us_plus(&tex_new->id);
+					id_us_min(&tex->id);
 				}
 			}
 			br = br->id.next;
@@ -1064,8 +1081,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (pa->mtex[a] && pa->mtex[a]->tex == tex) {
 					if (pa->id.lib == NULL) {
 						pa->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}
@@ -1077,8 +1094,8 @@ void BKE_texture_make_local(Tex *tex)
 				if (ls->mtex[a] && ls->mtex[a]->tex == tex) {
 					if (ls->id.lib == NULL) {
 						ls->mtex[a]->tex = tex_new;
-						tex_new->id.us++;
-						tex->id.us--;
+						id_us_plus(&tex_new->id);
+						id_us_min(&tex->id);
 					}
 				}
 			}

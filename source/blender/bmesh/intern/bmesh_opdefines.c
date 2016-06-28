@@ -168,8 +168,8 @@ static BMOpDefine bmo_planar_faces_def = {
 	"planar_faces",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},    /* input geometry. */
-	 {"iterations", BMO_OP_SLOT_INT},
-	 {"factor", BMO_OP_SLOT_FLT},           /* planar factor */
+	 {"iterations", BMO_OP_SLOT_INT},  /* Number of times to flatten faces (for when connected faces are used) */
+	 {"factor", BMO_OP_SLOT_FLT},  /* Influence for making planar each iteration */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -243,6 +243,7 @@ static BMOpDefine bmo_reverse_faces_def = {
 	"reverse_faces",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},    /* input faces */
+	 {"flip_multires", BMO_OP_SLOT_BOOL},  /* maintain multi-res offset */
 	 {{'\0'}},
 	},
 	{{{'\0'}}},  /* no output */
@@ -435,8 +436,8 @@ static BMOpDefine bmo_average_vert_facedata_def = {
 static BMOpDefine bmo_pointmerge_def = {
 	"pointmerge",
 	/* slots_in */
-	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}}, /* input vertices */
-	 {"merge_co",         BMO_OP_SLOT_VEC},
+	{{"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}}, /* input vertices (all verts will be merged into the first). */
+	 {"merge_co", BMO_OP_SLOT_VEC},  /* Position to merge at. */
 	 {{'\0'}},
 	},
 	{{{'\0'}}},  /* no output */
@@ -1171,6 +1172,7 @@ static BMOpDefine bmo_triangulate_def = {
 	{{"edges.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
 	 {"faces.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
 	 {"face_map.out", BMO_OP_SLOT_MAPPING, {(int)BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
+	 {"face_map_double.out", BMO_OP_SLOT_MAPPING, {(int)BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},  /* duplicate faces */
 	 {{'\0'}},
 	},
 	bmo_triangulate_exec,
@@ -1566,6 +1568,7 @@ static BMOpDefine bmo_create_grid_def = {
 	 {"y_segments",      BMO_OP_SLOT_INT},  /* number of y segments */
 	 {"size",            BMO_OP_SLOT_FLT},  /* size of the grid */
 	 {"matrix",          BMO_OP_SLOT_MAT},  /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1589,6 +1592,7 @@ static BMOpDefine bmo_create_uvsphere_def = {
 	 {"v_segments",      BMO_OP_SLOT_INT}, /* number of v segment */
 	 {"diameter",        BMO_OP_SLOT_FLT}, /* diameter */
 	 {"matrix",          BMO_OP_SLOT_MAT}, /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1611,6 +1615,7 @@ static BMOpDefine bmo_create_icosphere_def = {
 	{{"subdivisions",    BMO_OP_SLOT_INT}, /* how many times to recursively subdivide the sphere */
 	 {"diameter",        BMO_OP_SLOT_FLT}, /* diameter */
 	 {"matrix",          BMO_OP_SLOT_MAT}, /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1657,6 +1662,7 @@ static BMOpDefine bmo_create_cone_def = {
 	 {"diameter2",       BMO_OP_SLOT_FLT},  /* diameter of the opposite */
 	 {"depth",           BMO_OP_SLOT_FLT},  /* distance between ends */
 	 {"matrix",          BMO_OP_SLOT_MAT},  /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1679,6 +1685,7 @@ static BMOpDefine bmo_create_circle_def = {
 	 {"segments",        BMO_OP_SLOT_INT},
 	 {"diameter",        BMO_OP_SLOT_FLT},  /* diameter of one end */
 	 {"matrix",          BMO_OP_SLOT_MAT},  /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1700,6 +1707,7 @@ static BMOpDefine bmo_create_cube_def = {
 	/* slots_in */
 	{{"size",            BMO_OP_SLOT_FLT},  /* size of the cube */
 	 {"matrix",          BMO_OP_SLOT_MAT},  /* matrix to multiply the new geometry with */
+	 {"calc_uvs",        BMO_OP_SLOT_BOOL}, /* calculate default UVs */
 	 {{'\0'}},
 	},
 	/* slots_out */

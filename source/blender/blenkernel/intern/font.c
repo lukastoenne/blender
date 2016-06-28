@@ -95,10 +95,9 @@ void BKE_vfont_free_data(struct VFont *vfont)
 	}
 }
 
+/** Free (or release) any data used by this font (does not free the font itself). */
 void BKE_vfont_free(struct VFont *vf)
 {
-	if (vf == NULL) return;
-
 	BKE_vfont_free_data(vf);
 
 	if (vf->packedfile) {
@@ -203,6 +202,26 @@ static VFontData *vfont_get_data(Main *bmain, VFont *vfont)
 	return vfont->data;
 }
 
+/* Bad naming actually in this case... */
+void BKE_vfont_init(VFont *vfont)
+{
+	PackedFile *pf = get_builtin_packedfile();
+
+	if (pf) {
+		VFontData *vfd;
+
+		vfd = BLI_vfontdata_from_freetypefont(pf);
+		if (vfd) {
+			vfont->data = vfd;
+
+			BLI_strncpy(vfont->name, FO_BUILTIN_NAME, sizeof(vfont->name));
+		}
+
+		/* Free the packed file */
+		freePackedFile(pf);
+	}
+}
+
 VFont *BKE_vfont_load(Main *bmain, const char *filepath)
 {
 	char filename[FILE_MAXFILE];
@@ -273,7 +292,7 @@ VFont *BKE_vfont_load_exists_ex(struct Main *bmain, const char *filepath, bool *
 		BLI_path_abs(strtest, ID_BLEND_PATH(bmain, &vfont->id));
 
 		if (BLI_path_cmp(strtest, str) == 0) {
-			vfont->id.us++;  /* officially should not, it doesn't link here! */
+			id_us_plus(&vfont->id);  /* officially should not, it doesn't link here! */
 			if (r_exists)
 				*r_exists = true;
 			return vfont;
@@ -521,7 +540,7 @@ int BKE_vfont_select_get(Object *ob, int *r_start, int *r_end)
 
 	BLI_assert(ef->len >= 0);
 	BLI_assert(ef->selstart >= 0 && ef->selstart <= ef->len + 1);
-	BLI_assert(ef->selend   >= 0 && ef->selend   <= ef->len);
+	BLI_assert(ef->selend   >= 0 && ef->selend   <= ef->len + 1);
 	BLI_assert(ef->pos      >= 0 && ef->pos      <= ef->len);
 
 	if (ef->selstart == 0) {
@@ -608,6 +627,8 @@ bool BKE_vfont_to_curve_ex(Main *bmain, Object *ob, int mode, ListBase *r_nubase
 	bool use_textbox;
 	VChar *che;
 	struct CharTrans *chartransdata = NULL, *ct;
+	/* Text at the beginning of the last used text-box (use for y-axis alignment). */
+	int i_textbox = 0;
 	struct TempLineInfo *lineinfo;
 	float *f, xof, yof, xtrax, linedist;
 	float twidth, maxlen = 0;
@@ -810,6 +831,7 @@ makebreak:
 			    (cu->totbox > (curbox + 1)) &&
 			    ((-(yof - tb_scale.y)) > (tb_scale.h - linedist) - yof_scale))
 			{
+				i_textbox = i + 1;
 				maxlen = 0;
 				curbox++;
 
@@ -888,10 +910,10 @@ makebreak:
 
 	/* linedata is now: width of line */
 
-	if (cu->spacemode != CU_LEFT) {
+	if (cu->spacemode != CU_ALIGN_X_LEFT) {
 		ct = chartransdata;
 
-		if (cu->spacemode == CU_RIGHT) {
+		if (cu->spacemode == CU_ALIGN_X_RIGHT) {
 			struct TempLineInfo *li;
 
 			for (i = 0, li = lineinfo; i < lnr; i++, li++) {
@@ -903,7 +925,7 @@ makebreak:
 				ct++;
 			}
 		}
-		else if (cu->spacemode == CU_MIDDLE) {
+		else if (cu->spacemode == CU_ALIGN_X_MIDDLE) {
 			struct TempLineInfo *li;
 
 			for (i = 0, li = lineinfo; i < lnr; i++, li++) {
@@ -915,7 +937,7 @@ makebreak:
 				ct++;
 			}
 		}
-		else if ((cu->spacemode == CU_FLUSH) && use_textbox) {
+		else if ((cu->spacemode == CU_ALIGN_X_FLUSH) && use_textbox) {
 			struct TempLineInfo *li;
 
 			for (i = 0, li = lineinfo; i < lnr; i++, li++) {
@@ -936,7 +958,7 @@ makebreak:
 				ct++;
 			}
 		}
-		else if ((cu->spacemode == CU_JUSTIFY) && use_textbox) {
+		else if ((cu->spacemode == CU_ALIGN_X_JUSTIFY) && use_textbox) {
 			float curofs = 0.0f;
 			for (i = 0; i <= slen; i++) {
 				for (j = i;
@@ -958,6 +980,60 @@ makebreak:
 					ct->xof += curofs;
 				}
 				if (mem[i] == '\n' || chartransdata[i].dobreak) curofs = 0;
+				ct++;
+			}
+		}
+	}
+
+	/* top-baseline is default, in this case, do nothing */
+	if (cu->align_y != CU_ALIGN_Y_TOP_BASELINE) {
+		if (tb_scale.h != 0.0f) {
+			/* top and top-baseline are the same when text-boxes are used */
+			if (cu->align_y != CU_ALIGN_Y_TOP && i_textbox < slen) {
+				/* all previous textboxes are 'full', only align the last used text-box */
+				float yoff;
+				int lines;
+				struct CharTrans *ct_last, *ct_textbox;
+
+				ct_last = chartransdata + slen - 1;
+				ct_textbox = chartransdata + i_textbox;
+
+				lines = ct_last->linenr - ct_textbox->linenr + 1;
+				if (mem[slen - 1] == '\n') {
+					lines++;
+				}
+
+				if (cu->align_y == CU_ALIGN_Y_BOTTOM) {
+					yoff = (lines * linedist) - tb_scale.h;
+				}
+				else if (cu->align_y == CU_ALIGN_Y_CENTER) {
+					yoff = 0.5f * ((lines * linedist) - tb_scale.h);
+				}
+
+				ct = ct_textbox;
+				for (i = i_textbox - 1; i < slen; i++) {
+					ct->yof += yoff;
+					ct++;
+				}
+			}
+		}
+		else {
+			/* non text-box case handled separately */
+			ct = chartransdata;
+			float yoff;
+
+			if (cu->align_y == CU_ALIGN_Y_TOP) {
+				yoff = -linedist;
+			}
+			else if (cu->align_y == CU_ALIGN_Y_BOTTOM) {
+				yoff = (lnr - 1.0f) * linedist;
+			}
+			else if (cu->align_y == CU_ALIGN_Y_CENTER) {
+				yoff = (lnr - 2.0f) * linedist * 0.5f;
+			}
+
+			for (i = 0; i <= slen; i++) {
+				ct->yof += yoff;
 				ct++;
 			}
 		}
@@ -1001,13 +1077,13 @@ makebreak:
 				/* path longer than text: spacemode involves */
 				distfac = 1.0f / distfac;
 				
-				if (cu->spacemode == CU_RIGHT) {
+				if (cu->spacemode == CU_ALIGN_X_RIGHT) {
 					timeofs = 1.0f - distfac;
 				}
-				else if (cu->spacemode == CU_MIDDLE) {
+				else if (cu->spacemode == CU_ALIGN_X_MIDDLE) {
 					timeofs = (1.0f - distfac) / 2.0f;
 				}
-				else if (cu->spacemode == CU_FLUSH) {
+				else if (cu->spacemode == CU_ALIGN_X_FLUSH) {
 					distfac = 1.0f;
 				}
 			}
@@ -1020,7 +1096,7 @@ makebreak:
 			timeofs += distfac * cu->xof;  /* not cyclic */
 			
 			ct = chartransdata;
-			for (i = 0; i <= slen; i++, ct++) {
+			for (i = 0; i < slen; i++, ct++) {
 				float ctime, dtime, vec[4], tvec[4], rotvec[3];
 				float si, co;
 				
@@ -1062,8 +1138,9 @@ makebreak:
 					sb = &selboxes[i - selstart];
 					sb->rot = -ct->rot;
 				}
-				
 			}
+			/* null character is always zero width, no need to iterate over it */
+			chartransdata[slen] = chartransdata[slen - 1];
 		}
 	}
 
@@ -1241,3 +1318,77 @@ bool BKE_vfont_to_curve(Main *bmain, Object *ob, int mode)
 
 	return BKE_vfont_to_curve_ex(bmain, ob, mode, &cu->nurb, NULL, NULL, NULL, NULL);
 }
+
+
+/* -------------------------------------------------------------------- */
+
+/** \name VFont Clipboard
+ * \{ */
+
+static struct {
+	wchar_t *text_buffer;
+	CharInfo *info_buffer;
+	size_t len_wchar;
+	size_t len_utf8;
+} g_vfont_clipboard = {NULL};
+
+void BKE_vfont_clipboard_free(void)
+{
+	MEM_SAFE_FREE(g_vfont_clipboard.text_buffer);
+	MEM_SAFE_FREE(g_vfont_clipboard.info_buffer);
+	g_vfont_clipboard.len_wchar = 0;
+	g_vfont_clipboard.len_utf8 = 0;
+}
+
+void BKE_vfont_clipboard_set(const wchar_t *text_buf, const CharInfo *info_buf, const size_t len)
+{
+	wchar_t *text;
+	CharInfo *info;
+
+	/* clean previous buffers*/
+	BKE_vfont_clipboard_free();
+
+	text = MEM_mallocN((len + 1) * sizeof(wchar_t), __func__);
+	if (text == NULL) {
+		return;
+	}
+
+	info = MEM_mallocN(len * sizeof(CharInfo), __func__);
+	if (info == NULL) {
+		MEM_freeN(text);
+		return;
+	}
+
+	memcpy(text, text_buf, len * sizeof(wchar_t));
+	text[len] = '\0';
+	memcpy(info, info_buf, len * sizeof(CharInfo));
+
+	/* store new buffers */
+	g_vfont_clipboard.text_buffer = text;
+	g_vfont_clipboard.info_buffer = info;
+	g_vfont_clipboard.len_utf8 = BLI_wstrlen_utf8(text);
+	g_vfont_clipboard.len_wchar = len;
+}
+
+void BKE_vfont_clipboard_get(
+        wchar_t **r_text_buf, CharInfo **r_info_buf,
+        size_t *r_len_utf8, size_t *r_len_wchar)
+{
+	if (r_text_buf) {
+		*r_text_buf = g_vfont_clipboard.text_buffer;
+	}
+
+	if (r_info_buf) {
+		*r_info_buf = g_vfont_clipboard.info_buffer;
+	}
+
+	if (r_len_wchar) {
+		*r_len_wchar = g_vfont_clipboard.len_wchar;
+	}
+
+	if (r_len_utf8) {
+		*r_len_utf8 = g_vfont_clipboard.len_utf8;
+	}
+}
+
+/** \} */

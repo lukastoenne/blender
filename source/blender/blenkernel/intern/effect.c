@@ -64,6 +64,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -138,9 +139,6 @@ void free_partdeflect(PartDeflect *pd)
 	if (!pd)
 		return;
 
-	if (pd->tex)
-		pd->tex->id.us--;
-
 	if (pd->rng)
 		BLI_rng_free(pd->rng);
 
@@ -181,7 +179,7 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 {
 	ParticleSettings *part= psys->part;
 
-	if ( !psys_check_enabled(ob, psys) )
+	if ( !psys_check_enabled(ob, psys, G.is_rendering) )
 		return;
 
 	if ( psys == psys_src && (part->flag & PART_SELF_EFFECT) == 0)
@@ -565,7 +563,9 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 	float cfra = eff->scene->r.cfra;
 	int ret = 0;
 
-	if (eff->pd && eff->pd->shape==PFIELD_SHAPE_SURFACE && eff->surmd) {
+	/* In case surface object is in Edit mode when loading the .blend, surface modifier is never executed
+	 * and bvhtree never built, see T48415. */
+	if (eff->pd && eff->pd->shape==PFIELD_SHAPE_SURFACE && eff->surmd && eff->surmd->bvhtree) {
 		/* closest point in the object surface is an effector */
 		float vec[3];
 
@@ -745,18 +745,20 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 
 	copy_v3_v3(tex_co, point->loc);
 
-	if (eff->pd->flag & PFIELD_TEX_2D) {
+	if (eff->pd->flag & PFIELD_TEX_OBJECT) {
+		mul_m4_v3(eff->ob->imat, tex_co);
+
+		if (eff->pd->flag & PFIELD_TEX_2D)
+			tex_co[2] = 0.0f;
+	}
+	else if (eff->pd->flag & PFIELD_TEX_2D) {
 		float fac=-dot_v3v3(tex_co, efd->nor);
 		madd_v3_v3fl(tex_co, efd->nor, fac);
 	}
 
-	if (eff->pd->flag & PFIELD_TEX_OBJECT) {
-		mul_m4_v3(eff->ob->imat, tex_co);
-	}
-
 	scene_color_manage = BKE_scene_check_color_management_enabled(eff->scene);
 
-	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result, NULL, scene_color_manage, false);
+	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result, 0, NULL, scene_color_manage, false);
 
 	if (hasrgb && mode==PFIELD_TEX_RGB) {
 		force[0] = (0.5f - result->tr) * strength;
@@ -767,15 +769,15 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 		strength/=nabla;
 
 		tex_co[0] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+1, NULL, scene_color_manage, false);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+1, 0, NULL, scene_color_manage, false);
 
 		tex_co[0] -= nabla;
 		tex_co[1] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+2, NULL, scene_color_manage, false);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+2, 0, NULL, scene_color_manage, false);
 
 		tex_co[1] -= nabla;
 		tex_co[2] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+3, NULL, scene_color_manage, false);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+3, 0, NULL, scene_color_manage, false);
 
 		if (mode == PFIELD_TEX_GRAD || !hasrgb) { /* if we don't have rgb fall back to grad */
 			/* generate intensity if texture only has rgb value */

@@ -227,6 +227,10 @@ static const char *rna_safe_id(const char *id)
 		return "operator_value";
 	else if (STREQ(id, "new"))
 		return "create";
+	else if (STREQ(id, "co_return")) {
+		/* MSVC2015, C++ uses for coroutines */
+		return "coord_return";
+	}
 
 	return id;
 }
@@ -466,7 +470,7 @@ static const char *rna_parameter_type_name(PropertyRNA *parm)
 		}
 		case PROP_COLLECTION:
 		{
-			return "ListBase";
+			return "CollectionListBase";
 		}
 		default:
 			return "<error, no type specified>";
@@ -1795,7 +1799,7 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 		}
 		case PROP_STRING:
 		{
-			fprintf(f, "\tinline std::string %s(void);", rna_safe_id(prop->identifier));
+			fprintf(f, "\tinline std::string %s(void);\n", rna_safe_id(prop->identifier));
 			fprintf(f, "\tinline void %s(const std::string& value);", rna_safe_id(prop->identifier));
 			break;
 		}
@@ -1900,9 +1904,13 @@ static void rna_def_struct_function_prototype_cpp(FILE *f, StructRNA *UNUSED(srn
 		if (!(flag & PROP_DYNAMIC) && dp->prop->arraydimension)
 			fprintf(f, "%s %s[%u]", rna_parameter_type_cpp_name(dp->prop),
 			        rna_safe_id(dp->prop->identifier), dp->prop->totarraylength);
-		else
-			fprintf(f, "%s %s%s", rna_parameter_type_cpp_name(dp->prop),
-			        ptrstr, rna_safe_id(dp->prop->identifier));
+		else {
+			fprintf(f, "%s%s%s%s",
+			        rna_parameter_type_cpp_name(dp->prop),
+			        (dp->prop->type == PROP_POINTER && ptrstr[0] == '\0') ? "& " : " ",
+			        ptrstr,
+			        rna_safe_id(dp->prop->identifier));
+		}
 	}
 
 	fprintf(f, ")");
@@ -3688,6 +3696,7 @@ static const char *cpp_classes = ""
 "return *this; }\n"
 "\n"
 "	operator T*() { return data; }\n"
+"	operator const T*() const { return data; }\n"
 "};\n"
 "\n"
 "template<typename T>\n"

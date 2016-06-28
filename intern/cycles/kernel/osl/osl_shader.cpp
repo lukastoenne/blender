@@ -92,7 +92,7 @@ void OSLShader::thread_free(KernelGlobals *kg)
 
 /* Globals */
 
-static void shaderdata_to_shaderglobals(KernelGlobals *kg, ShaderData *sd,
+static void shaderdata_to_shaderglobals(KernelGlobals *kg, ShaderData *sd, PathState *state,
                                         int path_flag, OSLThreadData *tdata)
 {
 	OSL::ShaderGlobals *globals = &tdata->globals;
@@ -136,6 +136,7 @@ static void shaderdata_to_shaderglobals(KernelGlobals *kg, ShaderData *sd,
 
 	/* used by renderservices */
 	sd->osl_globals = kg;
+	sd->osl_path_state = state;
 }
 
 /* Surface */
@@ -146,11 +147,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 	/* OSL gives us a closure tree, we flatten it into arrays per
 	 * closure type, for evaluation, sampling, etc later on. */
 
-#if OSL_LIBRARY_VERSION_CODE < 10700
-	switch(closure->type) {
-#else
 	switch(closure->id) {
-#endif
 		case OSL::ClosureColor::MUL: {
 			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
 			flatten_surface_closure_tree(sd, path_flag, mul->closure, TO_FLOAT3(mul->weight) * weight);
@@ -180,6 +177,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 					case CClosurePrimitive::BSDF: {
 						CBSDFClosure *bsdf = (CBSDFClosure *)prim;
 						int scattering = bsdf->scattering();
+						int shaderdata_flag = bsdf->shaderdata_flag();
 
 						/* caustic options */
 						if((scattering & LABEL_GLOSSY) && (path_flag & PATH_RAY_DIFFUSE)) {
@@ -204,11 +202,16 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 						sc.data1 = bsdf->sc.data1;
 						sc.data2 = bsdf->sc.data2;
 						sc.prim = bsdf->sc.prim;
+						if(shaderdata_flag & SD_BSDF_HAS_CUSTOM) {
+							sc.custom1 = bsdf->sc.custom1;
+							sc.custom2 = bsdf->sc.custom2;
+							sc.custom3 = bsdf->sc.custom3;
+						}
 
 						/* add */
 						if(sc.sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure < MAX_CLOSURE) {
 							sd->closure[sd->num_closure++] = sc;
-							sd->flag |= bsdf->shaderdata_flag();
+							sd->flag |= shaderdata_flag;
 						}
 						break;
 					}
@@ -280,11 +283,17 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 							if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR)
 								bssrdf->radius = make_float3(0.0f, 0.0f, 0.0f);
 
+							float3 albedo =
+							        (bssrdf->sc.type == CLOSURE_BSSRDF_BURLEY_ID)
+							                ? bssrdf->albedo
+							                : make_float3(0.0f, 0.0f, 0.0f);
+
 							/* create one closure for each color channel */
 							if(fabsf(weight.x) > 0.0f) {
 								sc.weight = make_float3(weight.x, 0.0f, 0.0f);
 								sc.data0 = bssrdf->radius.x;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.x;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -293,6 +302,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 								sc.weight = make_float3(0.0f, weight.y, 0.0f);
 								sc.data0 = bssrdf->radius.y;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.y;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -301,6 +311,7 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 								sc.weight = make_float3(0.0f, 0.0f, weight.z);
 								sc.data0 = bssrdf->radius.z;
 								sc.data1 = 0.0f;
+								sc.data2 = albedo.z;
 								sd->flag |= bssrdf_setup(&sc, sc.type);
 								sd->closure[sd->num_closure++] = sc;
 							}
@@ -317,11 +328,11 @@ static void flatten_surface_closure_tree(ShaderData *sd, int path_flag,
 	}
 }
 
-void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx)
+void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx)
 {
 	/* setup shader globals from shader data */
 	OSLThreadData *tdata = kg->osl_tdata;
-	shaderdata_to_shaderglobals(kg, sd, path_flag, tdata);
+	shaderdata_to_shaderglobals(kg, sd, state, path_flag, tdata);
 
 	/* execute shader for this point */
 	OSL::ShadingSystem *ss = (OSL::ShadingSystem*)kg->osl_ss;
@@ -329,8 +340,9 @@ void OSLShader::eval_surface(KernelGlobals *kg, ShaderData *sd, int path_flag, S
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if(kg->osl->surface_state[shader])
-		ss->execute(*octx, *(kg->osl->surface_state[shader]), *globals);
+	if(kg->osl->surface_state[shader]) {
+		ss->execute(octx, *(kg->osl->surface_state[shader]), *globals);
+	}
 
 	/* flatten closure tree */
 	if(globals->Ci)
@@ -345,11 +357,7 @@ static float3 flatten_background_closure_tree(const OSL::ClosureColor *closure)
 	 * is only one supported closure type at the moment, which has no evaluation
 	 * functions, so we just sum the weights */
 
-#if OSL_LIBRARY_VERSION_CODE < 10700
-	switch(closure->type) {
-#else
 	switch(closure->id) {
-#endif
 		case OSL::ClosureColor::MUL: {
 			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
 
@@ -377,19 +385,20 @@ static float3 flatten_background_closure_tree(const OSL::ClosureColor *closure)
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-float3 OSLShader::eval_background(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx)
+float3 OSLShader::eval_background(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx)
 {
 	/* setup shader globals from shader data */
 	OSLThreadData *tdata = kg->osl_tdata;
-	shaderdata_to_shaderglobals(kg, sd, path_flag, tdata);
+	shaderdata_to_shaderglobals(kg, sd, state, path_flag, tdata);
 
 	/* execute shader for this point */
 	OSL::ShadingSystem *ss = (OSL::ShadingSystem*)kg->osl_ss;
 	OSL::ShaderGlobals *globals = &tdata->globals;
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 
-	if(kg->osl->background_state)
-		ss->execute(*octx, *(kg->osl->background_state), *globals);
+	if(kg->osl->background_state) {
+		ss->execute(octx, *(kg->osl->background_state), *globals);
+	}
 
 	/* return background color immediately */
 	if(globals->Ci)
@@ -406,11 +415,7 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 	/* OSL gives us a closure tree, we flatten it into arrays per
 	 * closure type, for evaluation, sampling, etc later on. */
 
-#if OSL_LIBRARY_VERSION_CODE < 10700
-	switch(closure->type) {
-#else
 	switch(closure->id) {
-#endif
 		case OSL::ClosureColor::MUL: {
 			OSL::ClosureMul *mul = (OSL::ClosureMul *)closure;
 			flatten_volume_closure_tree(sd, mul->closure, TO_FLOAT3(mul->weight) * weight);
@@ -486,11 +491,11 @@ static void flatten_volume_closure_tree(ShaderData *sd,
 	}
 }
 
-void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, int path_flag, ShaderContext ctx)
+void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, PathState *state, int path_flag, ShaderContext ctx)
 {
 	/* setup shader globals from shader data */
 	OSLThreadData *tdata = kg->osl_tdata;
-	shaderdata_to_shaderglobals(kg, sd, path_flag, tdata);
+	shaderdata_to_shaderglobals(kg, sd, state, path_flag, tdata);
 
 	/* execute shader */
 	OSL::ShadingSystem *ss = (OSL::ShadingSystem*)kg->osl_ss;
@@ -498,8 +503,9 @@ void OSLShader::eval_volume(KernelGlobals *kg, ShaderData *sd, int path_flag, Sh
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if(kg->osl->volume_state[shader])
-		ss->execute(*octx, *(kg->osl->volume_state[shader]), *globals);
+	if(kg->osl->volume_state[shader]) {
+		ss->execute(octx, *(kg->osl->volume_state[shader]), *globals);
+	}
 	
 	/* flatten closure tree */
 	if(globals->Ci)
@@ -512,7 +518,10 @@ void OSLShader::eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderConte
 {
 	/* setup shader globals from shader data */
 	OSLThreadData *tdata = kg->osl_tdata;
-	shaderdata_to_shaderglobals(kg, sd, 0, tdata);
+
+	PathState state = {0};
+
+	shaderdata_to_shaderglobals(kg, sd, &state, 0, tdata);
 
 	/* execute shader */
 	OSL::ShadingSystem *ss = (OSL::ShadingSystem*)kg->osl_ss;
@@ -520,8 +529,9 @@ void OSLShader::eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderConte
 	OSL::ShadingContext *octx = tdata->context[(int)ctx];
 	int shader = sd->shader & SHADER_MASK;
 
-	if(kg->osl->displacement_state[shader])
-		ss->execute(*octx, *(kg->osl->displacement_state[shader]), *globals);
+	if(kg->osl->displacement_state[shader]) {
+		ss->execute(octx, *(kg->osl->displacement_state[shader]), *globals);
+	}
 
 	/* get back position */
 	sd->P = TO_FLOAT3(globals->P);

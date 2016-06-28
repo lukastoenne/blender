@@ -29,7 +29,6 @@ set(SRC
 )
 
 set(SRC_HEADERS
-	kernel.h
 	kernel_accumulate.h
 	kernel_bake.h
 	kernel_camera.h
@@ -56,7 +55,6 @@ set(SRC_HEADERS
 	kernel_queues.h
 	kernel_random.h
 	kernel_shader.h
-	kernel_shaderdata_vars.h
 	kernel_shadow.h
 	kernel_subsurface.h
 	kernel_textures.h
@@ -65,12 +63,21 @@ set(SRC_HEADERS
 	kernel_work_stealing.h
 )
 
+set(SRC_KERNELS_CPU_HEADERS
+	kernel.h
+	kernels/cpu/kernel_cpu.h
+	kernels/cpu/kernel_cpu_impl.h
+	kernels/cpu/kernel_cpu_image.h
+)
+
 set(SRC_CLOSURE_HEADERS
 	closure/bsdf.h
 	closure/bsdf_ashikhmin_velvet.h
 	closure/bsdf_diffuse.h
 	closure/bsdf_diffuse_ramp.h
 	closure/bsdf_microfacet.h
+	closure/bsdf_microfacet_multi.h
+	closure/bsdf_microfacet_multi_impl.h
 	closure/bsdf_oren_nayar.h
 	closure/bsdf_phong_ramp.h
 	closure/bsdf_reflection.h
@@ -93,6 +100,7 @@ set(SRC_SVM_HEADERS
 	svm/svm_closure.h
 	svm/svm_convert.h
 	svm/svm_checker.h
+	svm/svm_color_util.h
 	svm/svm_brick.h
 	svm/svm_displace.h
 	svm/svm_fresnel.h
@@ -161,6 +169,7 @@ set(SRC_UTIL_HEADERS
 	../util/util_math.h
 	../util/util_math_fast.h
 	../util/util_transform.h
+	../util/util_texture.h
 	../util/util_types.h
 )
 
@@ -182,7 +191,7 @@ set(SRC_SPLIT_HEADERS
 
 if(WITH_CYCLES_CUDA_BINARIES)
 	# 32 bit or 64 bit
-	if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+	if(CUDA_64_BIT_DEVICE_CODE)
 		set(CUDA_BITS 64)
 	else()
 		set(CUDA_BITS 32)
@@ -190,16 +199,16 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 	# CUDA version
 	execute_process(COMMAND ${CUDA_NVCC_EXECUTABLE} "--version" OUTPUT_VARIABLE NVCC_OUT)
-	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR ${NVCC_OUT})
-	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR ${NVCC_OUT})
+	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\1" CUDA_VERSION_MAJOR "${NVCC_OUT}")
+	string(REGEX REPLACE ".*release ([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR "${NVCC_OUT}")
 	set(CUDA_VERSION "${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}")
 
 	# warn for other versions
-	if(CUDA_VERSION MATCHES "65")
+	if(CUDA_VERSION MATCHES "75")
 	else()
 		message(WARNING
 			"CUDA version ${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR} detected, "
-			"build may succeed but only CUDA 6.5 is officially supported")
+			"build may succeed but only CUDA 7.5 is officially supported")
 	endif()
 
 	# build for each arch
@@ -228,6 +237,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 			OUTPUT ${cuda_cubin}
 			COMMAND ${CUDA_NVCC_EXECUTABLE}
 					-arch=${arch}
+					${CUDA_NVCC_FLAGS}
 					-m${CUDA_BITS}
 					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/kernel.cu
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin}
@@ -255,9 +265,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
 		# Compile regular kernel
 		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE)
-
-		# Compile experimental kernel
-		CYCLES_CUDA_KERNEL_ADD(${arch} TRUE)
 	endforeach()
 
 	add_custom_target(cycles_kernel_cuda ALL DEPENDS ${cuda_cubins})
@@ -301,7 +308,15 @@ if(CXX_HAS_AVX2)
 	set_source_files_properties(kernels/cpu/kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
 endif()
 
-add_library(cycles_kernel ${SRC} ${SRC_HEADERS} ${SRC_CLOSURE_HEADERS} ${SRC_SVM_HEADERS} ${SRC_GEOM_HEADERS})
+add_library(cycles_kernel
+	${SRC}
+	${SRC_HEADERS}
+	${SRC_KERNELS_CPU_HEADERS}
+	${SRC_CLOSURE_HEADERS}
+	${SRC_SVM_HEADERS}
+	${SRC_GEOM_HEADERS}
+	${SRC_SPLIT_HEADERS}
+)
 
 if(WITH_CYCLES_CUDA)
 	add_dependencies(cycles_kernel cycles_kernel_cuda)

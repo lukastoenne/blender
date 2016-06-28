@@ -163,6 +163,7 @@ static void wm_ghostwindow_destroy(wmWindow *win)
 	if (win->ghostwin) {
 		GHOST_DisposeWindow(g_system, win->ghostwin);
 		win->ghostwin = NULL;
+		win->multisamples = 0;
 	}
 }
 
@@ -371,17 +372,14 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 	}
 }
 
+static float wm_window_get_virtual_pixelsize(void)
+{
+	return ((U.virtual_pixel == VIRTUAL_PIXEL_NATIVE) ? 1.0f : 2.0f);
+}
+
 float wm_window_pixelsize(wmWindow *win)
 {
-	float pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
-	
-	switch (U.virtual_pixel) {
-		default:
-		case VIRTUAL_PIXEL_NATIVE:
-			return pixelsize;
-		case VIRTUAL_PIXEL_DOUBLE:
-			return 2.0f * pixelsize;
-	}
+	return (GHOST_GetNativePixelSize(win->ghostwin) * wm_window_get_virtual_pixelsize());
 }
 
 /* belongs to below */
@@ -407,15 +405,17 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 		glSettings.flags |= GHOST_glDebugContext;
 	}
 
-	if (!(U.uiflag2 & USER_OPENGL_NO_WARN_SUPPORT))
-		glSettings.flags |= GHOST_glWarnSupport;
-
 	wm_get_screensize(&scr_w, &scr_h);
 	posy = (scr_h - win->posy - win->sizey);
 	
 	ghostwin = GHOST_CreateWindow(g_system, title,
 	                              win->posx, posy, win->sizex, win->sizey,
+#ifdef __APPLE__
+	                              /* we agreed to not set any fullscreen or iconized state on startup */
+	                              GHOST_kWindowStateNormal,
+#else
 	                              (GHOST_TWindowState)win->windowstate,
+#endif
 	                              GHOST_kDrawingContextTypeOpenGL,
 	                              glSettings);
 	
@@ -433,12 +433,10 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 		
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
+
+		/* store multisamples window was created with, in case user prefs change */
+		win->multisamples = multisamples;
 		
-#ifdef __APPLE__
-		/* set the state here, else OSX would not recognize changed screen resolution */
-		/* we agreed to not set any fullscreen or iconized state on startup */
-		GHOST_SetWindowState(ghostwin, GHOST_kWindowStateNormal);
-#endif
 		/* store actual window size in blender window */
 		bounds = GHOST_GetClientBounds(win->ghostwin);
 		win->sizex = GHOST_GetWidthRectangle(bounds);
@@ -459,7 +457,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm, const char *title, wm
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */
 		/* needed here, because it's used before it reads userdef */
 		U.pixelsize = wm_window_pixelsize(win);
-		BKE_userdef_state();
+		BKE_blender_userdef_refresh();
 		
 		wm_window_swap_buffers(win);
 		
@@ -626,6 +624,7 @@ wmWindow *WM_window_open_temp(bContext *C, const rcti *rect_init, int type)
 	Scene *scene = CTX_data_scene(C);
 	const char *title;
 	rcti rect = *rect_init;
+	const short px_virtual = (short)wm_window_get_virtual_pixelsize();
 
 	/* changes rect to fit within desktop */
 	wm_window_check_position(&rect);
@@ -642,10 +641,11 @@ wmWindow *WM_window_open_temp(bContext *C, const rcti *rect_init, int type)
 		win->posx = rect.xmin;
 		win->posy = rect.ymin;
 	}
-	
-	win->sizex = BLI_rcti_size_x(&rect);
-	win->sizey = BLI_rcti_size_y(&rect);
-	
+
+	/* multiply with virtual pixelsize, ghost handles native one (e.g. for retina) */
+	win->sizex = BLI_rcti_size_x(&rect) * px_virtual;
+	win->sizey = BLI_rcti_size_y(&rect) * px_virtual;
+
 	if (win->ghostwin) {
 		wm_window_set_size(win, win->sizex, win->sizey);
 		wm_window_raise(win);
@@ -678,10 +678,10 @@ wmWindow *WM_window_open_temp(bContext *C, const rcti *rect_init, int type)
 	CTX_wm_area_set(C, sa);
 	
 	if (type == WM_WINDOW_RENDER) {
-		ED_area_newspace(C, sa, SPACE_IMAGE);
+		ED_area_newspace(C, sa, SPACE_IMAGE, false);
 	}
 	else {
-		ED_area_newspace(C, sa, SPACE_USERPREF);
+		ED_area_newspace(C, sa, SPACE_USERPREF, false);
 	}
 	
 	ED_screen_set(C, win->screen);
@@ -711,6 +711,14 @@ wmWindow *WM_window_open_temp(bContext *C, const rcti *rect_init, int type)
 
 
 /* ****************** Operators ****************** */
+
+int wm_window_close_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	wm_window_close(C, wm, win);
+	return OPERATOR_FINISHED;
+}
 
 /* operator callback */
 int wm_window_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
@@ -826,7 +834,7 @@ void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win)
 		
 		/* this can change per window */
 		U.pixelsize = wm_window_pixelsize(win);
-		BKE_userdef_state();
+		BKE_blender_userdef_refresh();
 	}
 }
 
@@ -1189,7 +1197,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				// printf("change, pixel size %f\n", GHOST_GetNativePixelSize(win->ghostwin));
 				
 				U.pixelsize = wm_window_pixelsize(win);
-				BKE_userdef_state();
+				BKE_blender_userdef_refresh();
 				WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 				WM_event_add_notifier(C, NC_WINDOW | NA_EDITED, NULL);
 

@@ -66,44 +66,37 @@
 
 /* Functions */
 
-void BKE_mball_unlink(MetaBall *mb)
-{
-	int a;
-	
-	for (a = 0; a < mb->totcol; a++) {
-		if (mb->mat[a]) mb->mat[a]->id.us--;
-		mb->mat[a] = NULL;
-	}
-}
-
-
-/* do not free mball itself */
+/** Free (or release) any data used by this mball (does not free the mball itself). */
 void BKE_mball_free(MetaBall *mb)
 {
-	BKE_mball_unlink(mb);
-	
-	if (mb->adt) {
-		BKE_animdata_free((ID *)mb);
-		mb->adt = NULL;
-	}
-	if (mb->mat) MEM_freeN(mb->mat);
+	BKE_animdata_free((ID *)mb, false);
+
+	MEM_SAFE_FREE(mb->mat);
+
 	BLI_freelistN(&mb->elems);
 	if (mb->disp.first) BKE_displist_free(&mb->disp);
 }
 
-MetaBall *BKE_mball_add(Main *bmain, const char *name)
+void BKE_mball_init(MetaBall *mb)
 {
-	MetaBall *mb;
-	
-	mb = BKE_libblock_alloc(bmain, ID_MB, name);
-	
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(mb, id));
+
 	mb->size[0] = mb->size[1] = mb->size[2] = 1.0;
 	mb->texflag = MB_AUTOSPACE;
 	
 	mb->wiresize = 0.4f;
 	mb->rendersize = 0.2f;
 	mb->thresh = 0.6f;
-	
+}
+
+MetaBall *BKE_mball_add(Main *bmain, const char *name)
+{
+	MetaBall *mb;
+
+	mb = BKE_libblock_alloc(bmain, ID_MB, name);
+
+	BKE_mball_init(mb);
+
 	return mb;
 }
 
@@ -179,8 +172,8 @@ void BKE_mball_make_local(MetaBall *mb)
 			if (ob->data == mb) {
 				if (ob->id.lib == NULL) {
 					ob->data = mb_new;
-					mb_new->id.us++;
-					mb->id.us--;
+					id_us_plus(&mb_new->id);
+					id_us_min(&mb->id);
 				}
 			}
 		}
@@ -284,6 +277,8 @@ void BKE_mball_texspace_calc(Object *ob)
 	size[2] = (max[2] - min[2]) / 2.0f;
 #endif
 	BKE_boundbox_init_from_minmax(bb, min, max);
+
+	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 float *BKE_mball_make_orco(Object *ob, ListBase *dispbase)

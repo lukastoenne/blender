@@ -45,6 +45,7 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
+#include "BKE_library.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
@@ -250,7 +251,7 @@ static SpaceLink *clip_new(const bContext *C)
 	sc->zoom = 1.0f;
 	sc->path_length = 20;
 	sc->scopes.track_preview_height = 120;
-	sc->around = V3D_LOCAL;
+	sc->around = V3D_AROUND_LOCAL_ORIGINS;
 
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for clip");
@@ -296,8 +297,8 @@ static SpaceLink *clip_new(const bContext *C)
 	BLI_addtail(&sc->regionbase, ar);
 	init_preview_region(C, ar);
 
-	/* main area */
-	ar = MEM_callocN(sizeof(ARegion), "main area for clip");
+	/* main region */
+	ar = MEM_callocN(sizeof(ARegion), "main region for clip");
 
 	BLI_addtail(&sc->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
@@ -1132,7 +1133,7 @@ static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_main_area_init(wmWindowManager *wm, ARegion *ar)
+static void clip_main_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -1150,7 +1151,7 @@ static void clip_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
-static void clip_main_area_draw(const bContext *C, ARegion *ar)
+static void clip_main_region_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceClip *sc = CTX_wm_space_clip(C);
@@ -1213,7 +1214,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	}
 
 	show_cursor |= sc->mode == SC_MODE_MASKEDIT;
-	show_cursor |= sc->around == V3D_CURSOR;
+	show_cursor |= sc->around == V3D_AROUND_CURSOR;
 
 	if (show_cursor) {
 		glPushMatrix();
@@ -1241,7 +1242,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	}
 }
 
-static void clip_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void clip_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1256,7 +1257,7 @@ static void clip_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), AR
 
 /****************** preview region ******************/
 
-static void clip_preview_area_init(wmWindowManager *wm, ARegion *ar)
+static void clip_preview_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -1273,7 +1274,7 @@ static void clip_preview_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
-static void graph_area_draw(const bContext *C, ARegion *ar)
+static void graph_region_draw(const bContext *C, ARegion *ar)
 {
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
@@ -1304,7 +1305,7 @@ static void graph_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_scrollers_free(scrollers);
 }
 
-static void dopesheet_area_draw(const bContext *C, ARegion *ar)
+static void dopesheet_region_draw(const bContext *C, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
@@ -1342,23 +1343,23 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_scrollers_free(scrollers);
 }
 
-static void clip_preview_area_draw(const bContext *C, ARegion *ar)
+static void clip_preview_region_draw(const bContext *C, ARegion *ar)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 
 	if (sc->view == SC_VIEW_GRAPH)
-		graph_area_draw(C, ar);
+		graph_region_draw(C, ar);
 	else if (sc->view == SC_VIEW_DOPESHEET)
-		dopesheet_area_draw(C, ar);
+		dopesheet_region_draw(C, ar);
 }
 
-static void clip_preview_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
+static void clip_preview_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 }
 
 /****************** channels region ******************/
 
-static void clip_channels_area_init(wmWindowManager *wm, ARegion *ar)
+static void clip_channels_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -1371,7 +1372,7 @@ static void clip_channels_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
-static void clip_channels_area_draw(const bContext *C, ARegion *ar)
+static void clip_channels_region_draw(const bContext *C, ARegion *ar)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1393,24 +1394,24 @@ static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 }
 
-static void clip_channels_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
+static void clip_channels_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 }
 
 /****************** header region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
+static void clip_header_region_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }
 
-static void clip_header_area_draw(const bContext *C, ARegion *ar)
+static void clip_header_region_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_header(C, ar);
 }
 
-static void clip_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void clip_header_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1433,7 +1434,7 @@ static void clip_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), 
 /****************** tools region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_tools_area_init(wmWindowManager *wm, ARegion *ar)
+static void clip_tools_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -1443,14 +1444,14 @@ static void clip_tools_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
-static void clip_tools_area_draw(const bContext *C, ARegion *ar)
+static void clip_tools_region_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_panels(C, ar, NULL, -1, true);
 }
 
 /****************** tool properties region ******************/
 
-static void clip_props_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void clip_props_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1476,7 +1477,7 @@ static void clip_props_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), A
 /****************** properties region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void clip_properties_area_init(wmWindowManager *wm, ARegion *ar)
+static void clip_properties_region_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -1486,7 +1487,7 @@ static void clip_properties_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
-static void clip_properties_area_draw(const bContext *C, ARegion *ar)
+static void clip_properties_region_draw(const bContext *C, ARegion *ar)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 
@@ -1495,7 +1496,7 @@ static void clip_properties_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, NULL, -1, true);
 }
 
-static void clip_properties_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void clip_properties_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -1511,6 +1512,25 @@ static void clip_properties_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(s
 }
 
 /********************* registration ********************/
+
+static void clip_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID *new_id)
+{
+	SpaceClip *sclip = (SpaceClip *)slink;
+
+	if (!ELEM(GS(old_id->name), ID_MC, ID_MSK)) {
+		return;
+	}
+
+	if ((ID *)sclip->clip == old_id) {
+		sclip->clip = (MovieClip *)new_id;
+		id_us_ensure_real(new_id);
+	}
+
+	if ((ID *)sclip->mask_info.mask == old_id) {
+		sclip->mask_info.mask = (Mask *)new_id;
+		id_us_ensure_real(new_id);
+	}
+}
 
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_clip(void)
@@ -1531,13 +1551,14 @@ void ED_spacetype_clip(void)
 	st->context = clip_context;
 	st->dropboxes = clip_dropboxes;
 	st->refresh = clip_refresh;
+	st->id_remap = clip_id_remap;
 
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype clip region");
 	art->regionid = RGN_TYPE_WINDOW;
-	art->init = clip_main_area_init;
-	art->draw = clip_main_area_draw;
-	art->listener = clip_main_area_listener;
+	art->init = clip_main_region_init;
+	art->draw = clip_main_region_draw;
+	art->listener = clip_main_region_listener;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI | ED_KEYMAP_GPENCIL;
 
 	BLI_addhead(&st->regiontypes, art);
@@ -1546,9 +1567,9 @@ void ED_spacetype_clip(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype clip region preview");
 	art->regionid = RGN_TYPE_PREVIEW;
 	art->prefsizey = 240;
-	art->init = clip_preview_area_init;
-	art->draw = clip_preview_area_draw;
-	art->listener = clip_preview_area_listener;
+	art->init = clip_preview_region_init;
+	art->draw = clip_preview_region_draw;
+	art->listener = clip_preview_region_listener;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
 	BLI_addhead(&st->regiontypes, art);
@@ -1558,9 +1579,9 @@ void ED_spacetype_clip(void)
 	art->regionid = RGN_TYPE_UI;
 	art->prefsizex = UI_COMPACT_PANEL_WIDTH;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
-	art->init = clip_properties_area_init;
-	art->draw = clip_properties_area_draw;
-	art->listener = clip_properties_area_listener;
+	art->init = clip_properties_region_init;
+	art->draw = clip_properties_region_draw;
+	art->listener = clip_properties_region_listener;
 	BLI_addhead(&st->regiontypes, art);
 	ED_clip_buttons_register(art);
 
@@ -1569,9 +1590,9 @@ void ED_spacetype_clip(void)
 	art->regionid = RGN_TYPE_TOOLS;
 	art->prefsizex = UI_COMPACT_PANEL_WIDTH;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
-	art->listener = clip_props_area_listener;
-	art->init = clip_tools_area_init;
-	art->draw = clip_tools_area_draw;
+	art->listener = clip_props_region_listener;
+	art->init = clip_tools_region_init;
+	art->draw = clip_tools_region_draw;
 
 	BLI_addhead(&st->regiontypes, art);
 
@@ -1581,9 +1602,9 @@ void ED_spacetype_clip(void)
 	art->prefsizex = 0;
 	art->prefsizey = 120;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
-	art->listener = clip_props_area_listener;
-	art->init = clip_tools_area_init;
-	art->draw = clip_tools_area_draw;
+	art->listener = clip_props_region_listener;
+	art->init = clip_tools_region_init;
+	art->draw = clip_tools_region_draw;
 	ED_clip_tool_props_register(art);
 
 	BLI_addhead(&st->regiontypes, art);
@@ -1594,9 +1615,9 @@ void ED_spacetype_clip(void)
 	art->prefsizey = HEADERY;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
 
-	art->init = clip_header_area_init;
-	art->draw = clip_header_area_draw;
-	art->listener = clip_header_area_listener;
+	art->init = clip_header_region_init;
+	art->draw = clip_header_region_draw;
+	art->listener = clip_header_region_listener;
 
 	BLI_addhead(&st->regiontypes, art);
 
@@ -1607,9 +1628,9 @@ void ED_spacetype_clip(void)
 	art->regionid = RGN_TYPE_CHANNELS;
 	art->prefsizex = UI_COMPACT_PANEL_WIDTH;
 	art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
-	art->listener = clip_channels_area_listener;
-	art->init = clip_channels_area_init;
-	art->draw = clip_channels_area_draw;
+	art->listener = clip_channels_region_listener;
+	art->init = clip_channels_region_init;
+	art->draw = clip_channels_region_draw;
 
 	BLI_addhead(&st->regiontypes, art);
 }

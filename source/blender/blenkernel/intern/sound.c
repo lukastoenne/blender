@@ -106,7 +106,7 @@ bSound *BKE_sound_new_file_exists_ex(struct Main *bmain, const char *filepath, b
 		BLI_path_abs(strtest, ID_BLEND_PATH(bmain, &sound->id));
 
 		if (BLI_path_cmp(strtest, str) == 0) {
-			sound->id.us++;  /* officially should not, it doesn't link here! */
+			id_us_plus(&sound->id);  /* officially should not, it doesn't link here! */
 			if (r_exists)
 				*r_exists = true;
 			return sound;
@@ -123,8 +123,11 @@ bSound *BKE_sound_new_file_exists(struct Main *bmain, const char *filepath)
 	return BKE_sound_new_file_exists_ex(bmain, filepath, NULL);
 }
 
+/** Free (or release) any data used by this sound (does not free the sound itself). */
 void BKE_sound_free(bSound *sound)
 {
+	/* No animdata here. */
+
 	if (sound->packedfile) {
 		freePackedFile(sound->packedfile);
 		sound->packedfile = NULL;
@@ -148,8 +151,7 @@ void BKE_sound_free(bSound *sound)
 		BLI_spin_end(sound->spinlock);
 		MEM_freeN(sound->spinlock);
 		sound->spinlock = NULL;
-	}
-	
+	}	
 #endif  /* WITH_AUDASPACE */
 }
 
@@ -227,7 +229,7 @@ void BKE_sound_init(struct Main *bmain)
 		buffersize = 1024;
 
 	if (specs.rate < AUD_RATE_8000)
-		specs.rate = AUD_RATE_44100;
+		specs.rate = AUD_RATE_48000;
 
 	if (specs.format <= AUD_FORMAT_INVALID)
 		specs.format = AUD_FORMAT_S16;
@@ -314,15 +316,6 @@ bSound *BKE_sound_new_limiter(struct Main *bmain, bSound *source, float start, f
 	return sound;
 }
 #endif
-
-void BKE_sound_delete(struct Main *bmain, bSound *sound)
-{
-	if (sound) {
-		BKE_sound_free(sound);
-
-		BKE_libblock_free(bmain, sound);
-	}
-}
 
 void BKE_sound_cache(bSound *sound)
 {
@@ -562,6 +555,7 @@ void BKE_sound_set_scene_sound_pitch(void *handle, float pitch, char animated)
 
 void BKE_sound_set_scene_sound_pan(void *handle, float pan, char animated)
 {
+	printf("%s\n", __func__);
 	AUD_SequenceEntry_setAnimationData(handle, AUD_AP_PANNING, sound_cfra, &pan, animated);
 }
 

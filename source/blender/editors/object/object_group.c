@@ -43,6 +43,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_object.h"
@@ -521,12 +522,14 @@ void OBJECT_OT_group_remove(wmOperatorType *ot)
 
 static int group_unlink_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	Group *group = CTX_data_pointer_get_type(C, "group", &RNA_Group).data;
 
 	if (!group)
 		return OPERATOR_CANCELLED;
 
-	BKE_group_unlink(group);
+	BKE_libblock_unlink(bmain, group, false);
+	BKE_libblock_free(bmain, group);
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
 

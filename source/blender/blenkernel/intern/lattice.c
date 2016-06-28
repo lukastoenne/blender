@@ -251,12 +251,10 @@ void BKE_lattice_resize(Lattice *lt, int uNew, int vNew, int wNew, Object *ltOb)
 	MEM_freeN(vertexCos);
 }
 
-Lattice *BKE_lattice_add(Main *bmain, const char *name)
+void BKE_lattice_init(Lattice *lt)
 {
-	Lattice *lt;
-	
-	lt = BKE_libblock_alloc(bmain, ID_LT, name);
-	
+	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(lt, id));
+
 	lt->flag = LT_GRID;
 	
 	lt->typeu = lt->typev = lt->typew = KEY_BSPLINE;
@@ -264,7 +262,16 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
 	lt->def = MEM_callocN(sizeof(BPoint), "lattvert"); /* temporary */
 	BKE_lattice_resize(lt, 2, 2, 2, NULL);  /* creates a uniform lattice */
 	lt->actbp = LT_ACTBP_NONE;
-		
+}
+
+Lattice *BKE_lattice_add(Main *bmain, const char *name)
+{
+	Lattice *lt;
+
+	lt = BKE_libblock_alloc(bmain, ID_LT, name);
+
+	BKE_lattice_init(lt);
+
 	return lt;
 }
 
@@ -293,24 +300,27 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 	return ltn;
 }
 
+/** Free (or release) any data used by this lattice (does not free the lattice itself). */
 void BKE_lattice_free(Lattice *lt)
 {
-	if (lt->def) MEM_freeN(lt->def);
-	if (lt->dvert) BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+	BKE_animdata_free(&lt->id, false);
+
+	MEM_SAFE_FREE(lt->def);
+	if (lt->dvert) {
+		BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		lt->dvert = NULL;
+	}
 	if (lt->editlatt) {
 		Lattice *editlt = lt->editlatt->latt;
 
-		if (editlt->def) MEM_freeN(editlt->def);
-		if (editlt->dvert) BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		if (editlt->def)
+			MEM_freeN(editlt->def);
+		if (editlt->dvert)
+			BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
 
 		MEM_freeN(editlt);
 		MEM_freeN(lt->editlatt);
-	}
-	
-	/* free animation data */
-	if (lt->adt) {
-		BKE_animdata_free(&lt->id);
-		lt->adt = NULL;
+		lt->editlatt = NULL;
 	}
 }
 
@@ -353,8 +363,8 @@ void BKE_lattice_make_local(Lattice *lt)
 			if (ob->data == lt) {
 				if (ob->id.lib == NULL) {
 					ob->data = lt_new;
-					lt_new->id.us++;
-					lt->id.us--;
+					id_us_plus(&lt_new->id);
+					id_us_min(&lt->id);
 				}
 			}
 		}
@@ -1075,6 +1085,7 @@ void BKE_lattice_modifiers_calc(Scene *scene, Object *ob)
 
 		md->scene = scene;
 		
+		if (!(mti->flags & eModifierTypeFlag_AcceptsLattice)) continue;
 		if (!(md->mode & eModifierMode_Realtime)) continue;
 		if (editmode && !(md->mode & eModifierMode_Editmode)) continue;
 		if (mti->isDisabled && mti->isDisabled(md, 0)) continue;
@@ -1145,8 +1156,9 @@ static void boundbox_lattice(Object *ob)
 	Lattice *lt;
 	float min[3], max[3];
 
-	if (ob->bb == NULL)
-		ob->bb = MEM_mallocN(sizeof(BoundBox), "Lattice boundbox");
+	if (ob->bb == NULL) {
+		ob->bb = MEM_callocN(sizeof(BoundBox), "Lattice boundbox");
+	}
 
 	bb = ob->bb;
 	lt = ob->data;
@@ -1154,6 +1166,8 @@ static void boundbox_lattice(Object *ob)
 	INIT_MINMAX(min, max);
 	BKE_lattice_minmax_dl(ob, lt, min, max);
 	BKE_boundbox_init_from_minmax(bb, min, max);
+
+	bb->flag &= ~BOUNDBOX_DIRTY;
 }
 
 BoundBox *BKE_lattice_boundbox_get(Object *ob)

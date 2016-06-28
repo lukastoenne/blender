@@ -72,8 +72,8 @@ public:
 
 	CcdShapeConstructionInfo() :
 		m_shapeType(PHY_SHAPE_NONE),
-		m_radius(1.0),
-		m_height(1.0),
+		m_radius(1.0f),
+		m_height(1.0f),
 		m_halfExtend(0.f,0.f,0.f),
 		m_childScale(1.0f,1.0f,1.0f),
 		m_userData(NULL),
@@ -316,7 +316,8 @@ struct CcdConstructionInfo
 	float	m_stepHeight;
 	float	m_jumpSpeed;
 	float	m_fallSpeed;
-	
+	unsigned char m_maxJumps;
+
 	int		m_gamesoftFlag;
 	float	m_soft_linStiff;			/* linear stiffness 0..1 */
 	float	m_soft_angStiff;		/* angular stiffness 0..1 */
@@ -429,7 +430,7 @@ public:
 
 	// PHY_ICharacter interface
 	virtual void Jump()	{ jump(); }
-	virtual bool OnGround(){ return onGround(); }
+	virtual bool OnGround() { return onGround(); }
 	virtual float GetGravity() { return getGravity(); }
 	virtual void SetGravity(float gravity) { setGravity(gravity); }
 	virtual unsigned char GetMaxJumps() { return getMaxJumps(); }

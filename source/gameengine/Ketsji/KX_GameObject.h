@@ -67,7 +67,7 @@ struct bAction;
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
-bool ConvertPythonToGameObject(PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr, PyObject *value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 #endif
 
 #ifdef USE_MATHUTILS
@@ -175,7 +175,7 @@ public:
 	 * side effect of storing the result internally. The
 	 * memory for the matrix remains the property of this class.
 	 */ 
-		double *
+		float *
 	GetOpenGLMatrix(
 	);
 
@@ -326,12 +326,6 @@ public:
 	 * Kick the object's action manager
 	 */
 	void UpdateActionManager(float curtime);
-
-	/**
-	 * Have the action manager update IPOs
-	 * note: not thread-safe!
-	 */
-	void UpdateActionIPOs();
 
 	/*********************************
 	 * End Animation API
