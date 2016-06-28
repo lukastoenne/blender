@@ -879,6 +879,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.active = md.use_rim
         row.prop(md, "material_offset_rim", text="Rim")
 
+    def STRANDS(self, layout, ob, md):
+        pass
+
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)
 

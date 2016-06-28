@@ -85,6 +85,7 @@ typedef enum ModifierType {
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
+	eModifierType_Strands           = 52,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1542,5 +1543,10 @@ enum {
 	MOD_NORMALEDIT_MIX_SUB  = 2,
 	MOD_NORMALEDIT_MIX_MUL  = 3,
 };
+
+/* Strand modifier */
+typedef struct StrandsModifierData {
+	ModifierData modifier;
+} StrandsModifierData;
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

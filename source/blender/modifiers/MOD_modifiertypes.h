@@ -66,6 +66,7 @@ extern ModifierTypeInfo modifierType_Smoke;
 extern ModifierTypeInfo modifierType_ShapeKey;
 extern ModifierTypeInfo modifierType_Solidify;
 extern ModifierTypeInfo modifierType_Screw;
+extern ModifierTypeInfo modifierType_Strands;
 extern ModifierTypeInfo modifierType_Ocean;
 extern ModifierTypeInfo modifierType_Warp;
 extern ModifierTypeInfo modifierType_NavMesh;

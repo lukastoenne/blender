@@ -116,6 +116,7 @@ EnumPropertyItem rna_enum_object_modifier_type_items[] = {
 	{eModifierType_ParticleSystem, "PARTICLE_SYSTEM", ICON_MOD_PARTICLES, "Particle System", ""},
 	{eModifierType_Smoke, "SMOKE", ICON_MOD_SMOKE, "Smoke", ""},
 	{eModifierType_Softbody, "SOFT_BODY", ICON_MOD_SOFT, "Soft Body", ""},
+	{eModifierType_Strands, "STRANDS", ICON_STRANDS, "Strands", ""},
 	{eModifierType_Surface, "SURFACE", ICON_MOD_PHYSICS, "Surface", ""},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -399,6 +400,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_NormalEditModifier;
 		case eModifierType_CorrectiveSmooth:
 			return &RNA_CorrectiveSmoothModifier;
+		case eModifierType_Strands:
+			return &RNA_StrandsModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -4639,6 +4642,19 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_strands(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "StrandsModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Strands Modifier", "Modifier modeling hair strands");
+	RNA_def_struct_sdna(srna, "StrandsModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_STRANDS);
+	
+	UNUSED_VARS(prop);
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4755,6 +4771,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_wireframe(brna);
 	rna_def_modifier_datatransfer(brna);
 	rna_def_modifier_normaledit(brna);
+	rna_def_modifier_strands(brna);
 }
 
 #endif
