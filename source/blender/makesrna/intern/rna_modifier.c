@@ -4652,7 +4652,11 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "StrandsModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_STRANDS);
 	
-	UNUSED_VARS(prop);
+	prop = RNA_def_property(srna, "show_control_strands", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_STRANDS_SHOW_CONTROL_STRANDS);
+	RNA_def_property_boolean_default(prop, true);
+	RNA_def_property_ui_text(prop, "Show Control Strands", "Show control strand curves");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

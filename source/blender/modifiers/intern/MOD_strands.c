@@ -55,6 +55,8 @@ static void initData(ModifierData *md)
 	StrandsModifierData *smd = (StrandsModifierData *) md;
 	
 	smd->strands = BKE_strands_new();
+	
+	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

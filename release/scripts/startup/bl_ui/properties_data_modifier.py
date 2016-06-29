@@ -880,7 +880,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "material_offset_rim", text="Rim")
 
     def STRANDS(self, layout, ob, md):
-        pass
+        split = layout.split()
+        col = split.column()
+        col.label(text="Display:")
+        col.prop(md, "show_control_strands", text="Control Strands")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

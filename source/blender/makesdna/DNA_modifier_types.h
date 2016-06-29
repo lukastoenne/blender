@@ -1548,7 +1548,15 @@ enum {
 typedef struct StrandsModifierData {
 	ModifierData modifier;
 	
+	int flag;
+	int pad;
+	
 	struct Strands *strands;
 } StrandsModifierData;
+
+/* StrandsModifierData.flag */
+enum {
+	MOD_STRANDS_SHOW_CONTROL_STRANDS = (1 << 0),
+};
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */
