@@ -39,6 +39,7 @@
 typedef struct StrandVertex {
 	/* Position */
 	float co[3];
+	int pad;
 } StrandVertex;
 
 typedef struct StrandCurve {
@@ -62,14 +63,14 @@ typedef struct StrandData {
 	int totcurves;
 } StrandData;
 
-typedef struct Strand {
+typedef struct StrandInfo {
 	/* Sample on the scalp mesh for the root vertex */
 	MeshSample root;
 	/* Indices of control strands for interpolation */
 	unsigned int control_index[4];
 	/* Weights of control strands for interpolation */
 	float control_weights[4];
-} Strand;
+} StrandInfo;
 
 typedef struct ControlStrand {
 	/* Sample on the scalp mesh for the root vertex */
@@ -77,5 +78,11 @@ typedef struct ControlStrand {
 	/* Curve in root space */
 	StrandCurve curve;
 } ControlStrand;
+
+typedef struct Strands {
+	ControlStrand *controls;
+	int num_controls;
+	int pad;
+} Strands;
 
 #endif

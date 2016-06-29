@@ -1547,6 +1547,8 @@ enum {
 /* Strand modifier */
 typedef struct StrandsModifierData {
 	ModifierData modifier;
+	
+	struct Strands *strands;
 } StrandsModifierData;
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

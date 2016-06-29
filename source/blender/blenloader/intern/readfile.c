@@ -96,6 +96,7 @@
 #include "DNA_speaker_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
+#include "DNA_strand_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 #include "DNA_movieclip_types.h"
@@ -4300,6 +4301,16 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 	return;
 }
 
+/* ************ READ STRANDS ***************** */
+
+static void direct_link_strands(FileData *fd, Strands *strands)
+{
+	if (strands == NULL)
+		return;
+	
+	strands->controls = newdataadr(fd, strands->controls);
+}
+
 /* ************ READ MESH ***************** */
 
 static void lib_link_mtface(FileData *fd, Mesh *me, MTFace *mtface, int totface)
@@ -5258,6 +5269,14 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			/* runtime only */
 			csmd->delta_cache = NULL;
 			csmd->delta_cache_num = 0;
+		}
+		else if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData*)md;
+
+			if (smd->strands) {
+				smd->strands = newdataadr(fd, smd->strands);
+				direct_link_strands(fd, smd->strands);
+			}
 		}
 	}
 }

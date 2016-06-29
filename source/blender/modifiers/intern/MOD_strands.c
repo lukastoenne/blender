@@ -32,16 +32,17 @@
  *  \ingroup modifiers
  */
 
-#include "DNA_object_types.h"
-#include "DNA_strand_types.h"
-
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
+
+#include "DNA_object_types.h"
+#include "DNA_strand_types.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
+#include "BKE_strands.h"
 
 #include "depsgraph_private.h"
 #include "MEM_guardedalloc.h"
@@ -52,7 +53,8 @@
 static void initData(ModifierData *md)
 {
 	StrandsModifierData *smd = (StrandsModifierData *) md;
-	UNUSED_VARS(smd);
+	
+	smd->strands = BKE_strands_new();
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -60,14 +62,24 @@ static void copyData(ModifierData *md, ModifierData *target)
 	StrandsModifierData *smd = (StrandsModifierData *) md;
 	StrandsModifierData *tsmd = (StrandsModifierData *) target;
 
+	if (tsmd->strands) {
+		BKE_strands_free(tsmd->strands);
+	}
+
 	modifier_copyData_generic(md, target);
-	UNUSED_VARS(smd, tsmd);
+	
+	if (smd->strands) {
+		tsmd->strands = BKE_strands_copy(smd->strands);
+	}
 }
 
 static void freeData(ModifierData *md)
 {
 	StrandsModifierData *smd = (StrandsModifierData *) md;
-	UNUSED_VARS(smd);
+	
+	if (smd->strands) {
+		BKE_strands_free(smd->strands);
+	}
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),

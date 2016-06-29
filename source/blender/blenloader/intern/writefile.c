@@ -140,6 +140,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_sound_types.h"
+#include "DNA_strand_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_vfont_types.h"
@@ -1252,6 +1253,18 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 	}
 }
 
+static void write_strands(WriteData *wd, Strands *strands)
+{
+	if (strands == NULL)
+		return;
+	
+	writestruct(wd, DATA, "Strands", 1, strands);
+	
+	if (strands->controls) {
+		writestruct(wd, DATA, "ControlStrand", strands->num_controls, strands->controls);
+	}
+}
+
 static void write_properties(WriteData *wd, ListBase *lb)
 {
 	bProperty *prop;
@@ -1666,6 +1679,13 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			if (csmd->bind_coords) {
 				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
+			}
+		}
+		else if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData *)md;
+
+			if (smd->strands) {
+				write_strands(wd, smd->strands);
 			}
 		}
 	}
