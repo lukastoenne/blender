@@ -7970,37 +7970,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
 			
-			if (smd->strands) {
-				GPUStrands *gpu_strands = GPU_strands_get(smd->strands);
-				
-				GPU_strands_bind_uniforms(gpu_strands, ob->obmat, rv3d->viewmat);
-				GPU_strands_bind(gpu_strands, rv3d->viewmat, rv3d->viewinv);
-				
-				GLuint vertex_buffer;
-				glGenBuffers(1, &vertex_buffer);
-				glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-				const size_t numverts = 4;
-				float verts[12] = {
-				    0.0f, 0.0f, 0.0f,
-				    1.0f, 0.0f, 0.0f,
-				    0.0f, 1.0f, 0.0f,
-				    1.0f, 1.0f, 0.0f,
-				};
-				glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * numverts, verts, GL_STATIC_DRAW);
-			
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glVertexPointer(3, GL_FLOAT, 0, NULL);
-			
-				glDrawArrays(GL_TRIANGLES, 0, numverts);
-			
-				glDisableClientState(GL_VERTEX_ARRAY);
-			
-				/* cleanup */
-				glBindBuffer(GL_ARRAY_BUFFER, 0);
-				glDeleteBuffers(1, &vertex_buffer);
-				
-				GPU_strands_unbind(gpu_strands);
-			}
+			if (smd->strands)
+				draw_strands(smd->strands, ob, rv3d);
 		}
 	}
 
