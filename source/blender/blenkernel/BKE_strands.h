@@ -46,16 +46,18 @@ struct Strands *BKE_strands_copy(struct Strands *strands);
 void BKE_strands_free(struct Strands *strands);
 
 struct StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
-                                       const ControlStrand *controls, unsigned int num_controls,
+                                       const StrandCurve *controls, unsigned int num_controls,
                                        unsigned int seed);
 
+#if 0
 typedef struct StrandCurveParams {
 	struct DerivedMesh *scalp;
 	unsigned int max_verts;
 } StrandCurveParams;
 
 struct StrandData *BKE_strand_data_interpolate(struct StrandInfo *strands, unsigned int num_strands,
-                                               const ControlStrand *controls, struct StrandCurveParams *params);
+                                               const StrandCurve *controls, struct StrandCurveParams *params);
 void BKE_strand_data_free(struct StrandData *data);
+#endif
 
 #endif

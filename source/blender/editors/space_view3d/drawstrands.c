@@ -60,6 +60,7 @@ void draw_strands(Strands *strands, Object *ob, RegionView3D *rv3d)
 	GLuint vertex_buffer;
 	glGenBuffers(1, &vertex_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	
 	const size_t numverts = 4;
 	float verts[12] = {
 	    0.0f, 0.0f, 0.0f,

@@ -50,8 +50,11 @@ Strands *BKE_strands_copy(Strands *strands)
 {
 	Strands *nstrands = MEM_dupallocN(strands);
 	
-	if (strands->controls) {
-		nstrands->controls = MEM_dupallocN(strands->controls);
+	if (strands->curves) {
+		nstrands->curves = MEM_dupallocN(strands->curves);
+	}
+	if (strands->verts) {
+		nstrands->verts = MEM_dupallocN(strands->verts);
 	}
 	
 	/* lazy initialized */
@@ -69,7 +72,7 @@ void BKE_strands_free(Strands *strands)
 }
 
 StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
-                                const ControlStrand *controls, unsigned int num_controls,
+                                const StrandCurve *controls, unsigned int num_controls,
                                 unsigned int seed)
 {
 	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
@@ -100,8 +103,9 @@ StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
 	return strands;
 }
 
+#if 0
 StrandData *BKE_strand_data_interpolate(StrandInfo *strands, unsigned int num_strands,
-                                        const ControlStrand *controls, struct StrandCurveParams *params)
+                                        const StrandCurve *controls, struct StrandCurveParams *params)
 {
 	StrandData *data = MEM_callocN(sizeof(StrandData), "strand interpolation data");
 	StrandInfo *s;
@@ -155,3 +159,4 @@ void BKE_strand_data_free(StrandData *data)
 		MEM_freeN(data);
 	}
 }
+#endif

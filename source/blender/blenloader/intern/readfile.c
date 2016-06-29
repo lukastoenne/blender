@@ -4308,7 +4308,8 @@ static void direct_link_strands(FileData *fd, Strands *strands)
 	if (strands == NULL)
 		return;
 	
-	strands->controls = newdataadr(fd, strands->controls);
+	strands->curves = newdataadr(fd, strands->curves);
+	strands->verts = newdataadr(fd, strands->verts);
 	
 	/* runtime */
 	strands->gpu_strands = NULL;

@@ -43,14 +43,15 @@ typedef struct StrandVertex {
 } StrandVertex;
 
 typedef struct StrandCurve {
+	/* Point on the scalp mesh for the root vertex */
+	MeshSample root;
 	/* Start of vertex list */
 	unsigned int verts_begin;
 	/* Number of vertices in the curve */
 	unsigned int num_verts;
-	/* Transform to object space */
-	float rootmat[4][4];
 } StrandCurve;
 
+#if 0
 typedef struct StrandData {
 	/* Array of vertices */
 	StrandVertex *verts;
@@ -62,6 +63,7 @@ typedef struct StrandData {
 	/* Total number of curves */
 	int totcurves;
 } StrandData;
+#endif
 
 typedef struct StrandInfo {
 	/* Sample on the scalp mesh for the root vertex */
@@ -72,17 +74,16 @@ typedef struct StrandInfo {
 	float control_weights[4];
 } StrandInfo;
 
-typedef struct ControlStrand {
-	/* Sample on the scalp mesh for the root vertex */
-	MeshSample root;
-	/* Curve in root space */
-	StrandCurve curve;
-} ControlStrand;
-
 typedef struct Strands {
-	ControlStrand *controls;
-	int num_controls;
-	int pad;
+	/* Array of vertices */
+	StrandVertex *verts;
+	/* Array of curves */
+	StrandCurve *curves;
+	
+	/* Total number of vertices */
+	int totverts;
+	/* Total number of curves */
+	int totcurves;
 	
 	struct GPUStrands *gpu_strands;
 } Strands;

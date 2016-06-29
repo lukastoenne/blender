@@ -1260,8 +1260,11 @@ static void write_strands(WriteData *wd, Strands *strands)
 	
 	writestruct(wd, DATA, "Strands", 1, strands);
 	
-	if (strands->controls) {
-		writestruct(wd, DATA, "ControlStrand", strands->num_controls, strands->controls);
+	if (strands->curves) {
+		writestruct(wd, DATA, "StrandCurve", strands->totcurves, strands->curves);
+	}
+	if (strands->verts) {
+		writestruct(wd, DATA, "StrandVertex", strands->totverts, strands->verts);
 	}
 }
 
