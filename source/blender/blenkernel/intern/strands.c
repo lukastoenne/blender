@@ -68,7 +68,58 @@ void BKE_strands_free(Strands *strands)
 	if (strands->gpu_strands)
 		GPU_strands_free(strands->gpu_strands);
 	
+	if (strands->curves)
+		MEM_freeN(strands->curves);
+	if (strands->verts)
+		MEM_freeN(strands->verts);
 	MEM_freeN(strands);
+}
+
+void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
+                           int totcurves, int maxverts,
+                           unsigned int seed)
+{
+	const unsigned int totverts = totcurves * maxverts;
+	
+	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
+	unsigned int i, k;
+	
+	StrandCurve *curves = MEM_mallocN(sizeof(StrandCurve) * totcurves, "StrandCurve buffer");
+	StrandVertex *verts = MEM_mallocN(sizeof(StrandVertex) * totverts, "StrandVertex buffer");
+	
+	StrandCurve *c = curves;
+	StrandVertex *v = verts;
+	unsigned int verts_begin = 0;
+	for (i = 0; i < totcurves; ++i, ++c) {
+		if (BKE_mesh_sample_generate(gen, &c->root)) {
+			c->verts_begin = verts_begin;
+			c->num_verts = maxverts;
+			
+			for (k = 0; k < c->num_verts; ++k, ++v) {
+				v->co[0] = 0.0f;
+				v->co[1] = 0.0f;
+				v->co[2] = (c->num_verts > 1) ? 1.0f / (c->num_verts - 1) : 0.0f;
+			}
+			
+			verts_begin += c->num_verts;
+		}
+		else {
+			/* clear remaining samples */
+			memset(c, 0, sizeof(StrandCurve) * totcurves - i);
+			break;
+		}
+	}
+	
+	BKE_mesh_sample_free_generator(gen);
+	
+	if (strands->curves)
+		MEM_freeN(strands->curves);
+	if (strands->verts)
+		MEM_freeN(strands->verts);
+	strands->curves = curves;
+	strands->verts = verts;
+	strands->totcurves = totcurves;
+	strands->totverts = totverts;
 }
 
 StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,

@@ -880,6 +880,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "material_offset_rim", text="Rim")
 
     def STRANDS(self, layout, ob, md):
+        layout.operator("object.strands_test_init", text="Test Init")
+
         split = layout.split()
         col = split.column()
         col.label(text="Display:")
