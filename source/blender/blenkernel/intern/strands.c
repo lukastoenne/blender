@@ -38,6 +38,8 @@
 #include "BKE_mesh_sample.h"
 #include "BKE_strands.h"
 
+#include "GPU_strands.h"
+
 Strands *BKE_strands_new(void)
 {
 	Strands *strands = MEM_callocN(sizeof(Strands), "strands");
@@ -52,11 +54,17 @@ Strands *BKE_strands_copy(Strands *strands)
 		nstrands->controls = MEM_dupallocN(strands->controls);
 	}
 	
+	/* lazy initialized */
+	nstrands->gpu_strands = NULL;
+	
 	return nstrands;
 }
 
 void BKE_strands_free(Strands *strands)
 {
+	if (strands->gpu_strands)
+		GPU_strands_free(strands->gpu_strands);
+	
 	MEM_freeN(strands);
 }
 

@@ -37,6 +37,7 @@
 #include "DNA_strand_types.h"
 
 struct DerivedMesh;
+struct GPUStrands;
 
 static const unsigned int STRAND_INDEX_NONE = 0xFFFFFFFF;
 

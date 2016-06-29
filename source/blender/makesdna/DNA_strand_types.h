@@ -83,6 +83,8 @@ typedef struct Strands {
 	ControlStrand *controls;
 	int num_controls;
 	int pad;
+	
+	struct GPUStrands *gpu_strands;
 } Strands;
 
 #endif

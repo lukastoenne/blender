@@ -4309,6 +4309,9 @@ static void direct_link_strands(FileData *fd, Strands *strands)
 		return;
 	
 	strands->controls = newdataadr(fd, strands->controls);
+	
+	/* runtime */
+	strands->gpu_strands = NULL;
 }
 
 /* ************ READ MESH ***************** */

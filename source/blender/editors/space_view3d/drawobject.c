@@ -90,6 +90,7 @@
 #include "GPU_select.h"
 #include "GPU_basic_shader.h"
 #include "GPU_shader.h"
+#include "GPU_strands.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -7467,7 +7468,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
 	bool skip_object = false;  /* Draw particles but not their emitter object. */
-	SmokeModifierData *smd = NULL;
+	SmokeModifierData *smoke_md = NULL;
 
 	if (ob != scene->obedit) {
 		if (ob->restrictflag & OB_RESTRICT_VIEW)
@@ -7506,9 +7507,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	    (md = modifiers_findByType(ob, eModifierType_Smoke)) &&
 	    (modifier_isEnabled(scene, md, eModifierMode_Realtime)))
 	{
-		smd = (SmokeModifierData *)md;
+		smoke_md = (SmokeModifierData *)md;
 
-		if (smd->domain) {
+		if (smoke_md->domain) {
 			if (!v3d->transp && (dflag & DRAW_PICKING) == 0) {
 				if (!v3d->xray && !(ob->dtx & OB_DRAWXRAY)) {
 					/* object has already been drawn so skip drawing it */
@@ -7846,7 +7847,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* draw code for smoke */
-	if (smd) {
+	if (smoke_md) {
 #if 0
 		/* draw collision objects */
 		if ((smd->type & MOD_SMOKE_TYPE_COLL) && smd->coll) {
@@ -7880,8 +7881,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #endif
 
 		/* only draw domains */
-		if (smd->domain) {
-			SmokeDomainSettings *sds = smd->domain;
+		if (smoke_md->domain) {
+			SmokeDomainSettings *sds = smoke_md->domain;
 			float viewnormal[3];
 
 			glLoadMatrixf(rv3d->viewmat);
@@ -7942,15 +7943,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				if (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					sds->tex = NULL;
-					GPU_create_smoke(smd, 0);
+					GPU_create_smoke(smoke_md, 0);
 					draw_smoke_volume(sds, ob, p0, p1, viewnormal);
-					GPU_free_smoke(smd);
+					GPU_free_smoke(smoke_md);
 				}
 				else if (sds->wt && (sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					sds->tex = NULL;
-					GPU_create_smoke(smd, 1);
+					GPU_create_smoke(smoke_md, 1);
 					draw_smoke_volume(sds, ob, p0, p1, viewnormal);
-					GPU_free_smoke(smd);
+					GPU_free_smoke(smoke_md);
 				}
 
 				/* smoke debug render */
@@ -7960,6 +7961,45 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #ifdef SMOKE_DEBUG_HEAT
 				draw_smoke_heat(smd->domain, ob);
 #endif
+			}
+		}
+	}
+
+	/* strands drawing */
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData *)md;
+			
+			if (smd->strands) {
+				GPUStrands *gpu_strands = GPU_strands_get(smd->strands);
+				
+				GPU_strands_bind_uniforms(gpu_strands, ob->obmat, rv3d->viewmat);
+				GPU_strands_bind(gpu_strands, rv3d->viewmat, rv3d->viewinv);
+				
+				GLuint vertex_buffer;
+				glGenBuffers(1, &vertex_buffer);
+				glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+				const size_t numverts = 4;
+				float verts[12] = {
+				    0.0f, 0.0f, 0.0f,
+				    1.0f, 0.0f, 0.0f,
+				    0.0f, 1.0f, 0.0f,
+				    1.0f, 1.0f, 0.0f,
+				};
+				glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * numverts, verts, GL_STATIC_DRAW);
+			
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glVertexPointer(3, GL_FLOAT, 0, NULL);
+			
+				glDrawArrays(GL_TRIANGLES, 0, numverts);
+			
+				glDisableClientState(GL_VERTEX_ARRAY);
+			
+				/* cleanup */
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+				glDeleteBuffers(1, &vertex_buffer);
+				
+				GPU_strands_unbind(gpu_strands);
 			}
 		}
 	}
