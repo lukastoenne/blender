@@ -35,9 +35,11 @@
 
 #include "BLI_math.h"
 
+#include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_strands.h"
 
+#include "GPU_buffers.h"
 #include "GPU_strands.h"
 
 Strands *BKE_strands_new(void)
@@ -58,15 +60,17 @@ Strands *BKE_strands_copy(Strands *strands)
 	}
 	
 	/* lazy initialized */
-	nstrands->gpu_strands = NULL;
+	nstrands->gpu_shader = NULL;
+	nstrands->gpu_buffer = NULL;
 	
 	return nstrands;
 }
 
 void BKE_strands_free(Strands *strands)
 {
-	if (strands->gpu_strands)
-		GPU_strands_free(strands->gpu_strands);
+	if (strands->gpu_shader)
+		GPU_strand_shader_free(strands->gpu_shader);
+	GPU_strands_buffer_free(strands);
 	
 	if (strands->curves)
 		MEM_freeN(strands->curves);
@@ -98,7 +102,7 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 			for (k = 0; k < c->num_verts; ++k, ++v) {
 				v->co[0] = 0.0f;
 				v->co[1] = 0.0f;
-				v->co[2] = (c->num_verts > 1) ? 1.0f / (c->num_verts - 1) : 0.0f;
+				v->co[2] = (c->num_verts > 1) ? (float)k / (c->num_verts - 1) : 0.0f;
 			}
 			
 			verts_begin += c->num_verts;

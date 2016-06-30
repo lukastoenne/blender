@@ -40,10 +40,12 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
+#include "BKE_DerivedMesh.h"
 #include "BKE_strands.h"
 
 #include "BIF_gl.h"
 
+#include "GPU_buffers.h"
 #include "GPU_debug.h"
 #include "GPU_shader.h"
 #include "GPU_strands.h"
@@ -52,11 +54,20 @@
 
 void draw_strands(Strands *strands, Object *ob, RegionView3D *rv3d)
 {
-	GPUStrands *gpu_strands = GPU_strands_get(strands);
+	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
+	GPUDrawStrands *gds;
 	
-	GPU_strands_bind_uniforms(gpu_strands, ob->obmat, rv3d->viewmat);
-	GPU_strands_bind(gpu_strands, rv3d->viewmat, rv3d->viewinv);
+	GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
+	GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
 	
+	GPU_strands_setup(strands);
+	gds = strands->gpu_buffer;
+	if (gds->points && gds->edges) {
+		GPU_buffer_draw_elements(gds->edges, GL_LINES, 0, (gds->totverts - gds->totcurves) * 2);
+	}
+	GPU_buffers_unbind();
+	
+#if 0
 	GLuint vertex_buffer;
 	glGenBuffers(1, &vertex_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -80,6 +91,7 @@ void draw_strands(Strands *strands, Object *ob, RegionView3D *rv3d)
 	/* cleanup */
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glDeleteBuffers(1, &vertex_buffer);
+#endif
 	
-	GPU_strands_unbind(gpu_strands);
+	GPU_strand_shader_unbind(gpu_shader);
 }

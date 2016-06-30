@@ -7970,8 +7970,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
 			
-			if (smd->strands)
+			if (smd->strands) {
 				draw_strands(smd->strands, ob, rv3d);
+			}
 		}
 	}
 

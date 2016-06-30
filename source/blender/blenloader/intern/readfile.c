@@ -4312,7 +4312,8 @@ static void direct_link_strands(FileData *fd, Strands *strands)
 	strands->verts = newdataadr(fd, strands->verts);
 	
 	/* runtime */
-	strands->gpu_strands = NULL;
+	strands->gpu_shader = NULL;
+	strands->gpu_buffer = NULL;
 }
 
 /* ************ READ MESH ***************** */

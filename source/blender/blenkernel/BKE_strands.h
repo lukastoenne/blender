@@ -37,7 +37,7 @@
 #include "DNA_strand_types.h"
 
 struct DerivedMesh;
-struct GPUStrands;
+struct GPUStrandsShader;
 
 static const unsigned int STRAND_INDEX_NONE = 0xFFFFFFFF;
 
@@ -45,9 +45,17 @@ struct Strands *BKE_strands_new(void);
 struct Strands *BKE_strands_copy(struct Strands *strands);
 void BKE_strands_free(struct Strands *strands);
 
+/* ------------------------------------------------------------------------- */
+
+struct StrandData *BKE_strand_data_calc(Strands *strands);
+void BKE_strand_data_free(struct StrandData *data);
+
+/* ------------------------------------------------------------------------- */
+
 void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
                            int totcurves, int maxverts,
                            unsigned int seed);
+
 
 struct StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
                                        const StrandCurve *controls, unsigned int num_controls,

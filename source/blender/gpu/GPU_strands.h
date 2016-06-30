@@ -38,20 +38,20 @@ extern "C" {
 
 struct Strands;
 
-typedef struct GPUStrands GPUStrands;
+typedef struct GPUStrandsShader GPUStrandsShader;
 
-GPUStrands *GPU_strands_get(struct Strands *strands);
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands);
 
-void GPU_strands_free(struct GPUStrands *gpu_strands);
+void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
-void GPU_strands_bind(
-        GPUStrands *gpu_strands,
+void GPU_strand_shader_bind(
+        GPUStrandsShader *gpu_shader,
         float viewmat[4][4], float viewinv[4][4]);
-void GPU_strands_bind_uniforms(
-        GPUStrands *gpu_strands,
+void GPU_strand_shader_bind_uniforms(
+        GPUStrandsShader *gpu_shader,
         float obmat[4][4], float viewmat[4][4]);
-void GPU_strands_unbind(GPUStrands *gpu_strands);
-bool GPU_strands_bound(GPUStrands *gpu_strands);
+void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader);
+bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader);
 
 #ifdef __cplusplus
 }

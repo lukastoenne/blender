@@ -51,20 +51,6 @@ typedef struct StrandCurve {
 	unsigned int num_verts;
 } StrandCurve;
 
-#if 0
-typedef struct StrandData {
-	/* Array of vertices */
-	StrandVertex *verts;
-	/* Array of curves */
-	StrandCurve *curves;
-	
-	/* Total number of vertices */
-	int totverts;
-	/* Total number of curves */
-	int totcurves;
-} StrandData;
-#endif
-
 typedef struct StrandInfo {
 	/* Sample on the scalp mesh for the root vertex */
 	MeshSample root;
@@ -85,7 +71,20 @@ typedef struct Strands {
 	/* Total number of curves */
 	int totcurves;
 	
-	struct GPUStrands *gpu_strands;
+	struct GPUStrandsShader *gpu_shader;
+	struct GPUDrawStrands *gpu_buffer;
 } Strands;
+
+typedef struct StrandData {
+	/* Array of vertices */
+	StrandVertex *verts;
+	/* Array of curves */
+	StrandCurve *curves;
+	
+	/* Total number of vertices */
+	int totverts;
+	/* Total number of curves */
+	int totcurves;
+} StrandData;
 
 #endif

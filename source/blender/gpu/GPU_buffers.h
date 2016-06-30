@@ -52,6 +52,7 @@ struct GPUDrawObject;
 struct GridCommonGPUBuffer;
 struct PBVH;
 struct MVert;
+struct Strands;
 
 typedef struct GPUBuffer {
 	size_t size;        /* in bytes */
@@ -142,6 +143,20 @@ typedef struct GPUVertPointLink {
 	/* -1 means uninitialized */
 	int point_index;
 } GPUVertPointLink;
+
+typedef struct GPUDrawStrands {
+	GPUBuffer *points;
+	GPUBuffer *normals;
+	GPUBuffer *uv;
+	GPUBuffer *uv_tex;
+	GPUBuffer *colors;
+	GPUBuffer *edges;
+	GPUBuffer *uvedges;
+	GPUBuffer *triangles; /* triangle index buffer */
+
+	unsigned int totverts;
+	unsigned int totcurves;
+} GPUDrawStrands;
 
 
 
@@ -267,5 +282,10 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, struct GSet *bm
 
 void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers);
 void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_buffer);
+
+/* strands */
+
+void GPU_strands_setup(struct Strands *strands);
+void GPU_strands_buffer_free(struct Strands *strands);
 
 #endif

@@ -46,12 +46,14 @@
 #include "BLI_threads.h"
 
 #include "DNA_meshdata_types.h"
+#include "DNA_strand_types.h"
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
 #include "BKE_mesh.h"
 #include "BKE_pbvh.h"
+#include "BKE_strands.h"
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
@@ -74,7 +76,7 @@ typedef struct {
 } GPUBufferTypeSettings;
 
 
-static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
+static size_t gpu_mesh_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
 
 const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     /* vertex */
@@ -464,7 +466,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	size_t size = gpu_buffer_size_from_type(dm, type);
+	size_t size = gpu_mesh_buffer_size_from_type(dm, type);
 	GLboolean uploaded;
 
 	pool = gpu_get_global_buffer_pool();
@@ -550,7 +552,7 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 }
 
 /* get the amount of space to allocate for a buffer of a particular type */
-static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
+static size_t gpu_mesh_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 {
 	const int components = gpu_buffer_type_settings[type].num_components;
 	switch (type) {
@@ -2088,4 +2090,229 @@ void GPU_end_draw_pbvh_BB(void)
 {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glPopAttrib();
+}
+
+/* *************** */
+/* Strands Buffers */
+
+/* get the GPUDrawObject buffer associated with a type */
+static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUBufferType type)
+{
+	switch (type) {
+		case GPU_BUFFER_VERTEX:
+			return &gds->points;
+		case GPU_BUFFER_NORMAL:
+			return &gds->normals;
+		case GPU_BUFFER_COLOR:
+			return &gds->colors;
+		case GPU_BUFFER_UV:
+			return &gds->uv;
+		case GPU_BUFFER_UV_TEXPAINT:
+			return &gds->uv_tex;
+		case GPU_BUFFER_EDGE:
+			return &gds->edges;
+		case GPU_BUFFER_UVEDGE:
+			return &gds->uvedges;
+		case GPU_BUFFER_TRIANGLES:
+			return &gds->triangles;
+		default:
+			return NULL;
+	}
+}
+
+/* get the amount of space to allocate for a buffer of a particular type */
+static size_t gpu_strands_buffer_size_from_type(Strands *strands, GPUBufferType type)
+{
+	const int components = gpu_buffer_type_settings[type].num_components;
+	const int totverts = strands->gpu_buffer->totverts;
+	const int totcurves = strands->gpu_buffer->totcurves;
+	
+	switch (type) {
+		case GPU_BUFFER_VERTEX:
+			return sizeof(float) * components * totverts;
+		case GPU_BUFFER_NORMAL:
+			return sizeof(short) * components * 0;
+		case GPU_BUFFER_COLOR:
+			return sizeof(char) * components * 0;
+		case GPU_BUFFER_UV:
+			return sizeof(float) * components * 0;
+		case GPU_BUFFER_UV_TEXPAINT:
+			return sizeof(float) * components * 0;
+		case GPU_BUFFER_EDGE:
+			return sizeof(int) * components * (totverts - totcurves);
+		case GPU_BUFFER_UVEDGE:
+			return sizeof(int) * components * 0;
+		case GPU_BUFFER_TRIANGLES:
+			return sizeof(int) * components * 0;
+		default:
+			return -1;
+	}
+}
+
+static GPUDrawStrands *strands_buffer_create(Strands *strands)
+{
+	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
+	
+	gsb->totverts = strands->totverts;
+	gsb->totcurves = strands->totcurves;
+	
+	return gsb;
+}
+
+static void strands_copy_vertex_buffer(Strands *strands, float (*varray)[3])
+{
+	int totverts = strands->totverts, v;
+	
+	StrandVertex *vert = strands->verts;
+	for (v = 0; v < totverts; ++v, ++vert) {
+		copy_v3_v3(*varray++, vert->co);
+	}
+}
+
+static void strands_copy_edge_buffer(Strands *strands, unsigned int (*varray)[2])
+{
+	int totcurves = strands->totcurves, c;
+	
+	StrandCurve *curve = strands->curves;
+	for (c = 0; c < totcurves; ++c, ++curve) {
+		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+		
+		StrandVertex *vert = strands->verts + verts_begin;
+		for (v = 0; v < num_verts - 1; ++v, ++vert) {
+			*varray[0] = verts_begin + v;
+			*varray[1] = verts_begin + v + 1;
+			++varray;
+		}
+	}
+}
+
+static void strands_copy_gpu_data(Strands *strands, GPUBufferType type, float *varray)
+{
+	switch (type) {
+		case GPU_BUFFER_VERTEX:
+			strands_copy_vertex_buffer(strands, (float (*)[3])varray);
+			break;
+		case GPU_BUFFER_NORMAL:
+			break;
+		case GPU_BUFFER_COLOR:
+			break;
+		case GPU_BUFFER_UV:
+			break;
+		case GPU_BUFFER_UV_TEXPAINT:
+			break;
+		case GPU_BUFFER_EDGE:
+			strands_copy_edge_buffer(strands, (unsigned int (*)[2])varray);
+			break;
+		case GPU_BUFFER_UVEDGE:
+			break;
+		case GPU_BUFFER_TRIANGLES:
+			break;
+	}
+}
+
+static GPUBuffer *strands_setup_buffer_type(Strands *strands, GPUBufferType type, GPUBuffer *buffer)
+{
+	GPUBufferPool *pool;
+	float *varray;
+	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
+	GLenum target = ts->gl_buffer_type;
+	size_t size = gpu_strands_buffer_size_from_type(strands, type);
+
+	pool = gpu_get_global_buffer_pool();
+
+	BLI_mutex_lock(&buffer_mutex);
+
+	/* alloc a GPUBuffer; fall back to legacy mode on failure */
+	if (!buffer) {
+		if (!(buffer = gpu_buffer_alloc_intern(size))) {
+			BLI_mutex_unlock(&buffer_mutex);
+			return NULL;
+		}
+	}
+
+	/* bind the buffer and discard previous data,
+	 * avoids stalling gpu */
+	glBindBuffer(target, buffer->id);
+	glBufferData(target, buffer->size, NULL, GL_STATIC_DRAW);
+
+	/* attempt to map the buffer */
+	if (!(varray = glMapBuffer(target, GL_WRITE_ONLY))) {
+		buffer = gpu_try_realloc(pool, buffer, size);
+
+		/* allocation still failed; unfortunately we need to exit */
+		if (!(buffer && (varray = glMapBuffer(target, GL_WRITE_ONLY)))) {
+			if (buffer)
+				gpu_buffer_free_intern(buffer);
+			BLI_mutex_unlock(&buffer_mutex);
+			return NULL;
+		}
+	}
+
+	{
+		GLboolean uploaded = GL_FALSE;
+		/* attempt to upload the data to the VBO */
+		while (uploaded == GL_FALSE) {
+			strands_copy_gpu_data(strands, type, varray);
+			
+			/* glUnmapBuffer returns GL_FALSE if
+			 * the data store is corrupted; retry
+			 * in that case */
+			uploaded = glUnmapBuffer(target);
+		}
+	}
+
+	glBindBuffer(target, 0);
+	BLI_mutex_unlock(&buffer_mutex);
+
+	return buffer;
+}
+
+static bool strands_setup_buffer_common(Strands *strands, GPUBufferType type, bool update)
+{
+	GPUBuffer **buf;
+	
+	if (!strands->gpu_buffer)
+		strands->gpu_buffer = strands_buffer_create(strands);
+	
+	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
+	if (*buf == NULL || update) {
+		*buf = strands_setup_buffer_type(strands, type, *buf);
+	}
+	
+	return *buf != NULL;
+}
+
+void GPU_strands_setup(Strands *strands)
+{
+	if (!strands_setup_buffer_common(strands, GPU_BUFFER_EDGE, false))
+		return;
+	if (!strands_setup_buffer_common(strands, GPU_BUFFER_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->points->id);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->edges->id);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
+}
+
+void GPU_strands_buffer_free(Strands *strands)
+{
+	if (strands && strands->gpu_buffer) {
+		GPUDrawStrands *gds = strands->gpu_buffer;
+		
+		GPU_buffer_free(gds->points);
+		GPU_buffer_free(gds->normals);
+		GPU_buffer_free(gds->uv);
+		GPU_buffer_free(gds->uv_tex);
+		GPU_buffer_free(gds->colors);
+		GPU_buffer_free(gds->edges);
+		GPU_buffer_free(gds->uvedges);
+		GPU_buffer_free(gds->triangles);
+	
+		MEM_freeN(gds);
+		strands->gpu_buffer = NULL;
+	}
 }

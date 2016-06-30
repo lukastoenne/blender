@@ -44,7 +44,7 @@
 #include "GPU_strands.h"
 #include "GPU_shader.h"
 
-struct GPUStrands {
+struct GPUStrandsShader {
 	bool bound;
 	
 	GPUShader *shader;
@@ -106,12 +106,12 @@ static char *codegen_geometry(void)
 #endif
 }
 
-GPUStrands *GPU_strands_get(struct Strands *strands)
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 {
-	if (strands->gpu_strands != NULL)
-		return strands->gpu_strands;
+	if (strands->gpu_shader != NULL)
+		return strands->gpu_shader;
 	
-	GPUStrands *gpu_strands = MEM_callocN(sizeof(GPUStrands), "GPUStrands");
+	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
 	/* TODO */
 	char *fragmentcode = codegen_fragment();
@@ -133,10 +133,10 @@ GPUStrands *GPU_strands_get(struct Strands *strands)
 	
 	/* failed? */
 	if (shader) {
-		gpu_strands->shader = shader;
-		gpu_strands->vertexcode = vertexcode;
-		gpu_strands->fragmentcode = fragmentcode;
-		gpu_strands->geometrycode = geometrycode;
+		gpu_shader->shader = shader;
+		gpu_shader->vertexcode = vertexcode;
+		gpu_shader->fragmentcode = fragmentcode;
+		gpu_shader->geometrycode = geometrycode;
 	}
 	else {
 		if (vertexcode)
@@ -147,52 +147,52 @@ GPUStrands *GPU_strands_get(struct Strands *strands)
 			MEM_freeN(geometrycode);
 	}
 	
-	strands->gpu_strands = gpu_strands;
-	return gpu_strands;
+	strands->gpu_shader = gpu_shader;
+	return gpu_shader;
 }
 
-void GPU_strands_free(struct GPUStrands *gpu_strands)
+void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 {
-	if (gpu_strands->shader)
-		GPU_shader_free(gpu_strands->shader);
+	if (gpu_shader->shader)
+		GPU_shader_free(gpu_shader->shader);
 	
-	if (gpu_strands->fragmentcode)
-		MEM_freeN(gpu_strands->fragmentcode);
-	if (gpu_strands->vertexcode)
-		MEM_freeN(gpu_strands->vertexcode);
-	if (gpu_strands->geometrycode)
-		MEM_freeN(gpu_strands->geometrycode);
+	if (gpu_shader->fragmentcode)
+		MEM_freeN(gpu_shader->fragmentcode);
+	if (gpu_shader->vertexcode)
+		MEM_freeN(gpu_shader->vertexcode);
+	if (gpu_shader->geometrycode)
+		MEM_freeN(gpu_shader->geometrycode);
 	
-	MEM_freeN(gpu_strands);
+	MEM_freeN(gpu_shader);
 }
 
-void GPU_strands_bind(GPUStrands *gpu_strands,
+void GPU_strand_shader_bind(GPUStrandsShader *gpu_shader,
                       float viewmat[4][4], float viewinv[4][4])
 {
-	if (!gpu_strands->shader)
+	if (!gpu_shader->shader)
 		return;
 
-	GPU_shader_bind(gpu_strands->shader);
+	GPU_shader_bind(gpu_shader->shader);
 	
 	UNUSED_VARS(viewmat, viewinv);
 }
 
-void GPU_strands_bind_uniforms(GPUStrands *gpu_strands,
+void GPU_strand_shader_bind_uniforms(GPUStrandsShader *gpu_shader,
                                float obmat[4][4], float viewmat[4][4])
 {
-	if (!gpu_strands->shader)
+	if (!gpu_shader->shader)
 		return;
 	
 	UNUSED_VARS(obmat, viewmat);
 }
 
-void GPU_strands_unbind(GPUStrands *gpu_strands)
+void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader)
 {
-	gpu_strands->bound = 0;
+	gpu_shader->bound = 0;
 	GPU_shader_unbind();
 }
 
-bool GPU_strands_bound(GPUStrands *gpu_strands)
+bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader)
 {
-	return gpu_strands->bound;
+	return gpu_shader->bound;
 }
