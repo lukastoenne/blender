@@ -2121,7 +2121,7 @@ static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUBufferTy
 }
 
 /* get the amount of space to allocate for a buffer of a particular type */
-static size_t gpu_strands_buffer_size_from_type(Strands *strands, GPUBufferType type)
+static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUBufferType type)
 {
 	const int components = gpu_buffer_type_settings[type].num_components;
 	const int totverts = strands->gpu_buffer->totverts;
@@ -2149,7 +2149,7 @@ static size_t gpu_strands_buffer_size_from_type(Strands *strands, GPUBufferType 
 	}
 }
 
-static GPUDrawStrands *strands_buffer_create(Strands *strands)
+static GPUDrawStrands *strands_buffer_create(StrandData *strands)
 {
 	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
 	
@@ -2159,34 +2159,34 @@ static GPUDrawStrands *strands_buffer_create(Strands *strands)
 	return gsb;
 }
 
-static void strands_copy_vertex_buffer(Strands *strands, float (*varray)[3])
+static void strands_copy_vertex_buffer(StrandData *strands, float (*varray)[3])
 {
 	int totverts = strands->totverts, v;
 	
-	StrandVertex *vert = strands->verts;
+	StrandVertexData *vert = strands->verts;
 	for (v = 0; v < totverts; ++v, ++vert) {
 		copy_v3_v3(*varray++, vert->co);
 	}
 }
 
-static void strands_copy_edge_buffer(Strands *strands, unsigned int (*varray)[2])
+static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)[2])
 {
 	int totcurves = strands->totcurves, c;
 	
-	StrandCurve *curve = strands->curves;
+	StrandCurveData *curve = strands->curves;
 	for (c = 0; c < totcurves; ++c, ++curve) {
 		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
 		
-		StrandVertex *vert = strands->verts + verts_begin;
+		StrandVertexData *vert = strands->verts + verts_begin;
 		for (v = 0; v < num_verts - 1; ++v, ++vert) {
-			*varray[0] = verts_begin + v;
-			*varray[1] = verts_begin + v + 1;
+			(*varray)[0] = verts_begin + v;
+			(*varray)[1] = verts_begin + v + 1;
 			++varray;
 		}
 	}
 }
 
-static void strands_copy_gpu_data(Strands *strands, GPUBufferType type, float *varray)
+static void strands_copy_gpu_data(StrandData *strands, GPUBufferType type, float *varray)
 {
 	switch (type) {
 		case GPU_BUFFER_VERTEX:
@@ -2210,7 +2210,7 @@ static void strands_copy_gpu_data(Strands *strands, GPUBufferType type, float *v
 	}
 }
 
-static GPUBuffer *strands_setup_buffer_type(Strands *strands, GPUBufferType type, GPUBuffer *buffer)
+static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUBufferType type, GPUBuffer *buffer)
 {
 	GPUBufferPool *pool;
 	float *varray;
@@ -2267,7 +2267,7 @@ static GPUBuffer *strands_setup_buffer_type(Strands *strands, GPUBufferType type
 	return buffer;
 }
 
-static bool strands_setup_buffer_common(Strands *strands, GPUBufferType type, bool update)
+static bool strands_setup_buffer_common(StrandData *strands, GPUBufferType type, bool update)
 {
 	GPUBuffer **buf;
 	
@@ -2282,7 +2282,7 @@ static bool strands_setup_buffer_common(Strands *strands, GPUBufferType type, bo
 	return *buf != NULL;
 }
 
-void GPU_strands_setup(Strands *strands)
+void GPU_strands_setup(StrandData *strands)
 {
 	if (!strands_setup_buffer_common(strands, GPU_BUFFER_EDGE, false))
 		return;
@@ -2298,7 +2298,7 @@ void GPU_strands_setup(Strands *strands)
 	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
 }
 
-void GPU_strands_buffer_free(Strands *strands)
+void GPU_strands_buffer_free(StrandData *strands)
 {
 	if (strands && strands->gpu_buffer) {
 		GPUDrawStrands *gds = strands->gpu_buffer;

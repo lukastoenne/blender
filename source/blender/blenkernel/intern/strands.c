@@ -61,7 +61,7 @@ Strands *BKE_strands_copy(Strands *strands)
 	
 	/* lazy initialized */
 	nstrands->gpu_shader = NULL;
-	nstrands->gpu_buffer = NULL;
+	nstrands->data_final = NULL;
 	
 	return nstrands;
 }
@@ -70,7 +70,10 @@ void BKE_strands_free(Strands *strands)
 {
 	if (strands->gpu_shader)
 		GPU_strand_shader_free(strands->gpu_shader);
-	GPU_strands_buffer_free(strands);
+	GPU_strands_buffer_free(strands->data_final);
+	
+	if (strands->data_final)
+		BKE_strand_data_free(strands->data_final);
 	
 	if (strands->curves)
 		MEM_freeN(strands->curves);
@@ -78,6 +81,53 @@ void BKE_strands_free(Strands *strands)
 		MEM_freeN(strands->verts);
 	MEM_freeN(strands);
 }
+
+/* ------------------------------------------------------------------------- */
+
+StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp)
+{
+	StrandData *data = MEM_callocN(sizeof(StrandData), "StrandData");
+	
+	data->totverts = strands->totverts;
+	data->totcurves = strands->totcurves;
+	data->verts = MEM_mallocN(sizeof(StrandVertexData) * data->totverts, "StrandVertexData");
+	data->curves = MEM_mallocN(sizeof(StrandCurveData) * data->totcurves, "StrandCurveData");
+	
+	int c;
+	StrandCurve *scurve = strands->curves;
+	StrandCurveData *curve = data->curves;
+	for (c = 0; c < data->totcurves; ++c, ++scurve, ++curve) {
+		curve->verts_begin = scurve->verts_begin;
+		curve->num_verts = scurve->num_verts;
+		
+		BKE_mesh_sample_eval(scalp, &scurve->root, curve->mat[3], curve->mat[2], curve->mat[0]);
+		cross_v3_v3v3(curve->mat[1], curve->mat[2], curve->mat[0]);
+		
+		int v;
+		StrandVertex *svert = strands->verts + scurve->verts_begin;
+		StrandVertexData *vert = data->verts + curve->verts_begin;
+		for (v = 0; v < curve->num_verts; ++v, ++svert, ++vert) {
+			mul_v3_m4v3(vert->co, curve->mat, svert->co);
+		}
+	}
+	
+	return data;
+}
+
+void BKE_strand_data_free(StrandData *data)
+{
+	if (data) {
+		GPU_strands_buffer_free(data);
+		
+		if (data->verts)
+			MEM_freeN(data->verts);
+		if (data->curves)
+			MEM_freeN(data->curves);
+		MEM_freeN(data);
+	}
+}
+
+/* ------------------------------------------------------------------------- */
 
 void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
                            int totcurves, int maxverts,

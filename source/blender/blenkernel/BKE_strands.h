@@ -47,7 +47,37 @@ void BKE_strands_free(struct Strands *strands);
 
 /* ------------------------------------------------------------------------- */
 
-struct StrandData *BKE_strand_data_calc(Strands *strands);
+typedef struct StrandVertexData {
+	/* Position */
+	float co[3];
+	int pad;
+} StrandVertexData;
+
+typedef struct StrandCurveData {
+	/* Start of vertex list */
+	unsigned int verts_begin;
+	/* Number of vertices in the curve */
+	unsigned int num_verts;
+	
+	/* Transform from strand space to object space */
+	float mat[4][4];
+} StrandCurveData;
+
+typedef struct StrandData {
+	/* Array of vertices */
+	StrandVertexData *verts;
+	/* Array of curves */
+	StrandCurveData *curves;
+	
+	/* Total number of vertices */
+	int totverts;
+	/* Total number of curves */
+	int totcurves;
+	
+	struct GPUDrawStrands *gpu_buffer;
+} StrandData;
+
+struct StrandData *BKE_strand_data_calc(struct Strands *strands, struct DerivedMesh *scalp);
 void BKE_strand_data_free(struct StrandData *data);
 
 /* ------------------------------------------------------------------------- */

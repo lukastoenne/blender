@@ -71,20 +71,9 @@ typedef struct Strands {
 	/* Total number of curves */
 	int totcurves;
 	
-	struct GPUStrandsShader *gpu_shader;
-	struct GPUDrawStrands *gpu_buffer;
-} Strands;
-
-typedef struct StrandData {
-	/* Array of vertices */
-	StrandVertex *verts;
-	/* Array of curves */
-	StrandCurve *curves;
+	struct StrandData *data_final;
 	
-	/* Total number of vertices */
-	int totverts;
-	/* Total number of curves */
-	int totcurves;
-} StrandData;
+	struct GPUStrandsShader *gpu_shader;
+} Strands;
 
 #endif

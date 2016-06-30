@@ -89,7 +89,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
                                   ModifierApplyFlag UNUSED(flag))
 {
 	StrandsModifierData *smd = (StrandsModifierData *) md;
-	UNUSED_VARS(smd);
+	
+	if (smd->strands) {
+		if (smd->strands->data_final)
+			BKE_strand_data_free(smd->strands->data_final);
+		
+		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm);
+	}
+	
 	return dm;
 }
 

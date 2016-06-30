@@ -74,6 +74,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+#include "BKE_strands.h"
 #include "BKE_subsurf.h"
 #include "BKE_unit.h"
 #include "BKE_tracking.h"
@@ -7970,8 +7971,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
 			
-			if (smd->strands) {
-				draw_strands(smd->strands, ob, rv3d);
+			if (smd->strands && smd->strands->data_final) {
+				draw_strands(smd->strands, smd->strands->data_final, ob, rv3d);
 			}
 		}
 	}

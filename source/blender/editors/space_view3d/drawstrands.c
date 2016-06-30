@@ -52,7 +52,7 @@
 
 #include "view3d_intern.h"  // own include
 
-void draw_strands(Strands *strands, Object *ob, RegionView3D *rv3d)
+void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *rv3d)
 {
 	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
 	GPUDrawStrands *gds;
@@ -60,38 +60,12 @@ void draw_strands(Strands *strands, Object *ob, RegionView3D *rv3d)
 	GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
 	GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
 	
-	GPU_strands_setup(strands);
-	gds = strands->gpu_buffer;
+	GPU_strands_setup(data);
+	gds = data->gpu_buffer;
 	if (gds->points && gds->edges) {
 		GPU_buffer_draw_elements(gds->edges, GL_LINES, 0, (gds->totverts - gds->totcurves) * 2);
 	}
 	GPU_buffers_unbind();
-	
-#if 0
-	GLuint vertex_buffer;
-	glGenBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	
-	const size_t numverts = 4;
-	float verts[12] = {
-	    0.0f, 0.0f, 0.0f,
-	    1.0f, 0.0f, 0.0f,
-	    0.0f, 1.0f, 0.0f,
-	    1.0f, 1.0f, 0.0f,
-	};
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * numverts, verts, GL_STATIC_DRAW);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, NULL);
-
-	glDrawArrays(GL_TRIANGLES, 0, numverts);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-
-	/* cleanup */
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glDeleteBuffers(1, &vertex_buffer);
-#endif
 	
 	GPU_strand_shader_unbind(gpu_shader);
 }
