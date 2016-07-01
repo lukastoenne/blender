@@ -145,14 +145,9 @@ typedef struct GPUVertPointLink {
 } GPUVertPointLink;
 
 typedef struct GPUDrawStrands {
-	GPUBuffer *points;
-	GPUBuffer *normals;
-	GPUBuffer *uv;
-	GPUBuffer *uv_tex;
-	GPUBuffer *colors;
-	GPUBuffer *edges;
-	GPUBuffer *uvedges;
-	GPUBuffer *triangles; /* triangle index buffer */
+	GPUBuffer *control_points;
+	GPUBuffer *control_edges;
+	GPUBuffer *root_points;
 
 	unsigned int totverts;
 	unsigned int totcurves;
@@ -288,6 +283,7 @@ void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_
 
 void GPU_strands_setup_verts(struct StrandData *strands);
 void GPU_strands_setup_edges(struct StrandData *strands);
+void GPU_strands_setup_roots(struct StrandData *strands);
 void GPU_strands_buffer_free(struct StrandData *strands);
 
 #endif

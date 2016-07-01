@@ -60,8 +60,8 @@ void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *
 	if (show_controls) {
 		GPU_strands_setup_edges(data);
 		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->points && gds->edges) {
-			GPU_buffer_draw_elements(gds->edges, GL_LINES, 0,
+		if (gds->control_points && gds->control_edges) {
+			GPU_buffer_draw_elements(gds->control_edges, GL_LINES, 0,
 			                         (gds->totverts - gds->totcurves) * 2);
 		}
 		GPU_buffers_unbind();
@@ -71,10 +71,10 @@ void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *
 		GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
 		GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
 		
-		GPU_strands_setup_verts(data);
+		GPU_strands_setup_roots(data);
 		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->points) {
-			glDrawArrays(GL_POINTS, gds->totverts * 3, gds->totroots * 3);
+		if (gds->root_points) {
+			glDrawArrays(GL_POINTS, 0, gds->totroots * 3);
 		}
 		GPU_buffers_unbind();
 		

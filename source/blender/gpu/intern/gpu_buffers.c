@@ -2095,33 +2095,38 @@ void GPU_end_draw_pbvh_BB(void)
 /* *************** */
 /* Strands Buffers */
 
+typedef enum GPUStrandBufferType {
+	GPU_STRAND_BUFFER_CONTROL_VERTEX = 0,
+	GPU_STRAND_BUFFER_CONTROL_EDGE,
+	GPU_STRAND_BUFFER_ROOT_VERTEX,
+} GPUStrandBufferType;
+
+const GPUBufferTypeSettings gpu_strand_buffer_type_settings[] = {
+    /* control vertex */
+    {GL_ARRAY_BUFFER, 3},
+    /* control edge */
+    {GL_ELEMENT_ARRAY_BUFFER, 2},
+    /* root vertex */
+    {GL_ARRAY_BUFFER, 3},
+};
+
 /* get the GPUDrawObject buffer associated with a type */
-static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUBufferType type)
+static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUStrandBufferType type)
 {
 	switch (type) {
-		case GPU_BUFFER_VERTEX:
-			return &gds->points;
-		case GPU_BUFFER_NORMAL:
-			return &gds->normals;
-		case GPU_BUFFER_COLOR:
-			return &gds->colors;
-		case GPU_BUFFER_UV:
-			return &gds->uv;
-		case GPU_BUFFER_UV_TEXPAINT:
-			return &gds->uv_tex;
-		case GPU_BUFFER_EDGE:
-			return &gds->edges;
-		case GPU_BUFFER_UVEDGE:
-			return &gds->uvedges;
-		case GPU_BUFFER_TRIANGLES:
-			return &gds->triangles;
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+			return &gds->control_points;
+		case GPU_STRAND_BUFFER_CONTROL_EDGE:
+			return &gds->control_edges;
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			return &gds->root_points;
 		default:
 			return NULL;
 	}
 }
 
 /* get the amount of space to allocate for a buffer of a particular type */
-static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUBufferType type)
+static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBufferType type)
 {
 	const int components = gpu_buffer_type_settings[type].num_components;
 	const int totverts = strands->gpu_buffer->totverts;
@@ -2129,22 +2134,12 @@ static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUBufferTy
 	const int totroots = strands->gpu_buffer->totroots;
 	
 	switch (type) {
-		case GPU_BUFFER_VERTEX:
-			return sizeof(float) * components * (totverts + totroots);
-		case GPU_BUFFER_NORMAL:
-			return sizeof(short) * components * 0;
-		case GPU_BUFFER_COLOR:
-			return sizeof(char) * components * 0;
-		case GPU_BUFFER_UV:
-			return sizeof(float) * components * 0;
-		case GPU_BUFFER_UV_TEXPAINT:
-			return sizeof(float) * components * 0;
-		case GPU_BUFFER_EDGE:
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+			return sizeof(float) * components * totverts;
+		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			return sizeof(int) * components * (totverts - totcurves);
-		case GPU_BUFFER_UVEDGE:
-			return sizeof(int) * components * 0;
-		case GPU_BUFFER_TRIANGLES:
-			return sizeof(int) * components * 0;
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			return sizeof(float) * components * totroots;
 		default:
 			return -1;
 	}
@@ -2163,18 +2158,12 @@ static GPUDrawStrands *strands_buffer_create(StrandData *strands)
 
 static void strands_copy_vertex_buffer(StrandData *strands, float (*varray)[3])
 {
-	int totverts = strands->totverts, totroots = strands->totroots, v;
+	int totverts = strands->totverts, v;
 	
 	/* control strand vertices */
 	StrandVertexData *vert = strands->verts;
 	for (v = 0; v < totverts; ++v, ++vert) {
 		copy_v3_v3(*varray++, vert->co);
-	}
-	
-	/* strand root points */
-	StrandRootData *root = strands->roots;
-	for (v = 0; v < totroots; ++v, ++root) {
-		copy_v3_v3(*varray++, root->co);
 	}
 }
 
@@ -2195,35 +2184,37 @@ static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)
 	}
 }
 
-static void strands_copy_gpu_data(StrandData *strands, GPUBufferType type, float *varray)
+static void strands_copy_root_buffer(StrandData *strands, float (*varray)[3])
+{
+	int totroots = strands->totroots, v;
+	
+	/* strand root points */
+	StrandRootData *root = strands->roots;
+	for (v = 0; v < totroots; ++v, ++root) {
+		copy_v3_v3(*varray++, root->co);
+	}
+}
+
+static void strands_copy_gpu_data(StrandData *strands, GPUStrandBufferType type, float *varray)
 {
 	switch (type) {
-		case GPU_BUFFER_VERTEX:
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			strands_copy_vertex_buffer(strands, (float (*)[3])varray);
 			break;
-		case GPU_BUFFER_NORMAL:
-			break;
-		case GPU_BUFFER_COLOR:
-			break;
-		case GPU_BUFFER_UV:
-			break;
-		case GPU_BUFFER_UV_TEXPAINT:
-			break;
-		case GPU_BUFFER_EDGE:
+		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			strands_copy_edge_buffer(strands, (unsigned int (*)[2])varray);
 			break;
-		case GPU_BUFFER_UVEDGE:
-			break;
-		case GPU_BUFFER_TRIANGLES:
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			strands_copy_root_buffer(strands, (float (*)[3])varray);
 			break;
 	}
 }
 
-static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUBufferType type, GPUBuffer *buffer)
+static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBufferType type, GPUBuffer *buffer)
 {
 	GPUBufferPool *pool;
 	float *varray;
-	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
+	const GPUBufferTypeSettings *ts = &gpu_strand_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
 	size_t size = gpu_strands_buffer_size_from_type(strands, type);
 
@@ -2276,7 +2267,7 @@ static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUBufferType t
 	return buffer;
 }
 
-static bool strands_setup_buffer_common(StrandData *strands, GPUBufferType type, bool update)
+static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType type, bool update)
 {
 	GPUBuffer **buf;
 	
@@ -2293,11 +2284,11 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUBufferType type,
 
 void GPU_strands_setup_verts(StrandData *strands)
 {
-	if (!strands_setup_buffer_common(strands, GPU_BUFFER_VERTEX, false))
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->points->id);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->control_points->id);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
@@ -2305,18 +2296,30 @@ void GPU_strands_setup_verts(StrandData *strands)
 
 void GPU_strands_setup_edges(StrandData *strands)
 {
-	if (!strands_setup_buffer_common(strands, GPU_BUFFER_EDGE, false))
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_EDGE, false))
 		return;
-	if (!strands_setup_buffer_common(strands, GPU_BUFFER_VERTEX, false))
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->points->id);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->control_points->id);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->edges->id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->control_edges->id);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
+}
+
+void GPU_strands_setup_roots(StrandData *strands)
+{
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_ROOT_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->root_points->id);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 }
 
 void GPU_strands_buffer_free(StrandData *strands)
@@ -2324,14 +2327,9 @@ void GPU_strands_buffer_free(StrandData *strands)
 	if (strands && strands->gpu_buffer) {
 		GPUDrawStrands *gds = strands->gpu_buffer;
 		
-		GPU_buffer_free(gds->points);
-		GPU_buffer_free(gds->normals);
-		GPU_buffer_free(gds->uv);
-		GPU_buffer_free(gds->uv_tex);
-		GPU_buffer_free(gds->colors);
-		GPU_buffer_free(gds->edges);
-		GPU_buffer_free(gds->uvedges);
-		GPU_buffer_free(gds->triangles);
+		GPU_buffer_free(gds->control_points);
+		GPU_buffer_free(gds->control_edges);
+		GPU_buffer_free(gds->root_points);
 	
 		MEM_freeN(gds);
 		strands->gpu_buffer = NULL;
