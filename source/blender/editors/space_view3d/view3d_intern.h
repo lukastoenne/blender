@@ -289,7 +289,7 @@ extern const char *view3d_context_dir[]; /* doc access */
 
 /* drawstrands.c */
 void draw_strands(struct Strands *strands, struct StrandData *data, struct Object *ob, struct RegionView3D *rv3d,
-                  bool show_controls);
+                  bool show_controls, bool show_strands);
 
 /* drawvolume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,

@@ -117,7 +117,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 	int i;
 	StrandRoot *sroot = roots;
 	StrandRootData *root = data->roots;
-	for (i = 0; i < data->totroots; ++i) {
+	for (i = 0; i < data->totroots; ++i, ++sroot, ++root) {
 		float nor[3], tang[3];
 		BKE_mesh_sample_eval(scalp, &sroot->root, root->co, nor, tang);
 		

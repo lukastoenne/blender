@@ -1560,6 +1560,7 @@ typedef struct StrandsModifierData {
 /* StrandsModifierData.flag */
 enum {
 	MOD_STRANDS_SHOW_CONTROL_STRANDS = (1 << 0),
+	MOD_STRANDS_SHOW_RENDER_STRANDS = (1 << 1),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

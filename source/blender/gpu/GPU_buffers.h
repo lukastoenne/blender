@@ -156,6 +156,7 @@ typedef struct GPUDrawStrands {
 
 	unsigned int totverts;
 	unsigned int totcurves;
+	unsigned int totroots;
 } GPUDrawStrands;
 
 
@@ -285,8 +286,8 @@ void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_
 
 /* strands */
 
-void GPU_strands_setup_control_verts(struct StrandData *strands);
-void GPU_strands_setup_control_edges(struct StrandData *strands);
+void GPU_strands_setup_verts(struct StrandData *strands);
+void GPU_strands_setup_edges(struct StrandData *strands);
 void GPU_strands_buffer_free(struct StrandData *strands);
 
 #endif

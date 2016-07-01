@@ -2126,10 +2126,11 @@ static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUBufferTy
 	const int components = gpu_buffer_type_settings[type].num_components;
 	const int totverts = strands->gpu_buffer->totverts;
 	const int totcurves = strands->gpu_buffer->totcurves;
+	const int totroots = strands->gpu_buffer->totroots;
 	
 	switch (type) {
 		case GPU_BUFFER_VERTEX:
-			return sizeof(float) * components * totverts;
+			return sizeof(float) * components * (totverts + totroots);
 		case GPU_BUFFER_NORMAL:
 			return sizeof(short) * components * 0;
 		case GPU_BUFFER_COLOR:
@@ -2155,17 +2156,25 @@ static GPUDrawStrands *strands_buffer_create(StrandData *strands)
 	
 	gsb->totverts = strands->totverts;
 	gsb->totcurves = strands->totcurves;
+	gsb->totroots = strands->totroots;
 	
 	return gsb;
 }
 
 static void strands_copy_vertex_buffer(StrandData *strands, float (*varray)[3])
 {
-	int totverts = strands->totverts, v;
+	int totverts = strands->totverts, totroots = strands->totroots, v;
 	
+	/* control strand vertices */
 	StrandVertexData *vert = strands->verts;
 	for (v = 0; v < totverts; ++v, ++vert) {
 		copy_v3_v3(*varray++, vert->co);
+	}
+	
+	/* strand root points */
+	StrandRootData *root = strands->roots;
+	for (v = 0; v < totroots; ++v, ++root) {
+		copy_v3_v3(*varray++, root->co);
 	}
 }
 
@@ -2282,7 +2291,7 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUBufferType type,
 	return *buf != NULL;
 }
 
-void GPU_strands_setup_control_verts(StrandData *strands)
+void GPU_strands_setup_verts(StrandData *strands)
 {
 	if (!strands_setup_buffer_common(strands, GPU_BUFFER_VERTEX, false))
 		return;
@@ -2294,7 +2303,7 @@ void GPU_strands_setup_control_verts(StrandData *strands)
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 }
 
-void GPU_strands_setup_control_edges(StrandData *strands)
+void GPU_strands_setup_edges(StrandData *strands)
 {
 	if (!strands_setup_buffer_common(strands, GPU_BUFFER_EDGE, false))
 		return;

@@ -890,6 +890,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Display:")
         col.prop(md, "show_control_strands", text="Control Strands")
+        col.prop(md, "show_render_strands", text="Render Strands")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

@@ -59,7 +59,8 @@ static void initData(ModifierData *md)
 	smd->num_roots = 0;
 	smd->roots = NULL;
 	
-	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS;
+	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS |
+	             MOD_STRANDS_SHOW_RENDER_STRANDS;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
