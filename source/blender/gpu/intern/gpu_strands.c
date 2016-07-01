@@ -54,9 +54,38 @@ struct GPUStrandsShader {
 	char *vertexcode;
 };
 
-extern char datatoc_gpu_shader_basic_vert_glsl[];
-extern char datatoc_gpu_shader_basic_frag_glsl[];
-extern char datatoc_gpu_shader_basic_geom_glsl[];
+const char *vertex_shader = STRINGIFY(
+	void main()
+	{
+		vec4 co = gl_ModelViewMatrix * gl_Vertex;
+		gl_Position = gl_ProjectionMatrix * co;
+	}
+);
+
+const char *fragment_shader = STRINGIFY(
+	out vec4 outColor;
+	
+	void main()
+	{
+		outColor = vec4(1.0, 0.0, 1.0, 1.0);
+	}
+);
+
+const char *geometry_shader = STRINGIFY(
+	layout(points) in;
+	layout(line_strip, max_vertices = 2) out;
+	
+	void main()
+	{
+		gl_Position = gl_in[0].gl_Position + vec4(-0.1, 0.0, 0.0, 0.0);
+		EmitVertex();
+		
+		gl_Position = gl_in[0].gl_Position + vec4(0.1, 0.0, 0.0, 0.0);
+		EmitVertex();
+		
+		EndPrimitive();
+	}
+);
 
 static char *codegen_vertex(void)
 {
@@ -70,7 +99,7 @@ static char *codegen_vertex(void)
 	
 	return code;
 #else
-	return BLI_strdup(datatoc_gpu_shader_basic_vert_glsl);
+	return BLI_strdup(vertex_shader);
 #endif
 }
 
@@ -86,7 +115,7 @@ static char *codegen_fragment(void)
 	
 	return code;
 #else
-	return BLI_strdup(datatoc_gpu_shader_basic_frag_glsl);
+	return BLI_strdup(fragment_shader);
 #endif
 }
 
@@ -102,7 +131,7 @@ static char *codegen_geometry(void)
 	
 	return code;
 #else
-	return BLI_strdup(datatoc_gpu_shader_basic_geom_glsl);
+	return BLI_strdup(geometry_shader);
 #endif
 }
 
@@ -116,7 +145,7 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 	/* TODO */
 	char *fragmentcode = codegen_fragment();
 	char *vertexcode = codegen_vertex();
-	char *geometrycode = false ? codegen_geometry() : NULL;
+	char *geometrycode = codegen_geometry();
 	
 	int flags = GPU_SHADER_FLAGS_NONE;
 	
