@@ -52,20 +52,22 @@
 
 #include "view3d_intern.h"  // own include
 
-void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *rv3d)
+void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *rv3d,
+                  bool show_controls)
 {
 	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
-	GPUDrawStrands *gds;
 	
-	GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
-	GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
-	
-	GPU_strands_setup(data);
-	gds = data->gpu_buffer;
-	if (gds->points && gds->edges) {
-		GPU_buffer_draw_elements(gds->edges, GL_LINES, 0, (gds->totverts - gds->totcurves) * 2);
+	if (show_controls) {
+		GPU_strands_setup_control_edges(data);
+		GPUDrawStrands *gds = data->gpu_buffer;
+		if (gds->points && gds->edges) {
+			GPU_buffer_draw_elements(gds->edges, GL_LINES, 0, (gds->totverts - gds->totcurves) * 2);
+		}
+		GPU_buffers_unbind();
 	}
-	GPU_buffers_unbind();
 	
-	GPU_strand_shader_unbind(gpu_shader);
+//	GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
+//	GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
+	
+//	GPU_strand_shader_unbind(gpu_shader);
 }

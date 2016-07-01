@@ -288,7 +288,8 @@ ARegion *view3d_has_tools_region(ScrArea *sa);
 extern const char *view3d_context_dir[]; /* doc access */
 
 /* drawstrands.c */
-void draw_strands(struct Strands *strands, struct StrandData *data, struct Object *ob, struct RegionView3D *rv3d);
+void draw_strands(struct Strands *strands, struct StrandData *data, struct Object *ob, struct RegionView3D *rv3d,
+                  bool show_controls);
 
 /* drawvolume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,

@@ -7972,7 +7972,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			StrandsModifierData *smd = (StrandsModifierData *)md;
 			
 			if (smd->strands && smd->strands->data_final) {
-				draw_strands(smd->strands, smd->strands->data_final, ob, rv3d);
+				draw_strands(smd->strands, smd->strands->data_final, ob, rv3d,
+				             smd->flag & MOD_STRANDS_SHOW_CONTROL_STRANDS);
 			}
 		}
 	}

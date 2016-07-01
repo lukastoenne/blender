@@ -2282,7 +2282,19 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUBufferType type,
 	return *buf != NULL;
 }
 
-void GPU_strands_setup(StrandData *strands)
+void GPU_strands_setup_control_verts(StrandData *strands)
+{
+	if (!strands_setup_buffer_common(strands, GPU_BUFFER_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->points->id);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE);
+}
+
+void GPU_strands_setup_control_edges(StrandData *strands)
 {
 	if (!strands_setup_buffer_common(strands, GPU_BUFFER_EDGE, false))
 		return;
