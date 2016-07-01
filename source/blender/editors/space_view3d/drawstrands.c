@@ -76,7 +76,7 @@ void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *
 		if (gds->root_points) {
 			glDrawArrays(GL_POINTS, 0, gds->totroots * 3);
 		}
-		GPU_buffers_unbind();
+		GPU_strands_buffer_unbind();
 		
 		GPU_strand_shader_unbind(gpu_shader);
 	}

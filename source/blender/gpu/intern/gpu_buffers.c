@@ -2102,11 +2102,11 @@ typedef enum GPUStrandBufferType {
 } GPUStrandBufferType;
 
 const GPUBufferTypeSettings gpu_strand_buffer_type_settings[] = {
-    /* control vertex */
+    /* CONTROL_VERTEX */
     {GL_ARRAY_BUFFER, 3},
-    /* control edge */
+    /* CONTROL_EDGE */
     {GL_ELEMENT_ARRAY_BUFFER, 2},
-    /* root vertex */
+    /* ROOT_VERTEX */
     {GL_ARRAY_BUFFER, 3},
 };
 
@@ -2121,6 +2121,19 @@ static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUStrandBu
 		case GPU_STRAND_BUFFER_ROOT_VERTEX:
 			return &gds->root_points;
 		default:
+			return NULL;
+	}
+}
+
+static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gds, GPUStrandBufferType type,
+                                                              GLenum *format)
+{
+	switch (type) {
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			*format = GL_RGB32F;
+			return &gds->root_tex;
+		default:
+			*format = 0;
 			return NULL;
 	}
 }
@@ -2267,9 +2280,21 @@ static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBuffer
 	return buffer;
 }
 
+static void strands_setup_buffer_texture(StrandData *UNUSED(strands), GPUBuffer *buffer, GLenum format,
+                                         GPUBufferTexture *tex)
+{
+	glGenTextures(1, &tex->id);
+	glBindTexture(GL_TEXTURE_BUFFER, tex->id);
+	
+	glTexBuffer(GL_TEXTURE_BUFFER, format, buffer->id);
+	
+	glBindTexture(GL_TEXTURE_BUFFER, 0);
+}
+
 static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType type, bool update)
 {
 	GPUBuffer **buf;
+	GPUBufferTexture *tex;
 	
 	if (!strands->gpu_buffer)
 		strands->gpu_buffer = strands_buffer_create(strands);
@@ -2277,6 +2302,13 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType
 	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
 	if (*buf == NULL || update) {
 		*buf = strands_setup_buffer_type(strands, type, *buf);
+		
+		if (*buf) {
+			GLenum tex_format;
+			tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
+			if (tex)
+				strands_setup_buffer_texture(strands, *buf, tex_format, tex);
+		}
 	}
 	
 	return *buf != NULL;
@@ -2320,6 +2352,20 @@ void GPU_strands_setup_roots(StrandData *strands)
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
+
+	glActiveTexture(GL_TEXTURE0);
+	if (strands->gpu_buffer->root_tex.id != 0) {
+		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->root_tex.id);
+	}
+}
+
+void GPU_strands_buffer_unbind(void)
+{
+	GPU_buffers_unbind();
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_BUFFER, 0);
+	glDisable(GL_TEXTURE_BUFFER);
 }
 
 void GPU_strands_buffer_free(StrandData *strands)
@@ -2327,10 +2373,15 @@ void GPU_strands_buffer_free(StrandData *strands)
 	if (strands && strands->gpu_buffer) {
 		GPUDrawStrands *gds = strands->gpu_buffer;
 		
+#if 0 /* XXX crashes, maybe not needed for buffer textures? */
+		if (gds->root_tex.id)
+			glDeleteTextures(1, &gds->root_tex.id);
+#endif
+		
 		GPU_buffer_free(gds->control_points);
 		GPU_buffer_free(gds->control_edges);
 		GPU_buffer_free(gds->root_points);
-	
+		
 		MEM_freeN(gds);
 		strands->gpu_buffer = NULL;
 	}
