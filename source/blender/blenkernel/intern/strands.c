@@ -84,14 +84,17 @@ void BKE_strands_free(Strands *strands)
 
 /* ------------------------------------------------------------------------- */
 
-StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp)
+StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
+                                 StrandRoot *roots, int num_roots)
 {
 	StrandData *data = MEM_callocN(sizeof(StrandData), "StrandData");
 	
 	data->totverts = strands->totverts;
 	data->totcurves = strands->totcurves;
+	data->totroots = num_roots;
 	data->verts = MEM_mallocN(sizeof(StrandVertexData) * data->totverts, "StrandVertexData");
 	data->curves = MEM_mallocN(sizeof(StrandCurveData) * data->totcurves, "StrandCurveData");
+	data->roots = MEM_mallocN(sizeof(StrandRootData) * data->totroots, "StrandRootData");
 	
 	int c;
 	StrandCurve *scurve = strands->curves;
@@ -111,6 +114,20 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp)
 		}
 	}
 	
+	int i;
+	StrandRoot *sroot = roots;
+	StrandRootData *root = data->roots;
+	for (i = 0; i < data->totroots; ++i) {
+		float nor[3], tang[3];
+		BKE_mesh_sample_eval(scalp, &sroot->root, root->co, nor, tang);
+		
+		int k;
+		for (k = 0; k < 4; ++k) {
+			root->control_index[k] = sroot->control_index[k];
+			root->control_weights[k] = sroot->control_weights[k];
+		}
+	}
+	
 	return data;
 }
 
@@ -123,6 +140,8 @@ void BKE_strand_data_free(StrandData *data)
 			MEM_freeN(data->verts);
 		if (data->curves)
 			MEM_freeN(data->curves);
+		if (data->roots)
+			MEM_freeN(data->roots);
 		MEM_freeN(data);
 	}
 }
@@ -176,36 +195,36 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 	strands->totverts = totverts;
 }
 
-StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
-                                const StrandCurve *controls, unsigned int num_controls,
+StrandRoot *BKE_strands_scatter(Strands *strands,
+                                struct DerivedMesh *scalp, unsigned int amount,
                                 unsigned int seed)
 {
 	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
 	unsigned int i;
 	
-	StrandInfo *strands = MEM_mallocN(sizeof(StrandInfo) * amount, "strands");
-	StrandInfo *s;
+	StrandRoot *roots = MEM_mallocN(sizeof(StrandRoot) * amount, "StrandRoot");
+	StrandRoot *root;
 	
-	UNUSED_VARS(controls, num_controls);
-	for (i = 0, s = strands; i < amount; ++i, ++s) {
-		if (BKE_mesh_sample_generate(gen, &s->root)) {
+	UNUSED_VARS(strands);
+	for (i = 0, root = roots; i < amount; ++i, ++root) {
+		if (BKE_mesh_sample_generate(gen, &root->root)) {
 			int k;
 			/* TODO find weights to "nearest" control strands */
 			for (k = 0; k < 4; ++k) {
-				s->control_index[k] = STRAND_INDEX_NONE;
-				s->control_weights[k] = 0.0f;
+				root->control_index[k] = STRAND_INDEX_NONE;
+				root->control_weights[k] = 0.0f;
 			}
 		}
 		else {
 			/* clear remaining samples */
-			memset(s, 0, sizeof(StrandInfo) * amount - i);
+			memset(root, 0, sizeof(StrandRoot) * amount - i);
 			break;
 		}
 	}
 	
 	BKE_mesh_sample_free_generator(gen);
 	
-	return strands;
+	return roots;
 }
 
 #if 0

@@ -884,6 +884,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         split = layout.split()
         col = split.column()
+        col.prop(md, "seed")
+        col.prop(md, "num_roots")
+
+        col = split.column()
         col.label(text="Display:")
         col.prop(md, "show_control_strands", text="Control Strands")
 

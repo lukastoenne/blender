@@ -56,6 +56,9 @@ static void initData(ModifierData *md)
 	
 	smd->strands = BKE_strands_new();
 	
+	smd->num_roots = 0;
+	smd->roots = NULL;
+	
 	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS;
 }
 
@@ -67,11 +70,17 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (tsmd->strands) {
 		BKE_strands_free(tsmd->strands);
 	}
+	if (tsmd->roots) {
+		MEM_freeN(tsmd->roots);
+	}
 
 	modifier_copyData_generic(md, target);
 	
 	if (smd->strands) {
 		tsmd->strands = BKE_strands_copy(smd->strands);
+	}
+	if (smd->roots) {
+		tsmd->roots = MEM_dupallocN(smd->roots);
 	}
 }
 
@@ -82,6 +91,9 @@ static void freeData(ModifierData *md)
 	if (smd->strands) {
 		BKE_strands_free(smd->strands);
 	}
+	if (smd->roots) {
+		MEM_freeN(smd->roots);
+	}
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
@@ -91,10 +103,17 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	StrandsModifierData *smd = (StrandsModifierData *) md;
 	
 	if (smd->strands) {
+		
+		/* regenerate roots if necessary */
+		if (smd->roots == NULL && smd->num_roots > 0) {
+			smd->roots = BKE_strands_scatter(smd->strands, dm, smd->num_roots, smd->seed);
+		}
+		
 		if (smd->strands->data_final)
 			BKE_strand_data_free(smd->strands->data_final);
 		
-		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm);
+		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm,
+		                                                smd->roots, smd->roots ? smd->num_roots : 0);
 	}
 	
 	return dm;

@@ -63,21 +63,35 @@ typedef struct StrandCurveData {
 	float mat[4][4];
 } StrandCurveData;
 
+typedef struct StrandRootData {
+	/* Position */
+	float co[3];
+	/* Indices of control strands for interpolation */
+	unsigned int control_index[4];
+	/* Weights of control strands for interpolation */
+	float control_weights[4];
+} StrandRootData;
+
 typedef struct StrandData {
 	/* Array of vertices */
 	StrandVertexData *verts;
 	/* Array of curves */
 	StrandCurveData *curves;
+	/* Array of root points */
+	StrandRootData *roots;
 	
 	/* Total number of vertices */
 	int totverts;
 	/* Total number of curves */
 	int totcurves;
+	/* Total number of root points */
+	int totroots;
 	
 	struct GPUDrawStrands *gpu_buffer;
 } StrandData;
 
-struct StrandData *BKE_strand_data_calc(struct Strands *strands, struct DerivedMesh *scalp);
+struct StrandData *BKE_strand_data_calc(struct Strands *strands, struct DerivedMesh *scalp,
+                                        StrandRoot *roots, int num_roots);
 void BKE_strand_data_free(struct StrandData *data);
 
 /* ------------------------------------------------------------------------- */
@@ -87,8 +101,8 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
                            unsigned int seed);
 
 
-struct StrandInfo *BKE_strands_scatter(struct DerivedMesh *scalp, unsigned int amount,
-                                       const StrandCurve *controls, unsigned int num_controls,
+struct StrandRoot *BKE_strands_scatter(struct Strands *strands,
+                                       struct DerivedMesh *scalp, unsigned int amount,
                                        unsigned int seed);
 
 #if 0

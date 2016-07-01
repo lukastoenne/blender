@@ -77,7 +77,14 @@ static int strands_test_init_exec(bContext *C, wmOperator *op)
 	int totcurves = RNA_int_get(op->ptr, "amount");
 	int maxverts = RNA_int_get(op->ptr, "maxverts");
 	unsigned int seed = RNA_int_get(op->ptr, "seed");
+	
 	BKE_strands_test_init(smd->strands, scalp, totcurves, maxverts, seed);
+	
+	/* invalidate roots */
+	if (smd->roots) {
+		MEM_freeN(smd->roots);
+		smd->roots = NULL;
+	}
 	
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

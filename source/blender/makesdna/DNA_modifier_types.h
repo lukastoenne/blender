@@ -1549,9 +1549,12 @@ typedef struct StrandsModifierData {
 	ModifierData modifier;
 	
 	int flag;
+	int num_roots;
+	int seed;
 	int pad;
 	
 	struct Strands *strands;
+	struct StrandRoot *roots;
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */
