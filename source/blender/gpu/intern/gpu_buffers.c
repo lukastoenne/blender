@@ -2103,6 +2103,7 @@ typedef struct RootVertex {
 
 typedef enum GPUStrandBufferType {
 	GPU_STRAND_BUFFER_CONTROL_VERTEX = 0,
+	GPU_STRAND_BUFFER_CONTROL_CURVE,
 	GPU_STRAND_BUFFER_CONTROL_EDGE,
 	GPU_STRAND_BUFFER_ROOT_VERTEX,
 } GPUStrandBufferType;
@@ -2110,6 +2111,8 @@ typedef enum GPUStrandBufferType {
 const GPUBufferTypeSettings gpu_strand_buffer_type_settings[] = {
     /* CONTROL_VERTEX */
     {GL_ARRAY_BUFFER, 3},
+    /* CONTROL_CURVE */
+    {GL_ELEMENT_ARRAY_BUFFER, 2},
     /* CONTROL_EDGE */
     {GL_ELEMENT_ARRAY_BUFFER, 2},
     /* ROOT_VERTEX */
@@ -2122,6 +2125,8 @@ static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUStrandBu
 	switch (type) {
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			return &gds->control_points;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			return &gds->control_curves;
 		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			return &gds->control_edges;
 		case GPU_STRAND_BUFFER_ROOT_VERTEX:
@@ -2138,6 +2143,9 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			*format = GL_RGB32F;
 			return &gds->control_points_tex;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			*format = GL_R32UI;
+			return &gds->control_curves_tex;
 		default:
 			*format = 0;
 			return NULL;
@@ -2155,6 +2163,8 @@ static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBu
 	switch (type) {
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			return sizeof(float) * components * totverts;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			return sizeof(int) * components * totcurves;
 		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			return sizeof(int) * components * (totverts - totcurves);
 		case GPU_STRAND_BUFFER_ROOT_VERTEX:
@@ -2183,6 +2193,18 @@ static void strands_copy_vertex_buffer(StrandData *strands, float (*varray)[3])
 	StrandVertexData *vert = strands->verts;
 	for (v = 0; v < totverts; ++v, ++vert) {
 		copy_v3_v3(*varray++, vert->co);
+	}
+}
+
+static void strands_copy_curve_buffer(StrandData *strands, unsigned int (*varray)[2])
+{
+	int totcurves = strands->totcurves, c;
+	
+	StrandCurveData *curve = strands->curves;
+	for (c = 0; c < totcurves; ++c, ++curve) {
+		(*varray)[0] = curve->verts_begin;
+		(*varray)[1] = curve->num_verts;
+		++varray;
 	}
 }
 
@@ -2225,6 +2247,9 @@ static void strands_copy_gpu_data(StrandData *strands, GPUStrandBufferType type,
 	switch (type) {
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			strands_copy_vertex_buffer(strands, (float (*)[3])varray);
+			break;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			strands_copy_curve_buffer(strands, (unsigned int (*)[2])varray);
 			break;
 		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			strands_copy_edge_buffer(strands, (unsigned int (*)[2])varray);
@@ -2356,6 +2381,10 @@ void GPU_strands_setup_edges(StrandData *strands)
 
 void GPU_strands_setup_roots(StrandData *strands)
 {
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+		return;
+	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_CURVE, false))
+		return;
 	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_ROOT_VERTEX, false))
 		return;
 
@@ -2366,6 +2395,10 @@ void GPU_strands_setup_roots(StrandData *strands)
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 
 	glActiveTexture(GL_TEXTURE0);
+	if (strands->gpu_buffer->control_curves_tex.id != 0) {
+		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_curves_tex.id);
+	}
+	glActiveTexture(GL_TEXTURE1);
 	if (strands->gpu_buffer->control_points_tex.id != 0) {
 		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_points_tex.id);
 	}
