@@ -36,6 +36,8 @@
 extern "C" {
 #endif
 
+struct GPUAttrib;
+
 struct Strands;
 
 typedef struct GPUStrandsShader GPUStrandsShader;
@@ -52,6 +54,9 @@ void GPU_strand_shader_bind_uniforms(
         float obmat[4][4], float viewmat[4][4]);
 void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader);
 bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader);
+
+void GPU_strand_shader_get_attributes(struct GPUStrandsShader *gpu_shader,
+                                      struct GPUAttrib **r_attrib, int *r_num);
 
 #ifdef __cplusplus
 }

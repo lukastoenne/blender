@@ -124,7 +124,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 		int k;
 		for (k = 0; k < 4; ++k) {
 			root->control_index[k] = sroot->control_index[k];
-			root->control_weights[k] = sroot->control_weights[k];
+			root->control_weight[k] = sroot->control_weights[k];
 		}
 	}
 	

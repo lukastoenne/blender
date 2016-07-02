@@ -2095,6 +2095,12 @@ void GPU_end_draw_pbvh_BB(void)
 /* *************** */
 /* Strands Buffers */
 
+typedef struct RootVertex {
+	float co[3];
+	unsigned int guide_index[4];
+	float guide_weight[4];
+} RootVertex;
+
 typedef enum GPUStrandBufferType {
 	GPU_STRAND_BUFFER_CONTROL_VERTEX = 0,
 	GPU_STRAND_BUFFER_CONTROL_EDGE,
@@ -2141,7 +2147,7 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 /* get the amount of space to allocate for a buffer of a particular type */
 static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBufferType type)
 {
-	const int components = gpu_buffer_type_settings[type].num_components;
+	const int components = gpu_strand_buffer_type_settings[type].num_components;
 	const int totverts = strands->gpu_buffer->totverts;
 	const int totcurves = strands->gpu_buffer->totcurves;
 	const int totroots = strands->gpu_buffer->totroots;
@@ -2152,7 +2158,7 @@ static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBu
 		case GPU_STRAND_BUFFER_CONTROL_EDGE:
 			return sizeof(int) * components * (totverts - totcurves);
 		case GPU_STRAND_BUFFER_ROOT_VERTEX:
-			return sizeof(float) * components * totroots;
+			return sizeof(RootVertex) * totroots;
 		default:
 			return -1;
 	}
@@ -2197,14 +2203,19 @@ static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)
 	}
 }
 
-static void strands_copy_root_buffer(StrandData *strands, float (*varray)[3])
+static void strands_copy_root_buffer(StrandData *strands, RootVertex *varray)
 {
 	int totroots = strands->totroots, v;
 	
 	/* strand root points */
 	StrandRootData *root = strands->roots;
 	for (v = 0; v < totroots; ++v, ++root) {
-		copy_v3_v3(*varray++, root->co);
+		copy_v3_v3(varray->co, root->co);
+		for (int k = 0; k < 4; ++k) {
+			varray->guide_index[k] = root->control_index[k];
+			varray->guide_weight[k] = root->control_weight[k];
+		}
+		++varray;
 	}
 }
 
@@ -2218,7 +2229,7 @@ static void strands_copy_gpu_data(StrandData *strands, GPUStrandBufferType type,
 			strands_copy_edge_buffer(strands, (unsigned int (*)[2])varray);
 			break;
 		case GPU_STRAND_BUFFER_ROOT_VERTEX:
-			strands_copy_root_buffer(strands, (float (*)[3])varray);
+			strands_copy_root_buffer(strands, (RootVertex *)varray);
 			break;
 	}
 }
@@ -2349,7 +2360,7 @@ void GPU_strands_setup_roots(StrandData *strands)
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->root_points->id);
-	glVertexPointer(3, GL_FLOAT, 0, NULL);
+	glVertexPointer(3, GL_FLOAT, sizeof(RootVertex), NULL);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 
@@ -2361,6 +2372,8 @@ void GPU_strands_setup_roots(StrandData *strands)
 
 void GPU_strands_buffer_unbind(void)
 {
+	GPU_interleaved_attrib_unbind();
+	
 	GPU_buffers_unbind();
 	
 	glActiveTexture(GL_TEXTURE0);

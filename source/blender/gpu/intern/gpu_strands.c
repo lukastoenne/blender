@@ -31,6 +31,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_glew.h"
+
 #include "BLI_dynstr.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -38,16 +40,27 @@
 
 #include "DNA_strand_types.h"
 
+#include "BKE_DerivedMesh.h" /* XXX just because GPU_buffers.h needs a type from here */
 #include "BKE_strands.h"
 
+#include "GPU_buffers.h" /* XXX just for GPUAttrib, can that type be moved? */
 #include "GPU_extensions.h"
 #include "GPU_strands.h"
 #include "GPU_shader.h"
+
+typedef enum GPUStrandAttributes {
+	GPU_STRAND_ATTRIB_POSITION,
+	GPU_STRAND_ATTRIB_GUIDE_INDEX,
+	GPU_STRAND_ATTRIB_GUIDE_WEIGHT,
+	
+	NUM_GPU_STRAND_ATTRIB /* must be last */
+} GPUStrandAttributes;
 
 struct GPUStrandsShader {
 	bool bound;
 	
 	GPUShader *shader;
+	GPUAttrib attributes[NUM_GPU_STRAND_ATTRIB];
 	
 	char *fragmentcode;
 	char *geometrycode;
@@ -55,9 +68,12 @@ struct GPUStrandsShader {
 };
 
 const char *vertex_shader = STRINGIFY(
+	in uvec4 guide_index;
+	in vec4 guide_weight;
+	
 	void main()
 	{
-		vec4 co = gl_ModelViewMatrix * gl_Vertex;
+		vec4 co = gl_ModelViewMatrix * (gl_Vertex + vec4(guide_weight.xyz, 0.0));
 		gl_Position = gl_ProjectionMatrix * co;
 	}
 );
@@ -166,6 +182,26 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 		gpu_shader->vertexcode = vertexcode;
 		gpu_shader->fragmentcode = fragmentcode;
 		gpu_shader->geometrycode = geometrycode;
+		
+		GPUAttrib *attr;
+		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_POSITION];
+		attr->index = -1; /* no explicit attribute, we use gl_Vertex for this */
+		attr->info_index = -1;
+		attr->type = GL_FLOAT;
+		attr->size = 3;
+		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_INDEX];
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "guide_index");
+		attr->info_index = -1;
+		attr->type = GL_UNSIGNED_INT;
+		attr->size = 4;
+		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_WEIGHT];
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "guide_weight");
+		attr->info_index = -1;
+		attr->type = GL_FLOAT;
+		attr->size = 4;
 	}
 	else {
 		if (vertexcode)
@@ -202,7 +238,7 @@ void GPU_strand_shader_bind(GPUStrandsShader *gpu_shader,
 		return;
 
 	GPU_shader_bind(gpu_shader->shader);
-	
+
 	UNUSED_VARS(viewmat, viewinv);
 }
 
@@ -224,4 +260,11 @@ void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader)
 bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader)
 {
 	return gpu_shader->bound;
+}
+
+void GPU_strand_shader_get_attributes(GPUStrandsShader *gpu_shader,
+                                      GPUAttrib **r_attrib, int *r_num)
+{
+	if (r_attrib) *r_attrib = gpu_shader->attributes;
+	if (r_num) *r_num = NUM_GPU_STRAND_ATTRIB;
 }

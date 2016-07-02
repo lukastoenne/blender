@@ -69,7 +69,7 @@ typedef struct StrandRootData {
 	/* Indices of control strands for interpolation */
 	unsigned int control_index[4];
 	/* Weights of control strands for interpolation */
-	float control_weights[4];
+	float control_weight[4];
 } StrandRootData;
 
 typedef struct StrandData {
