@@ -153,8 +153,8 @@ typedef struct GPUDrawStrands {
 	GPUBuffer *control_edges;
 	GPUBuffer *root_points;
 
-	/* GL texture id for root point texture buffer */
-	GPUBufferTexture root_tex;
+	/* GL texture id for control point texture buffer */
+	GPUBufferTexture control_points_tex;
 
 	unsigned int totverts;
 	unsigned int totcurves;

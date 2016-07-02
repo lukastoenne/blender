@@ -68,12 +68,12 @@ struct GPUStrandsShader {
 };
 
 const char *vertex_shader = STRINGIFY(
-	in uvec3 guide_index;
-	in vec3 guide_weight;
+	in uvec3 control_index;
+	in vec3 control_weight;
 	
 	void main()
 	{
-		vec4 co = gl_ModelViewMatrix * (gl_Vertex + vec4(guide_weight.xyz, 0.0));
+		vec4 co = gl_ModelViewMatrix * (gl_Vertex + vec4(control_weight.xyz, 0.0));
 		gl_Position = gl_ProjectionMatrix * co;
 	}
 );
@@ -90,6 +90,8 @@ const char *fragment_shader = STRINGIFY(
 const char *geometry_shader = STRINGIFY(
 	layout(points) in;
 	layout(line_strip, max_vertices = 2) out;
+	
+	uniform samplerBuffer guides;
 	
 	void main()
 	{
@@ -192,13 +194,13 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 		attr->size = 3;
 		
 		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_INDEX];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "guide_index");
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_index");
 		attr->info_index = -1;
 		attr->type = GL_UNSIGNED_INT;
 		attr->size = 4;
 		
 		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_WEIGHT];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "guide_weight");
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_weight");
 		attr->info_index = -1;
 		attr->type = GL_FLOAT;
 		attr->size = 4;

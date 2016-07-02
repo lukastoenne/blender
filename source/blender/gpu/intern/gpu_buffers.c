@@ -2097,8 +2097,8 @@ void GPU_end_draw_pbvh_BB(void)
 
 typedef struct RootVertex {
 	float co[3];
-	unsigned int guide_index[4];
-	float guide_weight[4];
+	unsigned int control_index[4];
+	float control_weight[4];
 } RootVertex;
 
 typedef enum GPUStrandBufferType {
@@ -2135,9 +2135,9 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
                                                               GLenum *format)
 {
 	switch (type) {
-		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			*format = GL_RGB32F;
-			return &gds->root_tex;
+			return &gds->control_points_tex;
 		default:
 			*format = 0;
 			return NULL;
@@ -2213,8 +2213,8 @@ static void strands_copy_root_buffer(StrandData *strands, RootVertex *varray)
 	for (v = 0; v < totroots; ++v, ++root) {
 		copy_v3_v3(varray->co, root->co);
 		for (int k = 0; k < 4; ++k) {
-			varray->guide_index[k] = root->control_index[k];
-			varray->guide_weight[k] = root->control_weight[k];
+			varray->control_index[k] = root->control_index[k];
+			varray->control_weight[k] = root->control_weight[k];
 		}
 		++varray;
 	}
@@ -2366,8 +2366,8 @@ void GPU_strands_setup_roots(StrandData *strands)
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 
 	glActiveTexture(GL_TEXTURE0);
-	if (strands->gpu_buffer->root_tex.id != 0) {
-		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->root_tex.id);
+	if (strands->gpu_buffer->control_points_tex.id != 0) {
+		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_points_tex.id);
 	}
 }
 
