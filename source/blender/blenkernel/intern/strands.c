@@ -35,6 +35,7 @@
 
 #include "BLI_kdtree.h"
 #include "BLI_math.h"
+#include "BLI_rand.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
@@ -153,34 +154,43 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
                            int totcurves, int maxverts,
                            unsigned int seed)
 {
-	const unsigned int totverts = totcurves * maxverts;
+	unsigned int seed2 = seed ^ 0xdeadbeef;
+	RNG *rng = BLI_rng_new(seed2);
 	
 	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
 	unsigned int i, k;
 	
+	/* First generate all curves, to define vertex counts */
 	StrandCurve *curves = MEM_mallocN(sizeof(StrandCurve) * totcurves, "StrandCurve buffer");
-	StrandVertex *verts = MEM_mallocN(sizeof(StrandVertex) * totverts, "StrandVertex buffer");
-	
 	StrandCurve *c = curves;
-	StrandVertex *v = verts;
-	unsigned int verts_begin = 0;
+	unsigned int totverts = 0;
 	for (i = 0; i < totcurves; ++i, ++c) {
+		int num_verts = (int)(BLI_rng_get_float(rng) * (float)(maxverts + 1));
+		CLAMP(num_verts, 2, maxverts);
+		
 		if (BKE_mesh_sample_generate(gen, &c->root)) {
-			c->verts_begin = verts_begin;
-			c->num_verts = maxverts;
-			
-			for (k = 0; k < c->num_verts; ++k, ++v) {
-				v->co[0] = 0.0f;
-				v->co[1] = 0.0f;
-				v->co[2] = (c->num_verts > 1) ? (float)k / (c->num_verts - 1) : 0.0f;
-			}
-			
-			verts_begin += c->num_verts;
+			c->verts_begin = totverts;
+			c->num_verts = num_verts;
+			totverts += num_verts;
 		}
 		else {
 			/* clear remaining samples */
 			memset(c, 0, sizeof(StrandCurve) * totcurves - i);
 			break;
+		}
+	}
+	
+	/* Now generate vertices */
+	float segment_length = (maxverts > 1) ? 1.0f / (maxverts - 1) : 0.0f;
+	
+	StrandVertex *verts = MEM_mallocN(sizeof(StrandVertex) * totverts, "StrandVertex buffer");
+	c = curves;
+	StrandVertex *v = verts;
+	for (i = 0; i < totcurves; ++i, ++c) {
+		for (k = 0; k < c->num_verts; ++k, ++v) {
+			v->co[0] = 0.0f;
+			v->co[1] = 0.0f;
+			v->co[2] = segment_length * k;
 		}
 	}
 	
@@ -194,6 +204,8 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 	strands->verts = verts;
 	strands->totcurves = totcurves;
 	strands->totverts = totverts;
+	
+	BLI_rng_free(rng);
 }
 
 static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandRoot *roots, int num_roots)

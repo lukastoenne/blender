@@ -2193,6 +2193,7 @@ static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)
 	StrandCurveData *curve = strands->curves;
 	for (c = 0; c < totcurves; ++c, ++curve) {
 		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+		BLI_assert(num_verts >= 2);
 		
 		StrandVertexData *vert = strands->verts + verts_begin;
 		for (v = 0; v < num_verts - 1; ++v, ++vert) {
