@@ -68,8 +68,8 @@ struct GPUStrandsShader {
 };
 
 const char *vertex_shader = STRINGIFY(
-	in uvec4 guide_index;
-	in vec4 guide_weight;
+	in uvec3 guide_index;
+	in vec3 guide_weight;
 	
 	void main()
 	{

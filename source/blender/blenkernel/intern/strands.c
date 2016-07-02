@@ -33,6 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_kdtree.h"
 #include "BLI_math.h"
 
 #include "BKE_DerivedMesh.h"
@@ -195,6 +196,63 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 	strands->totverts = totverts;
 }
 
+static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandRoot *roots, int num_roots)
+{
+	float (*strandloc)[3] = MEM_mallocN(sizeof(float) * 3 * strands->totcurves, "strand locations");
+	KDTree *tree = BLI_kdtree_new(strands->totcurves);
+	
+	{
+		int c;
+		const StrandCurve *curve = strands->curves;
+		for (c = 0; c < strands->totcurves; ++c, ++curve) {
+			float nor[3], tang[3];
+			if (BKE_mesh_sample_eval(scalp, &curve->root, strandloc[c], nor, tang))
+				BLI_kdtree_insert(tree, c, strandloc[c]);
+		}
+		BLI_kdtree_balance(tree);
+	}
+	
+	int i;
+	StrandRoot *root = roots;
+	for (i = 0; i < num_roots; ++i, ++root) {
+		float loc[3], nor[3], tang[3];
+		if (BKE_mesh_sample_eval(scalp, &root->root, loc, nor, tang)) {
+			
+			/* Use the 3 closest strands for interpolation.
+			 * Note that we have up to 4 possible weights, but we
+			 * only look for a triangle with this method.
+			 */
+			KDTreeNearest nearest[3];
+			float *sloc[3] = {NULL};
+			int k, found = BLI_kdtree_find_nearest_n(tree, loc, nearest, 3);
+			for (k = 0; k < found; ++k) {
+				root->control_index[k] = nearest[k].index;
+				sloc[k] = strandloc[nearest[k].index];
+			}
+			
+			/* calculate barycentric interpolation weights */
+			if (found == 3) {
+				float closest[3];
+				closest_on_tri_to_point_v3(closest, loc, sloc[0], sloc[1], sloc[2]);
+				
+				float w[4];
+				interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
+				copy_v3_v3(root->control_weights, w);
+			}
+			else if (found == 2) {
+				root->control_weights[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
+				root->control_weights[0] = 1.0f - root->control_weights[1];
+			}
+			else if (found == 1) {
+				root->control_weights[0] = 1.0f;
+			}
+		}
+	}
+	
+	BLI_kdtree_free(tree);
+	MEM_freeN(strandloc);
+}
+
 StrandRoot *BKE_strands_scatter(Strands *strands,
                                 struct DerivedMesh *scalp, unsigned int amount,
                                 unsigned int seed)
@@ -205,11 +263,10 @@ StrandRoot *BKE_strands_scatter(Strands *strands,
 	StrandRoot *roots = MEM_mallocN(sizeof(StrandRoot) * amount, "StrandRoot");
 	StrandRoot *root;
 	
-	UNUSED_VARS(strands);
 	for (i = 0, root = roots; i < amount; ++i, ++root) {
 		if (BKE_mesh_sample_generate(gen, &root->root)) {
 			int k;
-			/* TODO find weights to "nearest" control strands */
+			/* influencing control strands are determined later */
 			for (k = 0; k < 4; ++k) {
 				root->control_index[k] = STRAND_INDEX_NONE;
 				root->control_weights[k] = 0.0f;
@@ -223,6 +280,8 @@ StrandRoot *BKE_strands_scatter(Strands *strands,
 	}
 	
 	BKE_mesh_sample_free_generator(gen);
+	
+	strands_calc_weights(strands, scalp, roots, amount);
 	
 	return roots;
 }
