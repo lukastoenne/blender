@@ -208,6 +208,44 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 	BLI_rng_free(rng);
 }
 
+BLI_INLINE void verify_root_weights(StrandRoot *root)
+{
+	const float *w = root->control_weights;
+	
+	BLI_assert(w[0] >= 0.0f && w[1] >= 0.0f && w[2] >= 0.0f && w[3] >= 0.0f);
+	float sum = w[0] + w[1] + w[2] + w[3];
+	float epsilon = 1.0e-2;
+	BLI_assert(sum > 1.0f - epsilon && sum < 1.0f + epsilon);
+	UNUSED_VARS(sum, epsilon);
+	
+	BLI_assert(w[0] >= w[1] && w[1] >= w[2] && w[2] >= w[3]);
+}
+
+static void sort_root_weights(StrandRoot *root)
+{
+	unsigned int *idx = root->control_index;
+	float *w = root->control_weights;
+
+#define ROOTSWAP(a, b) \
+	SWAP(unsigned int, idx[a], idx[b]); \
+	SWAP(float, w[a], w[b]);
+
+	for (int k = 0; k < 3; ++k) {
+		int maxi = k;
+		float maxw = w[k];
+		for (int i = k+1; i < 4; ++i) {
+			if (w[i] > maxw) {
+				maxi = i;
+				maxw = w[i];
+			}
+		}
+		if (maxi != k)
+			ROOTSWAP(k, maxi);
+	}
+	
+#undef ROOTSWAP
+}
+
 static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandRoot *roots, int num_roots)
 {
 	float (*strandloc)[3] = MEM_mallocN(sizeof(float) * 3 * strands->totcurves, "strand locations");
@@ -250,14 +288,21 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 				float w[4];
 				interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
 				copy_v3_v3(root->control_weights, w);
+				/* float precisions issues can cause slightly negative weights */
+				CLAMP3(root->control_weights, 0.0f, 1.0f);
 			}
 			else if (found == 2) {
 				root->control_weights[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
 				root->control_weights[0] = 1.0f - root->control_weights[1];
+				/* float precisions issues can cause slightly negative weights */
+				CLAMP2(root->control_weights, 0.0f, 1.0f);
 			}
 			else if (found == 1) {
 				root->control_weights[0] = 1.0f;
 			}
+			
+			sort_root_weights(root);
+			verify_root_weights(root);
 		}
 	}
 	

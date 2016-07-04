@@ -67,88 +67,9 @@ struct GPUStrandsShader {
 	char *vertexcode;
 };
 
-const char *vertex_shader = STRINGIFY(
-	in uvec4 control_index;
-	in vec4 control_weight;
-	
-	out uvec4 v_control_index;
-	out vec4 v_control_weight;
-
-	out vec3 vColor;
-	
-	void main()
-	{
-//		vec4 co = gl_ModelViewMatrix * gl_Vertex;
-//		gl_Position = gl_ProjectionMatrix * co;
-		gl_Position = gl_Vertex;
-		
-		v_control_index = control_index;
-		v_control_weight = control_weight;
-		vColor = vec3(float(control_index.x)/float(10), 0.0, 0.0);
-	}
-);
-
-const char *geometry_shader = STRINGIFY(
-	layout(points) in;
-	layout(line_strip, max_vertices = 64) out;
-	
-	in vec3 vColor[];
-	
-	in uvec4 v_control_index[];
-	in vec4 v_control_weight[];
-
-	out vec3 fColor;
-
-	uniform isamplerBuffer control_curves;
-	uniform samplerBuffer control_points;
-	
-	void main()
-	{
-		vec4 root = gl_in[0].gl_Position;
-		
-		int index0 = int(v_control_index[0].x);
-		ivec4 curve0 = texelFetch(control_curves, index0);
-		int vert_begin0 = int(curve0.x);
-		int num_verts0 = int(curve0.y);
-		vec4 root0 = texelFetch(control_points, vert_begin0);
-		vec4 offset0 = root - root0;
-		
-//		fColor = vColor[0];
-		fColor = vec3(float(num_verts0)/float(10), 0.0, 0.0);
-		
-		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * root;
-		EmitVertex();
-		
-//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * (root + vec4(0.1, 0.0, 0.0, 0.0));
-//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * (root + vec4(float(index0 % 10 + 1) * 0.01, 0.0, 0.0, 0.0));
-//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(index0, 0.0, 0.0, 1.0);
-//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v_control_weight[0].xyz, 1.0);
-//		EmitVertex();
-		
-		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * root0;
-		EmitVertex();
-		
-/*		for (int i = 1; i < num_verts; ++i) {
-			vec4 loc = texelFetch(control_points, vert_begin + i);
-			
-			gl_Position = vec4((loc + offset).xyz, 1.0);
-			EmitVertex();
-		}*/
-		
-	    EndPrimitive();
-	}
-);
-	
-	const char *fragment_shader = STRINGIFY(
-		in vec3 fColor;
-		
-		out vec4 outColor;
-		
-		void main()
-		{
-			outColor = vec4(fColor, 1.0);
-		}
-	);
+extern char datatoc_gpu_shader_strand_frag_glsl[];
+extern char datatoc_gpu_shader_strand_geom_glsl[];
+extern char datatoc_gpu_shader_strand_vert_glsl[];
 
 static char *codegen_vertex(void)
 {
@@ -162,7 +83,7 @@ static char *codegen_vertex(void)
 	
 	return code;
 #else
-	return BLI_strdup(vertex_shader);
+	return BLI_strdup(datatoc_gpu_shader_strand_vert_glsl);
 #endif
 }
 
@@ -178,7 +99,7 @@ static char *codegen_geometry(void)
 	
 	return code;
 #else
-	return BLI_strdup(geometry_shader);
+	return BLI_strdup(datatoc_gpu_shader_strand_geom_glsl);
 #endif
 }
 
@@ -194,7 +115,7 @@ static char *codegen_fragment(void)
 	
 	return code;
 #else
-	return BLI_strdup(fragment_shader);
+	return BLI_strdup(datatoc_gpu_shader_strand_frag_glsl);
 #endif
 }
 
