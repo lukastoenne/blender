@@ -745,6 +745,9 @@ void GPU_triangle_setup(struct DerivedMesh *dm)
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
 
+#define SUPPORTED_GL_ATTRIB_TYPES \
+    GL_FLOAT, GL_INT, GL_UNSIGNED_INT, GL_BYTE, GL_UNSIGNED_BYTE
+
 static int GPU_typesize(int type)
 {
 	switch (type) {
@@ -796,15 +799,33 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
 	
 	for (i = 0; i < numdata; i++) {
-		glEnableVertexAttribArray(data[i].index);
-		int info = 0;
-		if (data[i].type == GL_UNSIGNED_BYTE) {
-			info |= GPU_ATTR_INFO_SRGB;
+		BLI_assert(ELEM(data[i].type, SUPPORTED_GL_ATTRIB_TYPES) &&
+		           "Unsupported attribute data type!");
+		
+		if (data[i].info_index >= 0) {
+			int info = 0;
+			if (data[i].type == GL_UNSIGNED_BYTE) {
+				info |= GPU_ATTR_INFO_SRGB;
+			}
+			glUniform1i(data[i].info_index, info);
 		}
-		glUniform1i(data[i].info_index, info);
 
-		glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
-		                         GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+		if (data[i].index >= 0) {
+			glEnableVertexAttribArray(data[i].index);
+			switch (data[i].type) {
+				case GL_FLOAT:
+					glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+					                      GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+					break;
+				case GL_INT:
+				case GL_UNSIGNED_INT:
+				case GL_BYTE:
+				case GL_UNSIGNED_BYTE:
+					glVertexAttribIPointer(data[i].index, data[i].size, data[i].type,
+					                       elementsize, BUFFER_OFFSET(offset));
+					break;
+			}
+		}
 		offset += data[i].size * GPU_typesize(data[i].type);
 		
 		attribData[i].index = data[i].index;
