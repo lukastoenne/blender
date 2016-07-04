@@ -50,8 +50,8 @@
 
 typedef enum GPUStrandAttributes {
 	GPU_STRAND_ATTRIB_POSITION,
-	GPU_STRAND_ATTRIB_GUIDE_INDEX,
-	GPU_STRAND_ATTRIB_GUIDE_WEIGHT,
+	GPU_STRAND_ATTRIB_CONTROL_INDEX,
+	GPU_STRAND_ATTRIB_CONTROL_WEIGHT,
 	
 	NUM_GPU_STRAND_ATTRIB /* must be last */
 } GPUStrandAttributes;
@@ -68,42 +68,87 @@ struct GPUStrandsShader {
 };
 
 const char *vertex_shader = STRINGIFY(
-	in uvec3 control_index;
-	in vec3 control_weight;
+	in uvec4 control_index;
+	in vec4 control_weight;
 	
-	void main()
-	{
-		vec4 co = gl_ModelViewMatrix * (gl_Vertex + vec4(control_weight.xyz, 0.0));
-		gl_Position = gl_ProjectionMatrix * co;
-	}
-);
+	out uvec4 v_control_index;
+	out vec4 v_control_weight;
 
-const char *fragment_shader = STRINGIFY(
-	out vec4 outColor;
+	out vec3 vColor;
 	
 	void main()
 	{
-		outColor = vec4(1.0, 0.0, 1.0, 1.0);
+//		vec4 co = gl_ModelViewMatrix * gl_Vertex;
+//		gl_Position = gl_ProjectionMatrix * co;
+		gl_Position = gl_Vertex;
+		
+		v_control_index = control_index;
+		v_control_weight = control_weight;
+		vColor = vec3(float(control_index.x)/float(10), 0.0, 0.0);
 	}
 );
 
 const char *geometry_shader = STRINGIFY(
 	layout(points) in;
-	layout(line_strip, max_vertices = 2) out;
+	layout(line_strip, max_vertices = 64) out;
 	
-	uniform samplerBuffer guides;
+	in vec3 vColor[];
+	
+	in uvec4 v_control_index[];
+	in vec4 v_control_weight[];
+
+	out vec3 fColor;
+
+	uniform isamplerBuffer control_curves;
+	uniform samplerBuffer control_points;
 	
 	void main()
 	{
-		gl_Position = gl_in[0].gl_Position + vec4(-0.1, 0.0, 0.0, 0.0);
+		vec4 root = gl_in[0].gl_Position;
+		
+		int index0 = int(v_control_index[0].x);
+		ivec4 curve0 = texelFetch(control_curves, index0);
+		int vert_begin0 = int(curve0.x);
+		int num_verts0 = int(curve0.y);
+		vec4 root0 = texelFetch(control_points, vert_begin0);
+		vec4 offset0 = root - root0;
+		
+//		fColor = vColor[0];
+		fColor = vec3(float(num_verts0)/float(10), 0.0, 0.0);
+		
+		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * root;
 		EmitVertex();
 		
-		gl_Position = gl_in[0].gl_Position + vec4(0.1, 0.0, 0.0, 0.0);
+//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * (root + vec4(0.1, 0.0, 0.0, 0.0));
+//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * (root + vec4(float(index0 % 10 + 1) * 0.01, 0.0, 0.0, 0.0));
+//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(index0, 0.0, 0.0, 1.0);
+//		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v_control_weight[0].xyz, 1.0);
+//		EmitVertex();
+		
+		gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * root0;
 		EmitVertex();
 		
-		EndPrimitive();
+/*		for (int i = 1; i < num_verts; ++i) {
+			vec4 loc = texelFetch(control_points, vert_begin + i);
+			
+			gl_Position = vec4((loc + offset).xyz, 1.0);
+			EmitVertex();
+		}*/
+		
+	    EndPrimitive();
 	}
 );
+	
+	const char *fragment_shader = STRINGIFY(
+		in vec3 fColor;
+		
+		out vec4 outColor;
+		
+		void main()
+		{
+			outColor = vec4(fColor, 1.0);
+		}
+	);
 
 static char *codegen_vertex(void)
 {
@@ -118,22 +163,6 @@ static char *codegen_vertex(void)
 	return code;
 #else
 	return BLI_strdup(vertex_shader);
-#endif
-}
-
-static char *codegen_fragment(void)
-{
-#if 0
-	char *code;
-	
-	DynStr *ds = BLI_dynstr_new();
-	
-	code = BLI_dynstr_get_cstring(ds);
-	BLI_dynstr_free(ds);
-	
-	return code;
-#else
-	return BLI_strdup(fragment_shader);
 #endif
 }
 
@@ -153,6 +182,22 @@ static char *codegen_geometry(void)
 #endif
 }
 
+static char *codegen_fragment(void)
+{
+#if 0
+	char *code;
+	
+	DynStr *ds = BLI_dynstr_new();
+	
+	code = BLI_dynstr_get_cstring(ds);
+	BLI_dynstr_free(ds);
+	
+	return code;
+#else
+	return BLI_strdup(fragment_shader);
+#endif
+}
+
 GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 {
 	if (strands->gpu_shader != NULL)
@@ -161,9 +206,9 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
 	/* TODO */
-	char *fragmentcode = codegen_fragment();
 	char *vertexcode = codegen_vertex();
 	char *geometrycode = codegen_geometry();
+	char *fragmentcode = codegen_fragment();
 	
 	int flags = GPU_SHADER_FLAGS_NONE;
 	
@@ -182,8 +227,13 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 	if (shader) {
 		gpu_shader->shader = shader;
 		gpu_shader->vertexcode = vertexcode;
-		gpu_shader->fragmentcode = fragmentcode;
 		gpu_shader->geometrycode = geometrycode;
+		gpu_shader->fragmentcode = fragmentcode;
+		
+		GPU_shader_bind(gpu_shader->shader);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_curves"), 0);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_points"), 1);
+		GPU_shader_unbind();
 		
 		GPUAttrib *attr;
 		
@@ -193,13 +243,13 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 		attr->type = GL_FLOAT;
 		attr->size = 3;
 		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_INDEX];
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_CONTROL_INDEX];
 		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_index");
 		attr->info_index = -1;
 		attr->type = GL_UNSIGNED_INT;
 		attr->size = 4;
 		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_GUIDE_WEIGHT];
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_CONTROL_WEIGHT];
 		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_weight");
 		attr->info_index = -1;
 		attr->type = GL_FLOAT;
@@ -208,10 +258,10 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 	else {
 		if (vertexcode)
 			MEM_freeN(vertexcode);
-		if (fragmentcode)
-			MEM_freeN(fragmentcode);
 		if (geometrycode)
 			MEM_freeN(geometrycode);
+		if (fragmentcode)
+			MEM_freeN(fragmentcode);
 	}
 	
 	strands->gpu_shader = gpu_shader;
@@ -223,12 +273,12 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 	if (gpu_shader->shader)
 		GPU_shader_free(gpu_shader->shader);
 	
-	if (gpu_shader->fragmentcode)
-		MEM_freeN(gpu_shader->fragmentcode);
 	if (gpu_shader->vertexcode)
 		MEM_freeN(gpu_shader->vertexcode);
 	if (gpu_shader->geometrycode)
 		MEM_freeN(gpu_shader->geometrycode);
+	if (gpu_shader->fragmentcode)
+		MEM_freeN(gpu_shader->fragmentcode);
 	
 	MEM_freeN(gpu_shader);
 }

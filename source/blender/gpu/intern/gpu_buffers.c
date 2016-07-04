@@ -2165,7 +2165,7 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 			*format = GL_RGB32F;
 			return &gds->control_points_tex;
 		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			*format = GL_R32UI;
+			*format = GL_RG32UI;
 			return &gds->control_curves_tex;
 		default:
 			*format = 0;
@@ -2232,10 +2232,12 @@ static void strands_copy_curve_buffer(StrandData *strands, unsigned int (*varray
 static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)[2])
 {
 	int totcurves = strands->totcurves, c;
+	int totedge = 0;
 	
 	StrandCurveData *curve = strands->curves;
 	for (c = 0; c < totcurves; ++c, ++curve) {
 		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+		BLI_assert(verts_begin < strands->totverts);
 		BLI_assert(num_verts >= 2);
 		
 		StrandVertexData *vert = strands->verts + verts_begin;
@@ -2243,8 +2245,11 @@ static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)
 			(*varray)[0] = verts_begin + v;
 			(*varray)[1] = verts_begin + v + 1;
 			++varray;
+			++totedge;
 		}
 	}
+	BLI_assert(totedge == strands->totverts - totcurves);
+	UNUSED_VARS(totedge);
 }
 
 static void strands_copy_root_buffer(StrandData *strands, RootVertex *varray)
@@ -2341,6 +2346,9 @@ static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBuffer
 static void strands_setup_buffer_texture(StrandData *UNUSED(strands), GPUBuffer *buffer, GLenum format,
                                          GPUBufferTexture *tex)
 {
+	if (!buffer)
+		return;
+	
 	glGenTextures(1, &tex->id);
 	glBindTexture(GL_TEXTURE_BUFFER, tex->id);
 	
@@ -2361,12 +2369,10 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType
 	if (*buf == NULL || update) {
 		*buf = strands_setup_buffer_type(strands, type, *buf);
 		
-		if (*buf) {
-			GLenum tex_format;
-			tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
-			if (tex)
-				strands_setup_buffer_texture(strands, *buf, tex_format, tex);
-		}
+		GLenum tex_format;
+		tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
+		if (tex)
+			strands_setup_buffer_texture(strands, *buf, tex_format, tex);
 	}
 	
 	return *buf != NULL;
@@ -2415,12 +2421,12 @@ void GPU_strands_setup_roots(StrandData *strands)
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 
-	glActiveTexture(GL_TEXTURE0);
 	if (strands->gpu_buffer->control_curves_tex.id != 0) {
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_curves_tex.id);
 	}
-	glActiveTexture(GL_TEXTURE1);
 	if (strands->gpu_buffer->control_points_tex.id != 0) {
+		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_points_tex.id);
 	}
 }
@@ -2433,7 +2439,10 @@ void GPU_strands_buffer_unbind(void)
 	
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
-	glDisable(GL_TEXTURE_BUFFER);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_BUFFER, 0);
+	/* reset, following draw code expects active texture 0 */
+	glActiveTexture(GL_TEXTURE0);
 }
 
 void GPU_strands_buffer_free(StrandData *strands)
@@ -2442,11 +2451,14 @@ void GPU_strands_buffer_free(StrandData *strands)
 		GPUDrawStrands *gds = strands->gpu_buffer;
 		
 #if 0 /* XXX crashes, maybe not needed for buffer textures? */
-		if (gds->root_tex.id)
-			glDeleteTextures(1, &gds->root_tex.id);
+		if (gds->control_curves_tex.id)
+			glDeleteTextures(1, &gds->control_curves_tex.id);
+		if (gds->control_points_tex.id)
+			glDeleteTextures(1, &gds->control_points_tex.id);
 #endif
 		
 		GPU_buffer_free(gds->control_points);
+		GPU_buffer_free(gds->control_curves);
 		GPU_buffer_free(gds->control_edges);
 		GPU_buffer_free(gds->root_points);
 		
