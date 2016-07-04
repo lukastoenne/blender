@@ -115,7 +115,7 @@ void OBJECT_OT_strands_test_init(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 	edit_modifier_properties(ot);
 	
-	RNA_def_int(ot->srna, "amount", 100, 0, INT_MAX, "Amount", "Number of control curves to generate", 1, 10000);
+	RNA_def_int(ot->srna, "amount", 100, 0, INT_MAX, "Amount", "Number of control curves to generate", 1, 1000000);
 	RNA_def_int(ot->srna, "maxverts", 5, 0, INT_MAX, "Vertices", "Maximum number of vertices per strand", 1, 20);
 	RNA_def_int(ot->srna, "seed", 0, 0, INT_MAX, "Seed", "Seed value for randomization", 0, INT_MAX);
 }
