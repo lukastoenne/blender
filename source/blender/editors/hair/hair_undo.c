@@ -121,7 +121,8 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	
 	edit->base.bm->shapenr = undo->shapenr;
 	
-	bm = BM_mesh_create(&allocsize);
+	bm = BM_mesh_create(&allocsize,
+	                    &((struct BMeshCreateParams){.use_toolflags = false,}));
 	params.cd_mask_extra = CD_MASK_STRANDS_BMESH;
 	params.active_shapekey = undo->shapenr;
 	BM_mesh_bm_from_me(bm, &undo->me, &params);

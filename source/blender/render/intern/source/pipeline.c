@@ -2178,12 +2178,12 @@ static void init_freestyle(Render *re)
 	re->freestyle_bmain = BKE_main_new();
 
 	/* We use the same window manager for freestyle bmain as
-	* real bmain uses. This is needed because freestyle's
-	* bmain could be used to tag scenes for update, which
-	* implies call of ED_render_scene_update in some cases
-	* and that function requires proper window manager
-	* to present (sergey)
-	*/
+	 * real bmain uses. This is needed because freestyle's
+	 * bmain could be used to tag scenes for update, which
+	 * implies call of ED_render_scene_update in some cases
+	 * and that function requires proper window manager
+	 * to present (sergey)
+	 */
 	re->freestyle_bmain->wm = re->main->wm;
 
 	FRS_init_stroke_renderer(re);
@@ -2268,7 +2268,7 @@ static void free_all_freestyle_renders(void)
 			if (freestyle_render) {
 				freestyle_scene = freestyle_render->scene;
 				RE_FreeRender(freestyle_render);
-				BKE_libblock_unlink(re1->freestyle_bmain, freestyle_scene, false);
+				BKE_libblock_unlink(re1->freestyle_bmain, freestyle_scene, false, false);
 				BKE_libblock_free(re1->freestyle_bmain, freestyle_scene);
 			}
 		}

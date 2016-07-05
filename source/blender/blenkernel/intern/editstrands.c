@@ -183,7 +183,8 @@ BMesh *BKE_editstrands_particles_to_bmesh(Object *ob, ParticleSystem *psys)
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_PSYS(psys);
 	BMesh *bm;
 
-	bm = BM_mesh_create(&allocsize);
+	bm = BM_mesh_create(&allocsize,
+	                    &((struct BMeshCreateParams){.use_toolflags = false,}));
 
 	if (psmd && psmd->dm_final) {
 		DM_ensure_tessface(psmd->dm_final);
@@ -225,7 +226,8 @@ BMesh *BKE_editstrands_mesh_to_bmesh(Object *ob, Mesh *me)
 	BMesh *bm;
 	struct BMeshFromMeshParams params = {0};
 	
-	bm = BM_mesh_create(&allocsize);
+	bm = BM_mesh_create(&allocsize,
+	                    &((struct BMeshCreateParams){.use_toolflags = false,}));
 	
 	params.use_shapekey = true;
 	params.active_shapekey = ob->shapenr;
