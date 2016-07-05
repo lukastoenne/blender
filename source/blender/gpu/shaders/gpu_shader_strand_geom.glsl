@@ -71,15 +71,6 @@ void main()
 #else
 	int num_verts = max(int(ceil(fnum_verts)), 2);
 #endif
-#if 1
-#else
-	/* XXX DEBUGGING!! */
-	num_verts = max(2, num_cverts[0]);
-	valid[0] = true;
-	valid[1] = false;
-	valid[2] = false;
-	valid[3] = false;
-#endif
 
 #ifdef LOOP_VERTS
 	float dt[4];
@@ -88,7 +79,7 @@ void main()
 	}
 #endif
 
-	fColor = vec3(0.0, 1.0, 0.0);
+	//fColor = vec3(0.0, 1.0, 0.0);
 	emit_vertex(root);
 
 #ifdef LOOP_VERTS
@@ -100,7 +91,6 @@ void main()
 			if (!valid[k])
 				continue;
 
-#if 0
 			int ci0 = clamp(int(t[k]), 0, num_cverts[k] - 1);
 			int ci1 = ci0 + 1;
 			float lambda = t[k] - floor(t[k]);
@@ -108,24 +98,12 @@ void main()
 			vec4 cloc0 = texelFetch(control_points, cvert_begin[k] + ci0);
 			vec4 cloc1 = texelFetch(control_points, cvert_begin[k] + ci1);
 			vec4 cloc = mix(cloc0, cloc1, lambda) + offset[k];
-#else
-			/* XXX DEBUGGING!! */
-			int ci0 = clamp(int(t[k]), 0, num_cverts[k] - 1);
-			vec4 cloc0 = texelFetch(control_points, cvert_begin[k] + ci0);
-			vec4 cloc = cloc0 + offset[k];
-#endif
 			
-#if 1
 			loc += weight[k] * cloc;
-#else
-			/* XXX DEBUGGING!! */
-			loc = cloc;
-#endif
-			
 			t[k] += dt[k];
 		}
 
-		fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
+		//fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
 		//fColor = vec3(float(t[0]), 0.0, 0.0);
 		emit_vertex(loc);
 	}
