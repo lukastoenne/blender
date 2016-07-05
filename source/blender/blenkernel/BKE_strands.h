@@ -45,6 +45,9 @@ struct Strands *BKE_strands_new(void);
 struct Strands *BKE_strands_copy(struct Strands *strands);
 void BKE_strands_free(struct Strands *strands);
 
+bool BKE_strands_get_root_location(const struct StrandCurve *curve, struct DerivedMesh *root_dm, float loc[3]);
+bool BKE_strands_get_root_matrix(const struct StrandCurve *curve, struct DerivedMesh *root_dm, float mat[4][4]);
+
 /* ------------------------------------------------------------------------- */
 
 typedef struct StrandVertexData {

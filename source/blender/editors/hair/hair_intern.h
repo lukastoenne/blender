@@ -68,6 +68,11 @@ bool ED_hair_object_has_hair_particle_data(struct Object *ob);
 bool ED_hair_object_init_particle_edit(struct Scene *scene, struct Object *ob);
 bool ED_hair_object_apply_particle_edit(struct Object *ob);
 
+/* hair_object_strands.c */
+bool ED_hair_object_has_strands_data(struct Object *ob);
+bool ED_hair_object_init_strands_edit(struct Scene *scene, struct Object *ob);
+bool ED_hair_object_apply_strands_edit(struct Scene *scene, struct Object *ob);
+
 
 /* ==== Hair Brush ==== */
 

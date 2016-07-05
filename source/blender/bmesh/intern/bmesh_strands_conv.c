@@ -26,10 +26,11 @@
  * BM mesh conversion functions.
  */
 
+#include "DNA_key_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_key_types.h"
+#include "DNA_strand_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -41,6 +42,7 @@
 #include "BKE_main.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
+#include "BKE_strands.h"
 
 #include "bmesh.h"
 #include "intern/bmesh_private.h" /* for element checking */
@@ -96,7 +98,448 @@ char BM_strands_cd_flag_from_bmesh(BMesh *UNUSED(bm))
 	return cd_flag;
 }
 
-/* particles */
+/***********/
+/* Strands */
+
+/* create vertex and edge data for BMesh based on strand curves */
+static void bm_make_strands(BMesh *bm, Strands *strands, struct DerivedMesh *root_dm,
+                            float (*keyco)[3], int cd_shape_keyindex_offset)
+{
+	int vindex, eindex;
+	BMVert *v = NULL, *v_prev;
+	BMEdge *e;
+	
+	vindex = 0;
+	eindex = 0;
+	StrandCurve *curve = strands->curves;
+	for (int i = 0; i < strands->totcurves; ++i, ++curve) {
+		float rootmat[4][4];
+		
+		/* strand vertices are in a local "root space", but edit data should be in object space */
+		BKE_strands_get_root_matrix(curve, root_dm, rootmat);
+		
+		StrandVertex *vert = strands->verts + curve->verts_begin;
+		for (int k = 0; k < curve->num_verts; ++k, ++vert) {
+			float co[3];
+			
+			copy_v3_v3(co, keyco ? keyco[vindex] : vert->co);
+			mul_m4_v3(rootmat, co);
+			
+			v_prev = v;
+			v = BM_vert_create(bm, co, NULL, BM_CREATE_SKIP_CD);
+			BM_elem_index_set(v, vindex); /* set_ok */
+			
+			/* transfer flag */
+//			v->head.hflag = BM_vert_flag_from_mflag(mvert->flag & ~SELECT);
+			
+			/* this is necessary for selection counts to work properly */
+//			if (hkey->editflag & SELECT) {
+//				BM_vert_select_set(bm, v, true);
+//			}
+			
+			/* Copy Custom Data */
+//			CustomData_to_bmesh_block(&me->vdata, &bm->vdata, vindex, &v->head.data, true);
+			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
+			
+			/* root */
+			if (k == 0) {
+				BM_elem_meshsample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &curve->root);
+			}
+			
+#if 0
+			/* set shapekey data */
+			if (strands->key) {
+				/* set shape key original index */
+				if (cd_shape_keyindex_offset != -1) BM_ELEM_CD_SET_INT(v, cd_shape_keyindex_offset, vindex);
+				
+				for (block = strands->key->block.first, j = 0; block; block = block->next, j++) {
+					float *co = CustomData_bmesh_get_n(&bm->vdata, v->head.data, CD_SHAPEKEY, j);
+					
+					if (co) {
+						copy_v3_v3(co, ((float *)block->data) + 3 * vindex);
+					}
+				}
+			}
+#else
+			UNUSED_VARS(cd_shape_keyindex_offset);
+#endif
+			
+			vindex += 1;
+			
+			if (k > 0) {
+				e = BM_edge_create(bm, v_prev, v, NULL, BM_CREATE_SKIP_CD);
+				BM_elem_index_set(e, eindex); /* set_ok; one less edge than vertices for each particle */
+				
+				/* transfer flags */
+//				e->head.hflag = BM_edge_flag_from_mflag(medge->flag & ~SELECT);
+				
+				/* this is necessary for selection counts to work properly */
+//				if (medge->flag & SELECT) {
+//					BM_edge_select_set(bm, e, true);
+//				}
+				
+				/* Copy Custom Data */
+//				CustomData_to_bmesh_block(&me->edata, &bm->edata, eindex, &e->head.data, true);
+				CustomData_bmesh_set_default(&bm->edata, &e->head.data);
+				
+				eindex += 1;
+			}
+			
+		} /* vertices */
+	
+	} /* curves */
+	
+	bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE); /* added in order, clear dirty flag */
+}
+
+/**
+ * \brief Strands -> BMesh
+ */
+void BM_bm_from_strands(BMesh *bm, Strands *strands, struct DerivedMesh *root_dm,
+                        const bool set_key, int act_key_nr)
+{
+	KeyBlock *actkey;
+	float (*keyco)[3] = NULL;
+	int totvert, totedge;
+	
+	int cd_shape_keyindex_offset;
+	
+	/* free custom data */
+	/* this isnt needed in most cases but do just incase */
+	CustomData_free(&bm->vdata, bm->totvert);
+	CustomData_free(&bm->edata, bm->totedge);
+	CustomData_free(&bm->ldata, bm->totloop);
+	CustomData_free(&bm->pdata, bm->totface);
+	
+	totvert = strands->totverts;
+	totedge = totvert - strands->totcurves;
+	
+	if (!strands || !totvert || !totedge) {
+		if (strands) { /* no verts? still copy customdata layout */
+//			CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_ASSIGN, 0);
+//			CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_ASSIGN, 0);
+
+			CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
+			CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
+			CustomData_bmesh_init_pool(&bm->ldata, 0, BM_LOOP);
+			CustomData_bmesh_init_pool(&bm->pdata, 0, BM_FACE);
+		}
+		return; /* sanity check */
+	}
+
+#if 0
+	actkey = bm_set_shapekey_from_strands(bm, strands, totvert, act_key_nr);
+	if (actkey)
+		keyco = actkey->data;
+#else
+	UNUSED_VARS(act_key_nr, actkey);
+#endif
+
+	CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
+	CustomData_bmesh_init_pool(&bm->edata, totedge, BM_EDGE);
+
+	BM_strands_cd_flag_apply(bm, /*strands->cd_flag*/0);
+
+	cd_shape_keyindex_offset = /*strands->key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) :*/ -1;
+
+	bm_make_strands(bm, strands, root_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
+
+#if 0 /* TODO */
+	if (me->mselect && me->totselect != 0) {
+
+		BMVert **vert_array = MEM_mallocN(sizeof(BMVert *) * bm->totvert, "VSelConv");
+		BMEdge **edge_array = MEM_mallocN(sizeof(BMEdge *) * bm->totedge, "ESelConv");
+		BMFace **face_array = MEM_mallocN(sizeof(BMFace *) * bm->totface, "FSelConv");
+		MSelect *msel;
+
+#pragma omp parallel sections if (bm->totvert + bm->totedge + bm->totface >= BM_OMP_LIMIT)
+		{
+#pragma omp section
+			{ BM_iter_as_array(bm, BM_VERTS_OF_MESH, NULL, (void **)vert_array, bm->totvert); }
+#pragma omp section
+			{ BM_iter_as_array(bm, BM_EDGES_OF_MESH, NULL, (void **)edge_array, bm->totedge); }
+#pragma omp section
+			{ BM_iter_as_array(bm, BM_FACES_OF_MESH, NULL, (void **)face_array, bm->totface); }
+		}
+
+		for (i = 0, msel = me->mselect; i < me->totselect; i++, msel++) {
+			switch (msel->type) {
+				case ME_VSEL:
+					BM_select_history_store(bm, (BMElem *)vert_array[msel->index]);
+					break;
+				case ME_ESEL:
+					BM_select_history_store(bm, (BMElem *)edge_array[msel->index]);
+					break;
+				case ME_FSEL:
+					BM_select_history_store(bm, (BMElem *)face_array[msel->index]);
+					break;
+			}
+		}
+
+		MEM_freeN(vert_array);
+		MEM_freeN(edge_array);
+		MEM_freeN(face_array);
+	}
+	else {
+		me->totselect = 0;
+		if (me->mselect) {
+			MEM_freeN(me->mselect);
+			me->mselect = NULL;
+		}
+	}
+#endif
+}
+
+static void make_strand_curve(BMesh *bm, BMVert *root, StrandVertex *verts, struct DerivedMesh *root_dm,
+                              StrandCurve *curve, int verts_begin)
+{
+	int num_verts = BM_strands_keys_count(root);
+	
+	BMVert *v;
+	BMIter iter;
+	
+	curve->num_verts = num_verts;
+	curve->verts_begin = verts_begin;
+	
+	float inv_rootmat[4][4];
+	
+	StrandVertex *vert = verts + verts_begin;
+	int k = 0;
+	BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
+		/* root */
+		if (k == 0) {
+			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &curve->root);
+			
+			/* edit data is in object space, strand vertices must be converted back into "root space" */
+			BKE_strands_get_root_matrix(curve, root_dm, inv_rootmat);
+			invert_m4(inv_rootmat);
+		}
+		
+		mul_v3_m4v3(vert->co, inv_rootmat, v->co);
+		
+		++vert;
+		++k;
+		
+		BM_CHECK_ELEMENT(v);
+	}
+}
+
+void BM_bm_to_strands(BMesh *bm, Strands *strands, struct DerivedMesh *root_dm)
+{
+	StrandCurve *curves, *oldcurves;
+	StrandVertex *verts, *oldverts;
+	int ntotcurves, ntotverts;
+	
+	BMVert *root;
+	BMIter iter;
+	
+	oldcurves = strands->curves;
+	oldverts = strands->verts;
+	
+	ntotcurves = BM_strands_count(bm);
+	ntotverts = bm->totvert;
+	
+	/* new curves and verts */
+	if (ntotverts > 0) {
+		curves = MEM_callocN(ntotcurves * sizeof(StrandCurve), "StrandCurve array");
+		verts = MEM_callocN(ntotverts * sizeof(StrandVertex), "StrandVertex array");
+	}
+	
+	strands->totcurves = ntotcurves;
+	strands->totverts = ntotverts;
+	
+//	strands->cd_flag = BM_strands_cd_flag_from_bmesh(bm);
+	
+	StrandCurve *curve = curves;
+	int i = 0;
+	int verts_begin = 0;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		
+		make_strand_curve(bm, root, verts, root_dm, curve, verts_begin);
+		verts_begin += curve->num_verts;
+		
+		++curve;
+		++i;
+	}
+	bm->elem_index_dirty &= ~BM_VERT;
+
+#if 0 // TODO
+	{
+		BMEditSelection *selected;
+		me->totselect = BLI_listbase_count(&(bm->selected));
+
+		if (me->mselect) MEM_freeN(me->mselect);
+
+		me->mselect = MEM_callocN(sizeof(MSelect) * me->totselect, "Mesh selection history");
+
+
+		for (i = 0, selected = bm->selected.first; selected; i++, selected = selected->next) {
+			if (selected->htype == BM_VERT) {
+				me->mselect[i].type = ME_VSEL;
+
+			}
+			else if (selected->htype == BM_EDGE) {
+				me->mselect[i].type = ME_ESEL;
+
+			}
+			else if (selected->htype == BM_FACE) {
+				me->mselect[i].type = ME_FSEL;
+			}
+
+			me->mselect[i].index = BM_elem_index_get(selected->ele);
+		}
+	}
+#endif
+
+#if 0 // TODO
+	/* see comment below, this logic is in twice */
+
+	if (me->key) {
+		const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
+
+		KeyBlock *currkey;
+		KeyBlock *actkey = BLI_findlink(&me->key->block, bm->shapenr - 1);
+
+		float (*ofs)[3] = NULL;
+
+		/* go through and find any shapekey customdata layers
+		 * that might not have corresponding KeyBlocks, and add them if
+		 * necessary */
+		j = 0;
+		for (i = 0; i < bm->vdata.totlayer; i++) {
+			if (bm->vdata.layers[i].type != CD_SHAPEKEY)
+				continue;
+
+			for (currkey = me->key->block.first; currkey; currkey = currkey->next) {
+				if (currkey->uid == bm->vdata.layers[i].uid)
+					break;
+			}
+
+			if (!currkey) {
+				currkey = BKE_keyblock_add(me->key, bm->vdata.layers[i].name);
+				currkey->uid = bm->vdata.layers[i].uid;
+			}
+
+			j++;
+		}
+
+
+		/* editing the base key should update others */
+		if ((me->key->type == KEY_RELATIVE) && /* only need offsets for relative shape keys */
+		    (actkey != NULL) &&                /* unlikely, but the active key may not be valid if the
+		                                        * bmesh and the mesh are out of sync */
+		    (oldverts != NULL))                /* not used here, but 'oldverts' is used later for applying 'ofs' */
+		{
+			const bool act_is_basis = BKE_keyblock_is_basis(me->key, bm->shapenr - 1);
+
+			/* active key is a base */
+			if (act_is_basis && (cd_shape_keyindex_offset != -1)) {
+				float (*fp)[3] = actkey->data;
+
+				ofs = MEM_callocN(sizeof(float) * 3 * bm->totvert,  "currkey->data");
+				mvert = me->mvert;
+				BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
+					const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
+
+					if (keyi != ORIGINDEX_NONE) {
+						sub_v3_v3v3(ofs[i], mvert->co, fp[keyi]);
+					}
+					else {
+						/* if there are new vertices in the mesh, we can't propagate the offset
+						 * because it will only work for the existing vertices and not the new
+						 * ones, creating a mess when doing e.g. subdivide + translate */
+						MEM_freeN(ofs);
+						ofs = NULL;
+						break;
+					}
+
+					mvert++;
+				}
+			}
+		}
+
+		for (currkey = me->key->block.first; currkey; currkey = currkey->next) {
+			const bool apply_offset = (ofs && (currkey != actkey) && (bm->shapenr - 1 == currkey->relative));
+			int cd_shape_offset;
+			int keyi;
+			float (*ofs_pt)[3] = ofs;
+			float *newkey, (*oldkey)[3], *fp;
+
+			j = bm_to_mesh_shape_layer_index_from_kb(bm, currkey);
+			cd_shape_offset = CustomData_get_n_offset(&bm->vdata, CD_SHAPEKEY, j);
+
+
+			fp = newkey = MEM_callocN(me->key->elemsize * bm->totvert,  "currkey->data");
+			oldkey = currkey->data;
+
+			mvert = me->mvert;
+			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+
+				if (currkey == actkey) {
+					copy_v3_v3(fp, eve->co);
+
+					if (actkey != me->key->refkey) { /* important see bug [#30771] */
+						if (cd_shape_keyindex_offset != -1) {
+							if (oldverts) {
+								keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
+								if (keyi != ORIGINDEX_NONE && keyi < currkey->totelem) { /* valid old vertex */
+									copy_v3_v3(mvert->co, oldverts[keyi].co);
+								}
+							}
+						}
+					}
+				}
+				else if (j != -1) {
+					/* in most cases this runs */
+					copy_v3_v3(fp, BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset));
+				}
+				else if ((oldkey != NULL) &&
+				         (cd_shape_keyindex_offset != -1) &&
+				         ((keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset)) != ORIGINDEX_NONE) &&
+				         (keyi < currkey->totelem))
+				{
+					/* old method of reconstructing keys via vertice's original key indices,
+					 * currently used if the new method above fails (which is theoretically
+					 * possible in certain cases of undo) */
+					copy_v3_v3(fp, oldkey[keyi]);
+				}
+				else {
+					/* fail! fill in with dummy value */
+					copy_v3_v3(fp, mvert->co);
+				}
+
+				/* propagate edited basis offsets to other shapes */
+				if (apply_offset) {
+					add_v3_v3(fp, *ofs_pt++);
+				}
+
+				fp += 3;
+				mvert++;
+			}
+
+			currkey->totelem = bm->totvert;
+			if (currkey->data) {
+				MEM_freeN(currkey->data);
+			}
+			currkey->data = newkey;
+		}
+
+		if (ofs) MEM_freeN(ofs);
+	}
+#else
+	strands->curves = curves;
+	strands->verts = verts;
+#endif
+
+	if (oldcurves)
+		MEM_freeN(oldcurves);
+	if (oldverts)
+		MEM_freeN(oldverts);
+}
+
+
+/*************/
+/* Particles */
 
 int BM_strands_count_psys_keys(ParticleSystem *psys)
 {

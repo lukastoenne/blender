@@ -43,6 +43,7 @@ set(SRC
 	hair_mirror.c
 	hair_object_mesh.c
 	hair_object_particles.c
+	hair_object_strands.c
 	hair_ops.c
 	hair_select.c
 	hair_stroke.c

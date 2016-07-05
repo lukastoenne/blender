@@ -51,6 +51,7 @@
 #include "BKE_mesh_sample.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_strands.h"
 
 #include "BPH_strands.h"
 
@@ -93,6 +94,17 @@ BMEditStrands *BKE_editstrands_from_object(Object *ob)
 		ParticleSystem *psys = psys_get_current(ob);
 		if (psys && psys->hairedit)
 			return psys->hairedit;
+	}
+	
+	{
+		ModifierData *md;
+		for (md = ob->modifiers.first; md; md = md->next) {
+			if (md->type == eModifierType_Strands) {
+				StrandsModifierData *smd = (StrandsModifierData *)md;
+				if (smd->edit)
+					return smd->edit;
+			}
+		}
 	}
 	
 	return NULL;
@@ -261,4 +273,28 @@ void BKE_editstrands_mesh_from_bmesh(Object *ob)
 	 * are exceptions like file save that will not cause this, and we want to
 	 * avoid ending up with an invalid derived mesh then */
 	BKE_object_free_derived_caches(ob);
+}
+
+/* === strands conversion === */
+
+BMesh *BKE_editstrands_strands_to_bmesh(Strands *strands, DerivedMesh *root_dm)
+{
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_STRANDS(strands);
+	BMesh *bm;
+
+	bm = BM_mesh_create(&allocsize,
+	                    &((struct BMeshCreateParams){.use_toolflags = false,}));
+
+	BM_bm_from_strands(bm, strands, root_dm, true, -1);
+	
+	editstrands_calc_segment_lengths(bm);
+
+	return bm;
+}
+
+void BKE_editstrands_strands_from_bmesh(Strands *strands, BMesh *bm, DerivedMesh *root_dm)
+{
+	if (bm) {
+		BM_bm_to_strands(bm, strands, root_dm);
+	}
 }

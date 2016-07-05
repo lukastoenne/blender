@@ -65,7 +65,12 @@
 #include "hair_intern.h"
 #include "paint_intern.h"
 
-#define USE_PARTICLES 0
+/* Method of loading/applying data for hair edit mode,
+ * only one of these options should be active.
+ */
+#define EDIT_USE_MESH		0
+#define EDIT_USE_PARTICLES	0
+#define EDIT_USE_STRANDS	1
 
 int hair_edit_poll(bContext *C)
 {
@@ -131,10 +136,12 @@ int hair_edit_toggle_poll(bContext *C)
 	if (CTX_data_edit_object(C))
 		return false;
 
-#if USE_PARTICLES
-		return ED_hair_object_has_hair_particle_data(ob);
-#else
-		return ob->type == OB_MESH;
+#if EDIT_USE_MESH
+	return ob->type == OB_MESH;
+#elif	EDIT_USE_PARTICLES
+	return ED_hair_object_has_hair_particle_data(ob);
+#elif EDIT_USE_STRANDS
+	return ED_hair_object_has_strands_data(ob);
 #endif
 }
 
@@ -169,10 +176,12 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-#if USE_PARTICLES
-			ED_hair_object_init_particle_edit(scene, ob);
-#else
-			ED_hair_object_init_mesh_edit(scene, ob);
+#if EDIT_USE_MESH
+		ED_hair_object_init_mesh_edit(scene, ob);
+#elif EDIT_USE_PARTICLES
+		ED_hair_object_init_particle_edit(scene, ob);
+#elif EDIT_USE_STRANDS
+		ED_hair_object_init_strands_edit(scene, ob);
 #endif
 		ob->mode |= mode_flag;
 		
@@ -180,10 +189,12 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
-#if USE_PARTICLES
-		ED_hair_object_apply_particle_edit(ob);
-#else
+#if EDIT_USE_MESH
 		ED_hair_object_apply_mesh_edit(ob);
+#elif EDIT_USE_PARTICLES
+		ED_hair_object_apply_particle_edit(ob);
+#elif EDIT_USE_STRANDS
+		ED_hair_object_apply_strands_edit(scene, ob);
 #endif
 		ob->mode &= ~mode_flag;
 		

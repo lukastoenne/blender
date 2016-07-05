@@ -38,6 +38,7 @@ struct Object;
 struct ParticleSystem;
 struct DerivedMesh;
 struct BVHTreeFromMesh;
+struct Strands;
 
 extern const char *CD_HAIR_SEGMENT_LENGTH;
 extern const char *CD_HAIR_MASS;
@@ -48,6 +49,15 @@ void BM_strands_cd_validate(struct BMesh *bm);
 void BM_strands_cd_flag_ensure(struct BMesh *bm, const char cd_flag);
 void BM_strands_cd_flag_apply(struct BMesh *bm, const char cd_flag);
 char BM_strands_cd_flag_from_bmesh(struct BMesh *bm);
+
+/* strands */
+
+void BM_bm_from_strands(struct BMesh *bm, struct Strands *strands, struct DerivedMesh *root_dm,
+                        const bool set_key, int act_key_nr);
+void BM_bm_to_strands(struct BMesh *bm, struct Strands *strands, struct DerivedMesh *root_dm);
+
+#define BMALLOC_TEMPLATE_FROM_STRANDS(strands) { (CHECK_TYPE_INLINE(strands, Strands *), \
+	strands->totverts), (strands->totverts - strands->totcurves), 0, 0 }
 
 /* particles */
 

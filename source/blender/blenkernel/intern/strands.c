@@ -84,6 +84,34 @@ void BKE_strands_free(Strands *strands)
 	MEM_freeN(strands);
 }
 
+bool BKE_strands_get_root_location(const StrandCurve *curve, DerivedMesh *root_dm, float loc[3])
+{
+	float nor[3], tang[3];
+	if (BKE_mesh_sample_eval(root_dm, &curve->root, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		return false;
+	}
+}
+
+bool BKE_strands_get_root_matrix(const StrandCurve *curve, DerivedMesh *root_dm, float mat[4][4])
+{
+	if (BKE_mesh_sample_eval(root_dm, &curve->root, mat[3], mat[2], mat[0])) {
+		cross_v3_v3v3(mat[1], mat[2], mat[0]);
+		mat[0][3] = 0.0f;
+		mat[1][3] = 0.0f;
+		mat[2][3] = 0.0f;
+		mat[3][3] = 1.0f;
+		return true;
+	}
+	else {
+		unit_m4(mat);
+		return false;
+	}
+}
+
 /* ------------------------------------------------------------------------- */
 
 StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
@@ -105,8 +133,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 		curve->verts_begin = scurve->verts_begin;
 		curve->num_verts = scurve->num_verts;
 		
-		BKE_mesh_sample_eval(scalp, &scurve->root, curve->mat[3], curve->mat[2], curve->mat[0]);
-		cross_v3_v3v3(curve->mat[1], curve->mat[2], curve->mat[0]);
+		BKE_strands_get_root_matrix(scurve, scalp, curve->mat);
 		
 		int v;
 		StrandVertex *svert = strands->verts + scurve->verts_begin;
@@ -255,8 +282,7 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 		int c;
 		const StrandCurve *curve = strands->curves;
 		for (c = 0; c < strands->totcurves; ++c, ++curve) {
-			float nor[3], tang[3];
-			if (BKE_mesh_sample_eval(scalp, &curve->root, strandloc[c], nor, tang))
+			if (BKE_strands_get_root_location(curve, scalp, strandloc[c]))
 				BLI_kdtree_insert(tree, c, strandloc[c]);
 		}
 		BLI_kdtree_balance(tree);

@@ -45,6 +45,7 @@ struct BMesh;
 struct DerivedMesh;
 struct Mesh;
 struct Object;
+struct Strands;
 
 typedef struct BMEditStrands {
 	BMEditMesh base;
@@ -84,12 +85,15 @@ void BKE_editstrands_solve_constraints(struct Object *ob, struct BMEditStrands *
 void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === particle conversion === */
-
 struct BMesh *BKE_editstrands_particles_to_bmesh(struct Object *ob, struct ParticleSystem *psys);
 void BKE_editstrands_particles_from_bmesh(struct Object *ob, struct ParticleSystem *psys);
 
 /* === mesh conversion === */
 struct BMesh *BKE_editstrands_mesh_to_bmesh(struct Object *ob, struct Mesh *me);
 void BKE_editstrands_mesh_from_bmesh(struct Object *ob);
+
+/* === strands conversion === */
+struct BMesh *BKE_editstrands_strands_to_bmesh(struct Strands *strands, struct DerivedMesh *root_dm);
+void BKE_editstrands_strands_from_bmesh(struct Strands *strands, struct BMesh *bm, struct DerivedMesh *root_dm);
 
 #endif

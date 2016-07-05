@@ -1555,6 +1555,8 @@ typedef struct StrandsModifierData {
 	
 	struct Strands *strands;
 	struct StrandRoot *roots;
+	
+	struct BMEditStrands *edit;		/* edit data (runtime) */
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */

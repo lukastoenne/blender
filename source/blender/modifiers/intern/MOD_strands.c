@@ -39,6 +39,7 @@
 #include "DNA_strand_types.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_editstrands.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
@@ -61,6 +62,8 @@ static void initData(ModifierData *md)
 	
 	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS |
 	             MOD_STRANDS_SHOW_RENDER_STRANDS;
+	
+	smd->edit = NULL;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -83,6 +86,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (smd->roots) {
 		tsmd->roots = MEM_dupallocN(smd->roots);
 	}
+	
+	tsmd->edit = NULL;
 }
 
 static void freeData(ModifierData *md)
@@ -94,6 +99,11 @@ static void freeData(ModifierData *md)
 	}
 	if (smd->roots) {
 		MEM_freeN(smd->roots);
+	}
+	
+	if (smd->edit) {
+		BKE_editstrands_free(smd->edit);
+		MEM_freeN(smd->edit);
 	}
 }
 
