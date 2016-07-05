@@ -65,6 +65,7 @@
 #include "BKE_boids.h"
 #include "BKE_cloth.h"
 #include "BKE_colortools.h"
+#include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -549,6 +550,11 @@ void psys_free(Object *ob, ParticleSystem *psys)
 
 		if (psys->edit && psys->free_edit)
 			psys->free_edit(psys->edit);
+		if (psys->hairedit) {
+			BKE_editstrands_free(psys->hairedit);
+			MEM_freeN(psys->hairedit);
+			psys->hairedit = NULL;
+		}
 
 		if (psys->child) {
 			MEM_freeN(psys->child);
@@ -1576,6 +1582,11 @@ static int psys_map_index_on_dm(DerivedMesh *dm, int from, int index, int index_
 	}
 
 	return 1;
+}
+
+int psys_get_index_on_dm(ParticleSystem *psys, DerivedMesh *dm, ParticleData *pa, int *mapindex, float mapfw[4])
+{
+	return psys_map_index_on_dm(dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, mapindex, mapfw);
 }
 
 /* interprets particle data to get a point on a mesh in object space */
@@ -3175,7 +3186,7 @@ void object_remove_particle_system(Scene *UNUSED(scene), Object *ob)
 	if (ob->particlesystem.first)
 		((ParticleSystem *) ob->particlesystem.first)->flag |= PSYS_CURRENT;
 	else
-		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
+		ob->mode &= ~(OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT);
 
 	DAG_relations_tag_update(G.main);
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);

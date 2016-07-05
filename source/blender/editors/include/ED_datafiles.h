@@ -165,6 +165,27 @@ extern char datatoc_twist_png[];
 extern int datatoc_vertexdraw_png_size;
 extern char datatoc_vertexdraw_png[];
 
+extern int datatoc_haircomb_png_size;
+extern char datatoc_haircomb_png[];
+
+extern int datatoc_haircut_png_size;
+extern char datatoc_haircut_png[];
+
+extern int datatoc_hairlength_png_size;
+extern char datatoc_hairlength_png[];
+
+extern int datatoc_hairpuff_png_size;
+extern char datatoc_hairpuff_png[];
+
+extern int datatoc_hairadd_png_size;
+extern char datatoc_hairadd_png[];
+
+extern int datatoc_hairsmooth_png_size;
+extern char datatoc_hairsmooth_png[];
+
+extern int datatoc_hairweight_png_size;
+extern char datatoc_hairweight_png[];
+
 /* Matcap files */
 
 extern int datatoc_mc01_jpg_size;

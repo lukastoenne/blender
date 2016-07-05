@@ -98,6 +98,9 @@
 #include "bmesh.h"
 #include "intern/bmesh_private.h" /* for element checking */
 
+/* XXX stupid hack: linker otherwise strips bmesh_strands_conv.c because it is not used inside bmesh */
+void *__dummy_hack__ = &BM_strands_count_psys_keys;
+
 /**
  * Currently this is only used for Python scripts
  * which may fail to keep matching UV/TexFace layers.
@@ -236,6 +239,7 @@ void BM_mesh_bm_from_me(
 	BMFace *f;
 	float (*keyco)[3] = NULL;
 	int totuv, totloops, i, j;
+	CustomDataMask mask = CD_MASK_BMESH | params->cd_mask_extra;
 
 	/* free custom data */
 	/* this isnt needed in most cases but do just incase */
@@ -246,10 +250,10 @@ void BM_mesh_bm_from_me(
 
 	if (!me || !me->totvert) {
 		if (me) { /*no verts? still copy customdata layout*/
-			CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_ASSIGN, 0);
-			CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_ASSIGN, 0);
+			CustomData_copy(&me->vdata, &bm->vdata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->edata, &bm->edata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->ldata, &bm->ldata, mask, CD_ASSIGN, 0);
+			CustomData_copy(&me->pdata, &bm->pdata, mask, CD_ASSIGN, 0);
 
 			CustomData_bmesh_init_pool(&bm->vdata, me->totvert, BM_VERT);
 			CustomData_bmesh_init_pool(&bm->edata, me->totedge, BM_EDGE);
@@ -261,10 +265,10 @@ void BM_mesh_bm_from_me(
 
 	vtable = MEM_mallocN(sizeof(void **) * me->totvert, "mesh to bmesh vtable");
 
-	CustomData_copy(&me->vdata, &bm->vdata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->edata, &bm->edata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->ldata, &bm->ldata, CD_MASK_BMESH, CD_CALLOC, 0);
-	CustomData_copy(&me->pdata, &bm->pdata, CD_MASK_BMESH, CD_CALLOC, 0);
+	CustomData_copy(&me->vdata, &bm->vdata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->edata, &bm->edata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->ldata, &bm->ldata, mask, CD_CALLOC, 0);
+	CustomData_copy(&me->pdata, &bm->pdata, mask, CD_CALLOC, 0);
 
 	/* make sure uv layer names are consisten */
 	totuv = CustomData_number_of_layers(&bm->pdata, CD_MTEXPOLY);

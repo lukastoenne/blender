@@ -50,6 +50,8 @@ class VIEW3D_HT_header(Header):
             # Particle edit
             if mode == 'PARTICLE_EDIT':
                 row.prop(toolsettings.particle_edit, "select_mode", text="", expand=True)
+            elif mode == 'HAIR_EDIT':
+                row.prop(toolsettings.hair_edit, "select_mode", text="", expand=True)
 
             # Occlude geometry
             if ((view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'} and (mode == 'PARTICLE_EDIT' or (mode == 'EDIT' and obj.type == 'MESH'))) or
@@ -169,7 +171,7 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.menu("VIEW3D_MT_select_paint_mask")
             elif mesh.use_paint_mask_vertex and mode_string == 'PAINT_WEIGHT':
                 layout.menu("VIEW3D_MT_select_paint_mask_vertex")
-        elif mode_string != 'SCULPT':
+        elif mode_string not in {'SCULPT'}:
             layout.menu("VIEW3D_MT_select_%s" % mode_string.lower())
 
         if gp_edit:
@@ -194,7 +196,7 @@ class VIEW3D_MT_editor_menus(Menu):
         elif obj:
             if mode_string != 'PAINT_TEXTURE':
                 layout.menu("VIEW3D_MT_%s" % mode_string.lower())
-            if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
+            if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE', 'HAIR'}:
                 layout.menu("VIEW3D_MT_brush")
             if mode_string == 'SCULPT':
                 layout.menu("VIEW3D_MT_hide_mask")
@@ -1052,6 +1054,13 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
 
 
+class VIEW3D_MT_select_hair(Menu):
+    bl_label = "Select"
+
+    def draw(self, context):
+        layout = self.layout
+
+
 class VIEW3D_MT_angle_control(Menu):
     bl_label = "Angle Control"
 
@@ -1670,7 +1679,7 @@ class VIEW3D_MT_brush(Menu):
         layout.separator()
 
         # brush paint modes
-        layout.menu("VIEW3D_MT_brush_paint_modes")
+        layout.menu("VIEW3D_MT_brush_object_modes")
 
         # brush tool
         if context.sculpt_object:
@@ -1680,6 +1689,8 @@ class VIEW3D_MT_brush(Menu):
             layout.prop_menu_enum(brush, "image_tool")
         elif context.vertex_paint_object or context.weight_paint_object:
             layout.prop_menu_enum(brush, "vertex_tool")
+        elif context.hair_edit_object:
+            layout.prop_menu_enum(brush, "hair_tool")
 
         # skip if no active brush
         if not brush:
@@ -1707,7 +1718,7 @@ class VIEW3D_MT_brush(Menu):
                     layout.operator("sculpt.set_persistent_base")
 
 
-class VIEW3D_MT_brush_paint_modes(Menu):
+class VIEW3D_MT_brush_object_modes(Menu):
     bl_label = "Enabled Modes"
 
     def draw(self, context):
@@ -1720,6 +1731,7 @@ class VIEW3D_MT_brush_paint_modes(Menu):
         layout.prop(brush, "use_paint_vertex", text="Vertex Paint")
         layout.prop(brush, "use_paint_weight", text="Weight Paint")
         layout.prop(brush, "use_paint_image", text="Texture Paint")
+        layout.prop(brush, "use_hair_edit", text="Hair Edit")
 
 # ********** Vertex paint menu **********
 
@@ -1980,6 +1992,14 @@ class VIEW3D_MT_particle_specials(Menu):
 
 class VIEW3D_MT_particle_showhide(ShowHideMenu, Menu):
     _operator_name = "particle"
+
+# ********** Hair menu **********
+
+class VIEW3D_MT_hair(Menu):
+    bl_label = "Hair"
+
+    def draw(self, context):
+        layout = self.layout
 
 # ********** Pose Menu **********
 

@@ -85,9 +85,11 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
+#include "ED_physics.h"
 #include "ED_particle.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_physics.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_mball.h"
@@ -838,6 +840,8 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc,
 		}
 		else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT))
 			PE_lasso_select(C, mcords, moves, extend, select);
+		else if (ob && (ob->mode & OB_MODE_HAIR_EDIT))
+			ED_hair_lasso_select(C, mcords, moves, extend, select);
 		else {
 			do_lasso_select_objects(vc, mcords, moves, extend, select);
 			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
@@ -2173,6 +2177,9 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 		else if (vc.obact && vc.obact->mode & OB_MODE_PARTICLE_EDIT) {
 			ret = PE_border_select(C, &rect, select, extend);
 		}
+		else if (vc.obact && vc.obact->mode & OB_MODE_HAIR_EDIT) {
+			ret = ED_hair_border_select(C, &rect, select, extend);
+		}
 		else { /* object mode with none active */
 			ret = do_object_pose_box_select(C, &vc, &rect, select, extend);
 		}
@@ -2305,6 +2312,8 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
 	}
 	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
 		return PE_mouse_particles(C, location, extend, deselect, toggle);
+	else if (obact && obact->mode & OB_MODE_HAIR_EDIT)
+		return ED_hair_mouse_select(C, location, extend, deselect, toggle);
 	else if (obact && BKE_paint_select_face_test(obact))
 		retval = paintface_mouse_select(C, obact, location, extend, deselect, toggle);
 	else if (BKE_paint_select_vert_test(obact))
@@ -2820,7 +2829,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	                     RNA_int_get(op->ptr, "y")};
 
 	if (CTX_data_edit_object(C) || BKE_paint_select_elem_test(obact) ||
-	    (obact && (obact->mode & (OB_MODE_PARTICLE_EDIT | OB_MODE_POSE))) )
+	    (obact && (obact->mode & (OB_MODE_PARTICLE_EDIT | OB_MODE_POSE | OB_MODE_HAIR_EDIT))) )
 	{
 		ViewContext vc;
 		
@@ -2840,10 +2849,16 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 			paint_vertsel_circle_select(&vc, select, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
 		}
-		else if (obact->mode & OB_MODE_POSE)
+		else if (obact->mode & OB_MODE_POSE) {
 			pose_circle_select(&vc, select, mval, (float)radius);
-		else
+		}
+		else if (obact->mode & OB_MODE_HAIR_EDIT) {
+			ED_hair_circle_select(C, select, mval, (float)radius);
+			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
+		}
+		else {
 			return PE_circle_select(C, select, mval, (float)radius);
+		}
 	}
 	else if (obact && obact->mode & OB_MODE_SCULPT) {
 		return OPERATOR_CANCELLED;

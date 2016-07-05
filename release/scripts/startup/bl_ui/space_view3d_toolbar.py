@@ -966,6 +966,21 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 layout.prop(brush, "puff_mode", expand=True)
                 layout.prop(brush, "use_puff_volume")
 
+        # Hair Mode #
+
+        elif context.hair_edit_object and brush:
+            col = layout.column()
+
+            row = col.row(align=True)
+            self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
+            self.prop_unified_size(row, context, brush, "use_pressure_size")
+
+            row = col.row(align=True)
+            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
+            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
+
+            col.prop(brush, "hair_tool", text="Tool")
+
         # Sculpt Mode #
 
         elif context.sculpt_object and brush:
@@ -1946,6 +1961,23 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
             sub = col.row(align=True)
             sub.active = pe.use_fade_time
             sub.prop(pe, "fade_frames", slider=True)
+
+
+class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
+    """Tools for hair mode"""
+    bl_context = "hairmode"
+    bl_label = "Options"
+    bl_category = "Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = context.tool_settings.hair_edit
+        ob = context.active_object
+
+        if ob.data:
+            col = layout.column(align=True)
+            col.prop(ob.data, "use_mirror_x")
 
 
 # Grease Pencil drawing tools

@@ -32,7 +32,10 @@
  *  \ingroup bmesh
  */
 
+#include "BLI_sys_types.h"
+
 struct Mesh;
+typedef uint64_t CustomDataMask;
 
 void BM_mesh_cd_validate(BMesh *bm);
 void BM_mesh_cd_flag_ensure(BMesh *bm, struct Mesh *mesh, const char cd_flag);
@@ -48,6 +51,7 @@ struct BMeshFromMeshParams {
 	unsigned int use_shapekey : 1;
 	/* define the active shape key (index + 1) */
 	int active_shapekey;
+	int64_t cd_mask_extra;
 };
 void BM_mesh_bm_from_me(
         BMesh *bm, struct Mesh *me,

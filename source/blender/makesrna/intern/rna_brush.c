@@ -107,6 +107,17 @@ EnumPropertyItem rna_enum_brush_image_tool_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem brush_hair_tool_items[] = {
+	{HAIR_TOOL_COMB, "COMB", ICON_BRUSH_HAIR_COMB, "Comb", "Align hairs to the stroke direction"},
+	{HAIR_TOOL_CUT, "CUT", ICON_BRUSH_HAIR_CUT, "Cut", "Shorten and/or remove hairs"},
+	{HAIR_TOOL_LENGTH, "LENGTH", ICON_BRUSH_HAIR_LENGTH, "Length", "Increase hair length"},
+	{HAIR_TOOL_PUFF, "PUFF", ICON_BRUSH_HAIR_PUFF, "Puff", "Increase spacing between hairs"},
+	{HAIR_TOOL_ADD, "ADD", ICON_BRUSH_HAIR_ADD, "Add", "Add more hairs on the object"},
+	{HAIR_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_HAIR_SMOOTH, "Smooth", "Align hairs in the same direction"},
+	{HAIR_TOOL_WEIGHT, "WEIGHT", ICON_BRUSH_HAIR_WEIGHT, "Weight", "Set hair vertex weights"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -398,6 +409,13 @@ static void rna_Brush_imagepaint_tool_update(Main *bmain, Scene *scene, PointerR
 {
 	Brush *br = (Brush *)ptr->data;
 	rna_Brush_reset_icon(br, "image_paint");
+	rna_Brush_update(bmain, scene, ptr);
+}
+
+static void rna_Brush_hair_tool_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	rna_Brush_reset_icon(br, "hair");
 	rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -884,6 +902,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Image Paint Tool", "");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Brush_imagepaint_tool_update");
 
+	prop = RNA_def_property(srna, "hair_tool", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "hair_tool");
+	RNA_def_property_enum_items(prop, brush_hair_tool_items);
+	RNA_def_property_ui_text(prop, "Hair Tool", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_hair_tool_update");
+
 	prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, prop_direction_items);
@@ -1328,6 +1352,10 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_paint_image", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ob_mode", OB_MODE_TEXTURE_PAINT);
 	RNA_def_property_ui_text(prop, "Use Texture", "Use this brush in texture paint mode");
+
+	prop = RNA_def_property(srna, "use_hair_edit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ob_mode", OB_MODE_HAIR_EDIT);
+	RNA_def_property_ui_text(prop, "Use Hair", "Use this brush in hair edit mode");
 
 	/* texture */
 	prop = RNA_def_property(srna, "texture_slot", PROP_POINTER, PROP_NONE);

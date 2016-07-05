@@ -613,6 +613,13 @@ static void init_brush_icons(void)
 	INIT_BRUSH_ICON(ICON_BRUSH_THUMB, thumb);
 	INIT_BRUSH_ICON(ICON_BRUSH_ROTATE, twist);
 	INIT_BRUSH_ICON(ICON_BRUSH_VERTEXDRAW, vertexdraw);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_COMB, haircomb);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_CUT, haircut);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_LENGTH, hairlength);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_PUFF, hairpuff);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_ADD, hairadd);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_SMOOTH, hairsmooth);
+	INIT_BRUSH_ICON(ICON_BRUSH_HAIR_WEIGHT, hairweight);
 
 #undef INIT_BRUSH_ICON
 }
@@ -1432,6 +1439,8 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 				mode = OB_MODE_VERTEX_PAINT;
 			else if (ob->mode & OB_MODE_TEXTURE_PAINT)
 				mode = OB_MODE_TEXTURE_PAINT;
+			else if (ob->mode & OB_MODE_HAIR_EDIT)
+				mode = OB_MODE_HAIR_EDIT;
 		}
 		else if ((sima = CTX_wm_space_image(C)) &&
 		         (sima->mode == SI_MODE_PAINT))
@@ -1451,6 +1460,10 @@ static int ui_id_brush_get_icon(const bContext *C, ID *id)
 		else if (mode == OB_MODE_TEXTURE_PAINT) {
 			items = rna_enum_brush_image_tool_items;
 			tool = br->imagepaint_tool;
+		}
+		else if (mode == OB_MODE_HAIR_EDIT) {
+			items = brush_hair_tool_items;
+			tool = br->hair_tool;
 		}
 
 		if (!items || !RNA_enum_icon_from_value(items, tool, &id->icon_id))

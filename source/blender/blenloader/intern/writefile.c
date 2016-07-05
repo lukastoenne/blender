@@ -2290,6 +2290,7 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 				CustomData_reset(&mesh->pdata);
 				CustomData_reset(&mesh->ldata);
 				mesh->edit_btmesh = NULL;
+				mesh->edit_strands = NULL;
 
 				/* now fill in polys to mfaces */
 				/* XXX This breaks writing desing, by using temp allocated memory, which will likely generate

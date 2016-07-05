@@ -4263,6 +4263,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		
 		psys->edit = NULL;
 		psys->free_edit = NULL;
+		psys->hairedit = NULL;
 		psys->pathcache = NULL;
 		psys->childcache = NULL;
 		BLI_listbase_clear(&psys->pathcachebufs);
@@ -4572,6 +4573,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
+	mesh->edit_strands = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
@@ -5308,7 +5310,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	 * See [#34776, #42780] for more information.
 	 */
 	if (fd->memfile || (ob->id.tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT))) {
-		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT);
 		if (!fd->memfile) {
 			ob->mode &= ~OB_MODE_POSE;
 		}
@@ -5646,6 +5648,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			sce->toolsettings->particle.shape_object = newlibadr(fd, sce->id.lib, sce->toolsettings->particle.shape_object);
 			
+			{
+				HairEditSettings *hair_edit = &sce->toolsettings->hair_edit;
+				if (hair_edit->brush)
+					hair_edit->brush = newlibadr(fd, sce->id.lib, hair_edit->brush);
+				if (hair_edit->shape_object)
+					hair_edit->shape_object = newlibadr(fd, sce->id.lib, hair_edit->shape_object);
+			}
+			
 			for (base = sce->base.first; base; base = next) {
 				next = base->next;
 				
@@ -5894,7 +5904,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		sce->toolsettings->particle.scene = NULL;
 		sce->toolsettings->particle.object = NULL;
 		sce->toolsettings->gp_sculpt.paintcursor = NULL;
-
+		sce->toolsettings->hair_edit.paint_cursor = NULL;
+		
 		/* in rare cases this is needed, see [#33806] */
 		if (sce->toolsettings->vpaint) {
 			sce->toolsettings->vpaint->vpaint_prev = NULL;

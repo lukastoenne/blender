@@ -533,6 +533,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_editor_object
 		bf_editor_armature
 		bf_editor_physics
+		bf_editor_hair
 		bf_editor_render
 		bf_editor_screen
 		bf_editor_sculpt_paint

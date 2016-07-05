@@ -663,5 +663,5 @@ void undo_push_mesh(bContext *C, const char *name)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	em->ob = obedit;
 
-	undo_editmode_push(C, name, getEditMesh, free_undo, undoMesh_to_editbtMesh, editbtMesh_to_undoMesh, NULL);
+	undo_editmode_push(C, name, CTX_data_edit_object, getEditMesh, free_undo, undoMesh_to_editbtMesh, editbtMesh_to_undoMesh, NULL);
 }
