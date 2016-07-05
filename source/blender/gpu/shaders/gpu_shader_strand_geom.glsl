@@ -1,8 +1,3 @@
-// Define which one is the outer loop.
-// TODO Have to determine which variant is better
-//#define LOOP_CURVES
-#define LOOP_VERTS
-
 #define MAX_CURVE_VERTS 64
 
 layout(points) in;
@@ -66,23 +61,16 @@ void main()
 		croot[k] = texelFetch(control_points, cvert_begin[k]);
 		offset[k] = root - croot[k];
 	}
-#ifdef LOOP_CURVES
-	int num_verts = clamp(int(ceil(fnum_verts)), 2, MAX_CURVE_VERTS);
-#else
 	int num_verts = max(int(ceil(fnum_verts)), 2);
-#endif
 
-#ifdef LOOP_VERTS
 	float dt[4];
 	for (int k = 0; k < 4; ++k) {
 		dt[k] = float(num_cverts[k] - 1) / float(num_verts - 1);
 	}
-#endif
 
 	//fColor = vec3(0.0, 1.0, 0.0);
 	emit_vertex(root);
 
-#ifdef LOOP_VERTS
 	float t[4] = float[4](dt[0], dt[1], dt[2], dt[3]);
 	for (int i = 1; i < num_verts; ++i) {
 		vec4 loc = vec4(0.0, 0.0, 0.0, 1.0);
@@ -107,38 +95,6 @@ void main()
 		//fColor = vec3(float(t[0]), 0.0, 0.0);
 		emit_vertex(loc);
 	}
-#endif
-
-#ifdef LOOP_CURVES
-	vec4 loc[MAX_CURVE_VERTS];
-	
-	for (int i = 1; i < num_verts; ++i) {
-		loc[i] = vec4(0.0, 0.0, 0.0, 0.0);
-	}
-	for (int k = 0; k < 4; ++k) {
-		float cdt = 1.0 / float(max(num_cverts[k], 2) - 1);
-		
-		float t = dt;
-		float ct = cdt;
-		for (int i = 1; i < num_verts; ++i) {
-			float lambda = ct - floor(ct);
-			int ci0 = clamp(int(ct), 0, num_cverts[k] - 2);
-			int ci1 = ci0 + 1;
-			/* XXX could use texture filtering to do this for us? */
-			vec4 cloc0 = texelFetch(control_points, cvert_begin[k] + ci0);
-			vec4 cloc1 = texelFetch(control_points, cvert_begin[k] + ci1);
-			vec4 cloc = mix(cloc0, cloc1, lambda) + offset[k];
-			
-			loc[i] += weight[k] * cloc;
-			
-			t += dt;
-			ct += cdt;
-		}
-	}
-	for (int i = 1; i < num_verts; ++i) {
-		emit_vertex(loc[i]);
-	}
-#endif
 	
 	EndPrimitive();
 }
