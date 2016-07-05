@@ -803,7 +803,7 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 		BLI_assert(ELEM(data[i].type, SUPPORTED_GL_ATTRIB_TYPES) &&
 		           "Unsupported attribute data type!");
 		
-		if (data[i].info_index >= 0) {
+		if (data[i].info_index != -1) {
 			int info = 0;
 			if (data[i].type == GL_UNSIGNED_BYTE) {
 				info |= GPU_ATTR_INFO_SRGB;
@@ -811,7 +811,7 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 			glUniform1i(data[i].info_index, info);
 		}
 
-		if (data[i].index >= 0) {
+		if (data[i].index != -1) {
 			glEnableVertexAttribArray(data[i].index);
 			switch (data[i].type) {
 				case GL_FLOAT:
