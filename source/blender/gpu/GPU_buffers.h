@@ -216,7 +216,8 @@ void GPU_uvedge_setup(struct DerivedMesh *dm);
 void GPU_triangle_setup(struct DerivedMesh *dm);
 
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size,
+                                  bool use_float_buffer);
 
 void GPU_buffer_bind(GPUBuffer *buffer, GPUBindingType binding);
 void GPU_buffer_unbind(GPUBuffer *buffer, GPUBindingType binding);

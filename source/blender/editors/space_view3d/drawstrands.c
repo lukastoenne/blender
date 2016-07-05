@@ -79,7 +79,7 @@ void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *
 			GPU_strand_shader_get_attributes(strands->gpu_shader, &attrib, &num_attrib);
 			
 			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(gds->root_points, attrib, num_attrib, elemsize);
+			GPU_interleaved_attrib_setup(gds->root_points, attrib, num_attrib, elemsize, false);
 			
 			glDrawArrays(GL_POINTS, 0, gds->totroots * elemsize);
 			

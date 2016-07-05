@@ -778,7 +778,8 @@ int GPU_attrib_element_size(GPUAttrib data[], int numdata)
 	return elementsize;
 }
 
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size)
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size,
+                                  bool use_float_buffer)
 {
 	int i;
 	int elementsize;
@@ -821,8 +822,14 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 				case GL_UNSIGNED_INT:
 				case GL_BYTE:
 				case GL_UNSIGNED_BYTE:
-					glVertexAttribIPointer(data[i].index, data[i].size, data[i].type,
-					                       elementsize, BUFFER_OFFSET(offset));
+					if (use_float_buffer) {
+						glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+						                      GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+					}
+					else {
+						glVertexAttribIPointer(data[i].index, data[i].size, data[i].type,
+						                       elementsize, BUFFER_OFFSET(offset));
+					}
 					break;
 			}
 		}
