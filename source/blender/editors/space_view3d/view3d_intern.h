@@ -289,10 +289,13 @@ ARegion *view3d_has_tools_region(ScrArea *sa);
 extern const char *view3d_context_dir[]; /* doc access */
 
 /* drawstrands.c */
-void draw_strands(struct Strands *strands, struct StrandData *data, struct Object *ob, struct RegionView3D *rv3d,
+void draw_strands(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
+                  struct Object *ob, struct Strands *strands, struct StrandData *data,
                   bool show_controls, bool show_strands);
 
-void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, struct BMEditStrands *edit);
+void draw_strands_edit_hair(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
+                            struct Object *ob, struct Strands *strands, struct BMEditStrands *edit,
+                            bool show_controls, bool show_strands);
 
 /* drawvolume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,

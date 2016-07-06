@@ -53,6 +53,7 @@ struct GridCommonGPUBuffer;
 struct PBVH;
 struct MVert;
 struct StrandData;
+struct BMEditStrands;
 
 typedef struct GPUBuffer {
 	size_t size;        /* in bytes */
@@ -295,8 +296,12 @@ void GPU_strands_setup_verts(struct StrandData *strands);
 void GPU_strands_setup_edges(struct StrandData *strands);
 void GPU_strands_setup_roots(struct StrandData *strands);
 
+void GPU_editstrands_setup_verts(struct BMEditStrands *strands);
+void GPU_editstrands_setup_edges(struct BMEditStrands *strands);
+void GPU_editstrands_setup_roots(struct BMEditStrands *strands);
+
 void GPU_strands_buffer_unbind(void);
 
-void GPU_strands_buffer_free(struct StrandData *strands);
+void GPU_strands_buffer_free(struct GPUDrawStrands *gpu_buffer);
 
 #endif

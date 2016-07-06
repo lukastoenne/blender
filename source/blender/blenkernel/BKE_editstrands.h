@@ -55,9 +55,7 @@ typedef struct BMEditStrands {
 	
 	int flag;
 	
-	unsigned int vertex_glbuf;
-	unsigned int elem_glbuf;
-	unsigned int dot_glbuf;
+	struct GPUDrawStrands *gpu_buffer;
 } BMEditStrands;
 
 /* BMEditStrands->flag */

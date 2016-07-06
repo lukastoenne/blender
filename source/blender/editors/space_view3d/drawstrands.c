@@ -66,7 +66,8 @@
 
 #include "view3d_intern.h"  // own include
 
-void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *rv3d,
+void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
+                  Object *ob, Strands *strands, StrandData *data,
                   bool show_controls, bool show_strands)
 {
 	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
@@ -108,6 +109,7 @@ void draw_strands(Strands *strands, StrandData *data, Object *ob, RegionView3D *
 /*************************/
 /*** Edit Mode Drawing ***/
 
+#if 0
 typedef enum StrandsShadeMode {
 	STRANDS_SHADE_FLAT,
 	STRANDS_SHADE_HAIR,
@@ -413,9 +415,25 @@ static void draw_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool sel
 	if (totelem > 0)
 		glDrawArrays(GL_POINTS, 0, totelem);
 }
+#endif
 
-void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *UNUSED(ar), BMEditStrands *edit)
+void draw_strands_edit_hair(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
+                            Object *ob, Strands *strands, BMEditStrands *edit,
+                            bool show_controls, bool show_strands)
 {
+	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
+	
+	if (show_controls) {
+		GPU_editstrands_setup_edges(edit);
+		GPUDrawStrands *gds = edit->gpu_buffer;
+		if (gds->control_points && gds->control_edges) {
+			GPU_buffer_draw_elements(gds->control_edges, GL_LINES, 0,
+			                         (gds->totverts - gds->totcurves) * 2);
+		}
+		GPU_buffers_unbind();
+	}
+	
+#if 0
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	
 	StrandsDrawInfo info;
@@ -436,4 +454,5 @@ void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *UNUSED(ar), BMEd
 	unbind_gpu_buffers_dots();
 	
 	restore_opengl_state(&info);
+#endif
 }

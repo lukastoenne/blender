@@ -72,7 +72,6 @@ void BKE_strands_free(Strands *strands)
 {
 	if (strands->gpu_shader)
 		GPU_strand_shader_free(strands->gpu_shader);
-	GPU_strands_buffer_free(strands->data_final);
 	
 	if (strands->data_final)
 		BKE_strand_data_free(strands->data_final);
@@ -163,7 +162,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 void BKE_strand_data_free(StrandData *data)
 {
 	if (data) {
-		GPU_strands_buffer_free(data);
+		GPU_strands_buffer_free(data->gpu_buffer);
 		
 		if (data->verts)
 			MEM_freeN(data->verts);

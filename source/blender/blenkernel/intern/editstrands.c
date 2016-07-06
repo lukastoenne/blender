@@ -55,6 +55,8 @@
 
 #include "BPH_strands.h"
 
+#include "GPU_buffers.h"
+
 #include "intern/bmesh_mesh_conv.h"
 #include "intern/bmesh_strands_conv.h"
 
@@ -75,6 +77,8 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	
 	es_copy->base.bm = BM_mesh_copy(es->base.bm);
 	es_copy->root_dm = CDDM_copy(es->root_dm);
+	
+	es_copy->gpu_buffer = NULL;
 	
 	return es_copy;
 }
@@ -125,6 +129,9 @@ void BKE_editstrands_free(BMEditStrands *es)
 		BM_mesh_free(es->base.bm);
 	if (es->root_dm)
 		es->root_dm->release(es->root_dm);
+	
+	if (es->gpu_buffer)
+		GPU_strands_buffer_free(es->gpu_buffer);
 }
 
 /* === constraints === */

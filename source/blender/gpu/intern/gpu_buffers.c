@@ -50,6 +50,7 @@
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
 #include "BKE_paint.h"
 #include "BKE_mesh.h"
 #include "BKE_pbvh.h"
@@ -2181,12 +2182,12 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 }
 
 /* get the amount of space to allocate for a buffer of a particular type */
-static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBufferType type)
+static size_t gpu_strands_buffer_size_from_type(GPUDrawStrands *gpu_buffer, GPUStrandBufferType type)
 {
 	const int components = gpu_strand_buffer_type_settings[type].num_components;
-	const int totverts = strands->gpu_buffer->totverts;
-	const int totcurves = strands->gpu_buffer->totcurves;
-	const int totroots = strands->gpu_buffer->totroots;
+	const int totverts = gpu_buffer->totverts;
+	const int totcurves = gpu_buffer->totcurves;
+	const int totroots = gpu_buffer->totroots;
 	
 	switch (type) {
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
@@ -2202,104 +2203,19 @@ static size_t gpu_strands_buffer_size_from_type(StrandData *strands, GPUStrandBu
 	}
 }
 
-static GPUDrawStrands *strands_buffer_create(StrandData *strands)
-{
-	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
-	
-	gsb->totverts = strands->totverts;
-	gsb->totcurves = strands->totcurves;
-	gsb->totroots = strands->totroots;
-	
-	return gsb;
-}
+typedef void (*StrandsCopyGPUDataCb)(void *userdata, GPUStrandBufferType type, float *varray);
 
-static void strands_copy_vertex_buffer(StrandData *strands, float (*varray)[3])
-{
-	int totverts = strands->totverts, v;
-	
-	/* control strand vertices */
-	StrandVertexData *vert = strands->verts;
-	for (v = 0; v < totverts; ++v, ++vert) {
-		copy_v3_v3(*varray++, vert->co);
-	}
-}
-
-static void strands_copy_curve_buffer(StrandData *strands, unsigned int (*varray)[2])
-{
-	int totcurves = strands->totcurves, c;
-	
-	StrandCurveData *curve = strands->curves;
-	for (c = 0; c < totcurves; ++c, ++curve) {
-		(*varray)[0] = curve->verts_begin;
-		(*varray)[1] = curve->num_verts;
-		++varray;
-	}
-}
-
-static void strands_copy_edge_buffer(StrandData *strands, unsigned int (*varray)[2])
-{
-	int totcurves = strands->totcurves, c;
-	int totedge = 0;
-	
-	StrandCurveData *curve = strands->curves;
-	for (c = 0; c < totcurves; ++c, ++curve) {
-		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
-		BLI_assert(verts_begin < strands->totverts);
-		BLI_assert(num_verts >= 2);
-		
-		StrandVertexData *vert = strands->verts + verts_begin;
-		for (v = 0; v < num_verts - 1; ++v, ++vert) {
-			(*varray)[0] = verts_begin + v;
-			(*varray)[1] = verts_begin + v + 1;
-			++varray;
-			++totedge;
-		}
-	}
-	BLI_assert(totedge == strands->totverts - totcurves);
-	UNUSED_VARS(totedge);
-}
-
-static void strands_copy_root_buffer(StrandData *strands, RootVertex *varray)
-{
-	int totroots = strands->totroots, v;
-	
-	/* strand root points */
-	StrandRootData *root = strands->roots;
-	for (v = 0; v < totroots; ++v, ++root) {
-		copy_v3_v3(varray->co, root->co);
-		for (int k = 0; k < 4; ++k) {
-			varray->control_index[k] = root->control_index[k];
-			varray->control_weight[k] = root->control_weight[k];
-		}
-		++varray;
-	}
-}
-
-static void strands_copy_gpu_data(StrandData *strands, GPUStrandBufferType type, float *varray)
-{
-	switch (type) {
-		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
-			strands_copy_vertex_buffer(strands, (float (*)[3])varray);
-			break;
-		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			strands_copy_curve_buffer(strands, (unsigned int (*)[2])varray);
-			break;
-		case GPU_STRAND_BUFFER_CONTROL_EDGE:
-			strands_copy_edge_buffer(strands, (unsigned int (*)[2])varray);
-			break;
-		case GPU_STRAND_BUFFER_ROOT_VERTEX:
-			strands_copy_root_buffer(strands, (RootVertex *)varray);
-			break;
-	}
-}
-
-static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBufferType type, GPUBuffer *buffer)
+static GPUBuffer *gpu_strands_setup_buffer_type(GPUDrawStrands *gpu_buffer,
+                                                GPUStrandBufferType type,
+                                                StrandsCopyGPUDataCb copy_data,
+                                                void *userdata,
+                                                GPUBuffer *buffer)
 {
 	GPUBufferPool *pool;
 	float *varray;
 	const GPUBufferTypeSettings *ts = &gpu_strand_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	size_t size = gpu_strands_buffer_size_from_type(strands, type);
+	size_t size = gpu_strands_buffer_size_from_type(gpu_buffer, type);
 
 	pool = gpu_get_global_buffer_pool();
 
@@ -2335,7 +2251,7 @@ static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBuffer
 		GLboolean uploaded = GL_FALSE;
 		/* attempt to upload the data to the VBO */
 		while (uploaded == GL_FALSE) {
-			strands_copy_gpu_data(strands, type, varray);
+			copy_data(userdata, type, varray);
 			
 			/* glUnmapBuffer returns GL_FALSE if
 			 * the data store is corrupted; retry
@@ -2350,8 +2266,7 @@ static GPUBuffer *strands_setup_buffer_type(StrandData *strands, GPUStrandBuffer
 	return buffer;
 }
 
-static void strands_setup_buffer_texture(StrandData *UNUSED(strands), GPUBuffer *buffer, GLenum format,
-                                         GPUBufferTexture *tex)
+static void gpu_strands_setup_buffer_texture(GPUBuffer *buffer, GLenum format, GPUBufferTexture *tex)
 {
 	if (!buffer)
 		return;
@@ -2364,6 +2279,100 @@ static void strands_setup_buffer_texture(StrandData *UNUSED(strands), GPUBuffer 
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
 }
 
+/* ******** */
+
+static GPUDrawStrands *strands_buffer_create(StrandData *strands)
+{
+	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
+	
+	gsb->totverts = strands->totverts;
+	gsb->totcurves = strands->totcurves;
+	gsb->totroots = strands->totroots;
+	
+	return gsb;
+}
+
+static void strands_copy_vertex_data(StrandData *strands, float (*varray)[3])
+{
+	int totverts = strands->totverts, v;
+	
+	/* control strand vertices */
+	StrandVertexData *vert = strands->verts;
+	for (v = 0; v < totverts; ++v, ++vert) {
+		copy_v3_v3(*varray++, vert->co);
+	}
+}
+
+static void strands_copy_curve_data(StrandData *strands, unsigned int (*varray)[2])
+{
+	int totcurves = strands->totcurves, c;
+	
+	StrandCurveData *curve = strands->curves;
+	for (c = 0; c < totcurves; ++c, ++curve) {
+		(*varray)[0] = curve->verts_begin;
+		(*varray)[1] = curve->num_verts;
+		++varray;
+	}
+}
+
+static void strands_copy_edge_data(StrandData *strands, unsigned int (*varray)[2])
+{
+	int totcurves = strands->totcurves, c;
+	int totedge = 0;
+	
+	StrandCurveData *curve = strands->curves;
+	for (c = 0; c < totcurves; ++c, ++curve) {
+		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+		BLI_assert(verts_begin < strands->totverts);
+		BLI_assert(num_verts >= 2);
+		
+		StrandVertexData *vert = strands->verts + verts_begin;
+		for (v = 0; v < num_verts - 1; ++v, ++vert) {
+			(*varray)[0] = verts_begin + v;
+			(*varray)[1] = verts_begin + v + 1;
+			++varray;
+			++totedge;
+		}
+	}
+	BLI_assert(totedge == strands->totverts - totcurves);
+	UNUSED_VARS(totedge);
+}
+
+static void strands_copy_root_data(StrandData *strands, RootVertex *varray)
+{
+	int totroots = strands->totroots, v;
+	
+	/* strand root points */
+	StrandRootData *root = strands->roots;
+	for (v = 0; v < totroots; ++v, ++root) {
+		copy_v3_v3(varray->co, root->co);
+		for (int k = 0; k < 4; ++k) {
+			varray->control_index[k] = root->control_index[k];
+			varray->control_weight[k] = root->control_weight[k];
+		}
+		++varray;
+	}
+}
+
+static void strands_copy_gpu_data(void *vstrands, GPUStrandBufferType type, float *varray)
+{
+	StrandData *strands = (StrandData *)vstrands;
+	switch (type) {
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+			strands_copy_vertex_data(strands, (float (*)[3])varray);
+			break;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			strands_copy_curve_data(strands, (unsigned int (*)[2])varray);
+			break;
+		case GPU_STRAND_BUFFER_CONTROL_EDGE:
+			strands_copy_edge_data(strands, (unsigned int (*)[2])varray);
+			break;
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			strands_copy_root_data(strands, (RootVertex *)varray);
+			break;
+	}
+}
+
 static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType type, bool update)
 {
 	GPUBuffer **buf;
@@ -2374,12 +2383,12 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType
 	
 	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
 	if (*buf == NULL || update) {
-		*buf = strands_setup_buffer_type(strands, type, *buf);
+		*buf = gpu_strands_setup_buffer_type(strands->gpu_buffer, type, strands_copy_gpu_data, strands, *buf);
 		
 		GLenum tex_format;
 		tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
 		if (tex)
-			strands_setup_buffer_texture(strands, *buf, tex_format, tex);
+			gpu_strands_setup_buffer_texture(*buf, tex_format, tex);
 	}
 	
 	return *buf != NULL;
@@ -2438,6 +2447,131 @@ void GPU_strands_setup_roots(StrandData *strands)
 	}
 }
 
+
+static void editstrands_copy_vertex_data(BMEditStrands *strands, float (*varray)[3])
+{
+	BMesh *bm = strands->base.bm;
+	BMIter iter;
+	BMVert *vert;
+	
+	/* control strand vertices */
+	BM_ITER_MESH(vert, &iter, bm, BM_VERTS_OF_MESH) {
+		copy_v3_v3(*varray++, vert->co);
+	}
+}
+
+static void editstrands_copy_curve_data(BMEditStrands *strands, unsigned int (*varray)[2])
+{
+	BMesh *bm = strands->base.bm;
+	BMIter iter;
+	BMVert *root;
+	
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		(*varray)[0] = BM_elem_index_get(root);
+		(*varray)[1] = BM_strand_verts_count(root);
+		++varray;
+	}
+}
+
+static void editstrands_copy_edge_data(BMEditStrands *strands, unsigned int (*varray)[2])
+{
+	BMesh *bm = strands->base.bm;
+	BMIter iter;
+	BMEdge *edge;
+	
+	BM_ITER_MESH(edge, &iter, bm, BM_EDGES_OF_MESH) {
+		(*varray)[0] = BM_elem_index_get(edge->v1);
+		(*varray)[1] = BM_elem_index_get(edge->v2);
+		++varray;
+	}
+}
+
+static void editstrands_copy_root_data(BMEditStrands *strands, RootVertex *varray)
+{
+	/* TODO */
+	UNUSED_VARS(strands, varray);
+}
+
+static void editstrands_copy_gpu_data(void *vstrands, GPUStrandBufferType type, float *varray)
+{
+	BMEditStrands *strands = (BMEditStrands *)vstrands;
+	switch (type) {
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+			editstrands_copy_vertex_data(strands, (float (*)[3])varray);
+			break;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			editstrands_copy_curve_data(strands, (unsigned int (*)[2])varray);
+			break;
+		case GPU_STRAND_BUFFER_CONTROL_EDGE:
+			editstrands_copy_edge_data(strands, (unsigned int (*)[2])varray);
+			break;
+		case GPU_STRAND_BUFFER_ROOT_VERTEX:
+			editstrands_copy_root_data(strands, (RootVertex *)varray);
+			break;
+	}
+}
+
+static GPUDrawStrands *editstrands_buffer_create(BMEditStrands *strands)
+{
+	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
+	
+	BMesh *bm = strands->base.bm;
+	gsb->totverts = bm->totvert;
+	gsb->totcurves = BM_strands_count(bm);
+	gsb->totroots = 0; /* TODO */
+	
+	return gsb;
+}
+
+static bool editstrands_setup_buffer_common(BMEditStrands *strands, GPUStrandBufferType type, bool update)
+{
+	GPUBuffer **buf;
+	GPUBufferTexture *tex;
+	
+	if (!strands->gpu_buffer)
+		strands->gpu_buffer = editstrands_buffer_create(strands);
+	
+	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
+	if (*buf == NULL || update) {
+		*buf = gpu_strands_setup_buffer_type(strands->gpu_buffer, type, editstrands_copy_gpu_data, strands, *buf);
+		
+		GLenum tex_format;
+		tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
+		if (tex)
+			gpu_strands_setup_buffer_texture(*buf, tex_format, tex);
+	}
+	
+	return *buf != NULL;
+}
+
+void GPU_editstrands_setup_verts(BMEditStrands *strands)
+{
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->control_points->id);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE);
+}
+
+void GPU_editstrands_setup_edges(BMEditStrands *strands)
+{
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_EDGE, false))
+		return;
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->control_points->id);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
+	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->control_edges->id);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
+}
+
 void GPU_strands_buffer_unbind(void)
 {
 	GPU_interleaved_attrib_unbind();
@@ -2452,24 +2586,21 @@ void GPU_strands_buffer_unbind(void)
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void GPU_strands_buffer_free(StrandData *strands)
+void GPU_strands_buffer_free(GPUDrawStrands *gpu_buffer)
 {
-	if (strands && strands->gpu_buffer) {
-		GPUDrawStrands *gds = strands->gpu_buffer;
-		
+	if (gpu_buffer) {
 #if 0 /* XXX crashes, maybe not needed for buffer textures? */
-		if (gds->control_curves_tex.id)
-			glDeleteTextures(1, &gds->control_curves_tex.id);
-		if (gds->control_points_tex.id)
-			glDeleteTextures(1, &gds->control_points_tex.id);
+		if (gpu_buffer->control_curves_tex.id)
+			glDeleteTextures(1, &gpu_buffer->control_curves_tex.id);
+		if (gpu_buffer->control_points_tex.id)
+			glDeleteTextures(1, &gpu_buffer->control_points_tex.id);
 #endif
 		
-		GPU_buffer_free(gds->control_points);
-		GPU_buffer_free(gds->control_curves);
-		GPU_buffer_free(gds->control_edges);
-		GPU_buffer_free(gds->root_points);
+		GPU_buffer_free(gpu_buffer->control_points);
+		GPU_buffer_free(gpu_buffer->control_curves);
+		GPU_buffer_free(gpu_buffer->control_edges);
+		GPU_buffer_free(gpu_buffer->root_points);
 		
-		MEM_freeN(gds);
-		strands->gpu_buffer = NULL;
+		MEM_freeN(gpu_buffer);
 	}
 }
