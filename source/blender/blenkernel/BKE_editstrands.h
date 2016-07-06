@@ -69,6 +69,8 @@ struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);
 void BKE_editstrands_free(struct BMEditStrands *es);
 
+void BKE_editstrands_clear_drawdata(struct BMEditStrands *es);
+
 /* === constraints === */
 
 /* Stores vertex locations for temporary reference:

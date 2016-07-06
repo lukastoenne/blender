@@ -122,9 +122,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		
 		if (smd->strands->data_final)
 			BKE_strand_data_free(smd->strands->data_final);
-		
 		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm,
 		                                                smd->roots, smd->roots ? smd->num_roots : 0);
+		
+		if (smd->edit) {
+			/* clear draw data from edit when updating */
+			BKE_editstrands_clear_drawdata(smd->edit);
+		}
 	}
 	
 	return dm;

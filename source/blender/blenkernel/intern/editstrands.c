@@ -134,6 +134,14 @@ void BKE_editstrands_free(BMEditStrands *es)
 		GPU_strands_buffer_free(es->gpu_buffer);
 }
 
+void BKE_editstrands_clear_drawdata(BMEditStrands *es)
+{
+	if (es->gpu_buffer) {
+		GPU_strands_buffer_free(es->gpu_buffer);
+		es->gpu_buffer = NULL;
+	}
+}
+
 /* === constraints === */
 
 BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)
