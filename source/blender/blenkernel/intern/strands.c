@@ -83,7 +83,7 @@ void BKE_strands_free(Strands *strands)
 	MEM_freeN(strands);
 }
 
-bool BKE_strands_get_root_location(const StrandCurve *curve, DerivedMesh *root_dm, float loc[3])
+bool BKE_strands_get_location(const StrandCurve *curve, DerivedMesh *root_dm, float loc[3])
 {
 	float nor[3], tang[3];
 	if (BKE_mesh_sample_eval(root_dm, &curve->root, loc, nor, tang)) {
@@ -95,9 +95,37 @@ bool BKE_strands_get_root_location(const StrandCurve *curve, DerivedMesh *root_d
 	}
 }
 
-bool BKE_strands_get_root_matrix(const StrandCurve *curve, DerivedMesh *root_dm, float mat[4][4])
+bool BKE_strands_get_matrix(const StrandCurve *curve, DerivedMesh *root_dm, float mat[4][4])
 {
 	if (BKE_mesh_sample_eval(root_dm, &curve->root, mat[3], mat[2], mat[0])) {
+		cross_v3_v3v3(mat[1], mat[2], mat[0]);
+		mat[0][3] = 0.0f;
+		mat[1][3] = 0.0f;
+		mat[2][3] = 0.0f;
+		mat[3][3] = 1.0f;
+		return true;
+	}
+	else {
+		unit_m4(mat);
+		return false;
+	}
+}
+
+bool BKE_strands_get_root_location(const StrandRoot *root, DerivedMesh *root_dm, float loc[3])
+{
+	float nor[3], tang[3];
+	if (BKE_mesh_sample_eval(root_dm, &root->root, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		return false;
+	}
+}
+
+bool BKE_strands_get_root_matrix(const StrandRoot *root, DerivedMesh *root_dm, float mat[4][4])
+{
+	if (BKE_mesh_sample_eval(root_dm, &root->root, mat[3], mat[2], mat[0])) {
 		cross_v3_v3v3(mat[1], mat[2], mat[0]);
 		mat[0][3] = 0.0f;
 		mat[1][3] = 0.0f;
@@ -132,7 +160,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 		curve->verts_begin = scurve->verts_begin;
 		curve->num_verts = scurve->num_verts;
 		
-		BKE_strands_get_root_matrix(scurve, scalp, curve->mat);
+		BKE_strands_get_matrix(scurve, scalp, curve->mat);
 		
 		int v;
 		StrandVertex *svert = strands->verts + scurve->verts_begin;
@@ -152,7 +180,7 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 		int k;
 		for (k = 0; k < 4; ++k) {
 			root->control_index[k] = sroot->control_index[k];
-			root->control_weight[k] = sroot->control_weights[k];
+			root->control_weight[k] = sroot->control_weight[k];
 		}
 	}
 	
@@ -236,7 +264,7 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 
 BLI_INLINE void verify_root_weights(StrandRoot *root)
 {
-	const float *w = root->control_weights;
+	const float *w = root->control_weight;
 	
 	BLI_assert(w[0] >= 0.0f && w[1] >= 0.0f && w[2] >= 0.0f && w[3] >= 0.0f);
 	float sum = w[0] + w[1] + w[2] + w[3];
@@ -250,7 +278,7 @@ BLI_INLINE void verify_root_weights(StrandRoot *root)
 static void sort_root_weights(StrandRoot *root)
 {
 	unsigned int *idx = root->control_index;
-	float *w = root->control_weights;
+	float *w = root->control_weight;
 
 #define ROOTSWAP(a, b) \
 	SWAP(unsigned int, idx[a], idx[b]); \
@@ -281,7 +309,7 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 		int c;
 		const StrandCurve *curve = strands->curves;
 		for (c = 0; c < strands->totcurves; ++c, ++curve) {
-			if (BKE_strands_get_root_location(curve, scalp, strandloc[c]))
+			if (BKE_strands_get_location(curve, scalp, strandloc[c]))
 				BLI_kdtree_insert(tree, c, strandloc[c]);
 		}
 		BLI_kdtree_balance(tree);
@@ -312,18 +340,18 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 				
 				float w[4];
 				interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
-				copy_v3_v3(root->control_weights, w);
+				copy_v3_v3(root->control_weight, w);
 				/* float precisions issues can cause slightly negative weights */
-				CLAMP3(root->control_weights, 0.0f, 1.0f);
+				CLAMP3(root->control_weight, 0.0f, 1.0f);
 			}
 			else if (found == 2) {
-				root->control_weights[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
-				root->control_weights[0] = 1.0f - root->control_weights[1];
+				root->control_weight[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
+				root->control_weight[0] = 1.0f - root->control_weight[1];
 				/* float precisions issues can cause slightly negative weights */
-				CLAMP2(root->control_weights, 0.0f, 1.0f);
+				CLAMP2(root->control_weight, 0.0f, 1.0f);
 			}
 			else if (found == 1) {
-				root->control_weights[0] = 1.0f;
+				root->control_weight[0] = 1.0f;
 			}
 			
 			sort_root_weights(root);
@@ -351,7 +379,7 @@ StrandRoot *BKE_strands_scatter(Strands *strands,
 			/* influencing control strands are determined later */
 			for (k = 0; k < 4; ++k) {
 				root->control_index[k] = STRAND_INDEX_NONE;
-				root->control_weights[k] = 0.0f;
+				root->control_weight[k] = 0.0f;
 			}
 		}
 		else {

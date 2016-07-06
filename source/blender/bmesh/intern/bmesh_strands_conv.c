@@ -116,7 +116,7 @@ static void bm_make_strands(BMesh *bm, Strands *strands, struct DerivedMesh *roo
 		float rootmat[4][4];
 		
 		/* strand vertices are in a local "root space", but edit data should be in object space */
-		BKE_strands_get_root_matrix(curve, root_dm, rootmat);
+		BKE_strands_get_matrix(curve, root_dm, rootmat);
 		
 		StrandVertex *vert = strands->verts + curve->verts_begin;
 		for (int k = 0; k < curve->num_verts; ++k, ++vert) {
@@ -311,7 +311,7 @@ static void make_strand_curve(BMesh *bm, BMVert *root, StrandVertex *verts, stru
 			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &curve->root);
 			
 			/* edit data is in object space, strand vertices must be converted back into "root space" */
-			BKE_strands_get_root_matrix(curve, root_dm, inv_rootmat);
+			BKE_strands_get_matrix(curve, root_dm, inv_rootmat);
 			invert_m4(inv_rootmat);
 		}
 		

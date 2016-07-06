@@ -2488,8 +2488,18 @@ static void editstrands_copy_edge_data(BMEditStrands *strands, unsigned int (*va
 
 static void editstrands_copy_root_data(BMEditStrands *strands, RootVertex *varray)
 {
-	/* TODO */
-	UNUSED_VARS(strands, varray);
+	int totroots = strands->num_roots, v;
+	
+	/* strand root points */
+	StrandRoot *root = strands->roots;
+	for (v = 0; v < totroots; ++v, ++root) {
+		BKE_strands_get_root_location(root, strands->root_dm, varray->co);
+		for (int k = 0; k < 4; ++k) {
+			varray->control_index[k] = root->control_index[k];
+			varray->control_weight[k] = root->control_weight[k];
+		}
+		++varray;
+	}
 }
 
 static void editstrands_copy_gpu_data(void *vstrands, GPUStrandBufferType type, float *varray)
@@ -2518,7 +2528,7 @@ static GPUDrawStrands *editstrands_buffer_create(BMEditStrands *strands)
 	BMesh *bm = strands->base.bm;
 	gsb->totverts = bm->totvert;
 	gsb->totcurves = BM_strands_count(bm);
-	gsb->totroots = 0; /* TODO */
+	gsb->totroots = strands->num_roots;
 	
 	return gsb;
 }
@@ -2570,6 +2580,31 @@ void GPU_editstrands_setup_edges(BMEditStrands *strands)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->control_edges->id);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
+}
+
+void GPU_editstrands_setup_roots(BMEditStrands *strands)
+{
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+		return;
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_CURVE, false))
+		return;
+	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_ROOT_VERTEX, false))
+		return;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->root_points->id);
+	glVertexPointer(3, GL_FLOAT, sizeof(RootVertex), NULL);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE);
+
+	if (strands->gpu_buffer->control_curves_tex.id != 0) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_curves_tex.id);
+	}
+	if (strands->gpu_buffer->control_points_tex.id != 0) {
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->control_points_tex.id);
+	}
 }
 
 void GPU_strands_buffer_unbind(void)
