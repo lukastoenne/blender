@@ -7851,13 +7851,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glMultMatrixf(ob->obmat);
 			}
 		}
-
-		if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
-			BMEditStrands *edit = BKE_editstrands_from_object(ob);
-			if (edit) {
-				draw_strands_edit_hair(scene, v3d, ar, edit);
-			}
-		}
 	}
 
 	/* draw code for smoke */
@@ -7983,12 +7976,20 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
+			BMEditStrands *edit = (ob->mode & OB_MODE_HAIR_EDIT && is_obact) ? smd->edit : NULL;
 			
-			if (smd->strands && smd->strands->data_final) {
-				bool show_controls = smd->flag & MOD_STRANDS_SHOW_CONTROL_STRANDS;
-				bool show_strands = smd->flag & MOD_STRANDS_SHOW_RENDER_STRANDS;
-				draw_strands(smd->strands, smd->strands->data_final, ob, rv3d,
-				             show_controls, show_strands);
+			if (edit) {
+				if (!(dflag & DRAW_PICKING) && scene->obedit == NULL) {
+					draw_strands_edit_hair(scene, v3d, ar, edit);
+				}
+			}
+			else {
+				if (smd->strands && smd->strands->data_final) {
+					bool show_controls = smd->flag & MOD_STRANDS_SHOW_CONTROL_STRANDS;
+					bool show_strands = smd->flag & MOD_STRANDS_SHOW_RENDER_STRANDS;
+					draw_strands(smd->strands, smd->strands->data_final, ob, rv3d,
+					             show_controls, show_strands);
+				}
 			}
 		}
 	}
