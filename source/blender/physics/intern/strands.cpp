@@ -141,7 +141,7 @@ static void strands_adjust_segment_lengths(BMesh *bm)
 static void strands_solve_edge_relaxation(BMEditStrands *edit)
 {
 	BMesh *bm = edit->base.bm;
-	const int Nmax = BM_strands_keys_count_max(bm);
+	const int Nmax = BM_strand_verts_count_max(bm);
 	/* cache for vertex positions and segment lengths, for easier indexing */
 	float **co = (float **)MEM_mallocN(sizeof(float*) * Nmax, "strand positions");
 	float *target_length = (float *)MEM_mallocN(sizeof(float) * Nmax, "strand segment lengths");
@@ -150,7 +150,7 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 	BMIter iter;
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		const int S = 1; /* TODO particles use PE_LOCK_FIRST option */
-		const int N = BM_strands_keys_count(root);
+		const int N = BM_strand_verts_count(root);
 		const float divN = 1.0f / (float)N;
 		
 		/* setup positions cache */

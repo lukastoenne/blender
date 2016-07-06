@@ -293,7 +293,7 @@ void BM_bm_from_strands(BMesh *bm, Strands *strands, struct DerivedMesh *root_dm
 static void make_strand_curve(BMesh *bm, BMVert *root, StrandVertex *verts, struct DerivedMesh *root_dm,
                               StrandCurve *curve, int verts_begin)
 {
-	int num_verts = BM_strands_keys_count(root);
+	int num_verts = BM_strand_verts_count(root);
 	
 	BMVert *v;
 	BMIter iter;
@@ -880,7 +880,7 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 
 static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree, struct ParticleData *pa)
 {
-	int totkey = BM_strands_keys_count(root);
+	int totkey = BM_strand_verts_count(root);
 	HairKey *hair;
 	
 	BMVert *v;

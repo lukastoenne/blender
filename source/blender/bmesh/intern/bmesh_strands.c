@@ -103,7 +103,7 @@ int BM_strands_count(BMesh *bm)
 	return count;
 }
 
-int BM_strands_keys_count(BMVert *root)
+int BM_strand_verts_count(BMVert *root)
 {
 	BMVert *v;
 	BMIter iter;
@@ -116,13 +116,13 @@ int BM_strands_keys_count(BMVert *root)
 	return count;
 }
 
-int BM_strands_keys_count_max(BMesh *bm)
+int BM_strand_verts_count_max(BMesh *bm)
 {
 	BMVert *v;
 	BMIter iter;
 	int maxkeys = 0;
 	BM_ITER_STRANDS(v, &iter, bm, BM_STRANDS_OF_MESH) {
-		int n = BM_strands_keys_count(v);
+		int n = BM_strand_verts_count(v);
 		if (n > maxkeys)
 			maxkeys = n;
 	}
