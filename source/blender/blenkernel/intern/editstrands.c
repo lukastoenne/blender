@@ -60,12 +60,16 @@
 #include "intern/bmesh_mesh_conv.h"
 #include "intern/bmesh_strands_conv.h"
 
-BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
+BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm, StrandRoot *roots, int num_roots)
 {
 	BMEditStrands *es = MEM_callocN(sizeof(BMEditStrands), __func__);
 	
 	es->base.bm = bm;
 	es->root_dm = CDDM_copy(root_dm);
+	if (roots && num_roots > 0) {
+		es->roots = MEM_dupallocN(roots);
+		es->num_roots = num_roots;
+	}
 	
 	return es;
 }
@@ -77,6 +81,10 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	
 	es_copy->base.bm = BM_mesh_copy(es->base.bm);
 	es_copy->root_dm = CDDM_copy(es->root_dm);
+	if (es->roots) {
+		es_copy->roots = MEM_dupallocN(es->roots);
+		es_copy->num_roots = es->num_roots;
+	}
 	
 	es_copy->gpu_buffer = NULL;
 	
@@ -129,6 +137,8 @@ void BKE_editstrands_free(BMEditStrands *es)
 		BM_mesh_free(es->base.bm);
 	if (es->root_dm)
 		es->root_dm->release(es->root_dm);
+	if (es->roots)
+		MEM_freeN(es->roots);
 	
 	if (es->gpu_buffer)
 		GPU_strands_buffer_free(es->gpu_buffer);

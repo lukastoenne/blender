@@ -63,7 +63,7 @@ bool ED_hair_object_init_strands_edit(Scene *scene, Object *ob)
 		if (dm) {
 			BMesh *bm = BKE_editstrands_strands_to_bmesh(smd->strands, dm);
 			
-			smd->edit = BKE_editstrands_create(bm, dm);
+			smd->edit = BKE_editstrands_create(bm, dm, smd->roots, smd->num_roots);
 			
 			return true;
 		}
@@ -83,15 +83,19 @@ bool ED_hair_object_apply_strands_edit(Scene *scene, Object *ob)
 				BKE_editstrands_strands_from_bmesh(smd->strands, smd->edit->base.bm, dm);
 			}
 			
-			BKE_editstrands_free(smd->edit);
-			MEM_freeN(smd->edit);
-			smd->edit = NULL;
-			
 			/* invalidate roots */
 			if (smd->roots) {
 				MEM_freeN(smd->roots);
 				smd->roots = NULL;
 			}
+			if (smd->edit->num_roots) {
+				smd->roots = MEM_dupallocN(smd->edit->roots);
+				smd->num_roots = smd->edit->num_roots;
+			}
+			
+			BKE_editstrands_free(smd->edit);
+			MEM_freeN(smd->edit);
+			smd->edit = NULL;
 		}
 		
 		return true;

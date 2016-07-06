@@ -56,7 +56,7 @@ bool ED_hair_object_init_mesh_edit(Scene *UNUSED(scene), Object *ob)
 			BMesh *bm = BKE_editstrands_mesh_to_bmesh(ob, me);
 			DerivedMesh *root_dm = CDDM_new(0, 0, 0, 0, 0);
 			
-			me->edit_strands = BKE_editstrands_create(bm, root_dm);
+			me->edit_strands = BKE_editstrands_create(bm, root_dm, NULL, 0);
 			
 			root_dm->release(root_dm);
 		}

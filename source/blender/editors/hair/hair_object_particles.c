@@ -73,7 +73,7 @@ bool ED_hair_object_init_particle_edit(Scene *scene, Object *ob)
 			else
 				dm = NULL;
 			
-			psys->hairedit = BKE_editstrands_create(bm, dm);
+			psys->hairedit = BKE_editstrands_create(bm, dm, NULL, 0);
 		}
 		return true;
 	}

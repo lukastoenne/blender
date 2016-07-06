@@ -113,6 +113,8 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	BMEditStrands *edit = editv, *edit_tmp;
 	Object *ob = edit->base.ob;
 	DerivedMesh *dm = edit->root_dm;
+	struct StrandRoot *roots_tmp;
+	int num_roots_tmp;
 	BMesh *bm;
 //	Key *key = ((Mesh *) obdata)->key;
 	struct BMeshFromMeshParams params = {0};
@@ -131,9 +133,15 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	 * because it owns the root_dm and we have to copy it before
 	 * it gets released when freeing the old edit.
 	 */
-	edit_tmp = BKE_editstrands_create(bm, dm);
+	edit_tmp = BKE_editstrands_create(bm, dm, NULL, 0);
+	/* keep roots array */
+	roots_tmp = edit->roots;
+	num_roots_tmp = edit->num_roots;
+	
 	BKE_editstrands_free(edit);
 	*edit = *edit_tmp;
+	edit->roots = roots_tmp;
+	edit->num_roots = num_roots_tmp;
 	
 	bm->selectmode = undo->selectmode;
 	edit->base.ob = ob;
