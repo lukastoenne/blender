@@ -52,8 +52,9 @@ static Attribute *get_openvdb_attribute(Volume *volume, const string& filename, 
 			fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
 		}
 	}
-
-	fprintf(stderr, "Adding volume attribute: %s\n", name.string().c_str());
+	else {
+		fprintf(stderr, "Skipping volume attribute: %s\n", name.string().c_str());
+	}
 
 	return attr;
 }
