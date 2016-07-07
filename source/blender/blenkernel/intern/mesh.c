@@ -427,12 +427,6 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *me)
 	}
 }
 
-/* Note: unlinking is called when me->id.us is 0, question remains how
- * much unlinking of Library data in Mesh should be done... probably
- * we need a more generic method, like the expand() functions in
- * readfile.c */
-
-
 /** Free (or release) any data used by this mesh (does not free the mesh itself). */
 void BKE_mesh_free(Mesh *me)
 {
@@ -555,7 +549,7 @@ Mesh *BKE_mesh_copy_ex(Main *bmain, Mesh *me)
 	men->key = BKE_key_copy(me->key);
 	if (men->key) men->key->from = (ID *)men;
 
-	if (me->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(me)) {
 		BKE_id_lib_local_paths(bmain, me->id.lib, &men->id);
 	}
 
@@ -567,12 +561,14 @@ Mesh *BKE_mesh_copy(Mesh *me)
 	return BKE_mesh_copy_ex(G.main, me);
 }
 
-BMesh *BKE_mesh_to_bmesh(Mesh *me, Object *ob, const bool add_key_index)
+BMesh *BKE_mesh_to_bmesh(
+        Mesh *me, Object *ob,
+        const bool add_key_index, const struct BMeshCreateParams *params)
 {
 	BMesh *bm;
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(me);
 
-	bm = BM_mesh_create(&allocsize);
+	bm = BM_mesh_create(&allocsize, params);
 
 	BM_mesh_bm_from_me(
 	        bm, me, (&(struct BMeshFromMeshParams){
@@ -632,7 +628,7 @@ void BKE_mesh_make_local(Mesh *me)
 	 * - mixed: make copy
 	 */
 
-	if (me->id.lib == NULL) return;
+	if (!ID_IS_LINKED_DATABLOCK(me)) return;
 	if (me->id.us == 1) {
 		id_clear_lib_data(bmain, &me->id);
 		expand_local_mesh(me);
@@ -641,7 +637,7 @@ void BKE_mesh_make_local(Mesh *me)
 
 	for (ob = bmain->object.first; ob && ELEM(0, is_lib, is_local); ob = ob->id.next) {
 		if (me == ob->data) {
-			if (ob->id.lib) is_lib = true;
+			if (ID_IS_LINKED_DATABLOCK(ob)) is_lib = true;
 			else is_local = true;
 		}
 	}
@@ -660,7 +656,7 @@ void BKE_mesh_make_local(Mesh *me)
 
 		for (ob = bmain->object.first; ob; ob = ob->id.next) {
 			if (me == ob->data) {
-				if (ob->id.lib == NULL) {
+				if (!ID_IS_LINKED_DATABLOCK(ob)) {
 					BKE_mesh_assign_object(ob, me_new);
 				}
 			}

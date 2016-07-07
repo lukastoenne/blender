@@ -195,7 +195,7 @@ Brush *BKE_brush_copy(Brush *brush)
 	/* enable fake user by default */
 	id_fake_user_set(&brush->id);
 
-	if (brush->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(brush)) {
 		BKE_id_lib_local_paths(G.main, brush->id.lib, &brushn->id);
 	}
 
@@ -214,21 +214,6 @@ void BKE_brush_free(Brush *brush)
 	MEM_SAFE_FREE(brush->gradient);
 
 	BKE_previewimg_free(&(brush->preview));
-}
-
-/**
- * \note Currently users don't remove brushes from the UI (as is done for scene, text... etc)
- * This is only used by RNA, which can remove brushes.
- */
-void BKE_brush_unlink(Main *bmain, Brush *brush)
-{
-	Brush *brush_iter;
-
-	for (brush_iter = bmain->brush.first; brush_iter; brush_iter = brush_iter->id.next) {
-		if (brush_iter->toggle_brush == brush) {
-			brush_iter->toggle_brush = NULL;
-		}
-	}
 }
 
 static void extern_local_brush(Brush *brush)
@@ -252,7 +237,7 @@ void BKE_brush_make_local(Brush *brush)
 	Scene *scene;
 	bool is_local = false, is_lib = false;
 
-	if (brush->id.lib == NULL) return;
+	if (!ID_IS_LINKED_DATABLOCK(brush)) return;
 
 	if (brush->clone.image) {
 		/* special case: ima always local immediately. Clone image should only
@@ -263,7 +248,7 @@ void BKE_brush_make_local(Brush *brush)
 
 	for (scene = bmain->scene.first; scene && ELEM(0, is_lib, is_local); scene = scene->id.next) {
 		if (BKE_paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
-			if (scene->id.lib) is_lib = true;
+			if (ID_IS_LINKED_DATABLOCK(scene)) is_lib = true;
 			else is_local = true;
 		}
 	}
@@ -284,7 +269,7 @@ void BKE_brush_make_local(Brush *brush)
 		
 		for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 			if (BKE_paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
-				if (scene->id.lib == NULL) {
+				if (!ID_IS_LINKED_DATABLOCK(scene)) {
 					BKE_paint_brush_set(&scene->toolsettings->imapaint.paint, brush_new);
 				}
 			}

@@ -612,10 +612,10 @@ static float sky_perez_function(float lam[6], float theta, float gamma)
 static void sky_texture_precompute_old(SunSky *sunsky, float3 dir, float turbidity)
 {
 	/*
-	* We re-use the SunSky struct of the new model, to avoid extra variables
-	* zenith_Y/x/y is now radiance_x/y/z
-	* perez_Y/x/y is now config_x/y/z
-	*/
+	 * We re-use the SunSky struct of the new model, to avoid extra variables
+	 * zenith_Y/x/y is now radiance_x/y/z
+	 * perez_Y/x/y is now config_x/y/z
+	 */
 	
 	float2 spherical = sky_spherical_coordinates(dir);
 	float theta = spherical.x;
@@ -1597,7 +1597,7 @@ void RGBToBWNode::compile(SVMCompiler& compiler)
 
 void RGBToBWNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_convert_from_color");
+	compiler.add(this, "node_rgb_to_bw");
 }
 
 /* Convert */
@@ -1829,6 +1829,7 @@ NODE_DEFINE(AnisotropicBsdfNode)
 	static NodeEnum distribution_enum;
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID);
 	distribution_enum.insert("ashikhmin_shirley", CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID);
 
@@ -1865,7 +1866,10 @@ void AnisotropicBsdfNode::compile(SVMCompiler& compiler)
 {
 	closure = distribution;
 
-	BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"));
+	if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID)
+		BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"), input("Color"));
+	else
+		BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"));
 }
 
 void AnisotropicBsdfNode::compile(OSLCompiler& compiler)
@@ -1889,6 +1893,7 @@ NODE_DEFINE(GlossyBsdfNode)
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_ID);
 	distribution_enum.insert("ashikhmin_shirley", CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_ID);
 	SOCKET_IN_FLOAT(roughness, "Roughness", 0.2f);
 
@@ -1938,6 +1943,8 @@ void GlossyBsdfNode::compile(SVMCompiler& compiler)
 
 	if(closure == CLOSURE_BSDF_REFLECTION_ID)
 		BsdfNode::compile(compiler, NULL, NULL);
+	else if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID)
+		BsdfNode::compile(compiler, input("Roughness"), NULL, input("Color"));
 	else
 		BsdfNode::compile(compiler, input("Roughness"), NULL);
 }
@@ -1962,6 +1969,7 @@ NODE_DEFINE(GlassBsdfNode)
 	distribution_enum.insert("sharp", CLOSURE_BSDF_SHARP_GLASS_ID);
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
 	SOCKET_IN_FLOAT(roughness, "Roughness", 0.0f);
 	SOCKET_IN_FLOAT(IOR, "IOR", 0.3f);
@@ -2012,6 +2020,8 @@ void GlassBsdfNode::compile(SVMCompiler& compiler)
 
 	if(closure == CLOSURE_BSDF_SHARP_GLASS_ID)
 		BsdfNode::compile(compiler, NULL, input("IOR"));
+	else if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID)
+		BsdfNode::compile(compiler, input("Roughness"), input("IOR"), input("Color"));
 	else
 		BsdfNode::compile(compiler, input("Roughness"), input("IOR"));
 }
