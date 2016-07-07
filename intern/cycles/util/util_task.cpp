@@ -224,7 +224,7 @@ void TaskScheduler::init(int num_threads)
 				                                                 thread_index + 1),
 				                                   group);
 				threads_ids.push_back(threads[thread_index]->id());
-				std::cerr << "Thread " << i << ", id: " << threads[i]->id() << '\n';
+				std::cerr << "Thread " << thread_index << ", id: " << threads[thread_index]->id() << '\n';
 			}
 		}
 	}

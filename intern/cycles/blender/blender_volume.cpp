@@ -92,8 +92,7 @@ static void create_volume_attributes(Scene *scene,
                                      Volume *volume,
                                      float frame)
 {
-	foreach(uint id, volume->used_shaders) {
-		Shader *shader = scene->shaders[id];
+	foreach(Shader *shader, volume->used_shaders) {
 		fprintf(stderr, "Number of attribute requests: %lu\n", shader->attributes.requests.size());
 
 		foreach(AttributeRequest req, shader->attributes.requests) {
@@ -131,7 +130,7 @@ Volume *BlenderSync::sync_volume(BL::Object &b_ob)
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
-	vector<uint> used_shaders;
+	vector<Shader*> used_shaders;
 	BL::ID b_ob_data = b_ob.data();
 
 	fprintf(stderr, "%s: before material assignment\n", __func__);

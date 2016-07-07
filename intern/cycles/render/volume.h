@@ -29,10 +29,11 @@ class Device;
 class DeviceScene;
 class Progress;
 class Scene;
+class Shader;
 
 class Volume {
 public:
-	vector<uint> used_shaders;
+	vector<Shader*> used_shaders;
 	AttributeSet attributes;
 	string name;
 

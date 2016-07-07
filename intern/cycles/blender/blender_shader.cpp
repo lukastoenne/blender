@@ -858,7 +858,7 @@ static ShaderNode *add_node(Scene *scene,
 
 		for(b_vdb_node.outputs.begin(b_output); b_output != b_vdb_node.outputs.end(); ++b_output) {
 			vdb_node->output_names.push_back(ustring(b_output->name()));
-			vdb_node->add_output(vdb_node->output_names.back().c_str(),
+			vdb_node->add_output(vdb_node->output_names.back(),
 			                     convert_socket_type(*b_output));
 		}
 

@@ -5375,7 +5375,7 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 
 		int type = NODE_VDB_FLOAT;
 
-		if(out->type == SHADER_SOCKET_VECTOR || out->type == SHADER_SOCKET_COLOR) {
+		if(out->type() == SocketType::VECTOR || out->type() == SocketType::COLOR) {
 			type = NODE_VDB_FLOAT3;
 		}
 
@@ -5392,6 +5392,11 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 		compiler.add_node(NODE_OPENVDB,
 		                  compiler.encode_uchar4(grid_slot, type, out->stack_offset, sampling));
 	}
+}
+
+void OpenVDBNode::add_output(ustring name, SocketType::Type socket_type)
+{
+	const_cast<NodeType*>(type)->register_output(name, name, socket_type);
 }
 
 void OpenVDBNode::compile(OSLCompiler& /*compiler*/)

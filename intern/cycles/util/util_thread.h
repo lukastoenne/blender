@@ -60,7 +60,7 @@ public:
 
 	pthread_t id() const
 	{
-		return pthread_id;
+		return pthread_id_;
 	}
 
 protected:

@@ -389,8 +389,7 @@ void VolumeManager::device_update_attributes(Device *device, DeviceScene *dscene
 	for(size_t i = 0; i < volumes.size(); i++) {
 		Volume *volume = volumes[i];
 
-		foreach(uint sindex, volume->used_shaders) {
-			Shader *shader = scene->shaders[sindex];
+		foreach(Shader *shader, volume->used_shaders) {
 			volume_attributes[i].add(shader->attributes);
 		}
 	}

@@ -1018,8 +1018,8 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 			         (node->type == SH_NODE_OPENVDB))
 			{
 				NodeShaderOpenVDB *vdb = (NodeShaderOpenVDB *)node->storage;
-				writelist(wd, DATA, "OpenVDBGridInfo", &vdb->grid_info);
-				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+				writelist(wd, DATA, OpenVDBGridInfo, &vdb->grid_info);
+				writestruct_id(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
 			else if ((ntree->type == NTREE_COMPOSIT) &&
 			         ELEM(node->type, CMP_NODE_TIME, CMP_NODE_CURVE_VEC, CMP_NODE_CURVE_RGB, CMP_NODE_HUECORRECT))

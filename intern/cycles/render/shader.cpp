@@ -509,19 +509,19 @@ void ShaderManager::add_default(Scene *scene)
 
 	/* default empty */
 	{
-		graph = new ShaderGraph();
+		ShaderGraph *graph = new ShaderGraph();
 
-		closure = graph->add(new ScatterVolumeNode());
-		closure->input("Density")->value = make_float3(0.8f, 0.8f, 0.8f);
-		out = graph->output();
+		ScatterVolumeNode *scatter = new ScatterVolumeNode();
+		scatter->input("Density")->set(make_float3(0.8f, 0.8f, 0.8f));
+		graph->add(scatter);
 
-		graph->connect(closure->output("Volume"), out->input("Volume"));
+		graph->connect(scatter->output("Volume"), graph->output()->input("Volume"));
 
-		shader = new Shader();
+		Shader *shader = new Shader();
 		shader->name = "default_volume";
 		shader->graph = graph;
 		scene->shaders.push_back(shader);
-		scene->default_volume = scene->shaders.size() - 1;
+		scene->default_volume = shader;
 	}
 }
 

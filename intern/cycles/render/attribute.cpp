@@ -295,7 +295,7 @@ Attribute *AttributeSet::add(ustring name, TypeDesc type, AttributeElement eleme
 	else if(curve_mesh)
 		attr->resize(0, 0, curve_mesh->motion_steps, curve_mesh->num_curves(), curve_mesh->curve_keys.size(), false);
 	else
-		attr->reserve(0, 0, 0, 0, 0, false);
+		attr->resize(0, 0, 0, 0, 0, false);
 	
 	return attr;
 }
