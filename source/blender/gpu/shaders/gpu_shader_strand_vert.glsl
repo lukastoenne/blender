@@ -13,5 +13,5 @@ void main()
 	v_control_index = control_index;
 	v_control_weight = control_weight;
 	
-	vColor = vec3(1.0, 0.0, 1.0);
+	vColor = vec3(1.0, 1.0, 1.0);
 }

@@ -24,7 +24,7 @@ void emit_vertex(in vec3 location, in vec3 tangent)
 {
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(location, 1.0);
 	fPosition = (gl_ModelViewMatrix * vec4(location, 1.0)).xyz;
-	fTangent = (gl_ModelViewMatrix * vec4(tangent, 0.0)).xyz;
+	fTangent = gl_NormalMatrix * tangent;
 	fColor = vColor[0];
 	//fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
 	//fColor = vec3(float(t[0]), 0.0, 0.0);
