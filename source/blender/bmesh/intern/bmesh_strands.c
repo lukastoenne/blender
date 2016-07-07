@@ -136,12 +136,10 @@ BMVert *BM_strands_create(BMesh *bm, int len, bool set_defaults)
 {
 	float co[3] = {0.0f, 0.0f, 0.0f};
 	
-	BMVert *root, *v, *vprev;
-	int k;
+	BMVert *root = NULL, *vprev = NULL;
 	
-	for (k = 0; k < len; ++k) {
-		vprev = v;
-		v = BM_vert_create(bm, co, NULL, set_defaults ? BM_CREATE_NOP : BM_CREATE_SKIP_CD);
+	for (int k = 0; k < len; ++k) {
+		BMVert *v = BM_vert_create(bm, co, NULL, set_defaults ? BM_CREATE_NOP : BM_CREATE_SKIP_CD);
 		
 		zero_v3(v->no);
 		
@@ -152,6 +150,8 @@ BMVert *BM_strands_create(BMesh *bm, int len, bool set_defaults)
 		else {
 			/*BMEdge *e =*/ BM_edge_create(bm, vprev, v, NULL, set_defaults ? BM_CREATE_NOP : BM_CREATE_SKIP_CD);
 		}
+
+		vprev = v;
 	}
 	
 	return root;
