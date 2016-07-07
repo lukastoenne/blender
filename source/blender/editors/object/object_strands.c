@@ -81,9 +81,9 @@ static int strands_test_init_exec(bContext *C, wmOperator *op)
 	BKE_strands_test_init(smd->strands, scalp, totcurves, maxverts, seed);
 	
 	/* invalidate roots */
-	if (smd->roots) {
-		MEM_freeN(smd->roots);
-		smd->roots = NULL;
+	if (smd->fibers) {
+		MEM_freeN(smd->fibers);
+		smd->fibers = NULL;
 	}
 	
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);

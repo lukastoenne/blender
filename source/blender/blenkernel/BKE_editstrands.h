@@ -46,16 +46,16 @@ struct DerivedMesh;
 struct Mesh;
 struct Object;
 struct Strands;
-struct StrandRoot;
+struct StrandFiber;
 
 typedef struct BMEditStrands {
 	BMEditMesh base;
 	
 	/* Hair follicles */
-	struct StrandRoot *roots;
+	struct StrandFiber *fibers;
 	/* Scalp mesh for fixing root vertices */
 	struct DerivedMesh *root_dm;
-	int num_roots;
+	int num_fibers;
 	
 	int flag;
 	
@@ -68,7 +68,7 @@ typedef enum BMEditStrandsFlag {
 } BMEditStrandsFlag;
 
 struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm,
-                                             struct StrandRoot *roots, int num_roots);
+                                             struct StrandFiber *fibers, int num_fibers);
 struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
 struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);

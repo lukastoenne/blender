@@ -75,8 +75,8 @@ void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (show_controls) {
 		GPU_strands_setup_edges(data);
 		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->control_points && gds->control_edges) {
-			GPU_buffer_draw_elements(gds->control_edges, GL_LINES, 0,
+		if (gds->strand_points && gds->strand_edges) {
+			GPU_buffer_draw_elements(gds->strand_edges, GL_LINES, 0,
 			                         (gds->totverts - gds->totcurves) * 2);
 		}
 		GPU_buffers_unbind();
@@ -86,17 +86,17 @@ void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
 		GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
 		GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
 		
-		GPU_strands_setup_roots(data);
+		GPU_strands_setup_fibers(data);
 		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->root_points) {
+		if (gds->fiber_points) {
 			struct GPUAttrib *attrib;
 			int num_attrib;
 			GPU_strand_shader_get_attributes(strands->gpu_shader, &attrib, &num_attrib);
 			
 			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(gds->root_points, attrib, num_attrib, elemsize, false);
+			GPU_interleaved_attrib_setup(gds->fiber_points, attrib, num_attrib, elemsize, false);
 			
-			glDrawArrays(GL_POINTS, 0, gds->totroots * elemsize);
+			glDrawArrays(GL_POINTS, 0, gds->totfibers * elemsize);
 			
 			GPU_interleaved_attrib_unbind();
 		}
@@ -426,8 +426,8 @@ void draw_strands_edit_hair(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionVie
 	if (show_controls) {
 		GPU_editstrands_setup_edges(edit);
 		GPUDrawStrands *gds = edit->gpu_buffer;
-		if (gds->control_points && gds->control_edges) {
-			GPU_buffer_draw_elements(gds->control_edges, GL_LINES, 0,
+		if (gds->strand_points && gds->strand_edges) {
+			GPU_buffer_draw_elements(gds->strand_edges, GL_LINES, 0,
 			                         (gds->totverts - gds->totcurves) * 2);
 		}
 		GPU_buffers_unbind();
@@ -437,17 +437,17 @@ void draw_strands_edit_hair(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionVie
 		GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
 		GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
 		
-		GPU_editstrands_setup_roots(edit);
+		GPU_editstrands_setup_fibers(edit);
 		GPUDrawStrands *gds = edit->gpu_buffer;
-		if (gds->root_points) {
+		if (gds->fiber_points) {
 			struct GPUAttrib *attrib;
 			int num_attrib;
 			GPU_strand_shader_get_attributes(strands->gpu_shader, &attrib, &num_attrib);
 			
 			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(gds->root_points, attrib, num_attrib, elemsize, false);
+			GPU_interleaved_attrib_setup(gds->fiber_points, attrib, num_attrib, elemsize, false);
 			
-			glDrawArrays(GL_POINTS, 0, gds->totroots * elemsize);
+			glDrawArrays(GL_POINTS, 0, gds->totfibers * elemsize);
 			
 			GPU_interleaved_attrib_unbind();
 		}

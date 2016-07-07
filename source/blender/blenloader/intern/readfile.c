@@ -5282,7 +5282,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->strands = newdataadr(fd, smd->strands);
 				direct_link_strands(fd, smd->strands);
 			}
-			smd->roots = newdataadr(fd, smd->roots);
+			smd->fibers = newdataadr(fd, smd->fibers);
 			
 			smd->edit = NULL;
 		}

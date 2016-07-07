@@ -57,11 +57,11 @@ static void initData(ModifierData *md)
 	
 	smd->strands = BKE_strands_new();
 	
-	smd->num_roots = 0;
-	smd->roots = NULL;
+	smd->num_fibers = 0;
+	smd->fibers = NULL;
 	
-	smd->flag |= MOD_STRANDS_SHOW_CONTROL_STRANDS |
-	             MOD_STRANDS_SHOW_RENDER_STRANDS;
+	smd->flag |= MOD_STRANDS_SHOW_STRANDS |
+	             MOD_STRANDS_SHOW_FIBERS;
 	
 	smd->edit = NULL;
 }
@@ -74,8 +74,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (tsmd->strands) {
 		BKE_strands_free(tsmd->strands);
 	}
-	if (tsmd->roots) {
-		MEM_freeN(tsmd->roots);
+	if (tsmd->fibers) {
+		MEM_freeN(tsmd->fibers);
 	}
 
 	modifier_copyData_generic(md, target);
@@ -83,8 +83,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (smd->strands) {
 		tsmd->strands = BKE_strands_copy(smd->strands);
 	}
-	if (smd->roots) {
-		tsmd->roots = MEM_dupallocN(smd->roots);
+	if (smd->fibers) {
+		tsmd->fibers = MEM_dupallocN(smd->fibers);
 	}
 	
 	tsmd->edit = NULL;
@@ -97,8 +97,8 @@ static void freeData(ModifierData *md)
 	if (smd->strands) {
 		BKE_strands_free(smd->strands);
 	}
-	if (smd->roots) {
-		MEM_freeN(smd->roots);
+	if (smd->fibers) {
+		MEM_freeN(smd->fibers);
 	}
 	
 	if (smd->edit) {
@@ -116,14 +116,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	if (smd->strands) {
 		
 		/* regenerate roots if necessary */
-		if (smd->roots == NULL && smd->num_roots > 0) {
-			smd->roots = BKE_strands_scatter(smd->strands, dm, smd->num_roots, smd->seed);
+		if (smd->fibers == NULL && smd->num_fibers > 0) {
+			smd->fibers = BKE_strands_scatter(smd->strands, dm, smd->num_fibers, smd->seed);
 		}
 		
 		if (smd->strands->data_final)
 			BKE_strand_data_free(smd->strands->data_final);
 		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm,
-		                                                smd->roots, smd->roots ? smd->num_roots : 0);
+		                                                smd->fibers, smd->fibers ? smd->num_fibers : 0);
 		
 		if (smd->edit) {
 			/* clear draw data from edit when updating */

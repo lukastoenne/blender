@@ -7977,8 +7977,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
 			BMEditStrands *edit = (ob->mode & OB_MODE_HAIR_EDIT && is_obact) ? smd->edit : NULL;
-			bool show_controls = smd->flag & MOD_STRANDS_SHOW_CONTROL_STRANDS;
-			bool show_strands = smd->flag & MOD_STRANDS_SHOW_RENDER_STRANDS;
+			bool show_controls = smd->flag & MOD_STRANDS_SHOW_STRANDS;
+			bool show_strands = smd->flag & MOD_STRANDS_SHOW_FIBERS;
 			
 			if (edit) {
 				if (!(dflag & DRAW_PICKING) && scene->obedit == NULL) {

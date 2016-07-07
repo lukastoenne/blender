@@ -111,10 +111,10 @@ bool BKE_strands_get_matrix(const StrandCurve *curve, DerivedMesh *root_dm, floa
 	}
 }
 
-bool BKE_strands_get_root_location(const StrandRoot *root, DerivedMesh *root_dm, float loc[3])
+bool BKE_strands_get_fiber_location(const StrandFiber *fiber, DerivedMesh *root_dm, float loc[3])
 {
 	float nor[3], tang[3];
-	if (BKE_mesh_sample_eval(root_dm, &root->root, loc, nor, tang)) {
+	if (BKE_mesh_sample_eval(root_dm, &fiber->root, loc, nor, tang)) {
 		return true;
 	}
 	else {
@@ -123,9 +123,9 @@ bool BKE_strands_get_root_location(const StrandRoot *root, DerivedMesh *root_dm,
 	}
 }
 
-bool BKE_strands_get_root_matrix(const StrandRoot *root, DerivedMesh *root_dm, float mat[4][4])
+bool BKE_strands_get_fiber_matrix(const StrandFiber *fiber, DerivedMesh *root_dm, float mat[4][4])
 {
-	if (BKE_mesh_sample_eval(root_dm, &root->root, mat[3], mat[2], mat[0])) {
+	if (BKE_mesh_sample_eval(root_dm, &fiber->root, mat[3], mat[2], mat[0])) {
 		cross_v3_v3v3(mat[1], mat[2], mat[0]);
 		mat[0][3] = 0.0f;
 		mat[1][3] = 0.0f;
@@ -142,16 +142,16 @@ bool BKE_strands_get_root_matrix(const StrandRoot *root, DerivedMesh *root_dm, f
 /* ------------------------------------------------------------------------- */
 
 StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
-                                 StrandRoot *roots, int num_roots)
+                                 StrandFiber *fibers, int num_fibers)
 {
 	StrandData *data = MEM_callocN(sizeof(StrandData), "StrandData");
 	
 	data->totverts = strands->totverts;
 	data->totcurves = strands->totcurves;
-	data->totroots = num_roots;
+	data->totfibers = num_fibers;
 	data->verts = MEM_mallocN(sizeof(StrandVertexData) * data->totverts, "StrandVertexData");
 	data->curves = MEM_mallocN(sizeof(StrandCurveData) * data->totcurves, "StrandCurveData");
-	data->roots = MEM_mallocN(sizeof(StrandRootData) * data->totroots, "StrandRootData");
+	data->fibers = MEM_mallocN(sizeof(StrandFiberData) * data->totfibers, "StrandFiberData");
 	
 	int c;
 	StrandCurve *scurve = strands->curves;
@@ -171,16 +171,16 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 	}
 	
 	int i;
-	StrandRoot *sroot = roots;
-	StrandRootData *root = data->roots;
-	for (i = 0; i < data->totroots; ++i, ++sroot, ++root) {
+	StrandFiber *sfiber = fibers;
+	StrandFiberData *fiber = data->fibers;
+	for (i = 0; i < data->totfibers; ++i, ++sfiber, ++fiber) {
 		float nor[3], tang[3];
-		BKE_mesh_sample_eval(scalp, &sroot->root, root->co, nor, tang);
+		BKE_mesh_sample_eval(scalp, &sfiber->root, fiber->co, nor, tang);
 		
 		int k;
 		for (k = 0; k < 4; ++k) {
-			root->control_index[k] = sroot->control_index[k];
-			root->control_weight[k] = sroot->control_weight[k];
+			fiber->control_index[k] = sfiber->control_index[k];
+			fiber->control_weight[k] = sfiber->control_weight[k];
 		}
 	}
 	
@@ -196,8 +196,8 @@ void BKE_strand_data_free(StrandData *data)
 			MEM_freeN(data->verts);
 		if (data->curves)
 			MEM_freeN(data->curves);
-		if (data->roots)
-			MEM_freeN(data->roots);
+		if (data->fibers)
+			MEM_freeN(data->fibers);
 		MEM_freeN(data);
 	}
 }
@@ -262,9 +262,9 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
 	BLI_rng_free(rng);
 }
 
-BLI_INLINE void verify_root_weights(StrandRoot *root)
+BLI_INLINE void verify_fiber_weights(StrandFiber *fiber)
 {
-	const float *w = root->control_weight;
+	const float *w = fiber->control_weight;
 	
 	BLI_assert(w[0] >= 0.0f && w[1] >= 0.0f && w[2] >= 0.0f && w[3] >= 0.0f);
 	float sum = w[0] + w[1] + w[2] + w[3];
@@ -275,12 +275,12 @@ BLI_INLINE void verify_root_weights(StrandRoot *root)
 	BLI_assert(w[0] >= w[1] && w[1] >= w[2] && w[2] >= w[3]);
 }
 
-static void sort_root_weights(StrandRoot *root)
+static void sort_fiber_weights(StrandFiber *fiber)
 {
-	unsigned int *idx = root->control_index;
-	float *w = root->control_weight;
+	unsigned int *idx = fiber->control_index;
+	float *w = fiber->control_weight;
 
-#define ROOTSWAP(a, b) \
+#define FIBERSWAP(a, b) \
 	SWAP(unsigned int, idx[a], idx[b]); \
 	SWAP(float, w[a], w[b]);
 
@@ -294,13 +294,13 @@ static void sort_root_weights(StrandRoot *root)
 			}
 		}
 		if (maxi != k)
-			ROOTSWAP(k, maxi);
+			FIBERSWAP(k, maxi);
 	}
 	
-#undef ROOTSWAP
+#undef FIBERSWAP
 }
 
-static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandRoot *roots, int num_roots)
+static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandFiber *fibers, int num_fibers)
 {
 	float (*strandloc)[3] = MEM_mallocN(sizeof(float) * 3 * strands->totcurves, "strand locations");
 	KDTree *tree = BLI_kdtree_new(strands->totcurves);
@@ -316,10 +316,10 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 	}
 	
 	int i;
-	StrandRoot *root = roots;
-	for (i = 0; i < num_roots; ++i, ++root) {
+	StrandFiber *fiber = fibers;
+	for (i = 0; i < num_fibers; ++i, ++fiber) {
 		float loc[3], nor[3], tang[3];
-		if (BKE_mesh_sample_eval(scalp, &root->root, loc, nor, tang)) {
+		if (BKE_mesh_sample_eval(scalp, &fiber->root, loc, nor, tang)) {
 			
 			/* Use the 3 closest strands for interpolation.
 			 * Note that we have up to 4 possible weights, but we
@@ -329,7 +329,7 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 			float *sloc[3] = {NULL};
 			int k, found = BLI_kdtree_find_nearest_n(tree, loc, nearest, 3);
 			for (k = 0; k < found; ++k) {
-				root->control_index[k] = nearest[k].index;
+				fiber->control_index[k] = nearest[k].index;
 				sloc[k] = strandloc[nearest[k].index];
 			}
 			
@@ -340,22 +340,22 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 				
 				float w[4];
 				interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
-				copy_v3_v3(root->control_weight, w);
+				copy_v3_v3(fiber->control_weight, w);
 				/* float precisions issues can cause slightly negative weights */
-				CLAMP3(root->control_weight, 0.0f, 1.0f);
+				CLAMP3(fiber->control_weight, 0.0f, 1.0f);
 			}
 			else if (found == 2) {
-				root->control_weight[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
-				root->control_weight[0] = 1.0f - root->control_weight[1];
+				fiber->control_weight[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
+				fiber->control_weight[0] = 1.0f - fiber->control_weight[1];
 				/* float precisions issues can cause slightly negative weights */
-				CLAMP2(root->control_weight, 0.0f, 1.0f);
+				CLAMP2(fiber->control_weight, 0.0f, 1.0f);
 			}
 			else if (found == 1) {
-				root->control_weight[0] = 1.0f;
+				fiber->control_weight[0] = 1.0f;
 			}
 			
-			sort_root_weights(root);
-			verify_root_weights(root);
+			sort_fiber_weights(fiber);
+			verify_fiber_weights(fiber);
 		}
 	}
 	
@@ -363,37 +363,37 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 	MEM_freeN(strandloc);
 }
 
-StrandRoot *BKE_strands_scatter(Strands *strands,
+StrandFiber *BKE_strands_scatter(Strands *strands,
                                 struct DerivedMesh *scalp, unsigned int amount,
                                 unsigned int seed)
 {
 	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
 	unsigned int i;
 	
-	StrandRoot *roots = MEM_mallocN(sizeof(StrandRoot) * amount, "StrandRoot");
-	StrandRoot *root;
+	StrandFiber *fibers = MEM_mallocN(sizeof(StrandFiber) * amount, "StrandFiber");
+	StrandFiber *fiber;
 	
-	for (i = 0, root = roots; i < amount; ++i, ++root) {
-		if (BKE_mesh_sample_generate(gen, &root->root)) {
+	for (i = 0, fiber = fibers; i < amount; ++i, ++fiber) {
+		if (BKE_mesh_sample_generate(gen, &fiber->root)) {
 			int k;
 			/* influencing control strands are determined later */
 			for (k = 0; k < 4; ++k) {
-				root->control_index[k] = STRAND_INDEX_NONE;
-				root->control_weight[k] = 0.0f;
+				fiber->control_index[k] = STRAND_INDEX_NONE;
+				fiber->control_weight[k] = 0.0f;
 			}
 		}
 		else {
 			/* clear remaining samples */
-			memset(root, 0, sizeof(StrandRoot) * amount - i);
+			memset(fiber, 0, sizeof(StrandFiber) * amount - i);
 			break;
 		}
 	}
 	
 	BKE_mesh_sample_free_generator(gen);
 	
-	strands_calc_weights(strands, scalp, roots, amount);
+	strands_calc_weights(strands, scalp, fibers, amount);
 	
-	return roots;
+	return fibers;
 }
 
 #if 0

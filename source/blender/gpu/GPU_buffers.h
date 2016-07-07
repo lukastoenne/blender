@@ -150,18 +150,18 @@ typedef struct GPUBufferTexture {
 } GPUBufferTexture;
 
 typedef struct GPUDrawStrands {
-	GPUBuffer *control_points;
-	GPUBuffer *control_curves;
-	GPUBuffer *control_edges;
-	GPUBuffer *root_points;
+	GPUBuffer *strand_points;
+	GPUBuffer *strand_curves;
+	GPUBuffer *strand_edges;
+	GPUBuffer *fiber_points;
 
 	/* GL texture id for control point texture buffer */
-	GPUBufferTexture control_points_tex;
-	GPUBufferTexture control_curves_tex;
+	GPUBufferTexture strand_points_tex;
+	GPUBufferTexture strand_curves_tex;
 
 	unsigned int totverts;
 	unsigned int totcurves;
-	unsigned int totroots;
+	unsigned int totfibers;
 } GPUDrawStrands;
 
 
@@ -294,11 +294,11 @@ void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_
 
 void GPU_strands_setup_verts(struct StrandData *strands);
 void GPU_strands_setup_edges(struct StrandData *strands);
-void GPU_strands_setup_roots(struct StrandData *strands);
+void GPU_strands_setup_fibers(struct StrandData *strands);
 
 void GPU_editstrands_setup_verts(struct BMEditStrands *strands);
 void GPU_editstrands_setup_edges(struct BMEditStrands *strands);
-void GPU_editstrands_setup_roots(struct BMEditStrands *strands);
+void GPU_editstrands_setup_fibers(struct BMEditStrands *strands);
 
 void GPU_strands_buffer_unbind(void);
 

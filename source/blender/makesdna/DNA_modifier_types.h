@@ -1549,20 +1549,20 @@ typedef struct StrandsModifierData {
 	ModifierData modifier;
 	
 	int flag;
-	int num_roots;
+	int num_fibers;
 	int seed;
 	int pad;
 	
 	struct Strands *strands;
-	struct StrandRoot *roots;
+	struct StrandFiber *fibers;
 	
 	struct BMEditStrands *edit;		/* edit data (runtime) */
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */
 enum {
-	MOD_STRANDS_SHOW_CONTROL_STRANDS = (1 << 0),
-	MOD_STRANDS_SHOW_RENDER_STRANDS = (1 << 1),
+	MOD_STRANDS_SHOW_STRANDS = (1 << 0),
+	MOD_STRANDS_SHOW_FIBERS = (1 << 1),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

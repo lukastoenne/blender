@@ -51,14 +51,14 @@ typedef struct StrandCurve {
 	unsigned int num_verts;
 } StrandCurve;
 
-typedef struct StrandRoot {
+typedef struct StrandFiber {
 	/* Sample on the scalp mesh for the root vertex */
 	MeshSample root;
 	/* Indices of control strands for interpolation */
 	unsigned int control_index[4];
 	/* Weights of control strands for interpolation */
 	float control_weight[4];
-} StrandRoot;
+} StrandFiber;
 
 typedef struct Strands {
 	/* Array of vertices */

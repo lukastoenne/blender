@@ -1845,8 +1845,8 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			if (smd->strands) {
 				write_strands(wd, smd->strands);
 			}
-			if (smd->roots) {
-				writestruct(wd, DATA, StrandRoot, smd->num_roots, smd->roots);
+			if (smd->fibers) {
+				writestruct(wd, DATA, StrandFiber, smd->num_fibers, smd->fibers);
 			}
 		}
 	}
