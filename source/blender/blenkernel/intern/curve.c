@@ -207,7 +207,7 @@ Curve *BKE_curve_copy(Curve *cu)
 	id_us_plus((ID *)cun->vfonti);
 	id_us_plus((ID *)cun->vfontbi);
 
-	if (cu->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(cu)) {
 		BKE_id_lib_local_paths(G.main, cu->id.lib, &cun->id);
 	}
 
@@ -237,7 +237,7 @@ void BKE_curve_make_local(Curve *cu)
 	 * - mixed: do a copy
 	 */
 
-	if (cu->id.lib == NULL)
+	if (!ID_IS_LINKED_DATABLOCK(cu))
 		return;
 
 	if (cu->id.us == 1) {
@@ -248,7 +248,7 @@ void BKE_curve_make_local(Curve *cu)
 
 	for (ob = bmain->object.first; ob && ELEM(0, is_lib, is_local); ob = ob->id.next) {
 		if (ob->data == cu) {
-			if (ob->id.lib) is_lib = true;
+			if (ID_IS_LINKED_DATABLOCK(ob)) is_lib = true;
 			else is_local = true;
 		}
 	}
@@ -265,7 +265,7 @@ void BKE_curve_make_local(Curve *cu)
 
 		for (ob = bmain->object.first; ob; ob = ob->id.next) {
 			if (ob->data == cu) {
-				if (ob->id.lib == NULL) {
+				if (!ID_IS_LINKED_DATABLOCK(ob)) {
 					ob->data = cu_new;
 					id_us_plus(&cu_new->id);
 					id_us_min(&cu->id);
@@ -1382,6 +1382,71 @@ void BKE_nurb_makeCurve(Nurb *nu, float *coord_array, float *tilt_array, float *
 	/* free */
 	MEM_freeN(sum);
 	MEM_freeN(basisu);
+}
+
+/**
+ * Calculate the length for arrays filled in by #BKE_curve_calc_coords_axis.
+ */
+unsigned int BKE_curve_calc_coords_axis_len(
+        const unsigned int bezt_array_len, const unsigned int resolu,
+        const bool is_cyclic, const bool use_cyclic_duplicate_endpoint)
+{
+	const unsigned int segments = bezt_array_len - (is_cyclic ?  0 : 1);
+	const unsigned int points_len = (segments * resolu) + (is_cyclic ? (use_cyclic_duplicate_endpoint) : 1);
+	return points_len;
+}
+
+/**
+ * Calcualte an array for the entire curve (cyclic or non-cyclic).
+ * \note Call for each axis.
+ *
+ * \param use_cyclic_duplicate_endpoint: Duplicate values at the beginning & end of the array.
+ */
+void BKE_curve_calc_coords_axis(
+        const BezTriple *bezt_array, const unsigned int bezt_array_len, const unsigned int resolu,
+        const bool is_cyclic, const bool use_cyclic_duplicate_endpoint,
+        /* array params */
+        const unsigned int axis, const unsigned int stride,
+        float *r_points)
+{
+	const unsigned int points_len = BKE_curve_calc_coords_axis_len(
+	        bezt_array_len, resolu, is_cyclic, use_cyclic_duplicate_endpoint);
+	float *r_points_offset = r_points;
+
+	const unsigned int resolu_stride = resolu * stride;
+	const unsigned int bezt_array_last = bezt_array_len - 1;
+
+	for (unsigned int i = 0; i < bezt_array_last; i++) {
+		const BezTriple *bezt_curr = &bezt_array[i];
+		const BezTriple *bezt_next = &bezt_array[i + 1];
+		BKE_curve_forward_diff_bezier(
+		        bezt_curr->vec[1][axis], bezt_curr->vec[2][axis],
+		        bezt_next->vec[0][axis], bezt_next->vec[1][axis],
+		        r_points_offset, (int)resolu, stride);
+		r_points_offset = POINTER_OFFSET(r_points_offset, resolu_stride);
+	}
+
+	if (is_cyclic) {
+		const BezTriple *bezt_curr = &bezt_array[bezt_array_last];
+		const BezTriple *bezt_next = &bezt_array[0];
+		BKE_curve_forward_diff_bezier(
+		        bezt_curr->vec[1][axis], bezt_curr->vec[2][axis],
+		        bezt_next->vec[0][axis], bezt_next->vec[1][axis],
+		        r_points_offset, (int)resolu, stride);
+		r_points_offset = POINTER_OFFSET(r_points_offset, resolu_stride);
+		if (use_cyclic_duplicate_endpoint) {
+			*r_points_offset = *r_points;
+			r_points_offset = POINTER_OFFSET(r_points_offset, stride);
+		}
+	}
+	else {
+		float *r_points_last = POINTER_OFFSET(r_points, bezt_array_last * resolu_stride);
+		*r_points_last = bezt_array[bezt_array_last].vec[1][axis];
+		r_points_offset = POINTER_OFFSET(r_points_offset, stride);
+	}
+
+	BLI_assert(POINTER_OFFSET(r_points, points_len * stride) == r_points_offset);
+	UNUSED_VARS_NDEBUG(points_len);
 }
 
 /* forward differencing method for bezier curve */

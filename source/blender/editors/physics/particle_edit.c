@@ -1173,7 +1173,7 @@ static void PE_update_selection(Scene *scene, Object *ob, int useflag)
 		}
 	}
 
-	psys_cache_edit_paths(scene, ob, edit, CFRA);
+	psys_cache_edit_paths(scene, ob, edit, CFRA, G.is_rendering);
 
 
 	/* disable update flag */
@@ -1289,7 +1289,7 @@ void PE_update_object(Scene *scene, Object *ob, int useflag)
 	PE_hide_keys_time(scene, edit, CFRA);
 
 	/* regenerate path caches */
-	psys_cache_edit_paths(scene, ob, edit, CFRA);
+	psys_cache_edit_paths(scene, ob, edit, CFRA, G.is_rendering);
 
 	/* disable update flag */
 	LOOP_POINTS {
@@ -4693,7 +4693,7 @@ static int particle_edit_toggle_poll(bContext *C)
 
 	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	if (!ob->data || ((ID *)ob->data)->lib)
+	if (!ob->data || ID_IS_LINKED_DATABLOCK(ob->data))
 		return 0;
 	if (CTX_data_edit_object(C))
 		return 0;

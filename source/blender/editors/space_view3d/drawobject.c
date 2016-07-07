@@ -1401,8 +1401,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 				float blend = z_abs * (1.0f - pow2f(la->spotblend));
 
 				/* hide line if it is zero size or overlaps with outer border,
-				* previously it adjusted to always to show it but that seems
-				* confusing because it doesn't show the actual blend size */
+				 * previously it adjusted to always to show it but that seems
+				 * confusing because it doesn't show the actual blend size */
 				if (blend != 0.0f && blend != z_abs) {
 					circ(0.0f, 0.0f, blend);
 				}
@@ -5018,7 +5018,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	unsigned char tcol[4] = {0, 0, 0, 255};
 
 /* 1. */
-	if (part == NULL || !psys_check_enabled(ob, psys))
+	if (part == NULL || !psys_check_enabled(ob, psys, G.is_rendering))
 		return;
 
 	if (pars == NULL) return;
@@ -5726,7 +5726,7 @@ static void draw_update_ptcache_edit(Scene *scene, Object *ob, PTCacheEdit *edit
 
 	/* create path and child path cache if it doesn't exist already */
 	if (edit->pathcache == NULL)
-		psys_cache_edit_paths(scene, ob, edit, CFRA);
+		psys_cache_edit_paths(scene, ob, edit, CFRA, G.is_rendering);
 }
 
 static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
@@ -7334,7 +7334,7 @@ static void draw_object_wire_color(Scene *scene, Base *base, unsigned char r_ob_
 	}
 	else {
 		/* Sets the 'colindex' */
-		if (ob->id.lib) {
+		if (ID_IS_LINKED_DATABLOCK(ob)) {
 			colindex = (base->flag & (SELECT + BA_WAS_SEL)) ? 2 : 1;
 		}
 		/* Sets the 'theme_id' or fallback to wire */
@@ -8090,7 +8090,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				    !(G.f & G_RENDER_OGL))
 				{
 					/* check > 0 otherwise grease pencil can draw into the circle select which is annoying. */
-					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ob->id.lib || ob->id.us > 1);
+					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ID_IS_LINKED_DATABLOCK(ob) || ob->id.us > 1);
 				}
 			}
 		}
@@ -8219,7 +8219,7 @@ static void bbs_obmode_mesh_verts__mapFunc(void *userData, int index, const floa
 	MVert *mv = &data->mvert[index];
 
 	if (!(mv->flag & ME_HIDE)) {
-		WM_framebuffer_index_set(data->offset + index);
+		GPU_select_index_set(data->offset + index);
 		glVertex3fv(co);
 	}
 }
@@ -8244,7 +8244,7 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 	BMVert *eve = BM_vert_at_index(data->bm, index);
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-		WM_framebuffer_index_set(data->offset + index);
+		GPU_select_index_set(data->offset + index);
 		glVertex3fv(co);
 	}
 }
@@ -8263,7 +8263,7 @@ static DMDrawOption bbs_mesh_wire__setDrawOptions(void *userData, int index)
 	BMEdge *eed = BM_edge_at_index(data->bm, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-		WM_framebuffer_index_set(data->offset + index);
+		GPU_select_index_set(data->offset + index);
 		return DM_DRAW_OPTION_NORMAL;
 	}
 	else {
@@ -8277,7 +8277,7 @@ static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, int offset)
 }
 
 /**
- * dont set #WM_framebuffer_index_set. just use to mask other
+ * dont set #GPU_framebuffer_index_set. just use to mask other
  */
 static DMDrawOption bbs_mesh_mask__setSolidDrawOptions(void *userData, int index)
 {
@@ -8296,7 +8296,7 @@ static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(void *userData, int inde
 	BMFace *efa = BM_face_at_index(userData, index);
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		WM_framebuffer_index_set(index + 1);
+		GPU_select_index_set(index + 1);
 		return DM_DRAW_OPTION_NORMAL;
 	}
 	else {
@@ -8309,7 +8309,7 @@ static void bbs_mesh_solid__drawCenter(void *userData, int index, const float ce
 	BMFace *efa = BM_face_at_index(userData, index);
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		WM_framebuffer_index_set(index + 1);
+		GPU_select_index_set(index + 1);
 
 		glVertex3fv(cent);
 	}
@@ -8340,7 +8340,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 
 static DMDrawOption bbs_mesh_solid__setDrawOpts(void *UNUSED(userData), int index)
 {
-	WM_framebuffer_index_set(index + 1);
+	GPU_select_index_set(index + 1);
 	return DM_DRAW_OPTION_NORMAL;
 }
 
@@ -8349,7 +8349,7 @@ static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(void *userData, int index)
 	Mesh *me = userData;
 
 	if (!(me->mpoly[index].flag & ME_HIDE)) {
-		WM_framebuffer_index_set(index + 1);
+		GPU_select_index_set(index + 1);
 		return DM_DRAW_OPTION_NORMAL;
 	}
 	else {
@@ -8357,7 +8357,7 @@ static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(void *userData, int index)
 	}
 }
 
-/* must have called WM_framebuffer_index_set beforehand */
+/* must have called GPU_framebuffer_index_set beforehand */
 static DMDrawOption bbs_mesh_solid_hide2__setDrawOpts(void *userData, int index)
 {
 	Mesh *me = userData;

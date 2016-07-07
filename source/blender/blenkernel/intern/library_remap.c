@@ -163,18 +163,22 @@ static int foreach_libblock_remap_callback(void *user_data, ID *UNUSED(id_self),
 	}
 
 	if (*id_p && (*id_p == old_id)) {
+		const bool is_indirect = (id->lib != NULL);
+		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 		/* Note: proxy usage implies LIB_TAG_EXTERN, so on this aspect it is direct,
 		 *       on the other hand since they get reset to lib data on file open/reload it is indirect too...
 		 *       Edit Mode is also a 'skip direct' case. */
 		const bool is_obj = (GS(id->name) == ID_OB);
 		const bool is_proxy = (is_obj && (((Object *)id)->proxy || ((Object *)id)->proxy_group));
 		const bool is_obj_editmode = (is_obj && BKE_object_is_in_editmode((Object *)id));
-		/* Note that indirect data from same file as processed ID is **not** considered indirect! */
-		const bool is_indirect = ((id->lib != NULL) && (id->lib != old_id->lib));
-		const bool skip_indirect = (id_remap_data->flag & ID_REMAP_SKIP_INDIRECT_USAGE) != 0;
 		const bool is_never_null = ((cb_flag & IDWALK_NEVER_NULL) && (new_id == NULL) &&
 		                            (id_remap_data->flag & ID_REMAP_FORCE_NEVER_NULL_USAGE) == 0);
 		const bool skip_never_null = (id_remap_data->flag & ID_REMAP_SKIP_NEVER_NULL_USAGE) != 0;
+
+#ifdef DEBUG_PRINT
+		printf("In %s: Remapping %s (%p) to %s (%p) (skip_indirect: %d)\n",
+		       id->name, old_id->name, old_id, new_id ? new_id->name : "<NONE>", new_id, skip_indirect);
+#endif
 
 		if ((id_remap_data->flag & ID_REMAP_FLAG_NEVER_NULL_USAGE) && (cb_flag & IDWALK_NEVER_NULL)) {
 			id->tag |= LIB_TAG_DOIT;
@@ -185,11 +189,14 @@ static int foreach_libblock_remap_callback(void *user_data, ID *UNUSED(id_self),
 		    (is_obj_editmode && (((Object *)id)->data == *id_p)) ||
 		    (skip_indirect && (is_proxy || is_indirect)))
 		{
-			if (is_never_null || is_proxy || is_obj_editmode) {
+			if (is_indirect) {
+				id_remap_data->skipped_indirect++;
+			}
+			else if (is_never_null || is_proxy || is_obj_editmode) {
 				id_remap_data->skipped_direct++;
 			}
 			else {
-				id_remap_data->skipped_indirect++;
+				BLI_assert(0);
 			}
 			if (cb_flag & IDWALK_USER) {
 				id_remap_data->skipped_refcounted++;
@@ -394,7 +401,7 @@ void BKE_libblock_remap_locked(
 			if (old_ob->flag & OB_FROMGROUP) {
 				/* Note that for Scene's BaseObject->flag, either we:
 				 *     - unlinked old_ob (i.e. new_ob is NULL), in which case scenes' bases have been removed already.
-				 *     - remaped old_ob by new_ob, in which case scenes' bases are still valid as is.
+				 *     - remapped old_ob by new_ob, in which case scenes' bases are still valid as is.
 				 * So in any case, no need to update them here. */
 				if (BKE_group_object_find(NULL, old_ob) == NULL) {
 					old_ob->flag &= ~OB_FROMGROUP;
@@ -462,9 +469,10 @@ void BKE_libblock_remap(Main *bmain, void *old_idv, void *new_idv, const short r
  * \param do_flag_never_null: If true, all IDs using \a idv in a 'non-NULL' way are flagged by \a LIB_TAG_DOIT flag
  * (quite obviously, 'non-NULL' usages can never be unlinked by this function...).
  */
-void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null)
+void BKE_libblock_unlink(Main *bmain, void *idv, const bool do_flag_never_null, const bool do_skip_indirect)
 {
-	const short remap_flags = ID_REMAP_SKIP_INDIRECT_USAGE | (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0);
+	const short remap_flags = (do_skip_indirect ? ID_REMAP_SKIP_INDIRECT_USAGE : 0) |
+	                          (do_flag_never_null ? ID_REMAP_FLAG_NEVER_NULL_USAGE : 0);
 
 	BKE_main_lock(bmain);
 
@@ -710,7 +718,7 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 	}
 
 	if (id->us == 0) {
-		BKE_libblock_unlink(bmain, id, false);
+		BKE_libblock_unlink(bmain, id, false, false);
 		
 		BKE_libblock_free(bmain, id);
 	}

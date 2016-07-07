@@ -232,15 +232,17 @@ static uiBlock *id_search_menu(bContext *C, ARegion *ar, void *arg_litem)
 /* This is for browsing and editing the ID-blocks used */
 
 /* for new/open operators */
-void UI_context_active_but_prop_get_templateID(bContext *C, PointerRNA *ptr, PropertyRNA **prop)
+void UI_context_active_but_prop_get_templateID(
+	bContext *C,
+	PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
 	TemplateID *template;
 	ARegion *ar = CTX_wm_region(C);
 	uiBlock *block;
 	uiBut *but;
 
-	memset(ptr, 0, sizeof(*ptr));
-	*prop = NULL;
+	memset(r_ptr, 0, sizeof(*r_ptr));
+	*r_prop = NULL;
 
 	if (!ar)
 		return;
@@ -251,8 +253,8 @@ void UI_context_active_but_prop_get_templateID(bContext *C, PointerRNA *ptr, Pro
 			if ((but->flag & (UI_BUT_LAST_ACTIVE | UI_ACTIVE))) {
 				if (but->func_argN) {
 					template = but->func_argN;
-					*ptr = template->ptr;
-					*prop = template->prop;
+					*r_ptr = template->ptr;
+					*r_prop = template->prop;
 					return;
 				}
 			}
@@ -972,7 +974,7 @@ static uiLayout *draw_modifier(
 			}
 			
 			UI_block_lock_clear(block);
-			UI_block_lock_set(block, ob && ob->id.lib, ERROR_LIBDATA_MESSAGE);
+			UI_block_lock_set(block, ob && ID_IS_LINKED_DATABLOCK(ob), ERROR_LIBDATA_MESSAGE);
 			
 			if (!ELEM(md->type, eModifierType_Fluidsim, eModifierType_Softbody, eModifierType_ParticleSystem,
 			           eModifierType_Cloth, eModifierType_Smoke))
@@ -1019,7 +1021,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
 		return NULL;
 	}
 	
-	UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ob->id.lib), ERROR_LIBDATA_MESSAGE);
+	UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ID_IS_LINKED_DATABLOCK(ob)), ERROR_LIBDATA_MESSAGE);
 	
 	/* find modifier and draw it */
 	cageIndex = modifiers_getCageIndex(scene, ob, &lastCageIndex, 0);
@@ -1247,7 +1249,7 @@ uiLayout *uiTemplateConstraint(uiLayout *layout, PointerRNA *ptr)
 		return NULL;
 	}
 	
-	UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ob->id.lib), ERROR_LIBDATA_MESSAGE);
+	UI_block_lock_set(uiLayoutGetBlock(layout), (ob && ID_IS_LINKED_DATABLOCK(ob)), ERROR_LIBDATA_MESSAGE);
 
 	/* hrms, the temporal constraint should not draw! */
 	if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
@@ -1609,7 +1611,7 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname
 	block = uiLayoutAbsoluteBlock(layout);
 
 	id = cptr.id.data;
-	UI_block_lock_set(block, (id && id->lib), ERROR_LIBDATA_MESSAGE);
+	UI_block_lock_set(block, (id && ID_IS_LINKED_DATABLOCK(id)), ERROR_LIBDATA_MESSAGE);
 
 	colorband_buttons_layout(layout, block, cptr.data, &rect, cb, expand);
 
@@ -2261,7 +2263,7 @@ void uiTemplateCurveMapping(
 	cb->prop = prop;
 
 	id = cptr.id.data;
-	UI_block_lock_set(block, (id && id->lib), ERROR_LIBDATA_MESSAGE);
+	UI_block_lock_set(block, (id && ID_IS_LINKED_DATABLOCK(id)), ERROR_LIBDATA_MESSAGE);
 
 	curvemap_buttons_layout(layout, &cptr, type, levels, brush, neg_slope, cb);
 
