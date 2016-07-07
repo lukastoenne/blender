@@ -96,8 +96,12 @@ typedef struct StrandData {
 	struct GPUDrawStrands *gpu_buffer;
 } StrandData;
 
+int BKE_strand_data_numverts(int orig_num_verts, int subdiv);
+void BKE_strand_data_generate_verts(const struct StrandVertex *orig_verts, int orig_num_verts,
+                                    struct StrandVertexData *verts, float rootmat[4][4], int subdiv);
 struct StrandData *BKE_strand_data_calc(struct Strands *strands, struct DerivedMesh *scalp,
-                                        StrandFiber *fibers, int num_fibers);
+                                        StrandFiber *fibers, int num_fibers, int subdiv);
+
 void BKE_strand_data_free(struct StrandData *data);
 
 /* ------------------------------------------------------------------------- */

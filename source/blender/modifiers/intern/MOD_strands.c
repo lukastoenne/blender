@@ -59,6 +59,7 @@ static void initData(ModifierData *md)
 	
 	smd->num_fibers = 0;
 	smd->fibers = NULL;
+	smd->subdiv = 2;
 	
 	smd->flag |= MOD_STRANDS_SHOW_STRANDS |
 	             MOD_STRANDS_SHOW_FIBERS;
@@ -123,7 +124,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		if (smd->strands->data_final)
 			BKE_strand_data_free(smd->strands->data_final);
 		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm,
-		                                                smd->fibers, smd->fibers ? smd->num_fibers : 0);
+		                                                smd->fibers,
+		                                                smd->fibers ? smd->num_fibers : 0,
+		                                                smd->subdiv);
 		
 		if (smd->edit) {
 			/* clear draw data from edit when updating */

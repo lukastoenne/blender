@@ -4693,6 +4693,14 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fibers", "Number of rendered strand fibers to generate");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 	
+	prop = RNA_def_property(srna, "subdivisions", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "subdiv");
+	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_ui_range(prop, 0, 6, 1, 3);
+	RNA_def_property_int_default(prop, 2);
+	RNA_def_property_ui_text(prop, "Subdivisions", "Subdivisions for each segment of fibers");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	
 	prop = RNA_def_property(srna, "show_strands", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_STRANDS_SHOW_STRANDS);
 	RNA_def_property_boolean_default(prop, true);

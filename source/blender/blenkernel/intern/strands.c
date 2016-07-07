@@ -141,13 +141,63 @@ bool BKE_strands_get_fiber_matrix(const StrandFiber *fiber, DerivedMesh *root_dm
 
 /* ------------------------------------------------------------------------- */
 
+int BKE_strand_data_numverts(int orig_num_verts, int subdiv)
+{
+	BLI_assert(orig_num_verts >= 2);
+	return (orig_num_verts - 1) * (1 << subdiv) + 1;
+}
+
+void BKE_strand_data_generate_verts(const StrandVertex *orig_verts, int orig_num_verts,
+                                    StrandVertexData *verts, float rootmat[4][4], int subdiv)
+{
+	/* initialize points */
+	{
+		const int step = (1 << subdiv);
+		int index = 0;
+		for (int k = 0; k < orig_num_verts; ++k, index += step) {
+			mul_v3_m4v3(verts[index].co, rootmat, orig_verts[k].co);
+		}
+	}
+	
+	/* subdivide */
+	for (int d = 0; d < subdiv; ++d) {
+		const int num_edges = (orig_num_verts - 1) * (1 << d);
+		const int hstep = (1 << (subdiv - d - 1));
+		const int step = (1 << (subdiv - d));
+		
+		/* calculate edge points */
+		int index = 0;
+		for (int k = 0; k < num_edges; ++k, index += step) {
+			add_v3_v3v3(verts[index + hstep].co, verts[index].co, verts[index + step].co);
+			mul_v3_fl(verts[index + hstep].co, 0.5f);
+		}
+		
+		/* move original points */
+		index = step;
+		for (int k = 1; k < num_edges; ++k, index += step) {
+			add_v3_v3v3(verts[index].co, verts[index - hstep].co, verts[index + hstep].co);
+			mul_v3_fl(verts[index].co, 0.5f);
+		}
+	}
+}
+
+static int strand_data_count_totverts(Strands *strands, int subdiv)
+{
+	int totverts = 0;
+	int c;
+	StrandCurve *scurve = strands->curves;
+	for (c = 0; c < strands->totcurves; ++c, ++scurve)
+		totverts += BKE_strand_data_numverts(scurve->num_verts, subdiv);
+	return totverts;
+}
+
 StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
-                                 StrandFiber *fibers, int num_fibers)
+                                 StrandFiber *fibers, int num_fibers, int subdiv)
 {
 	StrandData *data = MEM_callocN(sizeof(StrandData), "StrandData");
 	
-	data->totverts = strands->totverts;
 	data->totcurves = strands->totcurves;
+	data->totverts = strand_data_count_totverts(strands, subdiv);
 	data->totfibers = num_fibers;
 	data->verts = MEM_mallocN(sizeof(StrandVertexData) * data->totverts, "StrandVertexData");
 	data->curves = MEM_mallocN(sizeof(StrandCurveData) * data->totcurves, "StrandCurveData");
@@ -156,18 +206,18 @@ StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
 	int c;
 	StrandCurve *scurve = strands->curves;
 	StrandCurveData *curve = data->curves;
+	int verts_begin = 0;
 	for (c = 0; c < data->totcurves; ++c, ++scurve, ++curve) {
-		curve->verts_begin = scurve->verts_begin;
-		curve->num_verts = scurve->num_verts;
+		int num_verts = BKE_strand_data_numverts(scurve->num_verts, subdiv);
 		
+		curve->verts_begin = verts_begin;
+		curve->num_verts = num_verts;
 		BKE_strands_get_matrix(scurve, scalp, curve->mat);
 		
-		int v;
-		StrandVertex *svert = strands->verts + scurve->verts_begin;
-		StrandVertexData *vert = data->verts + curve->verts_begin;
-		for (v = 0; v < curve->num_verts; ++v, ++svert, ++vert) {
-			mul_v3_m4v3(vert->co, curve->mat, svert->co);
-		}
+		BKE_strand_data_generate_verts(strands->verts + scurve->verts_begin, scurve->num_verts,
+		                               data->verts + verts_begin, curve->mat, subdiv);
+		
+		verts_begin += num_verts;
 	}
 	
 	int i;

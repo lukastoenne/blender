@@ -1551,7 +1551,7 @@ typedef struct StrandsModifierData {
 	int flag;
 	int num_fibers;
 	int seed;
-	int pad;
+	int subdiv;
 	
 	struct Strands *strands;
 	struct StrandFiber *fibers;
