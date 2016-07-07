@@ -8,6 +8,8 @@ in vec3 vColor[];
 in uvec4 v_control_index[];
 in vec4 v_control_weight[];
 
+out vec3 fPosition;
+out vec3 fTangent;
 out vec3 fColor;
 
 uniform usamplerBuffer control_curves;
@@ -18,20 +20,20 @@ bool is_valid_index(uint index)
 	return index < uint(0xFFFFFFFF);
 }
 
-void emit_vertex(in vec4 loc)
+void emit_vertex(in vec3 location, in vec3 tangent)
 {
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(loc.xyz, 1.0);
+	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(location, 1.0);
+	fPosition = (gl_ModelViewMatrix * vec4(location, 1.0)).xyz;
+	fTangent = (gl_ModelViewMatrix * vec4(tangent, 0.0)).xyz;
+	fColor = vColor[0];
+	//fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
+	//fColor = vec3(float(t[0]), 0.0, 0.0);
 	EmitVertex();
 }
 
 void main()
 {
-	fColor = vColor[0];
-	
-	vec4 root = gl_in[0].gl_Position;
-	
-	emit_vertex(root);
-	
+	vec3 root = gl_in[0].gl_Position.xyz;
 	
 	int index[4] = int[4](int(v_control_index[0].x),
 	                      int(v_control_index[0].y),
@@ -49,8 +51,8 @@ void main()
 	int cvert_begin[4];
 	int num_cverts[4];
 	float fnum_verts = 0.0;
-	vec4 croot[4];
-	vec4 offset[4];
+	vec3 croot[4];
+	vec3 offset[4];
 	for (int k = 0; k < 4; ++k) {
 		uvec4 curve = texelFetch(control_curves, index[k]);
 		cvert_begin[k] = int(curve.x);
@@ -58,7 +60,7 @@ void main()
 		
 		fnum_verts += weight[k] * float(num_cverts[k]);
 		
-		croot[k] = texelFetch(control_points, cvert_begin[k]);
+		croot[k] = texelFetch(control_points, cvert_begin[k]).xyz;
 		offset[k] = root - croot[k];
 	}
 	int num_verts = max(int(ceil(fnum_verts)), 2);
@@ -68,12 +70,11 @@ void main()
 		dt[k] = float(num_cverts[k] - 1) / float(num_verts - 1);
 	}
 
-	//fColor = vec3(0.0, 1.0, 0.0);
-	emit_vertex(root);
-
+	vec3 loc = root;
+	vec3 tangent;
 	float t[4] = float[4](dt[0], dt[1], dt[2], dt[3]);
 	for (int i = 1; i < num_verts; ++i) {
-		vec4 loc = vec4(0.0, 0.0, 0.0, 1.0);
+		vec3 next_loc = vec3(0.0, 0.0, 0.0);
 
 		for (int k = 0; k < 4; ++k) {
 			if (!valid[k])
@@ -83,18 +84,20 @@ void main()
 			int ci1 = ci0 + 1;
 			float lambda = t[k] - floor(t[k]);
 			/* XXX could use texture filtering to do this for us? */
-			vec4 cloc0 = texelFetch(control_points, cvert_begin[k] + ci0);
-			vec4 cloc1 = texelFetch(control_points, cvert_begin[k] + ci1);
-			vec4 cloc = mix(cloc0, cloc1, lambda) + offset[k];
+			vec3 next_cloc0 = texelFetch(control_points, cvert_begin[k] + ci0).xyz;
+			vec3 next_cloc1 = texelFetch(control_points, cvert_begin[k] + ci1).xyz;
+			vec3 next_cloc = mix(next_cloc0, next_cloc1, lambda) + offset[k];
 			
-			loc += weight[k] * cloc;
+			next_loc += weight[k] * next_cloc;
 			t[k] += dt[k];
 		}
 
-		//fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
-		//fColor = vec3(float(t[0]), 0.0, 0.0);
-		emit_vertex(loc);
+		tangent = next_loc - loc;
+		emit_vertex(loc, tangent);
+		loc = next_loc;
 	}
+	/* last vertex */
+	emit_vertex(loc, tangent);
 	
 	EndPrimitive();
 }
