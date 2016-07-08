@@ -68,7 +68,7 @@ BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm, StrandFib
 	es->root_dm = CDDM_copy(root_dm);
 	if (fibers && num_fibers > 0) {
 		es->fibers = MEM_dupallocN(fibers);
-		es->num_fibers = num_fibers;
+		es->totfibers = num_fibers;
 	}
 	
 	return es;
@@ -83,10 +83,8 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
 	es_copy->root_dm = CDDM_copy(es->root_dm);
 	if (es->fibers) {
 		es_copy->fibers = MEM_dupallocN(es->fibers);
-		es_copy->num_fibers = es->num_fibers;
+		es_copy->totfibers = es->totfibers;
 	}
-	
-	es_copy->gpu_buffer = NULL;
 	
 	return es_copy;
 }
@@ -139,17 +137,6 @@ void BKE_editstrands_free(BMEditStrands *es)
 		es->root_dm->release(es->root_dm);
 	if (es->fibers)
 		MEM_freeN(es->fibers);
-	
-	if (es->gpu_buffer)
-		GPU_strands_buffer_free(es->gpu_buffer);
-}
-
-void BKE_editstrands_clear_drawdata(BMEditStrands *es)
-{
-	if (es->gpu_buffer) {
-		GPU_strands_buffer_free(es->gpu_buffer);
-		es->gpu_buffer = NULL;
-	}
 }
 
 /* === constraints === */

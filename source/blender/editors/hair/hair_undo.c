@@ -136,12 +136,12 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	edit_tmp = BKE_editstrands_create(bm, dm, NULL, 0);
 	/* keep fibers array */
 	fibers_tmp = edit->fibers;
-	num_fibers_tmp = edit->num_fibers;
+	num_fibers_tmp = edit->totfibers;
 	
 	BKE_editstrands_free(edit);
 	*edit = *edit_tmp;
 	edit->fibers = fibers_tmp;
-	edit->num_fibers = num_fibers_tmp;
+	edit->totfibers = num_fibers_tmp;
 	
 	bm->selectmode = undo->selectmode;
 	edit->base.ob = ob;

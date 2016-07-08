@@ -31,6 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -66,43 +67,54 @@
 
 #include "view3d_intern.h"  // own include
 
-void draw_strands(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
-                  Object *ob, Strands *strands, StrandData *data,
-                  bool show_controls, bool show_strands)
+void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
+                  Object *ob, StrandsModifierData *smd)
 {
-	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
+	Strands *strands = smd->strands;
+	bool show_controls = smd->flag & MOD_STRANDS_SHOW_STRANDS;
+	bool show_strands = smd->flag & MOD_STRANDS_SHOW_FIBERS;
+	if (strands == NULL)
+		return;
+	
+	GPUDrawStrandsParams params = {0};
+	params.strands = smd->strands;
+	params.root_dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	params.subdiv = smd->subdiv;
+	
+	if (smd->gpu_buffer == NULL)
+		smd->gpu_buffer = GPU_strands_buffer_create(&params);
+	GPUDrawStrands *buffer = smd->gpu_buffer;
+	GPUStrandsShader *shader = GPU_strand_shader_get(strands);
 	
 	if (show_controls) {
-		GPU_strands_setup_edges(data);
-		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->strand_points && gds->strand_edges) {
-			GPU_buffer_draw_elements(gds->strand_edges, GL_LINES, 0,
-			                         (gds->totverts - gds->totcurves) * 2);
+		GPU_strands_setup_edges(buffer, &params);
+		if (buffer->strand_points && buffer->strand_edges) {
+			GPU_buffer_draw_elements(buffer->strand_edges, GL_LINES, 0,
+			                         buffer->strand_totedges * 2);
 		}
 		GPU_buffers_unbind();
 	}
 	
 	if (show_strands) {
-		GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
-		GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
+		GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
+		GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv);
 		
-		GPU_strands_setup_fibers(data);
-		GPUDrawStrands *gds = data->gpu_buffer;
-		if (gds->fiber_points) {
+		GPU_strands_setup_fibers(buffer, &params);
+		if (buffer->fiber_points) {
 			struct GPUAttrib *attrib;
 			int num_attrib;
-			GPU_strand_shader_get_attributes(strands->gpu_shader, &attrib, &num_attrib);
+			GPU_strand_shader_get_attributes(shader, &attrib, &num_attrib);
 			
 			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(gds->fiber_points, attrib, num_attrib, elemsize, false);
+			GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
 			
-			glDrawArrays(GL_POINTS, 0, gds->totfibers * elemsize);
+			glDrawArrays(GL_POINTS, 0, buffer->totfibers * elemsize);
 			
 			GPU_interleaved_attrib_unbind();
 		}
 		GPU_strands_buffer_unbind();
 		
-		GPU_strand_shader_unbind(gpu_shader);
+		GPU_strand_shader_unbind(shader);
 	}
 }
 
@@ -417,43 +429,55 @@ static void draw_dots(BMEditStrands *edit, const StrandsDrawInfo *info, bool sel
 }
 #endif
 
-void draw_strands_edit_hair(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *rv3d,
-                            Object *ob, Strands *strands, BMEditStrands *edit,
-                            bool show_controls, bool show_strands)
+void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
+                       Object *ob, StrandsModifierData *smd)
 {
-	GPUStrandsShader *gpu_shader = GPU_strand_shader_get(strands);
+	BMEditStrands *edit = smd->edit;
+	bool show_controls = smd->flag & MOD_STRANDS_SHOW_STRANDS;
+	bool show_strands = smd->flag & MOD_STRANDS_SHOW_FIBERS;
+	
+	if (smd->strands == NULL || edit == NULL)
+		return;
+	
+	GPUDrawStrandsParams params = {0};
+	params.strands = smd->strands;
+	params.edit = edit;
+	params.root_dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+	params.subdiv = smd->subdiv;
+	
+	if (smd->gpu_buffer == NULL)
+		smd->gpu_buffer = GPU_strands_buffer_create(&params);
+	GPUDrawStrands *buffer = smd->gpu_buffer;
+	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands);
 	
 	if (show_controls) {
-		GPU_editstrands_setup_edges(edit);
-		GPUDrawStrands *gds = edit->gpu_buffer;
-		if (gds->strand_points && gds->strand_edges) {
-			GPU_buffer_draw_elements(gds->strand_edges, GL_LINES, 0,
-			                         (gds->totverts - gds->totcurves) * 2);
+		GPU_strands_setup_edges(buffer, &params);
+		if (buffer->strand_points && buffer->strand_edges) {
+			GPU_buffer_draw_elements(buffer->strand_edges, GL_LINES, 0, buffer->strand_totedges * 2);
 		}
 		GPU_buffers_unbind();
 	}
 	
 	if (show_strands) {
-		GPU_strand_shader_bind_uniforms(gpu_shader, ob->obmat, rv3d->viewmat);
-		GPU_strand_shader_bind(gpu_shader, rv3d->viewmat, rv3d->viewinv);
+		GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
+		GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv);
 		
-		GPU_editstrands_setup_fibers(edit);
-		GPUDrawStrands *gds = edit->gpu_buffer;
-		if (gds->fiber_points) {
+		GPU_strands_setup_fibers(buffer, &params);
+		if (buffer->fiber_points) {
 			struct GPUAttrib *attrib;
 			int num_attrib;
-			GPU_strand_shader_get_attributes(strands->gpu_shader, &attrib, &num_attrib);
+			GPU_strand_shader_get_attributes(shader, &attrib, &num_attrib);
 			
 			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(gds->fiber_points, attrib, num_attrib, elemsize, false);
+			GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
 			
-			glDrawArrays(GL_POINTS, 0, gds->totfibers * elemsize);
+			glDrawArrays(GL_POINTS, 0, buffer->totfibers * elemsize);
 			
 			GPU_interleaved_attrib_unbind();
 		}
 		GPU_strands_buffer_unbind();
 		
-		GPU_strand_shader_unbind(gpu_shader);
+		GPU_strand_shader_unbind(shader);
 	}
 	
 #if 0

@@ -7976,23 +7976,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Strands) {
 			StrandsModifierData *smd = (StrandsModifierData *)md;
-			BMEditStrands *edit = (ob->mode & OB_MODE_HAIR_EDIT && is_obact) ? smd->edit : NULL;
-			bool show_controls = smd->flag & MOD_STRANDS_SHOW_STRANDS;
-			bool show_strands = smd->flag & MOD_STRANDS_SHOW_FIBERS;
 			
-			if (edit) {
+			if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
 				if (!(dflag & DRAW_PICKING) && scene->obedit == NULL) {
-					draw_strands_edit_hair(scene, v3d, rv3d, ob,
-					                       smd->strands, edit,
-					                       show_controls, show_strands);
+					draw_strands_edit(scene, v3d, rv3d, ob, smd);
 				}
 			}
 			else {
-				if (smd->strands && smd->strands->data_final) {
-					draw_strands(scene, v3d, rv3d, ob,
-					             smd->strands, smd->strands->data_final,
-					             show_controls, show_strands);
-				}
+				draw_strands(scene, v3d, rv3d, ob, smd);
 			}
 		}
 	}

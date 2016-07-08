@@ -63,7 +63,7 @@ bool ED_hair_object_init_strands_edit(Scene *scene, Object *ob)
 		if (dm) {
 			BMesh *bm = BKE_editstrands_strands_to_bmesh(smd->strands, dm);
 			
-			smd->edit = BKE_editstrands_create(bm, dm, smd->fibers, smd->num_fibers);
+			smd->edit = BKE_editstrands_create(bm, dm, smd->strands->fibers, smd->strands->totfibers);
 			
 			return true;
 		}
@@ -83,14 +83,12 @@ bool ED_hair_object_apply_strands_edit(Scene *scene, Object *ob)
 				BKE_editstrands_strands_from_bmesh(smd->strands, smd->edit->base.bm, dm);
 			}
 			
-			/* invalidate roots */
-			if (smd->fibers) {
-				MEM_freeN(smd->fibers);
-				smd->fibers = NULL;
-			}
-			if (smd->edit->num_fibers) {
-				smd->fibers = MEM_dupallocN(smd->edit->fibers);
-				smd->num_fibers = smd->edit->num_fibers;
+			/* invalidate fibers */
+			BKE_strands_free_fibers(smd->strands);
+			if (smd->edit->totfibers) {
+				smd->strands->fibers = MEM_dupallocN(smd->edit->fibers);
+				smd->strands->totfibers = smd->edit->totfibers;
+				smd->num_fibers = smd->strands->totfibers;
 			}
 			
 			BKE_editstrands_free(smd->edit);

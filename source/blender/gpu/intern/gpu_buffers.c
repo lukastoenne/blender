@@ -2131,18 +2131,21 @@ typedef struct FiberVertex {
 } FiberVertex;
 
 typedef enum GPUStrandBufferType {
-	GPU_STRAND_BUFFER_CONTROL_VERTEX = 0,
+	GPU_STRAND_BUFFER_STRAND_VERTEX = 0,
+	GPU_STRAND_BUFFER_STRAND_EDGE,
+	GPU_STRAND_BUFFER_CONTROL_VERTEX,
 	GPU_STRAND_BUFFER_CONTROL_CURVE,
-	GPU_STRAND_BUFFER_CONTROL_EDGE,
 	GPU_STRAND_BUFFER_FIBER_VERTEX,
 } GPUStrandBufferType;
 
 const GPUBufferTypeSettings gpu_strand_buffer_type_settings[] = {
+    /* STRAND_VERTEX */
+    {GL_ARRAY_BUFFER, 3},
+    /* STRAND_EDGE */
+    {GL_ELEMENT_ARRAY_BUFFER, 2},
     /* CONTROL_VERTEX */
     {GL_ARRAY_BUFFER, 3},
     /* CONTROL_CURVE */
-    {GL_ELEMENT_ARRAY_BUFFER, 2},
-    /* CONTROL_EDGE */
     {GL_ELEMENT_ARRAY_BUFFER, 2},
     /* FIBER_VERTEX */
     {GL_ARRAY_BUFFER, 3},
@@ -2152,12 +2155,14 @@ const GPUBufferTypeSettings gpu_strand_buffer_type_settings[] = {
 static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUStrandBufferType type)
 {
 	switch (type) {
-		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+		case GPU_STRAND_BUFFER_STRAND_VERTEX:
 			return &gds->strand_points;
-		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			return &gds->strand_curves;
-		case GPU_STRAND_BUFFER_CONTROL_EDGE:
+		case GPU_STRAND_BUFFER_STRAND_EDGE:
 			return &gds->strand_edges;
+		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
+			return &gds->control_points;
+		case GPU_STRAND_BUFFER_CONTROL_CURVE:
+			return &gds->control_curves;
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
 			return &gds->fiber_points;
 		default:
@@ -2171,10 +2176,10 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 	switch (type) {
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
 			*format = GL_RGB32F;
-			return &gds->strand_points_tex;
+			return &gds->control_points_tex;
 		case GPU_STRAND_BUFFER_CONTROL_CURVE:
 			*format = GL_RG32UI;
-			return &gds->strand_curves_tex;
+			return &gds->control_curves_tex;
 		default:
 			*format = 0;
 			return NULL;
@@ -2185,19 +2190,18 @@ static GPUBufferTexture *gpu_strands_buffer_texture_from_type(GPUDrawStrands *gd
 static size_t gpu_strands_buffer_size_from_type(GPUDrawStrands *gpu_buffer, GPUStrandBufferType type)
 {
 	const int components = gpu_strand_buffer_type_settings[type].num_components;
-	const int totverts = gpu_buffer->totverts;
-	const int totcurves = gpu_buffer->totcurves;
-	const int totfibers = gpu_buffer->totfibers;
 	
 	switch (type) {
+		case GPU_STRAND_BUFFER_STRAND_VERTEX:
+			return sizeof(float) * components * gpu_buffer->strand_totverts;
+		case GPU_STRAND_BUFFER_STRAND_EDGE:
+			return sizeof(int) * components * gpu_buffer->strand_totedges;
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
-			return sizeof(float) * components * totverts;
+			return sizeof(float) * components * gpu_buffer->control_totverts;
 		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			return sizeof(int) * components * totcurves;
-		case GPU_STRAND_BUFFER_CONTROL_EDGE:
-			return sizeof(int) * components * (totverts - totcurves);
+			return sizeof(int) * components * gpu_buffer->control_totcurves;
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
-			return sizeof(FiberVertex) * totfibers;
+			return sizeof(FiberVertex) * gpu_buffer->totfibers;
 		default:
 			return -1;
 	}
@@ -2281,112 +2285,260 @@ static void gpu_strands_setup_buffer_texture(GPUBuffer *buffer, GLenum format, G
 
 /* ******** */
 
-static GPUDrawStrands *strands_buffer_create(StrandData *strands)
+GPUDrawStrands *GPU_strands_buffer_create(GPUDrawStrandsParams *params)
 {
-	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
+	GPUDrawStrands *gds = MEM_callocN(sizeof(GPUDrawStrands), "GPUDrawStrands");
 	
-	gsb->totverts = strands->totverts;
-	gsb->totcurves = strands->totcurves;
-	gsb->totfibers = strands->totfibers;
-	
-	return gsb;
-}
-
-static void strands_copy_vertex_data(StrandData *strands, float (*varray)[3])
-{
-	int totverts = strands->totverts, v;
-	
-	/* control strand vertices */
-	StrandVertexData *vert = strands->verts;
-	for (v = 0; v < totverts; ++v, ++vert) {
-		copy_v3_v3(*varray++, vert->co);
+	if (params->edit) {
+		BMEditStrands *edit = params->edit;
+		BMesh *bm = edit->base.bm;
+		int totcurves = BM_strands_count(bm);
+		gds->strand_totverts = bm->totvert;
+		gds->strand_totedges = bm->totedge;
+		gds->control_totcurves = totcurves;
+		gds->control_totverts = BKE_strand_curve_cache_totverts(bm->totvert,
+		                                                        totcurves,
+		                                                        params->subdiv);
+		gds->totfibers = edit->totfibers;
 	}
-}
-
-static void strands_copy_curve_data(StrandData *strands, unsigned int (*varray)[2])
-{
-	int totcurves = strands->totcurves, c;
-	
-	StrandCurveData *curve = strands->curves;
-	for (c = 0; c < totcurves; ++c, ++curve) {
-		(*varray)[0] = curve->verts_begin;
-		(*varray)[1] = curve->num_verts;
-		++varray;
+	else {
+		Strands *strands = params->strands;
+		gds->strand_totverts = strands->totverts;
+		gds->strand_totedges = strands->totverts - strands->totcurves;
+		gds->control_totcurves = strands->totcurves;
+		gds->control_totverts = BKE_strand_curve_cache_totverts(strands->totverts,
+		                                                        strands->totcurves,
+		                                                        params->subdiv);
+		gds->totfibers = strands->totfibers;
 	}
+	
+	return gds;
 }
 
-static void strands_copy_edge_data(StrandData *strands, unsigned int (*varray)[2])
+static void strands_copy_strand_vertex_data(GPUDrawStrandsParams *params, float (*varray)[3])
 {
-	int totcurves = strands->totcurves, c;
-	int totedge = 0;
-	
-	StrandCurveData *curve = strands->curves;
-	for (c = 0; c < totcurves; ++c, ++curve) {
-		int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
-		BLI_assert(verts_begin < strands->totverts);
-		BLI_assert(num_verts >= 2);
+	if (params->edit) {
+		BMesh *bm = params->edit->base.bm;
+		BMIter iter;
+		BMVert *vert;
 		
-		StrandVertexData *vert = strands->verts + verts_begin;
-		for (v = 0; v < num_verts - 1; ++v, ++vert) {
-			(*varray)[0] = verts_begin + v;
-			(*varray)[1] = verts_begin + v + 1;
+		BM_ITER_MESH(vert, &iter, bm, BM_VERTS_OF_MESH) {
+			copy_v3_v3(*varray++, vert->co);
+		}
+	}
+	else {
+		Strands *strands = params->strands;
+		int totcurves = strands->totcurves, c;
+		
+		StrandCurve *curve = strands->curves;
+		for (c = 0; c < totcurves; ++c, ++curve) {
+			float rootmat[4][4];
+			BKE_strands_get_matrix(curve, params->root_dm, rootmat);
+			int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+			BLI_assert(verts_begin < strands->totverts);
+			BLI_assert(num_verts >= 2);
+			
+			StrandVertex *vert = strands->verts + verts_begin;
+			for (v = 0; v < num_verts; ++v, ++vert) {
+				mul_v3_m4v3(*varray++, rootmat, vert->co);
+			}
+		}
+	}
+}
+
+static void strands_copy_strand_edge_data(GPUDrawStrandsParams *params, unsigned int (*varray)[2])
+{
+	if (params->edit) {
+		BMesh *bm = params->edit->base.bm;
+		BMIter iter;
+		BMEdge *edge;
+		
+		BM_ITER_MESH(edge, &iter, bm, BM_EDGES_OF_MESH) {
+			(*varray)[0] = BM_elem_index_get(edge->v1);
+			(*varray)[1] = BM_elem_index_get(edge->v2);
 			++varray;
-			++totedge;
 		}
 	}
-	BLI_assert(totedge == strands->totverts - totcurves);
-	UNUSED_VARS(totedge);
-}
-
-static void strands_copy_fiber_data(StrandData *strands, FiberVertex *varray)
-{
-	int totfibers = strands->totfibers, v;
-	
-	/* strand fiber points */
-	StrandFiberData *fiber = strands->fibers;
-	for (v = 0; v < totfibers; ++v, ++fiber) {
-		copy_v3_v3(varray->co, fiber->co);
-		for (int k = 0; k < 4; ++k) {
-			varray->control_index[k] = fiber->control_index[k];
-			varray->control_weight[k] = fiber->control_weight[k];
+	else {
+		Strands *strands = params->strands;
+		int totcurves = strands->totcurves, c;
+		int totedges = 0;
+		
+		StrandCurve *curve = strands->curves;
+		for (c = 0; c < totcurves; ++c, ++curve) {
+			int verts_begin = curve->verts_begin, num_verts = curve->num_verts, v;
+			BLI_assert(verts_begin < strands->totverts);
+			BLI_assert(num_verts >= 2);
+			
+			for (v = 0; v < num_verts - 1; ++v) {
+				(*varray)[0] = verts_begin + v;
+				(*varray)[1] = verts_begin + v + 1;
+				++varray;
+				++totedges;
+			}
 		}
-		++varray;
+		BLI_assert(totedges == strands->totverts - totcurves);
 	}
 }
 
-static void strands_copy_gpu_data(void *vstrands, GPUStrandBufferType type, float *varray)
+static void strands_copy_control_vertex_data(GPUDrawStrandsParams *params, float (*varray)[3])
 {
-	StrandData *strands = (StrandData *)vstrands;
+	if (params->edit) {
+		BMesh *bm = params->edit->base.bm;
+		
+		StrandCurveCache *cache = BKE_strand_curve_cache_create_bm(bm, params->subdiv);
+		
+		/* Note: edit bmesh has all vertices in object space already,
+		 * so we don't need to apply curve transforms!
+		 */
+		float rootmat[4][4];
+		unit_m4(rootmat);
+		
+		BMIter iter;
+		BMVert *root;
+		BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+			int orig_num_verts = BM_strand_verts_count(root);
+			int num_verts = BKE_strand_curve_cache_calc_bm(root, orig_num_verts, cache, rootmat, params->subdiv);
+			
+			float (*vert)[3] = cache->verts;
+			for (int v = 0; v < num_verts; ++v, ++vert) {
+				copy_v3_v3(*varray++, *vert);
+			}
+		}
+	}
+	else {
+		Strands *strands = params->strands;
+		
+		StrandCurveCache *cache = BKE_strand_curve_cache_create(strands, params->subdiv);
+		
+		int totcurves = strands->totcurves;
+		StrandCurve *curve = strands->curves;
+		for (int c = 0; c < totcurves; ++c, ++curve) {
+			float rootmat[4][4];
+			BKE_strands_get_matrix(curve, params->root_dm, rootmat);
+			
+			int verts_begin = curve->verts_begin;
+			int orig_num_verts = curve->num_verts;
+			BLI_assert(verts_begin < strands->totverts);
+			BLI_assert(orig_num_verts >= 2);
+			
+			int num_verts = BKE_strand_curve_cache_calc(strands->verts + verts_begin, orig_num_verts,
+			                                            cache, rootmat, params->subdiv);
+			
+			float (*vert)[3] = cache->verts;
+			for (int v = 0; v < num_verts; ++v, ++vert) {
+				copy_v3_v3(*varray++, *vert);
+			}
+		}
+		
+		BKE_strand_curve_cache_free(cache);
+	}
+}
+
+static void strands_copy_control_curve_data(GPUDrawStrandsParams *params, unsigned int (*varray)[2])
+{
+	if (params->edit) {
+		BMesh *bm = params->edit->base.bm;
+		BMIter iter;
+		BMVert *root;
+		
+		int verts_begin = 0;
+		BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+			int orig_num_verts = BM_strand_verts_count(root);
+			int num_verts = BKE_strand_curve_cache_size(orig_num_verts, params->subdiv);
+			
+			(*varray)[0] = verts_begin;
+			(*varray)[1] = num_verts;
+			++varray;
+			
+			verts_begin += num_verts;
+		}
+	}
+	else {
+		Strands *strands = params->strands;
+		int totcurves = strands->totcurves;
+		
+		int verts_begin = 0;
+		StrandCurve *curve = strands->curves;
+		for (int c = 0; c < totcurves; ++c, ++curve) {
+			int num_verts = BKE_strand_curve_cache_size(curve->num_verts, params->subdiv);
+			
+			(*varray)[0] = verts_begin;
+			(*varray)[1] = num_verts;
+			++varray;
+			
+			verts_begin += num_verts;
+		}
+	}
+}
+
+static void strands_copy_fiber_data(GPUDrawStrandsParams *params, FiberVertex *varray)
+{
+	if (params->edit) {
+		BMEditStrands *edit = params->edit;
+		int totfibers = edit->totfibers;
+		
+		/* strand fiber points */
+		StrandFiber *fiber = edit->fibers;
+		for (int v = 0; v < totfibers; ++v, ++fiber) {
+			BKE_strands_get_fiber_location(fiber, edit->root_dm, varray->co);
+			for (int k = 0; k < 4; ++k) {
+				varray->control_index[k] = fiber->control_index[k];
+				varray->control_weight[k] = fiber->control_weight[k];
+			}
+			++varray;
+		}
+	}
+	else {
+		Strands *strands = params->strands;
+		int totfibers = strands->totfibers, v;
+		
+		/* strand fiber points */
+		StrandFiber *fiber = strands->fibers;
+		for (v = 0; v < totfibers; ++v, ++fiber) {
+			BKE_strands_get_fiber_location(fiber, params->root_dm, varray->co);
+			for (int k = 0; k < 4; ++k) {
+				varray->control_index[k] = fiber->control_index[k];
+				varray->control_weight[k] = fiber->control_weight[k];
+			}
+			++varray;
+		}
+	}
+}
+
+static void strands_copy_gpu_data(void *vparams, GPUStrandBufferType type, float *varray)
+{
+	GPUDrawStrandsParams *params = (GPUDrawStrandsParams *)vparams;
 	switch (type) {
+		case GPU_STRAND_BUFFER_STRAND_VERTEX:
+			strands_copy_strand_vertex_data(params, (float (*)[3])varray);
+			break;
+		case GPU_STRAND_BUFFER_STRAND_EDGE:
+			strands_copy_strand_edge_data(params, (unsigned int (*)[2])varray);
+			break;
 		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
-			strands_copy_vertex_data(strands, (float (*)[3])varray);
+			strands_copy_control_vertex_data(params, (float (*)[3])varray);
 			break;
 		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			strands_copy_curve_data(strands, (unsigned int (*)[2])varray);
-			break;
-		case GPU_STRAND_BUFFER_CONTROL_EDGE:
-			strands_copy_edge_data(strands, (unsigned int (*)[2])varray);
+			strands_copy_control_curve_data(params, (unsigned int (*)[2])varray);
 			break;
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
-			strands_copy_fiber_data(strands, (FiberVertex *)varray);
+			strands_copy_fiber_data(params, (FiberVertex *)varray);
 			break;
 	}
 }
 
-static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType type, bool update)
+static bool strands_setup_buffer_common(GPUDrawStrands *strands_buffer, GPUDrawStrandsParams *params, GPUStrandBufferType type, bool update)
 {
 	GPUBuffer **buf;
 	GPUBufferTexture *tex;
 	
-	if (!strands->gpu_buffer)
-		strands->gpu_buffer = strands_buffer_create(strands);
-	
-	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
+	buf = gpu_strands_buffer_from_type(strands_buffer, type);
 	if (*buf == NULL || update) {
-		*buf = gpu_strands_setup_buffer_type(strands->gpu_buffer, type, strands_copy_gpu_data, strands, *buf);
+		*buf = gpu_strands_setup_buffer_type(strands_buffer, type, strands_copy_gpu_data, params, *buf);
 		
 		GLenum tex_format;
-		tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
+		tex = gpu_strands_buffer_texture_from_type(strands_buffer, type, &tex_format);
 		if (tex)
 			gpu_strands_setup_buffer_texture(*buf, tex_format, tex);
 	}
@@ -2394,216 +2546,56 @@ static bool strands_setup_buffer_common(StrandData *strands, GPUStrandBufferType
 	return *buf != NULL;
 }
 
-void GPU_strands_setup_verts(StrandData *strands)
+void GPU_strands_setup_verts(GPUDrawStrands *strands_buffer, GPUDrawStrandsParams *params)
 {
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_STRAND_VERTEX, false))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->strand_points->id);
+	glBindBuffer(GL_ARRAY_BUFFER, strands_buffer->strand_points->id);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 }
 
-void GPU_strands_setup_edges(StrandData *strands)
+void GPU_strands_setup_edges(GPUDrawStrands *strands_buffer, GPUDrawStrandsParams *params)
 {
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_EDGE, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_STRAND_VERTEX, false))
 		return;
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_STRAND_EDGE, false))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->strand_points->id);
+	glBindBuffer(GL_ARRAY_BUFFER, strands_buffer->strand_points->id);
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->strand_edges->id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands_buffer->strand_edges->id);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
 }
 
-void GPU_strands_setup_fibers(StrandData *strands)
+void GPU_strands_setup_fibers(GPUDrawStrands *strands_buffer, GPUDrawStrandsParams *params)
 {
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
 		return;
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_CURVE, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_CONTROL_CURVE, false))
 		return;
-	if (!strands_setup_buffer_common(strands, GPU_STRAND_BUFFER_FIBER_VERTEX, false))
+	if (!strands_setup_buffer_common(strands_buffer, params, GPU_STRAND_BUFFER_FIBER_VERTEX, false))
 		return;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->fiber_points->id);
+	glBindBuffer(GL_ARRAY_BUFFER, strands_buffer->fiber_points->id);
 	glVertexPointer(3, GL_FLOAT, sizeof(FiberVertex), NULL);
 
 	GLStates |= (GPU_BUFFER_VERTEX_STATE);
 
-	if (strands->gpu_buffer->strand_curves_tex.id != 0) {
+	if (strands_buffer->control_curves_tex.id != 0) {
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->strand_curves_tex.id);
+		glBindTexture(GL_TEXTURE_BUFFER, strands_buffer->control_curves_tex.id);
 	}
-	if (strands->gpu_buffer->strand_points_tex.id != 0) {
+	if (strands_buffer->control_points_tex.id != 0) {
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->strand_points_tex.id);
-	}
-}
-
-
-static void editstrands_copy_vertex_data(BMEditStrands *strands, float (*varray)[3])
-{
-	BMesh *bm = strands->base.bm;
-	BMIter iter;
-	BMVert *vert;
-	
-	/* control strand vertices */
-	BM_ITER_MESH(vert, &iter, bm, BM_VERTS_OF_MESH) {
-		copy_v3_v3(*varray++, vert->co);
-	}
-}
-
-static void editstrands_copy_curve_data(BMEditStrands *strands, unsigned int (*varray)[2])
-{
-	BMesh *bm = strands->base.bm;
-	BMIter iter;
-	BMVert *root;
-	
-	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		(*varray)[0] = BM_elem_index_get(root);
-		(*varray)[1] = BM_strand_verts_count(root);
-		++varray;
-	}
-}
-
-static void editstrands_copy_edge_data(BMEditStrands *strands, unsigned int (*varray)[2])
-{
-	BMesh *bm = strands->base.bm;
-	BMIter iter;
-	BMEdge *edge;
-	
-	BM_ITER_MESH(edge, &iter, bm, BM_EDGES_OF_MESH) {
-		(*varray)[0] = BM_elem_index_get(edge->v1);
-		(*varray)[1] = BM_elem_index_get(edge->v2);
-		++varray;
-	}
-}
-
-static void editstrands_copy_fiber_data(BMEditStrands *strands, FiberVertex *varray)
-{
-	int totfibers = strands->num_fibers, v;
-	
-	/* strand fiber points */
-	StrandFiber *fiber = strands->fibers;
-	for (v = 0; v < totfibers; ++v, ++fiber) {
-		BKE_strands_get_fiber_location(fiber, strands->root_dm, varray->co);
-		for (int k = 0; k < 4; ++k) {
-			varray->control_index[k] = fiber->control_index[k];
-			varray->control_weight[k] = fiber->control_weight[k];
-		}
-		++varray;
-	}
-}
-
-static void editstrands_copy_gpu_data(void *vstrands, GPUStrandBufferType type, float *varray)
-{
-	BMEditStrands *strands = (BMEditStrands *)vstrands;
-	switch (type) {
-		case GPU_STRAND_BUFFER_CONTROL_VERTEX:
-			editstrands_copy_vertex_data(strands, (float (*)[3])varray);
-			break;
-		case GPU_STRAND_BUFFER_CONTROL_CURVE:
-			editstrands_copy_curve_data(strands, (unsigned int (*)[2])varray);
-			break;
-		case GPU_STRAND_BUFFER_CONTROL_EDGE:
-			editstrands_copy_edge_data(strands, (unsigned int (*)[2])varray);
-			break;
-		case GPU_STRAND_BUFFER_FIBER_VERTEX:
-			editstrands_copy_fiber_data(strands, (FiberVertex *)varray);
-			break;
-	}
-}
-
-static GPUDrawStrands *editstrands_buffer_create(BMEditStrands *strands)
-{
-	GPUDrawStrands *gsb = MEM_callocN(sizeof(GPUDrawStrands), "GPUStrandsBuffer");
-	
-	BMesh *bm = strands->base.bm;
-	gsb->totverts = bm->totvert;
-	gsb->totcurves = BM_strands_count(bm);
-	gsb->totfibers = strands->num_fibers;
-	
-	return gsb;
-}
-
-static bool editstrands_setup_buffer_common(BMEditStrands *strands, GPUStrandBufferType type, bool update)
-{
-	GPUBuffer **buf;
-	GPUBufferTexture *tex;
-	
-	if (!strands->gpu_buffer)
-		strands->gpu_buffer = editstrands_buffer_create(strands);
-	
-	buf = gpu_strands_buffer_from_type(strands->gpu_buffer, type);
-	if (*buf == NULL || update) {
-		*buf = gpu_strands_setup_buffer_type(strands->gpu_buffer, type, editstrands_copy_gpu_data, strands, *buf);
-		
-		GLenum tex_format;
-		tex = gpu_strands_buffer_texture_from_type(strands->gpu_buffer, type, &tex_format);
-		if (tex)
-			gpu_strands_setup_buffer_texture(*buf, tex_format, tex);
-	}
-	
-	return *buf != NULL;
-}
-
-void GPU_editstrands_setup_verts(BMEditStrands *strands)
-{
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
-		return;
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->strand_points->id);
-	glVertexPointer(3, GL_FLOAT, 0, NULL);
-
-	GLStates |= (GPU_BUFFER_VERTEX_STATE);
-}
-
-void GPU_editstrands_setup_edges(BMEditStrands *strands)
-{
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_EDGE, false))
-		return;
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
-		return;
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->strand_points->id);
-	glVertexPointer(3, GL_FLOAT, 0, NULL);
-	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, strands->gpu_buffer->strand_edges->id);
-
-	GLStates |= (GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_ELEMENT_STATE);
-}
-
-void GPU_editstrands_setup_fibers(BMEditStrands *strands)
-{
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_VERTEX, false))
-		return;
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_CONTROL_CURVE, false))
-		return;
-	if (!editstrands_setup_buffer_common(strands, GPU_STRAND_BUFFER_FIBER_VERTEX, false))
-		return;
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glBindBuffer(GL_ARRAY_BUFFER, strands->gpu_buffer->fiber_points->id);
-	glVertexPointer(3, GL_FLOAT, sizeof(FiberVertex), NULL);
-
-	GLStates |= (GPU_BUFFER_VERTEX_STATE);
-
-	if (strands->gpu_buffer->strand_curves_tex.id != 0) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->strand_curves_tex.id);
-	}
-	if (strands->gpu_buffer->strand_points_tex.id != 0) {
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_BUFFER, strands->gpu_buffer->strand_points_tex.id);
+		glBindTexture(GL_TEXTURE_BUFFER, strands_buffer->control_points_tex.id);
 	}
 }
 
@@ -2632,8 +2624,9 @@ void GPU_strands_buffer_free(GPUDrawStrands *gpu_buffer)
 #endif
 		
 		GPU_buffer_free(gpu_buffer->strand_points);
-		GPU_buffer_free(gpu_buffer->strand_curves);
 		GPU_buffer_free(gpu_buffer->strand_edges);
+		GPU_buffer_free(gpu_buffer->control_points);
+		GPU_buffer_free(gpu_buffer->control_curves);
 		GPU_buffer_free(gpu_buffer->fiber_points);
 		
 		MEM_freeN(gpu_buffer);

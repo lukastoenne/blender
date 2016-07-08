@@ -1403,6 +1403,9 @@ static void write_strands(WriteData *wd, Strands *strands)
 	if (strands->verts) {
 		writestruct(wd, DATA, StrandVertex, strands->totverts, strands->verts);
 	}
+	if (strands->fibers) {
+		writestruct(wd, DATA, StrandFiber, strands->totfibers, strands->fibers);
+	}
 }
 
 static void write_properties(WriteData *wd, ListBase *lb)
@@ -1844,9 +1847,6 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			if (smd->strands) {
 				write_strands(wd, smd->strands);
-			}
-			if (smd->fibers) {
-				writestruct(wd, DATA, StrandFiber, smd->num_fibers, smd->fibers);
 			}
 		}
 	}

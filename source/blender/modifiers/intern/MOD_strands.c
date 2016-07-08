@@ -58,13 +58,13 @@ static void initData(ModifierData *md)
 	smd->strands = BKE_strands_new();
 	
 	smd->num_fibers = 0;
-	smd->fibers = NULL;
 	smd->subdiv = 2;
 	
 	smd->flag |= MOD_STRANDS_SHOW_STRANDS |
 	             MOD_STRANDS_SHOW_FIBERS;
 	
 	smd->edit = NULL;
+	smd->gpu_buffer = NULL;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -75,20 +75,15 @@ static void copyData(ModifierData *md, ModifierData *target)
 	if (tsmd->strands) {
 		BKE_strands_free(tsmd->strands);
 	}
-	if (tsmd->fibers) {
-		MEM_freeN(tsmd->fibers);
-	}
 
 	modifier_copyData_generic(md, target);
 	
 	if (smd->strands) {
 		tsmd->strands = BKE_strands_copy(smd->strands);
 	}
-	if (smd->fibers) {
-		tsmd->fibers = MEM_dupallocN(smd->fibers);
-	}
 	
 	tsmd->edit = NULL;
+	tsmd->gpu_buffer = NULL;
 }
 
 static void freeData(ModifierData *md)
@@ -98,13 +93,14 @@ static void freeData(ModifierData *md)
 	if (smd->strands) {
 		BKE_strands_free(smd->strands);
 	}
-	if (smd->fibers) {
-		MEM_freeN(smd->fibers);
-	}
 	
 	if (smd->edit) {
 		BKE_editstrands_free(smd->edit);
 		MEM_freeN(smd->edit);
+	}
+	
+	if (smd->gpu_buffer) {
+		BKE_strands_free_drawdata(smd->gpu_buffer);
 	}
 }
 
@@ -116,22 +112,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	
 	if (smd->strands) {
 		
-		/* regenerate roots if necessary */
-		if (smd->fibers == NULL && smd->num_fibers > 0) {
-			smd->fibers = BKE_strands_scatter(smd->strands, dm, smd->num_fibers, smd->seed);
+		/* regenerate fibers if necessary */
+		if (smd->strands->fibers == NULL && smd->num_fibers > 0) {
+			BKE_strands_scatter(smd->strands, dm, smd->num_fibers, smd->seed);
 		}
 		
-		if (smd->strands->data_final)
-			BKE_strand_data_free(smd->strands->data_final);
-		smd->strands->data_final = BKE_strand_data_calc(smd->strands, dm,
-		                                                smd->fibers,
-		                                                smd->fibers ? smd->num_fibers : 0,
-		                                                smd->subdiv);
-		
-		if (smd->edit) {
-			/* clear draw data from edit when updating */
-			BKE_editstrands_clear_drawdata(smd->edit);
-		}
+		/* clear draw data when updating */
+		BKE_strands_free_drawdata(smd->gpu_buffer);
+		smd->gpu_buffer = NULL;
 	}
 	
 	return dm;

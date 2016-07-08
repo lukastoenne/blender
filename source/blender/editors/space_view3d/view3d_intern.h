@@ -46,9 +46,7 @@ struct bContext;
 struct bMotionPath;
 struct bPoseChannel;
 struct Mesh;
-struct Strands;
-struct StrandData;
-struct BMEditStrands;
+struct StrandsModifierData;
 struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
@@ -290,12 +288,9 @@ extern const char *view3d_context_dir[]; /* doc access */
 
 /* drawstrands.c */
 void draw_strands(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
-                  struct Object *ob, struct Strands *strands, struct StrandData *data,
-                  bool show_controls, bool show_strands);
-
-void draw_strands_edit_hair(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
-                            struct Object *ob, struct Strands *strands, struct BMEditStrands *edit,
-                            bool show_controls, bool show_strands);
+                  struct Object *ob, struct StrandsModifierData *smd);
+void draw_strands_edit(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
+                       struct Object *ob, struct StrandsModifierData *smd);
 
 /* drawvolume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,

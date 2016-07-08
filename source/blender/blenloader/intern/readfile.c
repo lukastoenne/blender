@@ -4309,10 +4309,10 @@ static void direct_link_strands(FileData *fd, Strands *strands)
 	
 	strands->curves = newdataadr(fd, strands->curves);
 	strands->verts = newdataadr(fd, strands->verts);
+	strands->fibers = newdataadr(fd, strands->fibers);
 	
 	/* runtime */
 	strands->gpu_shader = NULL;
-	strands->data_final = NULL;
 }
 
 /* ************ READ MESH ***************** */
@@ -5282,9 +5282,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->strands = newdataadr(fd, smd->strands);
 				direct_link_strands(fd, smd->strands);
 			}
-			smd->fibers = newdataadr(fd, smd->fibers);
 			
 			smd->edit = NULL;
+			smd->gpu_buffer = NULL;
 		}
 	}
 }

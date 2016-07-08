@@ -36,8 +36,11 @@
 
 #include "DNA_strand_types.h"
 
+struct BMesh;
+struct BMVert;
 struct DerivedMesh;
 struct GPUStrandsShader;
+struct GPUDrawStrands;
 
 static const unsigned int STRAND_INDEX_NONE = 0xFFFFFFFF;
 
@@ -53,56 +56,20 @@ bool BKE_strands_get_fiber_matrix(const struct StrandFiber *fiber, struct Derive
 
 /* ------------------------------------------------------------------------- */
 
-typedef struct StrandVertexData {
-	/* Position */
-	float co[3];
-	int pad;
-} StrandVertexData;
+typedef struct StrandCurveCache {
+	float (*verts)[3];
+	int maxverts;
+} StrandCurveCache;
 
-typedef struct StrandCurveData {
-	/* Start of vertex list */
-	unsigned int verts_begin;
-	/* Number of vertices in the curve */
-	unsigned int num_verts;
-	
-	/* Transform from strand space to object space */
-	float mat[4][4];
-} StrandCurveData;
-
-typedef struct StrandFiberData {
-	/* Position */
-	float co[3];
-	/* Indices of control strands for interpolation */
-	unsigned int control_index[4];
-	/* Weights of control strands for interpolation */
-	float control_weight[4];
-} StrandFiberData;
-
-typedef struct StrandData {
-	/* Array of vertices */
-	StrandVertexData *verts;
-	/* Array of curves */
-	StrandCurveData *curves;
-	/* Array of fibers */
-	StrandFiberData *fibers;
-	
-	/* Total number of vertices */
-	int totverts;
-	/* Total number of curves */
-	int totcurves;
-	/* Total number of fibers */
-	int totfibers;
-	
-	struct GPUDrawStrands *gpu_buffer;
-} StrandData;
-
-int BKE_strand_data_numverts(int orig_num_verts, int subdiv);
-void BKE_strand_data_generate_verts(const struct StrandVertex *orig_verts, int orig_num_verts,
-                                    struct StrandVertexData *verts, float rootmat[4][4], int subdiv);
-struct StrandData *BKE_strand_data_calc(struct Strands *strands, struct DerivedMesh *scalp,
-                                        StrandFiber *fibers, int num_fibers, int subdiv);
-
-void BKE_strand_data_free(struct StrandData *data);
+struct StrandCurveCache *BKE_strand_curve_cache_create(const struct Strands *strands, int subdiv);
+struct StrandCurveCache *BKE_strand_curve_cache_create_bm(struct BMesh *bm, int subdiv);
+void BKE_strand_curve_cache_free(struct StrandCurveCache *cache);
+int BKE_strand_curve_cache_calc(const struct StrandVertex *orig_verts, int orig_num_verts,
+                                struct StrandCurveCache *cache, float rootmat[4][4], int subdiv);
+int BKE_strand_curve_cache_calc_bm(struct BMVert *root, int orig_num_verts,
+                                   struct StrandCurveCache *cache, float rootmat[4][4], int subdiv);
+int BKE_strand_curve_cache_size(int orig_num_verts, int subdiv);
+int BKE_strand_curve_cache_totverts(int orig_totverts, int orig_totcurves, int subdiv);
 
 /* ------------------------------------------------------------------------- */
 
@@ -111,9 +78,12 @@ void BKE_strands_test_init(struct Strands *strands, struct DerivedMesh *scalp,
                            unsigned int seed);
 
 
-struct StrandFiber *BKE_strands_scatter(struct Strands *strands,
-                                       struct DerivedMesh *scalp, unsigned int amount,
-                                       unsigned int seed);
+void BKE_strands_scatter(struct Strands *strands,
+                         struct DerivedMesh *scalp, unsigned int amount,
+                         unsigned int seed);
+void BKE_strands_free_fibers(struct Strands *strands);
+
+void BKE_strands_free_drawdata(struct GPUDrawStrands *gpu_buffer);
 
 #if 0
 typedef struct StrandCurveParams {

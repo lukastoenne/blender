@@ -1554,9 +1554,10 @@ typedef struct StrandsModifierData {
 	int subdiv;
 	
 	struct Strands *strands;
-	struct StrandFiber *fibers;
 	
-	struct BMEditStrands *edit;		/* edit data (runtime) */
+	struct BMEditStrands *edit;			/* edit data (runtime) */
+	
+	struct GPUDrawStrands *gpu_buffer;	/* draw data (runtime) */
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */

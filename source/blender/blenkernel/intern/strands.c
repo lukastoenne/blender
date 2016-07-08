@@ -44,6 +44,8 @@
 #include "GPU_buffers.h"
 #include "GPU_strands.h"
 
+#include "bmesh.h"
+
 Strands *BKE_strands_new(void)
 {
 	Strands *strands = MEM_callocN(sizeof(Strands), "strands");
@@ -60,10 +62,12 @@ Strands *BKE_strands_copy(Strands *strands)
 	if (strands->verts) {
 		nstrands->verts = MEM_dupallocN(strands->verts);
 	}
+	if (strands->fibers) {
+		nstrands->fibers = MEM_dupallocN(strands->fibers);
+	}
 	
 	/* lazy initialized */
 	nstrands->gpu_shader = NULL;
-	nstrands->data_final = NULL;
 	
 	return nstrands;
 }
@@ -73,13 +77,12 @@ void BKE_strands_free(Strands *strands)
 	if (strands->gpu_shader)
 		GPU_strand_shader_free(strands->gpu_shader);
 	
-	if (strands->data_final)
-		BKE_strand_data_free(strands->data_final);
-	
 	if (strands->curves)
 		MEM_freeN(strands->curves);
 	if (strands->verts)
 		MEM_freeN(strands->verts);
+	if (strands->fibers)
+		MEM_freeN(strands->fibers);
 	MEM_freeN(strands);
 }
 
@@ -141,23 +144,51 @@ bool BKE_strands_get_fiber_matrix(const StrandFiber *fiber, DerivedMesh *root_dm
 
 /* ------------------------------------------------------------------------- */
 
-int BKE_strand_data_numverts(int orig_num_verts, int subdiv)
+StrandCurveCache *BKE_strand_curve_cache_create(const Strands *strands, int subdiv)
 {
-	BLI_assert(orig_num_verts >= 2);
-	return (orig_num_verts - 1) * (1 << subdiv) + 1;
+	/* calculate max. necessary vertex array size */
+	int maxverts = 0;
+	for (int c = 0; c < strands->totcurves; ++c) {
+		int numverts = strands->curves[c].num_verts;
+		if (numverts > maxverts)
+			maxverts = numverts;
+	}
+	/* account for subdivision */
+	maxverts = BKE_strand_curve_cache_size(maxverts, subdiv);
+	
+	StrandCurveCache *cache = MEM_callocN(sizeof(StrandCurveCache), "StrandCurveCache");
+	cache->maxverts = maxverts;
+	cache->verts = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache verts");
+	
+	return cache;
 }
 
-void BKE_strand_data_generate_verts(const StrandVertex *orig_verts, int orig_num_verts,
-                                    StrandVertexData *verts, float rootmat[4][4], int subdiv)
+StrandCurveCache *BKE_strand_curve_cache_create_bm(BMesh *bm, int subdiv)
 {
-	/* initialize points */
-	{
-		const int step = (1 << subdiv);
-		int index = 0;
-		for (int k = 0; k < orig_num_verts; ++k, index += step) {
-			mul_v3_m4v3(verts[index].co, rootmat, orig_verts[k].co);
-		}
+	/* calculate max. necessary vertex array size */
+	int maxverts = BM_strand_verts_count_max(bm);
+	/* account for subdivision */
+	maxverts = BKE_strand_curve_cache_size(maxverts, subdiv);
+	
+	StrandCurveCache *cache = MEM_callocN(sizeof(StrandCurveCache), "StrandCurveCache");
+	cache->maxverts = maxverts;
+	cache->verts = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache verts");
+	
+	return cache;
+}
+
+void BKE_strand_curve_cache_free(StrandCurveCache *cache)
+{
+	if (cache) {
+		if (cache->verts)
+			MEM_freeN(cache->verts);
+		MEM_freeN(cache);
 	}
+}
+
+static int curve_cache_subdivide(StrandCurveCache *cache, int orig_num_verts, int subdiv)
+{
+	float (*verts)[3] = cache->verts;
 	
 	/* subdivide */
 	for (int d = 0; d < subdiv; ++d) {
@@ -168,88 +199,68 @@ void BKE_strand_data_generate_verts(const StrandVertex *orig_verts, int orig_num
 		/* calculate edge points */
 		int index = 0;
 		for (int k = 0; k < num_edges; ++k, index += step) {
-			add_v3_v3v3(verts[index + hstep].co, verts[index].co, verts[index + step].co);
-			mul_v3_fl(verts[index + hstep].co, 0.5f);
+			add_v3_v3v3(verts[index + hstep], verts[index], verts[index + step]);
+			mul_v3_fl(verts[index + hstep], 0.5f);
 		}
 		
 		/* move original points */
 		index = step;
 		for (int k = 1; k < num_edges; ++k, index += step) {
-			add_v3_v3v3(verts[index].co, verts[index - hstep].co, verts[index + hstep].co);
-			mul_v3_fl(verts[index].co, 0.5f);
-		}
-	}
-}
-
-static int strand_data_count_totverts(Strands *strands, int subdiv)
-{
-	int totverts = 0;
-	int c;
-	StrandCurve *scurve = strands->curves;
-	for (c = 0; c < strands->totcurves; ++c, ++scurve)
-		totverts += BKE_strand_data_numverts(scurve->num_verts, subdiv);
-	return totverts;
-}
-
-StrandData *BKE_strand_data_calc(Strands *strands, DerivedMesh *scalp,
-                                 StrandFiber *fibers, int num_fibers, int subdiv)
-{
-	StrandData *data = MEM_callocN(sizeof(StrandData), "StrandData");
-	
-	data->totcurves = strands->totcurves;
-	data->totverts = strand_data_count_totverts(strands, subdiv);
-	data->totfibers = num_fibers;
-	data->verts = MEM_mallocN(sizeof(StrandVertexData) * data->totverts, "StrandVertexData");
-	data->curves = MEM_mallocN(sizeof(StrandCurveData) * data->totcurves, "StrandCurveData");
-	data->fibers = MEM_mallocN(sizeof(StrandFiberData) * data->totfibers, "StrandFiberData");
-	
-	int c;
-	StrandCurve *scurve = strands->curves;
-	StrandCurveData *curve = data->curves;
-	int verts_begin = 0;
-	for (c = 0; c < data->totcurves; ++c, ++scurve, ++curve) {
-		int num_verts = BKE_strand_data_numverts(scurve->num_verts, subdiv);
-		
-		curve->verts_begin = verts_begin;
-		curve->num_verts = num_verts;
-		BKE_strands_get_matrix(scurve, scalp, curve->mat);
-		
-		BKE_strand_data_generate_verts(strands->verts + scurve->verts_begin, scurve->num_verts,
-		                               data->verts + verts_begin, curve->mat, subdiv);
-		
-		verts_begin += num_verts;
-	}
-	
-	int i;
-	StrandFiber *sfiber = fibers;
-	StrandFiberData *fiber = data->fibers;
-	for (i = 0; i < data->totfibers; ++i, ++sfiber, ++fiber) {
-		float nor[3], tang[3];
-		BKE_mesh_sample_eval(scalp, &sfiber->root, fiber->co, nor, tang);
-		
-		int k;
-		for (k = 0; k < 4; ++k) {
-			fiber->control_index[k] = sfiber->control_index[k];
-			fiber->control_weight[k] = sfiber->control_weight[k];
+			add_v3_v3v3(verts[index], verts[index - hstep], verts[index + hstep]);
+			mul_v3_fl(verts[index], 0.5f);
 		}
 	}
 	
-	return data;
+	const int num_verts = (orig_num_verts - 1) * (1 << subdiv) + 1;
+	return num_verts;
 }
 
-void BKE_strand_data_free(StrandData *data)
+int BKE_strand_curve_cache_calc(const StrandVertex *orig_verts, int orig_num_verts,
+                                StrandCurveCache *cache, float rootmat[4][4], int subdiv)
 {
-	if (data) {
-		GPU_strands_buffer_free(data->gpu_buffer);
-		
-		if (data->verts)
-			MEM_freeN(data->verts);
-		if (data->curves)
-			MEM_freeN(data->curves);
-		if (data->fibers)
-			MEM_freeN(data->fibers);
-		MEM_freeN(data);
+	float (*verts)[3] = cache->verts;
+	
+	/* initialize points */
+	{
+		const int step = (1 << subdiv);
+		int index = 0;
+		for (int k = 0; k < orig_num_verts; ++k, index += step) {
+			mul_v3_m4v3(verts[index], rootmat, orig_verts[k].co);
+		}
 	}
+	
+	return curve_cache_subdivide(cache, orig_num_verts, subdiv);
+}
+
+int BKE_strand_curve_cache_calc_bm(BMVert *root, int orig_num_verts, StrandCurveCache *cache, float rootmat[4][4], int subdiv)
+{
+	float (*verts)[3] = cache->verts;
+	
+	/* initialize points */
+	{
+		const int step = (1 << subdiv);
+		int index = 0;
+		
+		BMIter iter;
+		BMVert *v;
+		BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
+			mul_v3_m4v3(verts[index], rootmat, v->co);
+			index += step;
+		}
+	}
+	
+	return curve_cache_subdivide(cache, orig_num_verts, subdiv);
+}
+
+int BKE_strand_curve_cache_size(int orig_num_verts, int subdiv)
+{
+	BLI_assert(orig_num_verts >= 2);
+	return (orig_num_verts - 1) * (1 << subdiv) + 1;
+}
+
+int BKE_strand_curve_cache_totverts(int orig_totverts, int orig_totcurves, int subdiv)
+{
+	return (orig_totverts - orig_totcurves) * (1 << subdiv) + orig_totcurves;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -413,9 +424,9 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 	MEM_freeN(strandloc);
 }
 
-StrandFiber *BKE_strands_scatter(Strands *strands,
-                                struct DerivedMesh *scalp, unsigned int amount,
-                                unsigned int seed)
+void BKE_strands_scatter(Strands *strands,
+                         struct DerivedMesh *scalp, unsigned int amount,
+                         unsigned int seed)
 {
 	MeshSampleGenerator *gen = BKE_mesh_sample_gen_surface_random(scalp, seed);
 	unsigned int i;
@@ -443,7 +454,24 @@ StrandFiber *BKE_strands_scatter(Strands *strands,
 	
 	strands_calc_weights(strands, scalp, fibers, amount);
 	
-	return fibers;
+	if (strands->fibers)
+		MEM_freeN(strands->fibers);
+	strands->fibers = fibers;
+	strands->totfibers = amount;
+}
+
+void BKE_strands_free_fibers(Strands *strands)
+{
+	if (strands && strands->fibers) {
+		MEM_freeN(strands->fibers);
+		strands->fibers = NULL;
+		strands->totfibers = 0;
+	}
+}
+
+void BKE_strands_free_drawdata(struct GPUDrawStrands *gpu_buffer)
+{
+	GPU_strands_buffer_free(gpu_buffer);
 }
 
 #if 0

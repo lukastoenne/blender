@@ -55,11 +55,9 @@ typedef struct BMEditStrands {
 	struct StrandFiber *fibers;
 	/* Scalp mesh for fixing root vertices */
 	struct DerivedMesh *root_dm;
-	int num_fibers;
+	int totfibers;
 	
 	int flag;
-	
-	struct GPUDrawStrands *gpu_buffer;
 } BMEditStrands;
 
 /* BMEditStrands->flag */
@@ -73,8 +71,6 @@ struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
 struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);
 void BKE_editstrands_free(struct BMEditStrands *es);
-
-void BKE_editstrands_clear_drawdata(struct BMEditStrands *es);
 
 /* === constraints === */
 

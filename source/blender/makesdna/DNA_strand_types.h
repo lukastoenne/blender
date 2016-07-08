@@ -65,13 +65,17 @@ typedef struct Strands {
 	StrandVertex *verts;
 	/* Array of curves */
 	StrandCurve *curves;
+	/* Array of fibers */
+	StrandFiber *fibers;
 	
 	/* Total number of vertices */
 	int totverts;
 	/* Total number of curves */
 	int totcurves;
+	/* Total number of fibers */
+	int totfibers;
 	
-	struct StrandData *data_final;
+	int pad;
 	
 	struct GPUStrandsShader *gpu_shader;
 } Strands;
