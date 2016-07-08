@@ -212,6 +212,8 @@ void GPU_strand_shader_bind(GPUStrandsShader *gpu_shader,
 
 	GPU_shader_bind(gpu_shader->shader);
 
+	gpu_shader->bound = true;
+
 	UNUSED_VARS(viewmat, viewinv);
 }
 
@@ -226,7 +228,7 @@ void GPU_strand_shader_bind_uniforms(GPUStrandsShader *gpu_shader,
 
 void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader)
 {
-	gpu_shader->bound = 0;
+	gpu_shader->bound = false;
 	GPU_shader_unbind();
 }
 
