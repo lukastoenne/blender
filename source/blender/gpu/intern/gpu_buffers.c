@@ -2405,6 +2405,8 @@ static void strands_copy_control_vertex_data(GPUDrawStrandsParams *params, float
 				copy_v3_v3(*varray++, *vert);
 			}
 		}
+		
+		BKE_strand_curve_cache_free(cache);
 	}
 	else {
 		Strands *strands = params->strands;
