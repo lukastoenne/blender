@@ -42,7 +42,13 @@ struct Strands;
 
 typedef struct GPUStrandsShader GPUStrandsShader;
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands);
+typedef enum GPUStrands_ShaderModel {
+	GPU_STRAND_SHADER_CLASSIC_BLENDER,
+	GPU_STRAND_SHADER_KAJIYA,
+	GPU_STRAND_SHADER_MARSCHNER,
+} GPUStrands_ShaderModel;
+
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_ShaderModel shader_model);
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 

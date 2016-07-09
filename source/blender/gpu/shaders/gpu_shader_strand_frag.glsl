@@ -3,7 +3,7 @@
 /* Classic Blender particle hair with tangent as normal (just for comparison) */
 //#define SHADING_CLASSIC_BLENDER
 /* Kajiya-Kay model with a diffuse component and main specular highlights */
-#define SHADING_KAJIYA
+//#define SHADING_KAJIYA
 
 in vec3 fPosition;
 in vec3 fTangent;
@@ -22,8 +22,10 @@ void main()
 
 	/* view vector computation, depends on orthographics or perspective */
 	vec3 V = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(fPosition) : vec3(0.0, 0.0, -1.0);
+#ifdef SHADING_KAJIYA
 	float cosine_eye = dot(T, V);
 	float sine_eye = sqrt(1.0 - cosine_eye*cosine_eye);
+#endif
 
 	vec3 L_diffuse = vec3(0.0);
 	vec3 L_specular = vec3(0.0);

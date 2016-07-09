@@ -119,7 +119,7 @@ static char *codegen_fragment(void)
 #endif
 }
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_ShaderModel shader_model)
 {
 	if (strands->gpu_shader != NULL)
 		return strands->gpu_shader;
@@ -133,12 +133,34 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands)
 	
 	int flags = GPU_SHADER_FLAGS_NONE;
 	
+#define MAX_DEFINES 256
+	char defines[MAX_DEFINES];
+	char *defines_cur = defines;
+	*defines_cur = '\0';
+	
+	switch (shader_model) {
+		case GPU_STRAND_SHADER_CLASSIC_BLENDER:
+			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+			                            "#define SHADING_CLASSIC_BLENDER\n");
+			break;
+		case GPU_STRAND_SHADER_KAJIYA:
+			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+			                            "#define SHADING_KAJIYA\n");
+			break;
+		case GPU_STRAND_SHADER_MARSCHNER:
+			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+			                            "#define SHADING_MARSCHNER\n");
+			break;
+	}
+	
+#undef MAX_DEFINES
+	
 	GPUShader *shader = GPU_shader_create_ex(
 	                        vertexcode,
 	                        fragmentcode,
 	                        geometrycode,
 	                        NULL,
-	                        NULL,
+	                        defines,
 	                        0,
 	                        0,
 	                        0,

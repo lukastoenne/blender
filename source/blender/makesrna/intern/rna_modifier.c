@@ -1152,6 +1152,15 @@ static void rna_StrandsModifier_num_fibers_set(PointerRNA *ptr, int value)
 	smd->num_fibers = value;
 }
 
+static void rna_StrandsModifier_shader_model_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	StrandsModifierData *smd = (StrandsModifierData *)ptr->data;
+	
+	BKE_strands_invalidate_shader(smd->strands);
+	
+	rna_Modifier_update(bmain, scene, ptr);
+}
+
 #else
 
 static PropertyRNA *rna_def_property_subdivision_common(StructRNA *srna, const char type[])
@@ -4678,6 +4687,13 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem shader_model_items[] = {
+	    {MOD_STRANDS_SHADER_CLASSIC_BLENDER, "CLASSIC_BLENDER", 0, "Classic Blender", "Use fiber direction as normal (wrong, just for comparison)"},
+	    {MOD_STRANDS_SHADER_KAJIYA, "KAJIYA", 0, "Kajiya", "Main reflections on opaque fibers"},
+	    {MOD_STRANDS_SHADER_MARSCHNER, "MARSCHNER", 0, "Marschner", "Primary internal reflections on transparent colored fibers"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "StrandsModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Strands Modifier", "Modifier modeling hair strands");
 	RNA_def_struct_sdna(srna, "StrandsModifierData");
@@ -4716,6 +4732,12 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_boolean_default(prop, true);
 	RNA_def_property_ui_text(prop, "Show Fibers", "Show render fiber curves");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	
+	prop = RNA_def_property(srna, "shader_model", PROP_ENUM, PROP_UNSIGNED);
+	RNA_def_property_enum_sdna(prop, NULL, "shader_model");
+	RNA_def_property_enum_items(prop, shader_model_items);
+	RNA_def_property_ui_text(prop, "Shader Model", "Model used for shading fibers in the viewport");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_model_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

@@ -1553,6 +1553,9 @@ typedef struct StrandsModifierData {
 	int seed;
 	int subdiv;
 	
+	int shader_model;
+	int pad;
+	
 	struct Strands *strands;
 	
 	struct BMEditStrands *edit;			/* edit data (runtime) */
@@ -1564,6 +1567,12 @@ typedef struct StrandsModifierData {
 enum {
 	MOD_STRANDS_SHOW_STRANDS = (1 << 0),
 	MOD_STRANDS_SHOW_FIBERS = (1 << 1),
+};
+
+enum {
+	MOD_STRANDS_SHADER_CLASSIC_BLENDER = 0,
+	MOD_STRANDS_SHADER_KAJIYA = 1,
+	MOD_STRANDS_SHADER_MARSCHNER = 2,
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

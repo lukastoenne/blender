@@ -67,6 +67,18 @@
 
 #include "view3d_intern.h"  // own include
 
+static GPUStrands_ShaderModel get_shader_model(int smd_shader_model)
+{
+	switch (smd_shader_model) {
+		case MOD_STRANDS_SHADER_CLASSIC_BLENDER: return GPU_STRAND_SHADER_CLASSIC_BLENDER;
+		case MOD_STRANDS_SHADER_KAJIYA: return GPU_STRAND_SHADER_KAJIYA;
+		case MOD_STRANDS_SHADER_MARSCHNER: return GPU_STRAND_SHADER_MARSCHNER;
+	}
+	
+	BLI_assert(false && "Unhandled shader model enum value!");
+	return 0;
+}
+
 void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
                   Object *ob, StrandsModifierData *smd)
 {
@@ -84,7 +96,7 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(strands);
+	GPUStrandsShader *shader = GPU_strand_shader_get(strands, get_shader_model(smd->shader_model));
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);
@@ -448,7 +460,7 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands);
+	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands, get_shader_model(smd->shader_model));
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);

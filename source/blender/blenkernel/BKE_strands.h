@@ -96,4 +96,8 @@ struct StrandData *BKE_strand_data_interpolate(struct StrandInfo *strands, unsig
 void BKE_strand_data_free(struct StrandData *data);
 #endif
 
+/* ------------------------------------------------------------------------- */
+
+void BKE_strands_invalidate_shader(struct Strands *strands);
+
 #endif

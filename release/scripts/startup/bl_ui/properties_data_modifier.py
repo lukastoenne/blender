@@ -892,6 +892,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "show_strands", text="Control Strands")
         col.prop(md, "show_fibers", text="Fibers")
         col.prop(md, "subdivisions")
+        
+        col.separator()
+
+        col.label("Shader Model:")
+        col.prop(md, "shader_model", text="")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

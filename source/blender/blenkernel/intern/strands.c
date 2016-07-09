@@ -531,3 +531,14 @@ void BKE_strand_data_free(StrandData *data)
 	}
 }
 #endif
+
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_strands_invalidate_shader(Strands *strands)
+{
+	if (strands->gpu_shader) {
+		GPU_strand_shader_free(strands->gpu_shader);
+		strands->gpu_shader = NULL;
+	}
+}
