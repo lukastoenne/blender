@@ -293,7 +293,7 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 
 	ltn->editlatt = NULL;
 
-	if (lt->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(lt)) {
 		BKE_id_lib_local_paths(G.main, lt->id.lib, &ltn->id);
 	}
 
@@ -336,21 +336,23 @@ void BKE_lattice_make_local(Lattice *lt)
 	 * - mixed: make copy
 	 */
 	
-	if (lt->id.lib == NULL) return;
+	if (!ID_IS_LINKED_DATABLOCK(lt)) return;
 	if (lt->id.us == 1) {
 		id_clear_lib_data(bmain, &lt->id);
+		BKE_key_make_local(lt->key);
 		return;
 	}
 	
 	for (ob = bmain->object.first; ob && ELEM(false, is_lib, is_local); ob = ob->id.next) {
 		if (ob->data == lt) {
-			if (ob->id.lib) is_lib = true;
+			if (ID_IS_LINKED_DATABLOCK(ob)) is_lib = true;
 			else is_local = true;
 		}
 	}
 	
 	if (is_local && is_lib == false) {
 		id_clear_lib_data(bmain, &lt->id);
+		BKE_key_make_local(lt->key);
 	}
 	else if (is_local && is_lib) {
 		Lattice *lt_new = BKE_lattice_copy(lt);
@@ -361,7 +363,7 @@ void BKE_lattice_make_local(Lattice *lt)
 
 		for (ob = bmain->object.first; ob; ob = ob->id.next) {
 			if (ob->data == lt) {
-				if (ob->id.lib == NULL) {
+				if (!ID_IS_LINKED_DATABLOCK(ob)) {
 					ob->data = lt_new;
 					id_us_plus(&lt_new->id);
 					id_us_min(&lt->id);
