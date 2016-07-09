@@ -851,8 +851,6 @@ void GPU_interleaved_attrib_unbind(void)
 		if (attribData[i].index != -1) {
 			glDisableVertexAttribArray(attribData[i].index);
 		}
-		else
-			break;
 	}
 	attribData[0].index = -1;
 }
