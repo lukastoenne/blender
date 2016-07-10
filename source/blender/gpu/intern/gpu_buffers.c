@@ -2123,9 +2123,15 @@ void GPU_end_draw_pbvh_BB(void)
 /* Strands Buffers */
 
 typedef struct FiberVertex {
+	/* object space location and orientation of the follicle */
 	float co[3];
+	float normal[3];
+	float tangent[3];
+	/* indices and weights for interpolating control strands */
 	unsigned int control_index[4];
 	float control_weight[4];
+	/* parametric distance from the primary control strand */
+	float root_distance[2];
 } FiberVertex;
 
 typedef enum GPUStrandBufferType {
@@ -2481,11 +2487,14 @@ static void strands_copy_fiber_data(GPUDrawStrandsParams *params, FiberVertex *v
 		/* strand fiber points */
 		StrandFiber *fiber = edit->fibers;
 		for (int v = 0; v < totfibers; ++v, ++fiber) {
-			BKE_strands_get_fiber_location(fiber, edit->root_dm, varray->co);
+			BKE_strands_get_fiber_vectors(fiber, edit->root_dm, varray->co, varray->normal, varray->tangent);
 			for (int k = 0; k < 4; ++k) {
 				varray->control_index[k] = fiber->control_index[k];
 				varray->control_weight[k] = fiber->control_weight[k];
 			}
+			/* TODO */
+			varray->root_distance[0] = 0.0f;
+			varray->root_distance[1] = 0.0f;
 			++varray;
 		}
 	}
@@ -2496,11 +2505,14 @@ static void strands_copy_fiber_data(GPUDrawStrandsParams *params, FiberVertex *v
 		/* strand fiber points */
 		StrandFiber *fiber = strands->fibers;
 		for (v = 0; v < totfibers; ++v, ++fiber) {
-			BKE_strands_get_fiber_location(fiber, params->root_dm, varray->co);
+			BKE_strands_get_fiber_vectors(fiber, params->root_dm, varray->co, varray->normal, varray->tangent);
 			for (int k = 0; k < 4; ++k) {
 				varray->control_index[k] = fiber->control_index[k];
 				varray->control_weight[k] = fiber->control_weight[k];
 			}
+			/* TODO */
+			varray->root_distance[0] = 0.0f;
+			varray->root_distance[1] = 0.0f;
 			++varray;
 		}
 	}

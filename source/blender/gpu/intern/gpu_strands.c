@@ -50,8 +50,11 @@
 
 typedef enum GPUStrandAttributes {
 	GPU_STRAND_ATTRIB_POSITION,
+	GPU_STRAND_ATTRIB_NORMAL,
+	GPU_STRAND_ATTRIB_TANGENT,
 	GPU_STRAND_ATTRIB_CONTROL_INDEX,
 	GPU_STRAND_ATTRIB_CONTROL_WEIGHT,
+	GPU_STRAND_ATTRIB_ROOT_DISTANCE,
 	
 	NUM_GPU_STRAND_ATTRIB /* must be last */
 } GPUStrandAttributes;
@@ -186,6 +189,18 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_Shad
 		attr->type = GL_FLOAT;
 		attr->size = 3;
 		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_NORMAL];
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "normal");
+		attr->info_index = -1;
+		attr->type = GL_FLOAT;
+		attr->size = 3;
+		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_TANGENT];
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "tangent");
+		attr->info_index = -1;
+		attr->type = GL_FLOAT;
+		attr->size = 3;
+		
 		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_CONTROL_INDEX];
 		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_index");
 		attr->info_index = -1;
@@ -197,6 +212,12 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_Shad
 		attr->info_index = -1;
 		attr->type = GL_FLOAT;
 		attr->size = 4;
+		
+		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_ROOT_DISTANCE];
+		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "root_distance");
+		attr->info_index = -1;
+		attr->type = GL_FLOAT;
+		attr->size = 2;
 	}
 	else {
 		if (vertexcode)

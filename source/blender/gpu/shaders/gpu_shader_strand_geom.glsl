@@ -3,10 +3,10 @@
 layout(points) in;
 layout(line_strip, max_vertices = MAX_CURVE_VERTS) out;
 
-in vec3 vColor[];
-
+in mat3 vRotation[];
 in uvec4 v_control_index[];
 in vec4 v_control_weight[];
+in vec3 vColor[];
 
 out vec3 fPosition;
 out vec3 fTangent;
@@ -26,9 +26,11 @@ void emit_vertex(in vec3 location, in vec3 tangent)
 	fPosition = (gl_ModelViewMatrix * vec4(location, 1.0)).xyz;
 	fTangent = gl_NormalMatrix * tangent;
 	fColor = vColor[0];
-	//fColor = vec3(float(i)/float(num_verts-1), 1.0-float(i)/float(num_verts-1), 0.0);
-	//fColor = vec3(float(t[0]), 0.0, 0.0);
 	EmitVertex();
+}
+
+void displace_vertex(inout vec3 location, in float t, in vec2 root_distance)
+{
 }
 
 void main()
@@ -54,6 +56,9 @@ void main()
 	vec3 croot[4];
 	vec3 offset[4];
 	for (int k = 0; k < 4; ++k) {
+		if (!valid[k])
+			continue;
+
 		uvec4 curve = texelFetch(control_curves, index[k]);
 		cvert_begin[k] = int(curve.x);
 		num_cverts[k] = int(curve.y);

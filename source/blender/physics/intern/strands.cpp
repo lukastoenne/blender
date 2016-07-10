@@ -54,16 +54,6 @@ extern "C" {
 
 /* === constraints === */
 
-static bool strand_get_root_vectors(BMEditStrands *edit, BMVert *root, float loc[3], float nor[3], float tang[3])
-{
-	BMesh *bm = edit->base.bm;
-	DerivedMesh *root_dm = edit->root_dm;
-	MeshSample root_sample;
-	
-	BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
-	return BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang);
-}
-
 static int strand_count_vertices(BMVert *root)
 {
 	BMVert *v;
@@ -103,7 +93,7 @@ static void strands_apply_root_locations(BMEditStrands *edit)
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		float loc[3], nor[3], tang[3];
 		
-		if (strand_get_root_vectors(edit, root, loc, nor, tang))
+		if (BKE_editstrands_get_vectors(edit, root, loc, nor, tang))
 			copy_v3_v3(root->co, loc);
 	}
 }
@@ -267,7 +257,7 @@ static MatrixX strand_calc_target_jacobian(Object *ob, BMEditStrands *edit, BMVe
 	float loc[3], axis[3], dir[3];
 	
 	MatrixX J(3 * numtargets, 2 * numjoints);
-	if (!strand_get_root_vectors(edit, root, loc, dir, axis)) {
+	if (!BKE_editstrands_get_vectors(edit, root, loc, dir, axis)) {
 		return J;
 	}
 	
@@ -320,7 +310,7 @@ static VectorX strand_angles_to_loc(Object *UNUSED(ob), BMEditStrands *edit, BMV
 	float loc[3], axis[3], dir[3];
 	float mat_theta[3][3], mat_phi[3][3];
 	
-	if (!strand_get_root_vectors(edit, root, loc, dir, axis))
+	if (!BKE_editstrands_get_vectors(edit, root, loc, dir, axis))
 		return VectorX();
 	
 	VectorX result(3*numjoints);

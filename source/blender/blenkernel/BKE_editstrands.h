@@ -72,6 +72,10 @@ struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);
 void BKE_editstrands_free(struct BMEditStrands *es);
 
+bool BKE_editstrands_get_location(struct BMEditStrands *edit, struct BMVert *curve, float loc[3]);
+bool BKE_editstrands_get_vectors(struct BMEditStrands *edit, struct BMVert *curve, float loc[3], float nor[3], float tang[3]);
+bool BKE_editstrands_get_matrix(struct BMEditStrands *edit, struct BMVert *curve, float mat[4][4]);
+
 /* === constraints === */
 
 /* Stores vertex locations for temporary reference:

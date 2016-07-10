@@ -139,6 +139,64 @@ void BKE_editstrands_free(BMEditStrands *es)
 		MEM_freeN(es->fibers);
 }
 
+
+
+bool BKE_editstrands_get_location(BMEditStrands *edit, BMVert *curve, float loc[3])
+{
+	BMesh *bm = edit->base.bm;
+	DerivedMesh *root_dm = edit->root_dm;
+	MeshSample root_sample;
+	
+	BM_elem_meshsample_data_named_get(&bm->vdata, curve, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
+	float nor[3], tang[3];
+	if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		return false;
+	}
+}
+
+bool BKE_editstrands_get_vectors(BMEditStrands *edit, BMVert *curve, float loc[3], float nor[3], float tang[3])
+{
+	BMesh *bm = edit->base.bm;
+	DerivedMesh *root_dm = edit->root_dm;
+	MeshSample root_sample;
+	
+	BM_elem_meshsample_data_named_get(&bm->vdata, curve, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
+	if (BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		zero_v3(nor);
+		zero_v3(tang);
+		return false;
+	}
+}
+
+bool BKE_editstrands_get_matrix(BMEditStrands *edit, BMVert *curve, float mat[4][4])
+{
+	BMesh *bm = edit->base.bm;
+	DerivedMesh *root_dm = edit->root_dm;
+	MeshSample root_sample;
+	
+	BM_elem_meshsample_data_named_get(&bm->vdata, curve, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
+	if (BKE_mesh_sample_eval(root_dm, &root_sample, mat[3], mat[2], mat[0])) {
+		cross_v3_v3v3(mat[1], mat[2], mat[0]);
+		mat[0][3] = 0.0f;
+		mat[1][3] = 0.0f;
+		mat[2][3] = 0.0f;
+		mat[3][3] = 1.0f;
+		return true;
+	}
+	else {
+		unit_m4(mat);
+		return false;
+	}
+}
+
 /* === constraints === */
 
 BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)

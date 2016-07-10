@@ -98,6 +98,19 @@ bool BKE_strands_get_location(const StrandCurve *curve, DerivedMesh *root_dm, fl
 	}
 }
 
+bool BKE_strands_get_vectors(const StrandCurve *curve, DerivedMesh *root_dm, float loc[3], float nor[3], float tang[3])
+{
+	if (BKE_mesh_sample_eval(root_dm, &curve->root, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		zero_v3(nor);
+		zero_v3(tang);
+		return false;
+	}
+}
+
 bool BKE_strands_get_matrix(const StrandCurve *curve, DerivedMesh *root_dm, float mat[4][4])
 {
 	if (BKE_mesh_sample_eval(root_dm, &curve->root, mat[3], mat[2], mat[0])) {
@@ -122,6 +135,20 @@ bool BKE_strands_get_fiber_location(const StrandFiber *fiber, DerivedMesh *root_
 	}
 	else {
 		zero_v3(loc);
+		return false;
+	}
+}
+
+bool BKE_strands_get_fiber_vectors(const StrandFiber *fiber, DerivedMesh *root_dm,
+                                   float loc[3], float nor[3], float tang[3])
+{
+	if (BKE_mesh_sample_eval(root_dm, &fiber->root, loc, nor, tang)) {
+		return true;
+	}
+	else {
+		zero_v3(loc);
+		zero_v3(nor);
+		zero_v3(tang);
 		return false;
 	}
 }

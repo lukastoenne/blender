@@ -49,9 +49,13 @@ struct Strands *BKE_strands_copy(struct Strands *strands);
 void BKE_strands_free(struct Strands *strands);
 
 bool BKE_strands_get_location(const struct StrandCurve *curve, struct DerivedMesh *root_dm, float loc[3]);
+bool BKE_strands_get_vectors(const struct StrandCurve *curve, struct DerivedMesh *root_dm,
+                             float loc[3], float nor[3], float tang[3]);
 bool BKE_strands_get_matrix(const struct StrandCurve *curve, struct DerivedMesh *root_dm, float mat[4][4]);
 
 bool BKE_strands_get_fiber_location(const struct StrandFiber *fiber, struct DerivedMesh *root_dm, float loc[3]);
+bool BKE_strands_get_fiber_vectors(const struct StrandFiber *fiber, struct DerivedMesh *root_dm,
+                                   float loc[3], float nor[3], float tang[3]);
 bool BKE_strands_get_fiber_matrix(const struct StrandFiber *fiber, struct DerivedMesh *root_dm, float mat[4][4]);
 
 /* ------------------------------------------------------------------------- */
