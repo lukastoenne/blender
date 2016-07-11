@@ -65,6 +65,9 @@ static void initData(ModifierData *md)
 	
 	smd->edit = NULL;
 	smd->gpu_buffer = NULL;
+	
+	smd->clumping_factor = 0.8f;
+	smd->clumping_shape = 1.0f;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

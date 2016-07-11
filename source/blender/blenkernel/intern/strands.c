@@ -388,6 +388,61 @@ static void sort_fiber_weights(StrandFiber *fiber)
 #undef FIBERSWAP
 }
 
+static void strand_find_closest(StrandFiber *fiber, const float loc[3],
+                                const KDTree *tree, const float (*strandloc)[3])
+{
+	/* Use the 3 closest strands for interpolation.
+	 * Note that we have up to 4 possible weights, but we
+	 * only look for a triangle with this method.
+	 */
+	KDTreeNearest nearest[3];
+	const float *sloc[3] = {NULL};
+	int k, found = BLI_kdtree_find_nearest_n(tree, loc, nearest, 3);
+	for (k = 0; k < found; ++k) {
+		fiber->control_index[k] = nearest[k].index;
+		sloc[k] = strandloc[nearest[k].index];
+	}
+	
+	/* calculate barycentric interpolation weights */
+	if (found == 3) {
+		float closest[3];
+		closest_on_tri_to_point_v3(closest, loc, sloc[0], sloc[1], sloc[2]);
+		
+		float w[4];
+		interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
+		copy_v3_v3(fiber->control_weight, w);
+		/* float precisions issues can cause slightly negative weights */
+		CLAMP3(fiber->control_weight, 0.0f, 1.0f);
+	}
+	else if (found == 2) {
+		fiber->control_weight[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
+		fiber->control_weight[0] = 1.0f - fiber->control_weight[1];
+		/* float precisions issues can cause slightly negative weights */
+		CLAMP2(fiber->control_weight, 0.0f, 1.0f);
+	}
+	else if (found == 1) {
+		fiber->control_weight[0] = 1.0f;
+	}
+	
+	sort_fiber_weights(fiber);
+}
+
+static void strand_calc_root_distance(StrandFiber *fiber, const float loc[3], const float nor[3], const float tang[3],
+                                      const float (*strandloc)[3])
+{
+	if (fiber->control_index[0] == STRAND_INDEX_NONE)
+		return;
+	
+	float cotang[3];
+	cross_v3_v3v3(cotang, nor, tang);
+	
+	const float *sloc0 = strandloc[fiber->control_index[0]];
+	float dist[3];
+	sub_v3_v3v3(dist, loc, sloc0);
+	fiber->root_distance[0] = dot_v3v3(dist, tang);
+	fiber->root_distance[1] = dot_v3v3(dist, cotang);
+}
+
 static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandFiber *fibers, int num_fibers)
 {
 	float (*strandloc)[3] = MEM_mallocN(sizeof(float) * 3 * strands->totcurves, "strand locations");
@@ -409,41 +464,10 @@ static void strands_calc_weights(const Strands *strands, struct DerivedMesh *sca
 		float loc[3], nor[3], tang[3];
 		if (BKE_mesh_sample_eval(scalp, &fiber->root, loc, nor, tang)) {
 			
-			/* Use the 3 closest strands for interpolation.
-			 * Note that we have up to 4 possible weights, but we
-			 * only look for a triangle with this method.
-			 */
-			KDTreeNearest nearest[3];
-			float *sloc[3] = {NULL};
-			int k, found = BLI_kdtree_find_nearest_n(tree, loc, nearest, 3);
-			for (k = 0; k < found; ++k) {
-				fiber->control_index[k] = nearest[k].index;
-				sloc[k] = strandloc[nearest[k].index];
-			}
-			
-			/* calculate barycentric interpolation weights */
-			if (found == 3) {
-				float closest[3];
-				closest_on_tri_to_point_v3(closest, loc, sloc[0], sloc[1], sloc[2]);
-				
-				float w[4];
-				interp_weights_face_v3(w, sloc[0], sloc[1], sloc[2], NULL, closest);
-				copy_v3_v3(fiber->control_weight, w);
-				/* float precisions issues can cause slightly negative weights */
-				CLAMP3(fiber->control_weight, 0.0f, 1.0f);
-			}
-			else if (found == 2) {
-				fiber->control_weight[1] = line_point_factor_v3(loc, sloc[0], sloc[1]);
-				fiber->control_weight[0] = 1.0f - fiber->control_weight[1];
-				/* float precisions issues can cause slightly negative weights */
-				CLAMP2(fiber->control_weight, 0.0f, 1.0f);
-			}
-			else if (found == 1) {
-				fiber->control_weight[0] = 1.0f;
-			}
-			
-			sort_fiber_weights(fiber);
+			strand_find_closest(fiber, loc, tree, strandloc);
 			verify_fiber_weights(fiber);
+			
+			strand_calc_root_distance(fiber, loc, nor, tang, strandloc);
 		}
 	}
 	

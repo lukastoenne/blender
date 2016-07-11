@@ -2492,9 +2492,7 @@ static void strands_copy_fiber_data(GPUDrawStrandsParams *params, FiberVertex *v
 				varray->control_index[k] = fiber->control_index[k];
 				varray->control_weight[k] = fiber->control_weight[k];
 			}
-			/* TODO */
-			varray->root_distance[0] = 0.0f;
-			varray->root_distance[1] = 0.0f;
+			copy_v2_v2(varray->root_distance, fiber->root_distance);
 			++varray;
 		}
 	}
@@ -2510,9 +2508,7 @@ static void strands_copy_fiber_data(GPUDrawStrandsParams *params, FiberVertex *v
 				varray->control_index[k] = fiber->control_index[k];
 				varray->control_weight[k] = fiber->control_weight[k];
 			}
-			/* TODO */
-			varray->root_distance[0] = 0.0f;
-			varray->root_distance[1] = 0.0f;
+			copy_v2_v2(varray->root_distance, fiber->root_distance);
 			++varray;
 		}
 	}

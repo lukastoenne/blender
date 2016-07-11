@@ -897,6 +897,19 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col.label("Shader Model:")
         col.prop(md, "shader_model", text="")
+        
+        layout.separator()
+
+        box = layout.box()
+        box.prop(md, "use_clumping_effect")
+        if md.use_clumping_effect:
+            box.prop(md, "clumping_factor")
+            box.prop(md, "clumping_shape")
+        
+        box = layout.box()
+        box.prop(md, "use_curl_effect")
+        if md.use_curl_effect:
+            pass
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

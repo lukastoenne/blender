@@ -79,6 +79,25 @@ static GPUStrands_ShaderModel get_shader_model(int smd_shader_model)
 	return 0;
 }
 
+static int get_effects(int smd_effects)
+{
+	GPUStrands_Effects effects = 0;
+	if (smd_effects & MOD_STRANDS_EFFECT_CLUMPING)
+		effects |= GPU_STRAND_EFFECT_CLUMPING;
+	if (smd_effects & MOD_STRANDS_EFFECT_CURL)
+		effects |= GPU_STRAND_EFFECT_CURL;
+	
+	return effects;
+}
+
+static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
+                                Object *ob, StrandsModifierData *smd)
+{
+	GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
+	GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv,
+	                       smd->clumping_factor, smd->clumping_shape);
+}
+
 void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
                   Object *ob, StrandsModifierData *smd)
 {
@@ -96,7 +115,9 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(strands, get_shader_model(smd->shader_model));
+	GPUStrandsShader *shader = GPU_strand_shader_get(strands,
+	                                                 get_shader_model(smd->shader_model),
+	                                                 get_effects(smd->effects));
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);
@@ -108,8 +129,7 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	}
 	
 	if (show_strands) {
-		GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
-		GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv);
+		bind_strands_shader(shader, rv3d, ob, smd);
 		
 		GPU_strands_setup_fibers(buffer, &params);
 		if (buffer->fiber_points) {
@@ -460,7 +480,9 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands, get_shader_model(smd->shader_model));
+	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands,
+	                                                 get_shader_model(smd->shader_model),
+	                                                 get_effects(smd->effects));
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);
@@ -471,8 +493,7 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	}
 	
 	if (show_strands) {
-		GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
-		GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv);
+		bind_strands_shader(shader, rv3d, ob, smd);
 		
 		GPU_strands_setup_fibers(buffer, &params);
 		if (buffer->fiber_points) {

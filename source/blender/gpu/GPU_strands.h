@@ -48,13 +48,21 @@ typedef enum GPUStrands_ShaderModel {
 	GPU_STRAND_SHADER_MARSCHNER,
 } GPUStrands_ShaderModel;
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_ShaderModel shader_model);
+typedef enum GPUStrands_Effects {
+	GPU_STRAND_EFFECT_CLUMPING      = (1 << 0),
+	GPU_STRAND_EFFECT_CURL          = (1 << 1),
+} GPUStrands_Effects;
+
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
+                                        GPUStrands_ShaderModel shader_model,
+                                        int effects);
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
 void GPU_strand_shader_bind(
         GPUStrandsShader *gpu_shader,
-        float viewmat[4][4], float viewinv[4][4]);
+        float viewmat[4][4], float viewinv[4][4],
+        float clumping_factor, float clumping_shape);
 void GPU_strand_shader_bind_uniforms(
         GPUStrandsShader *gpu_shader,
         float obmat[4][4], float viewmat[4][4]);

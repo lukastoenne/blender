@@ -1552,15 +1552,19 @@ typedef struct StrandsModifierData {
 	int num_fibers;
 	int seed;
 	int subdiv;
+	int pad;
 	
 	int shader_model;
-	int pad;
 	
 	struct Strands *strands;
 	
 	struct BMEditStrands *edit;			/* edit data (runtime) */
 	
 	struct GPUDrawStrands *gpu_buffer;	/* draw data (runtime) */
+	
+	int effects;
+	float clumping_factor, clumping_shape;
+	int pad2;
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */
@@ -1573,6 +1577,11 @@ enum {
 	MOD_STRANDS_SHADER_CLASSIC_BLENDER = 0,
 	MOD_STRANDS_SHADER_KAJIYA = 1,
 	MOD_STRANDS_SHADER_MARSCHNER = 2,
+};
+
+enum {
+	MOD_STRANDS_EFFECT_CLUMPING     = (1 << 0),
+	MOD_STRANDS_EFFECT_CURL         = (1 << 1),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

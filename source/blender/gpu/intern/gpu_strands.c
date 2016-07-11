@@ -122,7 +122,9 @@ static char *codegen_fragment(void)
 #endif
 }
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_ShaderModel shader_model)
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
+                                        GPUStrands_ShaderModel shader_model,
+                                        int effects)
 {
 	if (strands->gpu_shader != NULL)
 		return strands->gpu_shader;
@@ -136,7 +138,7 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_Shad
 	
 	int flags = GPU_SHADER_FLAGS_NONE;
 	
-#define MAX_DEFINES 256
+#define MAX_DEFINES 1024
 	char defines[MAX_DEFINES];
 	char *defines_cur = defines;
 	*defines_cur = '\0';
@@ -155,6 +157,13 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, GPUStrands_Shad
 			                            "#define SHADING_MARSCHNER\n");
 			break;
 	}
+	if (effects & GPU_STRAND_EFFECT_CLUMPING)
+		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+		                            "#define USE_EFFECT_CLUMPING\n");
+	if (effects & GPU_STRAND_EFFECT_CURL)
+		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+		                            "#define USE_EFFECT_CURL\n");
+		
 	
 #undef MAX_DEFINES
 	
@@ -247,21 +256,25 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 	MEM_freeN(gpu_shader);
 }
 
-void GPU_strand_shader_bind(GPUStrandsShader *gpu_shader,
-                      float viewmat[4][4], float viewinv[4][4])
+void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
+                      float viewmat[4][4], float viewinv[4][4],
+                      float clumping_factor, float clumping_shape)
 {
-	if (!gpu_shader->shader)
+	GPUShader *shader = strand_shader->shader;
+	if (!shader)
 		return;
 
-	GPU_shader_bind(gpu_shader->shader);
+	GPU_shader_bind(shader);
+	glUniform1f(GPU_shader_get_uniform(shader, "clumping_factor"), clumping_factor);
+	glUniform1f(GPU_shader_get_uniform(shader, "clumping_shape"), clumping_shape);
 
-	gpu_shader->bound = true;
+	strand_shader->bound = true;
 
 	UNUSED_VARS(viewmat, viewinv);
 }
 
 void GPU_strand_shader_bind_uniforms(GPUStrandsShader *gpu_shader,
-                               float obmat[4][4], float viewmat[4][4])
+                                     float obmat[4][4], float viewmat[4][4])
 {
 	if (!gpu_shader->shader)
 		return;

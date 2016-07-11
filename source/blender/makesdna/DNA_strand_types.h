@@ -58,6 +58,8 @@ typedef struct StrandFiber {
 	unsigned int control_index[4];
 	/* Weights of control strands for interpolation */
 	float control_weight[4];
+	/* Parametric distance to the primary control strand */
+	float root_distance[2];
 } StrandFiber;
 
 typedef struct Strands {

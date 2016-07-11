@@ -6,6 +6,7 @@ layout(line_strip, max_vertices = MAX_CURVE_VERTS) out;
 in mat3 vRotation[];
 in uvec4 v_control_index[];
 in vec4 v_control_weight[];
+in vec2 v_root_distance[];
 in vec3 vColor[];
 
 out vec3 fPosition;
@@ -14,6 +15,10 @@ out vec3 fColor;
 
 uniform usamplerBuffer control_curves;
 uniform samplerBuffer control_points;
+
+uniform float clumping_factor;
+uniform float clumping_shape;
+uniform float curl_shape;
 
 bool is_valid_index(uint index)
 {
@@ -29,8 +34,34 @@ void emit_vertex(in vec3 location, in vec3 tangent)
 	EmitVertex();
 }
 
-void displace_vertex(inout vec3 location, in float t, in vec2 root_distance)
+/* Hairs tend to stick together and run in parallel.
+ * The effect increases with distance from the root,
+ * as the stresses pulling fibers apart decrease.
+ */
+void clumping(inout vec3 location, in float t, vec3 offset, mat3 rotation, in vec2 root_distance)
 {
+	float taper = pow(t, 1.0 / clumping_shape);
+	float factor = taper * clumping_factor;
+	location -= offset * factor;
+}
+
+/* Hair often don't have a circular cross section, but are somewhat flattened.
+ * This creates the local bending which results in the typical curly hair geometry.
+ */ 
+void curl(inout vec3 location, in float t, vec3 offset, mat3 rotation, in vec2 root_distance)
+{
+	float factor = pow(t, 1.0 / curl_shape);
+	//location -= rotation * vec3(root_distance.xy, 0.0) * taper * ;
+}
+
+void displace_vertex(inout vec3 location, in float t, vec3 offset, mat3 rotation, in vec2 root_distance)
+{
+#ifdef USE_EFFECT_CLUMPING
+	clumping(location, t, offset, rotation, root_distance);
+#endif
+#ifdef USE_EFFECT_CURL
+	curl(location, t, offset, rotation, root_distance);
+#endif
 }
 
 void main()
@@ -76,6 +107,8 @@ void main()
 	}
 
 	vec3 loc = root;
+	displace_vertex(loc, 0.0, offset[0], vRotation[0], v_root_distance[0]);
+
 	vec3 tangent;
 	float t[4] = float[4](dt[0], dt[1], dt[2], dt[3]);
 	for (int i = 1; i < num_verts; ++i) {
@@ -92,10 +125,12 @@ void main()
 			vec3 next_cloc0 = texelFetch(control_points, cvert_begin[k] + ci0).xyz;
 			vec3 next_cloc1 = texelFetch(control_points, cvert_begin[k] + ci1).xyz;
 			vec3 next_cloc = mix(next_cloc0, next_cloc1, lambda) + offset[k];
-			
+
 			next_loc += weight[k] * next_cloc;
 			t[k] += dt[k];
 		}
+
+		displace_vertex(next_loc, float(i) / float(num_verts - 1), offset[0], vRotation[0], v_root_distance[0]);
 
 		tangent = next_loc - loc;
 		emit_vertex(loc, tangent);

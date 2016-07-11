@@ -1152,7 +1152,7 @@ static void rna_StrandsModifier_num_fibers_set(PointerRNA *ptr, int value)
 	smd->num_fibers = value;
 }
 
-static void rna_StrandsModifier_shader_model_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_StrandsModifier_shader_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	StrandsModifierData *smd = (StrandsModifierData *)ptr->data;
 	
@@ -4737,7 +4737,31 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "shader_model");
 	RNA_def_property_enum_items(prop, shader_model_items);
 	RNA_def_property_ui_text(prop, "Shader Model", "Model used for shading fibers in the viewport");
-	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_model_update");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
+	/* Clumping */
+	prop = RNA_def_property(srna, "use_clumping_effect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "effects", MOD_STRANDS_EFFECT_CLUMPING);
+	RNA_def_property_ui_text(prop, "Clumping", "Hairs stick together and form bundles");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
+	prop = RNA_def_property(srna, "clumping_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Clumping Factor", "Influence of clumping");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	
+	prop = RNA_def_property(srna, "clumping_shape", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Clumping Shape", "Tapered shape of the clumping effect");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	
+	/* Curl */
+	prop = RNA_def_property(srna, "use_curl_effect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "effects", MOD_STRANDS_EFFECT_CURL);
+	RNA_def_property_ui_text(prop, "Curl", "Hairs form spirals");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)
