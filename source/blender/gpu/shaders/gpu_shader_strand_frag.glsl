@@ -99,4 +99,5 @@ void main()
 
 	/* write out fragment color */
 	outColor = vec4(L, alpha);
+	//outColor = vec4(fColor, 1.0);
 }

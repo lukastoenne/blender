@@ -55,7 +55,8 @@ typedef enum GPUStrands_Effects {
 
 GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
                                         GPUStrands_ShaderModel shader_model,
-                                        int effects);
+                                        int effects,
+                                        bool use_geometry_shader);
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
@@ -69,8 +70,8 @@ void GPU_strand_shader_bind_uniforms(
 void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader);
 bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader);
 
-void GPU_strand_shader_get_attributes(struct GPUStrandsShader *gpu_shader,
-                                      struct GPUAttrib **r_attrib, int *r_num);
+void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader,
+                                            struct GPUAttrib **r_attrib, int *r_num);
 
 #ifdef __cplusplus
 }

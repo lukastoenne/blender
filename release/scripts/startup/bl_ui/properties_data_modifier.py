@@ -892,6 +892,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "show_strands", text="Control Strands")
         col.prop(md, "show_fibers", text="Fibers")
         col.prop(md, "subdivisions")
+        col.prop(md, "use_geometry_shader")
         
         col.separator()
 

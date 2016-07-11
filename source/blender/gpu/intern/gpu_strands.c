@@ -48,22 +48,12 @@
 #include "GPU_strands.h"
 #include "GPU_shader.h"
 
-typedef enum GPUStrandAttributes {
-	GPU_STRAND_ATTRIB_POSITION,
-	GPU_STRAND_ATTRIB_NORMAL,
-	GPU_STRAND_ATTRIB_TANGENT,
-	GPU_STRAND_ATTRIB_CONTROL_INDEX,
-	GPU_STRAND_ATTRIB_CONTROL_WEIGHT,
-	GPU_STRAND_ATTRIB_ROOT_DISTANCE,
-	
-	NUM_GPU_STRAND_ATTRIB /* must be last */
-} GPUStrandAttributes;
-
 struct GPUStrandsShader {
 	bool bound;
 	
 	GPUShader *shader;
-	GPUAttrib attributes[NUM_GPU_STRAND_ATTRIB];
+	GPUAttrib attributes[GPU_MAX_ATTRIB];
+	int num_attributes;
 	
 	char *fragmentcode;
 	char *geometrycode;
@@ -124,7 +114,8 @@ static char *codegen_fragment(void)
 
 GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
                                         GPUStrands_ShaderModel shader_model,
-                                        int effects)
+                                        int effects,
+                                        bool use_geometry_shader)
 {
 	if (strands->gpu_shader != NULL)
 		return strands->gpu_shader;
@@ -133,7 +124,7 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 	
 	/* TODO */
 	char *vertexcode = codegen_vertex();
-	char *geometrycode = codegen_geometry();
+	char *geometrycode = use_geometry_shader ? codegen_geometry() : NULL;
 	char *fragmentcode = codegen_fragment();
 	
 	int flags = GPU_SHADER_FLAGS_NONE;
@@ -143,6 +134,10 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 	char *defines_cur = defines;
 	*defines_cur = '\0';
 	
+	if (use_geometry_shader) {
+		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+		                            "#define USE_GEOMSHADER\n");
+	}
 	switch (shader_model) {
 		case GPU_STRAND_SHADER_CLASSIC_BLENDER:
 			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
@@ -188,45 +183,76 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 		GPU_shader_bind(gpu_shader->shader);
 		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_curves"), 0);
 		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_points"), 1);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_position"), 2);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_normal"), 3);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_tangent"), 4);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_index"), 5);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_weight"), 6);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_root_distance"), 7);
 		GPU_shader_unbind();
 		
-		GPUAttrib *attr;
+		GPUAttrib *attr = gpu_shader->attributes;
 		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_POSITION];
-		attr->index = -1; /* no explicit attribute, we use gl_Vertex for this */
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
+		if (use_geometry_shader) {
+			/* position */
+			attr->index = -1; /* no explicit attribute, we use gl_Vertex for this */
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 3;
+			++attr;
+			
+			/* normal */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "normal");
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 3;
+			++attr;
+			
+			/* tangent */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "tangent");
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 3;
+			++attr;
+			
+			/* control_index */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_index");
+			attr->info_index = -1;
+			attr->type = GL_UNSIGNED_INT;
+			attr->size = 4;
+			++attr;
+			
+			/* control_weight */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_weight");
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 4;
+			++attr;
+			
+			/* root_distance */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "root_distance");
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 2;
+			++attr;
+		}
+		else {
+			/* fiber_index */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "fiber_index");
+			attr->info_index = -1;
+			attr->type = GL_UNSIGNED_INT;
+			attr->size = 1;
+			++attr;
+			
+			/* curve_param */
+			attr->index = GPU_shader_get_attribute(gpu_shader->shader, "curve_param");
+			attr->info_index = -1;
+			attr->type = GL_FLOAT;
+			attr->size = 1;
+			++attr;
+		}
 		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_NORMAL];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "normal");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
-		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_TANGENT];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "tangent");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
-		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_CONTROL_INDEX];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_index");
-		attr->info_index = -1;
-		attr->type = GL_UNSIGNED_INT;
-		attr->size = 4;
-		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_CONTROL_WEIGHT];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "control_weight");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 4;
-		
-		attr = &gpu_shader->attributes[GPU_STRAND_ATTRIB_ROOT_DISTANCE];
-		attr->index = GPU_shader_get_attribute(gpu_shader->shader, "root_distance");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 2;
+		gpu_shader->num_attributes = (int)(attr - gpu_shader->attributes);
 	}
 	else {
 		if (vertexcode)
@@ -293,9 +319,9 @@ bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader)
 	return gpu_shader->bound;
 }
 
-void GPU_strand_shader_get_attributes(GPUStrandsShader *gpu_shader,
-                                      GPUAttrib **r_attrib, int *r_num)
+void GPU_strand_shader_get_fiber_attributes(GPUStrandsShader *gpu_shader,
+                                            GPUAttrib **r_attrib, int *r_num)
 {
 	if (r_attrib) *r_attrib = gpu_shader->attributes;
-	if (r_num) *r_num = NUM_GPU_STRAND_ATTRIB;
+	if (r_num) *r_num = gpu_shader->num_attributes;
 }

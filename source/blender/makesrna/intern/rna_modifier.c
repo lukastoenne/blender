@@ -4739,6 +4739,12 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Shader Model", "Model used for shading fibers in the viewport");
 	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
 	
+	prop = RNA_def_property(srna, "use_geometry_shader", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_STRANDS_USE_GEOMSHADER);
+	RNA_def_property_boolean_default(prop, false);
+	RNA_def_property_ui_text(prop, "Use Geometry Shader", "Use a geometry shader to generate fiber primitives");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
 	/* Clumping */
 	prop = RNA_def_property(srna, "use_clumping_effect", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "effects", MOD_STRANDS_EFFECT_CLUMPING);

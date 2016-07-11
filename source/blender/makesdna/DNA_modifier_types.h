@@ -1571,6 +1571,7 @@ typedef struct StrandsModifierData {
 enum {
 	MOD_STRANDS_SHOW_STRANDS = (1 << 0),
 	MOD_STRANDS_SHOW_FIBERS = (1 << 1),
+	MOD_STRANDS_USE_GEOMSHADER = (1 << 2),
 };
 
 enum {

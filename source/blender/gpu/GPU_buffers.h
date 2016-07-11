@@ -154,17 +154,33 @@ typedef struct GPUDrawStrands {
 	GPUBuffer *strand_edges;
 	GPUBuffer *control_points;
 	GPUBuffer *control_curves;
+	GPUBuffer *fibers;
 	GPUBuffer *fiber_points;
+	GPUBuffer *fiber_edges;
+	GPUBuffer *fiber_position;
+	GPUBuffer *fiber_normal;
+	GPUBuffer *fiber_tangent;
+	GPUBuffer *fiber_control_index;
+	GPUBuffer *fiber_control_weight;
+	GPUBuffer *fiber_root_distance;
 
 	/* GL texture id for control point texture buffer */
 	GPUBufferTexture control_points_tex;
 	GPUBufferTexture control_curves_tex;
+	GPUBufferTexture fiber_position_tex;
+	GPUBufferTexture fiber_normal_tex;
+	GPUBufferTexture fiber_tangent_tex;
+	GPUBufferTexture fiber_control_index_tex;
+	GPUBufferTexture fiber_control_weight_tex;
+	GPUBufferTexture fiber_root_distance_tex;
 
 	unsigned int strand_totverts;
 	unsigned int strand_totedges;
 	unsigned int control_totverts;
 	unsigned int control_totcurves;
 	unsigned int totfibers;
+	unsigned int fiber_totverts;
+	unsigned int fiber_totedges;
 } GPUDrawStrands;
 
 
@@ -300,6 +316,7 @@ typedef struct GPUDrawStrandsParams {
 	struct BMEditStrands *edit;
 	struct DerivedMesh *root_dm;
 	int subdiv;
+	bool use_geomshader;
 } GPUDrawStrandsParams;
 
 struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);

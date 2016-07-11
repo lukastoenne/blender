@@ -118,9 +118,9 @@ void main()
 			if (!valid[k])
 				continue;
 
-			int ci0 = clamp(int(t[k]), 0, num_cverts[k] - 1);
+			int ci0 = min(int(t[k]), num_cverts[k] - 2);
 			int ci1 = ci0 + 1;
-			float lambda = t[k] - floor(t[k]);
+			float lambda = t[k] - float(ci0);
 			/* XXX could use texture filtering to do this for us? */
 			vec3 next_cloc0 = texelFetch(control_points, cvert_begin[k] + ci0).xyz;
 			vec3 next_cloc1 = texelFetch(control_points, cvert_begin[k] + ci1).xyz;
