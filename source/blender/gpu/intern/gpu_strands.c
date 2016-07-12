@@ -63,53 +63,53 @@ struct GPUStrandsShader {
 extern char datatoc_gpu_shader_strand_frag_glsl[];
 extern char datatoc_gpu_shader_strand_geom_glsl[];
 extern char datatoc_gpu_shader_strand_vert_glsl[];
+extern char datatoc_gpu_shader_strand_effects_glsl[];
+extern char datatoc_gpu_shader_strand_util_glsl[];
 
 static char *codegen_vertex(void)
 {
-#if 0
 	char *code;
 	
 	DynStr *ds = BLI_dynstr_new();
+	
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_effects_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_vert_glsl);
 	
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	
 	return code;
-#else
-	return BLI_strdup(datatoc_gpu_shader_strand_vert_glsl);
-#endif
 }
 
 static char *codegen_geometry(void)
 {
-#if 0
 	char *code;
 	
 	DynStr *ds = BLI_dynstr_new();
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_effects_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_geom_glsl);
 	
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	
 	return code;
-#else
-	return BLI_strdup(datatoc_gpu_shader_strand_geom_glsl);
-#endif
 }
 
 static char *codegen_fragment(void)
 {
-#if 0
 	char *code;
 	
 	DynStr *ds = BLI_dynstr_new();
+	
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_frag_glsl);
 	
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 	
 	return code;
-#else
-	return BLI_strdup(datatoc_gpu_shader_strand_frag_glsl);
-#endif
 }
 
 GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,

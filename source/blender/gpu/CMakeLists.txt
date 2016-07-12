@@ -128,6 +128,8 @@ data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_geom.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_effects.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_util.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

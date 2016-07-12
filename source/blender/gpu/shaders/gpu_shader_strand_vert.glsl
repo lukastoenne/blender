@@ -28,16 +28,7 @@ uniform samplerBuffer fiber_tangent;
 uniform usamplerBuffer fiber_control_index;
 uniform samplerBuffer fiber_control_weight;
 uniform samplerBuffer fiber_root_distance;
-
-uniform float clumping_factor;
-uniform float clumping_shape;
-uniform float curl_shape;
 #endif
-
-void interpolate_vertex()
-{
-
-}
 
 void main()
 {
@@ -56,6 +47,7 @@ void main()
 
 	vec3 loc = vec3(0.0, 0.0, 0.0);
 	vec3 tangent = vec3(0.0, 0.0, 0.0);
+	vec3 offset0;
 	for (int k = 0; k < 4; ++k) {
 		if (!control_valid[k])
 			continue;
@@ -66,6 +58,8 @@ void main()
 
 		vec3 croot = texelFetch(control_points, int(verts_begin)).xyz;
 		vec3 offset = root - croot;
+		if (k == 0)
+			offset0 = offset;
 
 		float segment = curve_param * float(num_verts);
 		int idx0 = min(int(segment), num_verts - 2);
@@ -79,8 +73,10 @@ void main()
 		tangent += control_weight[k] * (cloc1 - cloc0);
 	}
 
+	displace_vertex(loc, curve_param, offset0, mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), vec2(0.0, 0.0));
+
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(loc, 1.0);
-	fPosition = (gl_ModelViewMatrix * gl_Vertex).xyz;
+	fPosition = mat3_emu(gl_ModelViewMatrix) * loc;
 	fTangent = gl_NormalMatrix * tangent;
 	fColor = vec3(curve_param, 1.0 - curve_param, 0.0);
 #endif
