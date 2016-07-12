@@ -62,6 +62,8 @@ bool BKE_strands_get_fiber_matrix(const struct StrandFiber *fiber, struct Derive
 
 typedef struct StrandCurveCache {
 	float (*verts)[3];
+	float (*normals)[3];
+	float (*tangents)[3];
 	int maxverts;
 } StrandCurveCache;
 

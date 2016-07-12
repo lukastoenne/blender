@@ -183,12 +183,14 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 		GPU_shader_bind(gpu_shader->shader);
 		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_curves"), 0);
 		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_points"), 1);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_position"), 2);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_normal"), 3);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_tangent"), 4);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_index"), 5);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_weight"), 6);
-		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_root_distance"), 7);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_normals"), 2);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "control_tangents"), 3);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_position"), 4);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_normal"), 5);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_tangent"), 6);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_index"), 7);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_control_weight"), 8);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "fiber_root_distance"), 9);
 		GPU_shader_unbind();
 		
 		GPUAttrib *attr = gpu_shader->attributes;

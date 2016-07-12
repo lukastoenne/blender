@@ -20,8 +20,10 @@ out vec3 fPosition;
 out vec3 fTangent;
 out vec3 fColor;
 
-uniform samplerBuffer control_points;
 uniform usamplerBuffer control_curves;
+uniform samplerBuffer control_points;
+uniform samplerBuffer control_normals;
+uniform samplerBuffer control_tangents;
 uniform samplerBuffer fiber_position;
 uniform samplerBuffer fiber_normal;
 uniform samplerBuffer fiber_tangent;
@@ -56,7 +58,7 @@ void main()
 		int verts_begin = int(curve.x);
 		int num_verts = int(curve.y);
 
-		vec3 croot = texelFetch(control_points, int(verts_begin)).xyz;
+		vec3 croot = texelFetch(control_points, verts_begin).xyz;
 		vec3 offset = root - croot;
 		if (k == 0)
 			offset0 = offset;

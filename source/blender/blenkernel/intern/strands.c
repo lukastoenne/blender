@@ -186,6 +186,8 @@ StrandCurveCache *BKE_strand_curve_cache_create(const Strands *strands, int subd
 	StrandCurveCache *cache = MEM_callocN(sizeof(StrandCurveCache), "StrandCurveCache");
 	cache->maxverts = maxverts;
 	cache->verts = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache verts");
+	cache->normals = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache normals");
+	cache->tangents = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache tangents");
 	
 	return cache;
 }
@@ -200,6 +202,8 @@ StrandCurveCache *BKE_strand_curve_cache_create_bm(BMesh *bm, int subdiv)
 	StrandCurveCache *cache = MEM_callocN(sizeof(StrandCurveCache), "StrandCurveCache");
 	cache->maxverts = maxverts;
 	cache->verts = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache verts");
+	cache->normals = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache normals");
+	cache->tangents = MEM_mallocN(sizeof(float) * 3 * maxverts, "StrandCurveCache tangents");
 	
 	return cache;
 }
@@ -209,6 +213,10 @@ void BKE_strand_curve_cache_free(StrandCurveCache *cache)
 	if (cache) {
 		if (cache->verts)
 			MEM_freeN(cache->verts);
+		if (cache->normals)
+			MEM_freeN(cache->normals);
+		if (cache->tangents)
+			MEM_freeN(cache->tangents);
 		MEM_freeN(cache);
 	}
 }
@@ -242,6 +250,36 @@ static int curve_cache_subdivide(StrandCurveCache *cache, int orig_num_verts, in
 	return num_verts;
 }
 
+static void curve_cache_transport_frame(StrandCurveCache *cache, int num_verts,
+                                        const float normal[3], const float tangent[3])
+{
+	const float (*verts)[3] = cache->verts;
+	float (*dir)[3] = cache->normals;
+	float (*codir)[3] = cache->tangents;
+	float prev_dir[3], prev_codir[3];
+	
+	copy_v3_v3(prev_dir, normal);
+	copy_v3_v3(prev_codir, tangent);
+	
+	for (int i = 0; i < num_verts - 1; ++i) {
+		float rot[3][3];
+		
+		/* segment direction */
+		sub_v3_v3v3(dir[i], verts[i+1], verts[i]);
+		normalize_v3(dir[i]);
+		
+		/* rotate the frame */
+		rotation_between_vecs_to_mat3(rot, prev_dir, dir[i]);
+		mul_v3_m3v3(codir[i], rot, prev_codir);
+		
+		copy_v3_v3(prev_dir, dir[i]);
+		copy_v3_v3(prev_codir, codir[i]);
+	}
+	/* last segment without rotation */
+	copy_v3_v3(dir[num_verts-1], prev_dir);
+	copy_v3_v3(codir[num_verts-1], prev_codir);
+}
+
 int BKE_strand_curve_cache_calc(const StrandVertex *orig_verts, int orig_num_verts,
                                 StrandCurveCache *cache, float rootmat[4][4], int subdiv)
 {
@@ -256,7 +294,9 @@ int BKE_strand_curve_cache_calc(const StrandVertex *orig_verts, int orig_num_ver
 		}
 	}
 	
-	return curve_cache_subdivide(cache, orig_num_verts, subdiv);
+	int num_verts = curve_cache_subdivide(cache, orig_num_verts, subdiv);
+	curve_cache_transport_frame(cache, num_verts, rootmat[2], rootmat[0]);
+	return num_verts;
 }
 
 int BKE_strand_curve_cache_calc_bm(BMVert *root, int orig_num_verts, StrandCurveCache *cache, float rootmat[4][4], int subdiv)
@@ -276,7 +316,9 @@ int BKE_strand_curve_cache_calc_bm(BMVert *root, int orig_num_verts, StrandCurve
 		}
 	}
 	
-	return curve_cache_subdivide(cache, orig_num_verts, subdiv);
+	int num_verts = curve_cache_subdivide(cache, orig_num_verts, subdiv);
+	curve_cache_transport_frame(cache, num_verts, rootmat[2], rootmat[0]);
+	return num_verts;
 }
 
 int BKE_strand_curve_cache_size(int orig_num_verts, int subdiv)

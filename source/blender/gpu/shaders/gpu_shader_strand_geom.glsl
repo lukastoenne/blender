@@ -15,6 +15,8 @@ out vec3 fColor;
 
 uniform usamplerBuffer control_curves;
 uniform samplerBuffer control_points;
+uniform samplerBuffer control_normals;
+uniform samplerBuffer control_tangents;
 
 bool is_valid_index(uint index)
 {
