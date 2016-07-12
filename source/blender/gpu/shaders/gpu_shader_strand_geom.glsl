@@ -86,15 +86,13 @@ void main()
 			if (!valid[k])
 				continue;
 
-			int ci0 = min(int(t[k]), num_cverts[k] - 2);
-			int ci1 = ci0 + 1;
-			float lambda = t[k] - float(ci0);
-			/* XXX could use texture filtering to do this for us? */
-			vec3 next_cloc0 = texelFetch(control_points, cvert_begin[k] + ci0).xyz;
-			vec3 next_cloc1 = texelFetch(control_points, cvert_begin[k] + ci1).xyz;
-			vec3 next_cloc = mix(next_cloc0, next_cloc1, lambda) + offset[k];
+			vec3 cloc;
+			vec3 ctangent;
+			mat3 cframe;
+			interpolate_control_curve(control_points, control_normals, control_tangents,
+				                      t[k], cvert_begin[k], num_cverts[k], cloc, ctangent, cframe);
 
-			next_loc += weight[k] * next_cloc;
+			next_loc += weight[k] * cloc;
 			t[k] += dt[k];
 		}
 

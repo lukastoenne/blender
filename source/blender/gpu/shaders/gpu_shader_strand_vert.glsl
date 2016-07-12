@@ -57,22 +57,21 @@ void main()
 		uvec2 curve = texelFetch(control_curves, int(control_index[k])).xy;
 		int verts_begin = int(curve.x);
 		int num_verts = int(curve.y);
+		float segment = curve_param * float(num_verts);
 
 		vec3 croot = texelFetch(control_points, verts_begin).xyz;
 		vec3 offset = root - croot;
 		if (k == 0)
 			offset0 = offset;
 
-		float segment = curve_param * float(num_verts);
-		int idx0 = min(int(segment), num_verts - 2);
-		int idx1 = idx0 + 1;
-		float lambda = segment - float(idx0);
-		vec3 cloc0 = texelFetch(control_points, verts_begin + idx0).xyz;
-		vec3 cloc1 = texelFetch(control_points, verts_begin + idx1).xyz;
-		vec3 cloc = mix(cloc0, cloc1, lambda) + offset;
+		vec3 cloc;
+		vec3 ctangent;
+		mat3 cframe;
+		interpolate_control_curve(control_points, control_normals, control_tangents,
+			                      segment, verts_begin, num_verts, cloc, ctangent, cframe);
 
-		loc += control_weight[k] * cloc;
-		tangent += control_weight[k] * (cloc1 - cloc0);
+		loc += control_weight[k] * (cloc + offset);
+		tangent += control_weight[k] * ctangent;
 	}
 
 	displace_vertex(loc, curve_param, offset0, mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), vec2(0.0, 0.0));
