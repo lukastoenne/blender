@@ -152,7 +152,7 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 			                            "#define SHADING_MARSCHNER\n");
 			break;
 	}
-	if (effects & GPU_STRAND_EFFECT_CLUMPING)
+	if (effects & GPU_STRAND_EFFECT_CLUMP)
 		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
 		                            "#define USE_EFFECT_CLUMPING\n");
 	if (effects & GPU_STRAND_EFFECT_CURL)
@@ -286,15 +286,22 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 
 void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
                       float viewmat[4][4], float viewinv[4][4],
-                      float clumping_factor, float clumping_shape)
+                      float clump_thickness, float clump_shape,
+                      float curl_thickness, float curl_shape, float curl_radius, float curl_length,
+                      int debug_value)
 {
 	GPUShader *shader = strand_shader->shader;
 	if (!shader)
 		return;
 
 	GPU_shader_bind(shader);
-	glUniform1f(GPU_shader_get_uniform(shader, "clumping_factor"), clumping_factor);
-	glUniform1f(GPU_shader_get_uniform(shader, "clumping_shape"), clumping_shape);
+	glUniform1f(GPU_shader_get_uniform(shader, "clump_thickness"), clump_thickness);
+	glUniform1f(GPU_shader_get_uniform(shader, "clump_shape"), clump_shape);
+	glUniform1f(GPU_shader_get_uniform(shader, "curl_thickness"), curl_thickness);
+	glUniform1f(GPU_shader_get_uniform(shader, "curl_shape"), curl_shape);
+	glUniform1f(GPU_shader_get_uniform(shader, "curl_radius"), curl_radius);
+	glUniform1f(GPU_shader_get_uniform(shader, "curl_length"), curl_length);
+	glUniform1i(GPU_shader_get_uniform(shader, "debug_value"), debug_value);
 
 	strand_shader->bound = true;
 

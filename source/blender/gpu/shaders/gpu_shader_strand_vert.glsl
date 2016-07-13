@@ -48,37 +48,36 @@ void main()
 	vec4 control_weight = texelFetch(fiber_control_weight, int(fiber_index));
 
 	vec3 loc = vec3(0.0, 0.0, 0.0);
-	vec3 tangent = vec3(0.0, 0.0, 0.0);
-	vec3 offset0;
+	vec3 nor = vec3(0.0, 0.0, 0.0);
+	vec3 cloc[4], cnor[4], ctang[4];
+	int cnum_verts[4];
 	for (int k = 0; k < 4; ++k) {
 		if (!control_valid[k])
 			continue;
 
 		uvec2 curve = texelFetch(control_curves, int(control_index[k])).xy;
 		int verts_begin = int(curve.x);
-		int num_verts = int(curve.y);
-		float segment = curve_param * float(num_verts);
+		cnum_verts[k] = int(curve.y);
+		float segment = curve_param * float(cnum_verts[k]);
 
 		vec3 croot = texelFetch(control_points, verts_begin).xyz;
 		vec3 offset = root - croot;
-		if (k == 0)
-			offset0 = offset;
 
-		vec3 cloc;
-		vec3 ctangent;
-		mat3 cframe;
 		interpolate_control_curve(control_points, control_normals, control_tangents,
-			                      segment, verts_begin, num_verts, cloc, ctangent, cframe);
+			                      segment, verts_begin, cnum_verts[k],
+			                      cloc[k], cnor[k], ctang[k]);
 
-		loc += control_weight[k] * (cloc + offset);
-		tangent += control_weight[k] * ctangent;
+		loc += control_weight[k] * (cloc[k] + offset);
+		nor += control_weight[k] * cnor[k];
 	}
 
-	displace_vertex(loc, curve_param, offset0, mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), vec2(0.0, 0.0));
+	mat3 cframe0 = mat3_from_vectors(cnor[0], ctang[0]);
+	// TODO define proper curve scale, independent of subdivision!
+	displace_vertex(loc, nor, curve_param, 1.0, cloc[0], cframe0);
 
 	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(loc, 1.0);
 	fPosition = mat3_emu(gl_ModelViewMatrix) * loc;
-	fTangent = gl_NormalMatrix * tangent;
-	fColor = vec3(curve_param, 1.0 - curve_param, 0.0);
+	fTangent = gl_NormalMatrix * nor;
+	fColor = (nor + vec3(1.0)) * 0.5;
 #endif
 }

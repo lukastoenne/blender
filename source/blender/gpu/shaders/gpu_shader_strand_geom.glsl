@@ -74,36 +74,30 @@ void main()
 		dt[k] = float(num_cverts[k] - 1) / float(num_verts - 1);
 	}
 
-	vec3 loc = root;
-	displace_vertex(loc, 0.0, offset[0], vRotation[0], v_root_distance[0]);
+	float t[4] = float[4](0.0, 0.0, 0.0, 0.0);
+	for (int i = 0; i < num_verts; ++i) {
+		vec3 loc = vec3(0.0, 0.0, 0.0);
+		vec3 nor = vec3(0.0, 0.0, 0.0);
 
-	vec3 tangent;
-	float t[4] = float[4](dt[0], dt[1], dt[2], dt[3]);
-	for (int i = 1; i < num_verts; ++i) {
-		vec3 next_loc = vec3(0.0, 0.0, 0.0);
-
+		vec3 cloc[4], cnor[4], ctang[4];
 		for (int k = 0; k < 4; ++k) {
 			if (!valid[k])
 				continue;
 
-			vec3 cloc;
-			vec3 ctangent;
-			mat3 cframe;
 			interpolate_control_curve(control_points, control_normals, control_tangents,
-				                      t[k], cvert_begin[k], num_cverts[k], cloc, ctangent, cframe);
+			                          t[0], cvert_begin[0], num_cverts[0],
+			                          cloc[k], cnor[k], ctang[k]);
 
-			next_loc += weight[k] * cloc;
+			loc += weight[k] * (cloc[k] + offset[k]);
+			nor += weight[k] * cnor[k];
 			t[k] += dt[k];
 		}
 
-		displace_vertex(next_loc, float(i) / float(num_verts - 1), offset[0], vRotation[0], v_root_distance[0]);
+		mat3 cframe0 = mat3_from_vectors(cnor[0], ctang[0]);
+		displace_vertex(loc, nor, float(i) / float(num_verts - 1), 1.0, cloc[0], cframe0);
 
-		tangent = next_loc - loc;
-		emit_vertex(loc, tangent);
-		loc = next_loc;
+		emit_vertex(loc, nor);
 	}
-	/* last vertex */
-	emit_vertex(loc, tangent);
 	
 	EndPrimitive();
 }

@@ -893,6 +893,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "show_fibers", text="Fibers")
         col.prop(md, "subdivisions")
         col.prop(md, "use_geometry_shader")
+        col.prop(md, "debug_value")
         
         col.separator()
 
@@ -902,15 +903,18 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.separator()
 
         box = layout.box()
-        box.prop(md, "use_clumping_effect")
-        if md.use_clumping_effect:
-            box.prop(md, "clumping_factor")
-            box.prop(md, "clumping_shape")
+        box.prop(md, "use_clump_effect")
+        if md.use_clump_effect:
+            box.prop(md, "clump_thickness")
+            box.prop(md, "clump_shape")
         
         box = layout.box()
         box.prop(md, "use_curl_effect")
         if md.use_curl_effect:
-            pass
+            box.prop(md, "curl_thickness")
+            box.prop(md, "curl_shape")
+            box.prop(md, "curl_radius")
+            box.prop(md, "curl_length")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

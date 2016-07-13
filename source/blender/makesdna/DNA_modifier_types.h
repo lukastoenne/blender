@@ -1558,13 +1558,15 @@ typedef struct StrandsModifierData {
 	
 	struct Strands *strands;
 	
-	struct BMEditStrands *edit;			/* edit data (runtime) */
+	struct BMEditStrands *edit;         /* edit data (runtime) */
 	
-	struct GPUDrawStrands *gpu_buffer;	/* draw data (runtime) */
+	struct GPUDrawStrands *gpu_buffer;  /* draw data (runtime) */
 	
 	int effects;
-	float clumping_factor, clumping_shape;
-	int pad2;
+	float clump_thickness, clump_shape;
+	float curl_thickness, curl_shape, curl_radius, curl_length;
+	
+	int debug_value;                    /* debugging value */
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */
@@ -1581,7 +1583,7 @@ enum {
 };
 
 enum {
-	MOD_STRANDS_EFFECT_CLUMPING     = (1 << 0),
+	MOD_STRANDS_EFFECT_CLUMP     = (1 << 0),
 	MOD_STRANDS_EFFECT_CURL         = (1 << 1),
 };
 

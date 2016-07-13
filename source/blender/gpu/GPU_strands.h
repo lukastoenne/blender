@@ -49,7 +49,7 @@ typedef enum GPUStrands_ShaderModel {
 } GPUStrands_ShaderModel;
 
 typedef enum GPUStrands_Effects {
-	GPU_STRAND_EFFECT_CLUMPING      = (1 << 0),
+	GPU_STRAND_EFFECT_CLUMP      = (1 << 0),
 	GPU_STRAND_EFFECT_CURL          = (1 << 1),
 } GPUStrands_Effects;
 
@@ -63,7 +63,9 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 void GPU_strand_shader_bind(
         GPUStrandsShader *gpu_shader,
         float viewmat[4][4], float viewinv[4][4],
-        float clumping_factor, float clumping_shape);
+        float clump_thickness, float clump_shape,
+        float curl_thickness, float curl_shape, float curl_radius, float curl_length,
+        int debug_value);
 void GPU_strand_shader_bind_uniforms(
         GPUStrandsShader *gpu_shader,
         float obmat[4][4], float viewmat[4][4]);

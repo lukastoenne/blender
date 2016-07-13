@@ -82,8 +82,8 @@ static GPUStrands_ShaderModel get_shader_model(int smd_shader_model)
 static int get_effects(int smd_effects)
 {
 	GPUStrands_Effects effects = 0;
-	if (smd_effects & MOD_STRANDS_EFFECT_CLUMPING)
-		effects |= GPU_STRAND_EFFECT_CLUMPING;
+	if (smd_effects & MOD_STRANDS_EFFECT_CLUMP)
+		effects |= GPU_STRAND_EFFECT_CLUMP;
 	if (smd_effects & MOD_STRANDS_EFFECT_CURL)
 		effects |= GPU_STRAND_EFFECT_CURL;
 	
@@ -95,7 +95,9 @@ static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
 {
 	GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
 	GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv,
-	                       smd->clumping_factor, smd->clumping_shape);
+	                       smd->clump_thickness, smd->clump_shape,
+	                       smd->curl_thickness, smd->curl_shape, smd->curl_radius, smd->curl_length,
+	                       smd->debug_value);
 }
 
 void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,

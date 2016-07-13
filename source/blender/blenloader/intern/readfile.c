@@ -5284,6 +5284,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			smd->edit = NULL;
 			smd->gpu_buffer = NULL;
+			
+			smd->debug_value = 0; /* reset */
 		}
 	}
 }
