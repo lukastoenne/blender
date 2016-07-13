@@ -2285,9 +2285,9 @@ static size_t gpu_strands_buffer_size_from_type(GPUDrawStrands *gpu_buffer, GPUS
 		case GPU_STRAND_BUFFER_FIBER:
 			return sizeof(GPUFiber) * gpu_buffer->totfibers;
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
-			return sizeof(GPUFiber) * gpu_buffer->fiber_totverts;
+			return sizeof(GPUFiberVertex) * gpu_buffer->fiber_totverts;
 		case GPU_STRAND_BUFFER_FIBER_EDGE:
-			return sizeof(GPUFiber) * gpu_buffer->fiber_totedges;
+			return sizeof(int) * 2 * gpu_buffer->fiber_totedges;
 		case GPU_STRAND_BUFFER_FIBER_POSITION:
 			return sizeof(float) * 3 * gpu_buffer->totfibers;
 		case GPU_STRAND_BUFFER_FIBER_NORMAL:
