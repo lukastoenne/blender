@@ -268,8 +268,8 @@ AnimData *BKE_animdata_copy(AnimData *adt, const bool do_action)
 	
 	/* make a copy of action - at worst, user has to delete copies... */
 	if (do_action) {
-		dadt->action = BKE_action_copy(adt->action);
-		dadt->tmpact = BKE_action_copy(adt->tmpact);
+		dadt->action = BKE_action_copy(G.main, adt->action);
+		dadt->tmpact = BKE_action_copy(G.main, adt->tmpact);
 	}
 	else {
 		id_us_plus((ID *)dadt->action);
@@ -313,11 +313,11 @@ void BKE_animdata_copy_id_action(ID *id)
 	if (adt) {
 		if (adt->action) {
 			id_us_min((ID *)adt->action);
-			adt->action = BKE_action_copy(adt->action);
+			adt->action = BKE_action_copy(G.main, adt->action);
 		}
 		if (adt->tmpact) {
 			id_us_min((ID *)adt->tmpact);
-			adt->tmpact = BKE_action_copy(adt->tmpact);
+			adt->tmpact = BKE_action_copy(G.main, adt->tmpact);
 		}
 	}
 }
@@ -341,8 +341,8 @@ void BKE_animdata_merge_copy(ID *dst_id, ID *src_id, eAnimData_MergeCopy_Modes a
 	/* handle actions... */
 	if (action_mode == ADT_MERGECOPY_SRC_COPY) {
 		/* make a copy of the actions */
-		dst->action = BKE_action_copy(src->action);
-		dst->tmpact = BKE_action_copy(src->tmpact);
+		dst->action = BKE_action_copy(G.main, src->action);
+		dst->tmpact = BKE_action_copy(G.main, src->tmpact);
 	}
 	else if (action_mode == ADT_MERGECOPY_SRC_REF) {
 		/* make a reference to it */
@@ -400,8 +400,8 @@ static void make_local_strips(ListBase *strips)
 	NlaStrip *strip;
 
 	for (strip = strips->first; strip; strip = strip->next) {
-		if (strip->act) BKE_action_make_local(strip->act);
-		if (strip->remap && strip->remap->target) BKE_action_make_local(strip->remap->target);
+		if (strip->act) BKE_action_make_local(G.main, strip->act);
+		if (strip->remap && strip->remap->target) BKE_action_make_local(G.main, strip->remap->target);
 		
 		make_local_strips(&strip->strips);
 	}
@@ -413,10 +413,10 @@ void BKE_animdata_make_local(AnimData *adt)
 	NlaTrack *nlt;
 	
 	/* Actions - Active and Temp */
-	if (adt->action) BKE_action_make_local(adt->action);
-	if (adt->tmpact) BKE_action_make_local(adt->tmpact);
+	if (adt->action) BKE_action_make_local(G.main, adt->action);
+	if (adt->tmpact) BKE_action_make_local(G.main, adt->tmpact);
 	/* Remaps */
-	if (adt->remap && adt->remap->target) BKE_action_make_local(adt->remap->target);
+	if (adt->remap && adt->remap->target) BKE_action_make_local(G.main, adt->remap->target);
 	
 	/* Drivers */
 	/* TODO: need to remap the ID-targets too? */
