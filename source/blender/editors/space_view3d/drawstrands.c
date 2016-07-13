@@ -153,17 +153,19 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 			}
 		}
 		else {
-			struct GPUAttrib *attrib;
-			int num_attrib;
-			GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
-			
-			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
-			
-			GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
-			                         buffer->fiber_totedges * 2);
-			
-			GPU_interleaved_attrib_unbind();
+			if (buffer->fiber_points && buffer->fiber_edges) {
+				struct GPUAttrib *attrib;
+				int num_attrib;
+				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
+				
+				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
+				GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
+				
+				GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
+				                         buffer->fiber_totedges * 2);
+				
+				GPU_interleaved_attrib_unbind();
+			}
 		}
 		GPU_strands_buffer_unbind();
 		
@@ -535,17 +537,19 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 			}
 		}
 		else {
-			struct GPUAttrib *attrib;
-			int num_attrib;
-			GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
-			
-			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
-			GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
-			
-			GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
-			                         buffer->fiber_totedges * 2);
-			
-			GPU_interleaved_attrib_unbind();
+			if (buffer->fiber_points && buffer->fiber_edges) {
+				struct GPUAttrib *attrib;
+				int num_attrib;
+				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
+				
+				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
+				GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
+				
+				GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
+				                         buffer->fiber_totedges * 2);
+				
+				GPU_interleaved_attrib_unbind();
+			}
 		}
 		GPU_strands_buffer_unbind();
 		
