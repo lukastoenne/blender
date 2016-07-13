@@ -251,15 +251,15 @@ static int curve_cache_subdivide(StrandCurveCache *cache, int orig_num_verts, in
 }
 
 static void curve_cache_transport_frame(StrandCurveCache *cache, int num_verts,
-                                        const float normal[3], const float tangent[3])
+                                        float rootmat[4][4])
 {
 	const float (*verts)[3] = cache->verts;
 	float (*dir)[3] = cache->normals;
 	float (*codir)[3] = cache->tangents;
 	float prev_dir[3], prev_codir[3];
 	
-	copy_v3_v3(prev_dir, normal);
-	copy_v3_v3(prev_codir, tangent);
+	copy_v3_v3(prev_dir, rootmat[2]);
+	copy_v3_v3(prev_codir, rootmat[0]);
 	
 	for (int i = 0; i < num_verts - 1; ++i) {
 		float rot[3][3];
@@ -295,7 +295,7 @@ int BKE_strand_curve_cache_calc(const StrandVertex *orig_verts, int orig_num_ver
 	}
 	
 	int num_verts = curve_cache_subdivide(cache, orig_num_verts, subdiv);
-	curve_cache_transport_frame(cache, num_verts, rootmat[2], rootmat[0]);
+	curve_cache_transport_frame(cache, num_verts, rootmat);
 	return num_verts;
 }
 
@@ -311,13 +311,14 @@ int BKE_strand_curve_cache_calc_bm(BMVert *root, int orig_num_verts, StrandCurve
 		BMIter iter;
 		BMVert *v;
 		BM_ITER_STRANDS_ELEM(v, &iter, root, BM_VERTS_OF_STRAND) {
-			mul_v3_m4v3(verts[index], rootmat, v->co);
+			/* BMesh already stores verts in object space, no need to apply the rootmat */
+			copy_v3_v3(verts[index], v->co);
 			index += step;
 		}
 	}
 	
 	int num_verts = curve_cache_subdivide(cache, orig_num_verts, subdiv);
-	curve_cache_transport_frame(cache, num_verts, rootmat[2], rootmat[0]);
+	curve_cache_transport_frame(cache, num_verts, rootmat);
 	return num_verts;
 }
 

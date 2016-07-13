@@ -2639,17 +2639,15 @@ static void strands_copy_control_attribute_data(GPUDrawStrandsParams *params, vo
 		
 		StrandCurveCache *cache = BKE_strand_curve_cache_create_bm(bm, params->subdiv);
 		
-		/* Note: edit bmesh has all vertices in object space already,
-		 * so we don't need to apply curve transforms!
-		 */
-		float rootmat[4][4];
-		unit_m4(rootmat);
-		
 		BMIter iter;
 		BMVert *root;
 		BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+			float rootmat[4][4];
+			BKE_editstrands_get_matrix(params->edit, root, rootmat);
+			
 			int orig_num_verts = BM_strand_verts_count(root);
 			int num_verts = BKE_strand_curve_cache_calc_bm(root, orig_num_verts, cache, rootmat, params->subdiv);
+			BLI_assert(orig_num_verts >= 2);
 			
 			strands_copy_control_cache_attribute_data(cache, num_verts, &varray, type);
 		}
