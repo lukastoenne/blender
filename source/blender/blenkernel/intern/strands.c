@@ -488,6 +488,9 @@ static void strand_calc_root_distance(StrandFiber *fiber, const float loc[3], co
 
 static void strands_calc_weights(const Strands *strands, struct DerivedMesh *scalp, StrandFiber *fibers, int num_fibers)
 {
+	if (strands->totcurves == 0)
+		return;
+	
 	float (*strandloc)[3] = MEM_mallocN(sizeof(float) * 3 * strands->totcurves, "strand locations");
 	KDTree *tree = BLI_kdtree_new(strands->totcurves);
 	

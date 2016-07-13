@@ -2421,7 +2421,7 @@ static int strands_fiber_length(StrandFiber *fiber, StrandCurve *curves, unsigne
 		fnumverts += fiber->control_weight[k] * (float)curves[index].num_verts;
 	}
 	UNUSED_VARS(totcurves);
-	int orig_num_verts = (int)ceil(fnumverts);
+	int orig_num_verts = max_ii((int)ceil(fnumverts), 2);
 	return BKE_strand_curve_cache_size(orig_num_verts, subdiv);
 }
 
@@ -2454,7 +2454,7 @@ static int editstrands_fiber_length(StrandFiber *fiber, BMStrandCurve *curves, i
 		fnumverts += fiber->control_weight[k] * (float)curves[index].num_verts;
 	}
 	UNUSED_VARS(totcurves);
-	int orig_num_verts = (int)ceil(fnumverts);
+	int orig_num_verts = max_ii((int)ceil(fnumverts), 2);
 	return BKE_strand_curve_cache_size(orig_num_verts, subdiv);
 }
 
