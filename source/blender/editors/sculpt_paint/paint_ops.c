@@ -84,7 +84,7 @@ static int brush_add_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	if (br)
-		br = BKE_brush_copy(br);
+		br = BKE_brush_copy(bmain, br);
 	else
 		br = BKE_brush_add(bmain, "Brush", BKE_paint_object_mode_from_paint_mode(mode));
 

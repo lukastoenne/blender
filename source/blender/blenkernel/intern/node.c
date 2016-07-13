@@ -58,6 +58,8 @@
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 
@@ -1205,7 +1207,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	
 	/* is ntree part of library? */
 	if (bmain && !skip_database && BLI_findindex(&bmain->nodetree, ntree) >= 0) {
-		newtree = BKE_libblock_copy(&ntree->id);
+		newtree = BKE_libblock_copy(bmain, &ntree->id);
 	}
 	else {
 		newtree = BKE_libblock_copy_nolib(&ntree->id, true);
@@ -1290,6 +1292,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	newtree->interface_type = NULL;
 	
 	if (ID_IS_LINKED_DATABLOCK(ntree)) {
+		BKE_id_expand_local(&newtree->id);
 		BKE_id_lib_local_paths(bmain, ntree->id.lib, &newtree->id);
 	}
 
@@ -1300,9 +1303,9 @@ bNodeTree *ntreeCopyTree_ex(bNodeTree *ntree, Main *bmain, const bool do_id_user
 {
 	return ntreeCopyTree_internal(ntree, bmain, false, do_id_user, true, true);
 }
-bNodeTree *ntreeCopyTree(bNodeTree *ntree)
+bNodeTree *ntreeCopyTree(Main *bmain, bNodeTree *ntree)
 {
-	return ntreeCopyTree_ex(ntree, G.main, true);
+	return ntreeCopyTree_ex(ntree, bmain, true);
 }
 
 /* use when duplicating scenes */
@@ -1948,70 +1951,33 @@ bNodeTree *ntreeFromID(ID *id)
 	}
 }
 
-static void extern_local_ntree(bNodeTree *ntree)
+void ntreeMakeLocal(Main *bmain, bNodeTree *ntree, bool id_in_mainlist)
 {
-	for (bNode *node = ntree->nodes.first; node; node = node->next) {
-		if (node->id) {
-			id_lib_extern(node->id);
-		}
-	}
-}
-
-void ntreeMakeLocal(bNodeTree *ntree, bool id_in_mainlist)
-{
-	Main *bmain = G.main;
-	bool lib = false, local = false;
+	bool is_lib = false, is_local = false;
 	
 	/* - only lib users: do nothing
 	 * - only local users: set flag
 	 * - mixed: make copy
 	 */
-	
-	if (!ID_IS_LINKED_DATABLOCK(ntree)) return;
-	if (ntree->id.us == 1) {
-		id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
-		extern_local_ntree(ntree);
+
+	if (!ID_IS_LINKED_DATABLOCK(ntree)) {
 		return;
 	}
-	
-	/* now check users of groups... again typedepending, callback... */
-	FOREACH_NODETREE(G.main, tntree, owner_id) {
-		bNode *node;
-		/* find if group is in tree */
-		for (node = tntree->nodes.first; node; node = node->next) {
-			if (node->id == (ID *)ntree) {
-				if (owner_id->lib)
-					lib = true;
-				else
-					local = true;
-			}
+
+	BKE_library_ID_test_usages(bmain, ntree, &is_local, &is_lib);
+
+	if (is_local) {
+		if (!is_lib) {
+			id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
+			BKE_id_expand_local(&ntree->id);
 		}
-	} FOREACH_NODETREE_END
-	
-	/* if all users are local, we simply make tree local */
-	if (local && !lib) {
-		id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
-		extern_local_ntree(ntree);
-	}
-	else if (local && lib) {
-		/* this is the mixed case, we copy the tree and assign it to local users */
-		bNodeTree *newtree = ntreeCopyTree(ntree);
-		
-		newtree->id.us = 0;
-		
-		FOREACH_NODETREE(G.main, tntree, owner_id) {
-			bNode *node;
-			/* find if group is in tree */
-			for (node = tntree->nodes.first; node; node = node->next) {
-				if (node->id == (ID *)ntree) {
-					if (owner_id->lib == NULL) {
-						node->id = (ID *)newtree;
-						id_us_plus(&newtree->id);
-						id_us_min(&ntree->id);
-					}
-				}
-			}
-		} FOREACH_NODETREE_END
+		else {
+			bNodeTree *ntree_new = ntreeCopyTree(bmain, ntree);
+
+			ntree_new->id.us = 0;
+
+			BKE_libblock_remap(bmain, ntree, ntree_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+		}
 	}
 }
 
