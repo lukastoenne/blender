@@ -87,11 +87,19 @@ typedef struct GPUDrawStrandsParams {
 	bool use_geomshader;
 } GPUDrawStrandsParams;
 
+typedef enum GPUStrandsComponent {
+	GPU_STRANDS_COMPONENT_CONTROLS = (1 << 0),
+	GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES = (1 << 1),
+	GPU_STRANDS_COMPONENT_FIBERS = (1 << 2) | GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES,
+	GPU_STRANDS_COMPONENT_ALL = ~0,
+} GPUStrandsComponent;
+
 struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);
 
 void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
 void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
 void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
+void GPU_strands_buffer_invalidate(struct GPUDrawStrands *gpu_buffer, GPUStrandsComponent);
 
 void GPU_strands_buffer_unbind(void);
 

@@ -962,6 +962,46 @@ void GPU_strands_buffer_unbind(void)
 	glActiveTexture(GL_TEXTURE0);
 }
 
+void GPU_strands_buffer_invalidate(GPUDrawStrands *gpu_buffer, GPUStrandsComponent components)
+{
+	if (components & GPU_STRANDS_COMPONENT_CONTROLS) {
+		GPU_buffer_free(gpu_buffer->strand_points);
+		GPU_buffer_free(gpu_buffer->strand_edges);
+		GPU_buffer_free(gpu_buffer->control_points);
+		GPU_buffer_free(gpu_buffer->control_normals);
+		GPU_buffer_free(gpu_buffer->control_tangents);
+		GPU_buffer_free(gpu_buffer->control_curves);
+		gpu_buffer->strand_points = NULL;
+		gpu_buffer->strand_edges = NULL;
+		gpu_buffer->control_points = NULL;
+		gpu_buffer->control_normals = NULL;
+		gpu_buffer->control_tangents = NULL;
+		gpu_buffer->control_curves = NULL;
+	}
+	if (components & GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES) {
+		GPU_buffer_free(gpu_buffer->fiber_position);
+		GPU_buffer_free(gpu_buffer->fiber_normal);
+		GPU_buffer_free(gpu_buffer->fiber_tangent);
+		GPU_buffer_free(gpu_buffer->fiber_control_index);
+		GPU_buffer_free(gpu_buffer->fiber_control_weight);
+		GPU_buffer_free(gpu_buffer->fiber_root_distance);
+		gpu_buffer->fiber_position = NULL;
+		gpu_buffer->fiber_normal = NULL;
+		gpu_buffer->fiber_tangent = NULL;
+		gpu_buffer->fiber_control_index = NULL;
+		gpu_buffer->fiber_control_weight = NULL;
+		gpu_buffer->fiber_root_distance = NULL;
+	}
+	if (components & GPU_STRANDS_COMPONENT_FIBERS) {
+		GPU_buffer_free(gpu_buffer->fibers);
+		GPU_buffer_free(gpu_buffer->fiber_points);
+		GPU_buffer_free(gpu_buffer->fiber_edges);
+		gpu_buffer->fibers = NULL;
+		gpu_buffer->fiber_points = NULL;
+		gpu_buffer->fiber_edges = NULL;
+	}
+}
+
 void GPU_strands_buffer_free(GPUDrawStrands *gpu_buffer)
 {
 	if (gpu_buffer) {
@@ -973,21 +1013,7 @@ void GPU_strands_buffer_free(GPUDrawStrands *gpu_buffer)
 		...
 #endif
 		
-		GPU_buffer_free(gpu_buffer->strand_points);
-		GPU_buffer_free(gpu_buffer->strand_edges);
-		GPU_buffer_free(gpu_buffer->control_points);
-		GPU_buffer_free(gpu_buffer->control_normals);
-		GPU_buffer_free(gpu_buffer->control_tangents);
-		GPU_buffer_free(gpu_buffer->control_curves);
-		GPU_buffer_free(gpu_buffer->fibers);
-		GPU_buffer_free(gpu_buffer->fiber_points);
-		GPU_buffer_free(gpu_buffer->fiber_edges);
-		GPU_buffer_free(gpu_buffer->fiber_position);
-		GPU_buffer_free(gpu_buffer->fiber_normal);
-		GPU_buffer_free(gpu_buffer->fiber_tangent);
-		GPU_buffer_free(gpu_buffer->fiber_control_index);
-		GPU_buffer_free(gpu_buffer->fiber_control_weight);
-		GPU_buffer_free(gpu_buffer->fiber_root_distance);
+		GPU_strands_buffer_invalidate(gpu_buffer, GPU_STRANDS_COMPONENT_ALL);
 		
 		MEM_freeN(gpu_buffer);
 	}
