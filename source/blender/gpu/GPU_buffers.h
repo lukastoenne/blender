@@ -160,11 +160,8 @@ typedef struct GPUDrawStrands {
 	GPUBuffer *fiber_points;
 	GPUBuffer *fiber_edges;
 	GPUBuffer *fiber_position;
-	GPUBuffer *fiber_normal;
-	GPUBuffer *fiber_tangent;
 	GPUBuffer *fiber_control_index;
 	GPUBuffer *fiber_control_weight;
-	GPUBuffer *fiber_root_distance;
 
 	/* GL texture id for control point texture buffer */
 	GPUBufferTexture control_points_tex;
@@ -172,11 +169,8 @@ typedef struct GPUDrawStrands {
 	GPUBufferTexture control_tangents_tex;
 	GPUBufferTexture control_curves_tex;
 	GPUBufferTexture fiber_position_tex;
-	GPUBufferTexture fiber_normal_tex;
-	GPUBufferTexture fiber_tangent_tex;
 	GPUBufferTexture fiber_control_index_tex;
 	GPUBufferTexture fiber_control_weight_tex;
-	GPUBufferTexture fiber_root_distance_tex;
 
 	unsigned int strand_totverts;
 	unsigned int strand_totedges;

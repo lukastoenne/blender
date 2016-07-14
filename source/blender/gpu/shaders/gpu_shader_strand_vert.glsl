@@ -25,11 +25,8 @@ uniform samplerBuffer control_points;
 uniform samplerBuffer control_normals;
 uniform samplerBuffer control_tangents;
 uniform samplerBuffer fiber_position;
-uniform samplerBuffer fiber_normal;
-uniform samplerBuffer fiber_tangent;
 uniform usamplerBuffer fiber_control_index;
 uniform samplerBuffer fiber_control_weight;
-uniform samplerBuffer fiber_root_distance;
 #endif
 
 void main()
