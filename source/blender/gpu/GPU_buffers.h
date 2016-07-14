@@ -203,6 +203,12 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(size_t size);
 void GPU_buffer_free(GPUBuffer *buffer);
 
+typedef void (*GPUBufferSetupCb)(void *varray, void *user);
+struct GPUBuffer *GPU_buffer_setup(int gl_target, size_t size, GPUBufferSetupCb copy_data, void *user, struct GPUBuffer *buffer);
+
+void GPU_enable_vertex_buffer(GPUBuffer *buffer, size_t elemsize);
+void GPU_enable_element_buffer(GPUBuffer *buffer);
+
 void GPU_drawobject_free(struct DerivedMesh *dm);
 
 /* flag that controls data type to fill buffer with, a modifier will prepare. */
@@ -312,25 +318,5 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, struct GSet *bm
 
 void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers);
 void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_buffer);
-
-/* strands */
-
-typedef struct GPUDrawStrandsParams {
-	struct Strands *strands;
-	struct BMEditStrands *edit;
-	struct DerivedMesh *root_dm;
-	int subdiv;
-	bool use_geomshader;
-} GPUDrawStrandsParams;
-
-struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);
-
-void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-
-void GPU_strands_buffer_unbind(void);
-
-void GPU_strands_buffer_free(struct GPUDrawStrands *gpu_buffer);
 
 #endif

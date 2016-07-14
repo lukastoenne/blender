@@ -48,6 +48,7 @@
 #include "GPU_strands.h"
 #include "GPU_shader.h"
 
+
 struct GPUStrandsShader {
 	bool bound;
 	

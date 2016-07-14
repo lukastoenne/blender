@@ -58,7 +58,8 @@ set(SRC
 	intern/gpu_material.c
 	intern/gpu_select.c
 	intern/gpu_shader.c
-	intern/gpu_strands.c
+	intern/gpu_strands_buffer.c
+	intern/gpu_strands_shader.c
 	intern/gpu_texture.c
 
 	shaders/gpu_shader_fx_lib.glsl

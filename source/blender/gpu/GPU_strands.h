@@ -37,8 +37,9 @@ extern "C" {
 #endif
 
 struct GPUAttrib;
-
 struct Strands;
+
+/* Shader */
 
 typedef struct GPUStrandsShader GPUStrandsShader;
 
@@ -74,6 +75,28 @@ bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader);
 
 void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader,
                                             struct GPUAttrib **r_attrib, int *r_num);
+
+
+/* Strand Buffers */
+
+typedef struct GPUDrawStrandsParams {
+	struct Strands *strands;
+	struct BMEditStrands *edit;
+	struct DerivedMesh *root_dm;
+	int subdiv;
+	bool use_geomshader;
+} GPUDrawStrandsParams;
+
+struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);
+
+void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
+void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
+void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
+
+void GPU_strands_buffer_unbind(void);
+
+void GPU_strands_buffer_free(struct GPUDrawStrands *gpu_buffer);
+
 
 #ifdef __cplusplus
 }
