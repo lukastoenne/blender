@@ -192,7 +192,7 @@ typedef struct MSurfaceSampleGenerator_Random {
 	
 	DerivedMesh *dm;
 	RNG *rng;
-	float *face_weights;
+	float *tri_weights;
 	float *vertex_weights;
 	
 #ifdef USE_DEBUG_COUNT
@@ -204,8 +204,8 @@ static void generator_random_free(MSurfaceSampleGenerator_Random *gen)
 {
 #ifdef USE_DEBUG_COUNT
 	if (gen->debug_count) {
-		if (gen->face_weights) {
-			int num = gen->dm->getNumTessFaces(gen->dm);
+		if (gen->tri_weights) {
+			int num = gen->dm->getNumLoopTri(gen->dm);
 			int i;
 			int totsamples = 0;
 			
@@ -214,7 +214,7 @@ static void generator_random_free(MSurfaceSampleGenerator_Random *gen)
 				totsamples += gen->debug_count[i];
 			
 			for (i = 0; i < num; ++i) {
-				float weight = i > 0 ? gen->face_weights[i] - gen->face_weights[i-1] : gen->face_weights[i];
+				float weight = i > 0 ? gen->tri_weights[i] - gen->tri_weights[i-1] : gen->tri_weights[i];
 				int samples = gen->debug_count[i];
 				printf("  %d: W = %f, N = %d/%d = %f\n", i, weight, samples, totsamples, (float)samples / (float)totsamples);
 			}
@@ -222,8 +222,8 @@ static void generator_random_free(MSurfaceSampleGenerator_Random *gen)
 		MEM_freeN(gen->debug_count);
 	}
 #endif
-	if (gen->face_weights)
-		MEM_freeN(gen->face_weights);
+	if (gen->tri_weights)
+		MEM_freeN(gen->tri_weights);
 	if (gen->vertex_weights)
 		MEM_freeN(gen->vertex_weights);
 	if (gen->rng)
@@ -260,39 +260,31 @@ static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, Me
 {
 	DerivedMesh *dm = gen->dm;
 	RNG *rng = gen->rng;
-	MFace *mfaces = dm->getTessFaceArray(dm);
-	int totfaces = dm->getNumTessFaces(dm);
-	int totweights = totfaces * 2;
+	const MLoop *mloops = dm->getLoopArray(dm);
+	const MLoopTri *mtris = dm->getLoopTriArray(dm);
+	int tottris = dm->getNumLoopTri(dm);
+	int totweights = tottris;
 	
-	int faceindex, triindex, tri;
+	int triindex;
 	float a, b;
-	MFace *mface;
+	const MLoopTri *mtri;
 	
-	if (gen->face_weights)
-		triindex = weight_array_binary_search(gen->face_weights, totweights, BLI_rng_get_float(rng));
+	if (gen->tri_weights)
+		triindex = weight_array_binary_search(gen->tri_weights, totweights, BLI_rng_get_float(rng));
 	else
 		triindex = BLI_rng_get_int(rng) % totweights;
-	faceindex = triindex >> 1;
 #ifdef USE_DEBUG_COUNT
 	if (gen->debug_count)
-		gen->debug_count[faceindex] += 1;
+		gen->debug_count[triindex] += 1;
 #endif
-	tri = triindex % 2;
 	a = BLI_rng_get_float(rng);
 	b = BLI_rng_get_float(rng);
 	
-	mface = &mfaces[faceindex];
+	mtri = &mtris[triindex];
 	
-	if (tri == 0) {
-		sample->orig_verts[0] = mface->v1;
-		sample->orig_verts[1] = mface->v2;
-		sample->orig_verts[2] = mface->v3;
-	}
-	else {
-		sample->orig_verts[0] = mface->v1;
-		sample->orig_verts[1] = mface->v3;
-		sample->orig_verts[2] = mface->v4;
-	}
+	sample->orig_verts[0] = mloops[mtri->tri[0]].v;
+	sample->orig_verts[1] = mloops[mtri->tri[1]].v;
+	sample->orig_verts[2] = mloops[mtri->tri[2]].v;
 	
 	if (a + b > 1.0f) {
 		a = 1.0f - a;
@@ -305,35 +297,28 @@ static bool generator_random_make_sample(MSurfaceSampleGenerator_Random *gen, Me
 	return true;
 }
 
-BLI_INLINE void face_weight(DerivedMesh *dm, MFace *face, MeshSampleVertexWeightFp vertex_weight_cb, void *userdata, float weight[2])
+BLI_INLINE float triangle_weight(DerivedMesh *dm, const MLoopTri *tri, MeshSampleVertexWeightFp vertex_weight_cb, void *userdata)
 {
 	MVert *mverts = dm->getVertArray(dm);
-	MVert *v1 = &mverts[face->v1];
-	MVert *v2 = &mverts[face->v2];
-	MVert *v3 = &mverts[face->v3];
-	MVert *v4 = NULL;
+	MLoop *mloops = dm->getLoopArray(dm);
+	unsigned int index1 = mloops[tri->tri[0]].v;
+	unsigned int index2 = mloops[tri->tri[1]].v;
+	unsigned int index3 = mloops[tri->tri[2]].v;
+	MVert *v1 = &mverts[index1];
+	MVert *v2 = &mverts[index2];
+	MVert *v3 = &mverts[index3];
 	
-	weight[0] = area_tri_v3(v1->co, v2->co, v3->co);
-	
-	if (face->v4) {
-		v4 = &mverts[face->v4];
-		weight[1] = area_tri_v3(v1->co, v3->co, v4->co);
-	}
-	else
-		weight[1] = 0.0f;
+	float weight = area_tri_v3(v1->co, v2->co, v3->co);
 	
 	if (vertex_weight_cb) {
-		float w1 = vertex_weight_cb(dm, v1, face->v1, userdata);
-		float w2 = vertex_weight_cb(dm, v2, face->v2, userdata);
-		float w3 = vertex_weight_cb(dm, v3, face->v3, userdata);
+		float w1 = vertex_weight_cb(dm, v1, index1, userdata);
+		float w2 = vertex_weight_cb(dm, v2, index2, userdata);
+		float w3 = vertex_weight_cb(dm, v3, index3, userdata);
 		
-		weight[0] *= (w1 + w2 + w3) / 3.0f;
-		
-		if (v4) {
-			float w4 = vertex_weight_cb(dm, v4, face->v4, userdata);
-			weight[1] *= (w1 + w3 + w4) / 3.0f;
-		}
+		weight *= (w1 + w2 + w3) / 3.0f;
 	}
+	
+	return weight;
 }
 
 MeshSampleGenerator *BKE_mesh_sample_gen_surface_random_ex(DerivedMesh *dm, unsigned int seed,
@@ -342,10 +327,7 @@ MeshSampleGenerator *BKE_mesh_sample_gen_surface_random_ex(DerivedMesh *dm, unsi
 	MSurfaceSampleGenerator_Random *gen;
 	
 	DM_ensure_normals(dm);
-	DM_ensure_tessface(dm);
-	
-	if (dm->getNumTessFaces(dm) == 0)
-		return NULL;
+	DM_ensure_looptri(dm);
 	
 	gen = MEM_callocN(sizeof(MSurfaceSampleGenerator_Random), "MSurfaceSampleGenerator_Random");
 	sample_generator_init(&gen->base, (GeneratorFreeFp)generator_random_free, (GeneratorMakeSampleFp)generator_random_make_sample);
@@ -354,41 +336,34 @@ MeshSampleGenerator *BKE_mesh_sample_gen_surface_random_ex(DerivedMesh *dm, unsi
 	gen->rng = BLI_rng_new(seed);
 	
 	if (use_facearea) {
-		int numfaces = dm->getNumTessFaces(dm);
-		int numweights = numfaces * 2;
-		MFace *mfaces = dm->getTessFaceArray(dm);
-		MFace *mf;
+		int numtris = dm->getNumLoopTri(dm);
+		int numweights = numtris;
+		const MLoopTri *mtris = dm->getLoopTriArray(dm);
+		const MLoopTri *mt;
 		int i;
 		float totweight;
 		
-		gen->face_weights = MEM_mallocN(sizeof(float) * (size_t)numweights, "mesh sample face weights");
+		gen->tri_weights = MEM_mallocN(sizeof(float) * (size_t)numweights, "mesh sample triangle weights");
 		
 		/* accumulate weights */
 		totweight = 0.0f;
-		for (i = 0, mf = mfaces; i < numfaces; ++i, ++mf) {
-			int index = i << 1;
-			float weight[2];
-			
-			face_weight(dm, mf, vertex_weight_cb, userdata, weight);
-			gen->face_weights[index] = totweight;
-			totweight += weight[0];
-			gen->face_weights[index+1] = totweight;
-			totweight += weight[1];
+		for (i = 0, mt = mtris; i < numtris; ++i, ++mt) {
+			float weight = triangle_weight(dm, mt, vertex_weight_cb, userdata);
+			gen->tri_weights[i] = totweight;
+			totweight += weight;
 		}
 		
 		/* normalize */
 		if (totweight > 0.0f) {
 			float norm = 1.0f / totweight;
-			for (i = 0, mf = mfaces; i < numfaces; ++i, ++mf) {
-				int index = i << 1;
-				gen->face_weights[index] *= norm;
-				gen->face_weights[index+1] *= norm;
+			for (i = 0, mt = mtris; i < numtris; ++i, ++mt) {
+				gen->tri_weights[i] *= norm;
 			}
 		}
 		else {
 			/* invalid weights, remove to avoid invalid binary search */
-			MEM_freeN(gen->face_weights);
-			gen->face_weights = NULL;
+			MEM_freeN(gen->tri_weights);
+			gen->tri_weights = NULL;
 		}
 		
 #ifdef USE_DEBUG_COUNT
