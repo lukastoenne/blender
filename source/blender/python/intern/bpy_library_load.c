@@ -264,8 +264,13 @@ static PyObject *bpy_lib_enter(BPy_Library *self, PyObject *UNUSED(args))
 			if (BKE_idcode_is_linkable(code)) {
 				const char *name_plural = BKE_idcode_to_name_plural(code);
 				PyObject *str = PyUnicode_FromString(name_plural);
-				PyDict_SetItem(self->dict, str, PyList_New(0));
-				PyDict_SetItem(from_dict, str, _bpy_names(self, code));
+				PyObject *item;
+
+				PyDict_SetItem(self->dict, str, item = PyList_New(0));
+				Py_DECREF(item);
+				PyDict_SetItem(from_dict, str, item = _bpy_names(self, code));
+				Py_DECREF(item);
+
 				Py_DECREF(str);
 			}
 		}
@@ -346,30 +351,30 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *UNUSED(args))
 					/* loop */
 					Py_ssize_t size = PyList_GET_SIZE(ls);
 					Py_ssize_t i;
-					PyObject *item;
-					const char *item_str;
 
 					for (i = 0; i < size; i++) {
-						item = PyList_GET_ITEM(ls, i);
-						item_str = _PyUnicode_AsString(item);
+						PyObject *item_src = PyList_GET_ITEM(ls, i);
+#ifdef USE_RNA_DATABLOCKS
+						PyObject *item_dst = NULL;
+#endif
+						const char *item_idname = _PyUnicode_AsString(item_src);
 
-						// printf("  %s\n", item_str);
+						// printf("  %s\n", item_idname);
 
-						if (item_str) {
-							ID *id = BLO_library_link_named_part(mainl, &(self->blo_handle), idcode, item_str);
+						if (item_idname) {
+							ID *id = BLO_library_link_named_part(mainl, &(self->blo_handle), idcode, item_idname);
 							if (id) {
 #ifdef USE_RNA_DATABLOCKS
 								/* swap name for pointer to the id */
-								Py_DECREF(item);
-								item = PyCapsule_New((void *)id, NULL, NULL);
+								item_dst = PyCapsule_New((void *)id, NULL, NULL);
 #endif
 							}
 							else {
-								bpy_lib_exit_warn_idname(self, name_plural, item_str);
+								bpy_lib_exit_warn_idname(self, name_plural, item_idname);
 								/* just warn for now */
 								/* err = -1; */
 #ifdef USE_RNA_DATABLOCKS
-								item = Py_INCREF_RET(Py_None);
+								item_dst = Py_INCREF_RET(Py_None);
 #endif
 							}
 
@@ -377,16 +382,20 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *UNUSED(args))
 						}
 						else {
 							/* XXX, could complain about this */
-							bpy_lib_exit_warn_type(self, item);
+							bpy_lib_exit_warn_type(self, item_src);
 							PyErr_Clear();
 
 #ifdef USE_RNA_DATABLOCKS
-							item = Py_INCREF_RET(Py_None);
+							item_dst = Py_INCREF_RET(Py_None);
 #endif
 						}
 
 #ifdef USE_RNA_DATABLOCKS
-						PyList_SET_ITEM(ls, i, item);
+						if (item_dst) {
+							/* item_dst must be new or already incref'd */
+							Py_DECREF(item_src);
+							PyList_SET_ITEM(ls, i, item_dst);
+						}
 #endif
 					}
 				}
