@@ -1624,7 +1624,7 @@ bool RNA_property_editable(PointerRNA *ptr, PropertyRNA *prop)
 	flag = prop->editable ? prop->editable(ptr) : prop->flag;
 	return ((flag & PROP_EDITABLE) &&
 	        (flag & PROP_REGISTER) == 0 &&
-	        (!id || !id->lib || (prop->flag & PROP_LIB_EXCEPTION)));
+	        (!id || !ID_IS_LINKED_DATABLOCK(id) || (prop->flag & PROP_LIB_EXCEPTION)));
 }
 
 bool RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop)
@@ -1656,13 +1656,13 @@ bool RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index)
 
 	id = ptr->id.data;
 
-	return (flag & PROP_EDITABLE) && (!id || !id->lib || (prop->flag & PROP_LIB_EXCEPTION));
+	return (flag & PROP_EDITABLE) && (!id || !ID_IS_LINKED_DATABLOCK(id) || (prop->flag & PROP_LIB_EXCEPTION));
 }
 
 bool RNA_property_animateable(PointerRNA *ptr, PropertyRNA *prop)
 {
 	/* check that base ID-block can support animation data */
-	if (!id_type_can_have_animdata(ptr->id.data))
+	if (!id_can_have_animdata(ptr->id.data))
 		return false;
 	
 	prop = rna_ensure_property(prop);
@@ -4678,7 +4678,7 @@ static void rna_path_array_multi_string_from_flat_index(
 }
 
 /**
- * \param index_dim: The dimensiuon to show, 0 disables. 1 for 1d array, 2 for 2d. etc.
+ * \param index_dim: The dimension to show, 0 disables. 1 for 1d array, 2 for 2d. etc.
  * \param index: The *flattened* index to use when \a ``index_dim > 0``,
  * this is expanded when used with multi-dimensional arrays.
  */

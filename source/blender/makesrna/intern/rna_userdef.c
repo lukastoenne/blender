@@ -94,10 +94,12 @@ EnumPropertyItem rna_enum_navigation_mode_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+#if defined(WITH_INTERNATIONAL) || !defined(RNA_RUNTIME)
 static EnumPropertyItem rna_enum_language_default_items[] = {
 	{0, "DEFAULT", 0, "Default (Default)", ""},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 #ifdef RNA_RUNTIME
 
@@ -2787,6 +2789,13 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Keyframe Border Selected", "Color of selected keyframe border");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	
+	prop = RNA_def_property(srna, "keyframe_scale_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "keyframe_scale_fac");
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Keyframe Scale Factor", "Scale factor for adjusting the height of keyframes");
+	RNA_def_property_range(prop, 0.8f, 5.0f); /* Note: These limits prevent buttons overlapping (min), and excessive size... (max) */
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, "rna_userdef_update");
 	
 	
 	prop = RNA_def_property(srna, "summary", PROP_FLOAT, PROP_COLOR_GAMMA);

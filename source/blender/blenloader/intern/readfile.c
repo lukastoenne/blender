@@ -113,7 +113,6 @@
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
-#include "BKE_blender_version.h"
 #include "BKE_brush.h"
 #include "BKE_cloth.h"
 #include "BKE_constraint.h"
@@ -880,8 +879,6 @@ static void decode_blender_header(FileData *fd)
 	
 	if (readsize == sizeof(header)) {
 		if (STREQLEN(header, "BLENDER", 7)) {
-			int remove_this_endian_test = 1;
-			
 			fd->flags |= FD_FLAGS_FILE_OK;
 			
 			/* what size are pointers in the file ? */
@@ -900,7 +897,7 @@ static void decode_blender_header(FileData *fd)
 			/* is the file saved in a different endian
 			 * than we need ?
 			 */
-			if (((((char *)&remove_this_endian_test)[0] == 1) ? L_ENDIAN : B_ENDIAN) != ((header[8] == 'v') ? L_ENDIAN : B_ENDIAN)) {
+			if (((header[8] == 'v') ? L_ENDIAN : B_ENDIAN) != ENDIAN_ORDER) {
 				fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
 			}
 			
@@ -912,7 +909,10 @@ static void decode_blender_header(FileData *fd)
 	}
 }
 
-static int read_file_dna(FileData *fd)
+/**
+ * \return Success if the file is read correctly, else set \a r_error_message.
+ */
+static bool read_file_dna(FileData *fd, const char **r_error_message)
 {
 	BHead *bhead;
 	
@@ -920,20 +920,25 @@ static int read_file_dna(FileData *fd)
 		if (bhead->code == DNA1) {
 			const bool do_endian_swap = (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0;
 			
-			fd->filesdna = DNA_sdna_from_data(&bhead[1], bhead->len, do_endian_swap);
+			fd->filesdna = DNA_sdna_from_data(&bhead[1], bhead->len, do_endian_swap, true, r_error_message);
 			if (fd->filesdna) {
 				fd->compflags = DNA_struct_get_compareflags(fd->filesdna, fd->memsdna);
 				/* used to retrieve ID names from (bhead+1) */
 				fd->id_name_offs = DNA_elem_offset(fd->filesdna, "ID", "char", "name[]");
+
+				return true;
+			}
+			else {
+				return false;
 			}
 			
-			return 1;
 		}
 		else if (bhead->code == ENDB)
 			break;
 	}
 	
-	return 0;
+	*r_error_message = "Missing DNA block";
+	return false;
 }
 
 static int *read_file_thumbnail(FileData *fd)
@@ -1075,13 +1080,9 @@ static FileData *filedata_new(void)
 	
 	fd->filedes = -1;
 	fd->gzfiledes = NULL;
-	
-	/* XXX, this doesn't need to be done all the time,
-	 * but it keeps us re-entrant,  remove once we have
-	 * a lib that provides a nice lock. - zr
-	 */
-	fd->memsdna = DNA_sdna_from_data(DNAstr, DNAlen, false);
-	
+
+	fd->memsdna = DNA_sdna_current_get();
+
 	fd->datamap = oldnewmap_new();
 	fd->globmap = oldnewmap_new();
 	fd->libmap = oldnewmap_new();
@@ -1094,8 +1095,11 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 	decode_blender_header(fd);
 	
 	if (fd->flags & FD_FLAGS_FILE_OK) {
-		if (!read_file_dna(fd)) {
-			BKE_reportf(reports, RPT_ERROR, "Failed to read blend file '%s', incomplete", fd->relabase);
+		const char *error_message = NULL;
+		if (read_file_dna(fd, &error_message) == false) {
+			BKE_reportf(reports, RPT_ERROR,
+			            "Failed to read blend file '%s': %s",
+			            fd->relabase, error_message);
 			blo_freefiledata(fd);
 			fd = NULL;
 		}
@@ -1272,9 +1276,7 @@ void blo_freefiledata(FileData *fd)
 		
 		// Free all BHeadN data blocks
 		BLI_freelistN(&fd->listbase);
-		
-		if (fd->memsdna)
-			DNA_sdna_free(fd->memsdna);
+
 		if (fd->filesdna)
 			DNA_sdna_free(fd->filesdna);
 		if (fd->compflags)
@@ -1847,7 +1849,7 @@ void blo_add_library_pointer_map(ListBase *old_mainlist, FileData *fd)
 /* ********** END OLD POINTERS ****************** */
 /* ********** READ FILE ****************** */
 
-static void switch_endian_structs(struct SDNA *filesdna, BHead *bhead)
+static void switch_endian_structs(const struct SDNA *filesdna, BHead *bhead)
 {
 	int blocksize, nblocks;
 	char *data;
@@ -2142,6 +2144,7 @@ static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_p
 			}
 			prv->gputexture[i] = NULL;
 		}
+		prv->icon_id = 0;
 	}
 	
 	return prv;
@@ -6452,7 +6455,7 @@ static void *restore_pointer_by_name_main(Main *mainp, ID *id, ePointerUserMode 
  * - USER_IGNORE: no usercount change
  * - USER_REAL: ensure a real user (even if a fake one is set)
  * \param id_map: lookup table, use when performing many lookups.
- * this could be made an optional agument (falling back to a full lookup),
+ * this could be made an optional argument (falling back to a full lookup),
  * however at the moment it's always available.
  */
 static void *restore_pointer_by_name(struct IDNameLib_Map *id_map, ID *id, ePointerUserMode user)
@@ -8288,9 +8291,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	blo_do_versions_250(fd, lib, main);
 	blo_do_versions_260(fd, lib, main);
 	blo_do_versions_270(fd, lib, main);
-
-	main->versionfile = BLENDER_VERSION;
-	main->subversionfile = BLENDER_SUBVERSION;
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
