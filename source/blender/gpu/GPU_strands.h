@@ -54,16 +54,30 @@ typedef enum GPUStrands_Effects {
 	GPU_STRAND_EFFECT_CURL          = (1 << 1),
 } GPUStrands_Effects;
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
-                                        GPUStrands_ShaderModel shader_model,
-                                        int effects,
-                                        bool use_geometry_shader);
+typedef enum GPUStrands_FiberPrimitive {
+	GPU_STRANDS_FIBER_LINE = 0,
+	GPU_STRANDS_FIBER_RIBBON,
+} GPUStrands_FiberPrimitive;
+
+typedef struct GPUDrawStrandsParams {
+	struct Strands *strands;
+	struct BMEditStrands *edit;
+	struct DerivedMesh *root_dm;
+	int subdiv;
+	GPUStrands_FiberPrimitive fiber_primitive;
+	int effects;
+	bool use_geomshader;
+	GPUStrands_ShaderModel shader_model;
+} GPUDrawStrandsParams;
+
+GPUStrandsShader *GPU_strand_shader_get(struct GPUDrawStrandsParams *params);
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
 void GPU_strand_shader_bind(
         GPUStrandsShader *gpu_shader,
         float viewmat[4][4], float viewinv[4][4],
+        float ribbon_width,
         float clump_thickness, float clump_shape,
         float curl_thickness, float curl_shape, float curl_radius, float curl_length,
         int debug_value);
@@ -79,27 +93,19 @@ void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader,
 
 /* Strand Buffers */
 
-typedef struct GPUDrawStrandsParams {
-	struct Strands *strands;
-	struct BMEditStrands *edit;
-	struct DerivedMesh *root_dm;
-	int subdiv;
-	bool use_geomshader;
-} GPUDrawStrandsParams;
-
-typedef enum GPUStrandsComponent {
+typedef enum GPUStrands_Component {
 	GPU_STRANDS_COMPONENT_CONTROLS = (1 << 0),
 	GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES = (1 << 1),
 	GPU_STRANDS_COMPONENT_FIBERS = (1 << 2) | GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES,
 	GPU_STRANDS_COMPONENT_ALL = ~0,
-} GPUStrandsComponent;
+} GPUStrands_Component;
 
 struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);
 
 void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
 void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
 void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_buffer_invalidate(struct GPUDrawStrands *gpu_buffer, GPUStrandsComponent);
+void GPU_strands_buffer_invalidate(struct GPUDrawStrands *gpu_buffer, GPUStrands_Component);
 
 void GPU_strands_buffer_unbind(void);
 

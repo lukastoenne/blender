@@ -113,11 +113,12 @@ static char *codegen_fragment(void)
 	return code;
 }
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
-                                        GPUStrands_ShaderModel shader_model,
-                                        int effects,
-                                        bool use_geometry_shader)
+GPUStrandsShader *GPU_strand_shader_get(GPUDrawStrandsParams *params)
 {
+	Strands *strands = params->strands;
+	int effects = params->effects;
+	bool use_geometry_shader = params->use_geomshader;
+	
 	if (strands->gpu_shader != NULL)
 		return strands->gpu_shader;
 	
@@ -139,7 +140,7 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
 		                            "#define USE_GEOMSHADER\n");
 	}
-	switch (shader_model) {
+	switch (params->shader_model) {
 		case GPU_STRAND_SHADER_CLASSIC_BLENDER:
 			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
 			                            "#define SHADING_CLASSIC_BLENDER\n");
@@ -153,6 +154,17 @@ GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands,
 			                            "#define SHADING_MARSCHNER\n");
 			break;
 	}
+	switch (params->fiber_primitive) {
+		case GPU_STRANDS_FIBER_LINE:
+			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+			                            "#define FIBER_LINE\n");
+			break;
+		case GPU_STRANDS_FIBER_RIBBON:
+			defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
+			                            "#define FIBER_RIBBON\n");
+			break;
+	}
+
 	if (effects & GPU_STRAND_EFFECT_CLUMP)
 		defines_cur += BLI_snprintf(defines_cur, MAX_DEFINES - (defines_cur - defines),
 		                            "#define USE_EFFECT_CLUMPING\n");
@@ -284,6 +296,7 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 
 void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
                       float viewmat[4][4], float viewinv[4][4],
+                      float ribbon_width,
                       float clump_thickness, float clump_shape,
                       float curl_thickness, float curl_shape, float curl_radius, float curl_length,
                       int debug_value)
@@ -293,6 +306,7 @@ void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
 		return;
 
 	GPU_shader_bind(shader);
+	glUniform1f(GPU_shader_get_uniform(shader, "ribbon_width"), ribbon_width);
 	glUniform1f(GPU_shader_get_uniform(shader, "clump_thickness"), clump_thickness);
 	glUniform1f(GPU_shader_get_uniform(shader, "clump_shape"), clump_shape);
 	glUniform1f(GPU_shader_get_uniform(shader, "curl_thickness"), curl_thickness);

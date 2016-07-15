@@ -1550,9 +1550,11 @@ typedef struct StrandsModifierData {
 	int num_fibers;
 	int seed;
 	int subdiv;
-	int pad;
 	
 	int shader_model;
+	int fiber_primitive;
+	float ribbon_width;
+	int pad;
 	
 	struct Strands *strands;
 	
@@ -1574,12 +1576,20 @@ enum {
 	MOD_STRANDS_USE_GEOMSHADER = (1 << 2),
 };
 
+/* StrandsModifierData.shader_model */
 enum {
 	MOD_STRANDS_SHADER_CLASSIC_BLENDER = 0,
 	MOD_STRANDS_SHADER_KAJIYA = 1,
 	MOD_STRANDS_SHADER_MARSCHNER = 2,
 };
 
+/* StrandsModifierData.fiber_primitive */
+enum {
+	MOD_STRANDS_FIBER_LINE = 0,
+	MOD_STRANDS_FIBER_RIBBON = 1,
+};
+
+/* StrandsModifierData.effects */
 enum {
 	MOD_STRANDS_EFFECT_CLUMP     = (1 << 0),
 	MOD_STRANDS_EFFECT_CURL         = (1 << 1),

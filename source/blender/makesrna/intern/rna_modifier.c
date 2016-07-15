@@ -4682,6 +4682,12 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem fiber_primitive_items[] = {
+	    {MOD_STRANDS_FIBER_LINE, "LINE", 0, "Line", "Simple lines"},
+	    {MOD_STRANDS_FIBER_RIBBON, "RIBBON", 0, "Ribbon", "Triangle strip oriented towards the camera"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "StrandsModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Strands Modifier", "Modifier modeling hair strands");
 	RNA_def_struct_sdna(srna, "StrandsModifierData");
@@ -4726,6 +4732,19 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, shader_model_items);
 	RNA_def_property_ui_text(prop, "Shader Model", "Model used for shading fibers in the viewport");
 	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
+	prop = RNA_def_property(srna, "fiber_primitive", PROP_ENUM, PROP_UNSIGNED);
+	RNA_def_property_enum_sdna(prop, NULL, "fiber_primitive");
+	RNA_def_property_enum_items(prop, fiber_primitive_items);
+	RNA_def_property_ui_text(prop, "Fiber Primitive", "Geometry element to use for rendering fibers");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
+	prop = RNA_def_property(srna, "ribbon_width", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_default(prop, 0.005f);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0001f, 1.0f, 0.001f, 3);
+	RNA_def_property_ui_text(prop, "Ribbon Width", "Width of fiber ribbons");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 	
 	prop = RNA_def_property(srna, "use_geometry_shader", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_STRANDS_USE_GEOMSHADER);

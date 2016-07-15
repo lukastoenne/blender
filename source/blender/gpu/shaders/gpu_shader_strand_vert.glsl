@@ -20,6 +20,8 @@ out vec3 fPosition;
 out vec3 fTangent;
 out vec3 fColor;
 
+uniform float ribbon_width;
+
 uniform usamplerBuffer control_curves;
 uniform samplerBuffer control_points;
 uniform samplerBuffer control_normals;
@@ -72,7 +74,15 @@ void main()
 	// TODO define proper curve scale, independent of subdivision!
 	displace_vertex(loc, nor, curve_param, 1.0, cloc[0], cframe0);
 
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(loc, 1.0);
+	vec4 co = gl_ModelViewMatrix * vec4(loc, 1.0);
+#ifdef FIBER_RIBBON
+	vec4 view_nor = gl_ModelViewMatrix * vec4(nor, 0.0);
+	//vec2 view_offset = normalize(cross(vec3(0.0, 0.0, 1.0), view_nor.xyz).xy);
+	vec2 view_offset = normalize(vec2(view_nor.y, -view_nor.x));
+	co += vec4((float(gl_VertexID % 2) - 0.5) * ribbon_width * view_offset, 0.0, 0.0);
+#endif
+	gl_Position = gl_ProjectionMatrix * co;
+
 	fPosition = mat3_emu(gl_ModelViewMatrix) * loc;
 	fTangent = gl_NormalMatrix * nor;
 	fColor = (nor + vec3(1.0)) * 0.5;

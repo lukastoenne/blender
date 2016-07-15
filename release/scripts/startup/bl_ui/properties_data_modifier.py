@@ -877,22 +877,26 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def STRANDS(self, layout, ob, md):
         layout.operator("object.strands_test_init", text="Test Init")
 
+        layout.label("Display:")
+        layout.prop(md, "show_strands", text="Control Strands")
+        layout.prop(md, "show_fibers", text="Fibers")
+
         split = layout.split()
         col = split.column()
+        
+        col.label("Fibers:")
         col.prop(md, "seed")
         col.prop(md, "num_fibers")
-
-        col = split.column()
-        col.label(text="Display:")
-        col.prop(md, "show_strands", text="Control Strands")
-        col.prop(md, "show_fibers", text="Fibers")
         col.prop(md, "subdivisions")
-        col.prop(md, "use_geometry_shader")
-        col.prop(md, "debug_value")
-        
+
         col.separator()
 
-        col.label("Shader Model:")
+        col.prop(md, "fiber_primitive", text="")
+        if (md.fiber_primitive == 'RIBBON'):
+            col.prop(md, "ribbon_width")
+
+        col = split.column()
+        col.label(text="Shader:")
         col.prop(md, "shader_model", text="")
         
         layout.separator()
@@ -910,6 +914,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             box.prop(md, "curl_shape")
             box.prop(md, "curl_radius")
             box.prop(md, "curl_length")
+
+        layout.separator()
+
+        layout.prop(md, "use_geometry_shader")
+        layout.prop(md, "debug_value")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

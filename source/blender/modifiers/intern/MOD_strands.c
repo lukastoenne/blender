@@ -66,6 +66,8 @@ static void initData(ModifierData *md)
 	smd->edit = NULL;
 	smd->gpu_buffer = NULL;
 	
+	smd->ribbon_width = 0.005f;
+	
 	smd->clump_thickness = 0.1f;
 	smd->clump_shape = 1.0f;
 	smd->curl_thickness = 0.1f;

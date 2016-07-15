@@ -158,7 +158,7 @@ typedef struct GPUDrawStrands {
 	GPUBuffer *control_tangents;
 	GPUBuffer *fibers;
 	GPUBuffer *fiber_points;
-	GPUBuffer *fiber_edges;
+	GPUBuffer *fiber_indices;
 	GPUBuffer *fiber_position;
 	GPUBuffer *fiber_control_index;
 	GPUBuffer *fiber_control_weight;
@@ -178,7 +178,7 @@ typedef struct GPUDrawStrands {
 	unsigned int control_totcurves;
 	unsigned int totfibers;
 	unsigned int fiber_totverts;
-	unsigned int fiber_totedges;
+	unsigned int fiber_totelems;
 } GPUDrawStrands;
 
 

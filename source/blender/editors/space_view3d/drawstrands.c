@@ -79,6 +79,17 @@ static GPUStrands_ShaderModel get_shader_model(int smd_shader_model)
 	return 0;
 }
 
+static GPUStrands_FiberPrimitive get_fiber_primitive(int smd_fiber_primitive)
+{
+	switch (smd_fiber_primitive) {
+		case MOD_STRANDS_FIBER_LINE: return GPU_STRANDS_FIBER_LINE;
+		case MOD_STRANDS_FIBER_RIBBON: return GPU_STRANDS_FIBER_RIBBON;
+	}
+	
+	BLI_assert(false && "Unhandled fiber primitive enum value!");
+	return 0;
+}
+
 static int get_effects(int smd_effects)
 {
 	GPUStrands_Effects effects = 0;
@@ -95,6 +106,7 @@ static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
 {
 	GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
 	GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv,
+	                       smd->ribbon_width,
 	                       smd->clump_thickness, smd->clump_shape,
 	                       smd->curl_thickness, smd->curl_shape, smd->curl_radius, smd->curl_length,
 	                       smd->debug_value);
@@ -115,15 +127,15 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	params.strands = smd->strands;
 	params.root_dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	params.subdiv = smd->subdiv;
+	params.fiber_primitive = get_fiber_primitive(smd->fiber_primitive);
+	params.effects = get_effects(smd->effects);
 	params.use_geomshader = use_geomshader;
+	params.shader_model = get_shader_model(smd->shader_model);
 	
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(strands,
-	                                                 get_shader_model(smd->shader_model),
-	                                                 get_effects(smd->effects),
-	                                                 use_geomshader);
+	GPUStrandsShader *shader = GPU_strand_shader_get(&params);
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);
@@ -153,7 +165,7 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 			}
 		}
 		else {
-			if (buffer->fiber_points && buffer->fiber_edges) {
+			if (buffer->fiber_points && buffer->fiber_indices) {
 				struct GPUAttrib *attrib;
 				int num_attrib;
 				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
@@ -161,8 +173,16 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
 				GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
 				
-				GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
-				                         buffer->fiber_totedges * 2);
+				switch (params.fiber_primitive) {
+					case GPU_STRANDS_FIBER_LINE:
+						GPU_buffer_draw_elements(buffer->fiber_indices, GL_LINES, 0,
+						                         buffer->fiber_totelems);
+						break;
+					case GPU_STRANDS_FIBER_RIBBON:
+						GPU_buffer_draw_elements(buffer->fiber_indices, GL_TRIANGLE_STRIP, 0,
+						                         buffer->fiber_totelems);
+						break;
+				}
 				
 				GPU_interleaved_attrib_unbind();
 			}
@@ -500,15 +520,15 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	params.edit = edit;
 	params.root_dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	params.subdiv = smd->subdiv;
+	params.fiber_primitive = get_fiber_primitive(smd->fiber_primitive);
+	params.effects = get_effects(smd->effects);
 	params.use_geomshader = use_geomshader;
+	params.shader_model = get_shader_model(smd->shader_model);
 	
 	if (smd->gpu_buffer == NULL)
 		smd->gpu_buffer = GPU_strands_buffer_create(&params);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
-	GPUStrandsShader *shader = GPU_strand_shader_get(smd->strands,
-	                                                 get_shader_model(smd->shader_model),
-	                                                 get_effects(smd->effects),
-	                                                 use_geomshader);
+	GPUStrandsShader *shader = GPU_strand_shader_get(&params);
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, &params);
@@ -537,7 +557,7 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 			}
 		}
 		else {
-			if (buffer->fiber_points && buffer->fiber_edges) {
+			if (buffer->fiber_points && buffer->fiber_indices) {
 				struct GPUAttrib *attrib;
 				int num_attrib;
 				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
@@ -545,8 +565,16 @@ void draw_strands_edit(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
 				GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
 				
-				GPU_buffer_draw_elements(buffer->fiber_edges, GL_LINES, 0,
-				                         buffer->fiber_totedges * 2);
+				switch (params.fiber_primitive) {
+					case GPU_STRANDS_FIBER_LINE:
+						GPU_buffer_draw_elements(buffer->fiber_indices, GL_LINES, 0,
+						                         buffer->fiber_totelems);
+						break;
+					case GPU_STRANDS_FIBER_RIBBON:
+						GPU_buffer_draw_elements(buffer->fiber_indices, GL_TRIANGLE_STRIP, 0,
+						                         buffer->fiber_totelems);
+						break;
+				}
 				
 				GPU_interleaved_attrib_unbind();
 			}

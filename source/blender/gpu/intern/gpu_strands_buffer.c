@@ -130,7 +130,7 @@ static GPUBuffer **gpu_strands_buffer_from_type(GPUDrawStrands *gds, GPUStrandBu
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
 			return &gds->fiber_points;
 		case GPU_STRAND_BUFFER_FIBER_EDGE:
-			return &gds->fiber_edges;
+			return &gds->fiber_indices;
 		case GPU_STRAND_BUFFER_FIBER_POSITION:
 			return &gds->fiber_position;
 		case GPU_STRAND_BUFFER_FIBER_CONTROL_INDEX:
@@ -194,7 +194,7 @@ static size_t gpu_strands_buffer_size_from_type(GPUDrawStrands *gpu_buffer, GPUS
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
 			return sizeof(GPUFiberVertex) * gpu_buffer->fiber_totverts;
 		case GPU_STRAND_BUFFER_FIBER_EDGE:
-			return sizeof(int) * 2 * gpu_buffer->fiber_totedges;
+			return sizeof(int) * gpu_buffer->fiber_totelems;
 		case GPU_STRAND_BUFFER_FIBER_POSITION:
 			return sizeof(float) * 3 * gpu_buffer->totfibers;
 		case GPU_STRAND_BUFFER_FIBER_CONTROL_INDEX:
@@ -265,21 +265,39 @@ static int strands_fiber_length(StrandFiber *fiber, StrandCurve *curves, unsigne
 }
 
 static void strands_count_fibers(GPUDrawStrandsParams *params,
-                                 unsigned int *r_totfibers, unsigned int *r_totverts, unsigned int *r_totedges)
+                                 unsigned int *r_totfibers, unsigned int *r_totverts, unsigned int *r_totelems)
 {
 	Strands *strands = params->strands;
 	
 	unsigned int totfibers = strands->totfibers;
 	
 	unsigned int totverts = 0;
+	unsigned int totelems = 0;
 	StrandFiber *fiber = strands->fibers;
-	for (int i = 0; i < totfibers; ++i, ++fiber)
-		totverts += strands_fiber_length(fiber, strands->curves, strands->totcurves, params->subdiv);
-	unsigned int totedges = totverts - totfibers;
+	switch (params->fiber_primitive) {
+		case GPU_STRANDS_FIBER_LINE:
+			for (int i = 0; i < totfibers; ++i, ++fiber)
+				totverts += strands_fiber_length(fiber, strands->curves, strands->totcurves, params->subdiv);
+			/* GL_LINES
+			 * Note: GL_LINE_STRIP does not support degenerate elements,
+			 * so we have to use a line strip and render individual segments
+			 */
+			totelems = 2 * (totverts - totfibers);
+			break;
+		case GPU_STRANDS_FIBER_RIBBON:
+			for (int i = 0; i < totfibers; ++i, ++fiber)
+				totverts += strands_fiber_length(fiber, strands->curves, strands->totcurves, params->subdiv);
+			totverts *= 2; /* ribbon has 2 edges */
+			/* GL_TRIANGLE_STRIP
+			 * Extra elements are degenerate triangles for splitting the strip
+			 */
+			totelems = totverts + 2 * (totfibers - 1);
+			break;
+	}
 	
 	if (r_totfibers) *r_totfibers = totfibers;
 	if (r_totverts) *r_totverts = totverts;
-	if (r_totedges) *r_totedges = totedges;
+	if (r_totelems) *r_totelems = totelems;
 }
 
 static int editstrands_fiber_length(StrandFiber *fiber, BMStrandCurve *curves, int totcurves, int subdiv)
@@ -298,7 +316,7 @@ static int editstrands_fiber_length(StrandFiber *fiber, BMStrandCurve *curves, i
 }
 
 static void editstrands_count_fibers(GPUDrawStrandsParams *params,
-                                     unsigned int *r_totfibers, unsigned int *r_totverts, unsigned int *r_totedges)
+                                     unsigned int *r_totfibers, unsigned int *r_totverts, unsigned int *r_totelems)
 {
 	BMEditStrands *edit = params->edit;
 	BLI_assert(edit != NULL);
@@ -309,17 +327,34 @@ static void editstrands_count_fibers(GPUDrawStrandsParams *params,
 	unsigned int totcurves;
 	BMStrandCurve *curves = editstrands_build_curves(bm, &totcurves);
 	
-	int totverts = 0;
+	unsigned int totverts = 0;
+	unsigned int totelems = 0;
 	StrandFiber *fiber = edit->fibers;
-	for (int i = 0; i < totfibers; ++i, ++fiber)
-		totverts += editstrands_fiber_length(fiber, curves, totcurves, params->subdiv);
-	unsigned int totedges = totverts - totfibers;
+	switch (params->fiber_primitive) {
+		case GPU_STRANDS_FIBER_LINE:
+			for (int i = 0; i < totfibers; ++i, ++fiber)
+				totverts += editstrands_fiber_length(fiber, curves, totcurves, params->subdiv);
+			/* GL_LINES
+			 * TODO this should become a GL_LINE_STRIP
+			 */
+			totelems = 2 * (totverts - totfibers);
+			break;
+		case GPU_STRANDS_FIBER_RIBBON:
+			for (int i = 0; i < totfibers; ++i, ++fiber)
+				totverts += editstrands_fiber_length(fiber, curves, totcurves, params->subdiv);
+			totverts *= 2; /* ribbon has 2 edges */
+			/* GL_TRIANGLE_STRIP
+			 * extra elements are degenerate triangles for splitting the strip
+			 */
+			totelems = totverts + 2 * (totfibers - 1);
+			break;
+	}
 	
 	MEM_freeN(curves);
 	
 	if (r_totfibers) *r_totfibers = totfibers;
 	if (r_totverts) *r_totverts = totverts;
-	if (r_totedges) *r_totedges = totedges;
+	if (r_totelems) *r_totelems = totelems;
 }
 
 GPUDrawStrands *GPU_strands_buffer_create(GPUDrawStrandsParams *params)
@@ -339,10 +374,10 @@ GPUDrawStrands *GPU_strands_buffer_create(GPUDrawStrandsParams *params)
 		if (params->use_geomshader) {
 			gds->totfibers = edit->totfibers;
 			gds->fiber_totverts = 0;
-			gds->fiber_totedges = 0;
+			gds->fiber_totelems = 0;
 		}
 		else {
-			editstrands_count_fibers(params, &gds->totfibers, &gds->fiber_totverts, &gds->fiber_totedges);
+			editstrands_count_fibers(params, &gds->totfibers, &gds->fiber_totverts, &gds->fiber_totelems);
 		}
 	}
 	else {
@@ -356,10 +391,10 @@ GPUDrawStrands *GPU_strands_buffer_create(GPUDrawStrandsParams *params)
 		if (params->use_geomshader) {
 			gds->totfibers = strands->totfibers;
 			gds->fiber_totverts = 0;
-			gds->fiber_totedges = 0;
+			gds->fiber_totelems = 0;
 		}
 		else {
-			strands_count_fibers(params, &gds->totfibers, &gds->fiber_totverts, &gds->fiber_totedges);
+			strands_count_fibers(params, &gds->totfibers, &gds->fiber_totverts, &gds->fiber_totelems);
 		}
 	}
 	
@@ -592,7 +627,7 @@ static void strands_copy_fiber_data(GPUDrawStrandsParams *params, GPUFiber *varr
 	}
 }
 
-static void strands_copy_fiber_vertex_data(GPUDrawStrandsParams *params, GPUFiberVertex *varray)
+static void strands_copy_fiber_line_vertex_data(GPUDrawStrandsParams *params, GPUFiberVertex *varray)
 {
 	if (params->edit) {
 		BMEditStrands *edit = params->edit;
@@ -632,7 +667,59 @@ static void strands_copy_fiber_vertex_data(GPUDrawStrandsParams *params, GPUFibe
 	}
 }
 
-static void strands_copy_fiber_edge_data(GPUDrawStrandsParams *params, unsigned int (*varray)[2])
+static void strands_copy_fiber_ribbon_vertex_data(GPUDrawStrandsParams *params, GPUFiberVertex *varray)
+{
+	if (params->edit) {
+		BMEditStrands *edit = params->edit;
+		BMesh *bm = edit->base.bm;
+		int totfibers = edit->totfibers;
+		
+		unsigned int totcurves;
+		BMStrandCurve *curves = editstrands_build_curves(bm, &totcurves);
+		
+		StrandFiber *fiber = edit->fibers;
+		for (int i = 0; i < totfibers; ++i, ++fiber) {
+			int num_verts = editstrands_fiber_length(fiber, curves, totcurves, params->subdiv);
+			
+			for (int k = 0; k < num_verts; ++k) {
+				/* two vertices for the two edges of the ribbon */
+				
+				varray->fiber_index = i;
+				varray->curve_param = (float)k / (float)(num_verts - 1);
+				++varray;
+				
+				varray->fiber_index = i;
+				varray->curve_param = (float)k / (float)(num_verts - 1);
+				++varray;
+			}
+		}
+		
+		MEM_freeN(curves);
+	}
+	else {
+		Strands *strands = params->strands;
+		int totfibers = strands->totfibers;
+		
+		StrandFiber *fiber = strands->fibers;
+		for (int i = 0; i < totfibers; ++i, ++fiber) {
+			int num_verts = strands_fiber_length(fiber, strands->curves, strands->totcurves, params->subdiv);
+			
+			for (int k = 0; k < num_verts; ++k) {
+				/* two vertices for the two edges of the ribbon */
+				
+				varray->fiber_index = i;
+				varray->curve_param = (float)k / (float)(num_verts - 1);
+				++varray;
+				
+				varray->fiber_index = i;
+				varray->curve_param = (float)k / (float)(num_verts - 1);
+				++varray;
+			}
+		}
+	}
+}
+
+static void strands_copy_fiber_line_edge_data(GPUDrawStrandsParams *params, unsigned int (*varray)[2])
 {
 	if (params->edit) {
 		BMEditStrands *edit = params->edit;
@@ -674,6 +761,66 @@ static void strands_copy_fiber_edge_data(GPUDrawStrandsParams *params, unsigned 
 			}
 			
 			verts_begin += num_verts;
+		}
+	}
+}
+
+static void strands_copy_fiber_ribbon_edge_data(GPUDrawStrandsParams *params, unsigned int *varray)
+{
+	if (params->edit) {
+		BMEditStrands *edit = params->edit;
+		BMesh *bm = edit->base.bm;
+		int totfibers = edit->totfibers;
+		
+		unsigned int totcurves;
+		BMStrandCurve *curves = editstrands_build_curves(bm, &totcurves);
+		
+		StrandFiber *fiber = edit->fibers;
+		int verts_begin = 0;
+		for (int i = 0; i < totfibers; ++i, ++fiber) {
+			int num_verts = editstrands_fiber_length(fiber, curves, totcurves, params->subdiv);
+			
+			if (i > 0 && verts_begin > 0) {
+				/* repeat cap vertices to create degenerate triangles
+				 * and separate fibers.
+				 */
+				*varray++ = verts_begin - 1;
+				*varray++ = verts_begin;
+			}
+			
+			for (int k = 0; k < num_verts; ++k) {
+				*varray++ = verts_begin + k * 2;
+				*varray++ = verts_begin + k * 2 + 1;
+			}
+			
+			verts_begin += num_verts *2;
+		}
+		
+		MEM_freeN(curves);
+	}
+	else {
+		Strands *strands = params->strands;
+		int totfibers = strands->totfibers;
+		
+		StrandFiber *fiber = strands->fibers;
+		int verts_begin = 0;
+		for (int i = 0; i < totfibers; ++i, ++fiber) {
+			int num_verts = strands_fiber_length(fiber, strands->curves, strands->totcurves, params->subdiv);
+			
+			if (i > 0 && verts_begin > 0) {
+				/* repeat cap vertices to create degenerate triangles
+				 * and separate fibers.
+				 */
+				*varray++ = verts_begin - 1;
+				*varray++ = verts_begin;
+			}
+			
+			for (int k = 0; k < num_verts; ++k) {
+				*varray++ = verts_begin + k * 2;
+				*varray++ = verts_begin + k * 2 + 1;
+			}
+			
+			verts_begin += num_verts *2;
 		}
 	}
 }
@@ -749,10 +896,24 @@ static void strands_copy_gpu_data(void *varray, void *vinfo)
 			strands_copy_fiber_data(params, (GPUFiber *)varray);
 			break;
 		case GPU_STRAND_BUFFER_FIBER_VERTEX:
-			strands_copy_fiber_vertex_data(params, (GPUFiberVertex *)varray);
+			switch (params->fiber_primitive) {
+				case GPU_STRANDS_FIBER_LINE:
+					strands_copy_fiber_line_vertex_data(params, (GPUFiberVertex *)varray);
+					break;
+				case GPU_STRANDS_FIBER_RIBBON:
+					strands_copy_fiber_ribbon_vertex_data(params, (GPUFiberVertex *)varray);
+					break;
+			}
 			break;
 		case GPU_STRAND_BUFFER_FIBER_EDGE:
-			strands_copy_fiber_edge_data(params, (unsigned int (*)[2])varray);
+			switch (params->fiber_primitive) {
+				case GPU_STRANDS_FIBER_LINE:
+					strands_copy_fiber_line_edge_data(params, (unsigned int (*)[2])varray);
+					break;
+				case GPU_STRANDS_FIBER_RIBBON:
+					strands_copy_fiber_ribbon_edge_data(params, (unsigned int *)varray);
+					break;
+			}
 			break;
 		case GPU_STRAND_BUFFER_FIBER_POSITION:
 		case GPU_STRAND_BUFFER_FIBER_CONTROL_INDEX:
@@ -834,7 +995,7 @@ void GPU_strands_setup_fibers(GPUDrawStrands *strands_buffer, GPUDrawStrandsPara
 			return;
 		
 		GPU_enable_vertex_buffer(strands_buffer->fiber_points, sizeof(GPUFiberVertex));
-		GPU_enable_element_buffer(strands_buffer->fiber_edges);
+		GPU_enable_element_buffer(strands_buffer->fiber_indices);
 	}
 
 	if (strands_buffer->control_curves_tex.id != 0) {
@@ -891,7 +1052,7 @@ void GPU_strands_buffer_unbind(void)
 	glActiveTexture(GL_TEXTURE0);
 }
 
-void GPU_strands_buffer_invalidate(GPUDrawStrands *gpu_buffer, GPUStrandsComponent components)
+void GPU_strands_buffer_invalidate(GPUDrawStrands *gpu_buffer, GPUStrands_Component components)
 {
 	if (components & GPU_STRANDS_COMPONENT_CONTROLS) {
 		GPU_buffer_free(gpu_buffer->strand_points);
@@ -918,10 +1079,10 @@ void GPU_strands_buffer_invalidate(GPUDrawStrands *gpu_buffer, GPUStrandsCompone
 	if (components & GPU_STRANDS_COMPONENT_FIBERS) {
 		GPU_buffer_free(gpu_buffer->fibers);
 		GPU_buffer_free(gpu_buffer->fiber_points);
-		GPU_buffer_free(gpu_buffer->fiber_edges);
+		GPU_buffer_free(gpu_buffer->fiber_indices);
 		gpu_buffer->fibers = NULL;
 		gpu_buffer->fiber_points = NULL;
-		gpu_buffer->fiber_edges = NULL;
+		gpu_buffer->fiber_indices = NULL;
 	}
 }
 
