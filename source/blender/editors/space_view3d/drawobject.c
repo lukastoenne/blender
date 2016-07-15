@@ -7979,7 +7979,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			
 			if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
 				if (!(dflag & DRAW_PICKING) && scene->obedit == NULL) {
-					draw_strands_edit(scene, v3d, rv3d, ob, smd);
+					draw_strands(scene, v3d, rv3d, ob, smd);
 				}
 			}
 			else {
