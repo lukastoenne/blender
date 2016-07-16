@@ -43,6 +43,7 @@
 
 struct BMesh;
 struct DerivedMesh;
+struct GPUStrandsConverter;
 struct Mesh;
 struct Object;
 struct Strands;
@@ -100,5 +101,9 @@ void BKE_editstrands_mesh_from_bmesh(struct Object *ob);
 /* === strands conversion === */
 struct BMesh *BKE_editstrands_strands_to_bmesh(struct Strands *strands, struct DerivedMesh *root_dm);
 void BKE_editstrands_strands_from_bmesh(struct Strands *strands, struct BMesh *bm, struct DerivedMesh *root_dm);
+
+/* === gpu buffer conversion === */
+struct GPUStrandsConverter *BKE_editstrands_get_gpu_converter(struct BMEditStrands *edit, struct DerivedMesh *root_dm,
+                                                              int subdiv, int fiber_primitive, bool use_geomshader);
 
 #endif

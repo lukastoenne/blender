@@ -113,9 +113,8 @@ static char *codegen_fragment(void)
 	return code;
 }
 
-GPUStrandsShader *GPU_strand_shader_get(GPUDrawStrandsParams *params)
+GPUStrandsShader *GPU_strand_shader_get(Strands *strands, GPUStrandsShaderParams *params)
 {
-	Strands *strands = params->strands;
 	int effects = params->effects;
 	bool use_geometry_shader = params->use_geomshader;
 	

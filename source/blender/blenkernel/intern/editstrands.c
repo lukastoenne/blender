@@ -56,6 +56,7 @@
 #include "BPH_strands.h"
 
 #include "GPU_buffers.h"
+#include "GPU_strands.h"
 
 #include "intern/bmesh_mesh_conv.h"
 #include "intern/bmesh_strands_conv.h"
@@ -367,4 +368,174 @@ void BKE_editstrands_strands_from_bmesh(Strands *strands, BMesh *bm, DerivedMesh
 	if (bm) {
 		BM_bm_to_strands(bm, strands, root_dm);
 	}
+}
+
+
+/* === gpu buffer conversion === */
+
+typedef struct BMStrandCurve
+{
+	BMVert *root;
+	int verts_begin;
+	int num_verts;
+} BMStrandCurve;
+
+static BMStrandCurve *editstrands_build_curves(BMesh *bm, int *r_totcurves)
+{
+	BMVert *root;
+	BMIter iter;
+	
+	int totstrands = BM_strands_count(bm);
+	BMStrandCurve *curves = MEM_mallocN(sizeof(BMStrandCurve) * totstrands, "BMStrandCurve");
+	
+	BMStrandCurve *curve = curves;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		curve->root = root;
+		curve->verts_begin = BM_elem_index_get(root);
+		curve->num_verts = BM_strand_verts_count(root);
+		
+		++curve;
+	}
+	
+	if (r_totcurves) *r_totcurves = totstrands;
+	return curves;
+}
+
+typedef struct BMEditStrandsConverter {
+	GPUStrandsConverter base;
+	BMEditStrands *edit;
+	BMStrandCurve *curves;
+	int totcurves;
+} BMEditStrandsConverter;
+
+static void BMEditStrandsConverter_free(GPUStrandsConverter *_conv)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	if (conv->curves)
+		MEM_freeN(conv->curves);
+	MEM_freeN(conv);
+}
+
+static int BMEditStrandsConverter_getNumFibers(GPUStrandsConverter *_conv)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	return conv->edit->totfibers;
+}
+
+static StrandFiber *BMEditStrandsConverter_getFiberArray(GPUStrandsConverter *_conv)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	return conv->edit->fibers;
+}
+
+static int BMEditStrandsConverter_getNumStrandVerts(GPUStrandsConverter *_conv)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	return conv->edit->base.bm->totvert;
+}
+
+static int BMEditStrandsConverter_getNumStrandCurves(GPUStrandsConverter *_conv)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	return conv->totcurves;
+}
+
+static int BMEditStrandsConverter_getNumStrandCurveVerts(GPUStrandsConverter *_conv, int curve_index)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	BLI_assert(curve_index < conv->totcurves);
+	return conv->curves[curve_index].num_verts;
+}
+
+static void BMEditStrandsConverter_foreachStrandVertex(GPUStrandsConverter *_conv, GPUStrandsVertexFunc cb, void *userdata)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	BMesh *bm = conv->edit->base.bm;
+	BMIter iter;
+	BMVert *vert;
+	int i;
+	
+	BM_ITER_MESH_INDEX(vert, &iter, bm, BM_VERTS_OF_MESH, i) {
+		cb(userdata, i, vert->co, NULL);
+	}
+}
+
+static void BMEditStrandsConverter_foreachStrandEdge(GPUStrandsConverter *_conv, GPUStrandsEdgeFunc cb, void *userdata)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	BMesh *bm = conv->edit->base.bm;
+	BMIter iter;
+	BMEdge *edge;
+	
+	BM_ITER_MESH(edge, &iter, bm, BM_EDGES_OF_MESH) {
+		cb(userdata, BM_elem_index_get(edge->v1), BM_elem_index_get(edge->v2));
+	}
+}
+
+static void BMEditStrandsConverter_foreachCurve(GPUStrandsConverter *_conv, GPUStrandsCurveFunc cb, void *userdata)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	BMesh *bm = conv->edit->base.bm;
+	BMIter iter;
+	BMVert *root;
+	
+	int verts_begin = 0;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		int orig_num_verts = BM_strand_verts_count(root);
+		int num_verts = BKE_strand_curve_cache_size(orig_num_verts, conv->base.subdiv);
+		
+		cb(userdata, verts_begin, num_verts);
+		
+		verts_begin += num_verts;
+	}
+}
+
+static void BMEditStrandsConverter_foreachCurveCache(GPUStrandsConverter *_conv, GPUStrandsCurveCacheFunc cb, void *userdata)
+{
+	BMEditStrandsConverter *conv = (BMEditStrandsConverter *)_conv;
+	BMesh *bm = conv->edit->base.bm;
+	
+	StrandCurveCache *cache = BKE_strand_curve_cache_create_bm(bm, conv->base.subdiv);
+	
+	BMIter iter;
+	BMVert *root;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		float rootmat[4][4];
+		BKE_editstrands_get_matrix(conv->edit, root, rootmat);
+		
+		int orig_num_verts = BM_strand_verts_count(root);
+		int num_verts = BKE_strand_curve_cache_calc_bm(root, orig_num_verts, cache, rootmat, conv->base.subdiv);
+		BLI_assert(orig_num_verts >= 2);
+		
+		cb(userdata, cache, num_verts);
+	}
+	
+	BKE_strand_curve_cache_free(cache);
+}
+
+
+GPUStrandsConverter *BKE_editstrands_get_gpu_converter(BMEditStrands *edit, struct DerivedMesh *root_dm,
+                                                       int subdiv, int fiber_primitive, bool use_geomshader)
+{
+	BMEditStrandsConverter *conv = MEM_callocN(sizeof(BMEditStrandsConverter), "BMEditStrandsConverter");
+	conv->base.free = BMEditStrandsConverter_free;
+	conv->base.getNumFibers = BMEditStrandsConverter_getNumFibers;
+	conv->base.getFiberArray = BMEditStrandsConverter_getFiberArray;
+	conv->base.getNumStrandVerts = BMEditStrandsConverter_getNumStrandVerts;
+	conv->base.getNumStrandCurves = BMEditStrandsConverter_getNumStrandCurves;
+	conv->base.getNumStrandCurveVerts = BMEditStrandsConverter_getNumStrandCurveVerts;
+	
+	conv->base.foreachStrandVertex = BMEditStrandsConverter_foreachStrandVertex;
+	conv->base.foreachStrandEdge = BMEditStrandsConverter_foreachStrandEdge;
+	conv->base.foreachCurve = BMEditStrandsConverter_foreachCurve;
+	conv->base.foreachCurveCache = BMEditStrandsConverter_foreachCurveCache;
+	
+	conv->base.root_dm = root_dm;
+	conv->base.subdiv = subdiv;
+	conv->base.fiber_primitive = fiber_primitive;
+	conv->base.use_geomshader = use_geomshader;
+	
+	conv->edit = edit;
+	conv->curves = editstrands_build_curves(edit->base.bm, &conv->totcurves);
+	return (GPUStrandsConverter *)conv;
 }

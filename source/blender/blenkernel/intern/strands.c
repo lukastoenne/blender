@@ -571,64 +571,6 @@ void BKE_strands_free_drawdata(struct GPUDrawStrands *gpu_buffer)
 	GPU_strands_buffer_free(gpu_buffer);
 }
 
-#if 0
-StrandData *BKE_strand_data_interpolate(StrandInfo *strands, unsigned int num_strands,
-                                        const StrandCurve *controls, struct StrandCurveParams *params)
-{
-	StrandData *data = MEM_callocN(sizeof(StrandData), "strand interpolation data");
-	StrandInfo *s;
-	StrandCurve *c;
-	StrandVertex *v;
-	unsigned int verts_begin;
-	unsigned int i;
-	
-	data->totcurves = num_strands;
-	data->totverts = num_strands * params->max_verts;
-	data->curves = MEM_mallocN(sizeof(StrandCurve) * data->totcurves, "strand curves");
-	data->verts = MEM_mallocN(sizeof(StrandVertex) * data->totverts, "strand vertices");
-	
-	UNUSED_VARS(controls);
-	verts_begin = 0;
-	v = data->verts;
-	for (i = 0, s = strands, c = data->curves; i < num_strands; ++i) {
-		unsigned int k;
-		
-		c->num_verts = params->max_verts;
-		c->verts_begin = verts_begin;
-		
-		if (params->scalp) {
-			BKE_mesh_sample_eval(params->scalp, &s->root, c->rootmat[3], c->rootmat[2], c->rootmat[0]);
-			cross_v3_v3v3(c->rootmat[1], c->rootmat[2], c->rootmat[0]);
-		}
-		else {
-			unit_m4(c->rootmat);
-		}
-		
-		for (k = 0; k < c->num_verts; ++k, ++v) {
-			v->co[0] = 0.0f;
-			v->co[1] = 0.0f;
-			if (c->num_verts > 1)
-				v->co[2] = k / (c->num_verts - 1);
-		}
-		
-		verts_begin += c->num_verts;
-	}
-	
-	return data;
-}
-
-void BKE_strand_data_free(StrandData *data)
-{
-	if (data) {
-		if (data->curves)
-			MEM_freeN(data->curves);
-		if (data->verts)
-			MEM_freeN(data->verts);
-		MEM_freeN(data);
-	}
-}
-#endif
-
 
 /* ------------------------------------------------------------------------- */
 
@@ -638,4 +580,160 @@ void BKE_strands_invalidate_shader(Strands *strands)
 		GPU_strand_shader_free(strands->gpu_shader);
 		strands->gpu_shader = NULL;
 	}
+}
+
+
+/* gpu buffer conversion */
+
+typedef struct DNAStrandsConverter {
+	GPUStrandsConverter base;
+	Strands *strands;
+} DNAStrandsConverter;
+
+static void DNAStrandsConverter_free(GPUStrandsConverter *_conv)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	MEM_freeN(conv);
+}
+
+static int DNAStrandsConverter_getNumFibers(GPUStrandsConverter *_conv)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	return conv->strands->totfibers;
+}
+
+static StrandFiber *DNAStrandsConverter_getFiberArray(GPUStrandsConverter *_conv)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	return conv->strands->fibers;
+}
+
+static int DNAStrandsConverter_getNumStrandVerts(GPUStrandsConverter *_conv)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	return conv->strands->totverts;
+}
+
+static int DNAStrandsConverter_getNumStrandCurves(GPUStrandsConverter *_conv)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	return conv->strands->totcurves;
+}
+
+static int DNAStrandsConverter_getNumStrandCurveVerts(GPUStrandsConverter *_conv, int curve_index)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	BLI_assert(curve_index < conv->strands->totcurves);
+	return conv->strands->curves[curve_index].num_verts;
+}
+
+static void DNAStrandsConverter_foreachStrandVertex(GPUStrandsConverter *_conv, GPUStrandsVertexFunc cb, void *userdata)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	Strands *strands = conv->strands;
+	
+	int totcurves = strands->totcurves;
+	StrandCurve *curve = strands->curves;
+	for (int c = 0; c < totcurves; ++c, ++curve) {
+		float rootmat[4][4];
+		BKE_strands_get_matrix(curve, conv->base.root_dm, rootmat);
+		
+		int verts_begin = curve->verts_begin;
+		int num_verts = curve->num_verts;
+		BLI_assert(verts_begin < strands->totverts);
+		BLI_assert(num_verts >= 2);
+		
+		StrandVertex *vert = strands->verts + verts_begin;
+		for (int v = 0; v < num_verts; ++v, ++vert) {
+			cb(userdata, verts_begin + v, vert->co, rootmat);
+		}
+	}
+}
+
+static void DNAStrandsConverter_foreachStrandEdge(GPUStrandsConverter *_conv, GPUStrandsEdgeFunc cb, void *userdata)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	Strands *strands = conv->strands;
+	
+	int totcurves = strands->totcurves;
+	StrandCurve *curve = strands->curves;
+	for (int c = 0; c < totcurves; ++c, ++curve) {
+		int verts_begin = curve->verts_begin;
+		int num_verts = curve->num_verts;
+		BLI_assert(verts_begin < strands->totverts);
+		BLI_assert(num_verts >= 2);
+		
+		for (int v = 0; v < num_verts - 1; ++v) {
+			cb(userdata, verts_begin + v, verts_begin + v + 1);
+		}
+	}
+}
+
+static void DNAStrandsConverter_foreachCurve(GPUStrandsConverter *_conv, GPUStrandsCurveFunc cb, void *userdata)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	Strands *strands = conv->strands;
+	int totcurves = strands->totcurves;
+	
+	int verts_begin = 0;
+	StrandCurve *curve = strands->curves;
+	for (int c = 0; c < totcurves; ++c, ++curve) {
+		int num_verts = BKE_strand_curve_cache_size(curve->num_verts, conv->base.subdiv);
+		
+		cb(userdata, verts_begin, num_verts);
+		
+		verts_begin += num_verts;
+	}
+}
+
+static void DNAStrandsConverter_foreachCurveCache(GPUStrandsConverter *_conv, GPUStrandsCurveCacheFunc cb, void *userdata)
+{
+	DNAStrandsConverter *conv = (DNAStrandsConverter *)_conv;
+	Strands *strands = conv->strands;
+	
+	StrandCurveCache *cache = BKE_strand_curve_cache_create(strands, conv->base.subdiv);
+	
+	int totcurves = strands->totcurves;
+	StrandCurve *curve = strands->curves;
+	for (int c = 0; c < totcurves; ++c, ++curve) {
+		float rootmat[4][4];
+		BKE_strands_get_matrix(curve, conv->base.root_dm, rootmat);
+		
+		int verts_begin = curve->verts_begin;
+		int orig_num_verts = curve->num_verts;
+		BLI_assert(verts_begin < strands->totverts);
+		BLI_assert(orig_num_verts >= 2);
+		
+		int num_verts = BKE_strand_curve_cache_calc(strands->verts + verts_begin, orig_num_verts,
+		                                            cache, rootmat, conv->base.subdiv);
+		
+		cb(userdata, cache, num_verts);
+	}
+	
+	BKE_strand_curve_cache_free(cache);
+}
+
+GPUStrandsConverter *BKE_strands_get_gpu_converter(Strands *strands, struct DerivedMesh *root_dm,
+                                                   int subdiv, int fiber_primitive, bool use_geomshader)
+{
+	DNAStrandsConverter *conv = MEM_callocN(sizeof(DNAStrandsConverter), "DNAStrandsConverter");
+	conv->base.free = DNAStrandsConverter_free;
+	conv->base.getNumFibers = DNAStrandsConverter_getNumFibers;
+	conv->base.getFiberArray = DNAStrandsConverter_getFiberArray;
+	conv->base.getNumStrandVerts = DNAStrandsConverter_getNumStrandVerts;
+	conv->base.getNumStrandCurves = DNAStrandsConverter_getNumStrandCurves;
+	conv->base.getNumStrandCurveVerts = DNAStrandsConverter_getNumStrandCurveVerts;
+	
+	conv->base.foreachStrandVertex = DNAStrandsConverter_foreachStrandVertex;
+	conv->base.foreachStrandEdge = DNAStrandsConverter_foreachStrandEdge;
+	conv->base.foreachCurve = DNAStrandsConverter_foreachCurve;
+	conv->base.foreachCurveCache = DNAStrandsConverter_foreachCurveCache;
+	
+	conv->base.root_dm = root_dm;
+	conv->base.subdiv = subdiv;
+	conv->base.fiber_primitive = fiber_primitive;
+	conv->base.use_geomshader = use_geomshader;
+	
+	conv->strands = strands;
+	return (GPUStrandsConverter *)conv;
 }

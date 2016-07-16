@@ -38,6 +38,8 @@ extern "C" {
 
 struct GPUAttrib;
 struct Strands;
+struct StrandFiber;
+struct StrandCurveCache;
 
 /* Shader */
 
@@ -59,18 +61,14 @@ typedef enum GPUStrands_FiberPrimitive {
 	GPU_STRANDS_FIBER_RIBBON,
 } GPUStrands_FiberPrimitive;
 
-typedef struct GPUDrawStrandsParams {
-	struct Strands *strands;
-	struct BMEditStrands *edit;
-	struct DerivedMesh *root_dm;
-	int subdiv;
+typedef struct GPUStrandsShaderParams {
 	GPUStrands_FiberPrimitive fiber_primitive;
 	int effects;
 	bool use_geomshader;
 	GPUStrands_ShaderModel shader_model;
-} GPUDrawStrandsParams;
+} GPUStrandsShaderParams;
 
-GPUStrandsShader *GPU_strand_shader_get(struct GPUDrawStrandsParams *params);
+GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, struct GPUStrandsShaderParams *params);
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
@@ -93,6 +91,32 @@ void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader,
 
 /* Strand Buffers */
 
+typedef void (*GPUStrandsVertexFunc)(void *userdata, int index, const float *co, float (*mat)[4]);
+typedef void (*GPUStrandsEdgeFunc)(void *userdata, int index1, int index2);
+typedef void (*GPUStrandsCurveFunc)(void *userdata, int verts_begin, int num_verts);
+typedef void (*GPUStrandsCurveCacheFunc)(void *userdata, const struct StrandCurveCache *cache, int num_verts);
+
+typedef struct GPUStrandsConverter {
+	void (*free)(struct GPUStrandsConverter *conv);
+	
+	int (*getNumFibers)(struct GPUStrandsConverter *conv);
+	struct StrandFiber* (*getFiberArray)(struct GPUStrandsConverter *conv);
+	
+	int (*getNumStrandVerts)(struct GPUStrandsConverter *conv);
+	int (*getNumStrandCurves)(struct GPUStrandsConverter *conv);
+	int (*getNumStrandCurveVerts)(struct GPUStrandsConverter *conv, int curve_index);
+	
+	void (*foreachStrandVertex)(struct GPUStrandsConverter *conv, GPUStrandsVertexFunc cb, void *userdata);
+	void (*foreachStrandEdge)(struct GPUStrandsConverter *conv, GPUStrandsEdgeFunc cb, void *userdata);
+	void (*foreachCurve)(struct GPUStrandsConverter *conv, GPUStrandsCurveFunc cb, void *userdata);
+	void (*foreachCurveCache)(struct GPUStrandsConverter *conv, GPUStrandsCurveCacheFunc cb, void *userdata);
+	
+	struct DerivedMesh *root_dm;
+	int subdiv;
+	GPUStrands_FiberPrimitive fiber_primitive;
+	bool use_geomshader;
+} GPUStrandsConverter;
+
 typedef enum GPUStrands_Component {
 	GPU_STRANDS_COMPONENT_CONTROLS = (1 << 0),
 	GPU_STRANDS_COMPONENT_FIBER_ATTRIBUTES = (1 << 1),
@@ -100,12 +124,12 @@ typedef enum GPUStrands_Component {
 	GPU_STRANDS_COMPONENT_ALL = ~0,
 } GPUStrands_Component;
 
-struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUDrawStrandsParams *params);
+struct GPUDrawStrands *GPU_strands_buffer_create(struct GPUStrandsConverter *conv);
 
-void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUDrawStrandsParams *params);
-void GPU_strands_buffer_invalidate(struct GPUDrawStrands *gpu_buffer, GPUStrands_Component);
+void GPU_strands_setup_verts(struct GPUDrawStrands *gpu_buffer, struct GPUStrandsConverter *conv);
+void GPU_strands_setup_edges(struct GPUDrawStrands *gpu_buffer, struct GPUStrandsConverter *conv);
+void GPU_strands_setup_fibers(struct GPUDrawStrands *gpu_buffer, struct GPUStrandsConverter *conv);
+void GPU_strands_buffer_invalidate(struct GPUDrawStrands *gpu_buffer, GPUStrands_Component components);
 
 void GPU_strands_buffer_unbind(void);
 

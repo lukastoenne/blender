@@ -39,6 +39,7 @@
 struct BMesh;
 struct BMVert;
 struct DerivedMesh;
+struct GPUStrandsConverter;
 struct GPUStrandsShader;
 struct GPUDrawStrands;
 
@@ -91,19 +92,11 @@ void BKE_strands_free_fibers(struct Strands *strands);
 
 void BKE_strands_free_drawdata(struct GPUDrawStrands *gpu_buffer);
 
-#if 0
-typedef struct StrandCurveParams {
-	struct DerivedMesh *scalp;
-	unsigned int max_verts;
-} StrandCurveParams;
-
-struct StrandData *BKE_strand_data_interpolate(struct StrandInfo *strands, unsigned int num_strands,
-                                               const StrandCurve *controls, struct StrandCurveParams *params);
-void BKE_strand_data_free(struct StrandData *data);
-#endif
-
 /* ------------------------------------------------------------------------- */
 
 void BKE_strands_invalidate_shader(struct Strands *strands);
+
+struct GPUStrandsConverter *BKE_strands_get_gpu_converter(struct Strands *strands, struct DerivedMesh *root_dm,
+                                                          int subdiv, int fiber_primitive, bool use_geomshader);
 
 #endif
