@@ -1,12 +1,5 @@
 #define M_PI 3.1415926535897932384626433832795
 
-mat3 mat3_emu(mat4 m4) {
-  return mat3(
-      m4[0][0], m4[0][1], m4[0][2],
-      m4[1][0], m4[1][1], m4[1][2],
-      m4[2][0], m4[2][1], m4[2][2]);
-}
-
 mat3 mat3_from_vectors(vec3 nor, vec3 tang)
 {
 	return mat3(tang, cross(nor, tang), nor);
