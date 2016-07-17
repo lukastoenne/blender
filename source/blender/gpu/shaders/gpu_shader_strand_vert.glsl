@@ -51,7 +51,7 @@ void main()
 #endif
 	gl_Position = gl_ProjectionMatrix * co;
 
-	fPosition = mat3_emu(gl_ModelViewMatrix) * loc;
+	fPosition = co.xyz;
 	fTangent = gl_NormalMatrix * nor;
 	fColor = (nor + vec3(1.0)) * 0.5;
 }
