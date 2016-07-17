@@ -56,7 +56,7 @@ void interpolate_vertex(int fiber_index, float curve_param,
 		uvec2 curve = texelFetch(samplers.control_curves, int(control_index[k])).xy;
 		int verts_begin = int(curve.x);
 		cnum_verts[k] = int(curve.y);
-		float segment = curve_param * float(cnum_verts[k]);
+		float segment = curve_param * float(cnum_verts[k] - 1);
 
 		vec3 croot = texelFetch(samplers.control_points, verts_begin).xyz;
 		vec3 offset = root - croot;
