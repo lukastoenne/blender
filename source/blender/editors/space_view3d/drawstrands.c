@@ -102,14 +102,14 @@ static int get_effects(int smd_effects)
 }
 
 static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
-                                Object *ob, StrandsModifierData *smd)
+                                Object *ob, StrandsModifierData *smd, int debug_value)
 {
 	GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
 	GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv,
 	                       smd->ribbon_width,
 	                       smd->clump_thickness, smd->clump_shape,
 	                       smd->curl_thickness, smd->curl_shape, smd->curl_radius, smd->curl_length,
-	                       smd->debug_value);
+	                       debug_value, smd->debug_scale);
 }
 
 void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
@@ -122,6 +122,7 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	bool show_strands = smd->flag & MOD_STRANDS_SHOW_FIBERS;
 	bool use_geomshader = smd->flag & MOD_STRANDS_USE_GEOMSHADER;
 	GPUStrands_FiberPrimitive fiber_primitive = get_fiber_primitive(smd->fiber_primitive);
+	bool enable_debugging = (smd->debug_value != 0);
 	
 	if (strands == NULL)
 		return;
@@ -155,14 +156,14 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	}
 	
 	if (show_strands) {
-		bind_strands_shader(shader, rv3d, ob, smd);
+		bind_strands_shader(shader, rv3d, ob, smd, 0);
 		
 		GPU_strands_setup_fibers(buffer, converter);
 		if (use_geomshader) {
 			if (buffer->fibers) {
 				struct GPUAttrib *attrib;
 				int num_attrib;
-				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
+				GPU_strand_shader_get_fiber_attributes(shader, false, &attrib, &num_attrib);
 				
 				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
 				GPU_interleaved_attrib_setup(buffer->fibers, attrib, num_attrib, elemsize, false);
@@ -176,7 +177,7 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 			if (buffer->fiber_points && buffer->fiber_indices) {
 				struct GPUAttrib *attrib;
 				int num_attrib;
-				GPU_strand_shader_get_fiber_attributes(shader, &attrib, &num_attrib);
+				GPU_strand_shader_get_fiber_attributes(shader, false, &attrib, &num_attrib);
 				
 				int elemsize = GPU_attrib_element_size(attrib, num_attrib);
 				GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
@@ -194,6 +195,27 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 				
 				GPU_interleaved_attrib_unbind();
 			}
+		}
+		GPU_strands_buffer_unbind();
+		
+		GPU_strand_shader_unbind(shader);
+	}
+	
+	if (enable_debugging) {
+		bind_strands_shader(shader, rv3d, ob, smd, smd->debug_value);
+		
+		GPU_strands_setup_fibers(buffer, converter);
+		if (buffer->fiber_points && buffer->fiber_indices) {
+			struct GPUAttrib *attrib;
+			int num_attrib;
+			GPU_strand_shader_get_fiber_attributes(shader, true, &attrib, &num_attrib);
+			
+			int elemsize = GPU_attrib_element_size(attrib, num_attrib);
+			GPU_interleaved_attrib_setup(buffer->fiber_points, attrib, num_attrib, elemsize, false);
+			
+			glDrawArrays(GL_POINTS, 0, buffer->fiber_totverts * elemsize);
+			
+			GPU_interleaved_attrib_unbind();
 		}
 		GPU_strands_buffer_unbind();
 		

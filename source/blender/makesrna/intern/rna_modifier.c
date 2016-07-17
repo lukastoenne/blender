@@ -4803,6 +4803,10 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	/* Debugging */
 	prop = RNA_def_property(srna, "debug_value", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Debug Value", "Value for controlling debugging features");
+	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
+	
+	prop = RNA_def_property(srna, "debug_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Debug Scale", "Scaling factor for debug vectors");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 

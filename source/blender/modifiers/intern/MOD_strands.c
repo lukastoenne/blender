@@ -74,6 +74,8 @@ static void initData(ModifierData *md)
 	smd->curl_shape = 1.0f;
 	smd->curl_radius = 0.3f;
 	smd->curl_length = 0.3f;
+	
+	smd->debug_scale = 1.0f;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

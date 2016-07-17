@@ -78,14 +78,14 @@ void GPU_strand_shader_bind(
         float ribbon_width,
         float clump_thickness, float clump_shape,
         float curl_thickness, float curl_shape, float curl_radius, float curl_length,
-        int debug_value);
+        int debug_value, float debug_scale);
 void GPU_strand_shader_bind_uniforms(
         GPUStrandsShader *gpu_shader,
         float obmat[4][4], float viewmat[4][4]);
 void GPU_strand_shader_unbind(GPUStrandsShader *gpu_shader);
 bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader);
 
-void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader,
+void GPU_strand_shader_get_fiber_attributes(struct GPUStrandsShader *gpu_shader, bool debug,
                                             struct GPUAttrib **r_attrib, int *r_num);
 
 

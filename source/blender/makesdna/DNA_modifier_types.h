@@ -1567,6 +1567,8 @@ typedef struct StrandsModifierData {
 	float curl_thickness, curl_shape, curl_radius, curl_length;
 	
 	int debug_value;                    /* debugging value */
+	float debug_scale;                  /* scale for debug vectors */
+	int pad2;
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */

@@ -13,10 +13,14 @@ out vec3 fPosition;
 out vec3 fTangent;
 out vec3 fColor;
 
-uniform usamplerBuffer control_curves;
-uniform samplerBuffer control_points;
-uniform samplerBuffer control_normals;
-uniform samplerBuffer control_tangents;
+struct Samplers {
+	usamplerBuffer control_curves;
+	samplerBuffer control_points;
+	samplerBuffer control_normals;
+	samplerBuffer control_tangents;
+};
+
+uniform Samplers samplers;
 
 bool is_valid_index(uint index)
 {
@@ -58,13 +62,13 @@ void main()
 		if (!valid[k])
 			continue;
 
-		uvec4 curve = texelFetch(control_curves, index[k]);
+		uvec4 curve = texelFetch(samplers.control_curves, index[k]);
 		cvert_begin[k] = int(curve.x);
 		num_cverts[k] = int(curve.y);
 		
 		fnum_verts += weight[k] * float(num_cverts[k]);
 		
-		croot[k] = texelFetch(control_points, cvert_begin[k]).xyz;
+		croot[k] = texelFetch(samplers.control_points, cvert_begin[k]).xyz;
 		offset[k] = root - croot[k];
 	}
 	int num_verts = max(int(ceil(fnum_verts)), 2);
@@ -84,7 +88,7 @@ void main()
 			if (!valid[k])
 				continue;
 
-			interpolate_control_curve(control_points, control_normals, control_tangents,
+			interpolate_control_curve(samplers.control_points, samplers.control_normals, samplers.control_tangents,
 			                          t[0], cvert_begin[0], num_cverts[0],
 			                          cloc[k], cnor[k], ctang[k]);
 

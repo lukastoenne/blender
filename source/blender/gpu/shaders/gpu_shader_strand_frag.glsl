@@ -1,10 +1,5 @@
 #define NUM_LIGHTS 3
 
-/* Classic Blender particle hair with tangent as normal (just for comparison) */
-//#define SHADING_CLASSIC_BLENDER
-/* Kajiya-Kay model with a diffuse component and main specular highlights */
-//#define SHADING_KAJIYA
-
 in vec3 fPosition;
 in vec3 fTangent;
 in vec3 fColor;

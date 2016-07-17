@@ -919,6 +919,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         layout.prop(md, "use_geometry_shader")
         layout.prop(md, "debug_value")
+        layout.prop(md, "debug_scale")
 
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)

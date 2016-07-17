@@ -33,55 +33,11 @@ out vec3 fColor;
 
 uniform float ribbon_width;
 
-uniform usamplerBuffer control_curves;
-uniform samplerBuffer control_points;
-uniform samplerBuffer control_normals;
-uniform samplerBuffer control_tangents;
-uniform samplerBuffer fiber_position;
-uniform usamplerBuffer fiber_control_index;
-uniform samplerBuffer fiber_control_weight;
-
-
-void interpolate_vertex(out vec3 loc, out vec3 nor, out vec3 target_loc, out mat3 target_frame)
-{
-	vec3 root = texelFetch(fiber_position, int(fiber_index)).xyz;
-	uvec4 control_index = texelFetch(fiber_control_index, int(fiber_index));
-	bvec4 control_valid = lessThan(control_index, uvec4(uint(0xFFFFFFFF)));
-	vec4 control_weight = texelFetch(fiber_control_weight, int(fiber_index));
-
-	loc = vec3(0.0, 0.0, 0.0);
-	nor = vec3(0.0, 0.0, 0.0);
-	vec3 cloc[4], cnor[4], ctang[4];
-	int cnum_verts[4];
-	for (int k = 0; k < 4; ++k) {
-		if (!control_valid[k])
-			continue;
-
-		uvec2 curve = texelFetch(control_curves, int(control_index[k])).xy;
-		int verts_begin = int(curve.x);
-		cnum_verts[k] = int(curve.y);
-		float segment = curve_param * float(cnum_verts[k]);
-
-		vec3 croot = texelFetch(control_points, verts_begin).xyz;
-		vec3 offset = root - croot;
-
-		interpolate_control_curve(control_points, control_normals, control_tangents,
-			                      segment, verts_begin, cnum_verts[k],
-			                      cloc[k], cnor[k], ctang[k]);
-
-		loc += control_weight[k] * (cloc[k] + offset);
-		nor += control_weight[k] * cnor[k];
-	}
-
-	target_loc = cloc[0];
-	target_frame = mat3_from_vectors(cnor[0], ctang[0]);
-}
-
 void main()
 {
 	vec3 loc, nor, target_loc;
 	mat3 target_frame;
-	interpolate_vertex(loc, nor, target_loc, target_frame);
+	interpolate_vertex(int(fiber_index), curve_param, loc, nor, target_loc, target_frame);
 
 	// TODO define proper curve scale, independent of subdivision!
 	displace_vertex(loc, nor, curve_param, 1.0, target_loc, target_frame);
