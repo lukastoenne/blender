@@ -50,8 +50,12 @@ void interpolate_vertex(int fiber_index, float curve_param,
 	vec3 cloc[4], cnor[4], ctang[4];
 	int cnum_verts[4];
 	for (int k = 0; k < 4; ++k) {
-		if (!control_valid[k])
+		if (!control_valid[k]) {
+			cloc[k] = vec3(0.0, 0.0, 0.0);
+			cnor[k] = vec3(0.0, 0.0, 0.0);
+			ctang[k] = vec3(0.0, 0.0, 0.0);
 			continue;
+		}
 
 		uvec2 curve = texelFetch(samplers.control_curves, int(control_index[k])).xy;
 		int verts_begin = int(curve.x);
