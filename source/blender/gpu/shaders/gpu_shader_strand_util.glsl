@@ -47,13 +47,12 @@ void interpolate_vertex(int fiber_index, float curve_param,
 
 	loc = vec3(0.0, 0.0, 0.0);
 	nor = vec3(0.0, 0.0, 0.0);
-	vec3 cloc[4], cnor[4], ctang[4];
-	int cnum_verts[4];
+	vec3 cloc[4] = vec3[4]( vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) );
+	vec3 cnor[4] = vec3[4]( vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) );
+	vec3 ctang[4] = vec3[4]( vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) );
+	int cnum_verts[4] = int[4]( 0, 0, 0, 0 );
 	for (int k = 0; k < 4; ++k) {
 		if (!control_valid[k]) {
-			cloc[k] = vec3(0.0, 0.0, 0.0);
-			cnor[k] = vec3(0.0, 0.0, 0.0);
-			ctang[k] = vec3(0.0, 0.0, 0.0);
 			continue;
 		}
 
