@@ -32,8 +32,7 @@ void clumping(inout vec3 loc, inout vec3 nor, in float t, in float tscale, in ve
 	vec3 nloc = mix(loc, target_loc, factor);
 	vec3 nnor;
 	if (t > 0.0) {
-		nnor = normalize(nor * (1.0 - factor)
-			   + (target_loc - loc) * factor / (t * clump_shape));
+		nnor = normalize(mix(nor, (target_loc - loc) / (t * clump_shape), factor));
 	}
 	else
 		nnor = nor;
@@ -42,26 +41,45 @@ void clumping(inout vec3 loc, inout vec3 nor, in float t, in float tscale, in ve
 	nor = nnor;
 }
 
+struct CurlParams {
+	float taper, dtaper;
+	float factor, dfactor;
+	float turns;
+	float angle, dangle;
+	vec3 curlvec, dcurlvec;
+};
+
+CurlParams curl_params(float t, float tscale, vec3 target_loc, mat3 target_frame)
+{
+	CurlParams params;
+	
+	params.taper = pow(t, 1.0 / curl_shape);
+	params.dtaper = (t > 0.0) ? params.taper / (t * curl_shape) : 0.0;
+	params.factor = (1.0 - curl_thickness) * params.taper;
+	params.dfactor = (1.0 - curl_thickness) * params.dtaper;
+
+	params.turns = 2.0*M_PI * tscale / curl_length;
+	params.angle = t * params.turns;
+	params.dangle = params.turns;
+	
+	params.curlvec = target_frame * vec3(cos(params.angle), sin(params.angle), 0.0) * curl_radius;
+	params.dcurlvec = target_frame * vec3(-sin(params.angle), cos(params.angle), 0.0) * curl_radius;
+
+	return params;
+}
+
 /* Hairs often don't have a circular cross section, but are somewhat flattened.
  * This creates the local bending which results in the typical curly hair geometry.
  */ 
 void curl(inout vec3 loc, inout vec3 nor, in float t, in float tscale, in vec3 target_loc, in mat3 target_frame)
 {
-	float taper = pow(t, 1.0 / curl_shape);
-	float factor = (1.0 - curl_thickness) * taper;
+	CurlParams params = curl_params(t, tscale, target_loc, target_frame);
 
-	float angle = 2.0*M_PI * t * tscale / curl_length;
-	vec3 curlvec = target_frame * vec3(cos(angle), sin(angle), 0.0) * curl_radius;
-	
-	vec3 nloc = mix(loc, target_loc + curlvec, factor);
-	vec3 nnor;
-	if (t > 0.0) {
-		nnor = normalize(nor * (1.0 - factor)
-			   + vec3(-curlvec.y, curlvec.x, 0.0) * 2.0*M_PI * tscale / curl_length
-			   + (target_loc + curlvec - loc) * factor / (t * clump_shape));
-	}
-	else
-		nnor = nor;
+	vec3 dloc = (target_loc + params.curlvec - loc) * params.factor;
+	vec3 nloc = loc + dloc;
+	vec3 dshape = dloc / (t * curl_shape);
+	vec3 dtarget = target_frame[2] + params.turns * params.dcurlvec;
+	vec3 nnor = normalize(dshape + mix(nor, dtarget, params.factor));
 
 	loc = nloc;
 	nor = nnor;
