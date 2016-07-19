@@ -205,12 +205,10 @@ static void get_shader_attributes(GPUShader *shader, bool use_geomshader,
 	*r_num_attributes = (int)(attr - r_attributes);
 }
 
-GPUStrandsShader *GPU_strand_shader_get(Strands *strands, GPUStrandsShaderParams *params)
+GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
 	
-	if (strands->gpu_shader != NULL)
-		return strands->gpu_shader;
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
@@ -266,7 +264,6 @@ GPUStrandsShader *GPU_strand_shader_get(Strands *strands, GPUStrandsShaderParams
 			MEM_freeN(debug_fragmentcode);
 	}
 	
-	strands->gpu_shader = gpu_shader;
 	return gpu_shader;
 }
 
