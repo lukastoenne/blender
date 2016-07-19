@@ -53,6 +53,7 @@
 #include "util_string.h"
 
 #include "geom/geom.h"
+#include "bvh/bvh.h"
 
 #include "kernel_projection.h"
 #include "kernel_accumulate.h"

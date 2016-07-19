@@ -57,10 +57,9 @@
 static bool testedgesidef(const float v1[2], const float v2[2], const float v3[2])
 {
 	/* is v3 to the right of v1 - v2 ? With exception: v3 == v1 || v3 == v2 */
-	double inp;
-
-	//inp = (v2[cox] - v1[cox]) * (v1[coy] - v3[coy]) + (v1[coy] - v2[coy]) * (v1[cox] - v3[cox]);
-	inp = (v2[0] - v1[0]) * (v1[1] - v3[1]) + (v1[1] - v2[1]) * (v1[0] - v3[0]);
+	const float inp =
+	        ((v2[0] - v1[0]) * (v1[1] - v3[1])) +
+	        ((v1[1] - v2[1]) * (v1[0] - v3[0]));
 
 	if (inp < 0.0) {
 		return false;
@@ -371,7 +370,7 @@ void BM_vert_tri_calc_tangent_edge_pair(BMVert *verts[3], float r_tangent[3])
 }
 
 /**
- * Compute the tanget of the face, using the longest edge.
+ * Compute the tangent of the face, using the longest edge.
  */
 void  BM_face_calc_tangent_edge(const BMFace *f, float r_tangent[3])
 {
@@ -384,7 +383,7 @@ void  BM_face_calc_tangent_edge(const BMFace *f, float r_tangent[3])
 }
 
 /**
- * Compute the tanget of the face, using the two longest disconected edges.
+ * Compute the tangent of the face, using the two longest disconnected edges.
  *
  * \param r_tangent: Calculated unit length tangent (return value).
  */
@@ -449,7 +448,7 @@ void  BM_face_calc_tangent_edge_pair(const BMFace *f, float r_tangent[3])
 }
 
 /**
- * Compute the tanget of the face, using the edge farthest away from any vertex in the face.
+ * Compute the tangent of the face, using the edge farthest away from any vertex in the face.
  *
  * \param r_tangent: Calculated unit length tangent (return value).
  */
@@ -485,7 +484,7 @@ void  BM_face_calc_tangent_edge_diagonal(const BMFace *f, float r_tangent[3])
 }
 
 /**
- * Compute the tanget of the face, using longest distance between vertices on the face.
+ * Compute the tangent of the face, using longest distance between vertices on the face.
  *
  * \note The logic is almost identical to #BM_face_calc_tangent_edge_diagonal
  */
