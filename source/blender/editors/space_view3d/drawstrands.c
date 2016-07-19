@@ -139,12 +139,16 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 		smd->gpu_buffer = GPU_strands_buffer_create(converter);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
 	
-	GPUStrandsShaderParams shader_params;
-	shader_params.fiber_primitive = fiber_primitive;
-	shader_params.effects = get_effects(smd->effects);
-	shader_params.use_geomshader = use_geomshader;
-	shader_params.shader_model = get_shader_model(smd->shader_model);
-	GPUStrandsShader *shader = GPU_strand_shader_get(strands, &shader_params);
+	if (!strands->gpu_shader) {
+		GPUStrandsShaderParams shader_params;
+		shader_params.fiber_primitive = fiber_primitive;
+		shader_params.effects = get_effects(smd->effects);
+		shader_params.use_geomshader = use_geomshader;
+		shader_params.shader_model = get_shader_model(smd->shader_model);
+		
+		strands->gpu_shader = GPU_strand_shader_create(&shader_params);
+	}
+	GPUStrandsShader *shader = strands->gpu_shader;
 	
 	if (show_controls) {
 		GPU_strands_setup_edges(buffer, converter);

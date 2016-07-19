@@ -68,8 +68,7 @@ typedef struct GPUStrandsShaderParams {
 	GPUStrands_ShaderModel shader_model;
 } GPUStrandsShaderParams;
 
-GPUStrandsShader *GPU_strand_shader_get(struct Strands *strands, struct GPUStrandsShaderParams *params);
-
+GPUStrandsShader *GPU_strand_shader_create(struct GPUStrandsShaderParams *params);
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader);
 
 void GPU_strand_shader_bind(
