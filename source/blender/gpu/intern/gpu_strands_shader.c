@@ -280,11 +280,11 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 	
 	if (gpu_shader->debug_shader)
 		GPU_shader_free(gpu_shader->debug_shader);
-	if (gpu_shader->vertexcode)
+	if (gpu_shader->debug_vertexcode)
 		MEM_freeN(gpu_shader->debug_vertexcode);
-	if (gpu_shader->geometrycode)
+	if (gpu_shader->debug_geometrycode)
 		MEM_freeN(gpu_shader->debug_geometrycode);
-	if (gpu_shader->fragmentcode)
+	if (gpu_shader->debug_fragmentcode)
 		MEM_freeN(gpu_shader->debug_fragmentcode);
 	
 	MEM_freeN(gpu_shader);
