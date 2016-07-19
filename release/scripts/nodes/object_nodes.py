@@ -27,6 +27,7 @@ from mathutils import *
 
 from common_nodes import NodeTreeBase, NodeBase
 from geometry_nodes import GeometryNodesNew
+from hair_nodes import HairNodesNew
 from instancing_nodes import InstancingNodesNew
 from forcefield_nodes import ForceFieldNodesNew
 from smokesim_nodes import SmokeSimNodesNew
@@ -88,6 +89,37 @@ class GeometryNode(ObjectNodeBase, ObjectNode):
     def draw_buttons(self, context, layout):
         layout.context_pointer_set("node", self)
         layout.template_ID(self, "id", new=GeometryNodesNew.bl_idname)
+
+    def init(self, context):
+        pass
+
+    def compile(self, compiler):
+        pass
+
+
+class HairNode(ObjectNodeBase, ObjectNode):
+    '''Hair'''
+    bl_idname = 'HairNode'
+    bl_label = 'Hair'
+    bl_icon = 'MESH_DATA'
+
+    bl_id_property_type = 'NODETREE'
+    def bl_id_property_poll(self, ntree):
+        return ntree.bl_idname == 'HairNodeTree'
+
+    def compile_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_compile_dependencies(depsnode)
+
+    def eval_dependencies(self, depsnode):
+        ntree = self.id
+        if ntree:
+            ntree.bvm_eval_dependencies(depsnode)
+
+    def draw_buttons(self, context, layout):
+        layout.context_pointer_set("node", self)
+        layout.template_ID(self, "id", new=HairNodesNew.bl_idname)
 
     def init(self, context):
         pass
@@ -272,6 +304,8 @@ def register():
         ObjectNodeCategory("COMPONENTS", "Components", items=[
             NodeItem("GeometryNode",
                      settings={"id": "bpy.types.OBJECT_NODES_OT_geometry_nodes_new.make_node_tree()"}),
+            NodeItem("HairNode",
+                     settings={"id": "bpy.types.OBJECT_NODES_OT_hair_nodes_new.make_node_tree()"}),
             NodeItem("ForceFieldNode",
                      settings={"id": "bpy.types.OBJECT_NODES_OT_forcefield_nodes_new.make_node_tree()"}),
             NodeItem("InstancingNode",

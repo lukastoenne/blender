@@ -154,7 +154,8 @@ void ED_node_tag_update_id(ID *id)
 	 * but for now this is the only real option.
 	 */
 	else if (STREQ(ntree->idname, "GeometryNodeTree") ||
-	         STREQ(ntree->idname, "InstancingNodeTree")) {
+	         STREQ(ntree->idname, "InstancingNodeTree") ||
+	         STREQ(ntree->idname, "HairNodeTree")) {
 		WM_main_add_notifier(NC_MATERIAL | ND_NODES, NULL);
 	}
 	else if (STREQ(ntree->idname, "TextureNodeTree")) {
