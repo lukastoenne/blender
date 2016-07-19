@@ -96,6 +96,7 @@
 #include "DNA_speaker_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
+#include "DNA_strand_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 #include "DNA_movieclip_types.h"
@@ -4245,6 +4246,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		
 		psys->edit = NULL;
 		psys->free_edit = NULL;
+		psys->hairedit = NULL;
 		psys->pathcache = NULL;
 		psys->childcache = NULL;
 		BLI_listbase_clear(&psys->pathcachebufs);
@@ -4279,6 +4281,21 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->bvhtree = NULL;
 	}
 	return;
+}
+
+/* ************ READ STRANDS ***************** */
+
+static void direct_link_strands(FileData *fd, Strands *strands)
+{
+	if (strands == NULL)
+		return;
+	
+	strands->curves = newdataadr(fd, strands->curves);
+	strands->verts = newdataadr(fd, strands->verts);
+	strands->fibers = newdataadr(fd, strands->fibers);
+	
+	/* runtime */
+	strands->gpu_shader = NULL;
 }
 
 /* ************ READ MESH ***************** */
@@ -4539,6 +4556,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
+	mesh->edit_strands = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
@@ -5243,6 +5261,19 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			csmd->delta_cache = NULL;
 			csmd->delta_cache_num = 0;
 		}
+		else if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData*)md;
+
+			if (smd->strands) {
+				smd->strands = newdataadr(fd, smd->strands);
+				direct_link_strands(fd, smd->strands);
+			}
+			
+			smd->edit = NULL;
+			smd->gpu_buffer = NULL;
+			
+			smd->debug_value = 0; /* reset */
+		}
 	}
 }
 
@@ -5269,7 +5300,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	 * See [#34776, #42780] for more information.
 	 */
 	if (fd->memfile || (ob->id.tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT))) {
-		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT);
 		if (!fd->memfile) {
 			ob->mode &= ~OB_MODE_POSE;
 		}
@@ -5607,6 +5638,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			sce->toolsettings->particle.shape_object = newlibadr(fd, sce->id.lib, sce->toolsettings->particle.shape_object);
 			
+			{
+				HairEditSettings *hair_edit = &sce->toolsettings->hair_edit;
+				if (hair_edit->brush)
+					hair_edit->brush = newlibadr(fd, sce->id.lib, hair_edit->brush);
+				if (hair_edit->shape_object)
+					hair_edit->shape_object = newlibadr(fd, sce->id.lib, hair_edit->shape_object);
+			}
+			
 			for (base = sce->base.first; base; base = next) {
 				next = base->next;
 				
@@ -5855,7 +5894,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		sce->toolsettings->particle.scene = NULL;
 		sce->toolsettings->particle.object = NULL;
 		sce->toolsettings->gp_sculpt.paintcursor = NULL;
-
+		sce->toolsettings->hair_edit.paint_cursor = NULL;
+		
 		/* in rare cases this is needed, see [#33806] */
 		if (sce->toolsettings->vpaint) {
 			sce->toolsettings->vpaint->vpaint_prev = NULL;

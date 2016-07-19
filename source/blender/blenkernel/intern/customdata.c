@@ -55,6 +55,7 @@
 
 #include "BKE_customdata.h"
 #include "BKE_customdata_file.h"
+#include "BKE_editstrands.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_mesh_mapping.h"
@@ -1323,6 +1324,8 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 	/* 41: CD_CUSTOMLOOPNORMAL */
 	{sizeof(short[2]), "vec2s", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 42: CD_MESH_SAMPLE */
+	{sizeof(MeshSample), "MeshSample", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 
@@ -1338,7 +1341,7 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 30-34 */ "CDSubSurfCrease", "CDOrigSpaceLoop", "CDPreviewLoopCol", "CDBMElemPyPtr", "CDPaintMask",
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
 	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace",
-	/* 39-41 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal",
+	/* 39-42 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal", "CDMeshSample",
 };
 
 
@@ -1383,6 +1386,17 @@ const CustomDataMask CD_MASK_FACECORNERS =
     CD_MASK_ORIGSPACE | CD_MASK_ORIGSPACE_MLOOP |
     CD_MASK_TESSLOOPNORMAL | CD_MASK_NORMAL |
     CD_MASK_TANGENT | CD_MASK_MLOOPTANGENT;
+const CustomDataMask CD_MASK_STRANDS =
+    CD_MASK_MVERT | CD_MASK_MEDGE |
+    CD_MASK_MDEFORMVERT | CD_MASK_MCOL |
+    CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
+    CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE |
+    CD_MASK_MSURFACE_SAMPLE;
+const CustomDataMask CD_MASK_STRANDS_BMESH =
+    CD_MASK_MDEFORMVERT | CD_MASK_PROP_FLT | CD_MASK_PROP_INT |
+    CD_MASK_PROP_STR | CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX | CD_MASK_MDISPS |
+    CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE |
+    CD_MASK_MSURFACE_SAMPLE;
 const CustomDataMask CD_MASK_EVERYTHING =
     CD_MASK_MVERT | CD_MASK_MDEFORMVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_NORMAL /* | CD_MASK_POLYINDEX */ | CD_MASK_PROP_FLT |
@@ -2932,6 +2946,18 @@ void *CustomData_bmesh_get_layer_n(const CustomData *data, void *block, int n)
 	if (n < 0 || n >= data->totlayer) return NULL;
 
 	return POINTER_OFFSET(block, data->layers[n].offset);
+}
+
+/*Bmesh Custom Data Functions. Should replace editmesh ones with these as well, due to more effecient memory alloc*/
+void *CustomData_bmesh_get_named(const CustomData *data, void *block, int type, const char *name)
+{
+	int layer_index;
+	
+	/* get the layer index of the named layer of type */
+	layer_index = CustomData_get_named_layer_index(data, type, name);
+	if (layer_index == -1) return NULL;
+
+	return (char *)block + data->layers[layer_index].offset;
 }
 
 bool CustomData_layer_has_math(const struct CustomData *data, int layer_n)

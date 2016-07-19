@@ -35,9 +35,13 @@
 struct bContext;
 struct ReportList;
 struct wmKeyConfig;
+struct ViewContext;
+struct rcti;
 
+struct Main;
 struct Scene;
 struct Object;
+struct BMEditStrands;
 
 /* particle_edit.c */
 int PE_poll(struct bContext *C);
@@ -55,6 +59,29 @@ void ED_rigidbody_constraint_remove(struct Main *bmain, struct Scene *scene, str
 /* operators */
 void ED_operatortypes_physics(void);
 void ED_keymap_physics(struct wmKeyConfig *keyconf);
+
+/* hair edit */
+void undo_push_strands(struct bContext *C, const char *name);
+
+void           ED_strands_mirror_cache_begin_ex(struct BMEditStrands *edit, const int axis,
+                                                const bool use_self, const bool use_select,
+                                                const bool use_topology, float maxdist, int *r_index);
+void           ED_strands_mirror_cache_begin(struct BMEditStrands *edit, const int axis,
+                                             const bool use_self, const bool use_select,
+                                             const bool use_topology);
+void           ED_strands_mirror_apply(struct BMEditStrands *edit, const int sel_from, const int sel_to);
+struct BMVert *ED_strands_mirror_get(struct BMEditStrands *edit, struct BMVert *v);
+struct BMEdge *ED_strands_mirror_get_edge(struct BMEditStrands *edit, struct BMEdge *e);
+void           ED_strands_mirror_cache_clear(struct BMEditStrands *edit, struct BMVert *v);
+void           ED_strands_mirror_cache_end(struct BMEditStrands *edit);
+
+int ED_hair_mouse_select(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
+int ED_hair_border_select(struct bContext *C, struct rcti *rect, bool select, bool extend);
+int ED_hair_circle_select(struct bContext *C, bool select, const int mval[2], float radius);
+int ED_hair_lasso_select(struct bContext *C, const int mcoords[][2], short moves, bool extend, bool select);
+
+void ED_operatortypes_hair(void);
+void ED_keymap_hair(struct wmKeyConfig *keyconf);
 
 #endif /* __ED_PHYSICS_H__ */
 

@@ -140,6 +140,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_speaker_types.h"
 #include "DNA_sound_types.h"
+#include "DNA_strand_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_vfont_types.h"
@@ -1386,6 +1387,24 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 	}
 }
 
+static void write_strands(WriteData *wd, Strands *strands)
+{
+	if (strands == NULL)
+		return;
+	
+	writestruct(wd, DATA, Strands, 1, strands);
+	
+	if (strands->curves) {
+		writestruct(wd, DATA, StrandCurve, strands->totcurves, strands->curves);
+	}
+	if (strands->verts) {
+		writestruct(wd, DATA, StrandVertex, strands->totverts, strands->verts);
+	}
+	if (strands->fibers) {
+		writestruct(wd, DATA, StrandFiber, strands->totfibers, strands->fibers);
+	}
+}
+
 static void write_properties(WriteData *wd, ListBase *lb)
 {
 	bProperty *prop;
@@ -1818,6 +1837,13 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			if (csmd->bind_coords) {
 				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
+			}
+		}
+		else if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData *)md;
+
+			if (smd->strands) {
+				write_strands(wd, smd->strands);
 			}
 		}
 	}
@@ -2261,6 +2287,7 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 				CustomData_reset(&mesh->pdata);
 				CustomData_reset(&mesh->ldata);
 				mesh->edit_btmesh = NULL;
+				mesh->edit_strands = NULL;
 
 				/* now fill in polys to mfaces */
 				/* XXX This breaks writing design, by using temp allocated memory, which will likely generate

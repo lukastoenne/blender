@@ -1122,7 +1122,7 @@ static void cdDM_drawMappedFacesGLSL(
 
 			if (do_draw) {
 				if (matconv[a].numdata) {
-					GPU_interleaved_attrib_setup(buffer, matconv[a].datatypes, matconv[a].numdata, max_element_size);
+					GPU_interleaved_attrib_setup(buffer, matconv[a].datatypes, matconv[a].numdata, max_element_size, true);
 				}
 				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES,
 				                         dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);

@@ -878,6 +878,53 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.active = md.use_rim
         row.prop(md, "material_offset_rim", text="Rim")
 
+    def STRANDS(self, layout, ob, md):
+        layout.operator("object.strands_test_init", text="Test Init")
+
+        layout.label("Display:")
+        layout.prop(md, "show_strands", text="Control Strands")
+        layout.prop(md, "show_fibers", text="Fibers")
+
+        split = layout.split()
+        col = split.column()
+        
+        col.label("Fibers:")
+        col.prop(md, "seed")
+        col.prop(md, "num_fibers")
+        col.prop(md, "subdivisions")
+
+        col.separator()
+
+        col.prop(md, "fiber_primitive", text="")
+        if (md.fiber_primitive == 'RIBBON'):
+            col.prop(md, "ribbon_width")
+
+        col = split.column()
+        col.label(text="Shader:")
+        col.prop(md, "shader_model", text="")
+        
+        layout.separator()
+
+        box = layout.box()
+        box.prop(md, "use_clump_effect")
+        if md.use_clump_effect:
+            box.prop(md, "clump_thickness")
+            box.prop(md, "clump_shape")
+        
+        box = layout.box()
+        box.prop(md, "use_curl_effect")
+        if md.use_curl_effect:
+            box.prop(md, "curl_thickness")
+            box.prop(md, "curl_shape")
+            box.prop(md, "curl_radius")
+            box.prop(md, "curl_length")
+
+        layout.separator()
+
+        layout.prop(md, "use_geometry_shader")
+        layout.prop(md, "debug_value")
+        layout.prop(md, "debug_scale")
+
     def SUBSURF(self, layout, ob, md):
         layout.row().prop(md, "subdivision_type", expand=True)
 

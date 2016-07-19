@@ -29,6 +29,8 @@
 
 struct LinkNode;
 struct MemArena;
+struct MeshSample;
+
 
 void  BM_loop_interp_multires_ex(
         BMesh *bm, BMLoop *l_dst, const BMFace *f_src,
@@ -54,6 +56,10 @@ void  BM_data_layer_copy(BMesh *bm, CustomData *data, int type, int src_n, int d
 
 float BM_elem_float_data_get(CustomData *cd, void *element, int type);
 void  BM_elem_float_data_set(CustomData *cd, void *element, int type, const float val);
+float BM_elem_float_data_named_get(CustomData *cd, void *element, int type, const char *name);
+void BM_elem_float_data_named_set(CustomData *cd, void *element, int type, const char *name, const float val);
+void BM_elem_meshsample_data_named_get(CustomData *cd, void *element, int type, const char *name, struct MeshSample *val);
+void BM_elem_meshsample_data_named_set(CustomData *cd, void *element, int type, const char *name, const struct MeshSample *val);
 
 void BM_face_interp_from_face_ex(
         BMesh *bm, BMFace *f_dst, const BMFace *f_src, const bool do_vertex,

@@ -58,6 +58,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
+#include "BKE_editstrands.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -74,6 +75,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+#include "BKE_strands.h"
 #include "BKE_subsurf.h"
 #include "BKE_unit.h"
 #include "BKE_tracking.h"
@@ -90,6 +92,7 @@
 #include "GPU_select.h"
 #include "GPU_basic_shader.h"
 #include "GPU_shader.h"
+#include "GPU_strands.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -3925,7 +3928,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 {
 	if ((v3d->transp == false) &&  /* not when we draw the transparent pass */
-	    (ob->mode & OB_MODE_ALL_PAINT) == false) /* not when painting (its distracting) - campbell */
+	    (ob->mode & OB_MODE_ALL_BRUSH) == false) /* not when painting (its distracting) - campbell */
 	{
 		glLineWidth(UI_GetThemeValuef(TH_OUTLINE_WIDTH) * 2.0f);
 		glDepthMask(0);
@@ -7467,7 +7470,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
 	bool skip_object = false;  /* Draw particles but not their emitter object. */
-	SmokeModifierData *smd = NULL;
+	SmokeModifierData *smoke_md = NULL;
 
 	if (ob != scene->obedit) {
 		if (ob->restrictflag & OB_RESTRICT_VIEW)
@@ -7506,9 +7509,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	    (md = modifiers_findByType(ob, eModifierType_Smoke)) &&
 	    (modifier_isEnabled(scene, md, eModifierMode_Realtime)))
 	{
-		smd = (SmokeModifierData *)md;
+		smoke_md = (SmokeModifierData *)md;
 
-		if (smd->domain) {
+		if (smoke_md->domain) {
 			if (!v3d->transp && (dflag & DRAW_PICKING) == 0) {
 				if (!v3d->xray && !(ob->dtx & OB_DRAWXRAY)) {
 					/* object has already been drawn so skip drawing it */
@@ -7633,7 +7636,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	if (!skip_object) {
 		/* draw outline for selected objects, mesh does itself */
 		if ((v3d->flag & V3D_SELECT_OUTLINE) && !render_override && ob->type != OB_MESH) {
-			if (dt > OB_WIRE && (ob->mode & OB_MODE_EDIT) == 0 && (dflag & DRAW_SCENESET) == 0) {
+			if (dt > OB_WIRE &&
+			    (ob->mode & (OB_MODE_EDIT | OB_MODE_HAIR_EDIT)) == 0 &&
+			    (dflag & DRAW_SCENESET) == 0)
+			{
 				if (!(ob->dtx & OB_DRAWWIRE) && (ob->flag & SELECT) && !(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR))) {
 					drawObjectSelect(scene, v3d, ar, base, ob_wire_col);
 				}
@@ -7811,14 +7817,16 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		view3d_cached_text_draw_begin();
 
 		for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-			/* run this so that possible child particles get cached */
-			if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
-				PTCacheEdit *edit = PE_create_current(scene, ob);
-				if (edit && edit->psys == psys)
-					draw_update_ptcache_edit(scene, ob, edit);
+			if (!(ob->mode & OB_MODE_HAIR_EDIT)) {
+				/* run this so that possible child particles get cached */
+				if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
+					PTCacheEdit *edit = PE_create_current(scene, ob);
+					if (edit && edit->psys == psys)
+						draw_update_ptcache_edit(scene, ob, edit);
+				}
+				
+				draw_new_particle_system(scene, v3d, rv3d, base, psys, dt, dflag);
 			}
-
-			draw_new_particle_system(scene, v3d, rv3d, base, psys, dt, dflag);
 		}
 		invert_m4_m4(ob->imat, ob->obmat);
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
@@ -7846,7 +7854,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* draw code for smoke */
-	if (smd) {
+	if (smoke_md) {
 #if 0
 		/* draw collision objects */
 		if ((smd->type & MOD_SMOKE_TYPE_COLL) && smd->coll) {
@@ -7880,8 +7888,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #endif
 
 		/* only draw domains */
-		if (smd->domain) {
-			SmokeDomainSettings *sds = smd->domain;
+		if (smoke_md->domain) {
+			SmokeDomainSettings *sds = smoke_md->domain;
 			float viewnormal[3];
 
 			glLoadMatrixf(rv3d->viewmat);
@@ -7942,15 +7950,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				if (!sds->wt || !(sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					sds->tex = NULL;
-					GPU_create_smoke(smd, 0);
+					GPU_create_smoke(smoke_md, 0);
 					draw_smoke_volume(sds, ob, p0, p1, viewnormal);
-					GPU_free_smoke(smd);
+					GPU_free_smoke(smoke_md);
 				}
 				else if (sds->wt && (sds->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
 					sds->tex = NULL;
-					GPU_create_smoke(smd, 1);
+					GPU_create_smoke(smoke_md, 1);
 					draw_smoke_volume(sds, ob, p0, p1, viewnormal);
-					GPU_free_smoke(smd);
+					GPU_free_smoke(smoke_md);
 				}
 
 				/* smoke debug render */
@@ -7960,6 +7968,22 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 #ifdef SMOKE_DEBUG_HEAT
 				draw_smoke_heat(smd->domain, ob);
 #endif
+			}
+		}
+	}
+
+	/* strands drawing */
+	for (md = ob->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Strands) {
+			StrandsModifierData *smd = (StrandsModifierData *)md;
+			
+			if (ob->mode & OB_MODE_HAIR_EDIT && is_obact) {
+				if (!(dflag & DRAW_PICKING) && scene->obedit == NULL) {
+					draw_strands(scene, v3d, rv3d, ob, smd);
+				}
+			}
+			else {
+				draw_strands(scene, v3d, rv3d, ob, smd);
 			}
 		}
 	}
@@ -8058,7 +8082,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* object centers, need to be drawn in viewmat space for speed, but OK for picking select */
-	if (!is_obact || !(ob->mode & OB_MODE_ALL_PAINT)) {
+	if (!is_obact || !(ob->mode & OB_MODE_ALL_BRUSH)) {
 		int do_draw_center = -1; /* defines below are zero or positive... */
 
 		if (render_override) {

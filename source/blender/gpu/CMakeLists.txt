@@ -58,6 +58,8 @@ set(SRC
 	intern/gpu_material.c
 	intern/gpu_select.c
 	intern/gpu_shader.c
+	intern/gpu_strands_buffer.c
+	intern/gpu_strands_shader.c
 	intern/gpu_texture.c
 
 	shaders/gpu_shader_fx_lib.glsl
@@ -80,6 +82,9 @@ set(SRC
 	shaders/gpu_shader_fx_depth_resolve.glsl
 	shaders/gpu_shader_smoke_frag.glsl
 	shaders/gpu_shader_smoke_vert.glsl
+	shaders/gpu_shader_strand_frag.glsl
+	shaders/gpu_shader_strand_geom.glsl
+	shaders/gpu_shader_strand_vert.glsl
 
 	GPU_basic_shader.h
 	GPU_buffers.h
@@ -93,6 +98,7 @@ set(SRC
 	GPU_material.h
 	GPU_select.h
 	GPU_shader.h
+	GPU_strands.h
 	GPU_texture.h
 	intern/gpu_codegen.h
 	intern/gpu_private.h
@@ -120,6 +126,14 @@ data_to_c_simple(shaders/gpu_shader_fx_dof_hq_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_dof_hq_geo.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_depth_resolve.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_geom.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_debug_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_debug_geom.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_debug_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_effects.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_util.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

@@ -52,6 +52,8 @@ struct GPUDrawObject;
 struct GridCommonGPUBuffer;
 struct PBVH;
 struct MVert;
+struct Strands;
+struct BMEditStrands;
 
 typedef struct GPUBuffer {
 	size_t size;        /* in bytes */
@@ -143,6 +145,42 @@ typedef struct GPUVertPointLink {
 	int point_index;
 } GPUVertPointLink;
 
+typedef struct GPUBufferTexture {
+	unsigned int id;
+} GPUBufferTexture;
+
+typedef struct GPUDrawStrands {
+	GPUBuffer *strand_points;
+	GPUBuffer *strand_edges;
+	GPUBuffer *control_curves;
+	GPUBuffer *control_points;
+	GPUBuffer *control_normals;
+	GPUBuffer *control_tangents;
+	GPUBuffer *fibers;
+	GPUBuffer *fiber_points;
+	GPUBuffer *fiber_indices;
+	GPUBuffer *fiber_position;
+	GPUBuffer *fiber_control_index;
+	GPUBuffer *fiber_control_weight;
+
+	/* GL texture id for control point texture buffer */
+	GPUBufferTexture control_points_tex;
+	GPUBufferTexture control_normals_tex;
+	GPUBufferTexture control_tangents_tex;
+	GPUBufferTexture control_curves_tex;
+	GPUBufferTexture fiber_position_tex;
+	GPUBufferTexture fiber_control_index_tex;
+	GPUBufferTexture fiber_control_weight_tex;
+
+	unsigned int strand_totverts;
+	unsigned int strand_totedges;
+	unsigned int control_totverts;
+	unsigned int control_totcurves;
+	unsigned int totfibers;
+	unsigned int fiber_totverts;
+	unsigned int fiber_totelems;
+} GPUDrawStrands;
+
 
 
 /* used for GLSL materials */
@@ -158,6 +196,12 @@ void GPU_global_buffer_pool_free_unused(void);
 
 GPUBuffer *GPU_buffer_alloc(size_t size);
 void GPU_buffer_free(GPUBuffer *buffer);
+
+typedef void (*GPUBufferSetupCb)(void *varray, void *user);
+struct GPUBuffer *GPU_buffer_setup(int gl_target, size_t size, GPUBufferSetupCb copy_data, void *user, struct GPUBuffer *buffer);
+
+void GPU_enable_vertex_buffer(GPUBuffer *buffer, size_t elemsize);
+void GPU_enable_element_buffer(GPUBuffer *buffer);
 
 void GPU_drawobject_free(struct DerivedMesh *dm);
 
@@ -196,7 +240,8 @@ void GPU_uvedge_setup(struct DerivedMesh *dm);
 void GPU_triangle_setup(struct DerivedMesh *dm);
 
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size);
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size,
+                                  bool use_float_buffer);
 
 void GPU_buffer_bind(GPUBuffer *buffer, GPUBindingType binding);
 void GPU_buffer_unbind(GPUBuffer *buffer, GPUBindingType binding);

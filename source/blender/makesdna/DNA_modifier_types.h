@@ -85,6 +85,7 @@ typedef enum ModifierType {
 	eModifierType_DataTransfer      = 49,
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
+	eModifierType_Strands           = 52,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1539,6 +1540,61 @@ enum {
 	MOD_NORMALEDIT_MIX_ADD  = 1,
 	MOD_NORMALEDIT_MIX_SUB  = 2,
 	MOD_NORMALEDIT_MIX_MUL  = 3,
+};
+
+/* Strand modifier */
+typedef struct StrandsModifierData {
+	ModifierData modifier;
+	
+	int flag;
+	int num_fibers;
+	int seed;
+	int subdiv;
+	
+	int shader_model;
+	int fiber_primitive;
+	float ribbon_width;
+	int pad;
+	
+	struct Strands *strands;
+	
+	struct BMEditStrands *edit;         /* edit data (runtime) */
+	
+	struct GPUDrawStrands *gpu_buffer;  /* draw data (runtime) */
+	
+	int effects;
+	float clump_thickness, clump_shape;
+	float curl_thickness, curl_shape, curl_radius, curl_length;
+	
+	int debug_value;                    /* debugging value */
+	float debug_scale;                  /* scale for debug vectors */
+	int pad2;
+} StrandsModifierData;
+
+/* StrandsModifierData.flag */
+enum {
+	MOD_STRANDS_SHOW_STRANDS = (1 << 0),
+	MOD_STRANDS_SHOW_FIBERS = (1 << 1),
+	MOD_STRANDS_USE_GEOMSHADER = (1 << 2),
+};
+
+/* StrandsModifierData.shader_model */
+enum {
+	MOD_STRANDS_SHADER_CLASSIC_BLENDER = 0,
+	MOD_STRANDS_SHADER_KAJIYA = 1,
+	MOD_STRANDS_SHADER_MARSCHNER = 2,
+};
+
+/* StrandsModifierData.fiber_primitive */
+enum {
+	MOD_STRANDS_FIBER_LINE = 0,
+	MOD_STRANDS_FIBER_RIBBON = 1,
+};
+
+/* StrandsModifierData.effects */
+enum {
+	MOD_STRANDS_EFFECT_CLUMP     = (1 << 0),
+	MOD_STRANDS_EFFECT_CURL         = (1 << 1),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

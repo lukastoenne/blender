@@ -91,6 +91,7 @@ set(SRC
 	intern/MOD_smooth.c
 	intern/MOD_softbody.c
 	intern/MOD_solidify.c
+	intern/MOD_strands.c
 	intern/MOD_subsurf.c
 	intern/MOD_surface.c
 	intern/MOD_triangulate.c

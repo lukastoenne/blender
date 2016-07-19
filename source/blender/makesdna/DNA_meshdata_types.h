@@ -396,6 +396,13 @@ enum {
 	FREESTYLE_FACE_MARK = 1,
 };
 
+typedef struct MeshSample {
+	unsigned int orig_verts[3];
+	float orig_weights[3]; /* also used as volume sample location */
+	int orig_poly;
+	unsigned int orig_loops[3];
+} MeshSample;
+
 /* mvert->flag */
 enum {
 /*	SELECT              = (1 << 0), */

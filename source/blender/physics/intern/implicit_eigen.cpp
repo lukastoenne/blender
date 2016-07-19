@@ -268,7 +268,7 @@ static void print_lmatrix(const lMatrix &m)
 			if (i > 0 && i % 3 == 0)
 				printf("  ");
 			
-			implicit_print_matrix_elem(m.coeff(j, i));
+			print_matrix_elem(m.coeff(j, i));
 		}
 		printf("\n");
 	}

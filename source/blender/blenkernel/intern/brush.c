@@ -70,7 +70,7 @@ static void brush_defaults(Brush *brush)
 	brush->blend = 0;
 	brush->flag = 0;
 
-	brush->ob_mode = OB_MODE_ALL_PAINT;
+	brush->ob_mode = OB_MODE_ALL_BRUSH;
 
 	/* BRUSH SCULPT TOOL SETTINGS */
 	brush->weight = 1.0f; /* weight of brush 0 - 1.0 */

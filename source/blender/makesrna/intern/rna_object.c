@@ -70,6 +70,7 @@ EnumPropertyItem rna_enum_object_mode_items[] = {
 	{OB_MODE_TEXTURE_PAINT, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
 	{OB_MODE_PARTICLE_EDIT, "PARTICLE_EDIT", ICON_PARTICLEMODE, "Particle Edit", ""},
 	{OB_MODE_GPENCIL, "GPENCIL_EDIT", ICON_GREASEPENCIL, "Edit Strokes", "Edit Grease Pencil Strokes"},
+	{OB_MODE_HAIR_EDIT, "HAIR_EDIT", ICON_PARTICLEMODE, "Hair Edit", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

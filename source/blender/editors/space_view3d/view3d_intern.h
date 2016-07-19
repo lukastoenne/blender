@@ -46,6 +46,7 @@ struct bContext;
 struct bMotionPath;
 struct bPoseChannel;
 struct Mesh;
+struct StrandsModifierData;
 struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
@@ -286,7 +287,11 @@ ARegion *view3d_has_tools_region(ScrArea *sa);
 
 extern const char *view3d_context_dir[]; /* doc access */
 
-/* draw_volume.c */
+/* drawstrands.c */
+void draw_strands(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
+                  struct Object *ob, struct StrandsModifierData *smd);
+
+/* drawvolume.c */
 void draw_smoke_volume(struct SmokeDomainSettings *sds, struct Object *ob,
                        const float min[3], const float max[3],
                        const float viewnormal[3]);

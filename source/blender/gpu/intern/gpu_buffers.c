@@ -74,7 +74,7 @@ typedef struct {
 } GPUBufferTypeSettings;
 
 
-static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
+static size_t gpu_mesh_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
 
 const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
     /* vertex */
@@ -455,16 +455,10 @@ static GPUBuffer *gpu_try_realloc(GPUBufferPool *pool, GPUBuffer *buffer, size_t
 	return buffer;
 }
 
-static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
-                                   int type, void *user, GPUBuffer *buffer)
+GPUBuffer *GPU_buffer_setup(int gl_target, size_t size, GPUBufferSetupCb copy_data, void *user, GPUBuffer *buffer)
 {
 	GPUBufferPool *pool;
 	float *varray;
-	int *mat_orig_to_new;
-	int i;
-	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
-	GLenum target = ts->gl_buffer_type;
-	size_t size = gpu_buffer_size_from_type(dm, type);
 	GLboolean uploaded;
 
 	pool = gpu_get_global_buffer_pool();
@@ -479,25 +473,17 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 		}
 	}
 
-	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
-	                              "GPU_buffer_setup.mat_orig_to_new");
-	for (i = 0; i < object->totmaterial; i++) {
-		/* map from original material index to new
-		 * GPUBufferMaterial index */
-		mat_orig_to_new[object->materials[i].mat_nr] = i;
-	}
-
 	/* bind the buffer and discard previous data,
 	 * avoids stalling gpu */
-	glBindBuffer(target, buffer->id);
-	glBufferData(target, buffer->size, NULL, GL_STATIC_DRAW);
+	glBindBuffer(gl_target, buffer->id);
+	glBufferData(gl_target, buffer->size, NULL, GL_STATIC_DRAW);
 
 	/* attempt to map the buffer */
-	if (!(varray = glMapBuffer(target, GL_WRITE_ONLY))) {
+	if (!(varray = glMapBuffer(gl_target, GL_WRITE_ONLY))) {
 		buffer = gpu_try_realloc(pool, buffer, size);
 
 		/* allocation still failed; unfortunately we need to exit */
-		if (!(buffer && (varray = glMapBuffer(target, GL_WRITE_ONLY)))) {
+		if (!(buffer && (varray = glMapBuffer(gl_target, GL_WRITE_ONLY)))) {
 			if (buffer)
 				gpu_buffer_free_intern(buffer);
 			BLI_mutex_unlock(&buffer_mutex);
@@ -509,19 +495,34 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 
 	/* attempt to upload the data to the VBO */
 	while (uploaded == GL_FALSE) {
-		dm->copy_gpu_data(dm, type, varray, mat_orig_to_new, user);
+		copy_data(varray, user);
+		
 		/* glUnmapBuffer returns GL_FALSE if
 		 * the data store is corrupted; retry
 		 * in that case */
-		uploaded = glUnmapBuffer(target);
+		uploaded = glUnmapBuffer(gl_target);
 	}
-	glBindBuffer(target, 0);
-
-	MEM_freeN(mat_orig_to_new);
+	glBindBuffer(gl_target, 0);
 
 	BLI_mutex_unlock(&buffer_mutex);
 
 	return buffer;
+}
+
+void GPU_enable_vertex_buffer(GPUBuffer *buffer, size_t elemsize)
+{
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+	glVertexPointer(3, GL_FLOAT, elemsize, NULL);
+
+	GLStates |= (GPU_BUFFER_VERTEX_STATE);
+}
+
+void GPU_enable_element_buffer(GPUBuffer *buffer)
+{
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+
+	GLStates |= (GPU_BUFFER_ELEMENT_STATE);
 }
 
 /* get the GPUDrawObject buffer associated with a type */
@@ -550,7 +551,7 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 }
 
 /* get the amount of space to allocate for a buffer of a particular type */
-static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
+static size_t gpu_mesh_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 {
 	const int components = gpu_buffer_type_settings[type].num_components;
 	switch (type) {
@@ -575,23 +576,57 @@ static size_t gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 	}
 }
 
+typedef struct GPUDerivedMeshBufferInfo {
+	DerivedMesh *dm;
+	GPUDrawObject *object;
+	GPUBufferType type;
+	void *data_layer;
+	int *mat_orig_to_new;
+} GPUDerivedMeshBufferInfo;
+
+static void dm_copy_data_cb(void *varray, void *user)
+{
+	GPUDerivedMeshBufferInfo *info = user;
+	info->dm->copy_gpu_data(info->dm, info->type, varray, info->mat_orig_to_new, info->data_layer);
+}
+
 /* call gpu_buffer_setup with settings for a particular type of buffer */
 static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type, GPUBuffer *buf)
 {
-	void *user_data = NULL;
+	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
+	int gl_target = ts->gl_buffer_type;
+	size_t size = gpu_mesh_buffer_size_from_type(dm, type);
+	
+	GPUDerivedMeshBufferInfo info;
+	int i;
 
+	info.dm = dm;
+	info.object = dm->drawObject;
+	info.type = type;
+	
+	info.data_layer = NULL;
 	/* special handling for MCol and UV buffers */
 	if (type == GPU_BUFFER_COLOR) {
-		if (!(user_data = DM_get_loop_data_layer(dm, dm->drawObject->colType)))
+		if (!(info.data_layer = DM_get_loop_data_layer(dm, dm->drawObject->colType)))
 			return NULL;
 	}
 	else if (ELEM(type, GPU_BUFFER_UV, GPU_BUFFER_UV_TEXPAINT)) {
 		if (!DM_get_loop_data_layer(dm, CD_MLOOPUV))
 			return NULL;
 	}
+	
+	info.mat_orig_to_new = MEM_mallocN(sizeof(*info.mat_orig_to_new) * dm->totmat,
+	                                   "GPU_buffer_setup.mat_orig_to_new");
+	for (i = 0; i < info.object->totmaterial; i++) {
+		/* map from original material index to new
+		 * GPUBufferMaterial index */
+		info.mat_orig_to_new[info.object->materials[i].mat_nr] = i;
+	}
 
-	buf = gpu_buffer_setup(dm, dm->drawObject, type, user_data, buf);
-
+	buf = GPU_buffer_setup(gl_target, size, dm_copy_data_cb, &info, buf);
+	
+	MEM_freeN(info.mat_orig_to_new);
+	
 	return buf;
 }
 
@@ -743,6 +778,9 @@ void GPU_triangle_setup(struct DerivedMesh *dm)
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
 
+#define SUPPORTED_GL_ATTRIB_TYPES \
+    GL_FLOAT, GL_INT, GL_UNSIGNED_INT, GL_BYTE, GL_UNSIGNED_BYTE
+
 static int GPU_typesize(int type)
 {
 	switch (type) {
@@ -773,7 +811,8 @@ int GPU_attrib_element_size(GPUAttrib data[], int numdata)
 	return elementsize;
 }
 
-void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size)
+void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata, int element_size,
+                                  bool use_float_buffer)
 {
 	int i;
 	int elementsize;
@@ -794,15 +833,39 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
 	
 	for (i = 0; i < numdata; i++) {
-		glEnableVertexAttribArray(data[i].index);
-		int info = 0;
-		if (data[i].type == GL_UNSIGNED_BYTE) {
-			info |= GPU_ATTR_INFO_SRGB;
+		BLI_assert(ELEM(data[i].type, SUPPORTED_GL_ATTRIB_TYPES) &&
+		           "Unsupported attribute data type!");
+		
+		if (data[i].info_index != -1) {
+			int info = 0;
+			if (data[i].type == GL_UNSIGNED_BYTE) {
+				info |= GPU_ATTR_INFO_SRGB;
+			}
+			glUniform1i(data[i].info_index, info);
 		}
-		glUniform1i(data[i].info_index, info);
 
-		glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
-		                         GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+		if (data[i].index != -1) {
+			glEnableVertexAttribArray(data[i].index);
+			switch (data[i].type) {
+				case GL_FLOAT:
+					glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+					                      GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+					break;
+				case GL_INT:
+				case GL_UNSIGNED_INT:
+				case GL_BYTE:
+				case GL_UNSIGNED_BYTE:
+					if (use_float_buffer) {
+						glVertexAttribPointer(data[i].index, data[i].size, data[i].type,
+						                      GL_TRUE, elementsize, BUFFER_OFFSET(offset));
+					}
+					else {
+						glVertexAttribIPointer(data[i].index, data[i].size, data[i].type,
+						                       elementsize, BUFFER_OFFSET(offset));
+					}
+					break;
+			}
+		}
 		offset += data[i].size * GPU_typesize(data[i].type);
 		
 		attribData[i].index = data[i].index;
@@ -820,8 +883,6 @@ void GPU_interleaved_attrib_unbind(void)
 		if (attribData[i].index != -1) {
 			glDisableVertexAttribArray(attribData[i].index);
 		}
-		else
-			break;
 	}
 	attribData[0].index = -1;
 }

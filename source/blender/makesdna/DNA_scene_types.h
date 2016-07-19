@@ -1042,6 +1042,32 @@ typedef struct ParticleEditSettings {
 } ParticleEditSettings;
 
 /* ------------------------------------------- */
+/* Hair Edit */
+
+/* HairEditSettings->select_mode */
+typedef enum HairEditSelectMode {
+	HAIR_SELECT_STRAND  = 0,
+	HAIR_SELECT_VERTEX  = 1,
+	HAIR_SELECT_TIP     = 2,
+} HairEditSelectMode;
+
+/* HairEditSettings->flag */
+typedef enum HairEditFlag {
+	HAIR_EDIT_SHOW_DEBUG    = (1 << 16),
+} HairEditFlag;
+
+typedef struct HairEditSettings {
+	int flag;
+	int select_mode;
+	
+	struct Brush *brush;
+	struct Object *shape_object;
+	
+	/* WM Paint cursor */
+	void *paint_cursor;
+} HairEditSettings;
+
+/* ------------------------------------------- */
 /* Sculpt */
 
 /* Sculpt */
@@ -1375,7 +1401,10 @@ typedef struct ToolSettings {
 
 	/* Particle Editing */
 	struct ParticleEditSettings particle;
-	
+
+	/* Hair Editing */
+	struct HairEditSettings hair_edit;
+
 	/* Transform Proportional Area of Effect */
 	float proportional_size;
 
