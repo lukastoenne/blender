@@ -72,6 +72,7 @@ EnumPropertyItem rna_enum_fmodifier_type_items[] = {
 EnumPropertyItem rna_enum_beztriple_keyframe_type_items[] = {
 	{BEZT_KEYTYPE_KEYFRAME, "KEYFRAME", VICO_KEYTYPE_KEYFRAME_VEC, "Keyframe", "Normal keyframe - e.g. for key poses"},
 	{BEZT_KEYTYPE_BREAKDOWN, "BREAKDOWN", VICO_KEYTYPE_BREAKDOWN_VEC, "Breakdown", "A breakdown pose - e.g. for transitions between key poses"},
+	{BEZT_KEYTYPE_MOVEHOLD, "MOVING_HOLD", VICO_KEYTYPE_MOVING_HOLD_VEC, "Moving Hold", "A keyframe that is part of a moving hold"},
 	{BEZT_KEYTYPE_EXTREME, "EXTREME", VICO_KEYTYPE_EXTREME_VEC, "Extreme", "An 'extreme' pose, or some other purpose as needed"},
 	{BEZT_KEYTYPE_JITTER, "JITTER", VICO_KEYTYPE_JITTER_VEC, "Jitter", "A filler or baked keyframe for keying on ones, or some other purpose as needed"},
 	{0, NULL, 0, NULL, NULL}
@@ -1844,6 +1845,8 @@ static void rna_def_fcurve(BlenderRNA *brna)
 		                            "Cycle through the rainbow, trying to give each curve a unique color"},
 		{FCURVE_COLOR_AUTO_RGB, "AUTO_RGB", 0, "Auto XYZ to RGB",
 		                        "Use axis colors for transform and color properties, and auto-rainbow for the rest"},
+		{FCURVE_COLOR_AUTO_YRGB, "AUTO_YRGB", 0, "Auto WXYZ to YRGB",
+		                         "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
 		{FCURVE_COLOR_CUSTOM, "CUSTOM", 0, "User Defined",
 		                      "Use custom hand-picked color for F-Curve"},
 		{0, NULL, 0, NULL, NULL}

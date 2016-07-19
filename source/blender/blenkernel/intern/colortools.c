@@ -982,6 +982,7 @@ static void save_sample_line(Scopes *scopes, const int idx, const float fx, cons
 	/* waveform */
 	switch (scopes->wavefrm_mode) {
 		case SCOPES_WAVEFRM_RGB:
+		case SCOPES_WAVEFRM_RGB_PARADE:
 			scopes->waveform_1[idx + 0] = fx;
 			scopes->waveform_1[idx + 1] = rgb[0];
 			scopes->waveform_2[idx + 0] = fx;
@@ -1265,6 +1266,8 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 
 	switch (scopes->wavefrm_mode) {
 		case SCOPES_WAVEFRM_RGB:
+			/* fall-through */
+		case SCOPES_WAVEFRM_RGB_PARADE:
 			ycc_mode = -1;
 			break;
 		case SCOPES_WAVEFRM_LUMA:
@@ -1322,7 +1325,7 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 		.cm_processor = cm_processor, .display_buffer = display_buffer, .ycc_mode = ycc_mode,
 		.bin_lum = bin_lum, .bin_r = bin_r, .bin_g = bin_g, .bin_b = bin_b, .bin_a = bin_a,
 	};
-	ScopesUpdateDataChunk data_chunk = {0};
+	ScopesUpdateDataChunk data_chunk = {{0}};
 	INIT_MINMAX(data_chunk.min, data_chunk.max);
 
 	BLI_task_parallel_range_finalize(0, ibuf->y, &data, &data_chunk, sizeof(data_chunk),

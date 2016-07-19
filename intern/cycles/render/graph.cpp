@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Blender Foundation
+ * Copyright 2011-2016 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include "graph.h"
 #include "nodes.h"
 #include "shader.h"
+#include "constant_fold.h"
 
 #include "util_algorithm.h"
 #include "util_debug.h"
@@ -267,6 +268,17 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 	}
 }
 
+void ShaderGraph::disconnect(ShaderOutput *from)
+{
+	assert(!finalized);
+
+	foreach(ShaderInput *sock, from->links) {
+		sock->link = NULL;
+	}
+
+	from->links.clear();
+}
+
 void ShaderGraph::disconnect(ShaderInput *to)
 {
 	assert(!finalized);
@@ -514,15 +526,8 @@ void ShaderGraph::constant_fold()
 				}
 			}
 			/* Optimize current node. */
-			if(node->constant_fold(this, output, output->links[0])) {
-				/* Apply optimized value to other connected sockets and disconnect. */
-				vector<ShaderInput*> links(output->links);
-				for(size_t i = 0; i < links.size(); i++) {
-					if(i > 0)
-						links[i]->parent->copy_value(links[i]->socket_type, *links[0]->parent, links[0]->socket_type);
-					disconnect(links[i]);
-				}
-			}
+			ConstantFolder folder(this, node, output);
+			node->constant_fold(folder);
 		}
 	}
 }
@@ -547,8 +552,8 @@ void ShaderGraph::deduplicate_nodes()
 	 *   already deduplicated.
 	 */
 
-	ShaderNodeSet scheduled;
-	map<ustring, ShaderNodeSet> done;
+	ShaderNodeSet scheduled, done;
+	map<ustring, ShaderNodeSet> candidates;
 	queue<ShaderNode*> traverse_queue;
 
 	/* Schedule nodes which doesn't have any dependencies. */
@@ -562,7 +567,7 @@ void ShaderGraph::deduplicate_nodes()
 	while(!traverse_queue.empty()) {
 		ShaderNode *node = traverse_queue.front();
 		traverse_queue.pop();
-		done[node->name].insert(node);
+		done.insert(node);
 		/* Schedule the nodes which were depending on the current node. */
 		foreach(ShaderOutput *output, node->outputs) {
 			foreach(ShaderInput *input, output->links) {
@@ -573,21 +578,28 @@ void ShaderGraph::deduplicate_nodes()
 					continue;
 				}
 				/* Schedule node if its inputs are fully done. */
-				if(check_node_inputs_traversed(input->parent, done[input->parent->name])) {
+				if(check_node_inputs_traversed(input->parent, done)) {
 					traverse_queue.push(input->parent);
 					scheduled.insert(input->parent);
 				}
 			}
 		}
 		/* Try to merge this node with another one. */
-		foreach(ShaderNode *other_node, done[node->name]) {
+		ShaderNode *merge_with = NULL;
+		foreach(ShaderNode *other_node, candidates[node->type->name]) {
 			if (node != other_node && node->equals(*other_node)) {
-				/* TODO(sergey): Consider making it an utility function. */
-				for(int i = 0; i < node->outputs.size(); ++i) {
-					relink(node, node->outputs[i], other_node->outputs[i]);
-				}
+				merge_with = other_node;
+				break;
 			}
-			break;
+		}
+		/* If found an equivalent, merge; otherwise keep node for later merges */
+		if (merge_with != NULL) {
+			for(int i = 0; i < node->outputs.size(); ++i) {
+				relink(node, node->outputs[i], merge_with->outputs[i]);
+			}
+		}
+		else {
+			candidates[node->type->name].insert(node);
 		}
 	}
 }

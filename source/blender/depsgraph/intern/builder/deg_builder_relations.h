@@ -42,7 +42,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 
-#include "intern/depsgraph_types.h"
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_operation.h"
 
@@ -274,7 +273,8 @@ private:
 /* Utilities for Builders ----------------------------------------------------- */
 
 template <typename KeyType>
-OperationDepsNode *DepsgraphRelationBuilder::find_operation_node(const KeyType& key) {
+OperationDepsNode *DepsgraphRelationBuilder::find_operation_node(const KeyType& key)
+{
 	DepsNode *node = find_node(key);
 	return node != NULL ? node->get_exit_operation() : NULL;
 }

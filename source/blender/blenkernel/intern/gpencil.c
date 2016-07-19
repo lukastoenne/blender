@@ -49,6 +49,7 @@
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
+#include "BKE_main.h"
 
 
 /* ************************************************** */
@@ -113,16 +114,13 @@ void free_gpencil_layers(ListBase *list)
 }
 
 /* Free all of GPencil datablock's related data, but not the block itself */
+/** Free (or release) any data used by this grease pencil (does not free the gpencil itself). */
 void BKE_gpencil_free(bGPdata *gpd)
 {
+	BKE_animdata_free(&gpd->id, false);
+
 	/* free layers */
 	free_gpencil_layers(&gpd->layers);
-	
-	/* free animation data */
-	if (gpd->adt) {
-		BKE_animdata_free(&gpd->id);
-		gpd->adt = NULL;
-	}
 }
 
 /* -------- Container Creation ---------- */
@@ -361,7 +359,7 @@ bGPDlayer *gpencil_layer_duplicate(bGPDlayer *src)
 }
 
 /* make a copy of a given gpencil datablock */
-bGPdata *gpencil_data_duplicate(bGPdata *src, bool internal_copy)
+bGPdata *gpencil_data_duplicate(Main *bmain, bGPdata *src, bool internal_copy)
 {
 	bGPDlayer *gpl, *gpld;
 	bGPdata *dst;
@@ -377,7 +375,7 @@ bGPdata *gpencil_data_duplicate(bGPdata *src, bool internal_copy)
 	}
 	else {
 		/* make a copy when others use this */
-		dst = BKE_libblock_copy(&src->id);
+		dst = BKE_libblock_copy(bmain, &src->id);
 	}
 	
 	/* copy layers */

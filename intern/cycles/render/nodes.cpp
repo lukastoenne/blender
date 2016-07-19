@@ -19,8 +19,10 @@
 #include "nodes.h"
 #include "scene.h"
 #include "svm.h"
+#include "svm_color_util.h"
 #include "svm_math_util.h"
 #include "osl.h"
+#include "constant_fold.h"
 
 #include "util_sky_model.h"
 #include "util_foreach.h"
@@ -397,7 +399,7 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("color_space", "sRGB");
 	compiler.parameter(this, "projection");
 	compiler.parameter(this, "projection_blend");
-	compiler.parameter(this, "is_float");
+	compiler.parameter("is_float", is_float);
 	compiler.parameter("use_alpha", !alpha_out->links.empty());
 	compiler.parameter(this, "interpolation");
 	compiler.parameter(this, "extension");
@@ -580,7 +582,7 @@ void EnvironmentTextureNode::compile(OSLCompiler& compiler)
 		compiler.parameter("color_space", "sRGB");
 
 	compiler.parameter(this, "interpolation");
-	compiler.parameter(this, "is_float");
+	compiler.parameter("is_float", is_float);
 	compiler.parameter("use_alpha", !alpha_out->links.empty());
 	compiler.add(this, "node_environment_texture");
 }
@@ -610,10 +612,10 @@ static float sky_perez_function(float lam[6], float theta, float gamma)
 static void sky_texture_precompute_old(SunSky *sunsky, float3 dir, float turbidity)
 {
 	/*
-	* We re-use the SunSky struct of the new model, to avoid extra variables
-	* zenith_Y/x/y is now radiance_x/y/z
-	* perez_Y/x/y is now config_x/y/z
-	*/
+	 * We re-use the SunSky struct of the new model, to avoid extra variables
+	 * zenith_Y/x/y is now radiance_x/y/z
+	 * perez_Y/x/y is now config_x/y/z
+	 */
 	
 	float2 spherical = sky_spherical_coordinates(dir);
 	float theta = spherical.x;
@@ -1564,8 +1566,8 @@ NODE_DEFINE(RGBToBWNode)
 {
 	NodeType* type = NodeType::add("rgb_to_bw", create, NodeType::SHADER);
 
-	SOCKET_IN_POINT(color, "Color", make_float3(0.0f, 0.0f, 0.0f));
-	SOCKET_OUT_POINT(val, "Val");
+	SOCKET_IN_COLOR(color, "Color", make_float3(0.0f, 0.0f, 0.0f));
+	SOCKET_OUT_FLOAT(val, "Val");
 
 	return type;
 }
@@ -1575,14 +1577,11 @@ RGBToBWNode::RGBToBWNode()
 {
 }
 
-bool RGBToBWNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void RGBToBWNode::constant_fold(const ConstantFolder& folder)
 {
-	if(inputs[0]->link == NULL) {
-		optimized->set(linear_rgb_to_gray(color));
-		return true;
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(linear_rgb_to_gray(color));
 	}
-
-	return false;
 }
 
 void RGBToBWNode::compile(SVMCompiler& compiler)
@@ -1595,7 +1594,7 @@ void RGBToBWNode::compile(SVMCompiler& compiler)
 
 void RGBToBWNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_convert_from_color");
+	compiler.add(this, "node_rgb_to_bw");
 }
 
 /* Convert */
@@ -1660,40 +1659,35 @@ ConvertNode::ConvertNode(SocketType::Type from_, SocketType::Type to_, bool auto
 		special_type = SHADER_SPECIAL_TYPE_AUTOCONVERT;
 }
 
-bool ConvertNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void ConvertNode::constant_fold(const ConstantFolder& folder)
 {
 	/* proxy nodes should have been removed at this point */
 	assert(special_type != SHADER_SPECIAL_TYPE_PROXY);
 
-	ShaderInput *in = inputs[0];
-
 	/* TODO(DingTo): conversion from/to int is not supported yet, don't fold in that case */
 
-	if(in->link == NULL) {
+	if(folder.all_inputs_constant()) {
 		if(from == SocketType::FLOAT) {
 			if(SocketType::is_float3(to)) {
-				optimized->set(make_float3(value_float, value_float, value_float));
-				return true;
+				folder.make_constant(make_float3(value_float, value_float, value_float));
 			}
 		}
 		else if(SocketType::is_float3(from)) {
 			if(to == SocketType::FLOAT) {
-				if(from == SocketType::COLOR)
+				if(from == SocketType::COLOR) {
 					/* color to float */
-					optimized->set(linear_rgb_to_gray(value_color));
-				else
+					folder.make_constant(linear_rgb_to_gray(value_color));
+				}
+				else {
 					/* vector/point/normal to float */
-					optimized->set(average(value_vector));
-				return true;
+					folder.make_constant(average(value_vector));
+				}
 			}
 			else if(SocketType::is_float3(to)) {
-				optimized->set(value_color);
-				return true;
+				folder.make_constant(value_color);
 			}
 		}
 	}
-
-	return false;
 }
 
 void ConvertNode::compile(SVMCompiler& compiler)
@@ -1829,6 +1823,7 @@ NODE_DEFINE(AnisotropicBsdfNode)
 	static NodeEnum distribution_enum;
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID);
 	distribution_enum.insert("ashikhmin_shirley", CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID);
 
@@ -1865,7 +1860,10 @@ void AnisotropicBsdfNode::compile(SVMCompiler& compiler)
 {
 	closure = distribution;
 
-	BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"));
+	if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID)
+		BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"), input("Color"));
+	else
+		BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"));
 }
 
 void AnisotropicBsdfNode::compile(OSLCompiler& compiler)
@@ -1889,6 +1887,7 @@ NODE_DEFINE(GlossyBsdfNode)
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_ID);
 	distribution_enum.insert("ashikhmin_shirley", CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_ID);
 	SOCKET_IN_FLOAT(roughness, "Roughness", 0.2f);
 
@@ -1938,6 +1937,8 @@ void GlossyBsdfNode::compile(SVMCompiler& compiler)
 
 	if(closure == CLOSURE_BSDF_REFLECTION_ID)
 		BsdfNode::compile(compiler, NULL, NULL);
+	else if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID)
+		BsdfNode::compile(compiler, input("Roughness"), NULL, input("Color"));
 	else
 		BsdfNode::compile(compiler, input("Roughness"), NULL);
 }
@@ -1962,6 +1963,7 @@ NODE_DEFINE(GlassBsdfNode)
 	distribution_enum.insert("sharp", CLOSURE_BSDF_SHARP_GLASS_ID);
 	distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID);
 	distribution_enum.insert("GGX", CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
+	distribution_enum.insert("Multiscatter GGX", CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
 	SOCKET_ENUM(distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
 	SOCKET_IN_FLOAT(roughness, "Roughness", 0.0f);
 	SOCKET_IN_FLOAT(IOR, "IOR", 0.3f);
@@ -2012,6 +2014,8 @@ void GlassBsdfNode::compile(SVMCompiler& compiler)
 
 	if(closure == CLOSURE_BSDF_SHARP_GLASS_ID)
 		BsdfNode::compile(compiler, NULL, input("IOR"));
+	else if(closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID)
+		BsdfNode::compile(compiler, input("Roughness"), input("IOR"), input("Color"));
 	else
 		BsdfNode::compile(compiler, input("Roughness"), input("IOR"));
 }
@@ -2353,13 +2357,15 @@ void EmissionNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_emission");
 }
 
-bool EmissionNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *)
+void EmissionNode::constant_fold(const ConstantFolder& folder)
 {
 	ShaderInput *color_in = input("Color");
 	ShaderInput *strength_in = input("Strength");
 
-	return ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
-	        (!strength_in->link && strength == 0.0f));
+	if ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
+	    (!strength_in->link && strength == 0.0f)) {
+		folder.discard();
+	}
 }
 
 /* Background Closure */
@@ -2403,13 +2409,15 @@ void BackgroundNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_background");
 }
 
-bool BackgroundNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *)
+void BackgroundNode::constant_fold(const ConstantFolder& folder)
 {
 	ShaderInput *color_in = input("Color");
 	ShaderInput *strength_in = input("Strength");
 
-	return ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
-	        (!strength_in->link && strength == 0.0f));
+	if ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
+	    (!strength_in->link && strength == 0.0f)) {
+		folder.discard();
+	}
 }
 
 /* Holdout Closure */
@@ -3371,10 +3379,9 @@ ValueNode::ValueNode()
 {
 }
 
-bool ValueNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void ValueNode::constant_fold(const ConstantFolder& folder)
 {
-	optimized->set(value);
-	return true;
+	folder.make_constant(value);
 }
 
 void ValueNode::compile(SVMCompiler& compiler)
@@ -3407,10 +3414,9 @@ ColorNode::ColorNode()
 {
 }
 
-bool ColorNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void ColorNode::constant_fold(const ConstantFolder& folder)
 {
-	optimized->set(value);
-	return true;
+	folder.make_constant(value);
 }
 
 void ColorNode::compile(SVMCompiler& compiler)
@@ -3459,6 +3465,20 @@ void AddClosureNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_add_closure");
 }
 
+void AddClosureNode::constant_fold(const ConstantFolder& folder)
+{
+	ShaderInput *closure1_in = input("Closure1");
+	ShaderInput *closure2_in = input("Closure2");
+
+	/* remove useless add closures nodes */
+	if(!closure1_in->link) {
+		folder.bypass_or_discard(closure2_in);
+	}
+	else if(!closure2_in->link) {
+		folder.bypass_or_discard(closure1_in);
+	}
+}
+
 /* Mix Closure */
 
 NODE_DEFINE(MixClosureNode)
@@ -3490,35 +3510,28 @@ void MixClosureNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_mix_closure");
 }
 
-bool MixClosureNode::constant_fold(ShaderGraph *graph, ShaderOutput *, ShaderInput *)
+void MixClosureNode::constant_fold(const ConstantFolder& folder)
 {
 	ShaderInput *fac_in = input("Fac");
 	ShaderInput *closure1_in = input("Closure1");
 	ShaderInput *closure2_in = input("Closure2");
-	ShaderOutput *closure_out = output("Closure");
 
 	/* remove useless mix closures nodes */
 	if(closure1_in->link == closure2_in->link) {
-		graph->relink(this, closure_out, closure1_in->link);
-		return true;
+		folder.bypass_or_discard(closure1_in);
 	}
-
-	/* remove unused mix closure input when factor is 0.0 or 1.0 */
-	/* check for closure links and make sure factor link is disconnected */
-	if(closure1_in->link && closure2_in->link && !fac_in->link) {
+	/* remove unused mix closure input when factor is 0.0 or 1.0
+	 * check for closure links and make sure factor link is disconnected */
+	else if(!fac_in->link) {
 		/* factor 0.0 */
-		if(fac == 0.0f) {
-			graph->relink(this, closure_out, closure1_in->link);
-			return true;
+		if(fac <= 0.0f) {
+			folder.bypass_or_discard(closure1_in);
 		}
 		/* factor 1.0 */
-		else if(fac == 1.0f) {
-			graph->relink(this, closure_out, closure2_in->link);
-			return true;
+		else if(fac >= 1.0f) {
+			folder.bypass_or_discard(closure2_in);
 		}
 	}
-
-	return false;
 }
 
 /* Mix Closure */
@@ -3578,6 +3591,23 @@ NODE_DEFINE(InvertNode)
 InvertNode::InvertNode()
 : ShaderNode(node_type)
 {
+}
+
+void InvertNode::constant_fold(const ConstantFolder& folder)
+{
+	ShaderInput *fac_in = input("Fac");
+	ShaderInput *color_in = input("Color");
+
+	if(!fac_in->link) {
+		/* evaluate fully constant node */
+		if(!color_in->link) {
+			folder.make_constant(interp(color, make_float3(1.0f, 1.0f, 1.0f) - color, fac));
+		}
+		/* remove no-op node */
+		else if(fac == 0.0f) {
+			folder.bypass(color_in->link);
+		}
+	}
 }
 
 void InvertNode::compile(SVMCompiler& compiler)
@@ -3666,44 +3696,47 @@ void MixNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_mix");
 }
 
-bool MixNode::constant_fold(ShaderGraph *graph, ShaderOutput *, ShaderInput *optimized)
+void MixNode::constant_fold(const ConstantFolder& folder)
 {
-	if(type != NODE_MIX_BLEND) {
-		return false;
-	}
-
 	ShaderInput *fac_in = input("Fac");
 	ShaderInput *color1_in = input("Color1");
 	ShaderInput *color2_in = input("Color2");
-	ShaderOutput *color_out = output("Color");
 
-	/* remove useless mix colors nodes */
-	if(color1_in->link && color1_in->link == color2_in->link) {
-		graph->relink(this, color_out, color1_in->link);
-		return true;
+	/* evaluate fully constant node */
+	if(folder.all_inputs_constant()) {
+		folder.make_constant_clamp(svm_mix(type, fac, color1, color2), use_clamp);
+		return;
 	}
 
-	/* remove unused mix color input when factor is 0.0 or 1.0 */
-	if(!fac_in->link) {
-		/* factor 0.0 */
-		if(fac == 0.0f) {
-			if(color1_in->link)
-				graph->relink(this, color_out, color1_in->link);
-			else
-				optimized->set(color1);
-			return true;
+	/* remove no-op node when factor is 0.0 */
+	if(!fac_in->link && fac <= 0.0f) {
+		/* note that some of the modes will clamp out of bounds values even without use_clamp */
+		if(type == NODE_MIX_LIGHT || type == NODE_MIX_DODGE || type == NODE_MIX_BURN) {
+			if(!color1_in->link) {
+				folder.make_constant_clamp(svm_mix(type, 0.0f, color1, color1), use_clamp);
+				return;
+			}
 		}
-		/* factor 1.0 */
-		else if(fac == 1.0f) {
-			if(color2_in->link)
-				graph->relink(this, color_out, color2_in->link);
-			else
-				optimized->set(color2);
-			return true;
+		else if(folder.try_bypass_or_make_constant(color1_in, color1, use_clamp)) {
+			return;
 		}
 	}
 
-	return false;
+	if(type == NODE_MIX_BLEND) {
+		/* remove useless mix colors nodes */
+		if(color1_in->link ? (color1_in->link == color2_in->link) : (!color2_in->link && color1 == color2)) {
+			if(folder.try_bypass_or_make_constant(color1_in, color1, use_clamp)) {
+				return;
+			}
+		}
+
+		/* remove no-op mix color node when factor is 1.0 */
+		if(!fac_in->link && fac >= 1.0f) {
+			if(folder.try_bypass_or_make_constant(color2_in, color2, use_clamp)) {
+				return;
+			}
+		}
+	}
 }
 
 /* Combine RGB */
@@ -3724,6 +3757,13 @@ NODE_DEFINE(CombineRGBNode)
 CombineRGBNode::CombineRGBNode()
 : ShaderNode(node_type)
 {
+}
+
+void CombineRGBNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(make_float3(r, g, b));
+	}
 }
 
 void CombineRGBNode::compile(SVMCompiler& compiler)
@@ -3761,7 +3801,7 @@ NODE_DEFINE(CombineXYZNode)
 	SOCKET_IN_FLOAT(y, "Y", 0.0f);
 	SOCKET_IN_FLOAT(z, "Z", 0.0f);
 
-	SOCKET_OUT_COLOR(color, "Image");
+	SOCKET_OUT_VECTOR(vector, "Vector");
 
 	return type;
 }
@@ -3769,6 +3809,13 @@ NODE_DEFINE(CombineXYZNode)
 CombineXYZNode::CombineXYZNode()
 : ShaderNode(node_type)
 {
+}
+
+void CombineXYZNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(make_float3(x, y, z));
+	}
 }
 
 void CombineXYZNode::compile(SVMCompiler& compiler)
@@ -3816,6 +3863,13 @@ CombineHSVNode::CombineHSVNode()
 {
 }
 
+void CombineHSVNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(hsv_to_rgb(make_float3(h, s, v)));
+	}
+}
+
 void CombineHSVNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *hue_in = input("H");
@@ -3854,17 +3908,11 @@ GammaNode::GammaNode()
 {
 }
 
-bool GammaNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void GammaNode::constant_fold(const ConstantFolder& folder)
 {
-	ShaderInput *color_in = input("Color");
-	ShaderInput *gamma_in = input("Gamma");
-
-	if(color_in->link == NULL && gamma_in->link == NULL) {
-		optimized->set(svm_math_gamma_color(color, gamma));
-		return true;
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(svm_math_gamma_color(color, gamma));
 	}
-
-	return false;
 }
 
 void GammaNode::compile(SVMCompiler& compiler)
@@ -3902,6 +3950,13 @@ NODE_DEFINE(BrightContrastNode)
 BrightContrastNode::BrightContrastNode()
 : ShaderNode(node_type)
 {
+}
+
+void BrightContrastNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(svm_brightness_contrast(color, bright, contrast));
+	}
 }
 
 void BrightContrastNode::compile(SVMCompiler& compiler)
@@ -3942,6 +3997,18 @@ NODE_DEFINE(SeparateRGBNode)
 SeparateRGBNode::SeparateRGBNode()
 : ShaderNode(node_type)
 {
+}
+
+void SeparateRGBNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		for(int channel = 0; channel < 3; channel++) {
+			if(outputs[channel] == folder.output) {
+				folder.make_constant(color[channel]);
+				return;
+			}
+		}
+	}
 }
 
 void SeparateRGBNode::compile(SVMCompiler& compiler)
@@ -3989,6 +4056,18 @@ SeparateXYZNode::SeparateXYZNode()
 {
 }
 
+void SeparateXYZNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		for(int channel = 0; channel < 3; channel++) {
+			if(outputs[channel] == folder.output) {
+				folder.make_constant(vector[channel]);
+				return;
+			}
+		}
+	}
+}
+
 void SeparateXYZNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *vector_in = input("Vector");
@@ -4032,6 +4111,20 @@ NODE_DEFINE(SeparateHSVNode)
 SeparateHSVNode::SeparateHSVNode()
 : ShaderNode(node_type)
 {
+}
+
+void SeparateHSVNode::constant_fold(const ConstantFolder& folder)
+{
+	if(folder.all_inputs_constant()) {
+		float3 hsv = rgb_to_hsv(color);
+
+		for(int channel = 0; channel < 3; channel++) {
+			if(outputs[channel] == folder.output) {
+				folder.make_constant(hsv[channel]);
+				return;
+			}
+		}
+	}
 }
 
 void SeparateHSVNode::compile(SVMCompiler& compiler)
@@ -4417,16 +4510,11 @@ BlackbodyNode::BlackbodyNode()
 {
 }
 
-bool BlackbodyNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void BlackbodyNode::constant_fold(const ConstantFolder& folder)
 {
-	ShaderInput *temperature_in = input("Temperature");
-
-	if(temperature_in->link == NULL) {
-		optimized->set(svm_math_blackbody_color(temperature));
-		return true;
+	if(folder.all_inputs_constant()) {
+		folder.make_constant(svm_math_blackbody_color(temperature));
 	}
-
-	return false;
 }
 
 void BlackbodyNode::compile(SVMCompiler& compiler)
@@ -4528,24 +4616,11 @@ MathNode::MathNode()
 {
 }
 
-bool MathNode::constant_fold(ShaderGraph *, ShaderOutput *, ShaderInput *optimized)
+void MathNode::constant_fold(const ConstantFolder& folder)
 {
-	ShaderInput *value1_in = input("Value1");
-	ShaderInput *value2_in = input("Value2");
-
-	if(value1_in->link == NULL && value2_in->link == NULL) {
-		float value = svm_math(type, value1, value2);
-
-		if(use_clamp) {
-			value = saturate(value);
-		}
-
-		optimized->set(value);
-
-		return true;
+	if(folder.all_inputs_constant()) {
+		folder.make_constant_clamp(svm_math(type, value1, value2), use_clamp);
 	}
-
-	return false;
 }
 
 void MathNode::compile(SVMCompiler& compiler)
@@ -4599,32 +4674,25 @@ VectorMathNode::VectorMathNode()
 {
 }
 
-bool VectorMathNode::constant_fold(ShaderGraph *, ShaderOutput *socket, ShaderInput *optimized)
+void VectorMathNode::constant_fold(const ConstantFolder& folder)
 {
-	ShaderInput *vector1_in = input("Vector1");
-	ShaderInput *vector2_in = input("Vector2");
-
 	float value;
 	float3 vector;
 
-	if(vector1_in->link == NULL && vector2_in->link == NULL) {
+	if(folder.all_inputs_constant()) {
 		svm_vector_math(&value,
 		                &vector,
 		                type,
 		                vector1,
 		                vector2);
 
-		if(socket == output("Value")) {
-			optimized->set(value);
-			return true;
+		if(folder.output == output("Value")) {
+			folder.make_constant(value);
 		}
-		else if(socket == output("Vector")) {
-			optimized->set(vector);
-			return true;
+		else if(folder.output == output("Vector")) {
+			folder.make_constant(vector);
 		}
 	}
-
-	return false;
 }
 
 void VectorMathNode::compile(SVMCompiler& compiler)
@@ -4758,7 +4826,7 @@ void BumpNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_bump");
 }
 
-bool BumpNode::constant_fold(ShaderGraph *graph, ShaderOutput *, ShaderInput *)
+void BumpNode::constant_fold(const ConstantFolder& folder)
 {
 	ShaderInput *height_in = input("Height");
 	ShaderInput *normal_in = input("Normal");
@@ -4766,18 +4834,63 @@ bool BumpNode::constant_fold(ShaderGraph *graph, ShaderOutput *, ShaderInput *)
 	if(height_in->link == NULL) {
 		if(normal_in->link == NULL) {
 			GeometryNode *geom = new GeometryNode();
-			graph->add(geom);
-			graph->relink(this, outputs[0], geom->output("Normal"));
+			folder.graph->add(geom);
+			folder.bypass(geom->output("Normal"));
 		}
 		else {
-			graph->relink(this, outputs[0], normal_in->link);
+			folder.bypass(normal_in->link);
 		}
-		return true;
 	}
 
 	/* TODO(sergey): Ignore bump with zero strength. */
+}
 
-	return false;
+
+/* Curve node */
+
+CurvesNode::CurvesNode(const NodeType *node_type)
+: ShaderNode(node_type)
+{
+}
+
+void CurvesNode::compile(SVMCompiler& compiler, int type, ShaderInput *value_in, ShaderOutput *value_out)
+{
+	if(curves.size() == 0)
+		return;
+
+	ShaderInput *fac_in = input("Fac");
+
+	compiler.add_node(type,
+	                  compiler.encode_uchar4(compiler.stack_assign(fac_in),
+	                                         compiler.stack_assign(value_in),
+	                                         compiler.stack_assign(value_out)),
+	                  __float_as_int(min_x),
+	                  __float_as_int(max_x));
+
+	compiler.add_node(curves.size());
+	for(int i = 0; i < curves.size(); i++)
+		compiler.add_node(float3_to_float4(curves[i]));
+}
+
+void CurvesNode::compile(OSLCompiler& compiler, const char* name)
+{
+	if(curves.size() == 0)
+		return;
+
+	compiler.parameter_color_array("ramp", curves);
+	compiler.parameter(this, "min_x");
+	compiler.parameter(this, "max_x");
+	compiler.add(this, name);
+}
+
+void CurvesNode::compile(SVMCompiler& /*compiler*/)
+{
+	assert(0);
+}
+
+void CurvesNode::compile(OSLCompiler& /*compiler*/)
+{
+	assert(0);
 }
 
 /* RGBCurvesNode */
@@ -4791,48 +4904,26 @@ NODE_DEFINE(RGBCurvesNode)
 	SOCKET_FLOAT(max_x, "Max X", 1.0f);
 
 	SOCKET_IN_FLOAT(fac, "Fac", 0.0f);
-	SOCKET_IN_COLOR(color, "Color", make_float3(0.0f, 0.0f, 0.0f));
+	SOCKET_IN_COLOR(value, "Color", make_float3(0.0f, 0.0f, 0.0f));
 
-	SOCKET_OUT_COLOR(color, "Color");
+	SOCKET_OUT_COLOR(value, "Color");
 
 	return type;
 }
 
 RGBCurvesNode::RGBCurvesNode()
-: ShaderNode(node_type)
+: CurvesNode(node_type)
 {
 }
 
 void RGBCurvesNode::compile(SVMCompiler& compiler)
 {
-	if(curves.size() == 0)
-		return;
-
-	ShaderInput *fac_in = input("Fac");
-	ShaderInput *color_in = input("Color");
-	ShaderOutput *color_out = output("Color");
-
-	compiler.add_node(NODE_RGB_CURVES,
-	                  compiler.encode_uchar4(compiler.stack_assign(fac_in),
-	                                         compiler.stack_assign(color_in),
-	                                         compiler.stack_assign(color_out)),
-	                  __float_as_int(min_x),
-	                  __float_as_int(max_x));
-
-	compiler.add_node(curves.size());
-	for(int i = 0; i < curves.size(); i++)
-		compiler.add_node(float3_to_float4(curves[i]));
+	CurvesNode::compile(compiler, NODE_RGB_CURVES, input("Color"), output("Color"));
 }
 
 void RGBCurvesNode::compile(OSLCompiler& compiler)
 {
-	if(curves.size() == 0)
-		return;
-
-	compiler.parameter_color_array("ramp", curves);
-	compiler.parameter(this, "min_x");
-	compiler.parameter(this, "max_x");
-	compiler.add(this, "node_rgb_curves");
+	CurvesNode::compile(compiler, "node_rgb_curves");
 }
 
 /* VectorCurvesNode */
@@ -4846,48 +4937,26 @@ NODE_DEFINE(VectorCurvesNode)
 	SOCKET_FLOAT(max_x, "Max X", 1.0f);
 
 	SOCKET_IN_FLOAT(fac, "Fac", 0.0f);
-	SOCKET_IN_VECTOR(vector, "Vector", make_float3(0.0f, 0.0f, 0.0f));
+	SOCKET_IN_VECTOR(value, "Vector", make_float3(0.0f, 0.0f, 0.0f));
 
-	SOCKET_OUT_VECTOR(vector, "Vector");
+	SOCKET_OUT_VECTOR(value, "Vector");
 
 	return type;
 }
 
 VectorCurvesNode::VectorCurvesNode()
-: ShaderNode(node_type)
+: CurvesNode(node_type)
 {
 }
 
 void VectorCurvesNode::compile(SVMCompiler& compiler)
 {
-	if(curves.size() == 0)
-		return;
-
-	ShaderInput *fac_in = input("Fac");
-	ShaderInput *vector_in = input("Vector");
-	ShaderOutput *vector_out = output("Vector");
-
-	compiler.add_node(NODE_VECTOR_CURVES,
-	                  compiler.encode_uchar4(compiler.stack_assign(fac_in),
-	                                         compiler.stack_assign(vector_in),
-	                                         compiler.stack_assign(vector_out)),
-	                  __float_as_int(min_x),
-	                  __float_as_int(max_x));
-
-	compiler.add_node(curves.size());
-	for(int i = 0; i < curves.size(); i++)
-		compiler.add_node(float3_to_float4(curves[i]));
+	CurvesNode::compile(compiler, NODE_VECTOR_CURVES, input("Vector"), output("Vector"));
 }
 
 void VectorCurvesNode::compile(OSLCompiler& compiler)
 {
-	if(curves.size() == 0)
-		return;
-
-	compiler.parameter_color_array("ramp", curves);
-	compiler.parameter(this, "min_x");
-	compiler.parameter(this, "max_x");
-	compiler.add(this, "node_vector_curves");
+	CurvesNode::compile(compiler, "node_vector_curves");
 }
 
 /* RGBRampNode */
@@ -4989,6 +5058,13 @@ OSLNode::OSLNode()
 OSLNode::~OSLNode()
 {
 	delete type;
+}
+
+ShaderNode *OSLNode::clone() const
+{
+	OSLNode *node = new OSLNode(*this);
+	node->type = new NodeType(*type);
+	return node;
 }
 
 OSLNode* OSLNode::create(size_t num_inputs)

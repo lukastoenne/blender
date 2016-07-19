@@ -6429,7 +6429,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 		}
 		
 		/* select linked objects, but skip them later */
-		if (ob->id.lib != NULL) {
+		if (ID_IS_LINKED_DATABLOCK(ob)) {
 			td->flag |= TD_SKIP;
 		}
 		
@@ -7607,7 +7607,7 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 
 	for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
 		if (PC_IS_ANY_SEL(pcp)) {
-			PaintCurvePointToTransData (pcp, td, td2d, tdpc);
+			PaintCurvePointToTransData(pcp, td, td2d, tdpc);
 
 			if (pcp->bez.f2 & SELECT) {
 				td += 3;

@@ -276,7 +276,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_reflect(const ShaderClosure *sc, cons
 	bool m_refractive = sc->type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 	float3 N = sc->N;
 
-	if(m_refractive || fmaxf(alpha_x, alpha_y) <= 1e-4f)
+	if(m_refractive || alpha_x*alpha_y <= 1e-7f)
 		return make_float3(0.0f, 0.0f, 0.0f);
 
 	float cosNO = dot(N, I);
@@ -367,7 +367,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(const ShaderClosure *sc, con
 	bool m_refractive = sc->type == CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 	float3 N = sc->N;
 
-	if(!m_refractive || fmaxf(alpha_x, alpha_y) <= 1e-4f)
+	if(!m_refractive || alpha_x*alpha_y <= 1e-7f)
 		return make_float3(0.0f, 0.0f, 0.0f);
 
 	float cosNO = dot(N, I);
@@ -450,7 +450,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 				*omega_in = 2 * cosMO * m - I;
 
 				if(dot(Ng, *omega_in) > 0) {
-					if(fmaxf(alpha_x, alpha_y) <= 1e-4f) {
+					if(alpha_x*alpha_y <= 1e-7f) {
 						/* some high number for MIS */
 						*pdf = 1e6f;
 						*eval = make_float3(1e6f, 1e6f, 1e6f);
@@ -539,7 +539,7 @@ ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure
 				*domega_in_dy = dTdy;
 #endif
 
-				if(fmaxf(alpha_x, alpha_y) <= 1e-4f || fabsf(m_eta - 1.0f) < 1e-4f) {
+				if(alpha_x*alpha_y <= 1e-7f || fabsf(m_eta - 1.0f) < 1e-4f) {
 					/* some high number for MIS */
 					*pdf = 1e6f;
 					*eval = make_float3(1e6f, 1e6f, 1e6f);
@@ -615,6 +615,36 @@ ccl_device void bsdf_microfacet_beckmann_blur(ShaderClosure *sc, float roughness
 	sc->data1 = fmaxf(roughness, sc->data1); /* alpha_y */
 }
 
+ccl_device_inline float bsdf_beckmann_G1(float alpha, float cos_n)
+{
+	cos_n *= cos_n;
+	float invA = alpha * safe_sqrtf((1.0f - cos_n) / cos_n);
+	if(invA < 0.625f) {
+		return 1.0f;
+	}
+
+	float a = 1.0f / invA;
+	return ((2.181f*a + 3.535f)*a) / ((2.577f*a + 2.276f)*a + 1.0f);
+}
+
+ccl_device_inline float bsdf_beckmann_aniso_G1(float alpha_x, float alpha_y, float cos_n, float cos_phi, float sin_phi)
+{
+	cos_n *= cos_n;
+	sin_phi *= sin_phi;
+	cos_phi *= cos_phi;
+	alpha_x *= alpha_x;
+	alpha_y *= alpha_y;
+
+	float alphaO2 = (cos_phi*alpha_x + sin_phi*alpha_y) / (cos_phi + sin_phi);
+	float invA = safe_sqrtf(alphaO2 * (1 - cos_n) / cos_n);
+	if(invA < 0.625f) {
+		return 1.0f;
+	}
+
+	float a = 1.0f / invA;
+	return ((2.181f*a + 3.535f)*a) / ((2.577f*a + 2.276f)*a + 1.0f);
+}
+
 ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float alpha_x = sc->data0;
@@ -622,7 +652,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(const ShaderClosure *sc,
 	bool m_refractive = sc->type == CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	float3 N = sc->N;
 
-	if(m_refractive || fmaxf(alpha_x, alpha_y) <= 1e-4f)
+	if(m_refractive || alpha_x*alpha_y <= 1e-7f)
 		return make_float3(0.0f, 0.0f, 0.0f);
 
 	float cosNO = dot(N, I);
@@ -646,10 +676,8 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(const ShaderClosure *sc,
 			D = expf(-tanThetaM2 / alpha2) / (M_PI_F * alpha2 * cosThetaM4);
 
 			/* eq. 26, 27: now calculate G1(i,m) and G1(o,m) */
-			float ao = 1 / (alpha_x * safe_sqrtf((1 - cosNO * cosNO) / (cosNO * cosNO)));
-			float ai = 1 / (alpha_x * safe_sqrtf((1 - cosNI * cosNI) / (cosNI * cosNI)));
-			G1o = ao < 1.6f ? (3.535f * ao + 2.181f * ao * ao) / (1 + 2.276f * ao + 2.577f * ao * ao) : 1.0f;
-			G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+			G1o = bsdf_beckmann_G1(alpha_x, cosNO);
+			G1i = bsdf_beckmann_G1(alpha_x, cosNI);
 		}
 		else {
 			/* anisotropic */
@@ -668,24 +696,8 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(const ShaderClosure *sc,
 			D = expf(-slope_x*slope_x - slope_y*slope_y) / (M_PI_F * alpha2 * cosThetaM4);
 
 			/* G1(i,m) and G1(o,m) */
-			float tanThetaO2 = (1 - cosNO * cosNO) / (cosNO * cosNO);
-			float cosPhiO = dot(I, X);
-			float sinPhiO = dot(I, Y);
-
-			float alphaO2 = (cosPhiO*cosPhiO)*(alpha_x*alpha_x) + (sinPhiO*sinPhiO)*(alpha_y*alpha_y);
-			alphaO2 /= cosPhiO*cosPhiO + sinPhiO*sinPhiO;
-
-			float tanThetaI2 = (1 - cosNI * cosNI) / (cosNI * cosNI);
-			float cosPhiI = dot(omega_in, X);
-			float sinPhiI = dot(omega_in, Y);
-
-			float alphaI2 = (cosPhiI*cosPhiI)*(alpha_x*alpha_x) + (sinPhiI*sinPhiI)*(alpha_y*alpha_y);
-			alphaI2 /= cosPhiI*cosPhiI + sinPhiI*sinPhiI;
-
-			float ao = 1 / (safe_sqrtf(alphaO2 * tanThetaO2));
-			float ai = 1 / (safe_sqrtf(alphaI2 * tanThetaI2));
-			G1o = ao < 1.6f ? (3.535f * ao + 2.181f * ao * ao) / (1 + 2.276f * ao + 2.577f * ao * ao) : 1.0f;
-			G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+			G1o = bsdf_beckmann_aniso_G1(alpha_x, alpha_y, cosNO, dot(I, X), dot(I, Y));
+			G1i = bsdf_beckmann_aniso_G1(alpha_x, alpha_y, cosNI, dot(omega_in, X), dot(omega_in, Y));
 		}
 
 		float G = G1o * G1i;
@@ -716,7 +728,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ShaderClosure *sc
 	bool m_refractive = sc->type == CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	float3 N = sc->N;
 
-	if(!m_refractive || fmaxf(alpha_x, alpha_y) <= 1e-4f)
+	if(!m_refractive || alpha_x*alpha_y <= 1e-7f)
 		return make_float3(0.0f, 0.0f, 0.0f);
 
 	float cosNO = dot(N, I);
@@ -740,10 +752,8 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ShaderClosure *sc
 	float D = expf(-tanThetaM2 / alpha2) / (M_PI_F * alpha2 *  cosThetaM4);
 
 	/* eq. 26, 27: now calculate G1(i,m) and G1(o,m) */
-	float ao = 1 / (alpha_x * safe_sqrtf((1 - cosNO * cosNO) / (cosNO * cosNO)));
-	float ai = 1 / (alpha_x * safe_sqrtf((1 - cosNI * cosNI) / (cosNI * cosNI)));
-	float G1o = ao < 1.6f ? (3.535f * ao + 2.181f * ao * ao) / (1 + 2.276f * ao + 2.577f * ao * ao) : 1.0f;
-	float G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+	float G1o = bsdf_beckmann_G1(alpha_x, cosNO);
+	float G1i = bsdf_beckmann_G1(alpha_x, cosNI);
 	float G = G1o * G1i;
 
 	/* probability */
@@ -798,7 +808,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 				*omega_in = 2 * cosMO * m - I;
 
 				if(dot(Ng, *omega_in) > 0) {
-					if(fmaxf(alpha_x, alpha_y) <= 1e-4f) {
+					if(alpha_x*alpha_y <= 1e-7f) {
 						/* some high number for MIS */
 						*pdf = 1e6f;
 						*eval = make_float3(1e6f, 1e6f, 1e6f);
@@ -820,8 +830,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 							float cosNI = dot(N, *omega_in);
 
 							/* eq. 26, 27: now calculate G1(i,m) */
-							float ai = 1 / (alpha_x * safe_sqrtf((1 - cosNI * cosNI) / (cosNI * cosNI)));
-							G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+							G1i = bsdf_beckmann_G1(alpha_x, cosNI);
 						}
 						else {
 							/* anisotropic distribution */
@@ -836,16 +845,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 							D = expf(-slope_x*slope_x - slope_y*slope_y) / (M_PI_F * alpha2 * cosThetaM4);
 
 							/* G1(i,m) */
-							float cosNI = dot(N, *omega_in);
-							float tanThetaI2 = (1 - cosNI * cosNI) / (cosNI * cosNI);
-							float cosPhiI = dot(*omega_in, X);
-							float sinPhiI = dot(*omega_in, Y);
-
-							float alphaI2 = (cosPhiI*cosPhiI)*(alpha_x*alpha_x) + (sinPhiI*sinPhiI)*(alpha_y*alpha_y);
-							alphaI2 /= cosPhiI*cosPhiI + sinPhiI*sinPhiI;
-
-							float ai = 1 / (safe_sqrtf(alphaI2 * tanThetaI2));
-							G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+							G1i = bsdf_beckmann_aniso_G1(alpha_x, alpha_y, dot(*omega_in, N), dot(*omega_in, X), dot(*omega_in, Y));
 						}
 
 						float G = G1o * G1i;
@@ -889,7 +889,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 				*domega_in_dy = dTdy;
 #endif
 
-				if(fmaxf(alpha_x, alpha_y) <= 1e-4f || fabsf(m_eta - 1.0f) < 1e-4f) {
+				if(alpha_x*alpha_y <= 1e-7f || fabsf(m_eta - 1.0f) < 1e-4f) {
 					/* some high number for MIS */
 					*pdf = 1e6f;
 					*eval = make_float3(1e6f, 1e6f, 1e6f);
@@ -906,8 +906,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderCl
 					float cosNI = dot(N, *omega_in);
 
 					/* eq. 26, 27: now calculate G1(i,m) */
-					float ai = 1 / (alpha_x * safe_sqrtf((1 - cosNI * cosNI) / (cosNI * cosNI)));
-					float G1i = ai < 1.6f ? (3.535f * ai + 2.181f * ai * ai) / (1 + 2.276f * ai + 2.577f * ai * ai) : 1.0f;
+					float G1i = bsdf_beckmann_G1(alpha_x, cosNI);
 					float G = G1o * G1i;
 
 					/* eq. 21 */

@@ -24,7 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/depsgraph/intern/depsgraph_tag.cc
+/** \file blender/depsgraph/intern/eval/deg_eval_flush.cc
  *  \ingroup depsgraph
  *
  * Core routines for how the Depsgraph works.
@@ -85,9 +85,6 @@ static void flush_init_func(void *data_v, int i)
 	id_node->done = 0;
 	comp_node->done = 0;
 	node->scheduled = false;
-	if (comp_node->type == DEPSNODE_TYPE_PROXY) {
-		node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
-	}
 }
 
 /* Flush updates from tagged nodes outwards until all affected nodes

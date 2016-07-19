@@ -247,7 +247,7 @@ static bool make_vertexcol(Object *ob)  /* single ob */
 {
 	Mesh *me;
 
-	if ((ob->id.lib) ||
+	if (ID_IS_LINKED_DATABLOCK(ob) ||
 	    ((me = BKE_mesh_from_object(ob)) == NULL) ||
 	    (me->totpoly == 0) ||
 	    (me->edit_btmesh))
@@ -496,6 +496,51 @@ bool ED_vpaint_smooth(Object *ob)
 	do_shared_vertexcol(me, mlooptag);
 
 	MEM_freeN(mlooptag);
+
+	DAG_id_tag_update(&me->id, 0);
+
+	return true;
+}
+
+/**
+ * Apply callback to each vertex of the active vertex color layer.
+ */
+bool ED_vpaint_color_transform(
+        struct Object *ob,
+        VPaintTransform_Callback vpaint_tx_fn,
+        const void *user_data)
+{
+	Mesh *me;
+	const MPoly *mp;
+
+	if (((me = BKE_mesh_from_object(ob)) == NULL) ||
+	    (me->mloopcol == NULL && (make_vertexcol(ob) == false)))
+	{
+		return false;
+	}
+
+	const bool do_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
+	mp = me->mpoly;
+
+	for (int i = 0; i < me->totpoly; i++, mp++) {
+		MLoopCol *lcol = &me->mloopcol[mp->loopstart];
+
+		if (do_face_sel && !(mp->flag & ME_FACE_SEL)) {
+			continue;
+		}
+
+		for (int j = 0; j < mp->totloop; j++, lcol++) {
+			float col[3];
+			rgb_uchar_to_float(col, &lcol->r);
+
+			vpaint_tx_fn(col, user_data, col);
+
+			rgb_float_to_uchar(&lcol->r, col);
+		}
+	}
+
+	/* remove stale me->mcol, will be added later */
+	BKE_mesh_tessface_clear(me);
 
 	DAG_id_tag_update(&me->id, 0);
 
@@ -1796,7 +1841,7 @@ static int paint_poll_test(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	if (!ob->data || ((ID *)ob->data)->lib)
+	if (!ob->data || ID_IS_LINKED_DATABLOCK(ob->data))
 		return 0;
 	if (CTX_data_edit_object(C))
 		return 0;
@@ -2335,9 +2380,8 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	swap_m4m4(vc->rv3d->persmat, mat);
 
 	/* calculate pivot for rotation around seletion if needed */
-	if (U.uiflag & USER_ORBIT_SELECTION) {
-		paint_last_stroke_update(scene, vc->ar, mval);
-	}
+	/* also needed for "View Selected" on last stroke */
+	paint_last_stroke_update(scene, vc->ar, mval);
 
 	DAG_id_tag_update(ob->data, 0);
 	ED_region_tag_redraw(vc->ar);
@@ -2813,9 +2857,8 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	}
 
 	/* calculate pivot for rotation around seletion if needed */
-	if (U.uiflag & USER_ORBIT_SELECTION) {
-		paint_last_stroke_update(scene, vc->ar, mval);
-	}
+	/* also needed for "View Selected" on last stroke */
+	paint_last_stroke_update(scene, vc->ar, mval);
 
 	ED_region_tag_redraw(vc->ar);
 

@@ -1011,18 +1011,18 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	int totmapped = 0;
 	totweight = 0.0f;
 	for (i = 0; i < totelem; i++) {
-		if (element_weight[i] != 0.0f) {
+		if (element_weight[i] > 0.0f) {
 			totmapped++;
+			totweight += element_weight[i];
 		}
-		totweight += element_weight[i];
 	}
 
-	if (totweight == 0.0f) {
+	if (totmapped == 0) {
 		/* We are not allowed to distribute particles anywhere... */
 		return 0;
 	}
 
-	inv_totweight = (totweight > 0.f ? 1.f/totweight : 0.f);
+	inv_totweight = 1.0f / totweight;
 
 	/* Calculate cumulative weights.
 	 * We remove all null-weighted elements from element_sum, and create a new mapping
@@ -1039,15 +1039,17 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	element_map[i_mapped] = i;
 	i_mapped++;
 	for (i++; i < totelem; i++) {
-		if (element_weight[i] != 0.0f) {
+		if (element_weight[i] > 0.0f) {
 			element_sum[i_mapped] = element_sum[i_mapped - 1] + element_weight[i] * inv_totweight;
-			element_map[i_mapped] = i;
-			i_mapped++;
+			/* Skip elements which weight is so small that it does not affect the sum. */
+			if (element_sum[i_mapped] > element_sum[i_mapped - 1]) {
+				element_map[i_mapped] = i;
+				i_mapped++;
+			}
 		}
 	}
+	totmapped = i_mapped;
 
-	BLI_assert(i_mapped == totmapped);
-	
 	/* Finally assign elements to particles */
 	if ((part->flag & PART_TRAND) || (part->simplify_flag & PART_SIMPLIFY_ENABLE)) {
 		for (p = 0; p < totpart; p++) {
@@ -1056,7 +1058,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 			const float pos = BLI_frand() * element_sum[totmapped - 1];
 			const int eidx = distribute_binary_search(element_sum, totmapped, pos);
 			particle_element[p] = element_map[eidx];
-			BLI_assert(pos <= element_sum[eidx] && pos > (eidx ? element_sum[eidx - 1] : 0.0f));
+			BLI_assert(pos <= element_sum[eidx]);
+			BLI_assert(eidx ? (pos > element_sum[eidx - 1]) : (pos >= 0.0f));
 			jitter_offset[particle_element[p]] = pos;
 		}
 	}

@@ -149,7 +149,8 @@ typedef struct ParticleThreadContext {
 	struct ParticleData *tpars;
 
 	/* path caching */
-	int editupdate, between, segments, extra_segments;
+	bool editupdate;
+	int between, segments, extra_segments;
 	int totchild, totparent, parent_pass;
 
 	float cfra;
@@ -294,7 +295,7 @@ void psys_set_current_num(Object *ob, int index);
 struct LatticeDeformData *psys_create_lattice_deform_data(struct ParticleSimulationData *sim);
 
 bool psys_in_edit_mode(struct Scene *scene, struct ParticleSystem *psys);
-bool psys_check_enabled(struct Object *ob, struct ParticleSystem *psys);
+bool psys_check_enabled(struct Object *ob, struct ParticleSystem *psys, const bool use_render_params);
 bool psys_check_edited(struct ParticleSystem *psys);
 
 void psys_check_group_weights(struct ParticleSettings *part);
@@ -323,16 +324,16 @@ struct ParticleSystemModifierData *psys_get_modifier(struct Object *ob, struct P
 struct ModifierData *object_add_particle_system(struct Scene *scene, struct Object *ob, const char *name);
 void object_remove_particle_system(struct Scene *scene, struct Object *ob);
 struct ParticleSettings *psys_new_settings(const char *name, struct Main *main);
-struct ParticleSettings *BKE_particlesettings_copy(struct ParticleSettings *part);
-void BKE_particlesettings_make_local(struct ParticleSettings *part);
+struct ParticleSettings *BKE_particlesettings_copy(struct Main *bmain, struct ParticleSettings *part);
+void BKE_particlesettings_make_local(struct Main *bmain, struct ParticleSettings *part, const bool force_local);
 
 void psys_reset(struct ParticleSystem *psys, int mode);
 
-void psys_find_parents(struct ParticleSimulationData *sim);
+void psys_find_parents(struct ParticleSimulationData *sim, const bool use_render_params);
 
-void psys_cache_paths(struct ParticleSimulationData *sim, float cfra);
-void psys_cache_edit_paths(struct Scene *scene, struct Object *ob, struct PTCacheEdit *edit, float cfra);
-void psys_cache_child_paths(struct ParticleSimulationData *sim, float cfra, int editupdate);
+void psys_cache_paths(struct ParticleSimulationData *sim, float cfra, const bool use_render_params);
+void psys_cache_edit_paths(struct Scene *scene, struct Object *ob, struct PTCacheEdit *edit, float cfra, const bool use_render_params);
+void psys_cache_child_paths(struct ParticleSimulationData *sim, float cfra, const bool editupdate, const bool use_render_params);
 int do_guides(struct ParticleSettings *part, struct EffectorContext *effectors, ParticleKey *state, int pa_num, float time);
 void precalc_guides(struct ParticleSimulationData *sim, struct EffectorContext *effectors);
 float psys_get_timestep(struct ParticleSimulationData *sim);
@@ -380,7 +381,7 @@ void psys_check_boid_data(struct ParticleSystem *psys);
 
 void psys_get_birth_coords(struct ParticleSimulationData *sim, struct ParticleData *pa, struct ParticleKey *state, float dtime, float cfra);
 
-void particle_system_update(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+void particle_system_update(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, const bool use_render_params);
 
 /* Callback format for performing operations on ID-pointers for particle systems */
 typedef void (*ParticleSystemIDFunc)(struct ParticleSystem *psys, struct ID **idpoin, void *userdata, int cd_flag);

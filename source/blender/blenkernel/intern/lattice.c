@@ -59,6 +59,8 @@
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -275,15 +277,17 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
 	return lt;
 }
 
-Lattice *BKE_lattice_copy(Lattice *lt)
+Lattice *BKE_lattice_copy(Main *bmain, Lattice *lt)
 {
 	Lattice *ltn;
 
-	ltn = BKE_libblock_copy(&lt->id);
+	ltn = BKE_libblock_copy(bmain, &lt->id);
 	ltn->def = MEM_dupallocN(lt->def);
 
-	ltn->key = BKE_key_copy(ltn->key);
-	if (ltn->key) ltn->key->from = (ID *)ltn;
+	if (lt->key) {
+		ltn->key = BKE_key_copy(bmain, ltn->key);
+		ltn->key->from = (ID *)ltn;
+	}
 	
 	if (lt->dvert) {
 		int tot = lt->pntsu * lt->pntsv * lt->pntsw;
@@ -293,77 +297,65 @@ Lattice *BKE_lattice_copy(Lattice *lt)
 
 	ltn->editlatt = NULL;
 
-	if (lt->id.lib) {
-		BKE_id_lib_local_paths(G.main, lt->id.lib, &ltn->id);
+	if (ID_IS_LINKED_DATABLOCK(lt)) {
+		BKE_id_expand_local(&ltn->id);
+		BKE_id_lib_local_paths(bmain, lt->id.lib, &ltn->id);
 	}
 
 	return ltn;
 }
 
+/** Free (or release) any data used by this lattice (does not free the lattice itself). */
 void BKE_lattice_free(Lattice *lt)
 {
-	if (lt->def) MEM_freeN(lt->def);
-	if (lt->dvert) BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+	BKE_animdata_free(&lt->id, false);
+
+	MEM_SAFE_FREE(lt->def);
+	if (lt->dvert) {
+		BKE_defvert_array_free(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		lt->dvert = NULL;
+	}
 	if (lt->editlatt) {
 		Lattice *editlt = lt->editlatt->latt;
 
-		if (editlt->def) MEM_freeN(editlt->def);
-		if (editlt->dvert) BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
+		if (editlt->def)
+			MEM_freeN(editlt->def);
+		if (editlt->dvert)
+			BKE_defvert_array_free(editlt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
 
 		MEM_freeN(editlt);
 		MEM_freeN(lt->editlatt);
-	}
-	
-	/* free animation data */
-	if (lt->adt) {
-		BKE_animdata_free(&lt->id);
-		lt->adt = NULL;
+		lt->editlatt = NULL;
 	}
 }
 
 
-void BKE_lattice_make_local(Lattice *lt)
+void BKE_lattice_make_local(Main *bmain, Lattice *lt, const bool force_local)
 {
-	Main *bmain = G.main;
-	Object *ob;
 	bool is_local = false, is_lib = false;
 
-	/* - only lib users: do nothing
+	/* - only lib users: do nothing (unless force_local is set)
 	 * - only local users: set flag
 	 * - mixed: make copy
 	 */
-	
-	if (lt->id.lib == NULL) return;
-	if (lt->id.us == 1) {
-		id_clear_lib_data(bmain, &lt->id);
+
+	if (!ID_IS_LINKED_DATABLOCK(lt)) {
 		return;
 	}
-	
-	for (ob = bmain->object.first; ob && ELEM(false, is_lib, is_local); ob = ob->id.next) {
-		if (ob->data == lt) {
-			if (ob->id.lib) is_lib = true;
-			else is_local = true;
+
+	BKE_library_ID_test_usages(bmain, lt, &is_local, &is_lib);
+
+	if (force_local || is_local) {
+		if (!is_lib) {
+			id_clear_lib_data(bmain, &lt->id);
+			BKE_id_expand_local(&lt->id);
 		}
-	}
-	
-	if (is_local && is_lib == false) {
-		id_clear_lib_data(bmain, &lt->id);
-	}
-	else if (is_local && is_lib) {
-		Lattice *lt_new = BKE_lattice_copy(lt);
-		lt_new->id.us = 0;
+		else {
+			Lattice *lt_new = BKE_lattice_copy(bmain, lt);
 
-		/* Remap paths of new ID using old library as base. */
-		BKE_id_lib_local_paths(bmain, lt->id.lib, &lt_new->id);
+			lt_new->id.us = 0;
 
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->data == lt) {
-				if (ob->id.lib == NULL) {
-					ob->data = lt_new;
-					id_us_plus(&lt_new->id);
-					id_us_min(&lt->id);
-				}
-			}
+			BKE_libblock_remap(bmain, lt, lt_new, ID_REMAP_SKIP_INDIRECT_USAGE);
 		}
 	}
 }

@@ -393,6 +393,9 @@ static ShaderNode *add_node(Scene *scene,
 			case BL::ShaderNodeBsdfAnisotropic::distribution_GGX:
 				aniso->distribution = CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID;
 				break;
+			case BL::ShaderNodeBsdfAnisotropic::distribution_MULTI_GGX:
+				aniso->distribution = CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID;
+				break;
 			case BL::ShaderNodeBsdfAnisotropic::distribution_ASHIKHMIN_SHIRLEY:
 				aniso->distribution = CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID;
 				break;
@@ -437,7 +440,10 @@ static ShaderNode *add_node(Scene *scene,
 				glossy->distribution = CLOSURE_BSDF_MICROFACET_GGX_ID;
 				break;
 			case BL::ShaderNodeBsdfGlossy::distribution_ASHIKHMIN_SHIRLEY:
-				glossy->distribution = CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID;
+				glossy->distribution = CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID;
+				break;
+			case BL::ShaderNodeBsdfGlossy::distribution_MULTI_GGX:
+				glossy->distribution = CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID;
 				break;
 		}
 		node = glossy;
@@ -454,6 +460,9 @@ static ShaderNode *add_node(Scene *scene,
 				break;
 			case BL::ShaderNodeBsdfGlass::distribution_GGX:
 				glass->distribution = CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID;
+				break;
+			case BL::ShaderNodeBsdfGlass::distribution_MULTI_GGX:
+				glass->distribution = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
 				break;
 		}
 		node = glass;

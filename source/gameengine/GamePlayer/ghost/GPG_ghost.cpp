@@ -46,8 +46,8 @@
 #include "KX_PyConstraintBinding.h" // for PHY_SetActiveEnvironment
 
 /**********************************
-* Begin Blender include block
-**********************************/
+ * Begin Blender include block
+ **********************************/
 #ifdef __cplusplus
 extern "C"
 {
@@ -74,6 +74,7 @@ extern "C"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_library.h"
+#include "BKE_library_remap.h"
 #include "BKE_modifier.h"
 #include "BKE_material.h"
 #include "BKE_text.h"
@@ -104,8 +105,8 @@ extern char datatoc_bmonofont_ttf[];
 #include "GPU_draw.h"
 
 /**********************************
-* End Blender include block
-**********************************/
+ * End Blender include block
+ **********************************/
 
 #include "BL_System.h"
 #include "GPG_Application.h"
@@ -464,8 +465,8 @@ int main(
 
 	/* Win32 Unicode Args */
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
-	*       (it depends on the args passed in, which is what we're getting here!)
-	*/
+	 *       (it depends on the args passed in, which is what we're getting here!)
+	 */
 	{
 		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
 		argv = (char**)malloc(argc * sizeof(char *));
@@ -711,7 +712,7 @@ int main(
 			{
 				i++;
 				if ( (i + 1) <= validArguments )
-					parentWindow = atoi(argv[i++]);
+					parentWindow = (GHOST_TEmbedderWindowID)atoll(argv[i++]);
 				else {
 					error = true;
 					printf("error: too few options for parent window argument.\n");
