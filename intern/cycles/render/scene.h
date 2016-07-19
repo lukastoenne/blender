@@ -64,7 +64,8 @@ public:
 	device_vector<float4> bvh_nodes;
 	device_vector<float4> bvh_leaf_nodes;
 	device_vector<uint> object_node;
-	device_vector<float4> tri_storage;
+	device_vector<uint> prim_tri_index;
+	device_vector<float4> prim_tri_verts;
 	device_vector<uint> prim_type;
 	device_vector<uint> prim_visibility;
 	device_vector<uint> prim_index;
@@ -73,8 +74,7 @@ public:
 	/* mesh */
 	device_vector<uint> tri_shader;
 	device_vector<float4> tri_vnormal;
-	device_vector<float4> tri_vindex;
-	device_vector<float4> tri_verts;
+	device_vector<uint4> tri_vindex;
 
 	device_vector<float4> curves;
 	device_vector<float4> curve_keys;
@@ -137,6 +137,7 @@ public:
 		BVH_NUM_TYPES,
 	} bvh_type;
 	bool use_bvh_spatial_split;
+	bool use_bvh_unaligned_nodes;
 	bool use_qbvh;
 	bool persistent_data;
 
@@ -145,6 +146,7 @@ public:
 		shadingsystem = SHADINGSYSTEM_SVM;
 		bvh_type = BVH_DYNAMIC;
 		use_bvh_spatial_split = false;
+		use_bvh_unaligned_nodes = true;
 		use_qbvh = false;
 		persistent_data = false;
 	}
@@ -153,6 +155,7 @@ public:
 	{ return !(shadingsystem == params.shadingsystem
 		&& bvh_type == params.bvh_type
 		&& use_bvh_spatial_split == params.use_bvh_spatial_split
+		&& use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes
 		&& use_qbvh == params.use_qbvh
 		&& persistent_data == params.persistent_data); }
 };
@@ -212,6 +215,7 @@ public:
 
 	enum MotionType { MOTION_NONE = 0, MOTION_PASS, MOTION_BLUR };
 	MotionType need_motion(bool advanced_shading = true);
+	float motion_shutter_time();
 
 	bool need_update();
 	bool need_reset();
