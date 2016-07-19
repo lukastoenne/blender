@@ -110,6 +110,12 @@ struct SnapObjectContext {
 
 };
 
+enum eViewProj {
+	VIEW_PROJ_NONE     = -1,
+	VIEW_PROJ_ORTHO    =  0,
+	VIEW_PROJ_PERSP    = -1,
+};
+
 static int dm_looptri_to_poly_index(DerivedMesh *dm, const MLoopTri *lt);
 
 
@@ -136,10 +142,6 @@ struct RayCastAll_Data {
 
 	Object *ob;
 	unsigned int ob_uuid;
-
-	/* DerivedMesh only */
-	DerivedMesh *dm;
-	const struct MLoopTri *dm_looptri;
 
 	/* output data */
 	ListBase *hit_list;
@@ -219,12 +221,12 @@ static void raycast_all_cb(void *userdata, int index, const BVHTreeRay *ray, BVH
 /* -------------------------------------------------------------------- */
 
 /** \Common utilities
-* \{ */
+ * \{ */
 
 
 /**
-* struct that kepts basic information about a BVHTree build from a editmesh
-*/
+ * Struct that kepts basic information about a BVHTree build from a editmesh.
+ */
 typedef struct BVHTreeFromMeshType {
 	void *userdata;
 	char type;
@@ -253,11 +255,11 @@ static void precalc_project(
 }
 
 /**
-* From a threshold (maximum distance to snap in pixels) returns:
-*
-* - The *real* distance (3D) if you are in orthographic-view.
-* - The *tangent* (view cone radius at distance 1.0) if you are in perspective-view.
-*/
+ * From a threshold (maximum distance to snap in pixels) returns:
+ *
+ * - The *real* distance (3D) if you are in orthographic-view.
+ * - The *tangent* (view cone radius at distance 1.0) if you are in perspective-view.
+ */
 static float dist_px_to_dist3d_or_tangent(const ARegion *ar, const float dist_px)
 {
 	const RegionView3D *rv3d = ar->regiondata;
@@ -340,12 +342,12 @@ static void get_edge_verts(
 	(a)[2] * (b)[2]
 
 static bool test_vert_dist(
-        const float vco[3], const float vno[3], const float ray_co[3], const float ray_dir[3],
+        const float vco[3], const float ray_co[3], const float ray_dir[3],
         const float ray_depth_range[2], const float scale[3],
         /* read/write args */
         float *ray_depth, float *dist_to_ray_sq,
         /* return args */
-        float r_co[3], float r_no[3])
+        float r_co[3])
 {
 	const float vco_sc[3]   = {V3_MUL_ELEM(vco, scale)};
 	const float origin_sc[3]    = {V3_MUL_ELEM(ray_co, scale)};
@@ -363,10 +365,6 @@ static bool test_vert_dist(
 
 		copy_v3_v3(r_co, vco);
 
-		if (vno) {
-			copy_v3_v3(r_no, vno);
-		}
-
 		*ray_depth = depth;
 		return true;
 	}
@@ -379,7 +377,7 @@ static bool test_edge_dist(
         /* read/write args */
         float *ray_depth, float *dist_to_ray_sq,
         /* return args */
-        float r_co[3], float r_no[3])
+        float r_co[3])
 {
 	const float v1_sc[3]    = {V3_MUL_ELEM(v1, scale)};
 	const float v2_sc[3]    = {V3_MUL_ELEM(v2, scale)};
@@ -402,10 +400,6 @@ static bool test_edge_dist(
 
 		copy_v3_v3(r_co, tmp_co);
 
-		if (r_no) {
-			sub_v3_v3v3(r_no, v1, v2);
-		}
-
 		*ray_depth = depth;
 		return true;
 	}
@@ -416,13 +410,13 @@ static bool test_edge_dist(
 
 static bool test_projected_vert_dist(
         PreDefProject *projectdefs,
-        const float co[3], const bool is_persp,
+        const float co[3], const enum eViewProj view_proj,
         const float mval[2], const float depth_range[2],
         float r_co[3])
 {
 	float depth;
 	float(*pmat)[4] = projectdefs->pmat;
-	if (is_persp) {
+	if (view_proj == VIEW_PROJ_PERSP) {
 		depth = mul_project_m4_v3_zfac(pmat, co);
 		if (depth < depth_range[0] || depth > depth_range[1]) {
 			return false;
@@ -434,7 +428,7 @@ static bool test_projected_vert_dist(
 		(dot_m4_v3_row_y(pmat, co) + pmat[3][1]),
 	};
 
-	if (is_persp) {
+	if (view_proj == VIEW_PROJ_PERSP) {
 		mul_v2_fl(co2d, 1 / depth);
 	}
 
@@ -455,13 +449,13 @@ static bool test_projected_vert_dist(
 static bool test_projected_edge_dist(
         PreDefProject *projectdefs,
         const float va[3], const float vb[3], const float ray_start[3], const float ray_normal[3],
-        const bool is_persp, const float mval[2], const float depth_range[2],
+        const enum eViewProj view_proj, const float mval[2], const float depth_range[2],
         float r_co[3])
 {
 
 	float tmp_co[3], depth;
 	dist_squared_ray_to_seg_v3(ray_start, ray_normal, va, vb, tmp_co, &depth);
-	return test_projected_vert_dist(projectdefs, tmp_co, is_persp, mval, depth_range, r_co);
+	return test_projected_vert_dist(projectdefs, tmp_co, view_proj, mval, depth_range, r_co);
 }
 
 /** \} */
@@ -470,7 +464,7 @@ static bool test_projected_edge_dist(
 /* -------------------------------------------------------------------- */
 
 /** \Walk DFS
-* \{ */
+ * \{ */
 typedef struct Object_Nearest2dPrecalc {
 	float ray_origin_local[3];
 	float ray_direction_local[3];
@@ -510,7 +504,7 @@ static void nearest2d_precalc(
 	}
 }
 
-static bool walk_parent_snap_project_cb(const BVHTreeAxisRange *bounds, void *user_data)
+static bool cb_walk_parent_snap_project(const BVHTreeAxisRange *bounds, void *user_data)
 {
 	Object_Nearest2dPrecalc *data = user_data;
 	float local_bvmin[3], local_bvmax[3];
@@ -678,7 +672,7 @@ static bool walk_parent_snap_project_cb(const BVHTreeAxisRange *bounds, void *us
 	return rdist < data->projectdefs.dist_px_sq;
 }
 
-static bool cb_leaf_snap_vert(const BVHTreeAxisRange *bounds, int index, void *userdata)
+static bool cb_walk_leaf_snap_vert(const BVHTreeAxisRange *bounds, int index, void *userdata)
 {
 	struct Object_Nearest2dPrecalc *neasrest_precalc = userdata;
 	const float co[3] = {
@@ -686,8 +680,12 @@ static bool cb_leaf_snap_vert(const BVHTreeAxisRange *bounds, int index, void *u
 		(bounds[1].min + bounds[1].max) / 2,
 		(bounds[2].min + bounds[2].max) / 2,
 	};
+
+	/* Currently the `BLI_bvhtree_walk_dfs` is being used only in the perspective view mode (VIEW_PROJ_PERSP)
+	 * It could be used in orthographic view mode too (VIEW_PROJ_ORTHO),
+	 * but in this case the `BLI_bvhtree_find_nearest_to_ray` is more efficient.*/
 	if (test_projected_vert_dist(
-	        &neasrest_precalc->projectdefs, co, true,
+	        &neasrest_precalc->projectdefs, co, VIEW_PROJ_PERSP,
 	        neasrest_precalc->mval, neasrest_precalc->depth_range,
 	        neasrest_precalc->co))
 	{
@@ -697,17 +695,20 @@ static bool cb_leaf_snap_vert(const BVHTreeAxisRange *bounds, int index, void *u
 	return true;
 }
 
-static bool cb_leaf_snap_edge(const BVHTreeAxisRange *UNUSED(bounds), int index, void *userdata)
+static bool cb_walk_leaf_snap_edge(const BVHTreeAxisRange *UNUSED(bounds), int index, void *userdata)
 {
 	struct Object_Nearest2dPrecalc *neasrest_precalc = userdata;
 
 	const float *v_pair[2];
 	get_edge_verts(neasrest_precalc->userdata, index, v_pair);
 
+	/* Currently the `BLI_bvhtree_walk_dfs` is being used only in the perspective view mode (VIEW_PROJ_PERSP)
+	 * It could be used in orthographic view mode too (VIEW_PROJ_ORTHO),
+	 * but in this case the `BLI_bvhtree_find_nearest_to_ray` is more efficient.*/
 	if (test_projected_edge_dist(
 	        &neasrest_precalc->projectdefs, v_pair[0], v_pair[1],
 	        neasrest_precalc->ray_origin_local, neasrest_precalc->ray_direction_local,
-	        true, neasrest_precalc->mval, neasrest_precalc->depth_range,
+	        VIEW_PROJ_PERSP, neasrest_precalc->mval, neasrest_precalc->depth_range,
 	        neasrest_precalc->co))
 	{
 		sub_v3_v3v3(neasrest_precalc->no, v_pair[0], v_pair[1]);
@@ -732,7 +733,7 @@ static bool cb_nearest_walk_order(const BVHTreeAxisRange *UNUSED(bounds), char a
 static bool snapArmature(
         const ARegion *ar, Object *ob, bArmature *arm, float obmat[4][4],
         const short snap_to, const float origin[3], const float dir[3],
-        const float mval[2], const bool is_persp, const float depth_range[2],
+        const float mval[2], const enum eViewProj view_proj, const float depth_range[2],
         /* read/write args */
         float *dist_px,
         /* return args */
@@ -762,14 +763,14 @@ static bool snapArmature(
 					switch (snap_to) {
 						case SCE_SNAP_MODE_VERTEX:
 							retval |= test_projected_vert_dist(
-							        &projectdefs, eBone->head, is_persp, mval, depth_range, r_loc);
+							        &projectdefs, eBone->head, view_proj, mval, depth_range, r_loc);
 							retval |= test_projected_vert_dist(
-							        &projectdefs,  eBone->tail, is_persp, mval, depth_range, r_loc);
+							        &projectdefs,  eBone->tail, view_proj, mval, depth_range, r_loc);
 							break;
 						case SCE_SNAP_MODE_EDGE:
 							retval |= test_projected_edge_dist(
 							        &projectdefs, eBone->head, eBone->tail, ray_start_local, ray_normal_local,
-							        is_persp, mval, depth_range, r_loc);
+							        view_proj, mval, depth_range, r_loc);
 							break;
 					}
 				}
@@ -787,14 +788,14 @@ static bool snapArmature(
 				switch (snap_to) {
 					case SCE_SNAP_MODE_VERTEX:
 						retval |= test_projected_vert_dist(
-						        &projectdefs, head_vec, is_persp, mval, depth_range, r_loc);
+						        &projectdefs, head_vec, view_proj, mval, depth_range, r_loc);
 						retval |= test_projected_vert_dist(
-						        &projectdefs, tail_vec, is_persp, mval, depth_range, r_loc);
+						        &projectdefs, tail_vec, view_proj, mval, depth_range, r_loc);
 						break;
 					case SCE_SNAP_MODE_EDGE:
 						retval |= test_projected_edge_dist(
 						        &projectdefs, head_vec, tail_vec, ray_start_local, ray_normal_local,
-						        is_persp, mval, depth_range, r_loc);
+						        view_proj, mval, depth_range, r_loc);
 						break;
 				}
 			}
@@ -810,7 +811,7 @@ static bool snapArmature(
 
 static bool snapCurve(
         const ARegion *ar, Object *ob, Curve *cu, float obmat[4][4],
-        const short snap_to, const float mval[2], const bool is_persp,
+        const short snap_to, const float mval[2], const enum eViewProj view_proj,
         const float depth_range[2],
         /* read/write args */
         float *dist_px,
@@ -839,19 +840,19 @@ static bool snapCurve(
 								break;
 							}
 							retval |= test_projected_vert_dist(
-							        &projectdefs, nu->bezt[u].vec[1], is_persp, mval, depth_range, r_loc);
+							        &projectdefs, nu->bezt[u].vec[1], view_proj, mval, depth_range, r_loc);
 							/* don't snap if handle is selected (moving), or if it is aligning to a moving handle */
 							if (!(nu->bezt[u].f1 & SELECT) &&
 							    !(nu->bezt[u].h1 & HD_ALIGN && nu->bezt[u].f3 & SELECT))
 							{
 								retval |= test_projected_vert_dist(
-								        &projectdefs, nu->bezt[u].vec[0], is_persp, mval, depth_range, r_loc);
+								        &projectdefs, nu->bezt[u].vec[0], view_proj, mval, depth_range, r_loc);
 							}
 							if (!(nu->bezt[u].f3 & SELECT) &&
 							    !(nu->bezt[u].h2 & HD_ALIGN && nu->bezt[u].f1 & SELECT))
 							{
 								retval |= test_projected_vert_dist(
-								        &projectdefs, nu->bezt[u].vec[2], is_persp, mval, depth_range, r_loc);
+								        &projectdefs, nu->bezt[u].vec[2], view_proj, mval, depth_range, r_loc);
 							}
 						}
 						else {
@@ -860,7 +861,7 @@ static bool snapCurve(
 								break;
 							}
 							retval |= test_projected_vert_dist(
-							        &projectdefs, nu->bp[u].vec, is_persp, mval, depth_range, r_loc);
+							        &projectdefs, nu->bp[u].vec, view_proj, mval, depth_range, r_loc);
 						}
 					}
 					else {
@@ -868,11 +869,11 @@ static bool snapCurve(
 						if (nu->pntsu > 1) {
 							if (nu->bezt) {
 								retval |= test_projected_vert_dist(
-								        &projectdefs, nu->bezt[u].vec[1], is_persp, mval, depth_range, r_loc);
+								        &projectdefs, nu->bezt[u].vec[1], view_proj, mval, depth_range, r_loc);
 							}
 							else {
 								retval |= test_projected_vert_dist(
-								        &projectdefs, nu->bp[u].vec, is_persp, mval, depth_range, r_loc);
+								        &projectdefs, nu->bp[u].vec, view_proj, mval, depth_range, r_loc);
 							}
 						}
 					}
@@ -894,7 +895,7 @@ static bool snapCurve(
 /* may extend later (for now just snaps to empty center) */
 static bool snapEmpty(
         const ARegion *ar, Object *ob, float obmat[4][4],
-        const short snap_to, const float mval[2], const bool is_persp,
+        const short snap_to, const float mval[2], const enum eViewProj view_proj,
         const float depth_range[2],
         /* read/write args */
         float *dist_px,
@@ -915,7 +916,7 @@ static bool snapEmpty(
 			precalc_project(&projectdefs, ar, *dist_px, NULL);
 			float tmp_co[3];
 			copy_v3_v3(tmp_co, obmat[3]);
-			if (test_projected_vert_dist(&projectdefs, tmp_co, is_persp, mval, depth_range, r_loc)) {
+			if (test_projected_vert_dist(&projectdefs, tmp_co, view_proj, mval, depth_range, r_loc)) {
 				*dist_px = sqrtf(projectdefs.dist_px_sq);
 				retval = true;
 			}
@@ -930,7 +931,7 @@ static bool snapEmpty(
 
 static bool snapCamera(
         const SnapObjectContext *sctx, Object *object, float obmat[4][4],
-        const short snap_to, const float mval[2], const bool is_persp,
+        const short snap_to, const float mval[2], const enum eViewProj view_proj,
         const float depth_range[2],
         /* read/write args */
         float *dist_px,
@@ -1001,7 +1002,7 @@ static bool snapCamera(
 
 					mul_m4_v3(vertex_obmat, bundle_pos);
 					retval |= test_projected_vert_dist(
-					        &projectdefs, bundle_pos, is_persp, mval, depth_range, r_loc);
+					        &projectdefs, bundle_pos, view_proj, mval, depth_range, r_loc);
 				}
 			}
 
@@ -1030,7 +1031,7 @@ struct NearestDM_Data {
 	float *ray_depth;
 };
 
-static void test_vert_depth_cb(
+static void test_vert_ray_dist_cb(
         void *userdata, const float origin[3], const float dir[3],
         const float scale[3], int index, BVHTreeNearest *nearest)
 {
@@ -1040,16 +1041,16 @@ static void test_vert_depth_cb(
 	const float *co = get_vert_co(data, index);
 
 	if (test_vert_dist(
-	        co, NULL, origin, dir, ndata->depth_range,
+	        co, origin, dir, ndata->depth_range,
 	        scale, ndata->ray_depth, &nearest->dist_sq,
-	        nearest->co, NULL))
+	        nearest->co))
 	{
 		copy_vert_no(data, index, nearest->no);
 		nearest->index = index;
 	}
 }
 
-static void test_edge_depth_cb(
+static void test_edge_ray_dist_cb(
         void *userdata, const float origin[3], const float dir[3],
         const float scale[3], int index, BVHTreeNearest *nearest)
 {
@@ -1062,8 +1063,9 @@ static void test_edge_depth_cb(
 	if (test_edge_dist(
 	        v_pair[0], v_pair[1], origin, dir, ndata->depth_range,
 	        scale, ndata->ray_depth, &nearest->dist_sq,
-	        nearest->co, nearest->no))
+	        nearest->co))
 	{
+		sub_v3_v3v3(nearest->no, v_pair[0], v_pair[1]);
 		nearest->index = index;
 	}
 }
@@ -1071,7 +1073,7 @@ static void test_edge_depth_cb(
 static bool snapDerivedMesh(
         SnapObjectContext *sctx,
         Object *ob, DerivedMesh *dm, float obmat[4][4], const unsigned int ob_index,
-        const short snap_to, const float mval[2], const bool is_persp, bool do_bb,
+        const short snap_to, const float mval[2], const enum eViewProj view_proj, bool do_bb,
         const float ray_origin[3], const float ray_start[3], const float ray_normal[3],
         const float depth_range[2],
         /* read/write args */
@@ -1087,7 +1089,7 @@ static bool snapDerivedMesh(
 			return retval;
 		}
 	}
-	if (snap_to == SCE_SNAP_MODE_EDGE) {
+	else if (snap_to == SCE_SNAP_MODE_EDGE) {
 		if (dm->getNumEdges(dm) == 0) {
 			return retval;
 		}
@@ -1099,7 +1101,7 @@ static bool snapDerivedMesh(
 	}
 
 	{
-		bool need_ray_start_correction_init = (snap_to == SCE_SNAP_MODE_FACE) && sctx->use_v3d && !is_persp;
+		bool need_ray_start_correction_init = (snap_to == SCE_SNAP_MODE_FACE) && (view_proj == VIEW_PROJ_ORTHO);
 
 		float imat[4][4];
 		float timat[3][3]; /* transpose inverse matrix for normals */
@@ -1216,7 +1218,7 @@ static bool snapDerivedMesh(
 			 * been *inside* boundbox, leading to snap failures (see T38409).
 			 * Note also ar might be null (see T38435), in this case we assume ray_start is ok!
 			 */
-			if (sctx->use_v3d && !is_persp) { /* do_ray_start_correction */
+			if (view_proj == VIEW_PROJ_ORTHO) {  /* do_ray_start_correction */
 				if (need_ray_start_correction_init) {
 					/* We *need* a reasonably valid len_diff in this case.
 					 * Use BHVTree to find the closest face from ray_start_local.
@@ -1259,7 +1261,6 @@ static bool snapDerivedMesh(
 				data.local_scale = local_scale;
 				data.ob = ob;
 				data.ob_uuid = ob_index;
-				data.dm = dm;
 				data.hit_list = r_hit_list;
 				data.retval = retval;
 
@@ -1270,10 +1271,7 @@ static bool snapDerivedMesh(
 				retval = data.retval;
 			}
 			else {
-				BVHTreeRayHit hit;
-
-				hit.index = -1;
-				hit.dist = local_depth;
+				BVHTreeRayHit hit = {.index = -1, .dist = local_depth};
 
 				if (BLI_bvhtree_ray_cast(
 				        treedata->tree, ray_start_local, ray_normal_local, 0.0f,
@@ -1284,12 +1282,15 @@ static bool snapDerivedMesh(
 					if (hit.dist <= *ray_depth) {
 						*ray_depth = hit.dist;
 						copy_v3_v3(r_loc, hit.co);
-						copy_v3_v3(r_no, hit.no);
 
 						/* back to worldspace */
 						mul_m4_v3(obmat, r_loc);
-						mul_m3_v3(timat, r_no);
-						normalize_v3(r_no);
+
+						if (r_no) {
+							copy_v3_v3(r_no, hit.no);
+							mul_m3_v3(timat, r_no);
+							normalize_v3(r_no);
+						}
 
 						retval = true;
 
@@ -1309,7 +1310,7 @@ static bool snapDerivedMesh(
 
 			BVHTreeFromMeshType treedata_type = {.userdata = treedata, .type = SNAP_MESH};
 
-			if (is_persp) {
+			if (view_proj == VIEW_PROJ_PERSP) {
 				Object_Nearest2dPrecalc neasrest_precalc;
 				neasrest_precalc.userdata = &treedata_type;
 				neasrest_precalc.index = -1;
@@ -1317,13 +1318,13 @@ static bool snapDerivedMesh(
 				nearest2d_precalc(&neasrest_precalc, ar, *dist_px, obmat,
 				        ray_org_local, ray_normal_local, mval, depth_range);
 
-				BVHTree_WalkLeafCallback callback = (snap_to == SCE_SNAP_MODE_VERTEX) ?
-				                                     cb_leaf_snap_vert : cb_leaf_snap_edge;
+				BVHTree_WalkLeafCallback cb_walk_leaf =
+				        (snap_to == SCE_SNAP_MODE_VERTEX) ?
+				        cb_walk_leaf_snap_vert : cb_walk_leaf_snap_edge;
 
 				BLI_bvhtree_walk_dfs(
 				        treedata->tree,
-				        walk_parent_snap_project_cb,
-				        callback, cb_nearest_walk_order, &neasrest_precalc);
+				        cb_walk_parent_snap_project, cb_walk_leaf, cb_nearest_walk_order, &neasrest_precalc);
 
 				if (neasrest_precalc.index != -1) {
 					copy_v3_v3(r_loc, neasrest_precalc.co);
@@ -1354,13 +1355,13 @@ static bool snapDerivedMesh(
 				userdata.depth_range = depth_range;
 				userdata.ray_depth = ray_depth;
 
-				BVHTree_NearestToRayCallback callback =
+				BVHTree_NearestToRayCallback cb_test_ray_dist =
 				        (snap_to == SCE_SNAP_MODE_VERTEX) ?
-				        test_vert_depth_cb : test_edge_depth_cb;
+				        test_vert_ray_dist_cb : test_edge_ray_dist_cb;
 
 				if (BLI_bvhtree_find_nearest_to_ray(
 				        treedata->tree, ray_org_local, ray_normal_local,
-				        false, ob_scale, &nearest, callback, &userdata) != -1)
+				        false, ob_scale, &nearest, cb_test_ray_dist, &userdata) != -1)
 				{
 					copy_v3_v3(r_loc, nearest.co);
 					mul_m4_v3(obmat, r_loc);
@@ -1389,7 +1390,7 @@ static bool snapDerivedMesh(
 static bool snapEditMesh(
         SnapObjectContext *sctx,
         Object *ob, BMEditMesh *em, float obmat[4][4], const unsigned int ob_index,
-        const short snap_to, const float mval[2], const bool is_persp,
+        const short snap_to, const float mval[2], const enum eViewProj view_proj,
         const float ray_origin[3], const float ray_start[3], const float ray_normal[3],
         const float depth_range[2],
         /* read/write args */
@@ -1542,7 +1543,7 @@ static bool snapEditMesh(
 			 * Note also ar might be null (see T38435), in this case we assume ray_start is ok!
 			 */
 			float len_diff = 0.0f;
-			if (sctx->use_v3d && !is_persp) { /* do_ray_start_correction */
+			if (view_proj == VIEW_PROJ_ORTHO) {  /* do_ray_start_correction */
 				/* We *need* a reasonably valid len_diff in this case.
 				 * Use BHVTree to find the closest face from ray_start_local.
 				 */
@@ -1562,9 +1563,9 @@ static bool snapEditMesh(
 					mul_m4_v3(imat, ray_org_local);
 
 					/* We pass a temp ray_start, set from object's boundbox,
-					* to avoid precision issues with very far away ray_start values
-					* (as returned in case of ortho view3d), see T38358.
-					*/
+					 * to avoid precision issues with very far away ray_start values
+					 * (as returned in case of ortho view3d), see T38358.
+					 */
 					len_diff -= local_scale;  /* make temp start point a bit away from bbox hit point. */
 					madd_v3_v3v3fl(ray_start_local, ray_org_local, ray_normal_local, len_diff + depth_range[0]);
 					local_depth -= len_diff;
@@ -1581,7 +1582,6 @@ static bool snapEditMesh(
 				data.local_scale = local_scale;
 				data.ob = ob;
 				data.ob_uuid = ob_index;
-				data.dm = NULL;
 				data.hit_list = r_hit_list;
 				data.retval = retval;
 
@@ -1592,10 +1592,7 @@ static bool snapEditMesh(
 				retval = data.retval;
 			}
 			else {
-				BVHTreeRayHit hit;
-
-				hit.index = -1;
-				hit.dist = local_depth;
+				BVHTreeRayHit hit = {.index = -1, .dist = local_depth};
 
 				if (BLI_bvhtree_ray_cast(
 				        treedata->tree, ray_start_local, ray_normal_local, 0.0f,
@@ -1606,12 +1603,15 @@ static bool snapEditMesh(
 					if (hit.dist <= *ray_depth) {
 						*ray_depth = hit.dist;
 						copy_v3_v3(r_loc, hit.co);
-						copy_v3_v3(r_no, hit.no);
 
 						/* back to worldspace */
 						mul_m4_v3(obmat, r_loc);
-						mul_m3_v3(timat, r_no);
-						normalize_v3(r_no);
+
+						if (r_no) {
+							copy_v3_v3(r_no, hit.no);
+							mul_m3_v3(timat, r_no);
+							normalize_v3(r_no);
+						}
 
 						retval = true;
 
@@ -1631,7 +1631,7 @@ static bool snapEditMesh(
 
 			BVHTreeFromMeshType treedata_type = {.userdata = treedata, .type = SNAP_EDIT_MESH};
 
-			if (is_persp) {
+			if (view_proj == VIEW_PROJ_PERSP) {
 				Object_Nearest2dPrecalc neasrest_precalc;
 				neasrest_precalc.userdata = &treedata_type;
 				neasrest_precalc.index = -1;
@@ -1639,13 +1639,13 @@ static bool snapEditMesh(
 				nearest2d_precalc(&neasrest_precalc, ar, *dist_px, obmat,
 				        ray_org_local, ray_normal_local, mval, depth_range);
 
-				BVHTree_WalkLeafCallback callback = (snap_to == SCE_SNAP_MODE_VERTEX) ?
-				                                    cb_leaf_snap_vert : cb_leaf_snap_edge;
+				BVHTree_WalkLeafCallback cb_walk_leaf =
+				        (snap_to == SCE_SNAP_MODE_VERTEX) ?
+				        cb_walk_leaf_snap_vert : cb_walk_leaf_snap_edge;
 
 				BLI_bvhtree_walk_dfs(
 				        treedata->tree,
-				        walk_parent_snap_project_cb,
-				        callback, cb_nearest_walk_order, &neasrest_precalc);
+				        cb_walk_parent_snap_project, cb_walk_leaf, cb_nearest_walk_order, &neasrest_precalc);
 
 				if (neasrest_precalc.index != -1) {
 					copy_v3_v3(r_loc, neasrest_precalc.co);
@@ -1676,13 +1676,13 @@ static bool snapEditMesh(
 				userdata.depth_range = depth_range;
 				userdata.ray_depth = ray_depth;
 
-				BVHTree_NearestToRayCallback callback =
+				BVHTree_NearestToRayCallback cb_test_ray_dist =
 				        (snap_to == SCE_SNAP_MODE_VERTEX) ?
-				        test_vert_depth_cb : test_edge_depth_cb;
+				        test_vert_ray_dist_cb : test_edge_ray_dist_cb;
 
 				if (BLI_bvhtree_find_nearest_to_ray(
 				        treedata->tree, ray_org_local, ray_normal_local,
-				        false, ob_scale, &nearest, callback, &userdata) != -1)
+				        false, ob_scale, &nearest, cb_test_ray_dist, &userdata) != -1)
 				{
 					copy_v3_v3(r_loc, nearest.co);
 					mul_m4_v3(obmat, r_loc);
@@ -1726,7 +1726,10 @@ static bool snapObject(
         Object **r_ob, float r_obmat[4][4],
         ListBase *r_hit_list)
 {
-	const bool is_persp = sctx->use_v3d && ((RegionView3D *)sctx->v3d_data.ar->regiondata)->is_persp;
+	const enum eViewProj view_proj =
+	        ((sctx->use_v3d == false) || (mval == NULL)) ? VIEW_PROJ_NONE :
+	        (((RegionView3D *)sctx->v3d_data.ar->regiondata)->is_persp ? VIEW_PROJ_PERSP : VIEW_PROJ_ORTHO);
+
 	const ARegion *ar = sctx->v3d_data.ar;
 
 	bool retval = false;
@@ -1738,7 +1741,7 @@ static bool snapObject(
 			em = BKE_editmesh_from_object(ob);
 			retval = snapEditMesh(
 			        sctx, ob, em, obmat, ob_index,
-			        snap_to, mval, is_persp,
+			        snap_to, mval, view_proj,
 			        ray_origin, ray_start, ray_normal, depth_range,
 			        ray_depth, dist_px,
 			        r_loc, r_no, r_index,
@@ -1757,7 +1760,7 @@ static bool snapObject(
 			}
 			retval = snapDerivedMesh(
 			        sctx, ob, dm, obmat, ob_index,
-			        snap_to, mval, is_persp, true,
+			        snap_to, mval, view_proj, true,
 			        ray_origin, ray_start, ray_normal, depth_range,
 			        ray_depth, dist_px,
 			        r_loc, r_no,
@@ -1770,26 +1773,26 @@ static bool snapObject(
 		if (ob->type == OB_ARMATURE) {
 			retval = snapArmature(
 			        ar, ob, ob->data, obmat, snap_to, ray_origin, ray_normal,
-			        mval, is_persp, depth_range, dist_px,
+			        mval, view_proj, depth_range, dist_px,
 			        r_loc, r_no);
 		}
 		else if (ob->type == OB_CURVE) {
 			retval = snapCurve(
-			        ar, ob, ob->data, obmat, snap_to, mval, is_persp,
+			        ar, ob, ob->data, obmat, snap_to, mval, view_proj,
 			        depth_range,
 			        dist_px,
 			        r_loc, r_no);
 		}
 		else if (ob->type == OB_EMPTY) {
 			retval = snapEmpty(
-			        ar, ob, obmat, snap_to, mval, is_persp,
+			        ar, ob, obmat, snap_to, mval, view_proj,
 			        depth_range,
 			        dist_px,
 			        r_loc, r_no);
 		}
 		else if (ob->type == OB_CAMERA) {
 			retval = snapCamera(
-			        sctx, ob, obmat, snap_to, mval, is_persp,
+			        sctx, ob, obmat, snap_to, mval, view_proj,
 			        depth_range,
 			        dist_px,
 			        r_loc, r_no);
@@ -1820,6 +1823,7 @@ static bool snapObject(
  *
  * \param use_object_edit_cage: Uses the coordinates of BMesh (if any) to do the snapping.
  * \param mval: Mouse coords.
+ * When NULL, ray-casting is handled without any projection matrix correction.
  * \param ray_origin: ray_start before being moved toward the ray_normal at the distance from vew3d clip_min.
  * \param ray_start: ray_origin moved for the start clipping plane (clip_min).
  * \param ray_normal: Unit length direction of the ray.
@@ -2123,11 +2127,6 @@ bool ED_transform_snap_object_project_ray(
 		ray_depth = &ray_depth_fallback;
 	}
 
-	float no_fallback[3];
-	if (r_no == NULL) {
-		r_no = no_fallback;
-	}
-
 	return transform_snap_context_project_ray_impl(
 	        sctx,
 	        params,
@@ -2145,11 +2144,6 @@ static bool transform_snap_context_project_view3d_mixed_impl(
 {
 	float ray_depth = BVH_RAYCAST_DIST_MAX;
 	bool is_hit = false;
-
-	float r_no_dummy[3];
-	if (r_no == NULL) {
-		r_no = r_no_dummy;
-	}
 
 	const int  elem_type[3] = {SCE_SNAP_MODE_VERTEX, SCE_SNAP_MODE_EDGE, SCE_SNAP_MODE_FACE};
 

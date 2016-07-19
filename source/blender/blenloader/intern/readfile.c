@@ -2714,7 +2714,7 @@ static void lib_link_node_socket(FileData *fd, ID *UNUSED(id), bNodeSocket *sock
 	IDP_LibLinkProperty(sock->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 }
 
-/* singe node tree (also used for material/scene trees), ntree is not NULL */
+/* Single node tree (also used for material/scene trees), ntree is not NULL */
 static void lib_link_ntree(FileData *fd, ID *id, bNodeTree *ntree)
 {
 	bNode *node;
@@ -2755,22 +2755,6 @@ static void lib_link_nodetree(FileData *fd, Main *main)
 			lib_link_ntree(fd, &ntree->id, ntree);
 		}
 	}
-}
-
-/* get node tree stored locally in other IDs */
-static bNodeTree *nodetree_from_id(ID *id)
-{
-	if (!id)
-		return NULL;
-	switch (GS(id->name)) {
-		case ID_SCE: return ((Scene *)id)->nodetree;
-		case ID_MA: return ((Material *)id)->nodetree;
-		case ID_WO: return ((World *)id)->nodetree;
-		case ID_LA: return ((Lamp *)id)->nodetree;
-		case ID_TE: return ((Tex *)id)->nodetree;
-		case ID_LS: return ((FreestyleLineStyle *)id)->nodetree;
-	}
-	return NULL;
 }
 
 /* updates group node socket identifier so that
@@ -6390,11 +6374,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 						snode->id = newlibadr(fd, sc->id.lib, snode->id);
 						snode->from = newlibadr(fd, sc->id.lib, snode->from);
 						
-						ntree = nodetree_from_id(snode->id);
-						if (ntree)
-							snode->nodetree = ntree;
-						else {
-							snode->nodetree = newlibadr_us(fd, sc->id.lib, snode->nodetree);
+						if (snode->id) {
+							ntree = ntreeFromID(snode->id);
+							snode->nodetree = ntree ? ntree : newlibadr_us(fd, sc->id.lib, snode->nodetree);
 						}
 						
 						for (path = snode->treepath.first; path; path = path->next) {
@@ -6774,11 +6756,11 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					snode->id = restore_pointer_by_name(id_map, snode->id, USER_REAL);
 					snode->from = restore_pointer_by_name(id_map, snode->from, USER_IGNORE);
 					
-					ntree = nodetree_from_id(snode->id);
-					if (ntree)
-						snode->nodetree = ntree;
-					else
-						snode->nodetree = restore_pointer_by_name(id_map, (ID*)snode->nodetree, USER_REAL);
+					if (snode->id) {
+						ntree = ntreeFromID(snode->id);
+						snode->nodetree = ntree ? ntree :
+						                          restore_pointer_by_name(id_map, (ID *)snode->nodetree, USER_REAL);
+					}
 					
 					for (path = snode->treepath.first; path; path = path->next) {
 						if (path == snode->treepath.first) {
