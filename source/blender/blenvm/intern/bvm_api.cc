@@ -96,6 +96,8 @@ static std::vector<NodeInputParam> modifier_inputs;
 static std::vector<NodeOutputParam> modifier_outputs;
 static std::vector<NodeInputParam> dupli_inputs;
 static std::vector<NodeOutputParam> dupli_outputs;
+static std::vector<NodeInputParam> hair_deform_inputs;
+static std::vector<NodeOutputParam> hair_deform_outputs;
 
 static void register_graph_types()
 {
@@ -121,6 +123,11 @@ static void register_graph_types()
 	
 	dupli_inputs.push_back(NodeInputParam("dupli.object", "RNAPOINTER"));
 	dupli_outputs.push_back(NodeOutputParam("dupli.result", "DUPLIS", __empty_duplilist__));
+	
+	hair_deform_inputs.push_back(NodeInputParam("location", "FLOAT3"));
+	hair_deform_inputs.push_back(NodeInputParam("parameter", "FLOAT"));
+	hair_deform_inputs.push_back(NodeInputParam("target", "MATRIX44"));
+	hair_deform_outputs.push_back(NodeOutputParam("offset", "FLOAT3", zerovec));
 }
 
 }
@@ -908,4 +915,18 @@ void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
 		}
 	}
 	result.reset();
+}
+
+/* ------------------------------------------------------------------------- */
+
+char *BVM_gen_hair_deform_function_glsl(bNodeTree *btree)
+{
+	using namespace blenvm;
+	return gen_function_glsl(btree, hair_deform_inputs, hair_deform_outputs);
+}
+
+void BVM_debug_hair_deform_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
+{
+	using namespace blenvm;
+	debug_nodes(btree, debug_file, label, mode, hair_deform_inputs, hair_deform_outputs);
 }

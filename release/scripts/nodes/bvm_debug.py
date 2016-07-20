@@ -75,6 +75,8 @@ def draw_depshow_op(layout, ntree):
         funtype = 'TEXTURE'
     elif isinstance(ntree, bpy.types.ForceFieldNodeTree):
         funtype = 'FORCEFIELD'
+    elif isinstance(ntree, bpy.types.HairNodeTree):
+        funtype = 'HAIR_DEFORM'
     else:
         return
 

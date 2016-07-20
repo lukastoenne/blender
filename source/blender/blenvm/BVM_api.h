@@ -201,6 +201,11 @@ void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
                     struct Object *object,
                     struct DupliContainer *duplicont);
 
+/* ------------------------------------------------------------------------- */
+
+char *BVM_gen_hair_deform_function_glsl(struct bNodeTree *btree);
+void BVM_debug_hair_deform_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
+
 #ifdef __cplusplus
 }
 #endif

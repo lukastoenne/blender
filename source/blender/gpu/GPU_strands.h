@@ -66,6 +66,7 @@ typedef struct GPUStrandsShaderParams {
 	int effects;
 	bool use_geomshader;
 	GPUStrands_ShaderModel shader_model;
+	struct bNodeTree *nodes;
 } GPUStrandsShaderParams;
 
 GPUStrandsShader *GPU_strand_shader_create(struct GPUStrandsShaderParams *params);

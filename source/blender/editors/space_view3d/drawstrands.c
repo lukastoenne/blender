@@ -32,6 +32,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -145,6 +146,21 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 		shader_params.effects = get_effects(smd->effects);
 		shader_params.use_geomshader = use_geomshader;
 		shader_params.shader_model = get_shader_model(smd->shader_model);
+		
+		/* XXX TODO not nice, we can potentially have multiple hair
+		 * subtrees and it's not clear yet how these would be combined.
+		 * For the time being just select the first and expect it to be the only one ...
+		 */
+		shader_params.nodes = NULL;
+		if (ob->nodetree) {
+			bNode *node;
+			for (node = ob->nodetree->nodes.first; node; node = node->next) {
+				if (STREQ(node->idname, "HairNode")) {
+					shader_params.nodes = (bNodeTree *)node->id;
+					break;
+				}
+			}
+		}
 		
 		strands->gpu_shader = GPU_strand_shader_create(&shader_params);
 	}

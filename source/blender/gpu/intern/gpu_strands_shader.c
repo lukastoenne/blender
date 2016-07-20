@@ -43,6 +43,8 @@
 #include "BKE_DerivedMesh.h" /* XXX just because GPU_buffers.h needs a type from here */
 #include "BKE_strands.h"
 
+#include "BVM_api.h"
+
 #include "GPU_buffers.h" /* XXX just for GPUAttrib, can that type be moved? */
 #include "GPU_extensions.h"
 #include "GPU_strands.h"
@@ -209,6 +211,7 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
 	
+	BVM_gen_hair_deform_function_glsl(params->nodes);
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	

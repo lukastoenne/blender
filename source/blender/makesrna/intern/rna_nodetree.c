@@ -80,6 +80,7 @@ typedef enum BVMFunctionType {
 	BVM_FUNTYPE_INSTANCING,
 	BVM_FUNTYPE_TEXTURE,
 	BVM_FUNTYPE_FORCEFIELD,
+	BVM_FUNTYPE_HAIR_DEFORM,
 } BVMFunctionType;
 
 #ifndef RNA_RUNTIME
@@ -1066,6 +1067,9 @@ static void rna_NodeTree_bvm_debug_graphviz(struct bNodeTree *ntree, const char 
 			break;
 		case BVM_FUNTYPE_FORCEFIELD:
 			BVM_debug_forcefield_nodes(ntree, f, label, mode);
+			break;
+		case BVM_FUNTYPE_HAIR_DEFORM:
+			BVM_debug_hair_deform_nodes(ntree, f, label, mode);
 			break;
 	}
 	
@@ -8150,6 +8154,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	    {BVM_FUNTYPE_INSTANCING, "INSTANCING", 0, "Instancing", ""},
 	    {BVM_FUNTYPE_TEXTURE, "TEXTURE", 0, "Texture", ""},
 	    {BVM_FUNTYPE_FORCEFIELD, "FORCEFIELD", 0, "Forcefield", ""},
+	    {BVM_FUNTYPE_HAIR_DEFORM, "HAIR_DEFORM", 0, "Hair Deform", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
@@ -8159,6 +8164,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	    {BVM_DEBUG_BVM_CODE, "BVM_CODE", 0, "Generated BVM Code", ""},
 	    {BVM_DEBUG_LLVM_CODE, "LLVM_CODE", 0, "Generated LLVM Code", ""},
 	    {BVM_DEBUG_LLVM_CODE_UNOPTIMIZED, "LLVM_CODE_UNOPTIMIZED", 0, "Generated LLVM Code (unoptimized)", ""},
+	    {BVM_DEBUG_GLSL_CODE, "GLSL_CODE", 0, "Generated GLSL Code", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
