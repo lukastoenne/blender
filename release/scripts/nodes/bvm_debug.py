@@ -35,13 +35,16 @@ def enum_property_copy(prop):
                         default=prop.default,
                         items=items)
 
+_prop_funtype = bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['function_type']
+_prop_debug_mode = bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['debug_mode']
+
 class BVMNodeGraphvizOperator(Operator):
     bl_idname = "node.bvm_graphviz_show"
     bl_label = "Show Debug Graphviz Nodes"
     bl_options = {'REGISTER', 'UNDO'}
 
-    function_type = enum_property_copy(bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['function_type'])
-    debug_mode = enum_property_copy(bpy.types.NodeTree.bl_rna.functions['bvm_debug_graphviz'].parameters['debug_mode'])
+    function_type = enum_property_copy(_prop_funtype)
+    debug_mode = enum_property_copy(_prop_debug_mode)
 
     def execute(self, context):
         if not hasattr(context, "debug_nodetree"):
@@ -78,21 +81,10 @@ def draw_depshow_op(layout, ntree):
     layout.context_pointer_set("debug_nodetree", ntree)
 
     col = layout.column(align=True)
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Nodes")
-    props.function_type = funtype
-    props.debug_mode = 'NODES'
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="Nodes (unoptimized)")
-    props.function_type = funtype
-    props.debug_mode = 'NODES_UNOPTIMIZED'
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="BVM Code")
-    props.function_type = funtype
-    props.debug_mode = 'BVM_CODE'
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="LLVM Code")
-    props.function_type = funtype
-    props.debug_mode = 'LLVM_CODE'
-    props = col.operator(BVMNodeGraphvizOperator.bl_idname, text="LLVM Code (unoptimized)")
-    props.function_type = funtype
-    props.debug_mode = 'LLVM_CODE_UNOPTIMIZED'
+    for item in _prop_debug_mode.enum_items:
+        props = col.operator(BVMNodeGraphvizOperator.bl_idname, text=item.name)
+        props.function_type = funtype
+        props.debug_mode = item.identifier
 
 class BVMNodeGraphvizPanel(Panel):
     bl_idname = "node.bvm_graphviz_panel"
