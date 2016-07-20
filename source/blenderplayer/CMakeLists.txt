@@ -116,6 +116,7 @@ endif()
 		bf_blenvm
 		bf_blenvm_bvm
 		bf_blenvm_compile
+		bf_blenvm_glsl
 		bf_rna
 		bf_blenkernel
 		bf_depsgraph

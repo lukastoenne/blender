@@ -38,6 +38,7 @@ extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -68,6 +69,8 @@ extern "C" {
 #include "llvm_engine.h"
 #include "llvm_function.h"
 #endif
+
+#include "glsl_codegen.h"
 
 #include "util_array.h"
 #include "util_debug.h"
@@ -527,6 +530,12 @@ static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const c
 #endif
 			break;
 		}
+		case BVM_DEBUG_GLSL_CODE: {
+			GLSLCodeGenerator codegen;
+			Compiler compiler(&codegen);
+			compiler.debug_node_graph(label, graph, debug_file);
+			break;
+		}
 	}
 }
 
@@ -601,6 +610,23 @@ static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, bool use_c
 	UNUSED_VARS(btree, use_cache);
 	return NULL;
 #endif
+}
+
+static char *gen_function_glsl(struct bNodeTree *btree,
+                               ArrayRef<NodeInputParam> inputs,
+                               ArrayRef<NodeOutputParam> outputs)
+{
+	using namespace blenvm;
+	
+	NodeGraph graph(inputs, outputs);
+	parse_py_nodes(btree, &graph);
+	graph.finalize();
+	
+	GLSLCodeGenerator codegen;
+	Compiler compiler(&codegen);
+	compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
+	
+	return BLI_strdup(codegen.code().str().c_str());
 }
 
 static void debug_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode,

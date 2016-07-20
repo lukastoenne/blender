@@ -27,6 +27,7 @@ set(INC
 	.
 	bvm
 	compile
+	glsl
 	llvm
 	intern
 	util
@@ -111,6 +112,7 @@ endif()
 
 add_subdirectory(bvm)
 add_subdirectory(compile)
+add_subdirectory(glsl)
 
 if(WITH_LLVM)
 	add_subdirectory(llvm)

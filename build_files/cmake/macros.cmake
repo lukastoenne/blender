@@ -597,6 +597,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_blenvm
 		bf_blenvm_compile
 		bf_blenvm_bvm
+		bf_blenvm_glsl
 		bf_physics
 		bf_nodes
 		bf_rna

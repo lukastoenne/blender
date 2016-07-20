@@ -33,10 +33,12 @@
  */
 
 #include <string>
+#include <sstream>
 
 namespace blenvm {
 
 typedef std::string string;
+typedef std::stringstream stringstream;
 
 } /* namespace blenvm */
 

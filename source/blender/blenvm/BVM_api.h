@@ -123,6 +123,7 @@ typedef enum BVMDebugMode {
 	BVM_DEBUG_BVM_CODE,
 	BVM_DEBUG_LLVM_CODE,
 	BVM_DEBUG_LLVM_CODE_UNOPTIMIZED,
+	BVM_DEBUG_GLSL_CODE,
 } BVMDebugMode;
 
 /* ------------------------------------------------------------------------- */
