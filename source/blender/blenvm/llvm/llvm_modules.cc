@@ -103,7 +103,7 @@ static llvm::Value *float_vector_at(Builder &builder, llvm::Value *p_vec, llvm::
 {
 	using namespace llvm;
 	
-	Type *float_ptr_type = bvm_get_llvm_type(builder.getContext(), BVM_FLOAT, false)->getPointerTo();
+	Type *float_ptr_type = bvm_llvm_get_type(builder.getContext(), BVM_FLOAT, false)->getPointerTo();
 	Value *p_elem = builder.CreatePointerCast(p_vec, float_ptr_type);
 	return builder.CreateInBoundsGEP(p_elem, idx);
 }
@@ -112,7 +112,7 @@ static void def_node_VALUE_t(llvm::LLVMContext &context, llvm::Function *func, c
 {
 	using namespace llvm;
 	
-	bool has_derivs = bvm_type_has_dual_value(typespec);
+	bool has_derivs = bvm_llvm_type_has_dual_value(typespec);
 	
 	Function::arg_iterator arg_it = func->arg_begin();
 	Argument *p_out_val = arg_it++;
@@ -178,7 +178,7 @@ void def_node_FLOAT_TO_INT(llvm::LLVMContext &context, llvm::Function *func)
 	IRBuilder<> builder(context);
 	builder.SetInsertPoint(block);
 	
-	Type *target_type = bvm_get_llvm_type(context, BVM_INT, false);
+	Type *target_type = bvm_llvm_get_type(context, BVM_INT, false);
 	Value *ival = builder.CreateFPToSI(in_val, target_type);
 	builder.CreateStore(ival, p_out_val);
 	
@@ -200,7 +200,7 @@ void def_node_INT_TO_FLOAT(llvm::LLVMContext &context, llvm::Function *func)
 	IRBuilder<> builder(context);
 	builder.SetInsertPoint(block);
 	
-	Type *target_type = bvm_get_llvm_type(context, BVM_FLOAT, false);
+	Type *target_type = bvm_llvm_get_type(context, BVM_FLOAT, false);
 	Value *fval = builder.CreateSIToFP(in_val, target_type);
 	builder.CreateStore(fval, p_out_val);
 	

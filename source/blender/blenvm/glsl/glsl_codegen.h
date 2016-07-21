@@ -55,15 +55,18 @@ struct TypeDesc;
 
 struct GLSLCodeGenerator : public CodeGenerator {
 	typedef std::list<GLSLValue> Values;
-	typedef std::vector<GLSLValue*> Arguments;
+	typedef Dual2<GLSLValue*> DualValue;
+	typedef std::map<ValueHandle, DualValue> HandleValueMap;
+	typedef std::vector<DualValue> Arguments;
 	
 	GLSLCodeGenerator();
 	~GLSLCodeGenerator();
 	
 	const stringstream &code() const { return m_code; }
 	
-	ValueHandle get_handle(const GLSLValue *value);
-	GLSLValue *get_value(ValueHandle handle);
+	static ValueHandle get_handle(const DualValue &value);
+	ValueHandle register_value(const DualValue &value);
+	const DualValue &get_value(ValueHandle handle) const;
 	
 	void finalize_function();
 	void debug_function(FILE *file);
@@ -86,6 +89,8 @@ protected:
 	
 private:
 	Values m_values;
+	HandleValueMap m_valuemap;
+	
 	Arguments m_input_args;
 	Arguments m_output_args;
 	

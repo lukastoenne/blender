@@ -35,7 +35,7 @@
 
 namespace blenvm {
 
-llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual)
+llvm::Type *bvm_llvm_get_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual)
 {
 	using namespace llvm;
 	
@@ -43,7 +43,7 @@ llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, 
 		const StructSpec *sspec = spec->structure();
 		std::vector<Type*> fields;
 		for (int i = 0; i < sspec->num_fields(); ++i) {
-			Type *ftype = bvm_get_llvm_type(context, sspec->field(i).typespec, use_dual);
+			Type *ftype = bvm_llvm_get_type(context, sspec->field(i).typespec, use_dual);
 			fields.push_back(ftype);
 		}
 		return StructType::create(context, ArrayRef<Type*>(fields));
@@ -85,7 +85,7 @@ llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, 
 	return NULL;
 }
 
-llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, BVMType type, bool use_dual)
+llvm::Type *bvm_llvm_get_type(llvm::LLVMContext &context, BVMType type, bool use_dual)
 {
 	using namespace llvm;
 	
@@ -124,7 +124,7 @@ llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, BVMType type, bool use
 	return NULL;
 }
 
-llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeConstant *node_value)
+llvm::Constant *bvm_llvm_create_constant(llvm::LLVMContext &context, const NodeConstant *node_value)
 {
 	using namespace llvm;
 	
@@ -157,7 +157,7 @@ llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeC
 	return NULL;
 }
 
-bool bvm_type_has_dual_value(const TypeSpec *spec)
+bool bvm_llvm_type_has_dual_value(const TypeSpec *spec)
 {
 	using namespace llvm;
 	

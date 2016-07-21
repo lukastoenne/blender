@@ -43,6 +43,19 @@ extern "C" {
 
 namespace blenvm {
 
+/* replace non-alphanumeric chars with underscore */
+static string sanitize_name(const string &name)
+{
+	string s = name;
+	for (string::iterator it = s.begin(); it != s.end(); ++it) {
+		char &c = *it;
+		if (c != '_' && !isalnum(c))
+			c = '_';
+	}
+	return s;
+}
+
+
 GLSLValue::GLSLValue(const string &name) :
     m_name(name)
 {
@@ -62,14 +75,23 @@ GLSLCodeGenerator::~GLSLCodeGenerator()
 {
 }
 
-ValueHandle GLSLCodeGenerator::get_handle(const GLSLValue *value)
+ValueHandle GLSLCodeGenerator::get_handle(const GLSLCodeGenerator::DualValue &value)
 {
-	return (ValueHandle)value;
+	return (ValueHandle)value.value();
 }
 
-GLSLValue *GLSLCodeGenerator::get_value(ValueHandle handle)
+ValueHandle GLSLCodeGenerator::register_value(const DualValue &value)
 {
-	return (GLSLValue *)handle;
+	ValueHandle handle = get_handle(value);
+	bool ok = m_valuemap.insert(HandleValueMap::value_type(handle, value)).second;
+	BLI_assert(ok && "Could not register value");
+	UNUSED_VARS(ok);
+	return handle;
+}
+
+const GLSLCodeGenerator::DualValue &GLSLCodeGenerator::get_value(ValueHandle handle) const
+{
+	return m_valuemap.at(handle);
 }
 
 GLSLValue *GLSLCodeGenerator::create_value(const TypeSpec *UNUSED(typespec), const string &name, bool make_unique)
@@ -105,14 +127,33 @@ void GLSLCodeGenerator::node_graph_begin(const string &name, const NodeGraph *gr
 	for (int i = 0; i < num_inputs; ++i) {
 		const NodeGraph::Input *input = graph->get_input(i);
 		const TypeSpec *typespec = input->typedesc.get_typespec();
+		string typestring = bvm_glsl_get_type(typespec, true);
+		string basename = sanitize_name(input->name);
 		
-		/* Note: argument names are unique! */
-		GLSLValue *value = create_value(typespec, input->name, false);
-		m_input_args.push_back(value);
+		DualValue dval;
+		if (bvm_glsl_type_has_dual_value(typespec)) {
+			/* Note: argument names are already unique */
+			dval = DualValue(create_value(typespec, basename + "_V", false),
+			                 create_value(typespec, basename + "_DX", false),
+			                 create_value(typespec, basename + "_DY", false));
+			
+			if (i > 0)
+				m_code << ", ";
+			m_code << "in " << typestring << " " << dval.value()->name()
+			       << ", in " << typestring << " " << dval.dx()->name()
+			       << ", in " << typestring << " " << dval.dy()->name();
+		}
+		else {
+			/* Note: argument names are already unique */
+			dval = DualValue(create_value(typespec, basename, false), NULL, NULL);
+			
+			if (i > 0)
+				m_code << ", ";
+			m_code << "in " << typestring << " " << dval.value()->name();
+		}
 		
-		if (i > 0)
-			m_code << ", ";
-		m_code << "in " << bvm_glsl_get_type(typespec, true)<< " " << value->name();
+		register_value(dval);
+		m_input_args.push_back(dval);
 	}
 	
 	size_t num_outputs = graph->outputs.size();
@@ -121,14 +162,33 @@ void GLSLCodeGenerator::node_graph_begin(const string &name, const NodeGraph *gr
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output *output = graph->get_output(i);
 		const TypeSpec *typespec = output->typedesc.get_typespec();
+		string typestring = bvm_glsl_get_type(typespec, true);
+		string basename = sanitize_name(output->name);
 		
-		/* Note: argument names are unique! */
-		GLSLValue *value = create_value(typespec, output->name, false);
-		m_output_args.push_back(value);
+		DualValue dval;
+		if (bvm_glsl_type_has_dual_value(typespec)) {
+			/* Note: argument names are already unique */
+			dval = DualValue(create_value(typespec, basename + "_V", false),
+			                 create_value(typespec, basename + "_DX", false),
+			                 create_value(typespec, basename + "_DY", false));
+			
+			if (i > 0)
+				m_code << ", ";
+			m_code << "out " << typestring << " " << dval.value()->name()
+			       << ", out " << typestring << " " << dval.dx()->name()
+			       << ", out " << typestring << " " << dval.dy()->name();
+		}
+		else {
+			/* Note: argument names are already unique */
+			dval = DualValue(create_value(typespec, basename, false), NULL, NULL);
+			
+			if (i > 0)
+				m_code << ", ";
+			m_code << "out " << typestring << " " << dval.value()->name();
+		}
 		
-		if (i > 0)
-			m_code << ", ";
-		m_code << "out " << bvm_glsl_get_type(typespec, true)<< " " << value->name();
+		register_value(dval);
+		m_output_args.push_back(dval);
 	}
 	m_code << ")\n";
 	
@@ -142,42 +202,71 @@ void GLSLCodeGenerator::node_graph_end()
 
 void GLSLCodeGenerator::store_return_value(size_t output_index, const TypeSpec *typespec, ValueHandle handle)
 {
-	GLSLValue *arg = m_output_args[output_index];
-	GLSLValue *val = get_value(handle);
+	DualValue arg = m_output_args[output_index];
+	DualValue val = get_value(handle);
 	
-//	if (bvm_glsl_type_has_dual_value(typespec)) {
-//		Value *value_ptr = builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V"));
-//		Value *dx_ptr = builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX"));
-//		Value *dy_ptr = builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY"));
-		
-//		bvm_llvm_copy_value(context(), m_block, value_ptr, dval.value(), typespec);
-//		bvm_llvm_copy_value(context(), m_block, dx_ptr, dval.dx(), typespec);
-//		bvm_llvm_copy_value(context(), m_block, dy_ptr, dval.dy(), typespec);
-//	}
-//	else {
-		bvm_glsl_copy_value(m_code, arg, val, typespec);
-//	}
+	bvm_glsl_copy_value(m_code, arg.value(), val.value(), typespec);
+	if (bvm_glsl_type_has_dual_value(typespec)) {
+		bvm_glsl_copy_value(m_code, arg.dx(), val.dx(), typespec);
+		bvm_glsl_copy_value(m_code, arg.dy(), val.dy(), typespec);
+	}
 }
 
 ValueHandle GLSLCodeGenerator::map_argument(size_t input_index, const TypeSpec *UNUSED(typespec))
 {
-	GLSLValue *arg = m_input_args[input_index];
-	return get_handle(arg);
+	return get_handle(m_input_args[input_index]);
 }
 
 ValueHandle GLSLCodeGenerator::alloc_node_value(const TypeSpec *typespec, const string &name)
 {
-	GLSLValue *value = create_value(typespec, name, true);
-	m_code << bvm_glsl_get_type(typespec, true)<< " " << value->name() << ";\n";
-	return get_handle(value);
+	string typestring = bvm_glsl_get_type(typespec, false);
+	string basename = sanitize_name(name);
+	
+	DualValue dval;
+	if (bvm_glsl_type_has_dual_value(typespec)) {
+		dval = DualValue(create_value(typespec, basename + "_V", true),
+		                 create_value(typespec, basename + "_DX", true),
+		                 create_value(typespec, basename + "_DY", true));
+		
+		m_code << typestring << " " << dval.value()->name() << ";\n";
+		m_code << typestring << " " << dval.dx()->name() << ";\n";
+		m_code << typestring << " " << dval.dy()->name() << ";\n";
+	}
+	else {
+		dval = DualValue(create_value(typespec, basename + "_V", true), NULL, NULL);
+		
+		m_code << typestring << " " << dval.value()->name() << ";\n";
+	}
+	
+	return register_value(dval);
 }
 
 ValueHandle GLSLCodeGenerator::create_constant(const TypeSpec *typespec, const NodeConstant *node_value)
 {
-	GLSLValue *value = create_value(typespec, "constval", true);
-	m_code << "const " << bvm_glsl_get_type(typespec, true) << " " << value->name()
-	       << " = const " << bvm_glsl_create_constant(node_value) << ";\n";
-	return get_handle(value);
+	string typestring = bvm_glsl_get_type(typespec, false);
+	string basename = "constval";
+	
+	DualValue dval;
+	if (bvm_glsl_type_has_dual_value(typespec)) {
+		dval = DualValue(create_value(typespec, basename + "_V", true),
+		                 create_value(typespec, basename + "_DX", true),
+		                 create_value(typespec, basename + "_DY", true));
+		
+		m_code << "const " << typestring << " " << dval.value()->name()
+		       << " = const " << bvm_glsl_create_constant(node_value) << ";\n";
+		m_code << "const " << typestring << " " << dval.dx()->name()
+		       << " = const " << bvm_glsl_create_zero(typespec) << ";\n";
+		m_code << "const " << typestring << " " << dval.dy()->name()
+		       << " = const " << bvm_glsl_create_zero(typespec) << ";\n";
+	}
+	else {
+		dval = DualValue(create_value(typespec, basename + "_V", true), NULL, NULL);
+		
+		m_code << "const " << typestring << " " << dval.value()->name()
+		       << " = const " << bvm_glsl_create_constant(node_value) << ";\n";
+	}
+	
+	return register_value(dval);
 }
 
 void GLSLCodeGenerator::eval_node(const NodeType *nodetype,

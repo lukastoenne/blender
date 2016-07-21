@@ -260,7 +260,7 @@ void LLVMCodeGenerator::store_return_value(size_t output_index, const TypeSpec *
 	Argument *arg = m_output_args[output_index];
 	DualValue dval = m_values.at(handle);
 	
-	if (bvm_type_has_dual_value(typespec)) {
+	if (bvm_llvm_type_has_dual_value(typespec)) {
 		Value *value_ptr = builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V"));
 		Value *dx_ptr = builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX"));
 		Value *dy_ptr = builder.CreateStructGEP(arg, 2, sanitize_name(arg->getName().str() + "_DY"));
@@ -283,7 +283,7 @@ ValueHandle LLVMCodeGenerator::map_argument(size_t input_index, const TypeSpec *
 	
 	Argument *arg = m_input_args[input_index];
 	DualValue dval;
-	if (bvm_type_has_dual_value(typespec)) {
+	if (bvm_llvm_type_has_dual_value(typespec)) {
 		/* argument is a struct, use GEP instructions to get the individual elements */
 		dval = DualValue(builder.CreateStructGEP(arg, 0, sanitize_name(arg->getName().str() + "_V")),
 		                 builder.CreateStructGEP(arg, 1, sanitize_name(arg->getName().str() + "_DX")),
@@ -308,7 +308,7 @@ ValueHandle LLVMCodeGenerator::alloc_node_value(const TypeSpec *typespec, const 
 	IRBuilder<> builder(context());
 	builder.SetInsertPoint(m_block);
 	
-	Type *type = bvm_get_llvm_type(context(), typespec, false);
+	Type *type = bvm_llvm_get_type(context(), typespec, false);
 	BLI_assert(type != NULL);
 	
 	DualValue dval(builder.CreateAlloca(type, NULL, sanitize_name(name + "_V")),
@@ -331,7 +331,7 @@ ValueHandle LLVMCodeGenerator::create_constant(const TypeSpec *UNUSED(typespec),
 	builder.SetInsertPoint(m_block);
 	
 	/* create storage for the global value */
-	Constant *cvalue = bvm_create_llvm_constant(context(), node_value);
+	Constant *cvalue = bvm_llvm_create_constant(context(), node_value);
 	
 	AllocaInst *pvalue = builder.CreateAlloca(cvalue->getType());
 	/* XXX this may not work for larger aggregate types (matrix44) !! */
@@ -371,7 +371,7 @@ void LLVMCodeGenerator::eval_node(const NodeType *nodetype,
 		const TypeSpec *typespec = output->typedesc.get_typespec();
 		const DualValue &dval = m_values.at(output_args[i]);
 		
-		if (bvm_type_has_dual_value(typespec)) {
+		if (bvm_llvm_type_has_dual_value(typespec)) {
 			evalargs.push_back(dval.value());
 			evalargs.push_back(dval.dx());
 			evalargs.push_back(dval.dy());
@@ -387,7 +387,7 @@ void LLVMCodeGenerator::eval_node(const NodeType *nodetype,
 		bool is_constant = (input->value_type == INPUT_CONSTANT);
 		const DualValue &dval = m_values.at(input_args[i]);
 		
-		if (!is_constant && bvm_type_has_dual_value(typespec)) {
+		if (!is_constant && bvm_llvm_type_has_dual_value(typespec)) {
 			if (typespec->is_aggregate() || typespec->is_structure()) {
 				evalargs.push_back(dval.value());
 				evalargs.push_back(dval.dx());
@@ -425,8 +425,8 @@ static void append_graph_input_args(llvm::LLVMContext &context,
 	using namespace llvm;
 	
 	const TypeSpec *spec = input->typedesc.get_typespec();
-	llvm::Type *type = bvm_get_llvm_type(context, spec, true);
-	if (bvm_type_has_dual_value(spec) || spec->is_aggregate() || spec->is_structure())
+	llvm::Type *type = bvm_llvm_get_type(context, spec, true);
+	if (bvm_llvm_type_has_dual_value(spec) || spec->is_aggregate() || spec->is_structure())
 		type = type->getPointerTo();
 	
 	arg_types.push_back(type);
@@ -441,7 +441,7 @@ static void append_graph_output_args(llvm::LLVMContext &context,
 	using namespace llvm;
 	
 	const TypeSpec *spec = output->typedesc.get_typespec();
-	Type *type = bvm_get_llvm_type(context, spec, true);
+	Type *type = bvm_llvm_get_type(context, spec, true);
 	/* return argument is a pointer */
 	type = type->getPointerTo();
 	
@@ -497,12 +497,12 @@ static void append_node_input_args(llvm::LLVMContext &context,
 	
 	const TypeSpec *spec = input->typedesc.get_typespec();
 	bool is_constant = (input->value_type == INPUT_CONSTANT);
-	Type *type = bvm_get_llvm_type(context, spec, false);
+	Type *type = bvm_llvm_get_type(context, spec, false);
 	/* pass-by-reference for aggregate types */
 	if (spec->is_aggregate() || spec->is_structure())
 		type = type->getPointerTo();
 	
-	if (!is_constant && bvm_type_has_dual_value(spec)) {
+	if (!is_constant && bvm_llvm_type_has_dual_value(spec)) {
 		arg_types.push_back(type);
 		arg_names.push_back("V_" + input->name);
 		
@@ -527,11 +527,11 @@ static void append_node_output_args(llvm::LLVMContext &context,
 	using namespace llvm;
 	
 	const TypeSpec *spec = output->typedesc.get_typespec();
-	Type *type = bvm_get_llvm_type(context, spec, false);
+	Type *type = bvm_llvm_get_type(context, spec, false);
 	/* return argument is a pointer */
 	type = type->getPointerTo();
 	
-	if (bvm_type_has_dual_value(spec)) {
+	if (bvm_llvm_type_has_dual_value(spec)) {
 		arg_types.push_back(type);
 		arg_names.push_back("V_" + output->name);
 		
@@ -594,12 +594,12 @@ static void append_elementary_input_args(llvm::LLVMContext &context,
 	
 	const TypeSpec *spec = input->typedesc.get_typespec();
 	bool is_constant = (input->value_type == INPUT_CONSTANT);
-	Type *type = bvm_get_llvm_type(context, spec, false);
+	Type *type = bvm_llvm_get_type(context, spec, false);
 	/* pass-by-reference for aggregate types */
 	if (spec->is_aggregate() || spec->is_structure())
 		type = type->getPointerTo();
 	
-	if (!is_constant && with_derivs && bvm_type_has_dual_value(spec)) {
+	if (!is_constant && with_derivs && bvm_llvm_type_has_dual_value(spec)) {
 		arg_types.push_back(type);
 		arg_names.push_back("V_" + input->name);
 		
@@ -621,7 +621,7 @@ static void append_elementary_output_args(llvm::LLVMContext &context,
 	using namespace llvm;
 	
 	const TypeSpec *spec = output->typedesc.get_typespec();
-	Type *type = bvm_get_llvm_type(context, spec, false);
+	Type *type = bvm_llvm_get_type(context, spec, false);
 	/* return argument is a pointer */
 	type = type->getPointerTo();
 	
@@ -731,7 +731,7 @@ static void define_dual_function_wrapper(
 		const NodeOutput *output = nodetype->find_output(i);
 		
 		Value *val, *dx, *dy;
-		if (bvm_type_has_dual_value(output->typedesc.get_typespec())) {
+		if (bvm_llvm_type_has_dual_value(output->typedesc.get_typespec())) {
 			val = arg_it++;
 			dx = arg_it++;
 			dy = arg_it++;
@@ -754,7 +754,7 @@ static void define_dual_function_wrapper(
 		const TypeSpec *typespec = input->typedesc.get_typespec();
 		
 		Value *val, *dx, *dy;
-		if (input->value_type != INPUT_CONSTANT && bvm_type_has_dual_value(typespec)) {
+		if (input->value_type != INPUT_CONSTANT && bvm_llvm_type_has_dual_value(typespec)) {
 			val = arg_it++;
 			dx = arg_it++;
 			dy = arg_it++;
@@ -792,7 +792,7 @@ static void define_dual_function_wrapper(
 			const NodeOutput *output = nodetype->find_output(i);
 			const TypeSpec *typespec = output->typedesc.get_typespec();
 			
-			if (bvm_type_has_dual_value(typespec)) {
+			if (bvm_llvm_type_has_dual_value(typespec)) {
 				int arg_i = nodetype->use_globals() ? i + 1 : i;
 				bvm_llvm_set_zero(context, block, call_args_dx[arg_i], typespec);
 				bvm_llvm_set_zero(context, block, call_args_dy[arg_i], typespec);

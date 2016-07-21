@@ -495,11 +495,11 @@ struct BVMTypeLLVMTraits<BVM_DUPLIS> {
 	}
 };
 
-llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual);
-llvm::Type *bvm_get_llvm_type(llvm::LLVMContext &context, BVMType type, bool use_dual);
+llvm::Type *bvm_llvm_get_type(llvm::LLVMContext &context, const TypeSpec *spec, bool use_dual);
+llvm::Type *bvm_llvm_get_type(llvm::LLVMContext &context, BVMType type, bool use_dual);
 
-llvm::Constant *bvm_create_llvm_constant(llvm::LLVMContext &context, const NodeConstant *node_value);
-bool bvm_type_has_dual_value(const TypeSpec *spec);
+llvm::Constant *bvm_llvm_create_constant(llvm::LLVMContext &context, const NodeConstant *node_value);
+bool bvm_llvm_type_has_dual_value(const TypeSpec *spec);
 
 void bvm_llvm_set_zero(llvm::LLVMContext &context, llvm::BasicBlock *block,
                        llvm::Value *ptr,
