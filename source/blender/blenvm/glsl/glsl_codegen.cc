@@ -43,14 +43,21 @@ extern "C" {
 
 namespace blenvm {
 
-/* replace non-alphanumeric chars with underscore */
+/* Remove non-alphanumeric chars
+ * Note: GLSL does not allow double underscores __
+ *       so just remove them to avoid issues.
+ */
 static string sanitize_name(const string &name)
 {
 	string s = name;
-	for (string::iterator it = s.begin(); it != s.end(); ++it) {
-		char &c = *it;
-		if (c != '_' && !isalnum(c))
-			c = '_';
+	string::const_iterator it = s.begin();
+	string::iterator nit = s.begin();
+	for (; it != s.end(); ++it) {
+		const char &c = *it;
+		if (isalnum(c)) {
+			*nit = c;
+			++nit;
+		}
 	}
 	return s;
 }

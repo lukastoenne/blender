@@ -79,14 +79,21 @@ extern char datatoc_gpu_shader_strand_debug_vert_glsl[];
 extern char datatoc_gpu_shader_strand_effects_glsl[];
 extern char datatoc_gpu_shader_strand_util_glsl[];
 
-static char *codegen(const char *basecode)
+static char *codegen(const char *basecode, const char *nodecode)
 {
 	char *code;
+	
+	if (!basecode)
+		return NULL;
 	
 	DynStr *ds = BLI_dynstr_new();
 	
 	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
 	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_effects_glsl);
+	
+	if (nodecode)
+		BLI_dynstr_append(ds, nodecode);
+	
 	BLI_dynstr_append(ds, basecode);
 	
 	code = BLI_dynstr_get_cstring(ds);
@@ -211,7 +218,14 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
 	
-	BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
+	char *vertex_basecode = datatoc_gpu_shader_strand_vert_glsl;
+	char *geometry_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_geom_glsl : NULL;
+	char *fragment_basecode = datatoc_gpu_shader_strand_frag_glsl;
+	char *vertex_debug_basecode = datatoc_gpu_shader_strand_debug_vert_glsl;
+	char *geometry_debug_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_debug_geom_glsl : NULL;
+	char *fragment_debug_basecode = datatoc_gpu_shader_strand_debug_frag_glsl;
+	
+	char *nodecode = BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
@@ -220,9 +234,9 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	get_defines(params, defines);
 	
 	/* Main shader */
-	char *vertexcode = codegen(datatoc_gpu_shader_strand_vert_glsl);
-	char *geometrycode = use_geometry_shader ? codegen(datatoc_gpu_shader_strand_geom_glsl) : NULL;
-	char *fragmentcode = codegen(datatoc_gpu_shader_strand_frag_glsl);
+	char *vertexcode = codegen(vertex_basecode, nodecode);
+	char *geometrycode = codegen(geometry_basecode, NULL);
+	char *fragmentcode = codegen(fragment_basecode, NULL);
 	GPUShader *shader = GPU_shader_create_ex(vertexcode, fragmentcode, geometrycode, NULL,
 	                                         defines, 0, 0, 0, flags);
 	if (shader) {
@@ -244,9 +258,9 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	}
 	
 	/* Debug shader */
-	char *debug_vertexcode = codegen(datatoc_gpu_shader_strand_debug_vert_glsl);
-	char *debug_geometrycode = codegen(datatoc_gpu_shader_strand_debug_geom_glsl);
-	char *debug_fragmentcode = codegen(datatoc_gpu_shader_strand_debug_frag_glsl);
+	char *debug_vertexcode = codegen(vertex_debug_basecode, nodecode);
+	char *debug_geometrycode = codegen(geometry_debug_basecode, NULL);
+	char *debug_fragmentcode = codegen(fragment_debug_basecode, NULL);
 	GPUShader *debug_shader = GPU_shader_create_ex(debug_vertexcode, debug_fragmentcode, debug_geometrycode, NULL,
 	                                         defines, 0, 0, 0, flags);
 	if (debug_shader) {
