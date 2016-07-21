@@ -133,7 +133,7 @@ data_to_c_simple(shaders/gpu_shader_strand_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_geom.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_strand_effects.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_strand_nodes.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_util.glsl SRC)
 
 if(WITH_GAMEENGINE)

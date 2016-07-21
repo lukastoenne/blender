@@ -76,7 +76,7 @@ extern char datatoc_gpu_shader_strand_vert_glsl[];
 extern char datatoc_gpu_shader_strand_debug_frag_glsl[];
 extern char datatoc_gpu_shader_strand_debug_geom_glsl[];
 extern char datatoc_gpu_shader_strand_debug_vert_glsl[];
-extern char datatoc_gpu_shader_strand_effects_glsl[];
+extern char datatoc_gpu_shader_strand_nodes_glsl[];
 extern char datatoc_gpu_shader_strand_util_glsl[];
 
 static char *codegen(const char *basecode, const char *nodecode)
@@ -89,7 +89,7 @@ static char *codegen(const char *basecode, const char *nodecode)
 	DynStr *ds = BLI_dynstr_new();
 	
 	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
-	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_effects_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_nodes_glsl);
 	
 	if (nodecode)
 		BLI_dynstr_append(ds, nodecode);

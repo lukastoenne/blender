@@ -50,6 +50,7 @@ namespace blenvm {
 static string sanitize_name(const string &name)
 {
 	string s = name;
+	
 	string::const_iterator it = s.begin();
 	string::iterator nit = s.begin();
 	for (; it != s.end(); ++it) {
@@ -59,6 +60,7 @@ static string sanitize_name(const string &name)
 			++nit;
 		}
 	}
+	s = s.substr(0, nit - s.begin());
 	return s;
 }
 
@@ -164,8 +166,6 @@ void GLSLCodeGenerator::node_graph_begin(const string &name, const NodeGraph *gr
 	}
 	
 	size_t num_outputs = graph->outputs.size();
-	if (num_inputs > 0)
-		m_code << ", ";
 	for (int i = 0; i < num_outputs; ++i) {
 		const NodeGraph::Output *output = graph->get_output(i);
 		const TypeSpec *typespec = output->typedesc.get_typespec();
@@ -179,7 +179,7 @@ void GLSLCodeGenerator::node_graph_begin(const string &name, const NodeGraph *gr
 			                 create_value(typespec, basename + "_DX", false),
 			                 create_value(typespec, basename + "_DY", false));
 			
-			if (i > 0)
+			if (i + num_inputs > 0)
 				m_code << ", ";
 			m_code << "out " << typestring << " " << dval.value()->name()
 			       << ", out " << typestring << " " << dval.dx()->name()
@@ -280,7 +280,10 @@ void GLSLCodeGenerator::eval_node(const NodeType *nodetype,
                                   ArrayRef<ValueHandle> input_args,
                                   ArrayRef<ValueHandle> output_args)
 {
-	m_code << nodetype->name() << "(";
+	stringstream args_value;
+	stringstream args_dx;
+	stringstream args_dy;
+	const char *sep;
 	
 //	if (nodetype->use_globals()) {
 //		evalargs.push_back(m_globals_ptr);
@@ -292,38 +295,32 @@ void GLSLCodeGenerator::eval_node(const NodeType *nodetype,
 		bool is_constant = (input->value_type == INPUT_CONSTANT);
 		const DualValue &dval = get_value(input_args[i]);
 		
-		if (i > 0)
-			m_code << ", ";
+		sep = (i > 0) ? ", " : "";
+		args_value << sep << dval.value()->name();
+		args_dx << sep << dval.value()->name();
+		args_dy << sep << dval.value()->name();
 		if (!is_constant && bvm_glsl_type_has_dual_value(typespec)) {
-			m_code << dval.value()->name()
-			       << ", " << dval.dx()->name()
-			       << ", " << dval.dy()->name();
-		}
-		else {
-			m_code << dval.value()->name();
+			args_dx << ", " << dval.dx()->name();
+			args_dy << ", " << dval.dy()->name();
 		}
 	}
 	
-	if (nodetype->num_inputs() > 0)
-		m_code << ", ";
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
 		const TypeSpec *typespec = output->typedesc.get_typespec();
 		const DualValue &dval = get_value(output_args[i]);
 		
-		if (i > 0)
-			m_code << ", ";
+		sep = (i + nodetype->num_inputs() > 0) ? ", " : "";
+		args_value << sep << dval.value()->name();
 		if (bvm_glsl_type_has_dual_value(typespec)) {
-			m_code << dval.value()->name()
-			       << ", " << dval.dx()->name()
-			       << ", " << dval.dy()->name();
-		}
-		else {
-			m_code << dval.value()->name();
+			args_dx << sep << dval.dx()->name();
+			args_dy << sep << dval.dy()->name();
 		}
 	}
 	
-	m_code << ");\n";
+	m_code << "V_" << nodetype->name() << "(" << args_value.str() << ");\n";
+	m_code << "D_" << nodetype->name() << "(" << args_dx.str() << ");\n";
+	m_code << "D_" << nodetype->name() << "(" << args_dy.str() << ");\n";
 }
 
 } /* namespace blenvm */
