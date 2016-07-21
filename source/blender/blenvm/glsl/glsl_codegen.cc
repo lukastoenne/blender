@@ -273,6 +273,50 @@ void GLSLCodeGenerator::eval_node(const NodeType *nodetype,
                                   ArrayRef<ValueHandle> input_args,
                                   ArrayRef<ValueHandle> output_args)
 {
+	m_code << nodetype->name() << "(";
+	
+//	if (nodetype->use_globals()) {
+//		evalargs.push_back(m_globals_ptr);
+//	}
+	
+	for (int i = 0; i < nodetype->num_inputs(); ++i) {
+		const NodeInput *input = nodetype->find_input(i);
+		const TypeSpec *typespec = input->typedesc.get_typespec();
+		bool is_constant = (input->value_type == INPUT_CONSTANT);
+		const DualValue &dval = get_value(input_args[i]);
+		
+		if (i > 0)
+			m_code << ", ";
+		if (!is_constant && bvm_glsl_type_has_dual_value(typespec)) {
+			m_code << dval.value()->name()
+			       << ", " << dval.dx()->name()
+			       << ", " << dval.dy()->name();
+		}
+		else {
+			m_code << dval.value()->name();
+		}
+	}
+	
+	if (nodetype->num_inputs() > 0)
+		m_code << ", ";
+	for (int i = 0; i < nodetype->num_outputs(); ++i) {
+		const NodeOutput *output = nodetype->find_output(i);
+		const TypeSpec *typespec = output->typedesc.get_typespec();
+		const DualValue &dval = get_value(output_args[i]);
+		
+		if (i > 0)
+			m_code << ", ";
+		if (bvm_glsl_type_has_dual_value(typespec)) {
+			m_code << dval.value()->name()
+			       << ", " << dval.dx()->name()
+			       << ", " << dval.dy()->name();
+		}
+		else {
+			m_code << dval.value()->name();
+		}
+	}
+	
+	m_code << ");\n";
 }
 
 } /* namespace blenvm */
