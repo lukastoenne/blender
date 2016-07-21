@@ -212,7 +212,7 @@ static void add_object_nodes_to_effectors(EffectorContext *effctx, Scene *scene,
 					BVM_globals_add_nodetree_relations(effctx->eval_globals, ff_ntree);
 					
 					EffectorCache *eff = new_effector_cache(effctx, scene, ob, NULL, ob->pd);
-					eff->function = BVM_gen_forcefield_function_bvm(ff_ntree, true);
+					eff->function = BVM_gen_forcefield_function_bvm(ff_ntree, NULL, true);
 				}
 				
 				break;

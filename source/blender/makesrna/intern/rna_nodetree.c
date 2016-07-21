@@ -1069,7 +1069,7 @@ static void rna_NodeTree_bvm_debug_graphviz(struct bNodeTree *ntree, const char 
 			BVM_debug_forcefield_nodes(ntree, f, label, mode);
 			break;
 		case BVM_FUNTYPE_HAIR_DEFORM:
-			BVM_debug_hair_deform_nodes(ntree, f, label, mode);
+			BVM_debug_hair_deform_nodes(ntree, f, "displace_vertex", mode);
 			break;
 	}
 	

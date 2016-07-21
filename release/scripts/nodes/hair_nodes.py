@@ -91,6 +91,34 @@ class HairNodesNew(Operator):
 
 ###############################################################################
 
+class HairInputNode(HairNodeBase, ObjectNode):
+    '''Hair inputs'''
+    bl_idname = 'HairInputNode'
+    bl_label = 'Hair'
+
+    def init(self, context):
+        self.outputs.new('NodeSocketVector', "Location")
+        self.outputs.new('NodeSocketFloat', "Parameter")
+        self.outputs.new('TransformSocket', "Target")
+
+    def compile(self, compiler):
+        compiler.map_output(0, compiler.graph_input("location"))
+        compiler.map_output(1, compiler.graph_input("parameter"))
+        compiler.map_output(2, compiler.graph_input("target"))
+
+class HairDeformNode(HairNodeBase, ObjectNode):
+    '''Hair displacement result'''
+    bl_idname = 'HairDeformNode'
+    bl_label = 'Hair Displacement'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Target")
+
+    def compile(self, compiler):
+        compiler.map_input(0, compiler.graph_output("offset"))
+
+###############################################################################
+
 def register():
     bpy.utils.register_module(__name__)
     gnode, ginput, goutput = group_nodes.make_node_group_types(
@@ -98,6 +126,7 @@ def register():
 
     node_categories = [
         HairNodeCategory("GEO_INPUT", "Input", items=[
+            NodeItem("HairInputNode"),
             NodeItem(ginput.bl_idname),
             NodeItem("ObjectValueFloatNode"),
             NodeItem("ObjectValueIntNode"),
@@ -105,6 +134,7 @@ def register():
             NodeItem("ObjectValueColorNode"),
             ]),
         HairNodeCategory("GEO_OUTPUT", "Output", items=[
+            NodeItem("HairDeformNode"),
             NodeItem(goutput.bl_idname),
             ]),
         HairNodeCategory("GEO_CONVERTER", "Converter", items=[

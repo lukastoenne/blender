@@ -1728,7 +1728,7 @@ static DerivedMesh *mesh_calc_modifier_nodes(Scene *UNUSED(scene), Object *ob, b
 	Mesh *me = ob->data;
 	DerivedMesh *dm, *result;
 	
-	struct BVMFunction *fn = BVM_gen_modifier_function_llvm(ntree, true);
+	struct BVMFunction *fn = BVM_gen_modifier_function_llvm(ntree, NULL, true);
 	if (fn) {
 		struct BVMEvalGlobals *globals = BVM_globals_create();
 		BVM_globals_add_nodetree_relations(globals, ntree);

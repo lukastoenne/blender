@@ -43,6 +43,9 @@ set(INC_SYS
 set(SRC
 	glsl_codegen.cc
 	glsl_codegen.h
+	glsl_types.cc
+	glsl_types.h
+	glsl_value.h
 )
 
 blender_add_lib(bf_blenvm_glsl "${SRC}" "${INC}" "${INC_SYS}")

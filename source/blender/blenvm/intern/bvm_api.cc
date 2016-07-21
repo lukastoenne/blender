@@ -546,7 +546,7 @@ static void debug_node_graph(blenvm::NodeGraph &graph, FILE *debug_file, const c
 	}
 }
 
-static struct BVMFunction *gen_function_bvm(struct bNodeTree *btree, bool use_cache,
+static struct BVMFunction *gen_function_bvm(struct bNodeTree *btree, const string &UNUSED(name), bool use_cache,
                                             ArrayRef<NodeInputParam> inputs,
                                             ArrayRef<NodeOutputParam> outputs)
 {
@@ -579,7 +579,7 @@ static struct BVMFunction *gen_function_bvm(struct bNodeTree *btree, bool use_ca
 	return (BVMFunction *)fn;
 }
 
-static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, bool use_cache,
+static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, const string &name, bool use_cache,
                                              ArrayRef<NodeInputParam> inputs,
                                              ArrayRef<NodeOutputParam> outputs)
 {
@@ -600,7 +600,7 @@ static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, bool use_c
 		
 		LLVMCodeGenerator codegen(2);
 		Compiler compiler(&codegen);
-		compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
+		compiler.compile_node_graph(name, graph);
 		fn = new FunctionLLVM(codegen.function_address());
 		
 		if (use_cache) {
@@ -614,12 +614,12 @@ static struct BVMFunction *gen_function_llvm(struct bNodeTree *btree, bool use_c
 	
 	return (BVMFunction *)fn;
 #else
-	UNUSED_VARS(btree, use_cache);
+	UNUSED_VARS(btree, name, use_cache, inputs, outputs);
 	return NULL;
 #endif
 }
 
-static char *gen_function_glsl(struct bNodeTree *btree,
+static char *gen_function_glsl(struct bNodeTree *btree, const string &name,
                                ArrayRef<NodeInputParam> inputs,
                                ArrayRef<NodeOutputParam> outputs)
 {
@@ -631,7 +631,7 @@ static char *gen_function_glsl(struct bNodeTree *btree,
 	
 	GLSLCodeGenerator codegen;
 	Compiler compiler(&codegen);
-	compiler.compile_node_graph(get_ntree_unique_function_name(btree), graph);
+	compiler.compile_node_graph(name, graph);
 	
 	return BLI_strdup(codegen.code().str().c_str());
 }
@@ -652,10 +652,11 @@ static void debug_nodes(bNodeTree *btree, FILE *debug_file, const char *label, B
 
 /* ========================================================================= */
 
-struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_forcefield_function_bvm(bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_bvm(btree, use_cache, forcefield_inputs, forcefield_outputs);
+	return gen_function_bvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                        forcefield_inputs, forcefield_outputs);
 }
 
 void BVM_debug_forcefield_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -705,16 +706,18 @@ static void set_texresult(TexResult *result, const float4 &color, const float3 &
 
 }
 
-struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_texture_function_bvm(bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_bvm(btree, use_cache, texture_inputs, texture_outputs);
+	return gen_function_bvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                        texture_inputs, texture_outputs);
 }
 
-struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_texture_function_llvm(bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_llvm(btree, use_cache, texture_inputs, texture_outputs);
+	return gen_function_llvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                         texture_inputs, texture_outputs);
 }
 
 void BVM_debug_texture_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -797,16 +800,18 @@ typedef void (*ModNodesFunc)(const struct EvalGlobals *globals,
 
 }
 
-struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_bvm(btree, use_cache, modifier_inputs, modifier_outputs);
+	return gen_function_bvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                        modifier_inputs, modifier_outputs);
 }
 
-struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_llvm(btree, use_cache, modifier_inputs, modifier_outputs);
+	return gen_function_llvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                         modifier_inputs, modifier_outputs);
 }
 
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -877,10 +882,11 @@ struct DerivedMesh *BVM_eval_modifier_llvm(struct BVMEvalGlobals *_globals,
 
 /* ------------------------------------------------------------------------- */
 
-struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use_cache)
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache)
 {
 	using namespace blenvm;
-	return gen_function_bvm(btree, use_cache, dupli_inputs, dupli_outputs);
+	return gen_function_bvm(btree, name ? name : get_ntree_unique_function_name(btree), use_cache,
+	                        dupli_inputs, dupli_outputs);
 }
 
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)
@@ -919,10 +925,10 @@ void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-char *BVM_gen_hair_deform_function_glsl(bNodeTree *btree)
+char *BVM_gen_hair_deform_function_glsl(bNodeTree *btree, const char *name)
 {
 	using namespace blenvm;
-	return gen_function_glsl(btree, hair_deform_inputs, hair_deform_outputs);
+	return gen_function_glsl(btree, name ? name : get_ntree_unique_function_name(btree), hair_deform_inputs, hair_deform_outputs);
 }
 
 void BVM_debug_hair_deform_nodes(bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode)

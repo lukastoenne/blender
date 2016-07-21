@@ -1543,7 +1543,7 @@ void BKE_texture_get_value_ex(
 	}
 
 	if (texture->use_nodes && texture->nodetree) {
-		struct BVMFunction *fn = BVM_gen_texture_function_llvm(texture->nodetree, true);
+		struct BVMFunction *fn = BVM_gen_texture_function_llvm(texture->nodetree, NULL, true);
 		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			

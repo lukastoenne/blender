@@ -25,22 +25,27 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BVM_UTIL_STRING_H__
-#define __BVM_UTIL_STRING_H__
+#ifndef __GLSL_VALUE_H__
+#define __GLSL_VALUE_H__
 
-/** \file blender/blenvm/util/util_string.h
- *  \ingroup bvm
+/** \file blender/blenvm/glsl/glsl_value.h
+ *  \ingroup glsl
  */
 
-#include <cstdarg>
-#include <string>
-#include <sstream>
+#include "util_string.h"
 
 namespace blenvm {
 
-typedef std::string string;
-typedef std::stringstream stringstream;
+struct GLSLValue {
+	GLSLValue(const string &name);
+	~GLSLValue();
+	
+	const string &name() const { return m_name; }
+	
+private:
+	string m_name;
+};
 
 } /* namespace blenvm */
 
-#endif /* __BVM_UTIL_STRING_H__ */
+#endif /* __GLSL_VALUE_H__ */

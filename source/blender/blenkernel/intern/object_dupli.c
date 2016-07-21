@@ -1153,7 +1153,7 @@ const DupliGenerator gen_dupli_particles = {
 
 static void make_duplis_nodetree(struct bNodeTree *ntree, const DupliContext *dupctx)
 {
-	struct BVMFunction *fn = BVM_gen_dupli_function_bvm(ntree, true);
+	struct BVMFunction *fn = BVM_gen_dupli_function_bvm(ntree, NULL, true);
 	
 	if (fn) {
 		struct BVMEvalGlobals *globals = BVM_globals_create();

@@ -32,6 +32,8 @@
  *  \ingroup glsl
  */
 
+#include <cstdarg>
+#include <list>
 #include <set>
 #include <vector>
 
@@ -39,6 +41,8 @@
 
 #include "compiler.h"
 #include "node_graph.h"
+
+#include "glsl_value.h"
 
 #include "util_opcode.h"
 #include "util_string.h"
@@ -49,18 +53,8 @@ struct NodeGraph;
 struct NodeInstance;
 struct TypeDesc;
 
-struct GLSLValue {
-	GLSLValue(const string &name);
-	~GLSLValue();
-	
-	const string &name() const { return m_name; }
-	
-private:
-	string m_name;
-};
-
 struct GLSLCodeGenerator : public CodeGenerator {
-	typedef std::vector<GLSLValue> ValueStack;
+	typedef std::list<GLSLValue> Values;
 	typedef std::vector<GLSLValue*> Arguments;
 	
 	GLSLCodeGenerator();
@@ -69,6 +63,7 @@ struct GLSLCodeGenerator : public CodeGenerator {
 	const stringstream &code() const { return m_code; }
 	
 	ValueHandle get_handle(const GLSLValue *value);
+	GLSLValue *get_value(ValueHandle handle);
 	
 	void finalize_function();
 	void debug_function(FILE *file);
@@ -89,11 +84,8 @@ struct GLSLCodeGenerator : public CodeGenerator {
 protected:
 	GLSLValue *create_value(const TypeSpec *typespec, const string &name, bool make_unique);
 	
-	void append(const string &s);
-	void newline();
-	
 private:
-	ValueStack m_values;
+	Values m_values;
 	Arguments m_input_args;
 	Arguments m_output_args;
 	

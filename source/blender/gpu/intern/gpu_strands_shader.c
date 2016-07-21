@@ -211,7 +211,7 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
 	
-	BVM_gen_hair_deform_function_glsl(params->nodes);
+	BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	

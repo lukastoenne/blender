@@ -1122,7 +1122,7 @@ static int multitex(Tex *tex,
 	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
-		struct BVMFunction *fn = BVM_gen_texture_function_llvm(tex->nodetree, true);
+		struct BVMFunction *fn = BVM_gen_texture_function_llvm(tex->nodetree, NULL, true);
 		if (fn) {
 			struct BVMEvalContext *context = BVM_context_create();
 			

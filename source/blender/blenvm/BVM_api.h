@@ -139,7 +139,7 @@ void BVM_function_llvm_cache_remove(void *key);
 struct Object;
 struct EffectedPoint;
 
-struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree, bool use_cache);
+struct BVMFunction *BVM_gen_forcefield_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache);
 void BVM_debug_forcefield_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalContext *context, struct BVMFunction *fn,
@@ -150,8 +150,8 @@ void BVM_eval_forcefield_bvm(struct BVMEvalGlobals *globals, struct BVMEvalConte
 struct Tex;
 struct TexResult;
 
-struct BVMFunction *BVM_gen_texture_function_bvm(struct bNodeTree *btree, bool use_cache);
-struct BVMFunction *BVM_gen_texture_function_llvm(struct bNodeTree *btree, bool use_cache);
+struct BVMFunction *BVM_gen_texture_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache);
+struct BVMFunction *BVM_gen_texture_function_llvm(struct bNodeTree *btree, const char *name, bool use_cache);
 
 void BVM_debug_texture_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
@@ -173,8 +173,8 @@ void BVM_eval_texture_llvm(struct BVMEvalGlobals *globals, struct BVMEvalContext
 struct DerivedMesh;
 struct Mesh;
 
-struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, bool use_cache);
-struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, bool use_cache);
+struct BVMFunction *BVM_gen_modifier_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache);
+struct BVMFunction *BVM_gen_modifier_function_llvm(struct bNodeTree *btree, const char *name, bool use_cache);
 void BVM_debug_modifier_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 struct DerivedMesh *BVM_eval_modifier_bvm(struct BVMEvalGlobals *globals,
@@ -192,7 +192,7 @@ struct DerivedMesh *BVM_eval_modifier_llvm(struct BVMEvalGlobals *globals,
 
 struct DupliContainer;
 
-struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, bool use_cache);
+struct BVMFunction *BVM_gen_dupli_function_bvm(struct bNodeTree *btree, const char *name, bool use_cache);
 void BVM_debug_dupli_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
@@ -203,7 +203,7 @@ void BVM_eval_dupli_bvm(struct BVMEvalGlobals *globals,
 
 /* ------------------------------------------------------------------------- */
 
-char *BVM_gen_hair_deform_function_glsl(struct bNodeTree *btree);
+char *BVM_gen_hair_deform_function_glsl(struct bNodeTree *btree, const char *name);
 void BVM_debug_hair_deform_nodes(struct bNodeTree *btree, FILE *debug_file, const char *label, BVMDebugMode mode);
 
 #ifdef __cplusplus
