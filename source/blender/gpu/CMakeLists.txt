@@ -49,6 +49,7 @@ set(INC_SYS
 set(SRC
 	intern/gpu_basic_shader.c
 	intern/gpu_buffers.c
+	intern/gpu_bvm_nodes.c
 	intern/gpu_codegen.c
 	intern/gpu_compositing.c
 	intern/gpu_debug.c
@@ -101,6 +102,7 @@ set(SRC
 	GPU_shader.h
 	GPU_strands.h
 	GPU_texture.h
+	intern/gpu_bvm_nodes.h
 	intern/gpu_codegen.h
 	intern/gpu_private.h
 )
@@ -133,8 +135,9 @@ data_to_c_simple(shaders/gpu_shader_strand_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_geom.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_debug_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_strand_nodes.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_strand_util.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_bvm_nodes_base.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_bvm_nodes_math.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

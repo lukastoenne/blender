@@ -313,7 +313,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 
 	if (vertexcode) {
-		const char *source[5];
+		const char *source[6];
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
@@ -322,6 +322,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
+		if (libcode) source[num_source++] = libcode;
 		source[num_source++] = vertexcode;
 
 		glAttachShader(shader->program, shader->vertex);
@@ -379,7 +380,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (geocode) {
-		const char *source[6];
+		const char *source[7];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
@@ -387,6 +388,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
+		if (libcode) source[num_source++] = libcode;
 		source[num_source++] = geocode;
 
 		glAttachShader(shader->program, shader->geometry);

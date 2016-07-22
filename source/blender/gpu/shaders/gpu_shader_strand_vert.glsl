@@ -39,8 +39,15 @@ void main()
 	mat3 target_frame;
 	interpolate_vertex(int(fiber_index), curve_param, loc, nor, target_loc, target_frame);
 
-	// TODO define proper curve scale, independent of subdivision!
-	displace_vertex(loc, nor, curve_param, 1.0, target_loc, target_frame);
+	// TODO define proper curve length
+	vec3 dloc, dnor, dtang;
+	displace_vertex(loc, nor, vec3(0.0),
+		            curve_param, 1.0, 0.0,
+		            1.0, 0.0, 0.0,
+		            mat4_combine(target_frame, target_loc),
+		            dloc, dnor, dtang);
+	loc = loc + dloc;
+	nor = normalize(nor + dnor);
 
 	vec4 co = gl_ModelViewMatrix * vec4(loc, 1.0);
 #ifdef FIBER_RIBBON

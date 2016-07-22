@@ -5,6 +5,14 @@ mat3 mat3_from_vectors(vec3 nor, vec3 tang)
 	return mat3(tang, cross(nor, tang), nor);
 }
 
+mat4 mat4_combine(mat3 rotation, vec3 translation)
+{
+	return mat4(vec4(rotation[0], 1.0),
+		        vec4(rotation[1], 1.0),
+		        vec4(rotation[2], 1.0),
+		        vec4(translation, 1.0));
+}
+
 struct Samplers {
 	usamplerBuffer control_curves;
 	samplerBuffer control_points;

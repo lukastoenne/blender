@@ -50,6 +50,8 @@
 #include "GPU_strands.h"
 #include "GPU_shader.h"
 
+#include "intern/gpu_bvm_nodes.h"
+
 #define MAX_DEFINES 1024
 
 struct GPUStrandsShader {
@@ -76,31 +78,7 @@ extern char datatoc_gpu_shader_strand_vert_glsl[];
 extern char datatoc_gpu_shader_strand_debug_frag_glsl[];
 extern char datatoc_gpu_shader_strand_debug_geom_glsl[];
 extern char datatoc_gpu_shader_strand_debug_vert_glsl[];
-extern char datatoc_gpu_shader_strand_nodes_glsl[];
 extern char datatoc_gpu_shader_strand_util_glsl[];
-
-static char *codegen(const char *basecode, const char *nodecode)
-{
-	char *code;
-	
-	if (!basecode)
-		return NULL;
-	
-	DynStr *ds = BLI_dynstr_new();
-	
-	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
-	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_nodes_glsl);
-	
-	if (nodecode)
-		BLI_dynstr_append(ds, nodecode);
-	
-	BLI_dynstr_append(ds, basecode);
-	
-	code = BLI_dynstr_get_cstring(ds);
-	BLI_dynstr_free(ds);
-	
-	return code;
-}
 
 static void get_defines(GPUStrandsShaderParams *params, char *defines)
 {
@@ -214,6 +192,27 @@ static void get_shader_attributes(GPUShader *shader, bool use_geomshader,
 	*r_num_attributes = (int)(attr - r_attributes);
 }
 
+static char *codegen(const char *basecode, const char *nodecode)
+{
+	char *code;
+	
+	if (!basecode)
+		return NULL;
+	
+	DynStr *ds = BLI_dynstr_new();
+	
+	BLI_dynstr_append(ds, datatoc_gpu_shader_strand_util_glsl);
+	
+	if (nodecode)
+		BLI_dynstr_append(ds, nodecode);
+	BLI_dynstr_append(ds, basecode);
+	
+	code = BLI_dynstr_get_cstring(ds);
+	BLI_dynstr_free(ds);
+	
+	return code;
+}
+
 GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
@@ -225,7 +224,10 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	char *geometry_debug_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_debug_geom_glsl : NULL;
 	char *fragment_debug_basecode = datatoc_gpu_shader_strand_debug_frag_glsl;
 	
-	char *nodecode = BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
+	char *nodecode = NULL;
+	if (params->nodes) {
+		nodecode = BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
+	}
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
@@ -237,7 +239,7 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	char *vertexcode = codegen(vertex_basecode, nodecode);
 	char *geometrycode = codegen(geometry_basecode, NULL);
 	char *fragmentcode = codegen(fragment_basecode, NULL);
-	GPUShader *shader = GPU_shader_create_ex(vertexcode, fragmentcode, geometrycode, NULL,
+	GPUShader *shader = GPU_shader_create_ex(vertexcode, fragmentcode, geometrycode, glsl_bvm_nodes_library,
 	                                         defines, 0, 0, 0, flags);
 	if (shader) {
 		gpu_shader->shader = shader;
@@ -261,7 +263,7 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	char *debug_vertexcode = codegen(vertex_debug_basecode, nodecode);
 	char *debug_geometrycode = codegen(geometry_debug_basecode, NULL);
 	char *debug_fragmentcode = codegen(fragment_debug_basecode, NULL);
-	GPUShader *debug_shader = GPU_shader_create_ex(debug_vertexcode, debug_fragmentcode, debug_geometrycode, NULL,
+	GPUShader *debug_shader = GPU_shader_create_ex(debug_vertexcode, debug_fragmentcode, debug_geometrycode, glsl_bvm_nodes_library,
 	                                         defines, 0, 0, 0, flags);
 	if (debug_shader) {
 		gpu_shader->debug_shader = debug_shader;
@@ -280,6 +282,10 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 		if (debug_fragmentcode)
 			MEM_freeN(debug_fragmentcode);
 	}
+	
+	/* gets included in shader code */
+	if (nodecode)
+		MEM_freeN(nodecode);
 	
 	return gpu_shader;
 }

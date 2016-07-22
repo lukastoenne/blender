@@ -126,6 +126,7 @@ static void register_graph_types()
 	
 	hair_deform_inputs.push_back(NodeInputParam("location", "FLOAT3"));
 	hair_deform_inputs.push_back(NodeInputParam("parameter", "FLOAT"));
+	hair_deform_inputs.push_back(NodeInputParam("curve_length", "FLOAT"));
 	hair_deform_inputs.push_back(NodeInputParam("target", "MATRIX44"));
 	hair_deform_outputs.push_back(NodeOutputParam("offset", "FLOAT3", zerovec));
 }

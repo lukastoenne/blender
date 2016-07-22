@@ -305,6 +305,10 @@ void GLSLCodeGenerator::eval_node(const NodeType *nodetype,
 		}
 	}
 	
+	/* Count number of outputs with derivatives
+	 * to test if they are needed at all.
+	 */
+	int num_dual_outputs = 0;
 	for (int i = 0; i < nodetype->num_outputs(); ++i) {
 		const NodeOutput *output = nodetype->find_output(i);
 		const TypeSpec *typespec = output->typedesc.get_typespec();
@@ -315,12 +319,15 @@ void GLSLCodeGenerator::eval_node(const NodeType *nodetype,
 		if (bvm_glsl_type_has_dual_value(typespec)) {
 			args_dx << sep << dval.dx()->name();
 			args_dy << sep << dval.dy()->name();
+			++num_dual_outputs;
 		}
 	}
 	
 	m_code << "V_" << nodetype->name() << "(" << args_value.str() << ");\n";
-	m_code << "D_" << nodetype->name() << "(" << args_dx.str() << ");\n";
-	m_code << "D_" << nodetype->name() << "(" << args_dy.str() << ");\n";
+	if (num_dual_outputs > 0) {
+		m_code << "D_" << nodetype->name() << "(" << args_dx.str() << ");\n";
+		m_code << "D_" << nodetype->name() << "(" << args_dy.str() << ");\n";
+	}
 }
 
 } /* namespace blenvm */

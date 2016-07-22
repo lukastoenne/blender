@@ -1832,15 +1832,12 @@ static void mesh_calc_modifiers(
 		if (geotree) {
 			node_dm = mesh_calc_modifier_nodes(scene, ob, geotree);
 			DM_ensure_normals(node_dm);
+			
+			*r_final = node_dm;
+			if (r_deform)
+				*r_deform = CDDM_copy(node_dm);
+			return;
 		}
-		else {
-			node_dm = CDDM_from_mesh(me);
-		}
-		
-		*r_final = node_dm;
-		if (r_deform)
-			*r_deform = CDDM_copy(node_dm);
-		return;
 	}
 
 	if (!skipVirtualArmature) {

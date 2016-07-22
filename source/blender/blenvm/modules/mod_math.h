@@ -310,7 +310,7 @@ bvm_extern void V__SQRT(float &r, float f)
 bvm_extern void D__SQRT(float &dr, float f, float df)
 {
 	if (f > 0.0f)
-		dr = df / sqrt_safe(f);
+		dr = df * 0.5f / sqrt_safe(f);
 	else
 		dr = 0.0f;
 }

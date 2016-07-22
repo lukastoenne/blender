@@ -21,7 +21,14 @@ void main()
 	// TODO define proper curve scale, independent of subdivision!
 	vec3 oldloc = loc;
 	vec3 oldnor = nor;
-	displace_vertex(loc, nor, curve_param, 1.0, target_loc, target_frame);
+	vec3 dloc, dnor, dtang;
+	displace_vertex(loc, nor, vec3(0.0),
+		            curve_param, 1.0, 0.0,
+		            1.0, 0.0, 0.0,
+		            mat4_combine(target_frame, target_loc),
+		            dloc, dnor, dtang);
+	loc = loc + dloc;
+	nor = normalize(nor + dnor);
 
 	vCurveParam = curve_param;
 	vPosition = loc;

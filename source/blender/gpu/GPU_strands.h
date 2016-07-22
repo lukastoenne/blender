@@ -140,4 +140,4 @@ void GPU_strands_buffer_free(struct GPUDrawStrands *gpu_buffer);
 }
 #endif
 
-#endif /*__GPU_MATERIAL_H__*/
+#endif /*__GPU_STRANDS_H__*/

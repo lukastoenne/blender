@@ -34,6 +34,7 @@
 
 #include "BKE_global.h"
 
+#include "intern/gpu_bvm_nodes.h"
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_private.h"
 
@@ -55,6 +56,7 @@ void GPU_init(void)
 	gpu_extensions_init(); /* must come first */
 
 	gpu_codegen_init();
+	gpu_bvm_nodes_init();
 
 	if (G.debug & G_DEBUG_GPU)
 		gpu_debug_init();
@@ -68,6 +70,7 @@ void GPU_exit(void)
 	if (G.debug & G_DEBUG_GPU)
 		gpu_debug_exit();
 	gpu_codegen_exit();
+	gpu_bvm_nodes_exit();
 
 	gpu_extensions_exit(); /* must come last */
 
