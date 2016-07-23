@@ -1753,6 +1753,29 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 				}
 			}
 
+			/* XXX placeholder operation until the future granularity design is sorted out */
+			if (md->type == eModifierType_Strands) {
+				OperationKey shader_update_key(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+				                               DEG_OPCODE_GEOMETRY_STRANDS_SHADER, md->name);
+				RelationBuilderHandle strands_handle(this, find_node(shader_update_key));
+				
+				if (ob->nodetree) {
+					bNode *node;
+					for (node = (bNode *)ob->nodetree->nodes.first; node; node = node->next) {
+						if (STREQ(node->idname, "HairNode") && node->id) {
+							bNodeTree *hair_ntree = (bNodeTree *)node->id;
+							ComponentKey node_key(&hair_ntree->id, DEPSNODE_TYPE_PARAMETERS);
+							
+							/* invalidate the strands shader when nodes are changed */
+							add_relation(node_key, shader_update_key,
+							             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Invalidation");
+							/* custom invalidation through internal dependencies */
+							BVM_nodetree_compile_dependencies(hair_ntree, &strands_handle.base);
+						}
+					}
+				}
+			}
+
 			prev_mod_key = mod_key;
 		}
 	}
@@ -1879,9 +1902,14 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		 * not the overall object node tree!
 		 * Currently there is no good way of accessing these internal nodes.
 		 */
+#if 0
 		OperationKey bvm_invalidate_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS,
 		                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
 		add_relation(bvm_invalidate_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
+#else
+		ComponentKey nodetree_key(&ob->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(nodetree_key, obdata_geom_eval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "NTree->Object Geometry");
+#endif
 		RelationBuilderHandle handle(this, find_node(obdata_geom_eval_key));
 		BVM_nodetree_eval_dependencies(ob->nodetree, &handle.base);
 	}
@@ -1988,6 +2016,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Parameters");
 	}
 
+#if 0
 	OperationKey bvm_invalidate_key(ntree_id,
 	                                DEPSNODE_TYPE_PARAMETERS,
 	                                DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE,
@@ -1998,6 +2027,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	/* custom invalidation through internal dependencies */
 	RelationBuilderHandle handle(this, find_node(bvm_invalidate_key));
 	BVM_nodetree_compile_dependencies(ntree, &handle.base);
+#endif
 
 	// TODO: link from nodetree to owner_component?
 }

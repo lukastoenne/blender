@@ -99,4 +99,13 @@ void BKE_strands_invalidate_shader(struct Strands *strands);
 struct GPUStrandsConverter *BKE_strands_get_gpu_converter(struct Strands *strands, struct DerivedMesh *root_dm,
                                                           int subdiv, int fiber_primitive, bool use_geomshader);
 
+/* ------------------------------------------------------------------------- */
+/* Depsgraph Update */
+
+struct EvaluationContext;
+struct Object;
+struct StrandsModifierData;
+
+void BKE_strands_shader_update(struct EvaluationContext *eval_ctx, struct Object *ob, struct StrandsModifierData *smd);
+
 #endif

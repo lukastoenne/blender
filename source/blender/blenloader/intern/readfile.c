@@ -5269,6 +5269,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				direct_link_strands(fd, smd->strands);
 			}
 			
+			smd->tag = 0;
 			smd->edit = NULL;
 			smd->gpu_buffer = NULL;
 			

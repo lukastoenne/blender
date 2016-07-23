@@ -1547,6 +1547,7 @@ typedef struct StrandsModifierData {
 	ModifierData modifier;
 	
 	int flag;
+	int tag;
 	int num_fibers;
 	int seed;
 	int subdiv;
@@ -1554,7 +1555,6 @@ typedef struct StrandsModifierData {
 	int shader_model;
 	int fiber_primitive;
 	float ribbon_width;
-	int pad;
 	
 	struct Strands *strands;
 	
@@ -1576,6 +1576,11 @@ enum {
 	MOD_STRANDS_SHOW_STRANDS = (1 << 0),
 	MOD_STRANDS_SHOW_FIBERS = (1 << 1),
 	MOD_STRANDS_USE_GEOMSHADER = (1 << 2),
+};
+
+/* StrandsModifierData.tag */
+enum {
+	MOD_STRANDS_TAG_UPDATE_SHADER = (1 << 0),
 };
 
 /* StrandsModifierData.shader_model */

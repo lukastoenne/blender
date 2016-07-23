@@ -192,6 +192,7 @@ typedef enum eDepsOperation_Code {
 
 	/* Modifier */
 	DEG_OPCODE_GEOMETRY_MODIFIER,
+	DEG_OPCODE_GEOMETRY_STRANDS_SHADER,
 
 	/* Curve Objects - Path Calculation (used for path-following tools, */
 	DEG_OPCODE_GEOMETRY_PATH,

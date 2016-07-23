@@ -37,6 +37,8 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
+#include "DNA_modifier_types.h"
+
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_sample.h"
 #include "BKE_strands.h"
@@ -582,7 +584,6 @@ void BKE_strands_invalidate_shader(Strands *strands)
 	}
 }
 
-
 /* gpu buffer conversion */
 
 typedef struct DNAStrandsConverter {
@@ -736,4 +737,13 @@ GPUStrandsConverter *BKE_strands_get_gpu_converter(Strands *strands, struct Deri
 	
 	conv->strands = strands;
 	return (GPUStrandsConverter *)conv;
+}
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_strands_shader_update(struct EvaluationContext *UNUSED(eval_ctx), struct Object *UNUSED(ob), StrandsModifierData *smd)
+{
+	if (smd->strands) {
+		smd->tag |= MOD_STRANDS_TAG_UPDATE_SHADER;
+	}
 }

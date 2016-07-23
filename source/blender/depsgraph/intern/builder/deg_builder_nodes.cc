@@ -88,6 +88,7 @@ extern "C" {
 #include "BKE_particle.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sound.h"
+#include "BKE_strands.h"
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_world.h"
@@ -1035,6 +1036,14 @@ void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *
 				NodeBuilderHandle handle(this);
 				mti->updateDepsgraph(md, bmain, scene, ob, &handle.base);
 			}
+			
+			/* XXX placeholder operation until the future granularity design is sorted out */
+			if (md->type == eModifierType_Strands) {
+				StrandsModifierData *smd = (StrandsModifierData *)md;
+				add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+				                   DEPSOP_TYPE_EXEC, function_bind(BKE_strands_shader_update, _1, ob, smd),
+				                   DEG_OPCODE_GEOMETRY_STRANDS_SHADER, md->name);
+			}
 		}
 	}
 
@@ -1135,6 +1144,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *
 
 	if (ob->nodetree) {
 		NodeBuilderHandle handle(this);
+		BVM_nodetree_compile_dependencies(ob->nodetree, &handle.base);
 		BVM_nodetree_eval_dependencies(ob->nodetree, &handle.base);
 	}
 
@@ -1230,10 +1240,12 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 
 	// TODO: link from nodetree to owner_component?
 
+#if 0
 	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, function_bind(BVM_function_bvm_cache_remove, ntree),
 	                   DEG_OPCODE_NTREE_BVM_FUNCTION_INVALIDATE, "BVM function invalidate");
 	NodeBuilderHandle handle(this);
 	BVM_nodetree_compile_dependencies(ntree, &handle.base);
+#endif
 }
 
 /* Recursively build graph for material */
