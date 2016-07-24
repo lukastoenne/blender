@@ -224,9 +224,18 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	char *geometry_debug_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_debug_geom_glsl : NULL;
 	char *fragment_debug_basecode = datatoc_gpu_shader_strand_debug_frag_glsl;
 	
-	char *nodecode = NULL;
+	char *nodecode;
 	if (params->nodes) {
 		nodecode = BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
+	}
+	else {
+		nodecode = BLI_strdup("\n"
+		                      "void displace_vertex(in vec3 location_V, in vec3 location_DX, in vec3 location_DY,"
+		                      "                     in float parameter_V, in float parameter_DX, in float parameter_DY,"
+		                      "                     in float curvelength_V, in float curvelength_DX, in float curvelength_DY,"
+		                      "                     in mat4 target,"
+		                      "                     out vec3 offset_V, out vec3 offset_DX, out vec3 offset_DY)"
+		                      "{ offset_V = vec3(0.0); offset_DX = vec3(0.0); offset_DY = vec3(0.0); }\n");
 	}
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
