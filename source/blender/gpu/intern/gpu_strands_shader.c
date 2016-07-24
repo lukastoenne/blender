@@ -221,7 +221,7 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	char *geometry_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_geom_glsl : NULL;
 	char *fragment_basecode = datatoc_gpu_shader_strand_frag_glsl;
 	char *vertex_debug_basecode = datatoc_gpu_shader_strand_debug_vert_glsl;
-	char *geometry_debug_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_debug_geom_glsl : NULL;
+	char *geometry_debug_basecode = datatoc_gpu_shader_strand_debug_geom_glsl;
 	char *fragment_debug_basecode = datatoc_gpu_shader_strand_debug_frag_glsl;
 	
 	char *nodecode;

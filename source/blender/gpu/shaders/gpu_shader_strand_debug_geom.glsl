@@ -40,7 +40,7 @@ void main()
 
 #if 1
 	emit_vertex(loc, magenta);
-	emit_vertex(loc + vTangent[0] * debug_scale, magenta);
+	emit_vertex(loc + nor * debug_scale, magenta);
 	EndPrimitive();
 #endif
 
@@ -53,34 +53,6 @@ void main()
 	EndPrimitive();
 	emit_vertex(loc, blue);
 	emit_vertex(loc + target_frame[2] * debug_scale, blue);
-	EndPrimitive();
-#endif
-
-	CurlParams params = curl_params(vCurveParam[0], 1.0, target_loc, target_frame);
-	
-#if 0
-	vec3 dcurl = (params.dcurlvec - nor) * params.factor;
-	vec3 dshape = (target_loc + params.curlvec - loc) * params.dfactor;
-	emit_vertex(loc, cyan);
-	emit_vertex(loc + dcurl * debug_scale, cyan);
-	EndPrimitive();
-	emit_vertex(loc, yellow);
-	emit_vertex(loc + dshape * debug_scale, yellow);
-	EndPrimitive();
-
-	emit_vertex(loc, magenta);
-	emit_vertex(loc + (oldnor + dcurl + dshape) * debug_scale, magenta);
-	EndPrimitive();
-#endif
-
-#if 0
-	vec3 dloc = (target_loc + params.curlvec - loc) * params.factor;
-	vec3 nloc = loc + dloc;
-	vec3 dshape = dloc / (vCurveParam[0] * curl_shape);
-	vec3 dtarget = target_frame[2] + params.turns * params.dcurlvec;
-	vec3 nnor = normalize(dshape + mix(oldnor, dtarget, params.factor));
-	emit_vertex(loc, cyan);
-	emit_vertex(loc + nnor * debug_scale, cyan);
 	EndPrimitive();
 #endif
 }
