@@ -140,8 +140,10 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 		smd->gpu_buffer = GPU_strands_buffer_create(converter);
 	GPUDrawStrands *buffer = smd->gpu_buffer;
 	
-	if (smd->tag & MOD_STRANDS_TAG_UPDATE_SHADER)
+	if (smd->tag & MOD_STRANDS_TAG_UPDATE_SHADER) {
 		BKE_strands_invalidate_shader(smd->strands);
+		smd->tag &= ~MOD_STRANDS_TAG_UPDATE_SHADER;
+	}
 	if (!strands->gpu_shader) {
 		GPUStrandsShaderParams shader_params;
 		shader_params.fiber_primitive = fiber_primitive;
