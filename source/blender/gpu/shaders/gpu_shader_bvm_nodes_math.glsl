@@ -457,6 +457,11 @@ void D_MATRIX44_TO_LOC(mat4 m, out vec3 dloc)
 	dloc = vec3(0.0);
 }
 
+void V_MATRIX44_TO_ROT(mat4 m, out mat4 r)
+{
+	r = mat4(normalize(m[0]), normalize(m[1]), normalize(m[2]), vec4(0.0, 0.0, 0.0, 1.0));
+}
+
 void euler_rotation_order(int order, out int i, out int j, out int k, out bool parity)
 {
 	switch (order) {

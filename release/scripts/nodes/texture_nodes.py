@@ -199,11 +199,15 @@ def register():
         TextureNodeCategory("TEX_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
             NodeItem("ObjectCombineVectorNode"),
+            NodeItem("ObjectSeparateMatrixNode"),
+            NodeItem("ObjectCombineMatrixNode"),
             NodeItem("TextureGetDerivativeNode"),
             ]),
         TextureNodeCategory("TEX_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
+            NodeItem("ObjectMatrixMathNode"),
+            NodeItem("ObjectTransformVectorNode"),
             NodeItem("ObjectTranslationTransformNode"),
             NodeItem("ObjectEulerTransformNode"),
             NodeItem("ObjectAxisAngleTransformNode"),

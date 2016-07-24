@@ -169,6 +169,40 @@ bvm_extern void D__GET_ELEM_FLOAT4(float &dr, int index, const float4 &/*f*/, co
 }
 BVM_DECL_FUNCTION_DUAL(GET_ELEM_FLOAT4)
 
+
+bvm_extern void V__SET_MATRIX44(matrix44 &m,
+                                float v00, float v01, float v02, float v03,
+                                float v10, float v11, float v12, float v13,
+                                float v20, float v21, float v22, float v23,
+                                float v30, float v31, float v32, float v33)
+{
+	m.data[0][0] = v00;
+	m.data[0][1] = v01;
+	m.data[0][2] = v02;
+	m.data[0][3] = v03;
+	m.data[1][0] = v10;
+	m.data[1][1] = v11;
+	m.data[1][2] = v12;
+	m.data[1][3] = v13;
+	m.data[2][0] = v20;
+	m.data[2][1] = v21;
+	m.data[2][2] = v22;
+	m.data[2][3] = v23;
+	m.data[3][0] = v30;
+	m.data[3][1] = v31;
+	m.data[3][2] = v32;
+	m.data[3][3] = v33;
+}
+BVM_DECL_FUNCTION_VALUE(SET_MATRIX44)
+
+bvm_extern void V__GET_ELEM_MATRIX44(float &r, int column, int row, const matrix44 &m)
+{
+	BLI_assert(column >= 0 && column < 4);
+	BLI_assert(row >= 0 && row < 4);
+	r = m.data[column][row];
+}
+BVM_DECL_FUNCTION_VALUE(GET_ELEM_MATRIX44)
+
 BVM_MOD_NAMESPACE_END
 
 #endif /* __MOD_VALUE_H__ */

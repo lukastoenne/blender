@@ -140,10 +140,14 @@ def register():
         HairNodeCategory("GEO_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
             NodeItem("ObjectCombineVectorNode"),
+            NodeItem("ObjectSeparateMatrixNode"),
+            NodeItem("ObjectCombineMatrixNode"),
             ]),
         HairNodeCategory("GEO_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
+            NodeItem("ObjectMatrixMathNode"),
+            NodeItem("ObjectTransformVectorNode"),
             NodeItem("ObjectTranslationTransformNode"),
             NodeItem("ObjectEulerTransformNode"),
             NodeItem("ObjectAxisAngleTransformNode"),

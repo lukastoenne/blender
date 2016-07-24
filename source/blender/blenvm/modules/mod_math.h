@@ -40,6 +40,19 @@ bvm_extern void V__MATRIX44_TO_LOC(float3 &loc, const matrix44 &m)
 }
 BVM_DECL_FUNCTION_VALUE(MATRIX44_TO_LOC)
 
+bvm_extern void V__MATRIX44_TO_ROT(matrix44 &r, const matrix44 &m)
+{
+	normalize_v3_v3(r.data[0], m.data[0]);
+	normalize_v3_v3(r.data[1], m.data[1]);
+	normalize_v3_v3(r.data[2], m.data[2]);
+	zero_v3(r.data[3]);
+	r.data[0][3] = 0.0;
+	r.data[1][3] = 0.0;
+	r.data[2][3] = 0.0;
+	r.data[3][3] = 1.0;
+}
+BVM_DECL_FUNCTION_VALUE(MATRIX44_TO_ROT)
+
 bvm_extern void V__MATRIX44_TO_EULER(float3 &euler, int order, const matrix44 &m)
 {
 	mat4_to_eulO(euler.data(), (short)order, m.c_data());

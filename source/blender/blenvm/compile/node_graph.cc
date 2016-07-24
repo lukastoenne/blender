@@ -1453,6 +1453,31 @@ static void register_opcode_node_types()
 	nt->add_input("value_w", "FLOAT", 0.0f);
 	nt->add_output("value", "FLOAT4");
 	
+	nt = NodeGraph::add_node_type("GET_ELEM_MATRIX44");
+	nt->add_input("column", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("row", "INT", 0, INPUT_CONSTANT);
+	nt->add_input("value", "MATRIX44", matrix44::identity());
+	nt->add_output("value", "FLOAT");
+	
+	nt = NodeGraph::add_node_type("SET_MATRIX44");
+	nt->add_input("value00", "FLOAT", 1.0f);
+	nt->add_input("value01", "FLOAT", 0.0f);
+	nt->add_input("value02", "FLOAT", 0.0f);
+	nt->add_input("value03", "FLOAT", 0.0f);
+	nt->add_input("value10", "FLOAT", 0.0f);
+	nt->add_input("value11", "FLOAT", 1.0f);
+	nt->add_input("value12", "FLOAT", 0.0f);
+	nt->add_input("value13", "FLOAT", 0.0f);
+	nt->add_input("value20", "FLOAT", 0.0f);
+	nt->add_input("value21", "FLOAT", 0.0f);
+	nt->add_input("value22", "FLOAT", 1.0f);
+	nt->add_input("value23", "FLOAT", 0.0f);
+	nt->add_input("value30", "FLOAT", 0.0f);
+	nt->add_input("value31", "FLOAT", 0.0f);
+	nt->add_input("value32", "FLOAT", 0.0f);
+	nt->add_input("value33", "FLOAT", 1.0f);
+	nt->add_output("value", "MATRIX44");
+	
 	nt = NodeGraph::add_node_type("GET_DERIVATIVE_FLOAT");
 	nt->add_input("variable", "INT", 0, INPUT_CONSTANT);
 	nt->add_input("value", "FLOAT", 0.0f);
@@ -1837,6 +1862,10 @@ static void register_opcode_node_types()
 	nt = NodeGraph::add_node_type("MATRIX44_TO_LOC");
 	nt->add_input("matrix", "MATRIX44", matrix44::identity());
 	nt->add_output("loc", "FLOAT3");
+	
+	nt = NodeGraph::add_node_type("MATRIX44_TO_ROT");
+	nt->add_input("matrix", "MATRIX44", matrix44::identity());
+	nt->add_output("rot", "MATRIX44");
 	
 	nt = NodeGraph::add_node_type("MATRIX44_TO_EULER");
 	nt->add_input("order", "INT", EULER_ORDER_DEFAULT, INPUT_CONSTANT);

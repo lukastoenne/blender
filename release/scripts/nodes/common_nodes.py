@@ -448,6 +448,63 @@ class CombineVectorNode(CommonNodeBase, ObjectNode):
         compiler.map_input(2, node.inputs[2])
         compiler.map_output(0, node.outputs[0])
 
+
+class SeparateMatrixNode(CommonNodeBase, ObjectNode):
+    '''Separate matrix into translational, rotational and scaling parts'''
+    bl_idname = 'ObjectSeparateMatrixNode'
+    bl_label = 'Separate Matrix'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "Matrix")
+        self.outputs.new('NodeSocketVector', "Translation")
+        self.outputs.new('TransformSocket', "Rotation")
+        self.outputs.new('NodeSocketVector', "Scale")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MATRIX44_TO_LOC")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
+        
+        node = compiler.add_node("MATRIX44_TO_ROT")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(1, node.outputs[0])
+        
+        node = compiler.add_node("MATRIX44_TO_SCALE")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_output(2, node.outputs[0])
+
+
+class CombineMatrixNode(CommonNodeBase, ObjectNode):
+    '''Combine matrix from translation, rotation and scale'''
+    bl_idname = 'ObjectCombineMatrixNode'
+    bl_label = 'Combine Matrix'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "Translation")
+        self.inputs.new('TransformSocket', "Rotation")
+        self.inputs.new('NodeSocketVector', "Scale")
+        self.outputs.new('TransformSocket', "Matrix")
+
+    def compile(self, compiler):
+        node_loc = compiler.add_node("LOC_TO_MATRIX44")
+        node_scale = compiler.add_node("SCALE_TO_MATRIX44")
+        node_mul1 = compiler.add_node("MUL_MATRIX44")
+        node_mul2 = compiler.add_node("MUL_MATRIX44")
+        
+        compiler.map_input(0, node_loc.inputs[0])
+        compiler.map_input(2, node_scale.inputs[0])
+        
+        # R * S
+        compiler.map_input(1, node_mul1.inputs[0])
+        compiler.link(node_scale.outputs[0], node_mul1.inputs[1])
+        
+        # T * (R * S)
+        compiler.link(node_loc.outputs[0], node_mul2.inputs[0])
+        compiler.link(node_mul1.outputs[0], node_mul2.inputs[1])
+
+        compiler.map_output(0, node_mul2.outputs[0])
+
+
 class TranslationTransformNode(CommonNodeBase, ObjectNode):
     '''Create translation from a vector'''
     bl_idname = 'ObjectTranslationTransformNode'
@@ -613,6 +670,79 @@ class GetScaleNode(CommonNodeBase, ObjectNode):
     def compile(self, compiler):
         node = compiler.add_node("MATRIX44_TO_SCALE")
         compiler.map_input(0, node.inputs[0])
+        compiler.map_output(0, node.outputs[0])
+
+
+class TransformVectorNode(CommonNodeBase, ObjectNode):
+    '''Transform a vector'''
+    bl_idname = 'ObjectTransformVectorNode'
+    bl_label = 'Transform Vector'
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "Transform")
+        self.inputs.new('NodeSocketVector', "Vector")
+        self.outputs.new('NodeSocketVector', "Vector")
+
+    def compile(self, compiler):
+        node = compiler.add_node("MUL_MATRIX44_FLOAT3")
+        compiler.map_input(0, node.inputs[0])
+        compiler.map_input(1, node.inputs[1])
+        compiler.map_output(0, node.outputs[0])
+
+
+class MatrixMathNode(CommonNodeBase, ObjectNode):
+    '''Matrix Math'''
+    bl_idname = 'ObjectMatrixMathNode'
+    bl_label = 'Matrix Math'
+
+    _mode_items = [
+        ('ADD_MATRIX44', 'Add', '', 'NONE', 0),
+        ('SUB_MATRIX44', 'Subtract', '', 'NONE', 1),
+        ('MUL_MATRIX44', 'Multiply', '', 'NONE', 2),
+        ('MUL_MATRIX44_FLOAT', 'Scalar Multiply', '', 'NONE', 3),
+        ('DIV_MATRIX44_FLOAT', 'Scalar Divide', '', 'NONE', 4),
+        ('NEGATE_MATRIX44', 'Negate', '', 'NONE', 5),
+        ('TRANSPOSE_MATRIX44', 'Transpose', '', 'NONE', 6),
+        ('INVERT_MATRIX44', 'Invert', '', 'NONE', 7),
+        ('ADJOINT_MATRIX44', 'Adjoint', 'Adjoint (adjugate) matrix', 'NONE', 8),
+        ('DETERMINANT_MATRIX44', 'Determinant', '', 'NONE', 9),
+    ]
+    mode = EnumProperty(name="Mode",
+                        items=_mode_items)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "mode")
+
+    def init(self, context):
+        self.inputs.new('TransformSocket', "Matrix")
+        self.inputs.new('TransformSocket', "Matrix")
+        self.inputs.new('NodeSocketFloat', "Scalar")
+        self.outputs.new('TransformSocket', "Matrix")
+
+    def compile(self, compiler):
+        node = compiler.add_node(self.mode, self.name+"N")
+
+        is_binary = self.mode in {'ADD_MATRIX44', 'SUB_MATRIX44', 'MUL_MATRIX44'}
+        is_scalar_binary = self.mode in {'MUL_MATRIX44_FLOAT', 'DIV_MATRIX44_FLOAT'}
+
+        if is_binary:
+            # binary node
+            compiler.map_input(0, node.inputs[0])
+            compiler.map_input(1, node.inputs[1])
+        else:
+            # only one matrix input used
+            socket_a = self.inputs[0]
+            socket_b = self.inputs[1]
+            linked_a = (not socket_a.hide) and socket_a.is_linked
+            linked_b = (not socket_a.hide) and socket_a.is_linked
+            if linked_a or (not linked_b):
+                compiler.map_input(0, node.inputs[0])
+            else:
+                compiler.map_input(1, node.inputs[0])
+
+        if is_scalar_binary:
+            compiler.map_input(2, node.inputs[1])
+
         compiler.map_output(0, node.outputs[0])
 
 
