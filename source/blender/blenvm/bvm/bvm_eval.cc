@@ -169,6 +169,33 @@ static void eval_op_set_float4(EvalStack *stack, StackIndex offset_x, StackIndex
 	stack_store_float4(stack, offset_to, float4(x, y, z, w));
 }
 
+static void eval_op_set_matrix44(EvalStack *stack,
+                                 StackIndex offset_v00, StackIndex offset_v01, StackIndex offset_v02, StackIndex offset_v03,
+                                 StackIndex offset_v10, StackIndex offset_v11, StackIndex offset_v12, StackIndex offset_v13,
+                                 StackIndex offset_v20, StackIndex offset_v21, StackIndex offset_v22, StackIndex offset_v23,
+                                 StackIndex offset_v30, StackIndex offset_v31, StackIndex offset_v32, StackIndex offset_v33,
+                                 StackIndex offset_to)
+{
+	matrix44 m;
+	m.data[0][0] = stack_load_float(stack, offset_v00);
+	m.data[0][1] = stack_load_float(stack, offset_v01);
+	m.data[0][2] = stack_load_float(stack, offset_v02);
+	m.data[0][3] = stack_load_float(stack, offset_v03);
+	m.data[1][0] = stack_load_float(stack, offset_v10);
+	m.data[1][1] = stack_load_float(stack, offset_v11);
+	m.data[1][2] = stack_load_float(stack, offset_v12);
+	m.data[1][3] = stack_load_float(stack, offset_v13);
+	m.data[2][0] = stack_load_float(stack, offset_v20);
+	m.data[2][1] = stack_load_float(stack, offset_v21);
+	m.data[2][2] = stack_load_float(stack, offset_v22);
+	m.data[2][3] = stack_load_float(stack, offset_v23);
+	m.data[3][0] = stack_load_float(stack, offset_v30);
+	m.data[3][1] = stack_load_float(stack, offset_v31);
+	m.data[3][2] = stack_load_float(stack, offset_v32);
+	m.data[3][3] = stack_load_float(stack, offset_v33);
+	stack_store_matrix44(stack, offset_to, m);
+}
+
 static void eval_op_get_elem_float3(EvalStack *stack, int index, StackIndex offset_from, StackIndex offset_to)
 {
 	assert(index >= 0 && index < 3);
@@ -181,6 +208,14 @@ static void eval_op_get_elem_float4(EvalStack *stack, int index, StackIndex offs
 	assert(index >= 0 && index < 4);
 	float4 f = stack_load_float4(stack, offset_from);
 	stack_store_float(stack, offset_to, f[index]);
+}
+
+static void eval_op_get_elem_matrix44(EvalStack *stack, int column, int row, StackIndex offset_from, StackIndex offset_to)
+{
+	assert(column >= 0 && column < 4);
+	assert(row >= 0 && row < 4);
+	matrix44 m = stack_load_matrix44(stack, offset_from);
+	stack_store_float(stack, offset_to, m.data[column][row]);
 }
 
 static void eval_op_init_mesh_ptr(EvalStack *stack, StackIndex offset, int use_count)
@@ -441,6 +476,40 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				StackIndex offset_from = fn->read_stack_index(&instr);
 				StackIndex offset_to = fn->read_stack_index(&instr);
 				eval_op_get_elem_float4(stack, index, offset_from, offset_to);
+				break;
+			}
+			case OP_SET_MATRIX44: {
+				StackIndex offset_v00 = fn->read_stack_index(&instr);
+				StackIndex offset_v01 = fn->read_stack_index(&instr);
+				StackIndex offset_v02 = fn->read_stack_index(&instr);
+				StackIndex offset_v03 = fn->read_stack_index(&instr);
+				StackIndex offset_v10 = fn->read_stack_index(&instr);
+				StackIndex offset_v11 = fn->read_stack_index(&instr);
+				StackIndex offset_v12 = fn->read_stack_index(&instr);
+				StackIndex offset_v13 = fn->read_stack_index(&instr);
+				StackIndex offset_v20 = fn->read_stack_index(&instr);
+				StackIndex offset_v21 = fn->read_stack_index(&instr);
+				StackIndex offset_v22 = fn->read_stack_index(&instr);
+				StackIndex offset_v23 = fn->read_stack_index(&instr);
+				StackIndex offset_v30 = fn->read_stack_index(&instr);
+				StackIndex offset_v31 = fn->read_stack_index(&instr);
+				StackIndex offset_v32 = fn->read_stack_index(&instr);
+				StackIndex offset_v33 = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
+				eval_op_set_matrix44(stack,
+				                     offset_v00, offset_v01, offset_v02, offset_v03,
+				                     offset_v10, offset_v11, offset_v12, offset_v13,
+				                     offset_v20, offset_v21, offset_v22, offset_v23,
+				                     offset_v30, offset_v31, offset_v32, offset_v33,
+				                     offset_to);
+				break;
+			}
+			case OP_GET_ELEM_MATRIX44: {
+				int column = fn->read_int(&instr);
+				int row = fn->read_int(&instr);
+				StackIndex offset_from = fn->read_stack_index(&instr);
+				StackIndex offset_to = fn->read_stack_index(&instr);
+				eval_op_get_elem_matrix44(stack, column, row, offset_from, offset_to);
 				break;
 			}
 			case OP_INIT_MESH_PTR: {
@@ -761,6 +830,12 @@ void EvalContext::eval_instructions(const EvalGlobals *globals, const Instructio
 				StackIndex offset_mat = fn->read_stack_index(&instr);
 				StackIndex offset_loc = fn->read_stack_index(&instr);
 				eval_op_matrix44_to_loc(stack, offset_mat, offset_loc);
+				break;
+			}
+			case OP_MATRIX44_TO_ROT: {
+				StackIndex offset_mat = fn->read_stack_index(&instr);
+				StackIndex offset_rot = fn->read_stack_index(&instr);
+				eval_op_matrix44_to_rot(stack, offset_mat, offset_rot);
 				break;
 			}
 			case OP_MATRIX44_TO_EULER: {

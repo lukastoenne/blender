@@ -452,11 +452,15 @@ def register():
         GeometryNodeCategory("GEO_CONVERTER", "Converter", items=[
             NodeItem("ObjectSeparateVectorNode"),
             NodeItem("ObjectCombineVectorNode"),
+            NodeItem("ObjectSeparateMatrixNode"),
+            NodeItem("ObjectCombineMatrixNode"),
             NodeItem("GeometryMeshCombineNode"),
             ]),
         GeometryNodeCategory("GEO_MATH", "Math", items=[
             NodeItem("ObjectMathNode"),
             NodeItem("ObjectVectorMathNode"),
+            NodeItem("ObjectMatrixMathNode"),
+            NodeItem("ObjectTransformVectorNode"),
             NodeItem("ObjectTranslationTransformNode"),
             NodeItem("ObjectEulerTransformNode"),
             NodeItem("ObjectAxisAngleTransformNode"),

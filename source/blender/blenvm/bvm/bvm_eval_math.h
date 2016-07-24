@@ -52,6 +52,21 @@ static void eval_op_matrix44_to_loc(EvalStack *stack, StackIndex offset_mat, Sta
 	stack_store_float3(stack, offset_loc, loc);
 }
 
+static void eval_op_matrix44_to_rot(EvalStack *stack, StackIndex offset_mat, StackIndex offset_rot)
+{
+	matrix44 m = stack_load_matrix44(stack, offset_mat);
+	matrix44 rot;
+	normalize_v3_v3(rot.data[0], m.data[0]);
+	normalize_v3_v3(rot.data[1], m.data[1]);
+	normalize_v3_v3(rot.data[2], m.data[2]);
+	zero_v3(rot.data[3]);
+	rot.data[0][3] = 0.0;
+	rot.data[1][3] = 0.0;
+	rot.data[2][3] = 0.0;
+	rot.data[3][3] = 1.0;
+	stack_store_matrix44(stack, offset_rot, rot);
+}
+
 static void eval_op_matrix44_to_euler(EvalStack *stack, int order, StackIndex offset_mat, StackIndex offset_euler)
 {
 	matrix44 m = stack_load_matrix44(stack, offset_mat);
