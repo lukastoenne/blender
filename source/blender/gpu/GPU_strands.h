@@ -63,7 +63,6 @@ typedef enum GPUStrands_FiberPrimitive {
 
 typedef struct GPUStrandsShaderParams {
 	GPUStrands_FiberPrimitive fiber_primitive;
-	int effects;
 	bool use_geomshader;
 	GPUStrands_ShaderModel shader_model;
 	struct bNodeTree *nodes;

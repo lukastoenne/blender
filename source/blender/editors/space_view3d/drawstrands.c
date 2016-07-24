@@ -91,17 +91,6 @@ static GPUStrands_FiberPrimitive get_fiber_primitive(int smd_fiber_primitive)
 	return 0;
 }
 
-static int get_effects(int smd_effects)
-{
-	GPUStrands_Effects effects = 0;
-	if (smd_effects & MOD_STRANDS_EFFECT_CLUMP)
-		effects |= GPU_STRAND_EFFECT_CLUMP;
-	if (smd_effects & MOD_STRANDS_EFFECT_CURL)
-		effects |= GPU_STRAND_EFFECT_CURL;
-	
-	return effects;
-}
-
 static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
                                 Object *ob, StrandsModifierData *smd, int debug_value)
 {
@@ -147,7 +136,6 @@ void draw_strands(Scene *scene, View3D *UNUSED(v3d), RegionView3D *rv3d,
 	if (!strands->gpu_shader) {
 		GPUStrandsShaderParams shader_params;
 		shader_params.fiber_primitive = fiber_primitive;
-		shader_params.effects = get_effects(smd->effects);
 		shader_params.use_geomshader = use_geomshader;
 		shader_params.shader_model = get_shader_model(smd->shader_model);
 		

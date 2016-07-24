@@ -4752,54 +4752,6 @@ static void rna_def_modifier_strands(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Geometry Shader", "Use a geometry shader to generate fiber primitives");
 	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
 	
-	/* Clumping */
-	prop = RNA_def_property(srna, "use_clump_effect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "effects", MOD_STRANDS_EFFECT_CLUMP);
-	RNA_def_property_ui_text(prop, "Clump", "Hairs stick together and form bundles");
-	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
-	
-	prop = RNA_def_property(srna, "clump_thickness", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Clump Thickness", "Thickness of fully clumped strands");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
-	prop = RNA_def_property(srna, "clump_shape", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Clump Shape", "Tapering of the clump effect");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
-	/* Curl */
-	prop = RNA_def_property(srna, "use_curl_effect", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "effects", MOD_STRANDS_EFFECT_CURL);
-	RNA_def_property_ui_text(prop, "Curl", "Hairs form spirals");
-	RNA_def_property_update(prop, 0, "rna_StrandsModifier_shader_update");
-
-	prop = RNA_def_property(srna, "curl_thickness", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Curl Thickness", "Thickness of curls");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
-	prop = RNA_def_property(srna, "curl_shape", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Curl Shape", "Tapering of the curl effect");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "curl_radius", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
-	RNA_def_property_ui_text(prop, "Curl Radius", "Radius of curls");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
-	prop = RNA_def_property(srna, "curl_length", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0.0f, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.001f, 10.0f, 0.1f, 3);
-	RNA_def_property_ui_text(prop, "Curl Length", "Distance between two curls along the strand");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
 	/* Debugging */
 	prop = RNA_def_property(srna, "debug_value", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Debug Value", "Value for controlling debugging features");

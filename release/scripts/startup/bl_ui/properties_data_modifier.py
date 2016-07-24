@@ -902,22 +902,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Shader:")
         col.prop(md, "shader_model", text="")
-        
-        layout.separator()
-
-        box = layout.box()
-        box.prop(md, "use_clump_effect")
-        if md.use_clump_effect:
-            box.prop(md, "clump_thickness")
-            box.prop(md, "clump_shape")
-        
-        box = layout.box()
-        box.prop(md, "use_curl_effect")
-        if md.use_curl_effect:
-            box.prop(md, "curl_thickness")
-            box.prop(md, "curl_shape")
-            box.prop(md, "curl_radius")
-            box.prop(md, "curl_length")
 
         layout.separator()
 

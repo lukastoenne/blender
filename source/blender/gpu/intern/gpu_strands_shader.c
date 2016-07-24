@@ -102,11 +102,6 @@ static void get_defines(GPUStrandsShaderParams *params, char *defines)
 			break;
 	}
 	
-	if (params->effects & GPU_STRAND_EFFECT_CLUMP)
-		strcat(defines, "#define USE_EFFECT_CLUMPING\n");
-	if (params->effects & GPU_STRAND_EFFECT_CURL)
-		strcat(defines, "#define USE_EFFECT_CURL\n");
-	
 	if (params->use_geomshader) {
 		strcat(defines, "#define USE_GEOMSHADER\n");
 	}

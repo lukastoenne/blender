@@ -1562,13 +1562,11 @@ typedef struct StrandsModifierData {
 	
 	struct GPUDrawStrands *gpu_buffer;  /* draw data (runtime) */
 	
-	int effects;
 	float clump_thickness, clump_shape;
 	float curl_thickness, curl_shape, curl_radius, curl_length;
 	
 	int debug_value;                    /* debugging value */
 	float debug_scale;                  /* scale for debug vectors */
-	int pad2;
 } StrandsModifierData;
 
 /* StrandsModifierData.flag */
@@ -1594,12 +1592,6 @@ enum {
 enum {
 	MOD_STRANDS_FIBER_LINE = 0,
 	MOD_STRANDS_FIBER_RIBBON = 1,
-};
-
-/* StrandsModifierData.effects */
-enum {
-	MOD_STRANDS_EFFECT_CLUMP     = (1 << 0),
-	MOD_STRANDS_EFFECT_CURL         = (1 << 1),
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */
