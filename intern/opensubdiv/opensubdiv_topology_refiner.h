@@ -15,33 +15,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2016 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Sergey Sharybin.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef __BKE_WORLD_H__
-#define __BKE_WORLD_H__
 
-/** \file BKE_world.h
- *  \ingroup bke
- *  \since March 2001
- *  \author nzc
- */
+#ifndef __OPENSUBDIV_TOPOLOGY_REFINER_H__
+#define __OPENSUBDIV_TOPOLOGY_REFINER_H__
 
-struct Main;
-struct World;
+#include <opensubdiv/far/topologyRefiner.h>
 
-void BKE_world_free(struct World *sc);
-void BKE_world_init(struct World *wrld);
-struct World *add_world(struct Main *bmian, const char *name);
-struct World *BKE_world_copy(struct Main *bmain, struct World *wrld);
-struct World *localize_world(struct World *wrld);
-void BKE_world_make_local(struct Main *bmain, struct World *wrld, const bool lib_local);
+typedef struct OpenSubdiv_TopologyRefinerDescr {
+	OpenSubdiv::Far::TopologyRefiner *osd_refiner;
 
-#endif
+	/* TODO(sergey): For now only, need to find better place
+	 * after revisiting whole OSD drawing pipeline and Blender
+	 * integration.
+	 */
+	std::vector<float> uvs;
+} OpenSubdiv_TopologyRefinerDescr;
 
+#endif  /* __OPENSUBDIV_TOPOLOGY_REFINER_H__ */
