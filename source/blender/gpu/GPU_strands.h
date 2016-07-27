@@ -51,11 +51,6 @@ typedef enum GPUStrands_ShaderModel {
 	GPU_STRAND_SHADER_MARSCHNER,
 } GPUStrands_ShaderModel;
 
-typedef enum GPUStrands_Effects {
-	GPU_STRAND_EFFECT_CLUMP      = (1 << 0),
-	GPU_STRAND_EFFECT_CURL          = (1 << 1),
-} GPUStrands_Effects;
-
 typedef enum GPUStrands_FiberPrimitive {
 	GPU_STRANDS_FIBER_LINE = 0,
 	GPU_STRANDS_FIBER_RIBBON,
