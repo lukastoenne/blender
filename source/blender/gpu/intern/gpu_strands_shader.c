@@ -54,33 +54,7 @@
 
 #define MAX_DEFINES 1024
 
-struct GPUStrandsShader {
-	bool bound;
-	
-	GPUShader *shader;
-	GPUAttrib attributes[GPU_MAX_ATTRIB];
-	int num_attributes;
-	char *fragmentcode;
-	char *geometrycode;
-	char *vertexcode;
-	
-	GPUShader *debug_shader;
-	GPUAttrib debug_attributes[GPU_MAX_ATTRIB];
-	int num_debug_attributes;
-	char *debug_fragmentcode;
-	char *debug_geometrycode;
-	char *debug_vertexcode;
-};
-
-extern char datatoc_gpu_shader_strand_frag_glsl[];
-extern char datatoc_gpu_shader_strand_geom_glsl[];
-extern char datatoc_gpu_shader_strand_vert_glsl[];
-extern char datatoc_gpu_shader_strand_debug_frag_glsl[];
-extern char datatoc_gpu_shader_strand_debug_geom_glsl[];
-extern char datatoc_gpu_shader_strand_debug_vert_glsl[];
-extern char datatoc_gpu_shader_strand_util_glsl[];
-
-static void get_defines(GPUStrandsShaderParams *params, char *defines)
+static void get_defines(const GPUStrandsShaderParams *params, char *defines)
 {
 	switch (params->shader_model) {
 		case GPU_STRAND_SHADER_CLASSIC_BLENDER:
@@ -107,85 +81,142 @@ static void get_defines(GPUStrandsShaderParams *params, char *defines)
 	}
 }
 
-static void set_texture_uniforms(GPUShader *shader)
-{
-	GPU_shader_bind(shader);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.control_curves"), 0);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.control_points"), 1);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.control_normals"), 2);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.control_tangents"), 3);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.fiber_position"), 4);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.fiber_control_index"), 5);
-	GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "samplers.fiber_control_weight"), 6);
-	GPU_shader_unbind();
-}
-
-static void get_shader_attributes(GPUShader *shader, bool use_geomshader,
-                                  GPUAttrib *r_attributes, int *r_num_attributes)
-{
-	GPUAttrib *attr = r_attributes;
+/* XXX variant of GPUPass (plus attributes),
+ * all this will need reconsideration in 2.8 viewport code.
+ */
+typedef struct GPUStrandsPass {
+	struct GPUShader *shader;
+	char *vertexcode;
+	char *geometrycode;
+	char *fragmentcode;
 	
-	if (use_geomshader) {
-		/* position */
-		attr->index = -1; /* no explicit attribute, we use gl_Vertex for this */
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
-		++attr;
+	GPUAttrib attributes[GPU_MAX_ATTRIB];
+	int num_attributes;
+} GPUStrandsPass;
+
+typedef struct GPUAttribDecl {
+	const char *name;
+	int type;
+	int size;
+} GPUAttribDecl;
+
+typedef struct GPUTextureDecl {
+	const char *name;
+} GPUTextureDecl;
+
+static bool create_pass(GPUStrandsPass *pass, const GPUStrandsShaderParams *params,
+                        char *vertexcode, char *geometrycode, char *fragmentcode,
+                        const GPUAttribDecl *attrib_decls, const GPUTextureDecl *tex_decls)
+{
+	int flags = GPU_SHADER_FLAGS_NONE;
+	char defines[MAX_DEFINES] = "";
+	get_defines(params, defines);
+	
+	GPUShader *shader = GPU_shader_create_ex(vertexcode, fragmentcode, geometrycode, glsl_bvm_nodes_library,
+	                                         defines, 0, 0, 0, flags);
+	if (shader) {
+		pass->shader = shader;
+		pass->vertexcode = vertexcode;
+		pass->geometrycode = geometrycode;
+		pass->fragmentcode = fragmentcode;
 		
-		/* normal */
-		attr->index = GPU_shader_get_attribute(shader, "normal");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
-		++attr;
+		{
+			const GPUAttribDecl *decl = attrib_decls;
+			GPUAttrib *attr = pass->attributes;
+			pass->num_attributes = 0;
+			while (decl->name != NULL) {
+				attr->index = GPU_shader_get_attribute(shader, decl->name);
+				attr->info_index = -1;
+				attr->type = decl->type;
+				attr->size = decl->size;
+				
+				++decl;
+				++attr;
+				++pass->num_attributes;
+			}
+		}
 		
-		/* tangent */
-		attr->index = GPU_shader_get_attribute(shader, "tangent");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 3;
-		++attr;
+		{
+			GPU_shader_bind(shader);
+			const GPUTextureDecl *decl = tex_decls;
+			int i = 0;
+			while (decl->name != NULL) {
+				GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, decl->name), i);
+				
+				++decl;
+				++i;
+			}
+			GPU_shader_unbind();
+		}
 		
-		/* control_index */
-		attr->index = GPU_shader_get_attribute(shader, "control_index");
-		attr->info_index = -1;
-		attr->type = GL_UNSIGNED_INT;
-		attr->size = 4;
-		++attr;
-		
-		/* control_weight */
-		attr->index = GPU_shader_get_attribute(shader, "control_weight");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 4;
-		++attr;
-		
-		/* root_distance */
-		attr->index = GPU_shader_get_attribute(shader, "root_distance");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 2;
-		++attr;
+		return true;
 	}
 	else {
-		/* fiber_index */
-		attr->index = GPU_shader_get_attribute(shader, "fiber_index");
-		attr->info_index = -1;
-		attr->type = GL_UNSIGNED_INT;
-		attr->size = 1;
-		++attr;
-		
-		/* curve_param */
-		attr->index = GPU_shader_get_attribute(shader, "curve_param");
-		attr->info_index = -1;
-		attr->type = GL_FLOAT;
-		attr->size = 1;
-		++attr;
+		if (vertexcode)
+			MEM_freeN(vertexcode);
+		if (geometrycode)
+			MEM_freeN(geometrycode);
+		if (fragmentcode)
+			MEM_freeN(fragmentcode);
+		return false;
 	}
-	
-	*r_num_attributes = (int)(attr - r_attributes);
 }
+
+static void free_pass(GPUStrandsPass *pass)
+{
+	if (pass) {
+		if (pass->shader)
+			GPU_shader_free(pass->shader);
+		if (pass->vertexcode)
+			MEM_freeN(pass->vertexcode);
+		if (pass->geometrycode)
+			MEM_freeN(pass->geometrycode);
+		if (pass->fragmentcode)
+			MEM_freeN(pass->fragmentcode);
+	}
+}
+
+struct GPUStrandsShader {
+	bool bound;
+	
+	GPUStrandsPass shading_pass;
+	GPUStrandsPass debug_pass;
+};
+
+extern char datatoc_gpu_shader_strand_frag_glsl[];
+extern char datatoc_gpu_shader_strand_geom_glsl[];
+extern char datatoc_gpu_shader_strand_vert_glsl[];
+extern char datatoc_gpu_shader_strand_debug_frag_glsl[];
+extern char datatoc_gpu_shader_strand_debug_geom_glsl[];
+extern char datatoc_gpu_shader_strand_debug_vert_glsl[];
+extern char datatoc_gpu_shader_strand_util_glsl[];
+
+static const GPUAttribDecl fiber_geomshader_attributes[] = {
+    { "", GL_FLOAT, 3 }, /* no explicit attribute, we use gl_Vertex for this */
+    { "normal", GL_FLOAT, 3 },
+    { "tangent", GL_FLOAT, 3 },
+    { "control_index", GL_UNSIGNED_INT, 4 },
+    { "control_weight", GL_FLOAT, 4 },
+    { "root_distance", GL_FLOAT, 2 },
+    { NULL, 0, 0 }
+};
+
+static const GPUAttribDecl fiber_attributes[] = {
+    { "fiber_index", GL_UNSIGNED_INT, 1 },
+    { "curve_param", GL_FLOAT, 1 },
+    { NULL, 0, 0 }
+};
+
+static const GPUTextureDecl fiber_textures[] = {
+    { "samplers.control_curves" },
+    { "samplers.control_points" },
+    { "samplers.control_normals" },
+    { "samplers.control_tangents" },
+    { "samplers.fiber_position" },
+    { "samplers.fiber_control_index" },
+    { "samplers.fiber_control_weight" },
+    { NULL }
+};
 
 static char *codegen(const char *basecode, const char *nodecode)
 {
@@ -212,13 +243,6 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 {
 	bool use_geometry_shader = params->use_geomshader;
 	
-	char *vertex_basecode = datatoc_gpu_shader_strand_vert_glsl;
-	char *geometry_basecode = use_geometry_shader ? datatoc_gpu_shader_strand_geom_glsl : NULL;
-	char *fragment_basecode = datatoc_gpu_shader_strand_frag_glsl;
-	char *vertex_debug_basecode = datatoc_gpu_shader_strand_debug_vert_glsl;
-	char *geometry_debug_basecode = datatoc_gpu_shader_strand_debug_geom_glsl;
-	char *fragment_debug_basecode = datatoc_gpu_shader_strand_debug_frag_glsl;
-	
 	char *nodecode;
 	if (params->nodes) {
 		nodecode = BVM_gen_hair_deform_function_glsl(params->nodes, "displace_vertex");
@@ -235,57 +259,20 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 	
 	GPUStrandsShader *gpu_shader = MEM_callocN(sizeof(GPUStrandsShader), "GPUStrands");
 	
-	int flags = GPU_SHADER_FLAGS_NONE;
-	char defines[MAX_DEFINES] = "";
-	get_defines(params, defines);
-	
 	/* Main shader */
-	char *vertexcode = codegen(vertex_basecode, nodecode);
-	char *geometrycode = codegen(geometry_basecode, NULL);
-	char *fragmentcode = codegen(fragment_basecode, NULL);
-	GPUShader *shader = GPU_shader_create_ex(vertexcode, fragmentcode, geometrycode, glsl_bvm_nodes_library,
-	                                         defines, 0, 0, 0, flags);
-	if (shader) {
-		gpu_shader->shader = shader;
-		gpu_shader->vertexcode = vertexcode;
-		gpu_shader->geometrycode = geometrycode;
-		gpu_shader->fragmentcode = fragmentcode;
-		
-		set_texture_uniforms(shader);
-		get_shader_attributes(shader, use_geometry_shader, gpu_shader->attributes, &gpu_shader->num_attributes);
-	}
-	else {
-		if (vertexcode)
-			MEM_freeN(vertexcode);
-		if (geometrycode)
-			MEM_freeN(geometrycode);
-		if (fragmentcode)
-			MEM_freeN(fragmentcode);
-	}
+	const GPUAttribDecl *attributes = use_geometry_shader ? fiber_geomshader_attributes : fiber_attributes;
+	create_pass(&gpu_shader->shading_pass, params,
+	            codegen(datatoc_gpu_shader_strand_vert_glsl, nodecode),
+	            use_geometry_shader ? codegen(datatoc_gpu_shader_strand_geom_glsl, NULL) : NULL,
+	            codegen(datatoc_gpu_shader_strand_frag_glsl, NULL),
+	            attributes, fiber_textures);
 	
 	/* Debug shader */
-	char *debug_vertexcode = codegen(vertex_debug_basecode, nodecode);
-	char *debug_geometrycode = codegen(geometry_debug_basecode, NULL);
-	char *debug_fragmentcode = codegen(fragment_debug_basecode, NULL);
-	GPUShader *debug_shader = GPU_shader_create_ex(debug_vertexcode, debug_fragmentcode, debug_geometrycode, glsl_bvm_nodes_library,
-	                                         defines, 0, 0, 0, flags);
-	if (debug_shader) {
-		gpu_shader->debug_shader = debug_shader;
-		gpu_shader->debug_vertexcode = debug_vertexcode;
-		gpu_shader->debug_geometrycode = debug_geometrycode;
-		gpu_shader->debug_fragmentcode = debug_fragmentcode;
-		
-		set_texture_uniforms(debug_shader);
-		get_shader_attributes(debug_shader, false, gpu_shader->debug_attributes, &gpu_shader->num_debug_attributes);
-	}
-	else {
-		if (debug_vertexcode)
-			MEM_freeN(debug_vertexcode);
-		if (debug_geometrycode)
-			MEM_freeN(debug_geometrycode);
-		if (debug_fragmentcode)
-			MEM_freeN(debug_fragmentcode);
-	}
+	create_pass(&gpu_shader->debug_pass, params,
+	            codegen(datatoc_gpu_shader_strand_debug_vert_glsl, nodecode),
+	            codegen(datatoc_gpu_shader_strand_debug_geom_glsl, NULL),
+	            codegen(datatoc_gpu_shader_strand_debug_frag_glsl, NULL),
+	            fiber_attributes, fiber_textures);
 	
 	/* gets included in shader code */
 	if (nodecode)
@@ -296,23 +283,8 @@ GPUStrandsShader *GPU_strand_shader_create(GPUStrandsShaderParams *params)
 
 void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 {
-	if (gpu_shader->shader)
-		GPU_shader_free(gpu_shader->shader);
-	if (gpu_shader->vertexcode)
-		MEM_freeN(gpu_shader->vertexcode);
-	if (gpu_shader->geometrycode)
-		MEM_freeN(gpu_shader->geometrycode);
-	if (gpu_shader->fragmentcode)
-		MEM_freeN(gpu_shader->fragmentcode);
-	
-	if (gpu_shader->debug_shader)
-		GPU_shader_free(gpu_shader->debug_shader);
-	if (gpu_shader->debug_vertexcode)
-		MEM_freeN(gpu_shader->debug_vertexcode);
-	if (gpu_shader->debug_geometrycode)
-		MEM_freeN(gpu_shader->debug_geometrycode);
-	if (gpu_shader->debug_fragmentcode)
-		MEM_freeN(gpu_shader->debug_fragmentcode);
+	free_pass(&gpu_shader->shading_pass);
+	free_pass(&gpu_shader->debug_pass);
 	
 	MEM_freeN(gpu_shader);
 }
@@ -322,15 +294,15 @@ void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
                       float ribbon_width,
                       int debug_value, float debug_scale)
 {
-	GPUShader *shader = (debug_value == 0) ? strand_shader->shader : strand_shader->debug_shader;
-	if (!shader)
+	GPUStrandsPass *pass = (debug_value == 0) ? &strand_shader->shading_pass : &strand_shader->debug_pass;
+	if (!pass->shader)
 		return;
 
-	GPU_shader_bind(shader);
-	glUniform1f(GPU_shader_get_uniform(shader, "ribbon_width"), ribbon_width);
-	glUniform1i(GPU_shader_get_uniform(shader, "debug_mode"), debug_value != 0);
-	glUniform1i(GPU_shader_get_uniform(shader, "debug_value"), debug_value);
-	glUniform1f(GPU_shader_get_uniform(shader, "debug_scale"), debug_scale);
+	GPU_shader_bind(pass->shader);
+	glUniform1f(GPU_shader_get_uniform(pass->shader, "ribbon_width"), ribbon_width);
+	glUniform1i(GPU_shader_get_uniform(pass->shader, "debug_mode"), debug_value != 0);
+	glUniform1i(GPU_shader_get_uniform(pass->shader, "debug_value"), debug_value);
+	glUniform1f(GPU_shader_get_uniform(pass->shader, "debug_scale"), debug_scale);
 
 	strand_shader->bound = true;
 
@@ -340,7 +312,7 @@ void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
 void GPU_strand_shader_bind_uniforms(GPUStrandsShader *gpu_shader,
                                      float obmat[4][4], float viewmat[4][4])
 {
-	if (!gpu_shader->shader)
+	if (!gpu_shader->shading_pass.shader)
 		return;
 	
 	UNUSED_VARS(obmat, viewmat);
@@ -360,12 +332,7 @@ bool GPU_strand_shader_bound(GPUStrandsShader *gpu_shader)
 void GPU_strand_shader_get_fiber_attributes(GPUStrandsShader *gpu_shader, bool debug,
                                             GPUAttrib **r_attrib, int *r_num)
 {
-	if (!debug) {
-		if (r_attrib) *r_attrib = gpu_shader->attributes;
-		if (r_num) *r_num = gpu_shader->num_attributes;
-	}
-	else {
-		if (r_attrib) *r_attrib = gpu_shader->debug_attributes;
-		if (r_num) *r_num = gpu_shader->num_debug_attributes;
-	}
+	GPUStrandsPass *pass = (!debug) ? &gpu_shader->shading_pass : &gpu_shader->debug_pass;
+	if (r_attrib) *r_attrib = pass->attributes;
+	if (r_num) *r_num = pass->num_attributes;
 }
