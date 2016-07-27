@@ -1562,9 +1562,6 @@ typedef struct StrandsModifierData {
 	
 	struct GPUDrawStrands *gpu_buffer;  /* draw data (runtime) */
 	
-	float clump_thickness, clump_shape;
-	float curl_thickness, curl_shape, curl_radius, curl_length;
-	
 	int debug_value;                    /* debugging value */
 	float debug_scale;                  /* scale for debug vectors */
 } StrandsModifierData;

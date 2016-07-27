@@ -320,8 +320,6 @@ void GPU_strand_shader_free(struct GPUStrandsShader *gpu_shader)
 void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
                       float viewmat[4][4], float viewinv[4][4],
                       float ribbon_width,
-                      float clump_thickness, float clump_shape,
-                      float curl_thickness, float curl_shape, float curl_radius, float curl_length,
                       int debug_value, float debug_scale)
 {
 	GPUShader *shader = (debug_value == 0) ? strand_shader->shader : strand_shader->debug_shader;
@@ -330,12 +328,6 @@ void GPU_strand_shader_bind(GPUStrandsShader *strand_shader,
 
 	GPU_shader_bind(shader);
 	glUniform1f(GPU_shader_get_uniform(shader, "ribbon_width"), ribbon_width);
-	glUniform1f(GPU_shader_get_uniform(shader, "clump_thickness"), clump_thickness);
-	glUniform1f(GPU_shader_get_uniform(shader, "clump_shape"), clump_shape);
-	glUniform1f(GPU_shader_get_uniform(shader, "curl_thickness"), curl_thickness);
-	glUniform1f(GPU_shader_get_uniform(shader, "curl_shape"), curl_shape);
-	glUniform1f(GPU_shader_get_uniform(shader, "curl_radius"), curl_radius);
-	glUniform1f(GPU_shader_get_uniform(shader, "curl_length"), curl_length);
 	glUniform1i(GPU_shader_get_uniform(shader, "debug_mode"), debug_value != 0);
 	glUniform1i(GPU_shader_get_uniform(shader, "debug_value"), debug_value);
 	glUniform1f(GPU_shader_get_uniform(shader, "debug_scale"), debug_scale);

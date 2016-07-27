@@ -70,8 +70,6 @@ void GPU_strand_shader_bind(
         GPUStrandsShader *gpu_shader,
         float viewmat[4][4], float viewinv[4][4],
         float ribbon_width,
-        float clump_thickness, float clump_shape,
-        float curl_thickness, float curl_shape, float curl_radius, float curl_length,
         int debug_value, float debug_scale);
 void GPU_strand_shader_bind_uniforms(
         GPUStrandsShader *gpu_shader,

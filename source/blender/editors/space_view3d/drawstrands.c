@@ -97,8 +97,6 @@ static void bind_strands_shader(GPUStrandsShader *shader, RegionView3D *rv3d,
 	GPU_strand_shader_bind_uniforms(shader, ob->obmat, rv3d->viewmat);
 	GPU_strand_shader_bind(shader, rv3d->viewmat, rv3d->viewinv,
 	                       smd->ribbon_width,
-	                       smd->clump_thickness, smd->clump_shape,
-	                       smd->curl_thickness, smd->curl_shape, smd->curl_radius, smd->curl_length,
 	                       debug_value, smd->debug_scale);
 }
 

@@ -68,13 +68,6 @@ static void initData(ModifierData *md)
 	
 	smd->ribbon_width = 0.005f;
 	
-	smd->clump_thickness = 0.1f;
-	smd->clump_shape = 1.0f;
-	smd->curl_thickness = 0.1f;
-	smd->curl_shape = 1.0f;
-	smd->curl_radius = 0.3f;
-	smd->curl_length = 0.3f;
-	
 	smd->debug_scale = 1.0f;
 }
 
