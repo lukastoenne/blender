@@ -1105,6 +1105,11 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Brush", "Active Brush");
 	RNA_def_property_update(prop, 0, "rna_HairEdit_brush_update");
 
+	prop = RNA_def_property(srna, "show_brush", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_SHOW_BRUSH);
+	RNA_def_property_ui_text(prop, "Show Brush", "");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
 	prop = RNA_def_property(srna, "select_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "select_mode");
 	RNA_def_property_enum_items(prop, select_mode_items);
