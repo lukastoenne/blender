@@ -1053,6 +1053,7 @@ typedef enum HairEditSelectMode {
 
 /* HairEditSettings->flag */
 typedef enum HairEditFlag {
+	HAIR_EDIT_SHOW_BRUSH    = (1 << 0),
 	HAIR_EDIT_SHOW_DEBUG    = (1 << 16),
 } HairEditFlag;
 
