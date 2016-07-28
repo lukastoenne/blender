@@ -160,8 +160,30 @@ void free_collider_cache(struct ListBase **colliders);
 /////////////////////////////////////////////////
 
 
+typedef struct CollisionContactPoint {
+	float point_world_a[3];
+	float point_world_b[3];
+	float normal_world_b[3];
+	float distance;
+	float friction, rolling_friction, restitution;
+	int part_id_a, part_id_b;
+	int index_a, index_b;
+	int lifetime;
+} CollisionContactPoint;
 
-/////////////////////////////////////////////////
+typedef struct CollisionContactCache {
+	struct BLI_mempool *points;
+} CollisionContactCache;
+
+struct CollisionContactCache *BKE_collision_cache_create(void);
+void BKE_collision_cache_free(struct CollisionContactCache *cache);
+
+CollisionContactPoint *BKE_collision_cache_add(struct CollisionContactCache *cache,
+                                               int index_a, int index_b,
+                                               int part_id_a, int part_id_b);
+
+#define BKE_COLLISION_ITER_CONTACTS(point, iter, cache) \
+	for (BLI_mempool_iternew(cache->points, iter); (point = BLI_mempool_iterstep(iter)); )
 
 #endif
 

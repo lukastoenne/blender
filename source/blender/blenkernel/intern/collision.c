@@ -43,6 +43,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_mempool.h"
 #include "BLI_edgehash.h"
 
 #include "BKE_cloth.h"
@@ -1432,4 +1433,34 @@ void cloth_free_contacts(ColliderContacts *collider_contacts, int totcolliders)
 		}
 		MEM_freeN(collider_contacts);
 	}
+}
+
+/////////////////////////////////////////////////
+
+
+CollisionContactCache *BKE_collision_cache_create(void)
+{
+	CollisionContactCache *cache = MEM_callocN(sizeof(CollisionContactCache), "CollisionContactCache");
+	cache->points = BLI_mempool_create(sizeof(CollisionContactPoint), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
+	return cache;
+}
+
+void BKE_collision_cache_free(CollisionContactCache *cache)
+{
+	if (cache) {
+		BLI_mempool_destroy(cache->points);
+		MEM_freeN(cache);
+	}
+}
+
+CollisionContactPoint *BKE_collision_cache_add(CollisionContactCache *cache,
+                                               int index_a, int index_b,
+                                               int part_id_a, int part_id_b)
+{
+	CollisionContactPoint *pt = BLI_mempool_calloc(cache->points);
+	pt->index_a = index_a;
+	pt->index_b = index_b;
+	pt->part_id_a = part_id_a;
+	pt->part_id_b = part_id_b;
+	return pt;
 }
