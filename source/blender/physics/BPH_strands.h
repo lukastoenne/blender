@@ -32,10 +32,11 @@
 extern "C" {
 #endif
 
-struct Object;
 struct BMEditStrands;
+struct Object;
+struct Scene;
 
-void BPH_strands_solve_constraints(struct Object *ob, struct BMEditStrands *es, float (*orig)[3]);
+void BPH_strands_solve_constraints(struct Scene *scene, struct Object *ob, struct BMEditStrands *es, float (*orig)[3]);
 
 #ifdef __cplusplus
 }

@@ -41,8 +41,10 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_bvhutils.h"
+#include "BKE_collision.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
@@ -221,11 +223,82 @@ void BKE_editstrands_free_locations(BMEditStrandsLocations locs)
 	MEM_freeN(locs);
 }
 
-void BKE_editstrands_solve_constraints(Object *ob, BMEditStrands *es, BMEditStrandsLocations orig)
+static void get_dm_collision_contacts(BMEditStrands *edit, float obmat[4][4],
+                                      DerivedMesh *dm, float dm_obmat[4][4], int collider_index,
+                                      CollisionContactCache *cache)
+{
+	BMesh *bm = edit->base.bm;
+	BVHTreeFromMesh treedata = {NULL};
+	
+	bvhtree_from_mesh_looptri(&treedata, dm, 0.0, 2, 6);
+	if (!treedata.tree)
+		return;
+	
+	/* Vertices must be transformed to DM space for lookups.
+	 * Results are then transformed to world space.
+	 */
+	float dm_imat[4][4];
+	invert_m4_m4(dm_imat, dm_obmat);
+	float vertmat[4][4];
+	mul_m4_m4m4(vertmat, dm_imat, obmat);
+	
+	BMIter iter;
+	BMVert *vert;
+	int vert_index;
+	BM_ITER_MESH_INDEX(vert, &iter, bm, BM_VERTS_OF_MESH, vert_index) {
+		BVHTreeNearest nearest;
+		nearest.index = -1;
+		nearest.dist_sq = FLT_MAX;
+		
+		float co[3];
+		mul_v3_m4v3(co, vertmat, vert->co);
+		
+		float radius = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_RADIUS);
+		
+		BLI_bvhtree_find_nearest(treedata.tree, co, &nearest, treedata.nearest_callback, &treedata);
+		
+		if (nearest.index != -1) {
+			CollisionContactPoint *pt = BKE_collision_cache_add(cache, 0, collider_index,
+			                                                    vert_index, nearest.index);
+			mul_v3_m4v3(pt->point_world_a, dm_imat, co);
+			mul_v3_m4v3(pt->point_world_b, dm_imat, nearest.co);
+			mul_v3_mat3_m4v3(pt->normal_world_b, dm_imat, nearest.no);
+			
+			float vec[3];
+			sub_v3_v3v3(vec, co, nearest.co);
+			mul_mat3_m4_v3(dm_imat, vec);
+			float dist = len_v3(vec);
+			if (dot_v3v3(vec, nearest.no) >= 0.0f)
+				pt->distance = dist - radius;
+			else
+				pt->distance = -dist - radius;
+		}
+	}
+	
+	free_bvhtree_from_mesh(&treedata);
+}
+
+void BKE_editstrands_get_collision_contacts(Scene *scene, Object *ob, BMEditStrands *edit,
+                                            CollisionContactCache *cache)
+{
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
+	if (settings->flag & HAIR_EDIT_DEFLECT_SCALP) {
+		DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+		get_dm_collision_contacts(edit, ob->obmat, dm, ob->obmat, 0, cache);
+	}
+	
+	if (settings->deflect_group) {
+		/* TODO add collision group contacts */
+		/* ... */
+	}
+}
+
+void BKE_editstrands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *es, BMEditStrandsLocations orig)
 {
 	BKE_editstrands_ensure(es);
 	
-	BPH_strands_solve_constraints(ob, es, orig);
+	BPH_strands_solve_constraints(scene, ob, es, orig);
 }
 
 static void editstrands_calc_segment_lengths(BMesh *bm)

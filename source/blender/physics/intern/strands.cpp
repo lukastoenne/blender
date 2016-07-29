@@ -36,8 +36,10 @@ extern "C" {
 
 #include "DNA_customdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_bvhutils.h"
+#include "BKE_collision.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
@@ -410,8 +412,10 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 	}
 }
 
-void BPH_strands_solve_constraints(Object *ob, BMEditStrands *edit, float (*orig)[3])
+void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
+	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	
 	strands_apply_root_locations(edit);
 	
 	if (true) {
@@ -420,5 +424,15 @@ void BPH_strands_solve_constraints(Object *ob, BMEditStrands *edit, float (*orig
 	else {
 		if (orig)
 			strands_solve_inverse_kinematics(ob, edit, orig);
+	}
+	
+	
+	/* Deflection */
+	if (settings->flag & HAIR_EDIT_USE_DEFLECT) {
+		CollisionContactCache *contacts = BKE_collision_cache_create();
+		
+		BKE_editstrands_get_collision_contacts(scene, ob, edit, contacts);
+		
+		BKE_collision_cache_free(contacts);
 	}
 }

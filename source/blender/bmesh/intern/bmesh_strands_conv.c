@@ -51,6 +51,7 @@ const char *CD_HAIR_SEGMENT_LENGTH = "HAIR_SEGMENT_LENGTH";
 const char *CD_HAIR_MASS = "HAIR_MASS";
 const char *CD_HAIR_WEIGHT = "HAIR_WEIGHT";
 const char *CD_HAIR_ROOT_LOCATION = "HAIR_ROOT_LOCATION";
+const char *CD_HAIR_RADIUS = "HAIR_RADIUS";
 
 /* ------------------------------------------------------------------------- */
 
@@ -89,6 +90,9 @@ void BM_strands_cd_flag_apply(BMesh *bm, const char UNUSED(cd_flag))
 	}
 	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH) < 0) {
 		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+	}
+	if (CustomData_get_named_layer_index(&bm->vdata, CD_PROP_FLT, CD_HAIR_RADIUS) < 0) {
+		BM_data_layer_add_named(bm, &bm->vdata, CD_PROP_FLT, CD_HAIR_RADIUS);
 	}
 }
 
