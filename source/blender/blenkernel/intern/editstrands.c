@@ -258,20 +258,23 @@ static void get_dm_collision_contacts(BMEditStrands *edit, float obmat[4][4],
 		BLI_bvhtree_find_nearest(treedata.tree, co, &nearest, treedata.nearest_callback, &treedata);
 		
 		if (nearest.index != -1) {
-			CollisionContactPoint *pt = BKE_collision_cache_add(cache, 0, collider_index,
-			                                                    vert_index, nearest.index);
-			mul_v3_m4v3(pt->point_world_a, dm_imat, co);
-			mul_v3_m4v3(pt->point_world_b, dm_imat, nearest.co);
-			mul_v3_mat3_m4v3(pt->normal_world_b, dm_imat, nearest.no);
-			
-			float vec[3];
+			float vec[3], dir[3];
 			sub_v3_v3v3(vec, co, nearest.co);
 			mul_mat3_m4_v3(dm_imat, vec);
-			float dist = len_v3(vec);
-			if (dot_v3v3(vec, nearest.no) >= 0.0f)
-				pt->distance = dist - radius;
-			else
-				pt->distance = -dist - radius;
+			float dist = normalize_v3_v3(dir, vec);
+			if (dot_v3v3(vec, nearest.no) < 0.0f || dist < radius) {
+				CollisionContactPoint *pt = BKE_collision_cache_add(cache, 0, collider_index,
+				                                                    vert_index, nearest.index);
+				
+				/* contact point on an implicit sphere around the vertex */
+				float sphere_co[3];
+				madd_v3_v3v3fl(sphere_co, co, dir, -radius);
+				
+				mul_v3_m4v3(pt->point_world_a, dm_imat, sphere_co);
+				mul_v3_m4v3(pt->point_world_b, dm_imat, nearest.co);
+				mul_v3_mat3_m4v3(pt->normal_world_b, dm_imat, nearest.no);
+				pt->distance = len_v3v3(pt->point_world_a, pt->point_world_b);
+			}
 		}
 	}
 	
