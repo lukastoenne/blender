@@ -324,6 +324,11 @@ static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
 static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
+/* Geometry Shader Component Defines ====================== */
+
+DEG_DEPSNODE_DEFINE(GeometryShaderComponentDepsNode, DEPSNODE_TYPE_GEOMETRY_SHADER, "Geometry Shader Component");
+static DepsNodeFactoryImpl<GeometryShaderComponentDepsNode> DNTI_GEOMETRY_SHADER;
+
 /* Sequencer Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
@@ -376,6 +381,7 @@ void deg_register_component_depsnodes()
 	deg_register_node_typeinfo(&DNTI_ANIMATION);
 	deg_register_node_typeinfo(&DNTI_TRANSFORM);
 	deg_register_node_typeinfo(&DNTI_GEOMETRY);
+	deg_register_node_typeinfo(&DNTI_GEOMETRY_SHADER);
 	deg_register_node_typeinfo(&DNTI_SEQUENCER);
 
 	deg_register_node_typeinfo(&DNTI_EVAL_POSE);

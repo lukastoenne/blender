@@ -397,6 +397,7 @@ static void deg_debug_graphviz_node(const DebugContext &ctx,
 		case DEPSNODE_TYPE_TRANSFORM:
 		case DEPSNODE_TYPE_PROXY:
 		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_GEOMETRY_SHADER:
 		case DEPSNODE_TYPE_SEQUENCER:
 		case DEPSNODE_TYPE_EVAL_POSE:
 		case DEPSNODE_TYPE_BONE:
@@ -440,6 +441,7 @@ static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 		case DEPSNODE_TYPE_TRANSFORM:
 		case DEPSNODE_TYPE_PROXY:
 		case DEPSNODE_TYPE_GEOMETRY:
+		case DEPSNODE_TYPE_GEOMETRY_SHADER:
 		case DEPSNODE_TYPE_SEQUENCER:
 		case DEPSNODE_TYPE_EVAL_POSE:
 		case DEPSNODE_TYPE_BONE:

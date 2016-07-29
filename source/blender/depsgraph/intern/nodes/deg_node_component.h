@@ -188,6 +188,10 @@ struct SequencerComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
+struct GeometryShaderComponentDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
 struct PoseComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };

@@ -251,14 +251,19 @@ void IDDepsNode::tag_update(Depsgraph *graph)
 	GHASH_FOREACH_BEGIN(ComponentDepsNode *, comp_node, components)
 	{
 		/* TODO(sergey): What about drievrs? */
-		bool do_component_tag = comp_node->type != DEPSNODE_TYPE_ANIMATION;
-		if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
+		bool do_component_tag;
+		if (comp_node->type == DEPSNODE_TYPE_GEOMETRY_SHADER) {
+			do_component_tag = false;
+		}
+		else if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
 			AnimData *adt = BKE_animdata_from_id(id);
 			/* Animation data might be null if relations are tagged for update. */
-			if (adt != NULL && (adt->recalc & ADT_RECALC_ANIM)) {
-				do_component_tag = true;
-			}
+			do_component_tag = (adt != NULL) && (adt->recalc & ADT_RECALC_ANIM);
 		}
+		else {
+			do_component_tag = true;
+		}
+		
 		if (do_component_tag) {
 			comp_node->tag_update(graph);
 		}

@@ -1040,7 +1040,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *
 			/* XXX placeholder operation until the future granularity design is sorted out */
 			if (md->type == eModifierType_Strands) {
 				StrandsModifierData *smd = (StrandsModifierData *)md;
-				add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+				add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY_SHADER,
 				                   DEPSOP_TYPE_EXEC, function_bind(BKE_strands_shader_update, _1, ob, smd),
 				                   DEG_OPCODE_GEOMETRY_STRANDS_SHADER, md->name);
 			}

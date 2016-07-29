@@ -122,6 +122,8 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_GEOMETRY         = 15,
 	/* Sequencer Component (Scene Only) */
 	DEPSNODE_TYPE_SEQUENCER        = 16,
+	/* Geometry Shader Component (object-specific shader cache) */
+	DEPSNODE_TYPE_GEOMETRY_SHADER  = 17,
 
 	/* **** Evaluation-Related Outer Types (with Subdata) **** */
 

@@ -1755,7 +1755,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 
 			/* XXX placeholder operation until the future granularity design is sorted out */
 			if (md->type == eModifierType_Strands) {
-				OperationKey shader_update_key(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+				OperationKey shader_update_key(&ob->id, DEPSNODE_TYPE_GEOMETRY_SHADER,
 				                               DEG_OPCODE_GEOMETRY_STRANDS_SHADER, md->name);
 				RelationBuilderHandle strands_handle(this, find_node(shader_update_key));
 				
