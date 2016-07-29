@@ -649,6 +649,9 @@ void BKE_scene_init(Scene *sce)
 	}
 	pset->brush[PE_BRUSH_CUT].strength = 1.0f;
 
+	HairEditSettings *hair_settings = &sce->toolsettings->hair_edit;
+	hair_settings->flag |= HAIR_EDIT_SHOW_BRUSH | HAIR_EDIT_USE_DEFLECT | HAIR_EDIT_DEFLECT_SCALP;
+
 	sce->r.ffcodecdata.audio_mixrate = 48000;
 	sce->r.ffcodecdata.audio_volume = 1.0f;
 	sce->r.ffcodecdata.audio_bitrate = 192;

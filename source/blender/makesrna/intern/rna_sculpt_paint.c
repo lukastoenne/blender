@@ -407,7 +407,7 @@ static char *rna_HairEdit_path(PointerRNA *UNUSED(ptr))
 	return BLI_strdup("tool_settings.hair_edit");
 }
 
-static void rna_HairEdit_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
+static void UNUSED_FUNCTION(rna_HairEdit_update)(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
 	Object *ob = OBACT;
 
@@ -1114,12 +1114,32 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "select_mode");
 	RNA_def_property_enum_items(prop, select_mode_items);
 	RNA_def_property_ui_text(prop, "Selection Mode", "Hair selection mode");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_HairEdit_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
 	prop = RNA_def_property(srna, "shape_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Shape Object", "Outer shape to use for tools");
-	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_HairEdit_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_deflect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_USE_DEFLECT);
+	RNA_def_property_ui_text(prop, "Deflect", "Enable deflection of hair");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "use_deflect_scalp", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_DEFLECT_SCALP);
+	RNA_def_property_ui_text(prop, "Deflect", "Enable deflection from the scalp mesh");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "deflect_group", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Deflect Group", "Collision group for deflecting hair");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "show_debug", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_SHOW_DEBUG);
+	RNA_def_property_ui_text(prop, "Show Debug", "Enable debugging visualization");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 
 void RNA_def_sculpt_paint(BlenderRNA *brna)

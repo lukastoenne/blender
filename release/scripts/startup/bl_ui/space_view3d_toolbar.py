@@ -1964,11 +1964,11 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
             sub.prop(pe, "fade_frames", slider=True)
 
 
-class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
+class VIEW3D_PT_hairmode_tools(View3DPanel, Panel):
     """Tools for hair mode"""
     bl_context = "hairmode"
     bl_label = "Options"
-    bl_category = "Tools"
+    bl_category = "Options"
 
     def draw(self, context):
         layout = self.layout
@@ -1976,9 +1976,51 @@ class VIEW3D_PT_tools_hairmode(View3DPanel, Panel):
         settings = context.tool_settings.hair_edit
         ob = context.active_object
 
+        col = layout.column(align=True)
         if ob.data:
-            col = layout.column(align=True)
             col.prop(ob.data, "use_mirror_x")
+
+
+class VIEW3D_PT_hairmode_deflect(View3DPanel, Panel):
+    """Deflection settings for hair mode"""
+    bl_context = "hairmode"
+    bl_label = "Deflect"
+    bl_category = "Options"
+
+    def draw_header(self, context):
+        settings = context.tool_settings.hair_edit
+        self.layout.prop(settings, "use_deflect", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = context.tool_settings.hair_edit
+        ob = context.active_object
+
+        layout.active = settings.use_deflect
+
+        col = layout.column(align=True)
+        col.prop(settings, "use_deflect_scalp")
+        col.prop(settings, "deflect_group")
+
+
+class VIEW3D_PT_hairmode_debug(View3DPanel, Panel):
+    """Debug visualization for hair mode"""
+    bl_context = "hairmode"
+    bl_label = "Debug"
+    bl_category = "Options"
+
+    def draw_header(self, context):
+        settings = context.tool_settings.hair_edit
+        self.layout.prop(settings, "show_debug", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = context.tool_settings.hair_edit
+        ob = context.active_object
+
+        layout.active = settings.show_debug
 
 
 # Grease Pencil drawing tools

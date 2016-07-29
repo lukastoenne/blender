@@ -5645,6 +5645,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 					hair_edit->brush = newlibadr(fd, sce->id.lib, hair_edit->brush);
 				if (hair_edit->shape_object)
 					hair_edit->shape_object = newlibadr(fd, sce->id.lib, hair_edit->shape_object);
+				if (hair_edit->deflect_group)
+					hair_edit->deflect_group = newlibadr(fd, sce->id.lib, hair_edit->deflect_group);
 			}
 			
 			for (base = sce->base.first; base; base = next) {
