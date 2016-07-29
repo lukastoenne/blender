@@ -1053,10 +1053,11 @@ typedef enum HairEditSelectMode {
 
 /* HairEditSettings->flag */
 typedef enum HairEditFlag {
-	HAIR_EDIT_SHOW_BRUSH    = (1 << 0),
-	HAIR_EDIT_USE_DEFLECT   = (1 << 8),
-	HAIR_EDIT_DEFLECT_SCALP = (1 << 9),
-	HAIR_EDIT_SHOW_DEBUG    = (1 << 16),
+	HAIR_EDIT_SHOW_BRUSH            = (1 << 0),
+	HAIR_EDIT_USE_DEFLECT           = (1 << 8),
+	HAIR_EDIT_DEFLECT_SCALP         = (1 << 9),
+	HAIR_EDIT_SHOW_DEBUG            = (1 << 16),
+	HAIR_EDIT_SHOW_DEBUG_CONTACTS   = (1 << 17),
 } HairEditFlag;
 
 typedef struct HairEditSettings {

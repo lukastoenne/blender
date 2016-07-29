@@ -2022,6 +2022,8 @@ class VIEW3D_PT_hairmode_debug(View3DPanel, Panel):
 
         layout.active = settings.show_debug
 
+        layout.prop(settings, "show_debug_contacts", text="Contacts")
+
 
 # Grease Pencil drawing tools
 class VIEW3D_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):

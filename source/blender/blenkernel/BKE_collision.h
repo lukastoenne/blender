@@ -182,8 +182,9 @@ CollisionContactPoint *BKE_collision_cache_add(struct CollisionContactCache *cac
                                                int index_a, int index_b,
                                                int part_id_a, int part_id_b);
 
+#define CollisionContactIterator BLI_mempool_iter
 #define BKE_COLLISION_ITER_CONTACTS(point, iter, cache) \
-	for (BLI_mempool_iternew(cache->points, iter); (point = BLI_mempool_iterstep(iter)); )
+	for (BLI_mempool_iternew(cache->points, iter); (point = (CollisionContactPoint *)BLI_mempool_iterstep(iter)); )
 
 #endif
 

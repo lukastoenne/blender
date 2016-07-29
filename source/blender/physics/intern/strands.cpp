@@ -432,6 +432,15 @@ void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit
 		CollisionContactCache *contacts = BKE_collision_cache_create();
 		
 		BKE_editstrands_get_collision_contacts(scene, ob, edit, contacts);
+		if (settings->flag & HAIR_EDIT_SHOW_DEBUG &&
+		    settings->flag & HAIR_EDIT_SHOW_DEBUG_CONTACTS) {
+			CollisionContactIterator iter;
+			CollisionContactPoint *pt;
+			BKE_COLLISION_ITER_CONTACTS(pt, &iter, contacts) {
+				BKE_sim_debug_data_add_line(pt->point_world_a, pt->point_world_b, 0.95, 0.9, 0.1, "hair collision",
+				                            pt->index_a, pt->index_b, pt->part_id_a, pt->part_id_b);
+			}
+		}
 		
 		BKE_collision_cache_free(contacts);
 	}

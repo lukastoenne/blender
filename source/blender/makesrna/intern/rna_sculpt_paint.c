@@ -1140,6 +1140,11 @@ static void rna_def_hair_edit(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_SHOW_DEBUG);
 	RNA_def_property_ui_text(prop, "Show Debug", "Enable debugging visualization");
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+
+	prop = RNA_def_property(srna, "show_debug_contacts", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HAIR_EDIT_SHOW_DEBUG_CONTACTS);
+	RNA_def_property_ui_text(prop, "Show Debug Contacts", "Enable debugging deflection contacts");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 
 void RNA_def_sculpt_paint(BlenderRNA *brna)
