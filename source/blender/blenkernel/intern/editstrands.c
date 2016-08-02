@@ -207,6 +207,14 @@ BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)
 	BMesh *bm = edit->base.bm;
 	BMEditStrandsLocations locs = MEM_mallocN(3*sizeof(float) * bm->totvert, "editstrands locations");
 	
+	BKE_editstrands_update_locations(edit, locs);
+	
+	return locs;
+}
+
+void BKE_editstrands_update_locations(struct BMEditStrands *edit, BMEditStrandsLocations locs)
+{
+	BMesh *bm = edit->base.bm;
 	BMVert *v;
 	BMIter iter;
 	int i;
@@ -214,8 +222,6 @@ BMEditStrandsLocations BKE_editstrands_get_locations(BMEditStrands *edit)
 	BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, i) {
 		copy_v3_v3(locs[i], v->co);
 	}
-	
-	return locs;
 }
 
 void BKE_editstrands_free_locations(BMEditStrandsLocations locs)

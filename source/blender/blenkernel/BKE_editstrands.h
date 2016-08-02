@@ -87,6 +87,7 @@ bool BKE_editstrands_get_matrix(struct BMEditStrands *edit, struct BMVert *curve
  */
 typedef float (*BMEditStrandsLocations)[3];
 BMEditStrandsLocations BKE_editstrands_get_locations(struct BMEditStrands *edit);
+void BKE_editstrands_update_locations(struct BMEditStrands *edit, BMEditStrandsLocations locs);
 void BKE_editstrands_free_locations(BMEditStrandsLocations locs);
 
 void BKE_editstrands_get_collision_contacts(struct Scene *scene, struct Object *ob, struct BMEditStrands *edit,

@@ -342,14 +342,18 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	mul_m4_v3(tool_data.imat, tool_data.loc);
 	mul_mat3_m4_v3(tool_data.imat, tool_data.delta);
 
+	BMEditStrandsLocations locs = BKE_editstrands_get_locations(edit);
 	for (step = 0; step < totsteps; ++step) {
 		bool step_updated = hair_brush_step(&tool_data);
 		
-		if (step_updated)
-			BKE_editstrands_solve_constraints(scene, ob, edit, NULL);
+		if (step_updated) {
+			BKE_editstrands_solve_constraints(scene, ob, edit, locs);
+			BKE_editstrands_update_locations(edit, locs);
+		}
 		
 		updated |= step_updated;
 	}
+	BKE_editstrands_free_locations(locs);
 	
 	copy_v2_v2(stroke->lastmouse, mouse);
 	

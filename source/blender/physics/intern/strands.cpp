@@ -415,6 +415,7 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
+	BLI_assert(orig);
 	
 	strands_apply_root_locations(edit);
 	
@@ -422,8 +423,7 @@ void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit
 		strands_solve_edge_relaxation(edit);
 	}
 	else {
-		if (orig)
-			strands_solve_inverse_kinematics(ob, edit, orig);
+		strands_solve_inverse_kinematics(ob, edit, orig);
 	}
 	
 	
