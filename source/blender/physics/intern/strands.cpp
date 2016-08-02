@@ -56,6 +56,10 @@ extern "C" {
 
 /* === constraints === */
 
+//#define STRAND_CONSTRAINT_EDGERELAX
+//#define STRAND_CONSTRAINT_IK
+#define STRAND_CONSTRAINT_LAGRANGEMULT
+
 static int strand_count_vertices(BMVert *root)
 {
 	BMVert *v;
@@ -100,6 +104,7 @@ static void strands_apply_root_locations(BMEditStrands *edit)
 	}
 }
 
+#ifdef STRAND_CONSTRAINT_EDGERELAX
 static void strands_adjust_segment_lengths(BMesh *bm)
 {
 	BMVert *root, *v, *vprev;
@@ -193,7 +198,9 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 	
 	strands_adjust_segment_lengths(bm);
 }
+#endif
 
+#ifdef STRAND_CONSTRAINT_IK
 typedef struct IKTarget {
 	BMVert *vertex;
 	float weight;
@@ -411,21 +418,17 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 #endif
 	}
 }
+#endif
+
+static void strands_solve_lagrange_multipliers(Object *ob, BMEditStrands *edit, float (*orig)[3])
+{
+	
+}
 
 void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	BLI_assert(orig);
-	
-	strands_apply_root_locations(edit);
-	
-	if (true) {
-		strands_solve_edge_relaxation(edit);
-	}
-	else {
-		strands_solve_inverse_kinematics(ob, edit, orig);
-	}
-	
 	
 	/* Deflection */
 	if (settings->flag & HAIR_EDIT_USE_DEFLECT) {
@@ -447,4 +450,16 @@ void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit
 		
 		BKE_collision_cache_free(contacts);
 	}
+	
+	strands_apply_root_locations(edit);
+	
+#ifdef STRAND_CONSTRAINT_EDGERELAX
+	strands_solve_edge_relaxation(edit);
+#endif
+#ifdef STRAND_CONSTRAINT_IK
+	strands_solve_inverse_kinematics(ob, edit, orig);
+#endif
+#ifdef STRAND_CONSTRAINT_LAGRANGEMULT
+	strands_solve_lagrange_multipliers(ob, edit, orig);
+#endif
 }
