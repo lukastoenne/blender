@@ -29,6 +29,8 @@
  *  \ingroup bke
  */
 
+#include "iostream"
+
 extern "C" {
 #include "MEM_guardedalloc.h"
 
@@ -420,10 +422,122 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 }
 #endif
 
+#ifdef STRAND_CONSTRAINT_LAGRANGEMULT
+
+//#define DO_DEBUG
+
+/* Solve edge constraints and collisions for a single strand based on
+ * "Linear-Time Dynamics using Lagrange Multipliers" (Baraff, 1996)
+ */
+static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int numverts,
+                         const Eigen::Vector3f &root_v)
+{
+	using Eigen::Vector3f;
+	using Eigen::Matrix3f;
+	
+	BMIter iter;
+	BMVert *vert;
+	int k;
+	
+	/* compute unconstrained velocities by 1st order differencing */
+	VectorX v(3 * numverts);
+//	VectorX L(numverts);
+	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+		sub_v3_v3v3(&v.coeffRef(3*k), vert->co, orig[k]);
+//		L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+#ifdef DO_DEBUG
+		BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
+#endif
+	}
+	
+	/* "Mass" matrix can be understood as resistance to editing changes.
+	 * XXX For now just using identity, in future more interesting things could be done here.
+	 */
+//	MatrixX M = MatrixX::Identity(3 * numverts, 3 * numverts);
+	/* XXX we actually only need the inverse of M, here just skip a pointless solve step */
+	MatrixX M_inv = MatrixX::Identity(3 * numverts, 3 * numverts);
+	
+	/* Constraint matrix */
+	int numjoints_root = 3; /* root velocity constraint */
+	int numjoints_edges = numverts - 1; /* distance constraints */
+	int numjoints = numjoints_edges + numjoints_root;
+	MatrixX J = MatrixX::Zero(numjoints, 3 * numverts);
+	/* root velocity constraint */
+	J.block<3,3>(0, 0) = Matrix3f::Identity();
+	/* distance  constraints */
+	BMVert *vertprev = NULL;
+	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+		if (k > 0) {
+//			float target_length = L[k];
+//			if (target_length > 0.0f) {
+				Vector3 xa(vertprev->co);
+				Vector3 xb(vert->co);
+//				Vector3f j = (xb - xa) / target_length;
+				Vector3f j = (xb - xa);
+				j.normalize();
+#ifdef DO_DEBUG
+				BKE_sim_debug_data_add_vector(vert->co, j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), k);
+#endif
+				
+				int i = k + 2; /* constraint index */
+				J.block<1,3>(i, 3*(k-1)) = -j.transpose();
+				J.block<1,3>(i, 3*(k)  ) =  j.transpose();
+//			}
+		}
+		
+		vertprev = vert;
+	}
+	
+	/* A = J * M^-1 * J^T */
+	MatrixX A = J * M_inv * J.transpose();
+	/* b = -(J * M^-1 * F_ext + c) = -(J * v0 + c) */
+	VectorX c = VectorX::Zero(numjoints);
+	c.block<3,1>(0, 0) = root_v;
+	VectorX b = -(J * v + c);
+	
+	/* Lagrange multipliers are the solution to A * lambda = b */
+	VectorX lambda = A.ldlt().solve(b);
+	
+	/* calculate velocity correction by constraint forces */
+	VectorX dv = M_inv * J.transpose() * lambda;
+	v += dv;
+	
+#ifdef DO_DEBUG
+	std::cout << "J = " << std::endl << J << std::endl;
+	std::cout << "A = " << std::endl << A << std::endl;
+	std::cout << "v = " << std::endl << v << std::endl;
+	std::cout << "b = " << std::endl << b << std::endl;
+	std::cout << "lambda = " << std::endl << lambda << std::endl;
+	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+		BKE_sim_debug_data_add_vector(vert->co, &dv.coeff(3*k), 1,0,1, "hair solve", 3833, BLI_ghashutil_ptrhash(root), k);
+		BKE_sim_debug_data_add_vector(orig[k], &v.coeff(3*k), 0,1,1, "hair solve", 3811, BLI_ghashutil_ptrhash(root), k);
+	}
+#endif
+	
+	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+		add_v3_v3v3(vert->co, orig[k], &v.coeff(3*k));
+	}
+}
+
 static void strands_solve_lagrange_multipliers(Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
+	using Eigen::Vector3f;
 	
+	BMesh *bm = edit->base.bm;
+	
+	BMIter iter;
+	BMVert *root;
+	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
+		int numverts = BM_strand_verts_count(root);
+		/* TODO if the root gets moved this would be non-zero */
+		Vector3f root_v = Vector3f(0.0f, 0.0f, 0.0f);
+		
+		strand_solve(bm, root, orig, numverts, root_v);
+		
+		orig += numverts;
+	}
 }
+#endif
 
 void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit, float (*orig)[3])
 {
@@ -451,12 +565,12 @@ void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit
 		BKE_collision_cache_free(contacts);
 	}
 	
-	strands_apply_root_locations(edit);
-	
 #ifdef STRAND_CONSTRAINT_EDGERELAX
+	strands_apply_root_locations(edit);
 	strands_solve_edge_relaxation(edit);
 #endif
 #ifdef STRAND_CONSTRAINT_IK
+	strands_apply_root_locations(edit);
 	strands_solve_inverse_kinematics(ob, edit, orig);
 #endif
 #ifdef STRAND_CONSTRAINT_LAGRANGEMULT

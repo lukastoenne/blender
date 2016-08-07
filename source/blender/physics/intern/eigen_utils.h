@@ -38,6 +38,7 @@
 #  pragma GCC diagnostic ignored "-Wlogical-op"
 #endif
 
+#include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SVD>
 #include <Eigen/src/Core/util/DisableStupidWarnings.h>

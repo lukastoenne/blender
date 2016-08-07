@@ -35,6 +35,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_customdata_types.h"
+#include "DNA_defs.h"
 
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
@@ -61,6 +62,8 @@ typedef struct BMEditStrands {
 	int totfibers;
 	
 	int flag;
+	
+	float (*locs)[3] DNA_DEPRECATED; /* XXX debugging, remove */
 } BMEditStrands;
 
 /* BMEditStrands->flag */
