@@ -435,87 +435,121 @@ static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int 
 	using Eigen::Vector3f;
 	using Eigen::Matrix3f;
 	
-	BMIter iter;
-	BMVert *vert;
-	int k;
-	
 	/* compute unconstrained velocities by 1st order differencing */
-	VectorX v(3 * numverts);
+	VectorX x(3 * numverts);
+	VectorX x0(3 * numverts);
+	VectorX v0(3 * numverts);
 //	VectorX L(numverts);
-	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-		sub_v3_v3v3(&v.coeffRef(3*k), vert->co, orig[k]);
-//		L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+	{
+		BMIter iter;
+		BMVert *vert;
+		int k;
+		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+			copy_v3_v3(&x.coeffRef(3*k), vert->co);
+			copy_v3_v3(&x0.coeffRef(3*k), orig[k]);
+			sub_v3_v3v3(&v0.coeffRef(3*k), vert->co, orig[k]);
+//			L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 #ifdef DO_DEBUG
-		BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
+			BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
 #endif
+		}
 	}
 	
 	/* "Mass" matrix can be understood as resistance to editing changes.
 	 * XXX For now just using identity, in future more interesting things could be done here.
 	 */
-//	MatrixX M = MatrixX::Identity(3 * numverts, 3 * numverts);
+	MatrixX M = MatrixX::Identity(3 * numverts, 3 * numverts);
 	/* XXX we actually only need the inverse of M, here just skip a pointless solve step */
 	MatrixX M_inv = MatrixX::Identity(3 * numverts, 3 * numverts);
 	
 	/* Constraint matrix */
-	int numjoints_root = 3; /* root velocity constraint */
-	int numjoints_edges = numverts - 1; /* distance constraints */
-	int numjoints = numjoints_edges + numjoints_root;
-	MatrixX J = MatrixX::Zero(numjoints, 3 * numverts);
+	int numcons_roots = 3; /* root velocity constraint */
+	int numcons_edges = numverts - 1; /* distance constraints */
+	int numcons = numcons_edges + numcons_roots;
+	MatrixX J = MatrixX::Zero(numcons, 3 * numverts);
 	/* root velocity constraint */
 	J.block<3,3>(0, 0) = Matrix3f::Identity();
 	/* distance  constraints */
-	BMVert *vertprev = NULL;
-	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-		if (k > 0) {
-//			float target_length = L[k];
-//			if (target_length > 0.0f) {
-				Vector3 xa(vertprev->co);
-				Vector3 xb(vert->co);
-//				Vector3f j = (xb - xa) / target_length;
-				Vector3f j = (xb - xa);
-				j.normalize();
+	for (int i = 0; i < numcons_edges; ++i) {
+//		float target_length = L[i+1];
+//		if (target_length > 0.0f) {
+			int ka = i * 3;
+			int kb = (i+1) * 3;
+			Vector3f xa(x.block<3,1>(ka, 0));
+			Vector3f xb(x.block<3,1>(kb, 0));
+//			Vector3f j = (xb - xa) / target_length;
+			Vector3f j = (xb - xa);
+			j.normalize();
 #ifdef DO_DEBUG
-				BKE_sim_debug_data_add_vector(vert->co, j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), k);
+			BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), i);
 #endif
-				
-				int i = k + 2; /* constraint index */
-				J.block<1,3>(i, 3*(k-1)) = -j.transpose();
-				J.block<1,3>(i, 3*(k)  ) =  j.transpose();
-//			}
-		}
-		
-		vertprev = vert;
+			
+			int con = numcons_roots + i;
+			J.block<1,3>(con, ka) = -j.transpose();
+			J.block<1,3>(con, kb) =  j.transpose();
+//		}
 	}
 	
 	/* A = J * M^-1 * J^T */
 	MatrixX A = J * M_inv * J.transpose();
-	/* b = -(J * M^-1 * F_ext + c) = -(J * v0 + c) */
-	VectorX c = VectorX::Zero(numjoints);
-	c.block<3,1>(0, 0) = root_v;
-	VectorX b = -(J * v + c);
+	/* force vector */
+	VectorX F = M * v0;
+	/* bending force: smoothes the hair */
+	float stiffness = 0.1;
+	for (int i = 1; i < numverts - 1; ++i) {
+		int ka = (i-1) * 3;
+		int kb = i * 3;
+		int kc = (i+1) * 3;
+		Vector3f xa(x.block<3,1>(ka, 0));
+		Vector3f xb(x.block<3,1>(kb, 0));
+		Vector3f xc(x.block<3,1>(kc, 0));
+		Vector3f target = xb + (xb - xa).normalized() * (xc - xb).norm();
+		Vector3f f = stiffness * (target - xc);
+		F.block<3,1>(kc, 0) += f;
+		F.block<3,1>(kb, 0) += -f;
+	}
+	/* constant constraint velocities */
+	VectorX c = VectorX::Zero(numcons);
+	c.block<3,1>(0, 0) = -root_v;
+	/* b = -(J * M^-1 * F + c) */
+	VectorX b = -(J * M_inv * F + c);
 	
 	/* Lagrange multipliers are the solution to A * lambda = b */
 	VectorX lambda = A.ldlt().solve(b);
+	BLI_assert((A * lambda).isApprox(b, 0.001f));
 	
 	/* calculate velocity correction by constraint forces */
-	VectorX dv = M_inv * J.transpose() * lambda;
-	v += dv;
+	VectorX v = M_inv * (J.transpose() * lambda + F);
+	
+	/* corrected position update */
+	x = x0 + v;
 	
 #ifdef DO_DEBUG
-	std::cout << "J = " << std::endl << J << std::endl;
-	std::cout << "A = " << std::endl << A << std::endl;
-	std::cout << "v = " << std::endl << v << std::endl;
-	std::cout << "b = " << std::endl << b << std::endl;
-	std::cout << "lambda = " << std::endl << lambda << std::endl;
-	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-		BKE_sim_debug_data_add_vector(vert->co, &dv.coeff(3*k), 1,0,1, "hair solve", 3833, BLI_ghashutil_ptrhash(root), k);
-		BKE_sim_debug_data_add_vector(orig[k], &v.coeff(3*k), 0,1,1, "hair solve", 3811, BLI_ghashutil_ptrhash(root), k);
+	{
+		std::cout << "J = " << std::endl << J << std::endl;
+		std::cout << "A = " << std::endl << A << std::endl;
+		std::cout << "v = " << std::endl << v << std::endl;
+		std::cout << "b = " << std::endl << b << std::endl;
+		std::cout << "lambda = " << std::endl << lambda << std::endl;
+		BMIter iter;
+		BMVert *vert;
+		int k;
+		VectorX dv = v - v0;
+		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+			BKE_sim_debug_data_add_vector(vert->co, &dv.coeff(3*k), 1,0,1, "hair solve", 3833, BLI_ghashutil_ptrhash(root), k);
+			BKE_sim_debug_data_add_vector(orig[k], &v.coeff(3*k), 0,1,1, "hair solve", 3811, BLI_ghashutil_ptrhash(root), k);
+			BKE_sim_debug_data_add_vector(vert->co, &F.coeff(3*k), 1,0,0, "hair solve", 32789, BLI_ghashutil_ptrhash(root), k);
+		}
 	}
 #endif
 	
-	BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-		add_v3_v3v3(vert->co, orig[k], &v.coeff(3*k));
+	{
+		BMIter iter;
+		BMVert *vert;
+		int k;
+		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+			copy_v3_v3(vert->co, &x.coeff(3*k));
+		}
 	}
 }
 
