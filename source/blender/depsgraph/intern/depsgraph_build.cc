@@ -33,6 +33,7 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
+#include "DNA_cachefile_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -118,6 +119,15 @@ void DEG_add_image_relation(struct DepsNodeHandle *handle,
 {
 	if (handle->add_image_relation)
 		handle->add_image_relation(handle, ima, component, description);
+}
+
+void DEG_add_cache_relation(struct DepsNodeHandle *handle,
+                            struct CacheFile *cache_file,
+                            eDepsComponent component,
+                            const char *description)
+{
+	if (handle->add_cache_relation)
+		handle->add_cache_relation(handle, cache_file, component, description);
 }
 
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)

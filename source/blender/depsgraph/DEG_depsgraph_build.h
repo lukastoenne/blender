@@ -81,6 +81,7 @@ void DEG_scene_graph_free(struct Scene *scene);
  * as a symbolic reference to the current DepsNode.
  * All relations will be defined in reference to that node.
  */
+struct CacheFile;
 
 typedef enum {
 	DEG_COMPONENT_PARAMETERS,        /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
@@ -93,6 +94,7 @@ typedef enum {
 	DEG_COMPONENT_BONE,              /* Bone Component - Child/Subcomponent of Pose */
 	DEG_COMPONENT_EVAL_PARTICLES,    /* Particle Systems Component */
 	DEG_COMPONENT_SHADING,           /* Material Shading Component */
+	DEG_COMPONENT_CACHE,             /* Cache Component */
 } eDepsComponent;
 
 struct DepsNodeHandle
@@ -122,6 +124,10 @@ struct DepsNodeHandle
 	                           struct Image *ima,
 	                           eDepsComponent component,
 	                           const char *description);
+	void (*add_cache_relation)(struct DepsNodeHandle *handle,
+	                           struct CacheFile *cache_file,
+	                           eDepsComponent component,
+	                           const char *description);
 };
 
 void DEG_add_scene_relation(struct DepsNodeHandle *node,
@@ -147,6 +153,10 @@ void DEG_add_nodetree_relation(struct DepsNodeHandle *handle,
                                const char *description);
 void DEG_add_image_relation(struct DepsNodeHandle *handle,
                             struct Image *ima,
+                            eDepsComponent component,
+                            const char *description);
+void DEG_add_cache_relation(struct DepsNodeHandle *handle,
+                            struct CacheFile *cache_file,
                             eDepsComponent component,
                             const char *description);
 

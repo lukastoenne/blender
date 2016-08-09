@@ -47,6 +47,7 @@ extern "C" {
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_effect_types.h"
@@ -174,6 +175,16 @@ struct RelationBuilderHandle
 		handle->builder->add_node_relation(comp_key, handle->node, DEPSREL_TYPE_STANDARD, description);
 	}
 	
+	static void add_cache_relation(DepsNodeHandle *_handle,
+	                               CacheFile *cache_file,
+	                               eDepsComponent component,
+	                               const char *description)
+	{
+		RelationBuilderHandle *handle = cast(_handle);
+		ComponentKey comp_key(&cache_file->id, deg_build_get_component_type(component));
+		handle->builder->add_node_relation(comp_key, handle->node, DEG::DEPSREL_TYPE_CACHE, description);
+	}
+	
 	RelationBuilderHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
@@ -187,6 +198,7 @@ struct RelationBuilderHandle
 		base.add_texture_relation = add_texture_relation;
 		base.add_nodetree_relation = add_nodetree_relation;
 		base.add_image_relation = add_image_relation;
+		base.add_cache_relation = add_cache_relation;
 	}
 	
 	DepsNodeHandle base;
@@ -682,6 +694,18 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 			/* TODO(sergey): This is more a TimeSource -> MovieClip -> Constraint dependency chain. */
 			TimeSourceKey time_src_key;
 			add_relation(time_src_key, constraint_op_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation]");
+		}
+		else if (cti->type == CONSTRAINT_TYPE_TRANSFORM_CACHE) {
+			/* TODO(kevin): This is more a TimeSource -> CacheFile -> Constraint dependency chain. */
+			TimeSourceKey time_src_key;
+			add_relation(time_src_key, constraint_op_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation]");
+
+			bTransformCacheConstraint *data = (bTransformCacheConstraint *)con->data;
+
+			if (data->cache_file) {
+				ComponentKey cache_key(&data->cache_file->id, DEPSNODE_TYPE_CACHE);
+				add_relation(cache_key, constraint_op_key, DEPSREL_TYPE_CACHE, cti->name);
+			}
 		}
 		else if (cti->get_constraint_targets) {
 			ListBase targets = {NULL, NULL};
