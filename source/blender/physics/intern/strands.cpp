@@ -429,7 +429,7 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 /* Solve edge constraints and collisions for a single strand based on
  * "Linear-Time Dynamics using Lagrange Multipliers" (Baraff, 1996)
  */
-static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int numverts,
+static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts,
                          const Eigen::Vector3f &root_v)
 {
 	using Eigen::Vector3f;
@@ -439,7 +439,7 @@ static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int 
 	VectorX x(3 * numverts);
 	VectorX x0(3 * numverts);
 	VectorX v0(3 * numverts);
-//	VectorX L(numverts);
+	VectorX L(numverts);
 	{
 		BMIter iter;
 		BMVert *vert;
@@ -448,7 +448,7 @@ static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int 
 			copy_v3_v3(&x.coeffRef(3*k), vert->co);
 			copy_v3_v3(&x0.coeffRef(3*k), orig[k]);
 			sub_v3_v3v3(&v0.coeffRef(3*k), vert->co, orig[k]);
-//			L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+			L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 #ifdef DO_DEBUG
 			BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
 #endif
@@ -467,35 +467,39 @@ static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int 
 	int numcons_edges = numverts - 1; /* distance constraints */
 	int numcons = numcons_edges + numcons_roots;
 	MatrixX J = MatrixX::Zero(numcons, 3 * numverts);
+	/* Constraint velocities */
+	VectorX c = VectorX::Zero(numcons);
 	/* root velocity constraint */
 	J.block<3,3>(0, 0) = Matrix3f::Identity();
+	c.block<3,1>(0, 0) = -root_v;
 	/* distance  constraints */
 	for (int i = 0; i < numcons_edges; ++i) {
-//		float target_length = L[i+1];
-//		if (target_length > 0.0f) {
-			int ka = i * 3;
-			int kb = (i+1) * 3;
-			Vector3f xa(x.block<3,1>(ka, 0));
-			Vector3f xb(x.block<3,1>(kb, 0));
-//			Vector3f j = (xb - xa) / target_length;
-			Vector3f j = (xb - xa);
-			j.normalize();
+		int ka = i * 3;
+		int kb = (i+1) * 3;
+		Vector3f xa(x.block<3,1>(ka, 0));
+		Vector3f xb(x.block<3,1>(kb, 0));
+		Vector3f j = (xb - xa);
+		float length = j.norm();
+		float target_length = L[i+1];
+		j.normalize();
 #ifdef DO_DEBUG
-			BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), i);
+		BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), i);
 #endif
-			
-			int con = numcons_roots + i;
-			J.block<1,3>(con, ka) = -j.transpose();
-			J.block<1,3>(con, kb) =  j.transpose();
-//		}
+		
+		int con = numcons_roots + i;
+		J.block<1,3>(con, ka) = -j.transpose();
+		J.block<1,3>(con, kb) =  j.transpose();
+		
+		/* counteract drift with velocity along the edge */
+		c.coeffRef(con) = length - target_length;
 	}
-	
 	/* A = J * M^-1 * J^T */
 	MatrixX A = J * M_inv * J.transpose();
+	
 	/* force vector */
 	VectorX F = M * v0;
 	/* bending force: smoothes the hair */
-	float stiffness = 0.1;
+	float stiffness = 0.0;
 	for (int i = 1; i < numverts - 1; ++i) {
 		int ka = (i-1) * 3;
 		int kb = i * 3;
@@ -508,9 +512,7 @@ static void strand_solve(BMesh *UNUSED(bm), BMVert *root, float (*orig)[3], int 
 		F.block<3,1>(kc, 0) += f;
 		F.block<3,1>(kb, 0) += -f;
 	}
-	/* constant constraint velocities */
-	VectorX c = VectorX::Zero(numcons);
-	c.block<3,1>(0, 0) = -root_v;
+	
 	/* b = -(J * M^-1 * F + c) */
 	VectorX b = -(J * M_inv * F + c);
 	
