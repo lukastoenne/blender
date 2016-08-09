@@ -247,10 +247,7 @@ Material *BKE_material_copy(Main *bmain, Material *ma)
 
 	BLI_listbase_clear(&man->gpumaterial);
 
-	if (ID_IS_LINKED_DATABLOCK(ma)) {
-		BKE_id_expand_local(&man->id);
-		BKE_id_lib_local_paths(bmain, ma->id.lib, &man->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ma->id, &man->id);
 
 	return man;
 }
@@ -745,17 +742,18 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 		if (mao)
 			id_us_min(&mao->id);
 		ob->mat[act - 1] = ma;
+		test_object_materials(ob, ob->data);
 	}
 	else {  /* in data */
 		mao = (*matarar)[act - 1];
 		if (mao)
 			id_us_min(&mao->id);
 		(*matarar)[act - 1] = ma;
+		test_all_objects_materials(G.main, ob->data);  /* Data may be used by several objects... */
 	}
 
 	if (ma)
 		id_us_plus(&ma->id);
-	test_object_materials(ob, ob->data);
 }
 
 

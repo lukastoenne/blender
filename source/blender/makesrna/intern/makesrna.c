@@ -3302,6 +3302,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_blenvm.c", NULL, RNA_def_blenvm},
 	{"rna_boid.c", NULL, RNA_def_boid},
 	{"rna_brush.c", NULL, RNA_def_brush},
+	{"rna_cachefile.c", NULL, RNA_def_cachefile},
 	{"rna_camera.c", "rna_camera_api.c", RNA_def_camera},
 	{"rna_cloth.c", NULL, RNA_def_cloth},
 	{"rna_color.c", NULL, RNA_def_color},

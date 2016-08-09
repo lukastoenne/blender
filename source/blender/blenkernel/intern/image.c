@@ -436,6 +436,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
 Image *BKE_image_copy(Main *bmain, Image *ima)
 {
 	Image *nima = image_alloc(bmain, ima->id.name + 2, ima->source, ima->type);
+	ima->id.newid = &nima->id;
 
 	BLI_strncpy(nima->name, ima->name, sizeof(ima->name));
 
@@ -462,10 +463,7 @@ Image *BKE_image_copy(Main *bmain, Image *ima)
 
 	BKE_previewimg_id_copy(&nima->id, &ima->id);
 
-	if (ID_IS_LINKED_DATABLOCK(ima)) {
-		BKE_id_expand_local(&nima->id);
-		BKE_id_lib_local_paths(bmain, ima->id.lib, &nima->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ima->id, &nima->id);
 
 	return nima;
 }
