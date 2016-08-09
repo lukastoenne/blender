@@ -163,7 +163,7 @@ static void updateDepsgraph(ModifierData *md,
 	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *) md;
 
 	if (mcmd->cache_file != NULL) {
-		DEG_add_object_cache_relation(node, mcmd->cache_file, DEG_OB_COMP_CACHE, "Mesh Cache File");
+		DEG_add_cache_relation(node, mcmd->cache_file, DEG_COMPONENT_CACHE, "Mesh Cache File");
 	}
 
 	UNUSED_VARS(bmain, scene, ob);

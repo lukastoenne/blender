@@ -155,10 +155,10 @@ void DEG_add_image_relation(struct DepsNodeHandle *handle,
                             struct Image *ima,
                             eDepsComponent component,
                             const char *description);
-void DEG_add_object_cache_relation(struct DepsNodeHandle *handle,
-                                   struct CacheFile *cache_file,
-                                   eDepsComponent component,
-                                   const char *description);
+void DEG_add_cache_relation(struct DepsNodeHandle *handle,
+                            struct CacheFile *cache_file,
+                            eDepsComponent component,
+                            const char *description);
 
 /* TODO(sergey): Remove once all geometry update is granular. */
 void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short flag);

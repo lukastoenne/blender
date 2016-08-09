@@ -121,10 +121,10 @@ void DEG_add_image_relation(struct DepsNodeHandle *handle,
 		handle->add_image_relation(handle, ima, component, description);
 }
 
-void DEG_add_object_cache_relation(struct DepsNodeHandle *handle,
-                                   struct CacheFile *cache_file,
-                                   eDepsComponent component,
-                                   const char *description)
+void DEG_add_cache_relation(struct DepsNodeHandle *handle,
+                            struct CacheFile *cache_file,
+                            eDepsComponent component,
+                            const char *description)
 {
 	if (handle->add_cache_relation)
 		handle->add_cache_relation(handle, cache_file, component, description);
