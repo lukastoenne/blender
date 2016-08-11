@@ -343,7 +343,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	mul_mat3_m4_v3(tool_data.imat, tool_data.delta);
 
 	BMEditStrandsLocations locs = BKE_editstrands_get_locations(edit);
-	if (!edit->locs)
+	if (false && !edit->locs)
 		edit->locs = MEM_dupallocN(locs);
 	for (step = 0; step < totsteps; ++step) {
 		bool step_updated = hair_brush_step(&tool_data);
