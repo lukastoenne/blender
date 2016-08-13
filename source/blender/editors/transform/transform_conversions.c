@@ -2174,7 +2174,8 @@ void flushTransStrands(TransInfo *t)
 	BMEditStrands *edit = BKE_editstrands_from_object(ob);
 	BMEditStrandsLocations origlocs = t->custom.type.data;
 	
-	BKE_editstrands_solve_constraints(scene, ob, edit, origlocs);
+	BKE_editstrands_solve_constraints(scene, ob, edit,
+	                                  origlocs, 1);
 }
 
 /* ********************* mesh ****************** */

@@ -342,6 +342,15 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	mul_m4_v3(tool_data.imat, tool_data.loc);
 	mul_mat3_m4_v3(tool_data.imat, tool_data.delta);
 
+#if 0
+	/* XXX arbitrary value! make this relative to segment length? */
+	float substepsize = 0.1f;
+	const int max_substeps = 1000;
+	int substeps = min_ii(ceilf(len_v3(tool_data.delta) / substepsize), max_substeps);
+#else
+	int substeps = 1;
+#endif
+
 	BMEditStrandsLocations locs = BKE_editstrands_get_locations(edit);
 	if (false && !edit->locs)
 		edit->locs = MEM_dupallocN(locs);
@@ -349,7 +358,7 @@ static bool hair_stroke_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 		bool step_updated = hair_brush_step(&tool_data);
 		
 		if (step_updated) {
-			BKE_editstrands_solve_constraints(scene, ob, edit, locs);
+			BKE_editstrands_solve_constraints(scene, ob, edit, locs, substeps);
 			BKE_editstrands_update_locations(edit, locs);
 		}
 		

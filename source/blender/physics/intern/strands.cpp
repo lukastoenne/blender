@@ -428,39 +428,20 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
 
 /* Solve edge constraints and collisions for a single strand based on
  * "Linear-Time Dynamics using Lagrange Multipliers" (Baraff, 1996)
+ * 
+ * M, M_inv: mass matrix and its inverse
+ * L: target lengths for each segment (L[0] == 0)
+ * x0: original starting locations
+ * x1: unconstrained locations
+ * x: constrained location result
  */
-static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts,
-                         const Eigen::Vector3f &root_v)
+static VectorX strand_solve_step(int numverts, const Eigen::Vector3f &root_v,
+                                 const MatrixX &M, const MatrixX &M_inv, const VectorX &L,
+                                 const VectorX &x0, const VectorX &x1,
+                                 int debug_root, int debug_step)
 {
 	using Eigen::Vector3f;
 	using Eigen::Matrix3f;
-	
-	/* compute unconstrained velocities by 1st order differencing */
-	VectorX x(3 * numverts);
-	VectorX x0(3 * numverts);
-	VectorX v0(3 * numverts);
-	VectorX L(numverts);
-	{
-		BMIter iter;
-		BMVert *vert;
-		int k;
-		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-			copy_v3_v3(&x.coeffRef(3*k), vert->co);
-			copy_v3_v3(&x0.coeffRef(3*k), orig[k]);
-			sub_v3_v3v3(&v0.coeffRef(3*k), vert->co, orig[k]);
-			L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
-#ifdef DO_DEBUG
-			BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
-#endif
-		}
-	}
-	
-	/* "Mass" matrix can be understood as resistance to editing changes.
-	 * XXX For now just using identity, in future more interesting things could be done here.
-	 */
-	MatrixX M = MatrixX::Identity(3 * numverts, 3 * numverts);
-	/* XXX we actually only need the inverse of M, here just skip a pointless solve step */
-	MatrixX M_inv = MatrixX::Identity(3 * numverts, 3 * numverts);
 	
 	/* Constraint matrix */
 	int numcons_roots = 3; /* root velocity constraint */
@@ -476,14 +457,15 @@ static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts
 	for (int i = 0; i < numcons_edges; ++i) {
 		int ka = i * 3;
 		int kb = (i+1) * 3;
-		Vector3f xa(x.block<3,1>(ka, 0));
-		Vector3f xb(x.block<3,1>(kb, 0));
+		Vector3f xa(x1.block<3,1>(ka, 0));
+		Vector3f xb(x1.block<3,1>(kb, 0));
 		Vector3f j = (xb - xa);
 		float length = j.norm();
 		float target_length = L[i+1];
-		j.normalize();
+		if (j.norm() > 0.0f)
+			j.normalize();
 #ifdef DO_DEBUG
-		BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, BLI_ghashutil_ptrhash(root), i);
+		BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, i, debug_root, debug_step);
 #endif
 		
 		int con = numcons_roots + i;
@@ -497,21 +479,23 @@ static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts
 	MatrixX A = J * M_inv * J.transpose();
 	
 	/* force vector */
-	VectorX F = M * v0;
+	VectorX F = M * (x1 - x0);
+#if 0
 	/* bending force: smoothes the hair */
 	float stiffness = 0.0;
 	for (int i = 1; i < numverts - 1; ++i) {
 		int ka = (i-1) * 3;
 		int kb = i * 3;
 		int kc = (i+1) * 3;
-		Vector3f xa(x.block<3,1>(ka, 0));
-		Vector3f xb(x.block<3,1>(kb, 0));
-		Vector3f xc(x.block<3,1>(kc, 0));
+		Vector3f xa(x1.block<3,1>(ka, 0));
+		Vector3f xb(x1.block<3,1>(kb, 0));
+		Vector3f xc(x1.block<3,1>(kc, 0));
 		Vector3f target = xb + (xb - xa).normalized() * (xc - xb).norm();
 		Vector3f f = stiffness * (target - xc);
 		F.block<3,1>(kc, 0) += f;
 		F.block<3,1>(kb, 0) += -f;
 	}
+#endif
 	
 	/* b = -(J * M^-1 * F + c) */
 	VectorX b = -(J * M_inv * F + c);
@@ -524,7 +508,7 @@ static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts
 	VectorX v = M_inv * (J.transpose() * lambda + F);
 	
 	/* corrected position update */
-	x = x0 + v;
+	VectorX x = x0 + v;
 	
 #ifdef DO_DEBUG
 	{
@@ -533,31 +517,78 @@ static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts
 		std::cout << "v = " << std::endl << v << std::endl;
 		std::cout << "b = " << std::endl << b << std::endl;
 		std::cout << "lambda = " << std::endl << lambda << std::endl;
-		BMIter iter;
-		BMVert *vert;
-		int k;
-		VectorX dv = v - v0;
-		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-			BKE_sim_debug_data_add_vector(vert->co, &dv.coeff(3*k), 1,0,1, "hair solve", 3833, BLI_ghashutil_ptrhash(root), k);
-			BKE_sim_debug_data_add_vector(orig[k], &v.coeff(3*k), 0,1,1, "hair solve", 3811, BLI_ghashutil_ptrhash(root), k);
-			BKE_sim_debug_data_add_vector(vert->co, &F.coeff(3*k), 1,0,0, "hair solve", 32789, BLI_ghashutil_ptrhash(root), k);
+		VectorX dv = v - (x1 - x0);
+		for (int k = 0; k < numverts; ++k) {
+			BKE_sim_debug_data_add_vector(&x1.coeff(3*k), &dv.coeff(3*k), 1,0,1, "hair solve", 3833, k, debug_root, debug_step);
+			BKE_sim_debug_data_add_vector(&x0.coeff(3*k), &v.coeff(3*k), 0,1,1, "hair solve", 3811, k, debug_root, debug_step);
+			BKE_sim_debug_data_add_vector(&x1.coeff(3*k), &F.coeff(3*k), 1,0,0, "hair solve", 32789, k, debug_root, debug_step);
 		}
 	}
 #endif
+	
+	return x;
+}
+
+static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts,
+                         const Eigen::Vector3f &root_v, int substeps)
+{
+	using Eigen::Vector3f;
+	using Eigen::Matrix3f;
+	
+	/* compute unconstrained velocities by 1st order differencing */
+	VectorX x0(3 * numverts);
+	VectorX xN(3 * numverts);
+	VectorX L(numverts);
+	/* "Mass" matrix can be understood as resistance to editing changes.
+	 * XXX For now just using identity, in future more interesting things could be done here.
+	 */
+	MatrixX M = MatrixX::Identity(3 * numverts, 3 * numverts);
+	{
+		BMIter iter;
+		BMVert *vert;
+		int k;
+		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+			copy_v3_v3(&x0.coeffRef(3*k), orig[k]);
+			copy_v3_v3(&xN.coeffRef(3*k), vert->co);
+			L.coeffRef(k) = BM_elem_float_data_named_get(&bm->vdata, vert, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+#ifdef DO_DEBUG
+			BKE_sim_debug_data_add_line(orig[k], vert->co, 0,0,1, "hair solve", 3874, BLI_ghashutil_ptrhash(root), k);
+#endif
+		}
+	}
+	/* XXX here just skip a pointless solve step */
+	MatrixX M_inv = MatrixX::Identity(3 * numverts, 3 * numverts);
+	
+	BKE_sim_debug_data_clear_category("hair solve");
+	for (int s = 0; s < substeps; ++s) {
+		VectorX x1 = x0 + (xN - x0) / (float)(substeps - s);
+		{
+			BMIter iter;
+			BMVert *vert;
+			int k;
+			BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
+//				BKE_sim_debug_data_add_line(&x0.coeff(k*3), &x1.coeff(k*3), 1, s%2, 0, "hair solve", 232, BLI_ghashutil_ptrhash(root), k, s);
+			}
+		}
+		x0 = strand_solve_step(numverts, root_v, M, M_inv, L, x0, x1, BLI_ghashutil_ptrhash(root), s);
+	}
 	
 	{
 		BMIter iter;
 		BMVert *vert;
 		int k;
 		BM_ITER_STRANDS_ELEM_INDEX(vert, &iter, root, BM_VERTS_OF_STRAND, k) {
-			copy_v3_v3(vert->co, &x.coeff(3*k));
+			copy_v3_v3(vert->co, &x0.coeff(3*k));
 		}
 	}
 }
 
-static void strands_solve_lagrange_multipliers(Object *ob, BMEditStrands *edit, float (*orig)[3])
+static void strands_solve_lagrange_multipliers(Object *ob, BMEditStrands *edit, float (*orig)[3], int substeps)
 {
 	using Eigen::Vector3f;
+	
+	if (substeps <= 0)
+		return;
 	
 	BMesh *bm = edit->base.bm;
 	
@@ -568,14 +599,15 @@ static void strands_solve_lagrange_multipliers(Object *ob, BMEditStrands *edit, 
 		/* TODO if the root gets moved this would be non-zero */
 		Vector3f root_v = Vector3f(0.0f, 0.0f, 0.0f);
 		
-		strand_solve(bm, root, orig, numverts, root_v);
+		strand_solve(bm, root, orig, numverts, root_v, substeps);
 		
 		orig += numverts;
 	}
 }
 #endif
 
-void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit, float (*orig)[3])
+void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit,
+                                   float (*orig)[3], int substeps)
 {
 	HairEditSettings *settings = &scene->toolsettings->hair_edit;
 	BLI_assert(orig);
@@ -610,6 +642,6 @@ void BPH_strands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *edit
 	strands_solve_inverse_kinematics(ob, edit, orig);
 #endif
 #ifdef STRAND_CONSTRAINT_LAGRANGEMULT
-	strands_solve_lagrange_multipliers(ob, edit, orig);
+	strands_solve_lagrange_multipliers(ob, edit, orig, substeps);
 #endif
 }

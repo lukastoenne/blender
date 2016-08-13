@@ -96,7 +96,8 @@ void BKE_editstrands_free_locations(BMEditStrandsLocations locs);
 void BKE_editstrands_get_collision_contacts(struct Scene *scene, struct Object *ob, struct BMEditStrands *edit,
                                             struct CollisionContactCache *cache);
 
-void BKE_editstrands_solve_constraints(struct Scene *scene, struct Object *ob, struct BMEditStrands *es, BMEditStrandsLocations orig);
+void BKE_editstrands_solve_constraints(struct Scene *scene, struct Object *ob, struct BMEditStrands *es,
+                                       BMEditStrandsLocations orig, int substeps);
 void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === particle conversion === */

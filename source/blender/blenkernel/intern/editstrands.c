@@ -303,11 +303,12 @@ void BKE_editstrands_get_collision_contacts(Scene *scene, Object *ob, BMEditStra
 	}
 }
 
-void BKE_editstrands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *es, BMEditStrandsLocations orig)
+void BKE_editstrands_solve_constraints(Scene *scene, Object *ob, BMEditStrands *es,
+                                       BMEditStrandsLocations orig, int substeps)
 {
 	BKE_editstrands_ensure(es);
 	
-	BPH_strands_solve_constraints(scene, ob, es, orig);
+	BPH_strands_solve_constraints(scene, ob, es, orig, substeps);
 }
 
 static void editstrands_calc_segment_lengths(BMesh *bm)
