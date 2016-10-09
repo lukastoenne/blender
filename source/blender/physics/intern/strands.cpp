@@ -435,6 +435,90 @@ static void strands_solve_inverse_kinematics(Object *ob, BMEditStrands *edit, fl
  * x1: unconstrained locations
  * x: constrained location result
  */
+
+inline static VectorX get_constraints(int numverts, const VectorX &x, const Eigen::Vector3f &root)
+{
+	using Eigen::Vector3f;
+	using Eigen::Matrix3f;
+	
+	BLI_assert(x.rows() == numverts * 3);
+	
+	int numcons_root = 3; /* root velocity constraint */
+	int numcons_edges = numverts - 1; /* distance constraints */
+	int numcons = numcons_edges + numcons_root;
+	
+	VectorX S = VectorX::Zero(numcons);
+	S.block<3,1>(0, 0) = root;
+	for (int k = 0; k < numcons_edges; ++k) {
+		int ia = k*3;
+		int ib = (k+1)*3;
+		int kcon = numcons_root + k;
+		
+		Vector3f xa = x.block<3,1>(ia,0);
+		Vector3f xb = x.block<3,1>(ib,0);
+		Vector3f dcon = (xb - xa);
+		
+		S.coeffRef(kcon) = dcon.dot(dcon);
+	}
+	
+	return S;
+}
+
+inline static MatrixX get_constraints_dx(int numverts, const VectorX &x)
+{
+	using Eigen::Vector3f;
+	using Eigen::Matrix3f;
+	
+	BLI_assert(x.rows() == numverts * 3);
+	
+	int numcons_root = 3; /* root velocity constraint */
+	int numcons_edges = numverts - 1; /* distance constraints */
+	int numcons = numcons_edges + numcons_root;
+	
+	MatrixX J = MatrixX::Zero(numcons, 3 * numverts);
+	for (int k = 0; k < numcons_edges; ++k) {
+		int ia = k*3;
+		int ib = (k+1)*3;
+		int kcon = numcons_root + k;
+		
+		Vector3f xa = x.block<3,1>(ia,0);
+		Vector3f xb = x.block<3,1>(ib,0);
+		Vector3f dcon = 2.0f * (xb - xa);
+		
+		J.block<1,3>(kcon, ia) = -dcon;
+		J.block<1,3>(kcon, ib) = dcon;
+	}
+	
+	return J;
+}
+
+inline static MatrixX get_constraints_dlambda(int numverts, const VectorX &x, const MatrixX &dSdx, const MatrixX &M_inv)
+{
+	using Eigen::Vector3f;
+	using Eigen::Matrix3f;
+	
+	BLI_assert(x.rows() == numverts * 3);
+	
+	int numcons_root = 3; /* root velocity constraint */
+	int numcons_edges = numverts - 1; /* distance constraints */
+	int numcons = numcons_edges + numcons_root;
+	
+	MatrixX U = M_inv * dSdx.transpose();
+	
+	MatrixX J = MatrixX::Zero(numcons, numcons);
+	for (int k = 0; k < numcons_edges; ++k) {
+		int ia = k*3;
+		int ib = (k+1)*3;
+		int kcon = numcons_root + k;
+		
+		Vector3f xa = x.block<3,1>(ia,0);
+		Vector3f xb = x.block<3,1>(ib,0);
+		J.coeffRef(kcon) = 2.0f * (xb - xa).dot(U.block<3,1>(ia, kcon) - U.block<3,1>(ib, kcon));
+	}
+	
+	return J;
+}
+
 static VectorX strand_solve_step(int numverts, const Eigen::Vector3f &root_v,
                                  const MatrixX &M, const MatrixX &M_inv, const VectorX &L,
                                  const VectorX &x0, const VectorX &x1,
@@ -443,6 +527,45 @@ static VectorX strand_solve_step(int numverts, const Eigen::Vector3f &root_v,
 	using Eigen::Vector3f;
 	using Eigen::Matrix3f;
 	
+#if 0
+	int numcons_root = 3; /* root velocity constraint */
+	int numcons_edges = numverts - 1; /* distance constraints */
+	int numcons = numcons_edges + numcons_root;
+	
+	MatrixX dS0dx = get_constraints_dx(numverts, x0);
+	
+	float res;
+	VectorX x = x1;
+	do {
+//		VectorX lambda = VectorX::Zero(numcons);
+		
+//		VectorX dSdlambda(numcons);
+//		for (int k = 0; k < numcons_edges; ++k) {
+//			int ia = k*3;
+//			int ib = (k+1)*3;
+//			dSdlambda.block<3,1>(k, 0) = x.block<3,1>(ib, 0) - x.block<3,1>(ia, 0);
+//		}
+		
+//		MatrixX J = MatrixX::Zero(numcons, 3 * numverts);
+//		MatrixX J = 2.0f * dSdlambda * dS0dx.transpose() * M_inv;
+		
+		VectorX S = get_constraints(numverts, x, root_v);
+		MatrixX dSdx = get_constraints_dx(numverts, x);
+		MatrixX dSdlambda = get_constraints_dlambda(numverts, x, dSdx, M_inv);
+		
+		/* Lagrange multipliers are the solution to dSdlambda * lambda = S */
+		VectorX lambda = dSdlambda.ldlt().solve(S);
+		BLI_assert((dSdlambda * lambda).isApprox(S, 0.001f));
+		
+		x += dSdx.transpose() * lambda;
+		
+		res = 0.0f; /* TODO */
+	} while (res > 0.05f);
+	
+	return x;
+#endif
+	
+#if 1
 	/* Constraint matrix */
 	int numcons_roots = 3; /* root velocity constraint */
 	int numcons_edges = numverts - 1; /* distance constraints */
@@ -450,83 +573,145 @@ static VectorX strand_solve_step(int numverts, const Eigen::Vector3f &root_v,
 	MatrixX J = MatrixX::Zero(numcons, 3 * numverts);
 	/* Constraint velocities */
 	VectorX c = VectorX::Zero(numcons);
-	/* root velocity constraint */
-	J.block<3,3>(0, 0) = Matrix3f::Identity();
-	c.block<3,1>(0, 0) = -root_v;
-	/* distance  constraints */
-	for (int i = 0; i < numcons_edges; ++i) {
-		int ka = i * 3;
-		int kb = (i+1) * 3;
-		Vector3f xa(x1.block<3,1>(ka, 0));
-		Vector3f xb(x1.block<3,1>(kb, 0));
-		Vector3f j = (xb - xa);
-		float length = j.norm();
-		float target_length = L[i+1];
-		if (j.norm() > 0.0f)
-			j.normalize();
-#ifdef DO_DEBUG
-		BKE_sim_debug_data_add_vector(xb.data(), j.data(), 0,1,0, "hair solve", 3274, i, debug_root, debug_step);
-#endif
-		
-		int con = numcons_roots + i;
-		J.block<1,3>(con, ka) = -j.transpose();
-		J.block<1,3>(con, kb) =  j.transpose();
-		
-		/* counteract drift with velocity along the edge */
-		c.coeffRef(con) = length - target_length;
-	}
-	/* A = J * M^-1 * J^T */
-	MatrixX A = J * M_inv * J.transpose();
 	
-	/* force vector */
-	VectorX F = M * (x1 - x0);
+	VectorX x = x0;
+	float res = 4;
+	do {
+		/* root velocity constraint */
+		J.block<3,3>(0, 0) = Matrix3f::Identity();
+		c.block<3,1>(0, 0) = -root_v;
+		
+		/* distance constraints */
+		for (int i = 0; i < numcons_edges; ++i) {
+			int ka = i * 3;
+			int kb = (i+1) * 3;
+			Vector3f xa(x.block<3,1>(ka, 0));
+			Vector3f xb(x.block<3,1>(kb, 0));
+			Vector3f j = (xb - xa);
+			//		float length = j.norm();
+			//		float target_length = L[i+1];
+			//		if (j.norm() > 0.0f)
+			//			j.normalize();
+			
+			int con = numcons_roots + i;
+			J.block<1,3>(con, ka) = -j.transpose();
+			J.block<1,3>(con, kb) =  j.transpose();
+			
+			/* counteract drift with velocity along the edge */
+			//		float drift = length - target_length;
+			//		c.coeffRef(con) = drift;
+			
+#ifdef DO_DEBUG
 #if 0
-	/* bending force: smoothes the hair */
-	float stiffness = 0.0;
-	for (int i = 1; i < numverts - 1; ++i) {
-		int ka = (i-1) * 3;
-		int kb = i * 3;
-		int kc = (i+1) * 3;
-		Vector3f xa(x1.block<3,1>(ka, 0));
-		Vector3f xb(x1.block<3,1>(kb, 0));
-		Vector3f xc(x1.block<3,1>(kc, 0));
-		Vector3f target = xb + (xb - xa).normalized() * (xc - xb).norm();
-		Vector3f f = stiffness * (target - xc);
-		F.block<3,1>(kc, 0) += f;
-		F.block<3,1>(kb, 0) += -f;
-	}
+			{
+				Vector3f vj = -j;
+				Vector3f xd = xa + Vector3f(0, 0, 0.03f);
+				BKE_sim_debug_data_add_vector(xd.data(), vj.data(), 0.3,1,0, "hair solve", 3274, i, debug_root, debug_step);
+				vj = -vj;
+				xd = xb + Vector3f(0, 0, 0.03f);
+				BKE_sim_debug_data_add_vector(xd.data(), vj.data(), 0,1,0.3, "hair solve", 32799, i, debug_root, debug_step);
+			}
 #endif
-	
-	/* b = -(J * M^-1 * F + c) */
-	VectorX b = -(J * M_inv * F + c);
-	
-	/* Lagrange multipliers are the solution to A * lambda = b */
-	VectorX lambda = A.ldlt().solve(b);
-	BLI_assert((A * lambda).isApprox(b, 0.001f));
-	
-	/* calculate velocity correction by constraint forces */
-	VectorX v = M_inv * (J.transpose() * lambda + F);
-	
-	/* corrected position update */
-	VectorX x = x0 + v;
-	
-#ifdef DO_DEBUG
-	{
-		std::cout << "J = " << std::endl << J << std::endl;
-		std::cout << "A = " << std::endl << A << std::endl;
-		std::cout << "v = " << std::endl << v << std::endl;
-		std::cout << "b = " << std::endl << b << std::endl;
-		std::cout << "lambda = " << std::endl << lambda << std::endl;
-		VectorX dv = v - (x1 - x0);
-		for (int k = 0; k < numverts; ++k) {
-			BKE_sim_debug_data_add_vector(&x1.coeff(3*k), &dv.coeff(3*k), 1,0,1, "hair solve", 3833, k, debug_root, debug_step);
-			BKE_sim_debug_data_add_vector(&x0.coeff(3*k), &v.coeff(3*k), 0,1,1, "hair solve", 3811, k, debug_root, debug_step);
-			BKE_sim_debug_data_add_vector(&x1.coeff(3*k), &F.coeff(3*k), 1,0,0, "hair solve", 32789, k, debug_root, debug_step);
+#endif
 		}
-	}
+		/* A = J * M^-1 * J^T */
+		MatrixX A = J * M_inv * J.transpose();
+	
+		/* force vector */
+		VectorX F = M * (x1 - x);
+#if 0
+		/* length spring: correct for drift of length constraints */
+		for (int i = 0; i < numverts - 1; ++i) {
+			int ka = i * 3;
+			int kb = (i+1) * 3;
+			Vector3f xa(x1.block<3,1>(ka, 0));
+			Vector3f xb(x1.block<3,1>(kb, 0));
+			Vector3f d = (xb - xa);
+			float length = d.norm();
+			Vector3f f;
+			if (length > 0.0f)
+				f = d * (1.0f - L[i+1] / length);
+			else
+				f = Vector3f(0.0f, 0.0f, 0.0f);
+			F.block<3,1>(ka, 0) += f;
+			F.block<3,1>(kb, 0) += -f;
+		}
 #endif
+#if 0
+		/* bending force: smoothes the hair */
+		float stiffness = 0.0;
+		for (int i = 1; i < numverts - 1; ++i) {
+			int ka = (i-1) * 3;
+			int kb = i * 3;
+			int kc = (i+1) * 3;
+			Vector3f xa(x1.block<3,1>(ka, 0));
+			Vector3f xb(x1.block<3,1>(kb, 0));
+			Vector3f xc(x1.block<3,1>(kc, 0));
+			Vector3f target = xb + (xb - xa).normalized() * (xc - xb).norm();
+			Vector3f f = stiffness * (target - xc);
+			F.block<3,1>(kc, 0) += f;
+			F.block<3,1>(kb, 0) += -f;
+		}
+#endif
+		
+		/* b = -(J * M^-1 * F + c) */
+		VectorX b = -(J * M_inv * F + c);
+		
+		/* Lagrange multipliers are the solution to A * lambda = b */
+		VectorX lambda = A.ldlt().solve(b);
+		BLI_assert((A * lambda).isApprox(b, 0.001f));
+		
+		/* calculate velocity correction by constraint forces */
+		VectorX v = M_inv * (J.transpose() * lambda + F);
+		
+		/* corrected position update */
+		x = x + v;
+		
+#ifdef DO_DEBUG
+		{
+			std::cout << "J = " << std::endl << J << std::endl;
+			std::cout << "A = " << std::endl << A << std::endl;
+			std::cout << "v = " << std::endl << v << std::endl;
+			std::cout << "b = " << std::endl << b << std::endl;
+			std::cout << "lambda = " << std::endl << lambda << std::endl;
+			
+			for (int k = 0; k < numverts-1; ++k) {
+				Vector3f xa = x0.block<3,1>(3*k, 0);
+				Vector3f xb = x0.block<3,1>(3*(k+1), 0);
+				BKE_sim_debug_data_add_line(xa.data(), xb.data(), 0.4,0.4,0.4, "hair solve", 3800, k, debug_root, debug_step);
+				xa = x1.block<3,1>(3*k, 0);
+				xb = x1.block<3,1>(3*(k+1), 0);
+				BKE_sim_debug_data_add_line(xa.data(), xb.data(), 0.7,0.7,0.7, "hair solve", 3801, k, debug_root, debug_step);
+			}
+			
+			VectorX dv = v - (x1 - x0);
+			for (int k = 0; k < numverts; ++k) {
+				Vector3f xd = x1.block<3,1>(3*k, 0) + Vector3f(0, 0, 0.01f);
+				BKE_sim_debug_data_add_vector(xd.data(), &dv.coeff(3*k), 0.4,0.4,1, "hair solve", 3833, k, debug_root, debug_step);
+				xd = x0.block<3,1>(3*k, 0) + Vector3f(0, 0, 0.02f);
+				BKE_sim_debug_data_add_vector(xd.data(), &v.coeff(3*k), 0,0,1, "hair solve", 3811, k, debug_root, debug_step);
+				
+				xd = x1.block<3,1>(3*k, 0) + Vector3f(0, 0, 0.04f);
+				BKE_sim_debug_data_add_vector(xd.data(), &F.coeff(3*k), 1,0,0, "hair solve", 32789, k, debug_root, debug_step);
+			}
+			
+			VectorX Fj = J.transpose() * lambda;
+			for (int i = 0; i < numcons_edges; ++i) {
+				int ka = i * 3;
+				Vector3f xa(x1.block<3,1>(ka, 0));
+				Vector3f j = Fj.block<3,1>(ka, 0);
+				
+				Vector3f xd = xa + Vector3f(0, 0, 0.03f);
+				BKE_sim_debug_data_add_vector(xd.data(), j.data(), 0.3,1,0, "hair solve", 3274, i, debug_root, debug_step);
+			}
+		}
+#endif
+		
+		res = res - 1;
+	} while (res > 0.05f);
 	
 	return x;
+#endif
 }
 
 static void strand_solve(BMesh *bm, BMVert *root, float (*orig)[3], int numverts,
