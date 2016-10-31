@@ -47,6 +47,7 @@ set(SRC
 	opensubdiv_device_context_cuda.h
 	opensubdiv_device_context_opencl.h
 	opensubdiv_intern.h
+	opensubdiv_topology_refiner.h
 )
 
 macro(OPENSUBDIV_DEFINE_COMPONENT component)
@@ -63,12 +64,15 @@ OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 
-data_to_c_simple(gpu_shader_opensubd_display.glsl SRC)
+data_to_c_simple(gpu_shader_opensubdiv_vertex.glsl SRC)
+data_to_c_simple(gpu_shader_opensubdiv_geometry.glsl SRC)
+data_to_c_simple(gpu_shader_opensubdiv_fragment.glsl SRC)
 
 add_definitions(-DGLEW_STATIC)
 
 if(WIN32)
 	add_definitions(-DNOMINMAX)
+	add_definitions(-D_USE_MATH_DEFINES)
 endif()
 
 # TODO(sergey): Put CUEW back when CUDA is officially supported by OSD.

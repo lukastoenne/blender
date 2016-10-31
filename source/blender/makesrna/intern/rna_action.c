@@ -308,6 +308,14 @@ static void rna_def_dopesheet(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_GHOST_ENABLED, 0);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 	
+	prop = RNA_def_property(srna, "use_datablock_sort", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ADS_FLAG_NO_DB_SORT);
+	RNA_def_property_ui_text(prop, "Sort Data-Blocks",
+	                         "Alphabetically sorts data-blocks - mainly objects in the scene "
+	                         "(disable to increase viewport speed)");
+	RNA_def_property_ui_icon(prop, ICON_SORTALPHA, 0);
+	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+	
 	/* Debug Filtering Settings */
 	prop = RNA_def_property(srna, "show_only_errors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filterflag", ADS_FILTER_ONLY_ERRORS);
@@ -369,7 +377,7 @@ static void rna_def_dopesheet(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_missing_nla", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag", ADS_FILTER_NLA_NOACT);
 	RNA_def_property_ui_text(prop, "Include Missing NLA",
-	                         "Include animation data blocks with no NLA data (NLA editor only)");
+	                         "Include animation data-blocks with no NLA data (NLA editor only)");
 	RNA_def_property_ui_icon(prop, ICON_ACTION, 0);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 	
@@ -508,7 +516,7 @@ static void rna_def_dopesheet(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_gpencil_3d_only", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filterflag", ADS_FILTER_GP_3DONLY);
 	RNA_def_property_ui_text(prop, "Active Scene Only", 
-	                         "Only show Grease Pencil datablocks used as part of the active scene");
+	                         "Only show Grease Pencil data-blocks used as part of the active scene");
 	RNA_def_property_ui_icon(prop, ICON_SCENE_DATA, 0);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 }
@@ -706,7 +714,8 @@ static void rna_def_action(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "pose_markers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "markers", NULL);
 	RNA_def_property_struct_type(prop, "TimelineMarker");
-	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION); /* T45689 - so that the list isn't greyed out; adding/removing is still banned though */
+	/* Use lib exception so the list isn't grayed out; adding/removing is still banned though, see T45689 */
+	RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
 	RNA_def_property_ui_text(prop, "Pose Markers", "Markers specific to this action, for labeling poses");
 	rna_def_action_pose_markers(brna, prop);
 	

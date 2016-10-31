@@ -53,6 +53,10 @@ typedef struct CameraStereoSettings {
 	short pivot;
 	short flag;
 	short pad;
+	/* Cut-off angle at which interocular distance start to fade down. */
+	float pole_merge_angle_from;
+	/* Cut-off angle at which interocular distance stops to fade down. */
+	float pole_merge_angle_to;
 } CameraStereoSettings;
 
 typedef struct Camera {
@@ -81,8 +85,8 @@ typedef struct Camera {
 	char sensor_fit;
 	char pad[7];
 
-	 /* Stereo settings */
-	 struct CameraStereoSettings stereo;
+	/* Stereo settings */
+	struct CameraStereoSettings stereo;
 } Camera;
 
 /* **************** CAMERA ********************* */
@@ -152,6 +156,7 @@ enum {
 /* stereo->flag */
 enum {
 	CAM_S3D_SPHERICAL       = (1 << 0),
+	CAM_S3D_POLE_MERGE      = (1 << 1),
 };
 
 #ifdef __cplusplus

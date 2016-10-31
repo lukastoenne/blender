@@ -317,9 +317,10 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 		float cursor_local[3];
 		const float   *cursor = ED_view3d_cursor3d_get(scene, v3d);
 		
-		
+		invert_m4_m4(ob->imat, ob->obmat);
 		copy_v3_v3(cursor_local, cursor);
-		mul_m3_v3(imat, cursor_local);
+		mul_m4_v3(ob->imat, cursor_local);
+
 		
 		/* cursor */
 		for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
@@ -409,6 +410,7 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 			if (type < 3) vec[type] = 1.0f;
 			else vec[type - 2] = -1.0f;
 			mul_m3_v3(imat, vec);
+			normalize_v3(vec);
 		}
 		
 		if (axis_flip) negate_v3(vec);

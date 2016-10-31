@@ -103,32 +103,6 @@ bool BlenderSync::sync_recalc()
 		if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
 			shader_map.set_recalc(*b_lamp);
 
-	BL::BlendData::objects_iterator b_ob;
-
-	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
-		if(b_ob->is_updated()) {
-			object_map.set_recalc(*b_ob);
-			light_map.set_recalc(*b_ob);
-		}
-
-		if(object_is_mesh(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated()) {
-				BL::ID key = BKE_object_is_modified(*b_ob)? *b_ob: b_ob->data();
-				mesh_map.set_recalc(key);
-			}
-		}
-		else if(object_is_light(*b_ob)) {
-			if(b_ob->is_updated_data() || b_ob->data().is_updated())
-				light_map.set_recalc(*b_ob);
-		}
-		
-		if(b_ob->is_updated_data()) {
-			BL::Object::particle_systems_iterator b_psys;
-			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
-				particle_system_map.set_recalc(*b_ob);
-		}
-	}
-
 	bool dicing_prop_changed = false;
 
 	if(experimental) {
@@ -150,20 +124,41 @@ bool BlenderSync::sync_recalc()
 		}
 	}
 
+	BL::BlendData::objects_iterator b_ob;
+
+	for(b_data.objects.begin(b_ob); b_ob != b_data.objects.end(); ++b_ob) {
+		if(b_ob->is_updated()) {
+			object_map.set_recalc(*b_ob);
+			light_map.set_recalc(*b_ob);
+		}
+
+		if(object_is_mesh(*b_ob)) {
+			if(b_ob->is_updated_data() || b_ob->data().is_updated() ||
+			   (dicing_prop_changed && object_subdivision_type(*b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
+			{
+				BL::ID key = BKE_object_is_modified(*b_ob)? *b_ob: b_ob->data();
+				mesh_map.set_recalc(key);
+			}
+		}
+		else if(object_is_light(*b_ob)) {
+			if(b_ob->is_updated_data() || b_ob->data().is_updated())
+				light_map.set_recalc(*b_ob);
+		}
+		
+		if(b_ob->is_updated_data()) {
+			BL::Object::particle_systems_iterator b_psys;
+			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
+				particle_system_map.set_recalc(*b_ob);
+		}
+	}
+
 	BL::BlendData::meshes_iterator b_mesh;
 
 	for(b_data.meshes.begin(b_mesh); b_mesh != b_data.meshes.end(); ++b_mesh) {
 		if(b_mesh->is_updated()) {
 			mesh_map.set_recalc(*b_mesh);
 		}
-		else if(dicing_prop_changed) {
-			PointerRNA cmesh = RNA_pointer_get(&b_mesh->ptr, "cycles");
-
-			if(RNA_enum_get(&cmesh, "subdivision_type"))
-				mesh_map.set_recalc(*b_mesh);
-		}
 	}
-
 
 	BL::BlendData::worlds_iterator b_world;
 
@@ -175,8 +170,8 @@ bool BlenderSync::sync_recalc()
 				world_recalc = true;
 			}
 			else if(b_world->node_tree() && b_world->use_nodes()) {
-				Shader *shader = scene->shaders[scene->default_background];
-				if(has_updated_objects && shader != NULL && shader->has_object_dependency) {
+				Shader *shader = scene->default_background;
+				if(has_updated_objects && shader->has_object_dependency) {
 					world_recalc = true;
 				}
 			}
@@ -268,8 +263,6 @@ void BlenderSync::sync_integrator()
 	        "sampling_pattern",
 	        SAMPLING_NUM_PATTERNS,
 	        SAMPLING_PATTERN_SOBOL);
-
-	integrator->layer_flag = render_layer.layer;
 
 	integrator->sample_clamp_direct = get_float(cscene, "sample_clamp_direct");
 	integrator->sample_clamp_indirect = get_float(cscene, "sample_clamp_indirect");
@@ -377,8 +370,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			layer = layername.c_str();
 		}
 		else {
-			render_layer.use_localview = (b_v3d.local_view() ? true : false);
-			render_layer.scene_layer = get_layer(b_v3d.layers(), b_v3d.layers_local_view(), render_layer.use_localview);
+			render_layer.scene_layer = get_layer(b_v3d.layers(), b_v3d.layers_local_view());
 			render_layer.layer = render_layer.scene_layer;
 			render_layer.exclude_layer = 0;
 			render_layer.holdout_layer = 0;
@@ -421,7 +413,6 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer)
 			render_layer.use_surfaces = b_rlay->use_solid();
 			render_layer.use_hair = b_rlay->use_strand();
 			render_layer.use_viewport_visibility = false;
-			render_layer.use_localview = false;
 
 			render_layer.bound_samples = (use_layer_samples == 1);
 			if(use_layer_samples != 2) {
@@ -496,6 +487,7 @@ SceneParams BlenderSync::get_scene_params(BL::Scene& b_scene,
 		        SceneParams::BVH_STATIC);
 
 	params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
+	params.use_bvh_unaligned_nodes = RNA_boolean_get(&cscene, "debug_use_hair_bvh");
 
 	if(background && params.shadingsystem != SHADINGSYSTEM_OSL)
 		params.persistent_data = r.use_persistent_data();
@@ -631,9 +623,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine& b_engine,
 	else
 		params.threads = 0;
 
-	params.cancel_timeout = get_float(cscene, "debug_cancel_timeout");
-	params.reset_timeout = get_float(cscene, "debug_reset_timeout");
-	params.text_timeout = get_float(cscene, "debug_text_timeout");
+	params.cancel_timeout = (double)get_float(cscene, "debug_cancel_timeout");
+	params.reset_timeout = (double)get_float(cscene, "debug_reset_timeout");
+	params.text_timeout = (double)get_float(cscene, "debug_text_timeout");
 
 	params.progressive_refine = get_boolean(cscene, "use_progressive_refine");
 

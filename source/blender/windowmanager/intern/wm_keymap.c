@@ -77,6 +77,10 @@ static wmKeyMapItem *wm_keymap_item_copy(wmKeyMapItem *kmi)
 		kmin->properties = IDP_CopyProperty(kmin->properties);
 		kmin->ptr->data = kmin->properties;
 	}
+	else {
+		kmin->properties = NULL;
+		kmin->ptr = NULL;
+	}
 
 	return kmin;
 }
@@ -87,6 +91,8 @@ static void wm_keymap_item_free(wmKeyMapItem *kmi)
 	if (kmi->ptr) {
 		WM_operator_properties_free(kmi->ptr);
 		MEM_freeN(kmi->ptr);
+		kmi->ptr = NULL;
+		kmi->properties = NULL;
 	}
 }
 
@@ -120,7 +126,7 @@ static void wm_keymap_item_properties_update_ot(wmKeyMapItem *kmi)
 		}
 		else {
 			/* zombie keymap item */
-			MEM_SAFE_FREE(kmi->ptr);
+			wm_keymap_item_free(kmi);
 		}
 	}
 }
@@ -1787,7 +1793,17 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 	}
 	/* UV Editor */
 	else if (STRPREFIX(opname, "UV_OT")) {
-		km = WM_keymap_find_all(C, "UV Editor", 0, 0);
+		/* Hack to allow using UV unwrapping ops from 3DView/editmode.
+		 * Mesh keymap is probably not ideal, but best place I could find to put those. */
+		if (sl->spacetype == SPACE_VIEW3D) {
+			km = WM_keymap_find_all(C, "Mesh", 0, 0);
+			if (km && km->poll && !km->poll((bContext *)C)) {
+				km = NULL;
+			}
+		}
+		if (!km) {
+			km = WM_keymap_find_all(C, "UV Editor", 0, 0);
+		}
 	}
 	/* Node Editor */
 	else if (STRPREFIX(opname, "NODE_OT")) {

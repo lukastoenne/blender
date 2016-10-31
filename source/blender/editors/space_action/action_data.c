@@ -121,7 +121,7 @@ static bAction *action_create_new(bContext *C, bAction *oldact)
 	 */
 	if (oldact && GS(oldact->id.name) == ID_AC) {
 		/* make a copy of the existing action */
-		action = BKE_action_copy(oldact);
+		action = BKE_action_copy(CTX_data_main(C), oldact);
 	}
 	else {
 		/* just make a new (empty) action */
@@ -669,8 +669,8 @@ void ACTION_OT_unlink(wmOperatorType *ot)
 	ot->poll = action_unlink_poll;
 	
 	/* properties */
-	prop = RNA_def_boolean(ot->srna, "force_delete", false, "Force Delete", 
-	                       "Clear Fake User and remove copy stashed in this datablock's NLA stack");
+	prop = RNA_def_boolean(ot->srna, "force_delete", false, "Force Delete", "Clear Fake User and remove "
+	                       "copy stashed in this data-block's NLA stack");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 

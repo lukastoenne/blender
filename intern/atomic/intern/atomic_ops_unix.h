@@ -129,23 +129,24 @@ ATOMIC_INLINE uint32_t atomic_cas_uint32(uint32_t *v, uint32_t old, uint32_t _ne
 #elif (defined(__i386__) || defined(__amd64__) || defined(__x86_64__))
 ATOMIC_INLINE uint32_t atomic_add_uint32(uint32_t *p, uint32_t x)
 {
+	uint32_t ret = x;
 	asm volatile (
 	    "lock; xaddl %0, %1;"
-	    : "+r" (x), "=m" (*p) /* Outputs. */
+	    : "+r" (ret), "=m" (*p) /* Outputs. */
 	    : "m" (*p) /* Inputs. */
 	    );
-	return x;
+	return ret+x;
 }
 
 ATOMIC_INLINE uint32_t atomic_sub_uint32(uint32_t *p, uint32_t x)
 {
-	x = (uint32_t)(-(int32_t)x);
+	ret = (uint32_t)(-(int32_t)x);
 	asm volatile (
 	    "lock; xaddl %0, %1;"
-	    : "+r" (x), "=m" (*p) /* Outputs. */
+	    : "+r" (ret), "=m" (*p) /* Outputs. */
 	    : "m" (*p) /* Inputs. */
 	    );
-	return x;
+	return ret-x;
 }
 
 ATOMIC_INLINE uint32_t atomic_cas_uint32(uint32_t *v, uint32_t old, uint32_t _new)
@@ -158,6 +159,16 @@ ATOMIC_INLINE uint32_t atomic_cas_uint32(uint32_t *v, uint32_t old, uint32_t _ne
 	    : "memory");
 	return ret;
 }
+#else
+#  error "Missing implementation for 32-bit atomic operations"
+#endif
+
+#if (defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || defined(JE_FORCE_SYNC_COMPARE_AND_SWAP_4))
+ATOMIC_INLINE uint32_t atomic_fetch_and_add_uint32(uint32_t *p, uint32_t x)
+{
+	return __sync_fetch_and_add(p, x);
+}
+
 #else
 #  error "Missing implementation for 32-bit atomic operations"
 #endif

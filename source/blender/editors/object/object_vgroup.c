@@ -2447,8 +2447,8 @@ static int vertex_group_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	return (ob && !ob->id.lib &&
-	        data && !data->lib &&
+	return (ob && !ID_IS_LINKED_DATABLOCK(ob) &&
+	        data && !ID_IS_LINKED_DATABLOCK(data) &&
 	        OB_TYPE_SUPPORT_VGROUP(ob->type) &&
 	        ob->defbase.first);
 }
@@ -2457,7 +2457,8 @@ static int vertex_group_supported_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
-	return (ob && !ob->id.lib && OB_TYPE_SUPPORT_VGROUP(ob->type) && data && !data->lib);
+	return (ob && !ID_IS_LINKED_DATABLOCK(ob) && OB_TYPE_SUPPORT_VGROUP(ob->type) &&
+	        data && !ID_IS_LINKED_DATABLOCK(data));
 }
 
 static int vertex_group_mesh_poll(bContext *C)
@@ -2465,8 +2466,8 @@ static int vertex_group_mesh_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	return (ob && !ob->id.lib &&
-	        data && !data->lib &&
+	return (ob && !ID_IS_LINKED_DATABLOCK(ob) &&
+	        data && !ID_IS_LINKED_DATABLOCK(data) &&
 	        ob->type == OB_MESH &&
 	        ob->defbase.first);
 }
@@ -2475,7 +2476,7 @@ static int UNUSED_FUNCTION(vertex_group_mesh_supported_poll)(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
-	return (ob && !ob->id.lib && ob->type == OB_MESH && data && !data->lib);
+	return (ob && !ID_IS_LINKED_DATABLOCK(ob) && ob->type == OB_MESH && data && !ID_IS_LINKED_DATABLOCK(data));
 }
 
 
@@ -2484,7 +2485,7 @@ static int UNUSED_FUNCTION(vertex_group_poll_edit) (bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ob->id.lib && data && !data->lib))
+	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
 		return 0;
 
 	return BKE_object_is_in_editmode_vgroup(ob);
@@ -2496,7 +2497,7 @@ static int vertex_group_vert_select_poll_ex(bContext *C, const short ob_type_fla
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ob->id.lib && data && !data->lib))
+	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
 		return false;
 
 	if (ob_type_flag && (((1 << ob->type) & ob_type_flag)) == 0) {
@@ -2536,7 +2537,7 @@ static int vertex_group_vert_select_unlocked_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ob->id.lib && data && !data->lib))
+	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
 		return 0;
 
 	if (!(BKE_object_is_in_editmode_vgroup(ob) ||
@@ -2559,7 +2560,7 @@ static int vertex_group_vert_select_mesh_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 
-	if (!(ob && !ob->id.lib && data && !data->lib))
+	if (!(ob && !ID_IS_LINKED_DATABLOCK(ob) && data && !ID_IS_LINKED_DATABLOCK(data)))
 		return 0;
 
 	/* only difference to #vertex_group_vert_select_poll */
@@ -2748,7 +2749,7 @@ static int vertex_group_select_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_context(C);
 
-	if (!ob || ob->id.lib)
+	if (!ob || ID_IS_LINKED_DATABLOCK(ob))
 		return OPERATOR_CANCELLED;
 
 	vgroup_select_verts(ob, 1);
@@ -3537,8 +3538,10 @@ static int vgroup_sort_name(const void *def_a_ptr, const void *def_b_ptr)
 	return BLI_natstrcmp(def_a->name, def_b->name);
 }
 
-/* Sorts the weight groups according to the bone hierarchy of the
-   associated armature (similar to how bones are ordered in the Outliner) */
+/**
+ * Sorts the weight groups according to the bone hierarchy of the
+ * associated armature (similar to how bones are ordered in the Outliner)
+ */
 static void vgroup_sort_bone_hierarchy(Object *ob, ListBase *bonebase)
 {
 	if (bonebase == NULL) {
@@ -3630,7 +3633,8 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
 	Object *ob = ED_object_context(C);
 	bDeformGroup *def;
 	char *name_array;
-	int dir = RNA_enum_get(op->ptr, "direction"), ret;
+	int dir = RNA_enum_get(op->ptr, "direction");
+	int ret = OPERATOR_FINISHED;
 
 	def = BLI_findlink(&ob->defbase, ob->actdef - 1);
 	if (!def) {
@@ -3639,27 +3643,16 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
 
 	name_array = vgroup_init_remap(ob);
 
-	if (dir == 1) { /*up*/
-		void *prev = def->prev;
+	if (BLI_listbase_link_move(&ob->defbase, def, dir)) {
+		ret = vgroup_do_remap(ob, name_array, op);
 
-		BLI_remlink(&ob->defbase, def);
-		BLI_insertlinkbefore(&ob->defbase, prev, def);
+		if (ret != OPERATOR_CANCELLED) {
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+			WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
+		}
 	}
-	else { /*down*/
-		void *next = def->next;
-
-		BLI_remlink(&ob->defbase, def);
-		BLI_insertlinkafter(&ob->defbase, next, def);
-	}
-
-	ret = vgroup_do_remap(ob, name_array, op);
 
 	if (name_array) MEM_freeN(name_array);
-
-	if (ret != OPERATOR_CANCELLED) {
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-		WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
-	}
 
 	return ret;
 }
@@ -3667,8 +3660,8 @@ static int vgroup_move_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_vertex_group_move(wmOperatorType *ot)
 {
 	static EnumPropertyItem vgroup_slot_move[] = {
-		{1, "UP", 0, "Up", ""},
-		{-1, "DOWN", 0, "Down", ""},
+		{-1, "UP", 0, "Up", ""},
+		{1, "DOWN", 0, "Down", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3684,7 +3677,8 @@ void OBJECT_OT_vertex_group_move(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "direction", vgroup_slot_move, 0, "Direction", "Direction to move, UP or DOWN");
+	RNA_def_enum(ot->srna, "direction", vgroup_slot_move, 0, "Direction",
+	             "Direction to move the active vertex group towards");
 }
 
 static void vgroup_copy_active_to_sel_single(Object *ob, const int def_nr)

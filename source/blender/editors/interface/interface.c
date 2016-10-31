@@ -1138,7 +1138,7 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
  * as new items are added to the menu later on. It also optimises efficiency -
  * a radial menu is best kept symmetrical, with as large an angle between
  * items as possible, so that the gestural mouse movements can be fast and inexact.
-
+ *
  * It starts off with two opposite sides for the first two items
  * then joined by the one below for the third (this way, even with three items,
  * the menu seems to still be 'in order' reading left to right). Then the fourth is
@@ -1247,7 +1247,6 @@ void UI_block_end_ex(const bContext *C, uiBlock *block, const int xy[2])
 
 			if (ot == NULL || WM_operator_poll_context((bContext *)C, ot, but->opcontext) == 0) {
 				but->flag |= UI_BUT_DISABLED;
-				but->lock = true;
 			}
 
 			if (but->context)
@@ -2576,9 +2575,11 @@ static void ui_set_but_soft_range(uiBut *but)
 	}
 	else if (but->poin && (but->pointype & UI_BUT_POIN_TYPES)) {
 		float value = ui_but_value_get(but);
-		CLAMP(value, but->hardmin, but->hardmax);
-		but->softmin = min_ff(but->softmin, value);
-		but->softmax = max_ff(but->softmax, value);
+		if (isfinite(value)) {
+			CLAMP(value, but->hardmin, but->hardmax);
+			but->softmin = min_ff(but->softmin, value);
+			but->softmax = max_ff(but->softmax, value);
+		}
 	}
 	else {
 		BLI_assert(0);
@@ -3120,8 +3121,7 @@ static uiBut *ui_def_but(
 	but->a2 = a2;
 	but->tip = tip;
 
-	but->lock = block->lock;
-	but->lockstr = block->lockstr;
+	but->disabled_info = block->lockstr;
 	but->dt = block->dt;
 	but->pie_dir = UI_RADIAL_NONE;
 
@@ -3169,10 +3169,8 @@ static uiBut *ui_def_but(
 
 	but->drawflag |= (block->flag & UI_BUT_ALIGN);
 
-	if (but->lock == true) {
-		if (but->lockstr) {
-			but->flag |= UI_BUT_DISABLED;
-		}
+	if (block->lock == true) {
+		but->flag |= UI_BUT_DISABLED;
 	}
 
 	/* keep track of UI_interface.h */
@@ -3217,11 +3215,10 @@ void ui_def_but_icon(uiBut *but, const int icon, const int flag)
 	}
 }
 
-static void ui_def_but_rna__disable(uiBut *but)
+static void ui_def_but_rna__disable(uiBut *but, const char *info)
 {
 	but->flag |= UI_BUT_DISABLED;
-	but->lock = true;
-	but->lockstr = "";
+	but->disabled_info = info;
 }
 
 static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *but_p)
@@ -3486,8 +3483,9 @@ static uiBut *ui_def_but_rna(
 		but->flag |= UI_BUT_ICON_SUBMENU;
 	}
 
-	if (!RNA_property_editable(&but->rnapoin, prop)) {
-		ui_def_but_rna__disable(but);
+	const char *info;
+	if (!RNA_property_editable_info(&but->rnapoin, prop, &info)) {
+		ui_def_but_rna__disable(but, info);
 	}
 
 	if (but->flag & UI_BUT_UNDO && (ui_but_is_rna_undo(but) == false)) {
@@ -3518,7 +3516,7 @@ static uiBut *ui_def_but_rna_propname(uiBlock *block, int type, int retval, cons
 	else {
 		but = ui_def_but(block, type, retval, propname, x, y, width, height, NULL, min, max, a1, a2, tip);
 
-		ui_def_but_rna__disable(but);
+		ui_def_but_rna__disable(but, "Unknown Property.");
 	}
 
 	return but;
@@ -3546,8 +3544,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block, int type, wmOperatorType *
 
 	if (!ot) {
 		but->flag |= UI_BUT_DISABLED;
-		but->lock = true;
-		but->lockstr = "";
+		but->disabled_info = "";
 	}
 
 	return but;
@@ -4323,7 +4320,7 @@ uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxle
 
 
 /**
- * \param sfunc, bfunc: both get it as \a arg.
+ * \param search_func, bfunc: both get it as \a arg.
  * \param arg: user value,
  * \param  active: when set, button opens with this item visible and selected.
  */

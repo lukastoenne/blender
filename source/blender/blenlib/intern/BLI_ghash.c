@@ -69,7 +69,7 @@ const unsigned int hashsizes[] = {
 
 /**
  * \note Max load #GHASH_LIMIT_GROW used to be 3. (pre 2.74).
- * Python uses 0.6666, tommyhaslib even goes down to 0.5.
+ * Python uses 0.6666, tommyhashlib even goes down to 0.5.
  * Reducing our from 3 to 0.75 gives huge speedup (about twice quicker pure GHash insertions/lookup,
  * about 25% - 30% quicker 'dynamic-topology' stroke drawing e.g.).
  * Min load #GHASH_LIMIT_SHRINK is a quarter of max load, to avoid resizing to quickly.
@@ -1588,7 +1588,7 @@ double BLI_ghash_calc_quality_ex(
 
 	if (r_variance) {
 		/* We already know our mean (i.e. load factor), easy to compute variance.
-		 * See http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Two-pass_algorithm
+		 * See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Two-pass_algorithm
 		 */
 		double sum = 0.0;
 		for (i = 0; i < gh->nbuckets; i++) {

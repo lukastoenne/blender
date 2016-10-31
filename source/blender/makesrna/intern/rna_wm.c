@@ -167,7 +167,7 @@ static EnumPropertyItem event_ndof_type_items[] = {
 	{NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, "Button C", ""},
 	{0, NULL, 0, NULL, NULL}
 };
-#endif
+#endif /* RNA_RUNTIME */
 
 /* not returned: CAPSLOCKKEY, UNKNOWNKEY */
 EnumPropertyItem rna_enum_event_type_items[] = {
@@ -469,13 +469,15 @@ EnumPropertyItem rna_enum_wm_report_items[] = {
 static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
 {
 	wmWindowManager *wm = ptr->id.data;
-	IDProperty *properties = (IDProperty *)ptr->data;
-	wmOperator *op;
 
-	if (wm)
-		for (op = wm->operators.first; op; op = op->next)
-			if (op->properties == properties)
+	if (wm) {
+		IDProperty *properties = (IDProperty *)ptr->data;
+		for (wmOperator *op = wm->operators.last; op; op = op->prev) {
+			if (op->properties == properties) {
 				return op;
+			}
+		}
+	}
 	
 	return NULL;
 }
@@ -1933,15 +1935,15 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "addon", PROP_POINTER, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "addonconf");
 	RNA_def_property_struct_type(prop, "KeyConfig");
-	RNA_def_property_ui_text(prop, "Addon Key Configuration",
-	                         "Key configuration that can be extended by addons, and is added to the active "
+	RNA_def_property_ui_text(prop, "Add-on Key Configuration",
+	                         "Key configuration that can be extended by add-ons, and is added to the active "
 	                         "configuration when handling events");
 
 	prop = RNA_def_property(srna, "user", PROP_POINTER, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "userconf");
 	RNA_def_property_struct_type(prop, "KeyConfig");
 	RNA_def_property_ui_text(prop, "User Key Configuration",
-	                         "Final key configuration that combines keymaps from the active and addon configurations, "
+	                         "Final key configuration that combines keymaps from the active and add-on configurations, "
 	                         "and can be edited by the user");
 	
 	RNA_api_keyconfigs(srna);

@@ -193,7 +193,6 @@ class RENDER_PT_antialiasing(RenderButtonsPanel, Panel):
         col = split.column()
         col.row().prop(rd, "antialiasing_samples", expand=True)
         sub = col.row()
-        sub.enabled = not rd.use_border
         sub.prop(rd, "use_full_sample")
 
         col = split.column()
@@ -248,6 +247,7 @@ class RENDER_PT_shading(RenderButtonsPanel, Panel):
         col = split.column()
         col.prop(rd, "use_raytrace", text="Ray Tracing")
         col.prop(rd, "alpha_mode", text="Alpha")
+        col.prop(rd, "use_world_space_shading", text="World Space Shading")
 
 
 class RENDER_PT_performance(RenderButtonsPanel, Panel):
@@ -279,7 +279,7 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
         col = split.column()
         col.label(text="Memory:")
         sub = col.column()
-        sub.enabled = not (rd.use_border or rd.use_full_sample)
+        sub.enabled = not rd.use_full_sample
         sub.prop(rd, "use_save_buffers")
         sub = col.column()
         sub.active = rd.use_compositing
@@ -345,7 +345,9 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         layout.prop(rd, "use_stamp")
         col = layout.column()
         col.active = rd.use_stamp
-        col.prop(rd, "stamp_font_size", text="Font Size")
+        row = col.row()
+        row.prop(rd, "stamp_font_size", text="Font Size")
+        row.prop(rd, "use_stamp_labels", text="Draw labels")
 
         row = col.row()
         row.column().prop(rd, "stamp_foreground", slider=True)
@@ -360,6 +362,7 @@ class RENDER_PT_stamp(RenderButtonsPanel, Panel):
         col.prop(rd, "use_stamp_render_time", text="RenderTime")
         col.prop(rd, "use_stamp_frame", text="Frame")
         col.prop(rd, "use_stamp_scene", text="Scene")
+        col.prop(rd, "use_stamp_memory", text="Memory")
 
         col = split.column()
         col.prop(rd, "use_stamp_camera", text="Camera")
@@ -458,31 +461,42 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
 
         split = layout.split()
         split.prop(rd.ffmpeg, "format")
-        if ffmpeg.format in {'AVI', 'QUICKTIME', 'MKV', 'OGG', 'MPEG4'}:
-            split.prop(ffmpeg, "codec")
-            if ffmpeg.codec == 'H264':
-                row = layout.row()
-                row.label()
-                row.prop(ffmpeg, "use_lossless_output")
-        elif rd.ffmpeg.format == 'H264':
-            split.prop(ffmpeg, "use_lossless_output")
-        else:
-            split.label()
+        split.prop(ffmpeg, "use_autosplit")
 
+        layout.separator()
+
+        needs_codec = ffmpeg.format in {'AVI', 'QUICKTIME', 'MKV', 'OGG', 'MPEG4'}
+        if needs_codec:
+            layout.prop(ffmpeg, "codec")
+
+        if ffmpeg.codec in {'DNXHD'}:
+            layout.prop(ffmpeg, "use_lossless_output")
+
+        # Output quality
+        if needs_codec and ffmpeg.codec in {'H264', 'MPEG4'}:
+            layout.prop(ffmpeg, "constant_rate_factor")
+
+        # Encoding speed
+        layout.prop(ffmpeg, "ffmpeg_preset")
+        # I-frames
+        layout.prop(ffmpeg, "gopsize")
+        # B-Frames
         row = layout.row()
-        row.prop(ffmpeg, "video_bitrate")
-        row.prop(ffmpeg, "gopsize")
+        row.prop(ffmpeg, "use_max_b_frames", text='Max B-frames')
+        pbox = row.split()
+        pbox.prop(ffmpeg, "max_b_frames", text='')
+        pbox.enabled = ffmpeg.use_max_b_frames
 
         split = layout.split()
-
+        split.enabled = ffmpeg.constant_rate_factor == 'NONE'
         col = split.column()
         col.label(text="Rate:")
+        col.prop(ffmpeg, "video_bitrate")
         col.prop(ffmpeg, "minrate", text="Minimum")
         col.prop(ffmpeg, "maxrate", text="Maximum")
         col.prop(ffmpeg, "buffersize", text="Buffer")
 
         col = split.column()
-        col.prop(ffmpeg, "use_autosplit")
         col.label(text="Mux:")
         col.prop(ffmpeg, "muxrate", text="Rate")
         col.prop(ffmpeg, "packetsize", text="Packet Size")
@@ -494,6 +508,7 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
             layout.prop(ffmpeg, "audio_codec", text="Audio Codec")
 
         row = layout.row()
+        row.enabled = ffmpeg.audio_codec != 'NONE'
         row.prop(ffmpeg, "audio_bitrate")
         row.prop(ffmpeg, "audio_volume", slider=True)
 

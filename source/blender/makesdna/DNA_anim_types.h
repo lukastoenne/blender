@@ -450,7 +450,9 @@ typedef enum eDriver_Flags {
 		/* the names are cached so they don't need have python unicode versions created each time */
 	DRIVER_FLAG_RENAMEVAR	= (1<<4),
 		/* intermediate values of driver should be shown in the UI for debugging purposes */
-	DRIVER_FLAG_SHOWDEBUG	= (1<<5)
+	DRIVER_FLAG_SHOWDEBUG	= (1<<5),
+		/* include 'self' in the drivers namespace. */
+	DRIVER_FLAG_USE_SELF	= (1<<6),
 } eDriver_Flags;
 
 /* F-Curves -------------------------------------- */
@@ -484,7 +486,7 @@ typedef struct FCurve {
 	unsigned int totvert;	/* total number of points which define the curve (i.e. size of arrays in FPoints) */
 	
 		/* value cache + settings */
-	float curval;			/* value stored from last time curve was evaluated */
+	float curval;			/* value stored from last time curve was evaluated (not threadsafe, debug display only!) */
 	short flag;				/* user-editable settings for this curve */
 	short extend;			/* value-extending mode for this curve (does not cover  */
 	
@@ -537,8 +539,9 @@ typedef enum eFCurve_Extend {
 /* curve coloring modes */
 typedef enum eFCurve_Coloring {
 	FCURVE_COLOR_AUTO_RAINBOW = 0,		/* automatically determine color using rainbow (calculated at drawtime) */
-	FCURVE_COLOR_AUTO_RGB,				/* automatically determine color using XYZ (array index) <-> RGB */
-	FCURVE_COLOR_CUSTOM					/* custom color */
+	FCURVE_COLOR_AUTO_RGB     = 1,		/* automatically determine color using XYZ (array index) <-> RGB */
+	FCURVE_COLOR_AUTO_YRGB    = 3,		/* automatically determine color where XYZ <-> RGB, but index(X) != 0 */
+	FCURVE_COLOR_CUSTOM       = 2,		/* custom color */
 } eFCurve_Coloring;
 
 /* ************************************************ */
@@ -936,7 +939,10 @@ typedef enum eAnimData_Flag {
 	ADT_UI_ACTIVE           = (1<<15),
 
 		/* F-Curves from this AnimData block are not visible in the Graph Editor */
-	ADT_CURVES_NOT_VISIBLE  = (1<<16)
+	ADT_CURVES_NOT_VISIBLE  = (1<<16),
+
+		/* F-Curves from this AnimData block are always visible */
+	ADT_CURVES_ALWAYS_VISIBLE = (1<<17),
 } eAnimData_Flag;
 
 /* Animation Data recalculation settings (to be set by depsgraph) */

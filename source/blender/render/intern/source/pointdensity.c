@@ -211,7 +211,7 @@ static void pointdensity_cache_psys(Scene *scene,
 		                            CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
 	}
 
-	if (!psys_check_enabled(ob, psys)) {
+	if (!psys_check_enabled(ob, psys, use_render_params)) {
 		psys_render_restore(ob, psys);
 		return;
 	}
@@ -333,7 +333,16 @@ static void pointdensity_cache_vertex_color(PointDensity *pd, Object *UNUSED(ob)
 	
 	for (i = 0; i < totloop; i++) {
 		int v = mloop[i].v;
-		rgb_uchar_to_float(&data_color[v*3], &mcol[i].r);
+
+		if (mcorners[v] == 0) {
+			rgb_uchar_to_float(&data_color[v * 3], &mcol[i].r);
+		}
+		else {
+			float col[3];
+			rgb_uchar_to_float(col, &mcol[i].r);
+			add_v3_v3(&data_color[v * 3], col);
+		}
+
 		++mcorners[v];
 	}
 	

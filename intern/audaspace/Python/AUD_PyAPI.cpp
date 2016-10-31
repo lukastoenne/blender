@@ -861,7 +861,7 @@ Factory_filter(Factory* self, PyObject *args)
 	py_a_len= py_a ? PySequence_Size(py_a) : 0;
 	py_b_len= PySequence_Size(py_b);
 
-	if(!py_b_len || ((py_a != NULL) && !py_b_len))
+	if(!py_b_len || ((py_a != NULL) && !py_a_len))
 	{
 		PyErr_SetString(PyExc_ValueError, "The sequence has to contain at least one value!");
 		return NULL;
@@ -2698,7 +2698,7 @@ Device_set_doppler_factor(Device *self, PyObject *args, void* nothing)
 
 PyDoc_STRVAR(M_aud_Device_distance_model_doc,
 			 "The distance model of the device.\n\n"
-			 ".. seealso:: http://connect.creativelabs.com/openal/Documentation/OpenAL%201.1%20Specification.htm#_Toc199835864");
+			 ".. seealso:: `OpenAL documentation <https://www.openal.org/documentation>`");
 
 static PyObject *
 Device_get_distance_model(Device *self, void* nothing)

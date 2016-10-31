@@ -473,7 +473,7 @@ void BlenderSession::render()
 		BL::RenderLayer b_rlay = *b_single_rlay;
 
 		/* add passes */
-		vector<Pass> passes;
+		array<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
 
 		if(session_params.device.advanced_shading) {
@@ -681,8 +681,7 @@ void BlenderSession::bake(BL::Object& b_object,
 		}
 	}
 
-	/* when used, non-instanced convention: object = ~object */
-	int object = ~object_index;
+	int object = object_index;
 
 	BakeData *bake_data = scene->bake_manager->init(object, tri_offset, num_pixels);
 

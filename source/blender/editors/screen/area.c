@@ -580,14 +580,19 @@ void ED_region_tag_refresh_ui(ARegion *ar)
 void ED_region_tag_redraw_partial(ARegion *ar, const rcti *rct)
 {
 	if (ar && !(ar->do_draw & RGN_DRAWING)) {
-		if (!(ar->do_draw & RGN_DRAW)) {
+		if (!(ar->do_draw & (RGN_DRAW | RGN_DRAW_PARTIAL))) {
 			/* no redraw set yet, set partial region */
 			ar->do_draw |= RGN_DRAW_PARTIAL;
 			ar->drawrct = *rct;
 		}
 		else if (ar->drawrct.xmin != ar->drawrct.xmax) {
+			BLI_assert((ar->do_draw & RGN_DRAW_PARTIAL) != 0);
 			/* partial redraw already set, expand region */
 			BLI_rcti_union(&ar->drawrct, rct);
+		}
+		else {
+			BLI_assert((ar->do_draw & RGN_DRAW) != 0);
+			/* Else, full redraw is already requested, nothing to do here. */
 		}
 	}
 }
@@ -635,8 +640,8 @@ void ED_area_headerprint(ScrArea *sa, const char *str)
 		if (ar->regiontype == RGN_TYPE_HEADER) {
 			if (str) {
 				if (ar->headerstr == NULL)
-					ar->headerstr = MEM_mallocN(256, "headerprint");
-				BLI_strncpy(ar->headerstr, str, 256);
+					ar->headerstr = MEM_mallocN(UI_MAX_DRAW_STR, "headerprint");
+				BLI_strncpy(ar->headerstr, str, UI_MAX_DRAW_STR);
 			}
 			else if (ar->headerstr) {
 				MEM_freeN(ar->headerstr);
@@ -1362,9 +1367,12 @@ static void region_subwindow(wmWindow *win, ARegion *ar, bool activate)
 static void ed_default_handlers(wmWindowManager *wm, ScrArea *sa, ListBase *handlers, int flag)
 {
 	/* note, add-handler checks if it already exists */
-	
+
 	/* XXX it would be good to have boundbox checks for some of these... */
 	if (flag & ED_KEYMAP_UI) {
+		wmKeyMap *keymap = WM_keymap_find(wm->defaultconf, "User Interface", 0, 0);
+		WM_event_add_keymap_handler(handlers, keymap);
+
 		/* user interface widgets */
 		UI_region_handlers_add(handlers);
 	}

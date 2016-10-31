@@ -20,6 +20,8 @@
 #include <cassert>
 #include <iostream>
 
+#include "util_static_assert.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Global storage for all sort of flags used to fine-tune behavior of particular
@@ -130,11 +132,11 @@ private:
 
 #if (__cplusplus > 199711L)
 public:
-	DebugFlags(DebugFlags const& /*other*/)     = delete;
+	explicit DebugFlags(DebugFlags const& /*other*/)     = delete;
 	void operator=(DebugFlags const& /*other*/) = delete;
 #else
 private:
-	DebugFlags(DebugFlags const& /*other*/);
+	explicit DebugFlags(DebugFlags const& /*other*/);
 	void operator=(DebugFlags const& /*other*/);
 #endif
 };

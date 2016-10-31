@@ -110,7 +110,7 @@ static void generate_vert_coordinates(
 /* Note this modifies nos_new in-place. */
 static void mix_normals(
         const float mix_factor, MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
-        const short mix_mode,
+        const float mix_limit, const short mix_mode,
         const int num_verts, MLoop *mloop, float (*nos_old)[3], float (*nos_new)[3], const int num_loops)
 {
 	/* Mix with org normals... */
@@ -143,7 +143,10 @@ static void mix_normals(
 			case MOD_NORMALEDIT_MIX_COPY:
 				break;
 		}
-		interp_v3_v3v3_slerp_safe(*no_new, *no_old, *no_new, fac);
+
+		interp_v3_v3v3_slerp_safe(
+		        *no_new, *no_old, *no_new,
+		        (mix_limit < (float)M_PI) ? min_ff(fac, mix_limit / angle_v3v3(*no_new, *no_old)) : fac);
 	}
 
 	MEM_SAFE_FREE(facs);
@@ -156,6 +159,7 @@ static bool polygons_check_flip(
         MPoly *mpoly, float (*polynors)[3], const int num_polys)
 {
 	MPoly *mp;
+	MDisps *mdisp = CustomData_get_layer(ldata, CD_MDISPS);
 	int i;
 	bool flipped = false;
 
@@ -174,7 +178,7 @@ static bool polygons_check_flip(
 
 		/* If average of new loop normals is opposed to polygon normal, flip polygon. */
 		if (dot_v3v3(polynors[i], norsum) < 0.0f) {
-			BKE_mesh_polygon_flip(mp, mloop, ldata);
+			BKE_mesh_polygon_flip_ex(mp, mloop, ldata, nos, mdisp, true);
 			negate_v3(polynors[i]);
 			flipped = true;
 		}
@@ -184,9 +188,9 @@ static bool polygons_check_flip(
 }
 
 static void normalEditModifier_do_radial(
-        NormalEditModifierData *smd, Object *ob, DerivedMesh *dm,
+        NormalEditModifierData *enmd, Object *ob, DerivedMesh *dm,
         short (*clnors)[2], float (*loopnors)[3], float (*polynors)[3],
-        const short mix_mode, const float mix_factor,
+        const short mix_mode, const float mix_factor, const float mix_limit,
         MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
         MVert *mvert, const int num_verts, MEdge *medge, const int num_edges,
         MLoop *mloop, const int num_loops, MPoly *mpoly, const int num_polys)
@@ -199,7 +203,7 @@ static void normalEditModifier_do_radial(
 
 	BLI_bitmap *done_verts = BLI_BITMAP_NEW((size_t)num_verts, __func__);
 
-	generate_vert_coordinates(dm, ob, smd->target, smd->offset, num_verts, cos, size);
+	generate_vert_coordinates(dm, ob, enmd->target, enmd->offset, num_verts, cos, size);
 
 	/**
 	 * size gives us our spheroid coefficients ``(A, B, C)``.
@@ -265,11 +269,13 @@ static void normalEditModifier_do_radial(
 
 	if (loopnors) {
 		mix_normals(mix_factor, dvert, defgrp_index, use_invert_vgroup,
-		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
+		            mix_limit, mix_mode, num_verts, mloop, loopnors, nos, num_loops);
 	}
 
 	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
 		dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
+		/* We need to recompute vertex normals! */
+		dm->calcNormals(dm);
 	}
 
 	BKE_mesh_normals_loop_custom_set(mvert, num_verts, medge, num_edges, mloop, nos, num_loops,
@@ -281,14 +287,14 @@ static void normalEditModifier_do_radial(
 }
 
 static void normalEditModifier_do_directional(
-        NormalEditModifierData *smd, Object *ob, DerivedMesh *dm,
+        NormalEditModifierData *enmd, Object *ob, DerivedMesh *dm,
         short (*clnors)[2], float (*loopnors)[3], float (*polynors)[3],
-        const short mix_mode, const float mix_factor,
+        const short mix_mode, const float mix_factor, const float mix_limit,
         MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
         MVert *mvert, const int num_verts, MEdge *medge, const int num_edges,
         MLoop *mloop, const int num_loops, MPoly *mpoly, const int num_polys)
 {
-	const bool use_parallel_normals = (smd->flag & MOD_NORMALEDIT_USE_DIRECTION_PARALLEL) != 0;
+	const bool use_parallel_normals = (enmd->flag & MOD_NORMALEDIT_USE_DIRECTION_PARALLEL) != 0;
 
 	float (*cos)[3] = MEM_mallocN(sizeof(*cos) * num_verts, __func__);
 	float (*nos)[3] = MEM_mallocN(sizeof(*nos) * num_loops, __func__);
@@ -303,14 +309,14 @@ static void normalEditModifier_do_directional(
 		float mat[4][4];
 
 		invert_m4_m4(mat, ob->obmat);
-		mul_m4_m4m4(mat, mat, smd->target->obmat);
+		mul_m4_m4m4(mat, mat, enmd->target->obmat);
 		copy_v3_v3(target_co, mat[3]);
 	}
 
 	if (use_parallel_normals) {
 		float no[3];
 
-		sub_v3_v3v3(no, target_co, smd->offset);
+		sub_v3_v3v3(no, target_co, enmd->offset);
 		normalize_v3(no);
 
 		for (i = num_loops; i--; ) {
@@ -342,7 +348,7 @@ static void normalEditModifier_do_directional(
 
 	if (loopnors) {
 		mix_normals(mix_factor, dvert, defgrp_index, use_invert_vgroup,
-		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
+		            mix_limit, mix_mode, num_verts, mloop, loopnors, nos, num_loops);
 	}
 
 	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
@@ -356,19 +362,19 @@ static void normalEditModifier_do_directional(
 	MEM_freeN(nos);
 }
 
-static bool is_valid_target(NormalEditModifierData *smd)
+static bool is_valid_target(NormalEditModifierData *enmd)
 {
-	if (smd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
+	if (enmd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
 		return true;
 	}
-	else if ((smd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) && smd->target) {
+	else if ((enmd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) && enmd->target) {
 		return true;
 	}
-	modifier_setError((ModifierData *)smd, "Invalid target settings");
+	modifier_setError((ModifierData *)enmd, "Invalid target settings");
 	return false;
 }
 
-static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *ob, DerivedMesh *dm)
+static DerivedMesh *normalEditModifier_do(NormalEditModifierData *enmd, Object *ob, DerivedMesh *dm)
 {
 	Mesh *me = ob->data;
 
@@ -381,10 +387,11 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	MLoop *mloop;
 	MPoly *mpoly;
 
-	const bool use_invert_vgroup = ((smd->flag & MOD_NORMALEDIT_INVERT_VGROUP) != 0);
-	const bool use_current_clnors = !((smd->mix_mode == MOD_NORMALEDIT_MIX_COPY) &&
-	                                  (smd->mix_factor == 1.0f) &&
-	                                  (smd->defgrp_name[0] == '\0'));
+	const bool use_invert_vgroup = ((enmd->flag & MOD_NORMALEDIT_INVERT_VGROUP) != 0);
+	const bool use_current_clnors = !((enmd->mix_mode == MOD_NORMALEDIT_MIX_COPY) &&
+	                                  (enmd->mix_factor == 1.0f) &&
+	                                  (enmd->defgrp_name[0] == '\0') &&
+	                                  (enmd->mix_limit == (float)M_PI));
 
 	int defgrp_index;
 	MDeformVert *dvert;
@@ -396,12 +403,12 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	bool free_polynors = false;
 
 	/* Do not run that modifier at all if autosmooth is disabled! */
-	if (!is_valid_target(smd) || !num_loops) {
+	if (!is_valid_target(enmd) || !num_loops) {
 		return dm;
 	}
 
 	if (!(me->flag & ME_AUTOSMOOTH)) {
-		modifier_setError((ModifierData *)smd, "Enable 'Auto Smooth' option in mesh settings");
+		modifier_setError((ModifierData *)enmd, "Enable 'Auto Smooth' option in mesh settings");
 		return dm;
 	}
 
@@ -434,18 +441,18 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 		free_polynors = true;
 	}
 
-	modifier_get_vgroup(ob, dm, smd->defgrp_name, &dvert, &defgrp_index);
+	modifier_get_vgroup(ob, dm, enmd->defgrp_name, &dvert, &defgrp_index);
 
-	if (smd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
+	if (enmd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
 		normalEditModifier_do_radial(
-		            smd, ob, dm, clnors, loopnors, polynors,
-		            smd->mix_mode, smd->mix_factor, dvert, defgrp_index, use_invert_vgroup,
+		            enmd, ob, dm, clnors, loopnors, polynors,
+		            enmd->mix_mode, enmd->mix_factor, enmd->mix_limit, dvert, defgrp_index, use_invert_vgroup,
 		            mvert, num_verts, medge, num_edges, mloop, num_loops, mpoly, num_polys);
 	}
-	else if (smd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) {
+	else if (enmd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) {
 		normalEditModifier_do_directional(
-		            smd, ob, dm, clnors, loopnors, polynors,
-		            smd->mix_mode, smd->mix_factor, dvert, defgrp_index, use_invert_vgroup,
+		            enmd, ob, dm, clnors, loopnors, polynors,
+		            enmd->mix_mode, enmd->mix_factor, enmd->mix_limit, dvert, defgrp_index, use_invert_vgroup,
 		            mvert, num_verts, medge, num_edges, mloop, num_loops, mpoly, num_polys);
 	}
 
@@ -458,12 +465,13 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 
 static void initData(ModifierData *md)
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *)md;
+	NormalEditModifierData *enmd = (NormalEditModifierData *)md;
 
-	smd->mode = MOD_NORMALEDIT_MODE_RADIAL;
+	enmd->mode = MOD_NORMALEDIT_MODE_RADIAL;
 
-	smd->mix_mode = MOD_NORMALEDIT_MIX_COPY;
-	smd->mix_factor = 1.0f;
+	enmd->mix_mode = MOD_NORMALEDIT_MIX_COPY;
+	enmd->mix_factor = 1.0f;
+	enmd->mix_limit = M_PI;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -473,11 +481,11 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *)md;
+	NormalEditModifierData *enmd = (NormalEditModifierData *)md;
 	CustomDataMask dataMask = CD_CUSTOMLOOPNORMAL;
 
 	/* Ask for vertexgroups if we need them. */
-	if (smd->defgrp_name[0]) {
+	if (enmd->defgrp_name[0]) {
 		dataMask |= (CD_MASK_MDEFORMVERT);
 	}
 
@@ -491,16 +499,16 @@ static bool dependsOnNormals(ModifierData *UNUSED(md))
 
 static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *) md;
+	NormalEditModifierData *enmd = (NormalEditModifierData *) md;
 
-	walk(userData, ob, &smd->target, IDWALK_NOP);
+	walk(userData, ob, &enmd->target, IDWALK_NOP);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *)md;
+	NormalEditModifierData *enmd = (NormalEditModifierData *)md;
 
-	return !is_valid_target(smd);
+	return !is_valid_target(enmd);
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
@@ -508,10 +516,10 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
                            struct Scene *UNUSED(scene),
                            Object *UNUSED(ob), DagNode *obNode)
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *) md;
+	NormalEditModifierData *enmd = (NormalEditModifierData *) md;
 
-	if (smd->target) {
-		DagNode *Node = dag_get_node(forest, smd->target);
+	if (enmd->target) {
+		DagNode *Node = dag_get_node(forest, enmd->target);
 
 		dag_add_relation(forest, Node, obNode, DAG_RL_OB_DATA, "NormalEdit Modifier");
 	}
@@ -523,9 +531,9 @@ static void updateDepsgraph(ModifierData *md,
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
-	NormalEditModifierData *smd = (NormalEditModifierData *) md;
-	if (smd->target) {
-		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_GEOMETRY, "NormalEdit Modifier");
+	NormalEditModifierData *enmd = (NormalEditModifierData *) md;
+	if (enmd->target) {
+		DEG_add_object_relation(node, enmd->target, DEG_OB_COMP_TRANSFORM, "NormalEdit Modifier");
 	}
 }
 

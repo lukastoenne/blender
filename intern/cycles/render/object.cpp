@@ -29,28 +29,39 @@
 #include "util_progress.h"
 #include "util_vector.h"
 
+#include "subd_patch_table.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Object */
 
-Object::Object()
+NODE_DEFINE(Object)
 {
-	name = "";
-	mesh = NULL;
-	tfm = transform_identity();
-	visibility = ~0;
-	random_id = 0;
-	pass_id = 0;
+	NodeType* type = NodeType::add("object", create);
+
+	SOCKET_NODE(mesh, "Mesh", &Mesh::node_type);
+	SOCKET_TRANSFORM(tfm, "Transform", transform_identity());
+	SOCKET_UINT(visibility, "Visibility", ~0);
+	SOCKET_UINT(random_id, "Random ID", 0);
+	SOCKET_INT(pass_id, "Pass ID", 0);
+	SOCKET_BOOLEAN(use_holdout, "Use Holdout", false);
+	SOCKET_BOOLEAN(hide_on_missing_motion, "Hide on Missing Motion", false);
+	SOCKET_POINT(dupli_generated, "Dupli Generated", make_float3(0.0f, 0.0f, 0.0f));
+	SOCKET_POINT2(dupli_uv, "Dupli UV", make_float2(0.0f, 0.0f));
+
+	return type;
+}
+
+Object::Object()
+: Node(node_type)
+{
 	particle_system = NULL;
 	particle_index = 0;
 	bounds = BoundBox::empty;
-	motion.pre = transform_identity();
-	motion.mid = transform_identity();
-	motion.post = transform_identity();
+	motion.pre = transform_empty();
+	motion.mid = transform_empty();
+	motion.post = transform_empty();
 	use_motion = false;
-	use_holdout = false;
-	dupli_generated = make_float3(0.0f, 0.0f, 0.0f);
-	dupli_uv = make_float2(0.0f, 0.0f);
 }
 
 Object::~Object()
@@ -62,8 +73,30 @@ void Object::compute_bounds(bool motion_blur)
 	BoundBox mbounds = mesh->bounds;
 
 	if(motion_blur && use_motion) {
+		MotionTransform mtfm = motion;
+
+		if(hide_on_missing_motion) {
+			/* Hide objects that have no valid previous or next transform, for
+			 * example particle that stop existing. TODO: add support for this
+			 * case in the kernel so we don't get render artifacts. */
+			if(mtfm.pre == transform_empty() ||
+			   mtfm.post == transform_empty()) {
+				bounds = BoundBox::empty;
+				return;
+			}
+		}
+
+		/* In case of missing motion information for previous/next frame,
+		 * assume there is no motion. */
+		if(mtfm.pre == transform_empty()) {
+			mtfm.pre = tfm;
+		}
+		if(mtfm.post == transform_empty()) {
+			mtfm.post = tfm;
+		}
+
 		DecompMotionTransform decomp;
-		transform_motion_decompose(&decomp, &motion, &tfm);
+		transform_motion_decompose(&decomp, &mtfm, &tfm);
 
 		bounds = BoundBox::empty;
 
@@ -137,12 +170,12 @@ void Object::apply_transform(bool apply_to_motion)
 
 		/* apply transform to curve keys */
 		for(size_t i = 0; i < mesh->curve_keys.size(); i++) {
-			float3 co = transform_point(&tfm, float4_to_float3(mesh->curve_keys[i]));
-			float radius = mesh->curve_keys[i].w * scalar;
+			float3 co = transform_point(&tfm, mesh->curve_keys[i]);
+			float radius = mesh->curve_radius[i] * scalar;
 
 			/* scale for curve radius is only correct for uniform scale */
-			mesh->curve_keys[i] = float3_to_float4(co);
-			mesh->curve_keys[i].w = radius;
+			mesh->curve_keys[i] = co;
+			mesh->curve_radius[i] = radius;
 		}
 
 		if(apply_to_motion) {
@@ -176,7 +209,7 @@ void Object::apply_transform(bool apply_to_motion)
 	}
 
 	/* tfm is not reset to identity, all code that uses it needs to check the
-	   transform_applied boolean */
+	 * transform_applied boolean */
 }
 
 void Object::tag_update(Scene *scene)
@@ -185,9 +218,7 @@ void Object::tag_update(Scene *scene)
 		if(mesh->transform_applied)
 			mesh->need_update = true;
 
-		foreach(uint sindex, mesh->used_shaders) {
-			Shader *shader = scene->shaders[sindex];
-
+		foreach(Shader *shader, mesh->used_shaders) {
 			if(shader->use_mis && shader->has_surface_emission)
 				scene->light_manager->need_update = true;
 		}
@@ -217,6 +248,16 @@ vector<float> Object::motion_times()
 	}
 
 	return times;
+}
+
+bool Object::is_traceable()
+{
+	/* Mesh itself can be empty,can skip all such objects. */
+	if(!bounds.valid() || bounds.size() == make_float3(0.0f, 0.0f, 0.0f)) {
+		return false;
+	}
+	/* TODO(sergey): Check for mesh vertices/curves. visibility flags. */
+	return true;
 }
 
 /* Object Manager */
@@ -271,7 +312,9 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 		state->surface_area_lock.unlock();
 
 		if(it == state->surface_area_map.end()) {
-			foreach(Mesh::Triangle& t, mesh->triangles) {
+			size_t num_triangles = mesh->num_triangles();
+			for(size_t j = 0; j < num_triangles; j++) {
+				Mesh::Triangle t = mesh->get_triangle(j);
 				float3 p1 = mesh->verts[t.v[0]];
 				float3 p2 = mesh->verts[t.v[1]];
 				float3 p3 = mesh->verts[t.v[2]];
@@ -290,7 +333,9 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 		surface_area *= uniform_scale;
 	}
 	else {
-		foreach(Mesh::Triangle& t, mesh->triangles) {
+		size_t num_triangles = mesh->num_triangles();
+		for(size_t j = 0; j < num_triangles; j++) {
+			Mesh::Triangle t = mesh->get_triangle(j);
 			float3 p1 = transform_point(&tfm, mesh->verts[t.v[0]]);
 			float3 p2 = transform_point(&tfm, mesh->verts[t.v[1]]);
 			float3 p3 = transform_point(&tfm, mesh->verts[t.v[2]]);
@@ -314,19 +359,27 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 		 * comes with deformed position in object space, or if we transform
 		 * the shading point in world space.
 		 */
-		Transform mtfm_pre = ob->motion.pre;
-		Transform mtfm_post = ob->motion.post;
+		MotionTransform mtfm = ob->motion;
+
+		/* In case of missing motion information for previous/next frame,
+		 * assume there is no motion. */
+		if(!ob->use_motion || mtfm.pre == transform_empty()) {
+			mtfm.pre = ob->tfm;
+		}
+		if(!ob->use_motion || mtfm.post == transform_empty()) {
+			mtfm.post = ob->tfm;
+		}
 
 		if(!mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) {
-			mtfm_pre = mtfm_pre * itfm;
-			mtfm_post = mtfm_post * itfm;
+			mtfm.pre = mtfm.pre * itfm;
+			mtfm.post = mtfm.post * itfm;
 		}
 		else {
 			flag |= SD_OBJECT_HAS_VERTEX_MOTION;
 		}
 
-		memcpy(&objects_vector[object_index*OBJECT_VECTOR_SIZE+0], &mtfm_pre, sizeof(float4)*3);
-		memcpy(&objects_vector[object_index*OBJECT_VECTOR_SIZE+3], &mtfm_post, sizeof(float4)*3);
+		memcpy(&objects_vector[object_index*OBJECT_VECTOR_SIZE+0], &mtfm.pre, sizeof(float4)*3);
+		memcpy(&objects_vector[object_index*OBJECT_VECTOR_SIZE+3], &mtfm.post, sizeof(float4)*3);
 	}
 #ifdef __OBJECT_MOTION__
 	else if(state->need_motion == Scene::MOTION_BLUR) {
@@ -362,7 +415,7 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 	state->object_flag[object_index] = flag;
 
 	/* Have curves. */
-	if(mesh->curves.size()) {
+	if(mesh->num_curves()) {
 		state->have_curves = true;
 	}
 }
@@ -569,6 +622,41 @@ void ObjectManager::device_update_flags(Device *device,
 	device->tex_alloc("__object_flag", dscene->object_flag);
 }
 
+void ObjectManager::device_update_patch_map_offsets(Device *device, DeviceScene *dscene, Scene *scene)
+{
+	if(scene->objects.size() == 0) {
+		return;
+	}
+
+	uint4* objects = (uint4*)dscene->objects.get_data();
+
+	bool update = false;
+
+	int object_index = 0;
+	foreach(Object *object, scene->objects) {
+		int offset = object_index*OBJECT_SIZE + 11;
+
+		Mesh* mesh = object->mesh;
+
+		if(mesh->patch_table) {
+			uint patch_map_offset = 2*(mesh->patch_table_offset + mesh->patch_table->total_size() -
+			                           mesh->patch_table->num_nodes * PATCH_NODE_SIZE) - mesh->patch_offset;
+
+			if(objects[offset].x != patch_map_offset) {
+				objects[offset].x = patch_map_offset;
+				update = true;
+			}
+		}
+
+		object_index++;
+	}
+
+	if(update) {
+		device->tex_free(dscene->objects);
+		device->tex_alloc("__objects", dscene->objects);
+	}
+}
+
 void ObjectManager::device_free(Device *device, DeviceScene *dscene)
 {
 	device->tex_free(dscene->objects);
@@ -618,7 +706,7 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, u
 		 * Could be solved by moving reference counter to Mesh.
 		 */
 		if((mesh_users[object->mesh] == 1 && !object->mesh->has_surface_bssrdf) &&
-		   object->mesh->displacement_method == Mesh::DISPLACE_BUMP)
+		   !object->mesh->has_true_displacement() && object->mesh->subdivision_type == Mesh::SUBDIVISION_NONE)
 		{
 			if(!(motion_blur && object->use_motion)) {
 				if(!object->mesh->transform_applied) {

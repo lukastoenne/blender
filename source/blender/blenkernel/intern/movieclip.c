@@ -608,7 +608,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 	return clip;
 }
 
-static void movieclip_load_get_szie(MovieClip *clip)
+static void movieclip_load_get_size(MovieClip *clip)
 {
 	int width, height;
 	MovieClipUser user = {0};
@@ -670,7 +670,7 @@ MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 
 	detect_clip_source(clip);
 
-	movieclip_load_get_szie(clip);
+	movieclip_load_get_size(clip);
 	if (clip->lastsize[0]) {
 		int width = clip->lastsize[0];
 
@@ -1033,7 +1033,7 @@ static ImBuf *get_stable_cached_frame(MovieClip *clip, MovieClipUser *user, ImBu
 
 	stableibuf = cache->stabilized.ibuf;
 
-	BKE_tracking_stabilization_data_get(&clip->tracking, clip_framenr, stableibuf->x, stableibuf->y, tloc, &tscale, &tangle);
+	BKE_tracking_stabilization_data_get(clip, clip_framenr, stableibuf->x, stableibuf->y, tloc, &tscale, &tangle);
 
 	/* check for stabilization parameters */
 	if (tscale != cache->stabilized.scale ||
@@ -1057,7 +1057,7 @@ static ImBuf *put_stabilized_frame_to_cache(MovieClip *clip, MovieClipUser *user
 	float tloc[2], tscale, tangle;
 	int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, framenr);
 
-	stableibuf = BKE_tracking_stabilize_frame(&clip->tracking, clip_framenr, ibuf, tloc, &tscale, &tangle);
+	stableibuf = BKE_tracking_stabilize_frame(clip, clip_framenr, ibuf, tloc, &tscale, &tangle);
 
 	copy_v2_v2(cache->stabilized.loc, tloc);
 
@@ -1247,8 +1247,6 @@ static void free_buffers(MovieClip *clip)
 		IMB_free_anim(clip->anim);
 		clip->anim = NULL;
 	}
-
-	BKE_animdata_free((ID *) clip);
 }
 
 void BKE_movieclip_clear_cache(MovieClip *clip)
@@ -1270,13 +1268,11 @@ void BKE_movieclip_reload(MovieClip *clip)
 	/* clear cache */
 	free_buffers(clip);
 
-	clip->tracking.stabilization.ok = false;
-
 	/* update clip source */
 	detect_clip_source(clip);
 
 	clip->lastsize[0] = clip->lastsize[1] = 0;
-	movieclip_load_get_szie(clip);
+	movieclip_load_get_size(clip);
 
 	movieclip_calc_length(clip);
 
@@ -1482,78 +1478,40 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip, ImBuf *ibuf, stru
 	}
 }
 
+/** Free (or release) any data used by this movie clip (does not free the clip itself). */
 void BKE_movieclip_free(MovieClip *clip)
 {
+	/* Also frees animdata. */
 	free_buffers(clip);
 
 	BKE_tracking_free(&clip->tracking);
+	BKE_animdata_free((ID *) clip, false);
 }
 
-void BKE_movieclip_unlink(Main *bmain, MovieClip *clip)
+MovieClip *BKE_movieclip_copy(Main *bmain, MovieClip *clip)
 {
-	bScreen *scr;
-	ScrArea *area;
-	SpaceLink *sl;
-	Scene *sce;
-	Object *ob;
+	MovieClip *clip_new;
 
-	for (scr = bmain->screen.first; scr; scr = scr->id.next) {
-		for (area = scr->areabase.first; area; area = area->next) {
-			for (sl = area->spacedata.first; sl; sl = sl->next) {
-				if (sl->spacetype == SPACE_CLIP) {
-					SpaceClip *sc = (SpaceClip *) sl;
+	clip_new = BKE_libblock_copy(bmain, &clip->id);
 
-					if (sc->clip == clip)
-						sc->clip = NULL;
-				}
-				else if (sl->spacetype == SPACE_VIEW3D) {
-					View3D *v3d = (View3D *) sl;
-					BGpic *bgpic;
+	clip_new->anim = NULL;
+	clip_new->cache = NULL;
 
-					for (bgpic = v3d->bgpicbase.first; bgpic; bgpic = bgpic->next) {
-						if (bgpic->clip == clip)
-							bgpic->clip = NULL;
-					}
-				}
-			}
-		}
-	}
+	BKE_tracking_copy(&clip_new->tracking, &clip->tracking);
+	clip_new->tracking_context = NULL;
 
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		if (sce->clip == clip)
-			sce->clip = NULL;
-	}
+	id_us_plus((ID *)clip_new->gpd);
 
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		bConstraint *con;
+	BKE_color_managed_colorspace_settings_copy(&clip_new->colorspace_settings, &clip->colorspace_settings);
 
-		for (con = ob->constraints.first; con; con = con->next) {
-			if (con->type == CONSTRAINT_TYPE_FOLLOWTRACK) {
-				bFollowTrackConstraint *data = (bFollowTrackConstraint *) con->data;
+	BKE_id_copy_ensure_local(bmain, &clip->id, &clip_new->id);
 
-				if (data->clip == clip)
-					data->clip = NULL;
-			}
-			else if (con->type == CONSTRAINT_TYPE_CAMERASOLVER) {
-				bCameraSolverConstraint *data = (bCameraSolverConstraint *) con->data;
+	return clip_new;
+}
 
-				if (data->clip == clip)
-					data->clip = NULL;
-			}
-			else if (con->type == CONSTRAINT_TYPE_OBJECTSOLVER) {
-				bObjectSolverConstraint *data = (bObjectSolverConstraint *) con->data;
-
-				if (data->clip == clip)
-					data->clip = NULL;
-			}
-		}
-	}
-
-	FOREACH_NODETREE(bmain, ntree, id) {
-		BKE_node_tree_unlink_id((ID *)clip, ntree);
-	} FOREACH_NODETREE_END
-
-	clip->id.us = 0;
+void BKE_movieclip_make_local(Main *bmain, MovieClip *clip, const bool lib_local)
+{
+	BKE_id_make_local_generic(bmain, &clip->id, true, lib_local);
 }
 
 float BKE_movieclip_remap_scene_to_clip_frame(MovieClip *clip, float framenr)

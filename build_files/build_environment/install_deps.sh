@@ -25,17 +25,18 @@
 ARGS=$( \
 getopt \
 -o s:i:t:h \
---long source:,install:,tmp:,info:,threads:,help,show-deps,no-sudo,no-confirm,with-all,with-opencollada,\
+--long source:,install:,tmp:,info:,threads:,help,show-deps,no-sudo,no-build,no-confirm,use-cxx11,\
+with-all,with-opencollada,\
 ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,ver-osd:,ver-openvdb:,\
 force-all,force-python,force-numpy,force-boost,\
 force-ocio,force-openexr,force-oiio,force-llvm,force-osl,force-osd,force-openvdb,\
-force-ffmpeg,force-opencollada,\
+force-ffmpeg,force-opencollada,force-alembic,\
 build-all,build-python,build-numpy,build-boost,\
 build-ocio,build-openexr,build-oiio,build-llvm,build-osl,build-osd,build-openvdb,\
-build-ffmpeg,build-opencollada,\
+build-ffmpeg,build-opencollada,build-alembic,\
 skip-python,skip-numpy,skip-boost,\
 skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-osd,skip-openvdb,\
-skip-ffmpeg,skip-opencollada \
+skip-ffmpeg,skip-opencollada,skip-alembic \
 -- "$@" \
 )
 
@@ -97,8 +98,16 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --no-sudo
         Disable use of sudo (this script won't be able to do much though, will just print needed packages...).
 
+    --no-build
+        Do not build (compile) anything, dependencies not installable with the package manager will remain missing.
+
     --no-confirm
         Disable any interaction with user (suitable for automated run).
+
+    --use-cxx11
+        Build all libraries in cpp11 'mode' (will be mandatory soon in blender2.8 branch).
+        NOTE: If your compiler is gcc-6.0 or above, you probably *want* to enable this option (since it's default
+              standard starting from this version).
 
     --with-all
         By default, a number of optional and not-so-often needed libraries are not installed.
@@ -164,6 +173,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --build-openvdb
         Force the build of OpenVDB.
 
+    --build-alembic
+        Force the build of Alembic.
+
     --build-opencollada
         Force the build of OpenCOLLADA.
 
@@ -213,6 +225,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --force-openvdb
         Force the rebuild of OpenVDB.
 
+    --force-alembic
+        Force the rebuild of Alembic.
+
     --force-opencollada
         Force the rebuild of OpenCOLLADA.
 
@@ -255,6 +270,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
     --skip-openvdb
         Unconditionally skip OpenVDB installation/building.
 
+    --skip-alembic
+        Unconditionally skip Alembic installation/building.
+
     --skip-opencollada
         Unconditionally skip OpenCOLLADA installation/building.
 
@@ -267,7 +285,9 @@ DO_SHOW_DEPS=false
 
 SUDO="sudo"
 
+NO_BUILD=false
 NO_CONFIRM=false
+USE_CXX11=false
 
 PYTHON_VERSION="3.5.1"
 PYTHON_VERSION_MIN="3.5"
@@ -317,14 +337,14 @@ LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.7.1"
+OSL_VERSION="1.7.3"
 OSL_VERSION_MIN=$OSL_VERSION
 OSL_FORCE_BUILD=false
 OSL_FORCE_REBUILD=false
 OSL_SKIP=false
 
 # OpenSubdiv needs to be compiled for now
-OSD_VERSION="3.0.2"
+OSD_VERSION="3.0.5"
 OSD_VERSION_MIN=$OSD_VERSION
 OSD_FORCE_BUILD=false
 OSD_FORCE_REBUILD=false
@@ -338,6 +358,13 @@ OPENVDB_VERSION_MIN=$OPENVDB_VERSION
 OPENVDB_FORCE_BUILD=false
 OPENVDB_FORCE_REBUILD=false
 OPENVDB_SKIP=false
+
+# Alembic needs to be compiled for now
+ALEMBIC_VERSION="1.6.0"
+ALEMBIC_VERSION_MIN=$ALEMBIC_VERSION
+ALEMBIC_FORCE_BUILD=false
+ALEMBIC_FORCE_REBUILD=false
+ALEMBIC_SKIP=false
 
 # Version??
 OPENCOLLADA_VERSION="1.3"
@@ -463,8 +490,17 @@ while true; do
       PRINT ""
       SUDO=""; shift; continue
     ;;
+    --no-build)
+      PRINT ""
+      WARNING "--no-build enabled, this script will not be able to install all dependencies..."
+      PRINT ""
+      NO_BUILD=true; shift; continue
+    ;;
     --no-confirm)
       NO_CONFIRM=true; shift; continue
+    ;;
+    --use-cxx11)
+      USE_CXX11=true; shift; continue
     ;;
     --with-all)
       WITH_ALL=true; shift; continue
@@ -515,6 +551,7 @@ while true; do
       OPENVDB_FORCE_BUILD=true
       OPENCOLLADA_FORCE_BUILD=true
       FFMPEG_FORCE_BUILD=true
+      ALEMBIC_FORCE_BUILD=true
       shift; continue
     ;;
     --build-python)
@@ -557,6 +594,9 @@ while true; do
     --build-ffmpeg)
       FFMPEG_FORCE_BUILD=true; shift; continue
     ;;
+    --build-alembic)
+      ALEMBIC_FORCE_BUILD=true; shift; continue
+    ;;
     --force-all)
       PYTHON_FORCE_REBUILD=true
       NUMPY_FORCE_REBUILD=true
@@ -570,6 +610,7 @@ while true; do
       OPENVDB_FORCE_REBUILD=true
       OPENCOLLADA_FORCE_REBUILD=true
       FFMPEG_FORCE_REBUILD=true
+      ALEMBIC_FORCE_REBUILD=true
       shift; continue
     ;;
     --force-python)
@@ -610,6 +651,9 @@ while true; do
     --force-ffmpeg)
       FFMPEG_FORCE_REBUILD=true; shift; continue
     ;;
+    --force-alembic)
+      ALEMBIC_FORCE_REBUILD=true; shift; continue
+    ;;
     --skip-python)
       PYTHON_SKIP=true; shift; continue
     ;;
@@ -646,6 +690,9 @@ while true; do
     --skip-ffmpeg)
       FFMPEG_SKIP=true; shift; continue
     ;;
+    --skip-alembic)
+      ALEMBIC_SKIP=true; shift; continue
+    ;;
     --)
       # no more arguments to parse
       break
@@ -673,7 +720,7 @@ NUMPY_SOURCE=( "http://sourceforge.net/projects/numpy/files/NumPy/$NUMPY_VERSION
 
 _boost_version_nodots=`echo "$BOOST_VERSION" | sed -r 's/\./_/g'`
 BOOST_SOURCE=( "http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION/boost_$_boost_version_nodots.tar.bz2/download" )
-BOOST_BUILD_MODULES="--with-system --with-filesystem --with-thread --with-regex --with-locale --with-date_time --with-wave --with-iostreams"
+BOOST_BUILD_MODULES="--with-system --with-filesystem --with-thread --with-regex --with-locale --with-date_time --with-wave --with-iostreams --with-python --with-program_options"
 
 OCIO_SOURCE=( "https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION" )
 
@@ -702,7 +749,7 @@ OSL_SOURCE_REPO=( "https://github.com/Nazg-Gul/OpenShadingLanguage.git" )
 OSL_SOURCE_REPO_UID="7d40ff5fe8e47b030042afb92d0e955f5aa96f48"
 OSL_SOURCE_REPO_BRANCH="blender-fixes"
 
-OSD_USE_REPO=true
+OSD_USE_REPO=false
 # Script foo to make the version string compliant with the archive name:
 # ${Varname//SearchForThisChar/ReplaceWithThisChar}
 OSD_SOURCE=( "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v${OSD_VERSION//./_}.tar.gz" )
@@ -717,13 +764,30 @@ OPENVDB_SOURCE=( "https://github.com/dreamworksanimation/openvdb/archive/v${OPEN
 #~ OPENVDB_SOURCE_REPO_UID="404659fffa659da075d1c9416e4fc939139a84ee"
 #~ OPENVDB_SOURCE_REPO_BRANCH="dev"
 
+ALEMBIC_USE_REPO=false
+ALEMBIC_SOURCE=( "https://github.com/alembic/alembic/archive/${ALEMBIC_VERSION}.tar.gz" )
+# ALEMBIC_SOURCE_REPO=( "https://github.com/alembic/alembic.git" )
+# ALEMBIC_SOURCE_REPO_UID="e6c90d4faa32c4550adeaaf3f556dad4b73a92bb"
+# ALEMBIC_SOURCE_REPO_BRANCH="master"
+
 OPENCOLLADA_SOURCE=( "https://github.com/KhronosGroup/OpenCOLLADA.git" )
 OPENCOLLADA_REPO_UID="3335ac164e68b2512a40914b14c74db260e6ff7d"
 OPENCOLLADA_REPO_BRANCH="master"
 
 FFMPEG_SOURCE=( "http://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2" )
 
+CXXFLAGS_BACK=$CXXFLAGS
+if [ "$USE_CXX11" = true ]; then
+  WARNING "You are trying to use c++11, this *should* go smoothely with any very recent distribution
+However, if you are experiencing linking errors (also when building Blender itself), please try the following:
+    * Re-run this script with `--build-all --force-all` options.
+    * Ensure your gcc version is at the very least 4.8, if possible you should really rather use gcc-5.1 or above.
 
+Please note that until the transition to C++11-built libraries if completed in your distribution, situation will
+remain fuzzy and incompatibilities may happen..."
+  CXXFLAGS="$CXXFLAGS -std=c++11"
+  export CXXFLAGS
+fi
 
 #### Show Dependencies ####
 
@@ -736,7 +800,7 @@ Those libraries should be available as packages in all recent distributions (opt
     * libjpeg, libpng, libtiff, [libopenjpeg], [libopenal].
     * libx11, libxcursor, libxi, libxrandr, libxinerama (and other libx... as needed).
     * libsqlite3, libbz2, libssl, libfftw3, libxml2, libtinyxml, yasm, libyaml-cpp.
-    * libsdl1.2, libglew, libglewmx.\""
+    * libsdl1.2, libglew, [libglewmx].\""
 
 DEPS_SPECIFIC_INFO="\"BUILDABLE DEPENDENCIES:
 
@@ -757,7 +821,8 @@ You may also want to build them yourself (optional ones are [between brackets]):
     * [OpenShadingLanguage $OSL_VERSION_MIN] (from $OSL_SOURCE_REPO, branch $OSL_SOURCE_REPO_BRANCH, commit $OSL_SOURCE_REPO_UID).
     * [OpenSubDiv $OSD_VERSION_MIN] (from $OSD_SOURCE_REPO, branch $OSD_SOURCE_REPO_BRANCH, commit $OSD_SOURCE_REPO_UID).
     * [OpenVDB $OPENVDB_VERSION_MIN] (from $OPENVDB_SOURCE), [Blosc $OPENVDB_BLOSC_VERSION] (from $OPENVDB_BLOSC_SOURCE).
-    * [OpenCollada] (from $OPENCOLLADA_SOURCE, branch $OPENCOLLADA_REPO_BRANCH, commit $OPENCOLLADA_REPO_UID).\""
+    * [OpenCollada] (from $OPENCOLLADA_SOURCE, branch $OPENCOLLADA_REPO_BRANCH, commit $OPENCOLLADA_REPO_UID).
+    * [Alembic $ALEMBIC_VERSION] (from $ALEMBIC_SOURCE).\""
 
 if [ "$DO_SHOW_DEPS" = true ]; then
   PRINT ""
@@ -909,7 +974,7 @@ prepare_opt() {
 
 # Check whether the current package needs to be recompiled, based on a dummy file containing a magic number in its name...
 magic_compile_check() {
-  if [ -f $INST/.$1-magiccheck-$2 ]; then
+  if [ -f $INST/.$1-magiccheck-$2-$USE_CXX11 ]; then
     return 0
   else
     return 1
@@ -918,7 +983,7 @@ magic_compile_check() {
 
 magic_compile_set() {
   rm -f $INST/.$1-magiccheck-*
-  touch $INST/.$1-magiccheck-$2
+  touch $INST/.$1-magiccheck-$2-$USE_CXX11
 }
 
 # Note: should clean nicely in $INST, but not in $SRC, when we switch to a new version of a lib...
@@ -967,6 +1032,11 @@ clean_Python() {
 }
 
 compile_Python() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, Python will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   py_magic=1
   _init_python
@@ -1032,6 +1102,11 @@ clean_Numpy() {
 }
 
 compile_Numpy() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, Numpy will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   numpy_magic=0
   _init_numpy
@@ -1092,8 +1167,13 @@ clean_Boost() {
 }
 
 compile_Boost() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, Boost will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
-  boost_magic=10
+  boost_magic=11
 
   _init_boost
 
@@ -1165,6 +1245,11 @@ clean_OCIO() {
 }
 
 compile_OCIO() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenColorIO will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   ocio_magic=1
   _init_ocio
@@ -1256,6 +1341,11 @@ clean_ILMBASE() {
 }
 
 compile_ILMBASE() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, ILMBase will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   ilmbase_magic=10
   _init_ilmbase
@@ -1343,6 +1433,11 @@ clean_OPENEXR() {
 }
 
 compile_OPENEXR() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenEXR will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   openexr_magic=14
 
@@ -1458,6 +1553,11 @@ clean_OIIO() {
 }
 
 compile_OIIO() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenImageIO will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   oiio_magic=16
   _init_oiio
@@ -1543,6 +1643,10 @@ compile_OIIO() {
 #    fi
     cmake_d="$cmake_d -D USE_OCIO=OFF"
 
+    if [ "$USE_CXX11" = true ]; then
+      cmake_d="$cmake_d -D OIIO_BUILD_CPP11=ON"
+    fi
+
     if file /bin/cp | grep -q '32-bit'; then
       cflags="-fPIC -m32 -march=i686"
     else
@@ -1589,6 +1693,11 @@ clean_LLVM() {
 }
 
 compile_LLVM() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, LLVM will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   llvm_magic=3
   _init_llvm
@@ -1686,8 +1795,13 @@ clean_OSL() {
 }
 
 compile_OSL() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenShadingLanguage will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=20
+  osl_magic=21
   _init_osl
 
   # Clean install if needed!
@@ -1812,8 +1926,13 @@ clean_OSD() {
 }
 
 compile_OSD() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenSubdiv will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
-  osd_magic=1
+  osd_magic=2
   _init_osd
 
   # Clean install if needed!
@@ -1904,6 +2023,11 @@ clean_BLOSC() {
 }
 
 compile_BLOSC() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, Blosc will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   blosc_magic=0
   _init_blosc
@@ -1986,6 +2110,11 @@ clean_OPENVDB() {
 }
 
 compile_OPENVDB() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenVDB will not be compiled!"
+    return
+  fi
+
   compile_BLOSC
   PRINT ""
 
@@ -2068,6 +2197,102 @@ compile_OPENVDB() {
   run_ldconfig "openvdb"
 }
 
+#### Build Alembic ####
+_init_alembic() {
+  _src=$SRC/alembic-$ALEMBIC_VERSION
+  _git=false
+  _inst=$INST/alembic-$ALEMBIC_VERSION
+  _inst_shortcut=$INST/alembic
+}
+
+clean_ALEMBIC() {
+  _init_alembic
+  _clean
+}
+
+compile_ALEMBIC() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, Alembic will not be compiled!"
+    return
+  fi
+
+  compile_HDF5
+  PRINT ""
+
+  # To be changed each time we make edits that would modify the compiled result!
+  alembic_magic=2
+  _init_alembic
+
+  # Clean install if needed!
+  magic_compile_check alembic-$ALEMBIC_VERSION $alembic_magic
+  if [ $? -eq 1 -o "$ALEMBIC_FORCE_REBUILD" = true ]; then
+    clean_ALEMBIC
+  fi
+
+  if [ ! -d $_inst ]; then
+    INFO "Building Alembic-$ALEMBIC_VERSION"
+
+    prepare_opt
+
+    if [ ! -d $_src -o true ]; then
+      mkdir -p $SRC
+      download ALEMBIC_SOURCE[@] "$_src.tar.gz"
+
+      INFO "Unpacking Alembic-$ALEMBIC_VERSION"
+      tar -C $SRC -xf $_src.tar.gz
+    fi
+
+    cd $_src
+
+    cmake_d="-D CMAKE_INSTALL_PREFIX=$_inst"
+
+    if [ -d $INST/boost ]; then
+      cmake_d="$cmake_d -D BOOST_ROOT=$INST/boost"
+      cmake_d="$cmake_d -D USE_STATIC_BOOST=ON"
+    else
+      cmake_d="$cmake_d -D USE_STATIC_BOOST=OFF"
+    fi
+
+    if [ "$_with_built_openexr" = true ]; then
+      cmake_d="$cmake_d -D ILMBASE_ROOT=$INST/openexr"
+      cmake_d="$cmake_d -D USE_ARNOLD=OFF"
+      cmake_d="$cmake_d -D USE_BINARIES=OFF"
+      cmake_d="$cmake_d -D USE_EXAMPLES=OFF"
+      cmake_d="$cmake_d -D USE_HDF5=OFF"
+      cmake_d="$cmake_d -D USE_MAYA=OFF"
+      cmake_d="$cmake_d -D USE_PRMAN=OFF"
+      cmake_d="$cmake_d -D USE_PYALEMBIC=OFF"
+      cmake_d="$cmake_d -D USE_STATIC_HDF5=OFF"
+      cmake_d="$cmake_d -D ALEMBIC_ILMBASE_LINK_STATIC=OFF"
+      cmake_d="$cmake_d -D ALEMBIC_SHARED_LIBS=OFF"
+      cmake_d="$cmake_d -D ALEMBIC_LIB_USES_BOOST=ON"
+      cmake_d="$cmake_d -D ALEMBIC_LIB_USES_TR1=OFF"
+      INFO "ILMBASE_ROOT=$INST/openexr"
+    fi
+
+    cmake $cmake_d ./
+    make -j$THREADS install
+    make clean
+
+    if [ -d $_inst ]; then
+      _create_inst_shortcut
+    else
+      ERROR "Alembic-$ALEMBIC_VERSION failed to compile, exiting"
+      exit 1
+    fi
+
+    magic_compile_set alembic-$ALEMBIC_VERSION $alembic_magic
+
+    cd $CWD
+    INFO "Done compiling Alembic-$ALEMBIC_VERSION!"
+  else
+    INFO "Own Alembic-$ALEMBIC_VERSION is up to date, nothing to do!"
+    INFO "If you want to force rebuild of this lib, use the --force-alembic option."
+  fi
+
+  run_ldconfig "alembic"
+}
+
 #### Build OpenCOLLADA ####
 _init_opencollada() {
   _src=$SRC/OpenCOLLADA-$OPENCOLLADA_VERSION
@@ -2082,6 +2307,11 @@ clean_OpenCOLLADA() {
 }
 
 compile_OpenCOLLADA() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, OpenCOLLADA will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled results!
   opencollada_magic=9
   _init_opencollada
@@ -2161,6 +2391,11 @@ clean_FFmpeg() {
 }
 
 compile_FFmpeg() {
+  if [ "$NO_BUILD" = true ]; then
+    WARNING "--no-build enabled, ffmpeg will not be compiled!"
+    return
+  fi
+
   # To be changed each time we make edits that would modify the compiled result!
   ffmpeg_magic=5
   _init_ffmpeg
@@ -2352,8 +2587,9 @@ install_DEB() {
              git libfreetype6-dev libx11-dev flex bison libtbb-dev libxxf86vm-dev \
              libxcursor-dev libxi-dev wget libsqlite3-dev libxrandr-dev libxinerama-dev \
              libbz2-dev libncurses5-dev libssl-dev liblzma-dev libreadline-dev $OPENJPEG_DEV \
-             libopenal-dev libglew-dev libglewmx-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
+             libopenal-dev libglew-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
              libsdl1.2-dev libfftw3-dev patch bzip2 libxml2-dev libtinyxml-dev libjemalloc-dev"
+             # libglewmx-dev  (broken in deb testing currently...)
 
   OPENJPEG_USE=true
   VORBIS_USE=true
@@ -2664,6 +2900,17 @@ install_DEB() {
     else
       compile_OPENVDB
     fi
+  fi
+
+  PRINT ""
+  if [ "$ALEMBIC_SKIP" = true ]; then
+    WARNING "Skipping Alembic installation, as requested..."
+  elif [ "$ALEMBIC_FORCE_BUILD" = true ]; then
+    INFO "Forced Alembic building, as requested..."
+    compile_ALEMBIC
+  else
+    # No package currently, only HDF5!
+    compile_ALEMBIC
   fi
 
 
@@ -3203,6 +3450,17 @@ install_RPM() {
     compile_OPENVDB
   fi
 
+  PRINT ""
+  if [ "$ALEMBIC_SKIP" = true ]; then
+    WARNING "Skipping Alembic installation, as requested..."
+  elif [ "$ALEMBIC_FORCE_BUILD" = true ]; then
+    INFO "Forced Alembic building, as requested..."
+    compile_ALEMBIC
+  else
+    # No package currently!
+    compile_ALEMBIC
+  fi
+
 
   if [ "$WITH_OPENCOLLADA" = true ]; then
     PRINT ""
@@ -3342,7 +3600,15 @@ install_ARCH() {
   OGG_DEV="libogg"
   THEORA_DEV="libtheora"
 
-  _packages="base-devel git cmake \
+  BASE_DEVEL="base-devel"
+
+  # Avoid conflicts when gcc-multilib is installed
+  pacman -Qi gcc-multilib &>/dev/null
+  if [ $? -eq 0 ]; then
+    BASE_DEVEL=`pacman -Sgq base-devel | sed -e 's/^gcc$/gcc-multilib/g' | paste -s -d' '`
+  fi
+
+  _packages="$BASE_DEVEL git cmake \
              libxi libxcursor libxrandr libxinerama glew libpng libtiff wget openal \
              $OPENJPEG_DEV $VORBIS_DEV $OGG_DEV $THEORA_DEV yasm sdl fftw intel-tbb \
              libxml2 yaml-cpp tinyxml python-requests jemalloc"
@@ -3603,6 +3869,16 @@ install_ARCH() {
     else
       compile_OPENVDB
     fi
+  fi
+
+  PRINT ""
+  if [ "$ALEMBIC_SKIP" = true ]; then
+    WARNING "Skipping Alembic installation, as requested..."
+  elif [ "$ALEMBIC_FORCE_BUILD" = true ]; then
+    INFO "Forced Alembic building, as requested..."
+    compile_ALEMBIC
+  else
+    compile_ALEMBIC
   fi
 
 
@@ -3912,7 +4188,13 @@ print_info() {
 
   _buildargs="-U *SNDFILE* -U *PYTHON* -U *BOOST* -U *Boost*"
   _buildargs="$_buildargs -U *OPENCOLORIO* -U *OPENEXR* -U *OPENIMAGEIO* -U *LLVM* -U *CYCLES*"
-  _buildargs="$_buildargs -U *OPENSUBDIV* -U *OPENVDB* -U *COLLADA* -U *FFMPEG*"
+  _buildargs="$_buildargs -U *OPENSUBDIV* -U *OPENVDB* -U *COLLADA* -U *FFMPEG* -U *ALEMBIC*"
+
+  if [ "$USE_CXX11" = true ]; then
+    _1="-D WITH_CXX11=ON"
+    PRINT "  $_1"
+    _buildargs="$_buildargs $_1"
+  fi
 
   _1="-D WITH_CODEC_SNDFILE=ON"
   PRINT "  $_1"
@@ -4018,6 +4300,17 @@ print_info() {
     _buildargs="$_buildargs $_1"
   fi
 
+  if [ "$ALEMBIC_SKIP" = false ]; then
+    _1="-D WITH_ALEMBIC=ON"
+    PRINT "  $_1"
+    _buildargs="$_buildargs $_1"
+    if [ -d $INST/alembic ]; then
+      _1="-D ALEMBIC_ROOT_DIR=$INST/alembic"
+      PRINT "  $_1"
+      _buildargs="$_buildargs $_1"
+    fi
+  fi
+
   if [ "$NO_SYSTEM_GLEW" = true ]; then
     _1="-D WITH_SYSTEM_GLEW=OFF"
     PRINT "  $_1"
@@ -4066,3 +4359,6 @@ PRINT ""
 # Switch back to user language.
 LANG=LANG_BACK
 export LANG
+
+CXXFLAGS=$CXXFLAGS_BACK
+export CXXFLAGS

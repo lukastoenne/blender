@@ -92,7 +92,7 @@ static int text_edit_poll(bContext *C)
 	if (!text)
 		return 0;
 
-	if (text->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -108,7 +108,7 @@ int text_space_edit_poll(bContext *C)
 	if (!st || !text)
 		return 0;
 
-	if (text->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -128,7 +128,7 @@ static int text_region_edit_poll(bContext *C)
 	if (!ar || ar->regiontype != RGN_TYPE_WINDOW)
 		return 0;
 
-	if (text->id.lib) {
+	if (ID_IS_LINKED_DATABLOCK(text)) {
 		// BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
 		return 0;
 	}
@@ -197,7 +197,7 @@ void TEXT_OT_new(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Create Text Block";
 	ot->idname = "TEXT_OT_new";
-	ot->description = "Create a new text data block";
+	ot->description = "Create a new text data-block";
 	
 	/* api callbacks */
 	ot->exec = text_new_exec;
@@ -288,7 +288,7 @@ void TEXT_OT_open(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Open Text Block";
 	ot->idname = "TEXT_OT_open";
-	ot->description = "Open a new text data block";
+	ot->description = "Open a new text data-block";
 
 	/* api callbacks */
 	ot->exec = text_open_exec;
@@ -348,7 +348,7 @@ void TEXT_OT_reload(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Reload";
 	ot->idname = "TEXT_OT_reload";
-	ot->description = "Reload active text data block from its file";
+	ot->description = "Reload active text data-block from its file";
 	
 	/* api callbacks */
 	ot->exec = text_reload_exec;
@@ -384,8 +384,7 @@ static int text_unlink_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 
-	BKE_text_unlink(bmain, text);
-	BKE_libblock_free(bmain, text);
+	BKE_libblock_delete(bmain, text);
 
 	text_drawcache_tag_update(st, 1);
 	WM_event_add_notifier(C, NC_TEXT | NA_REMOVED, NULL);
@@ -398,7 +397,7 @@ void TEXT_OT_unlink(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Unlink";
 	ot->idname = "TEXT_OT_unlink";
-	ot->description = "Unlink active text data block";
+	ot->description = "Unlink active text data-block";
 	
 	/* api callbacks */
 	ot->exec = text_unlink_exec;
@@ -513,7 +512,7 @@ void TEXT_OT_save(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Save";
 	ot->idname = "TEXT_OT_save";
-	ot->description = "Save active text data block";
+	ot->description = "Save active text data-block";
 
 	/* api callbacks */
 	ot->exec = text_save_exec;
@@ -3188,7 +3187,7 @@ void TEXT_OT_to_3d_object(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "To 3D Object";
 	ot->idname = "TEXT_OT_to_3d_object";
-	ot->description = "Create 3D text object from active text data block";
+	ot->description = "Create 3D text object from active text data-block";
 	
 	/* api callbacks */
 	ot->exec = text_to_3d_object_exec;

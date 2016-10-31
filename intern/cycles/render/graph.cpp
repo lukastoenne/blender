@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Blender Foundation
+ * Copyright 2011-2016 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@
 #include "graph.h"
 #include "nodes.h"
 #include "shader.h"
+#include "constant_fold.h"
 
 #include "util_algorithm.h"
 #include "util_debug.h"
 #include "util_foreach.h"
 #include "util_queue.h"
+#include "util_logging.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -51,22 +53,123 @@ bool check_node_inputs_traversed(const ShaderNode *node,
 	return true;
 }
 
-bool check_node_inputs_equals(const ShaderNode *node_a,
-                              const ShaderNode *node_b)
+}  /* namespace */
+
+/* Node */
+
+ShaderNode::ShaderNode(const NodeType *type)
+: Node(type)
 {
-	if(node_a->inputs.size() != node_b->inputs.size()) {
-		/* Happens with BSDF closure nodes which are currently sharing the same
-		 * name for all the BSDF types, making it impossible to filter out
-		 * incompatible nodes.
-		 */
+	name = type->name;
+	id = -1;
+	bump = SHADER_BUMP_NONE;
+	special_type = SHADER_SPECIAL_TYPE_NONE;
+
+	create_inputs_outputs(type);
+}
+
+ShaderNode::~ShaderNode()
+{
+	foreach(ShaderInput *socket, inputs)
+		delete socket;
+
+	foreach(ShaderOutput *socket, outputs)
+		delete socket;
+}
+
+void ShaderNode::create_inputs_outputs(const NodeType *type)
+{
+	foreach(const SocketType& socket, type->inputs) {
+		if(socket.flags & SocketType::LINKABLE) {
+			inputs.push_back(new ShaderInput(socket, this));
+		}
+	}
+
+	foreach(const SocketType& socket, type->outputs) {
+		outputs.push_back(new ShaderOutput(socket, this));
+	}
+}
+
+ShaderInput *ShaderNode::input(const char *name)
+{
+	foreach(ShaderInput *socket, inputs) {
+		if(socket->name() == name)
+			return socket;
+	}
+
+	return NULL;
+}
+
+ShaderOutput *ShaderNode::output(const char *name)
+{
+	foreach(ShaderOutput *socket, outputs)
+		if(socket->name() == name)
+			return socket;
+
+	return NULL;
+}
+
+ShaderInput *ShaderNode::input(ustring name)
+{
+	foreach(ShaderInput *socket, inputs) {
+		if(socket->name() == name)
+			return socket;
+	}
+
+	return NULL;
+}
+
+ShaderOutput *ShaderNode::output(ustring name)
+{
+	foreach(ShaderOutput *socket, outputs)
+		if(socket->name() == name)
+			return socket;
+
+	return NULL;
+}
+
+void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+	foreach(ShaderInput *input, inputs) {
+		if(!input->link) {
+			if(input->flags() & SocketType::LINK_TEXTURE_GENERATED) {
+				if(shader->has_surface)
+					attributes->add(ATTR_STD_GENERATED);
+				if(shader->has_volume)
+					attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+			}
+			else if(input->flags() & SocketType::LINK_TEXTURE_UV) {
+				if(shader->has_surface)
+					attributes->add(ATTR_STD_UV);
+			}
+		}
+	}
+}
+
+bool ShaderNode::equals(const ShaderNode& other)
+{
+	if(type != other.type || bump != other.bump) {
 		return false;
 	}
-	for(int i = 0; i < node_a->inputs.size(); ++i) {
-		ShaderInput *input_a = node_a->inputs[i],
-		            *input_b = node_b->inputs[i];
+
+	assert(inputs.size() == other.inputs.size());
+
+	/* Compare unlinkable sockets */
+	foreach(const SocketType& socket, type->inputs) {
+		if(!(socket.flags & SocketType::LINKABLE)) {
+			if(!Node::equals_value(other, socket)) {
+				return false;
+			}
+		}
+	}
+
+	/* Compare linkable input sockets */
+	for(int i = 0; i < inputs.size(); ++i) {
+		ShaderInput *input_a = inputs[i],
+		            *input_b = other.inputs[i];
 		if(input_a->link == NULL && input_b->link == NULL) {
 			/* Unconnected inputs are expected to have the same value. */
-			if(input_a->value != input_b->value) {
+			if(!Node::equals_value(other, input_a->socket_type)) {
 				return false;
 			}
 		}
@@ -83,120 +186,8 @@ bool check_node_inputs_equals(const ShaderNode *node_a,
 			return false;
 		}
 	}
+
 	return true;
-}
-
-}  /* namespace */
-
-/* Input and Output */
-
-ShaderInput::ShaderInput(ShaderNode *parent_, const char *name_, ShaderSocketType type_)
-{
-	parent = parent_;
-	name = name_;
-	type = type_;
-	link = NULL;
-	value = make_float3(0.0f, 0.0f, 0.0f);
-	stack_offset = SVM_STACK_INVALID;
-	default_value = NONE;
-	usage = USE_ALL;
-}
-
-ShaderOutput::ShaderOutput(ShaderNode *parent_, const char *name_, ShaderSocketType type_)
-{
-	parent = parent_;
-	name = name_;
-	type = type_;
-	stack_offset = SVM_STACK_INVALID;
-}
-
-/* Node */
-
-ShaderNode::ShaderNode(const char *name_)
-{
-	name = name_;
-	id = -1;
-	bump = SHADER_BUMP_NONE;
-	special_type = SHADER_SPECIAL_TYPE_NONE;
-}
-
-ShaderNode::~ShaderNode()
-{
-	foreach(ShaderInput *socket, inputs)
-		delete socket;
-
-	foreach(ShaderOutput *socket, outputs)
-		delete socket;
-}
-
-ShaderInput *ShaderNode::input(const char *name)
-{
-	foreach(ShaderInput *socket, inputs) {
-		if(strcmp(socket->name, name) == 0)
-			return socket;
-	}
-
-	return NULL;
-}
-
-ShaderOutput *ShaderNode::output(const char *name)
-{
-	foreach(ShaderOutput *socket, outputs)
-		if(strcmp(socket->name, name) == 0)
-			return socket;
-
-	return NULL;
-}
-
-ShaderInput *ShaderNode::add_input(const char *name, ShaderSocketType type, float value, int usage)
-{
-	ShaderInput *input = new ShaderInput(this, name, type);
-	input->value.x = value;
-	input->usage = usage;
-	inputs.push_back(input);
-	return input;
-}
-
-ShaderInput *ShaderNode::add_input(const char *name, ShaderSocketType type, float3 value, int usage)
-{
-	ShaderInput *input = new ShaderInput(this, name, type);
-	input->value = value;
-	input->usage = usage;
-	inputs.push_back(input);
-	return input;
-}
-
-ShaderInput *ShaderNode::add_input(const char *name, ShaderSocketType type, ShaderInput::DefaultValue value, int usage)
-{
-	ShaderInput *input = add_input(name, type);
-	input->default_value = value;
-	input->usage = usage;
-	return input;
-}
-
-ShaderOutput *ShaderNode::add_output(const char *name, ShaderSocketType type)
-{
-	ShaderOutput *output = new ShaderOutput(this, name, type);
-	outputs.push_back(output);
-	return output;
-}
-
-void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
-{
-	foreach(ShaderInput *input, inputs) {
-		if(!input->link) {
-			if(input->default_value == ShaderInput::TEXTURE_GENERATED) {
-				if(shader->has_surface)
-					attributes->add(ATTR_STD_GENERATED);
-				if(shader->has_volume)
-					attributes->add(ATTR_STD_GENERATED_TRANSFORM);
-			}
-			else if(input->default_value == ShaderInput::TEXTURE_UV) {
-				if(shader->has_surface)
-					attributes->add(ATTR_STD_UV);
-			}
-		}
-	}
 }
 
 /* Graph */
@@ -256,18 +247,18 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 		return;
 	}
 
-	if(from->type != to->type) {
+	if(from->type() != to->type()) {
 		/* for closures we can't do automatic conversion */
-		if(from->type == SHADER_SOCKET_CLOSURE || to->type == SHADER_SOCKET_CLOSURE) {
+		if(from->type() == SocketType::CLOSURE || to->type() == SocketType::CLOSURE) {
 			fprintf(stderr, "Cycles shader graph connect: can only connect closure to closure "
 			        "(%s.%s to %s.%s).\n",
-			        from->parent->name.c_str(), from->name,
-			        to->parent->name.c_str(), to->name);
+			        from->parent->name.c_str(), from->name().c_str(),
+			        to->parent->name.c_str(), to->name().c_str());
 			return;
 		}
 
 		/* add automatic conversion node in case of type mismatch */
-		ShaderNode *convert = add(new ConvertNode(from->type, to->type, true));
+		ShaderNode *convert = add(new ConvertNode(from->type(), to->type(), true));
 
 		connect(from, convert->inputs[0]);
 		connect(convert->outputs[0], to);
@@ -277,6 +268,17 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 		to->link = from;
 		from->links.push_back(to);
 	}
+}
+
+void ShaderGraph::disconnect(ShaderOutput *from)
+{
+	assert(!finalized);
+
+	foreach(ShaderInput *sock, from->links) {
+		sock->link = NULL;
+	}
+
+	from->links.clear();
 }
 
 void ShaderGraph::disconnect(ShaderInput *to)
@@ -311,7 +313,8 @@ void ShaderGraph::relink(ShaderNode *node, ShaderOutput *from, ShaderOutput *to)
 void ShaderGraph::finalize(Scene *scene,
                            bool do_bump,
                            bool do_osl,
-                           bool do_simplify)
+                           bool do_simplify,
+                           bool bump_in_object_space)
 {
 	/* before compiling, the shader graph may undergo a number of modifications.
 	 * currently we set default geometry shader inputs, and create automatic bump
@@ -319,12 +322,12 @@ void ShaderGraph::finalize(Scene *scene,
 	 * modified afterwards. */
 
 	if(!finalized) {
-		clean(scene);
 		default_inputs(do_osl);
+		clean(scene);
 		refine_bump_nodes();
 
 		if(do_bump)
-			bump_from_displacement();
+			bump_from_displacement(bump_in_object_space);
 
 		ShaderInput *surface_in = output()->input("Surface");
 		ShaderInput *volume_in = output()->input("Volume");
@@ -374,24 +377,12 @@ void ShaderGraph::copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap)
 		ShaderNode *nnode = node->clone();
 		nnodemap[node] = nnode;
 
+		/* create new inputs and outputs to recreate links and ensure
+		 * that we still point to valid SocketType if the NodeType
+		 * changed in cloning, as it does for OSL nodes */
 		nnode->inputs.clear();
 		nnode->outputs.clear();
-
-		foreach(ShaderInput *input, node->inputs) {
-			ShaderInput *ninput = new ShaderInput(*input);
-			nnode->inputs.push_back(ninput);
-
-			ninput->parent = nnode;
-			ninput->link = NULL;
-		}
-
-		foreach(ShaderOutput *output, node->outputs) {
-			ShaderOutput *noutput = new ShaderOutput(*output);
-			nnode->outputs.push_back(noutput);
-
-			noutput->parent = nnode;
-			noutput->links.clear();
-		}
+		nnode->create_inputs_outputs(nnode->type);
 	}
 
 	/* recreate links */
@@ -401,8 +392,8 @@ void ShaderGraph::copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap)
 				/* find new input and output */
 				ShaderNode *nfrom = nnodemap[input->link->parent];
 				ShaderNode *nto = nnodemap[input->parent];
-				ShaderOutput *noutput = nfrom->output(input->link->name);
-				ShaderInput *ninput = nto->input(input->name);
+				ShaderOutput *noutput = nfrom->output(input->link->name());
+				ShaderInput *ninput = nto->input(input->name());
 
 				/* connect */
 				connect(noutput, ninput);
@@ -447,10 +438,10 @@ void ShaderGraph::remove_proxy_nodes()
 						vector<ShaderInput*> links = tonode->outputs[0]->links;
 
 						foreach(ShaderInput *autoin, links) {
-							if(autoin->default_value == ShaderInput::NONE)
-								all_links_removed = false;
-							else
+							if(autoin->flags() & SocketType::DEFAULT_LINK_MASK)
 								disconnect(autoin);
+							else
+								all_links_removed = false;
 						}
 
 						if(all_links_removed)
@@ -460,8 +451,7 @@ void ShaderGraph::remove_proxy_nodes()
 					disconnect(to);
 
 					/* transfer the default input value to the target socket */
-					to->set(input->value);
-					to->set(input->value_string);
+					tonode->copy_value(to->socket_type, *proxy, input->socket_type);
 				}
 			}
 
@@ -494,6 +484,8 @@ void ShaderGraph::constant_fold()
 	ShaderNodeSet done, scheduled;
 	queue<ShaderNode*> traverse_queue;
 
+	bool has_displacement = (output()->input("Displacement")->link != NULL);
+
 	/* Schedule nodes which doesn't have any dependencies. */
 	foreach(ShaderNode *node, nodes) {
 		if(!check_node_inputs_has_links(node)) {
@@ -507,7 +499,7 @@ void ShaderGraph::constant_fold()
 		traverse_queue.pop();
 		done.insert(node);
 		foreach(ShaderOutput *output, node->outputs) {
-			if (output->links.size() == 0) {
+			if(output->links.size() == 0) {
 				continue;
 			}
 			/* Schedule node which was depending on the value,
@@ -527,17 +519,20 @@ void ShaderGraph::constant_fold()
 				}
 			}
 			/* Optimize current node. */
-			float3 optimized_value = make_float3(0.0f, 0.0f, 0.0f);
-			if(node->constant_fold(this, output, &optimized_value)) {
-				/* Apply optimized value to connected sockets. */
-				vector<ShaderInput*> links(output->links);
-				foreach(ShaderInput *input, links) {
-					/* Assign value and disconnect the optimizedinput. */
-					input->value = optimized_value;
-					disconnect(input);
-				}
-			}
+			ConstantFolder folder(this, node, output);
+			node->constant_fold(folder);
 		}
+	}
+
+	/* Folding might have removed all nodes connected to the displacement output
+	 * even tho there is displacement to be applied, so add in a value node if
+	 * that happens to ensure there is still a valid graph for displacement.
+	 */
+	if(has_displacement && !output()->input("Displacement")->link) {
+		ValueNode *value = (ValueNode*)add(new ValueNode());
+		value->value = output()->displacement;
+
+		connect(value->output("Value"), output()->input("Displacement"));
 	}
 }
 
@@ -561,9 +556,10 @@ void ShaderGraph::deduplicate_nodes()
 	 *   already deduplicated.
 	 */
 
-	ShaderNodeSet scheduled;
-	map<ustring, ShaderNodeSet> done;
+	ShaderNodeSet scheduled, done;
+	map<ustring, ShaderNodeSet> candidates;
 	queue<ShaderNode*> traverse_queue;
+	int num_deduplicated = 0;
 
 	/* Schedule nodes which doesn't have any dependencies. */
 	foreach(ShaderNode *node, nodes) {
@@ -576,10 +572,12 @@ void ShaderGraph::deduplicate_nodes()
 	while(!traverse_queue.empty()) {
 		ShaderNode *node = traverse_queue.front();
 		traverse_queue.pop();
-		done[node->name].insert(node);
+		done.insert(node);
 		/* Schedule the nodes which were depending on the current node. */
+		bool has_output_links = false;
 		foreach(ShaderOutput *output, node->outputs) {
 			foreach(ShaderInput *input, output->links) {
+				has_output_links = true;
 				if(scheduled.find(input->parent) != scheduled.end()) {
 					/* Node might not be optimized yet but scheduled already
 					 * by other dependencies. No need to re-schedule it.
@@ -587,36 +585,38 @@ void ShaderGraph::deduplicate_nodes()
 					continue;
 				}
 				/* Schedule node if its inputs are fully done. */
-				if(check_node_inputs_traversed(input->parent, done[input->parent->name])) {
+				if(check_node_inputs_traversed(input->parent, done)) {
 					traverse_queue.push(input->parent);
 					scheduled.insert(input->parent);
 				}
 			}
 		}
-		/* Try to merge this node with another one. */
-		foreach(ShaderNode *other_node, done[node->name]) {
-			if(node == other_node) {
-				/* Don't merge with self. */
-				continue;
-			}
-			if(node->name != other_node->name) {
-				/* Can only de-duplicate nodes of the same type. */
-				continue;
-			}
-			if(!check_node_inputs_equals(node, other_node)) {
-				/* Node inputs are different, can't merge them, */
-				continue;
-			}
-			if(!node->equals(other_node)) {
-				/* Node settings are different. */
-				continue;
-			}
-			/* TODO(sergey): Consider making it an utility function. */
-			for(int i = 0; i < node->outputs.size(); ++i) {
-				relink(node, node->outputs[i], other_node->outputs[i]);
-			}
-			break;
+		/* Only need to care about nodes that are actually used */
+		if(!has_output_links) {
+			continue;
 		}
+		/* Try to merge this node with another one. */
+		ShaderNode *merge_with = NULL;
+		foreach(ShaderNode *other_node, candidates[node->type->name]) {
+			if(node != other_node && node->equals(*other_node)) {
+				merge_with = other_node;
+				break;
+			}
+		}
+		/* If found an equivalent, merge; otherwise keep node for later merges */
+		if(merge_with != NULL) {
+			for(int i = 0; i < node->outputs.size(); ++i) {
+				relink(node, node->outputs[i], merge_with->outputs[i]);
+			}
+			num_deduplicated++;
+		}
+		else {
+			candidates[node->type->name].insert(node);
+		}
+	}
+
+	if(num_deduplicated > 0) {
+		VLOG(1) << "Deduplicated " << num_deduplicated << " nodes.";
 	}
 }
 
@@ -706,38 +706,38 @@ void ShaderGraph::default_inputs(bool do_osl)
 
 	foreach(ShaderNode *node, nodes) {
 		foreach(ShaderInput *input, node->inputs) {
-			if(!input->link && ((input->usage & ShaderInput::USE_SVM) || do_osl)) {
-				if(input->default_value == ShaderInput::TEXTURE_GENERATED) {
+			if(!input->link && (!(input->flags() & SocketType::OSL_INTERNAL) || do_osl)) {
+				if(input->flags() & SocketType::LINK_TEXTURE_GENERATED) {
 					if(!texco)
 						texco = new TextureCoordinateNode();
 
 					connect(texco->output("Generated"), input);
 				}
-				else if(input->default_value == ShaderInput::TEXTURE_UV) {
+				else if(input->flags() & SocketType::LINK_TEXTURE_UV) {
 					if(!texco)
 						texco = new TextureCoordinateNode();
 
 					connect(texco->output("UV"), input);
 				}
-				else if(input->default_value == ShaderInput::INCOMING) {
+				else if(input->flags() & SocketType::LINK_INCOMING) {
 					if(!geom)
 						geom = new GeometryNode();
 
 					connect(geom->output("Incoming"), input);
 				}
-				else if(input->default_value == ShaderInput::NORMAL) {
+				else if(input->flags() & SocketType::LINK_NORMAL) {
 					if(!geom)
 						geom = new GeometryNode();
 
 					connect(geom->output("Normal"), input);
 				}
-				else if(input->default_value == ShaderInput::POSITION) {
+				else if(input->flags() & SocketType::LINK_POSITION) {
 					if(!geom)
 						geom = new GeometryNode();
 
 					connect(geom->output("Position"), input);
 				}
-				else if(input->default_value == ShaderInput::TANGENT) {
+				else if(input->flags() & SocketType::LINK_TANGENT) {
 					if(!geom)
 						geom = new GeometryNode();
 
@@ -785,8 +785,8 @@ void ShaderGraph::refine_bump_nodes()
 				pair.second->bump = SHADER_BUMP_DY;
 
 			ShaderOutput *out = bump_input->link;
-			ShaderOutput *out_dx = nodes_dx[out->parent]->output(out->name);
-			ShaderOutput *out_dy = nodes_dy[out->parent]->output(out->name);
+			ShaderOutput *out_dx = nodes_dx[out->parent]->output(out->name());
+			ShaderOutput *out_dy = nodes_dy[out->parent]->output(out->name());
 
 			connect(out_dx, node->input("SampleX"));
 			connect(out_dy, node->input("SampleY"));
@@ -808,7 +808,7 @@ void ShaderGraph::refine_bump_nodes()
 	}
 }
 
-void ShaderGraph::bump_from_displacement()
+void ShaderGraph::bump_from_displacement(bool use_object_space)
 {
 	/* generate bump mapping automatically from displacement. bump mapping is
 	 * done using a 3-tap filter, computing the displacement at the center,
@@ -857,12 +857,13 @@ void ShaderGraph::bump_from_displacement()
 	ShaderNode *set_normal = add(new SetNormalNode());
 	
 	/* add bump node and connect copied graphs to it */
-	ShaderNode *bump = add(new BumpNode());
+	BumpNode *bump = (BumpNode*)add(new BumpNode());
+	bump->use_object_space = use_object_space;
 
 	ShaderOutput *out = displacement_in->link;
-	ShaderOutput *out_center = nodes_center[out->parent]->output(out->name);
-	ShaderOutput *out_dx = nodes_dx[out->parent]->output(out->name);
-	ShaderOutput *out_dy = nodes_dy[out->parent]->output(out->name);
+	ShaderOutput *out_center = nodes_center[out->parent]->output(out->name());
+	ShaderOutput *out_dx = nodes_dx[out->parent]->output(out->name());
+	ShaderOutput *out_dy = nodes_dy[out->parent]->output(out->name());
 
 	connect(out_center, bump->input("SampleCenter"));
 	connect(out_dx, bump->input("SampleX"));
@@ -871,27 +872,8 @@ void ShaderGraph::bump_from_displacement()
 	/* connect the bump out to the set normal in: */
 	connect(bump->output("Normal"), set_normal->input("Direction"));
 
-	/* connect bump output to normal input nodes that aren't set yet. actually
-	 * this will only set the normal input to the geometry node that we created
-	 * and connected to all other normal inputs already. */
-	foreach(ShaderNode *node, nodes) {
-		/* Don't connect normal to the bump node we're coming from,
-		 * otherwise it'll be a cycle in graph.
-		 */
-		if(node == bump) {
-			continue;
-		}
-		foreach(ShaderInput *input, node->inputs) {
-			if(!input->link && input->default_value == ShaderInput::NORMAL)
-				connect(set_normal->output("Normal"), input);
-		}
-	}
-
-	/* for displacement bump, clear the normal input in case the above loop
-	 * connected the setnormal out to the bump normalin */
-	ShaderInput *bump_normal_in = bump->input("Normal");
-	if(bump_normal_in)
-		bump_normal_in->link = NULL;
+	/* connect to output node */
+	connect(set_normal->output("Normal"), output()->input("Normal"));
 
 	/* finally, add the copied nodes to the graph. we can't do this earlier
 	 * because we would create dependency cycles in the above loop */
@@ -918,14 +900,15 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 
 		if(fin) {
 			/* mix closure: add node to mix closure weights */
-			ShaderNode *mix_node = add(new MixClosureWeightNode());
+			MixClosureWeightNode *mix_node = new MixClosureWeightNode();
+			add(mix_node);
 			ShaderInput *fac_in = mix_node->input("Fac"); 
 			ShaderInput *weight_in = mix_node->input("Weight"); 
 
 			if(fin->link)
 				connect(fin->link, fac_in);
 			else
-				fac_in->value = fin->value;
+				mix_node->fac = node->get_float(fin->socket_type);
 
 			if(weight_out)
 				connect(weight_out, weight_in);
@@ -952,20 +935,20 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 			return;
 
 		/* already has a weight connected to it? add weights */
-		if(weight_in->link || weight_in->value.x != 0.0f) {
-			ShaderNode *math_node = add(new MathNode());
-			ShaderInput *value1_in = math_node->input("Value1");
-			ShaderInput *value2_in = math_node->input("Value2");
+		float weight_value = node->get_float(weight_in->socket_type);
+		if(weight_in->link || weight_value != 0.0f) {
+			MathNode *math_node = new MathNode();
+			add(math_node);
 
 			if(weight_in->link)
-				connect(weight_in->link, value1_in);
+				connect(weight_in->link, math_node->input("Value1"));
 			else
-				value1_in->value = weight_in->value;
+				math_node->value1 = weight_value;
 
 			if(weight_out)
-				connect(weight_out, value2_in);
+				connect(weight_out, math_node->input("Value2"));
 			else
-				value2_in->value.x = 1.0f;
+				math_node->value2 = 1.0f;
 
 			weight_out = math_node->output("Value");
 			if(weight_in->link)
@@ -976,7 +959,7 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 		if(weight_out)
 			connect(weight_out, weight_in);
 		else
-			weight_in->value.x += 1.0f;
+			node->set(weight_in->socket_type, weight_value + 1.0f);
 	}
 }
 
@@ -984,17 +967,21 @@ int ShaderGraph::get_num_closures()
 {
 	int num_closures = 0;
 	foreach(ShaderNode *node, nodes) {
-		if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
-			BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
-			/* TODO(sergey): Make it more generic approach, maybe some utility
-			 * macros like CLOSURE_IS_FOO()?
-			 */
-			if(CLOSURE_IS_BSSRDF(bsdf_node->closure))
-				num_closures = num_closures + 3;
-			else if(CLOSURE_IS_GLASS(bsdf_node->closure))
-				num_closures = num_closures + 2;
-			else
-				num_closures = num_closures + 1;
+		ClosureType closure_type = node->get_closure_type();
+		if(closure_type == CLOSURE_NONE_ID) {
+			continue;
+		}
+		else if(CLOSURE_IS_BSSRDF(closure_type)) {
+			num_closures += 3;
+		}
+		else if(CLOSURE_IS_GLASS(closure_type)) {
+			num_closures += 2;
+		}
+		else if(CLOSURE_IS_BSDF_MULTISCATTER(closure_type)) {
+			num_closures += 2;
+		}
+		else {
+			++num_closures;
 		}
 	}
 	return num_closures;
@@ -1023,7 +1010,7 @@ void ShaderGraph::dump_graph(const char *filename)
 				if(socket != node->inputs[0]) {
 					fprintf(fd, "|");
 				}
-				fprintf(fd, "<IN_%p>%s", socket, socket->name);
+				fprintf(fd, "<IN_%p>%s", socket, socket->name().c_str());
 			}
 			fprintf(fd, "}|");
 		}
@@ -1043,7 +1030,7 @@ void ShaderGraph::dump_graph(const char *filename)
 				if(socket != node->outputs[0]) {
 					fprintf(fd, "|");
 				}
-				fprintf(fd, "<OUT_%p>%s", socket, socket->name);
+				fprintf(fd, "<OUT_%p>%s", socket, socket->name().c_str());
 			}
 			fprintf(fd, "}");
 		}
@@ -1057,7 +1044,7 @@ void ShaderGraph::dump_graph(const char *filename)
 				        "// CONNECTION: OUT_%p->IN_%p (%s:%s)\n",
 				        output,
 				        input,
-				        output->name, input->name);
+				        output->name().c_str(), input->name().c_str());
 				fprintf(fd,
 				        "\"%p\":\"OUT_%p\":e -> \"%p\":\"IN_%p\":w [label=\"\"]\n",
 				        output->parent,

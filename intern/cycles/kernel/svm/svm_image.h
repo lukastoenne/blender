@@ -18,125 +18,16 @@ CCL_NAMESPACE_BEGIN
 
 /* Float4 textures on various devices. */
 #if defined(__KERNEL_CPU__)
-  #define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_IMAGES_CPU
+#  define TEX_NUM_FLOAT4_IMAGES		TEX_NUM_FLOAT4_CPU
 #elif defined(__KERNEL_CUDA__)
-  #define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_IMAGES_CUDA
+#  if __CUDA_ARCH__ < 300
+#    define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_CUDA
+#  else
+#    define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_CUDA_KEPLER
+#  endif
 #else
-  #define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_IMAGES_OPENCL
+#  define TEX_NUM_FLOAT4_IMAGES	TEX_NUM_FLOAT4_OPENCL
 #endif
-
-#ifdef __KERNEL_OPENCL__
-
-/* For OpenCL all images are packed in a single array, and we do manual lookup
- * and interpolation. */
-
-ccl_device_inline float4 svm_image_texture_read(KernelGlobals *kg, int id, int offset)
-{
-	if(id >= TEX_NUM_FLOAT4_IMAGES) {
-		uchar4 r = kernel_tex_fetch(__tex_image_byte4_packed, offset);
-		float f = 1.0f/255.0f;
-		return make_float4(r.x*f, r.y*f, r.z*f, r.w*f);
-	}
-	else {
-		return kernel_tex_fetch(__tex_image_float4_packed, offset);
-	}
-}
-
-ccl_device_inline int svm_image_texture_wrap_periodic(int x, int width)
-{
-	x %= width;
-	if(x < 0)
-		x += width;
-	return x;
-}
-
-ccl_device_inline int svm_image_texture_wrap_clamp(int x, int width)
-{
-	return clamp(x, 0, width-1);
-}
-
-ccl_device_inline float svm_image_texture_frac(float x, int *ix)
-{
-	int i = float_to_int(x) - ((x < 0.0f)? 1: 0);
-	*ix = i;
-	return x - (float)i;
-}
-
-ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
-{
-	uint4 info = kernel_tex_fetch(__tex_image_packed_info, id);
-	uint width = info.x;
-	uint height = info.y;
-	uint offset = info.z;
-	uint periodic = (info.w & 0x1);
-	uint interpolation = info.w >> 1;
-
-	float4 r;
-	int ix, iy, nix, niy;
-	if(interpolation == INTERPOLATION_CLOSEST) {
-		svm_image_texture_frac(x*width, &ix);
-		svm_image_texture_frac(y*height, &iy);
-
-		if(periodic) {
-			ix = svm_image_texture_wrap_periodic(ix, width);
-			iy = svm_image_texture_wrap_periodic(iy, height);
-		}
-		else {
-			ix = svm_image_texture_wrap_clamp(ix, width);
-			iy = svm_image_texture_wrap_clamp(iy, height);
-
-		}
-		r = svm_image_texture_read(kg, id, offset + ix + iy*width);
-	}
-	else { /* We default to linear interpolation if it is not closest */
-		float tx = svm_image_texture_frac(x*width, &ix);
-		float ty = svm_image_texture_frac(y*height, &iy);
-
-		if(periodic) {
-			ix = svm_image_texture_wrap_periodic(ix, width);
-			iy = svm_image_texture_wrap_periodic(iy, height);
-
-			nix = svm_image_texture_wrap_periodic(ix+1, width);
-			niy = svm_image_texture_wrap_periodic(iy+1, height);
-		}
-		else {
-			ix = svm_image_texture_wrap_clamp(ix, width);
-			iy = svm_image_texture_wrap_clamp(iy, height);
-
-			nix = svm_image_texture_wrap_clamp(ix+1, width);
-			niy = svm_image_texture_wrap_clamp(iy+1, height);
-		}
-
-
-		r = (1.0f - ty)*(1.0f - tx)*svm_image_texture_read(kg, id, offset + ix + iy*width);
-		r += (1.0f - ty)*tx*svm_image_texture_read(kg, id, offset + nix + iy*width);
-		r += ty*(1.0f - tx)*svm_image_texture_read(kg, id, offset + ix + niy*width);
-		r += ty*tx*svm_image_texture_read(kg, id, offset + nix + niy*width);
-	}
-
-	if(use_alpha && r.w != 1.0f && r.w != 0.0f) {
-		float invw = 1.0f/r.w;
-		r.x *= invw;
-		r.y *= invw;
-		r.z *= invw;
-
-		if(id >= TEX_NUM_FLOAT4_IMAGES) {
-			r.x = min(r.x, 1.0f);
-			r.y = min(r.y, 1.0f);
-			r.z = min(r.z, 1.0f);
-		}
-	}
-
-	if(srgb) {
-		r.x = color_srgb_to_scene_linear(r.x);
-		r.y = color_srgb_to_scene_linear(r.y);
-		r.z = color_srgb_to_scene_linear(r.z);
-	}
-
-	return r;
-}
-
-#else
 
 ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
@@ -148,9 +39,12 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 #  else
 	float4 r = kernel_tex_image_interp(id, x, y);
 #  endif
+#elif defined(__KERNEL_OPENCL__)
+	float4 r = kernel_tex_image_interp(kg, id, x, y);
 #else
 	float4 r;
 
+#  if __CUDA_ARCH__ < 300
 	/* not particularly proud of this massive switch, what are the
 	 * alternatives?
 	 * - use a single big 1D texture, and do our own lookup/filtering
@@ -251,75 +145,21 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		case 87: r = kernel_tex_image_interp(__tex_image_byte4_087, x, y); break;
 		case 88: r = kernel_tex_image_interp(__tex_image_byte4_088, x, y); break;
 		case 89: r = kernel_tex_image_interp(__tex_image_byte4_089, x, y); break;
-		case 90: r = kernel_tex_image_interp(__tex_image_byte4_090, x, y); break;
-		case 91: r = kernel_tex_image_interp(__tex_image_byte4_091, x, y); break;
-		case 92: r = kernel_tex_image_interp(__tex_image_byte4_092, x, y); break;
-
-#  if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 300)
-		case 93: r = kernel_tex_image_interp(__tex_image_byte4_093, x, y); break;
-		case 94: r = kernel_tex_image_interp(__tex_image_byte4_094, x, y); break;
-		case 95: r = kernel_tex_image_interp(__tex_image_byte4_095, x, y); break;
-		case 96: r = kernel_tex_image_interp(__tex_image_byte4_096, x, y); break;
-		case 97: r = kernel_tex_image_interp(__tex_image_byte4_097, x, y); break;
-		case 98: r = kernel_tex_image_interp(__tex_image_byte4_098, x, y); break;
-		case 99: r = kernel_tex_image_interp(__tex_image_byte4_099, x, y); break;
-		case 100: r = kernel_tex_image_interp(__tex_image_byte4_100, x, y); break;
-		case 101: r = kernel_tex_image_interp(__tex_image_byte4_101, x, y); break;
-		case 102: r = kernel_tex_image_interp(__tex_image_byte4_102, x, y); break;
-		case 103: r = kernel_tex_image_interp(__tex_image_byte4_103, x, y); break;
-		case 104: r = kernel_tex_image_interp(__tex_image_byte4_104, x, y); break;
-		case 105: r = kernel_tex_image_interp(__tex_image_byte4_105, x, y); break;
-		case 106: r = kernel_tex_image_interp(__tex_image_byte4_106, x, y); break;
-		case 107: r = kernel_tex_image_interp(__tex_image_byte4_107, x, y); break;
-		case 108: r = kernel_tex_image_interp(__tex_image_byte4_108, x, y); break;
-		case 109: r = kernel_tex_image_interp(__tex_image_byte4_109, x, y); break;
-		case 110: r = kernel_tex_image_interp(__tex_image_byte4_110, x, y); break;
-		case 111: r = kernel_tex_image_interp(__tex_image_byte4_111, x, y); break;
-		case 112: r = kernel_tex_image_interp(__tex_image_byte4_112, x, y); break;
-		case 113: r = kernel_tex_image_interp(__tex_image_byte4_113, x, y); break;
-		case 114: r = kernel_tex_image_interp(__tex_image_byte4_114, x, y); break;
-		case 115: r = kernel_tex_image_interp(__tex_image_byte4_115, x, y); break;
-		case 116: r = kernel_tex_image_interp(__tex_image_byte4_116, x, y); break;
-		case 117: r = kernel_tex_image_interp(__tex_image_byte4_117, x, y); break;
-		case 118: r = kernel_tex_image_interp(__tex_image_byte4_118, x, y); break;
-		case 119: r = kernel_tex_image_interp(__tex_image_byte4_119, x, y); break;
-		case 120: r = kernel_tex_image_interp(__tex_image_byte4_120, x, y); break;
-		case 121: r = kernel_tex_image_interp(__tex_image_byte4_121, x, y); break;
-		case 122: r = kernel_tex_image_interp(__tex_image_byte4_122, x, y); break;
-		case 123: r = kernel_tex_image_interp(__tex_image_byte4_123, x, y); break;
-		case 124: r = kernel_tex_image_interp(__tex_image_byte4_124, x, y); break;
-		case 125: r = kernel_tex_image_interp(__tex_image_byte4_125, x, y); break;
-		case 126: r = kernel_tex_image_interp(__tex_image_byte4_126, x, y); break;
-		case 127: r = kernel_tex_image_interp(__tex_image_byte4_127, x, y); break;
-		case 128: r = kernel_tex_image_interp(__tex_image_byte4_128, x, y); break;
-		case 129: r = kernel_tex_image_interp(__tex_image_byte4_129, x, y); break;
-		case 130: r = kernel_tex_image_interp(__tex_image_byte4_130, x, y); break;
-		case 131: r = kernel_tex_image_interp(__tex_image_byte4_131, x, y); break;
-		case 132: r = kernel_tex_image_interp(__tex_image_byte4_132, x, y); break;
-		case 133: r = kernel_tex_image_interp(__tex_image_byte4_133, x, y); break;
-		case 134: r = kernel_tex_image_interp(__tex_image_byte4_134, x, y); break;
-		case 135: r = kernel_tex_image_interp(__tex_image_byte4_135, x, y); break;
-		case 136: r = kernel_tex_image_interp(__tex_image_byte4_136, x, y); break;
-		case 137: r = kernel_tex_image_interp(__tex_image_byte4_137, x, y); break;
-		case 138: r = kernel_tex_image_interp(__tex_image_byte4_138, x, y); break;
-		case 139: r = kernel_tex_image_interp(__tex_image_byte4_139, x, y); break;
-		case 140: r = kernel_tex_image_interp(__tex_image_byte4_140, x, y); break;
-		case 141: r = kernel_tex_image_interp(__tex_image_byte4_141, x, y); break;
-		case 142: r = kernel_tex_image_interp(__tex_image_byte4_142, x, y); break;
-		case 143: r = kernel_tex_image_interp(__tex_image_byte4_143, x, y); break;
-		case 144: r = kernel_tex_image_interp(__tex_image_byte4_144, x, y); break;
-		case 145: r = kernel_tex_image_interp(__tex_image_byte4_145, x, y); break;
-		case 146: r = kernel_tex_image_interp(__tex_image_byte4_146, x, y); break;
-		case 147: r = kernel_tex_image_interp(__tex_image_byte4_147, x, y); break;
-		case 148: r = kernel_tex_image_interp(__tex_image_byte4_148, x, y); break;
-		case 149: r = kernel_tex_image_interp(__tex_image_byte4_149, x, y); break;
-		case 150: r = kernel_tex_image_interp(__tex_image_byte4_150, x, y); break;
-#  endif
-
 		default:
 			kernel_assert(0);
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
+#  else
+	CUtexObject tex = kernel_tex_fetch(__bindless_mapping, id);
+	/* float4, byte4 and half4 */
+	if(id < TEX_START_FLOAT_CUDA_KEPLER)
+		r = kernel_tex_image_interp_float4(tex, x, y);
+	/* float, byte and half */
+	else {
+		float f = kernel_tex_image_interp_float(tex, x, y);
+		r = make_float4(f, f, f, 1.0f);
+	}
+#  endif
 #endif
 
 #ifdef __KERNEL_SSE2__
@@ -359,8 +199,6 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 
 	return r;
 }
-
-#endif
 
 /* Remap coordnate from 0..1 box to -1..-1 */
 ccl_device_inline float3 texco_remap_square(float3 co)

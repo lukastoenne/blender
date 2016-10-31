@@ -33,12 +33,15 @@
 /* in opencl all functions are device functions, so leave this empty */
 #define ccl_device
 #define ccl_device_inline ccl_device
+#define ccl_device_forceinline ccl_device
 #define ccl_device_noinline ccl_device ccl_noinline
 #define ccl_may_alias
 #define ccl_constant __constant
 #define ccl_global __global
 #define ccl_local __local
 #define ccl_private __private
+#define ccl_restrict restrict
+#define ccl_align(n) __attribute__((aligned(n)))
 
 #ifdef __SPLIT_KERNEL__
 #  define ccl_addr_space __global

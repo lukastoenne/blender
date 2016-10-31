@@ -207,6 +207,7 @@ ccl_device void kernel_data_init(
 			L_transparent_coop[ray_index] = 0.0f;
 			path_radiance_init(&PathRadiance_coop[ray_index], kernel_data.film.use_light_pass);
 			path_state_init(kg,
+			                kg->sd_input,
 			                &PathState_coop[ray_index],
 			                &rng_coop[ray_index],
 			                my_sample,
@@ -214,7 +215,8 @@ ccl_device void kernel_data_init(
 #ifdef __KERNEL_DEBUG__
 			debug_data_init(&debugdata_coop[ray_index]);
 #endif
-		} else {
+		}
+		else {
 			/* These rays do not participate in path-iteration. */
 			float4 L_rad = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 			/* Accumulate result in output buffer. */

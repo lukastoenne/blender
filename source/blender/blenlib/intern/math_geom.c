@@ -572,6 +572,67 @@ float dist_signed_squared_to_corner_v3v3v3(
 	}
 }
 
+/**
+ * return the distance squared of a point to a ray.
+ */
+float dist_squared_to_ray_v3(
+        const float ray_origin[3], const float ray_direction[3],
+        const float co[3], float *r_depth)
+{
+	float dvec[3];
+	sub_v3_v3v3(dvec, co, ray_origin);
+	*r_depth = dot_v3v3(dvec, ray_direction);
+	return len_squared_v3(dvec) - SQUARE(*r_depth);
+}
+/**
+ * Find the closest point in a seg to a ray and return the distance squared.
+ * \param r_point : Is the point on segment closest to ray (or to ray_origin if the ray and the segment are parallel).
+ * \param depth: the distance of r_point projection on ray to the ray_origin.
+ */
+float dist_squared_ray_to_seg_v3(
+        const float ray_origin[3], const float ray_direction[3],
+        const float v0[3], const float v1[3],
+        float r_point[3], float *r_depth)
+{
+	float a[3], t[3], n[3], lambda;
+	sub_v3_v3v3(a, v1, v0);
+	sub_v3_v3v3(t, v0, ray_origin);
+	cross_v3_v3v3(n, a, ray_direction);
+	const float nlen = len_squared_v3(n);
+
+	/* if (nlen == 0.0f) the lines are parallel,
+	 * has no nearest point, only distance squared.*/
+	if (nlen == 0.0f) {
+		/* Calculate the distance to the point v0 then */
+		copy_v3_v3(r_point, v0);
+		*r_depth = dot_v3v3(t, ray_direction);
+	}
+	else {
+		float c[3], cray[3];
+		sub_v3_v3v3(c, n, t);
+		cross_v3_v3v3(cray, c, ray_direction);
+		lambda = dot_v3v3(cray, n) / nlen;
+		if (lambda <= 0) {
+			copy_v3_v3(r_point, v0);
+
+			*r_depth = dot_v3v3(t, ray_direction);
+		}
+		else if (lambda >= 1) {
+			copy_v3_v3(r_point, v1);
+
+			sub_v3_v3v3(t, v1, ray_origin);
+			*r_depth = dot_v3v3(t, ray_direction);
+		}
+		else {
+			madd_v3_v3v3fl(r_point, v0, a, lambda);
+
+			sub_v3_v3v3(t, r_point, ray_origin);
+			*r_depth = dot_v3v3(t, ray_direction);
+		}
+	}
+	return len_squared_v3(t) - SQUARE(*r_depth);
+}
+
 /* Adapted from "Real-Time Collision Detection" by Christer Ericson,
  * published by Morgan Kaufmann Publishers, copyright 2005 Elsevier Inc.
  * 
@@ -2692,7 +2753,7 @@ bool isect_point_tri_prism_v3(const float p[3], const float v1[3], const float v
 }
 
 /**
- * \param r_vi The point \a p projected onto the triangle.
+ * \param r_isect_co: The point \a p projected onto the triangle.
  * \return True when \a p is inside the triangle.
  * \note Its up to the caller to check the distance between \a p and \a r_vi against an error margin.
  */
@@ -2822,142 +2883,6 @@ bool clip_segment_v3_plane_n(
 	madd_v3_v3v3fl(r_p2, p1_copy, dp, p2_fac);
 
 	return true;
-}
-
-void plot_line_v2v2i(const int p1[2], const int p2[2], bool (*callback)(int, int, void *), void *userData)
-{
-	int x1 = p1[0];
-	int y1 = p1[1];
-	int x2 = p2[0];
-	int y2 = p2[1];
-
-	signed char ix;
-	signed char iy;
-
-	/* if x1 == x2 or y1 == y2, then it does not matter what we set here */
-	int delta_x = (x2 > x1 ? ((void)(ix = 1), x2 - x1) : ((void)(ix = -1), x1 - x2)) << 1;
-	int delta_y = (y2 > y1 ? ((void)(iy = 1), y2 - y1) : ((void)(iy = -1), y1 - y2)) << 1;
-
-	if (callback(x1, y1, userData) == 0) {
-		return;
-	}
-
-	if (delta_x >= delta_y) {
-		/* error may go below zero */
-		int error = delta_y - (delta_x >> 1);
-
-		while (x1 != x2) {
-			if (error >= 0) {
-				if (error || (ix > 0)) {
-					y1 += iy;
-					error -= delta_x;
-				}
-				/* else do nothing */
-			}
-			/* else do nothing */
-
-			x1 += ix;
-			error += delta_y;
-
-			if (callback(x1, y1, userData) == 0) {
-				return;
-			}
-		}
-	}
-	else {
-		/* error may go below zero */
-		int error = delta_x - (delta_y >> 1);
-
-		while (y1 != y2) {
-			if (error >= 0) {
-				if (error || (iy > 0)) {
-					x1 += ix;
-					error -= delta_y;
-				}
-				/* else do nothing */
-			}
-			/* else do nothing */
-
-			y1 += iy;
-			error += delta_x;
-
-			if (callback(x1, y1, userData) == 0) {
-				return;
-			}
-		}
-	}
-}
-
-/**
- * \param callback: Takes the x, y coords and x-span (\a x_end is not inclusive),
- * note that \a x_end will always be greater than \a x, so we can use:
- *
- * \code{.c}
- * do {
- *     func(x, y);
- * } while (++x != x_end);
- * \endcode
- */
-void fill_poly_v2i_n(
-        const int xmin, const int ymin, const int xmax, const int ymax,
-        const int verts[][2], const int nr,
-        void (*callback)(int x, int x_end, int y, void *), void *userData)
-{
-	/* originally by Darel Rex Finley, 2007 */
-
-	int  nodes, pixel_y, i, j, swap;
-	int *node_x = MEM_mallocN(sizeof(*node_x) * (size_t)(nr + 1), __func__);
-
-	/* Loop through the rows of the image. */
-	for (pixel_y = ymin; pixel_y < ymax; pixel_y++) {
-
-		/* Build a list of nodes. */
-		nodes = 0; j = nr - 1;
-		for (i = 0; i < nr; i++) {
-			if ((verts[i][1] < pixel_y && verts[j][1] >= pixel_y) ||
-			    (verts[j][1] < pixel_y && verts[i][1] >= pixel_y))
-			{
-				node_x[nodes++] = (int)(verts[i][0] +
-				                        ((double)(pixel_y - verts[i][1]) / (verts[j][1] - verts[i][1])) *
-				                        (verts[j][0] - verts[i][0]));
-			}
-			j = i;
-		}
-
-		/* Sort the nodes, via a simple "Bubble" sort. */
-		i = 0;
-		while (i < nodes - 1) {
-			if (node_x[i] > node_x[i + 1]) {
-				SWAP_TVAL(swap, node_x[i], node_x[i + 1]);
-				if (i) i--;
-			}
-			else {
-				i++;
-			}
-		}
-
-		/* Fill the pixels between node pairs. */
-		for (i = 0; i < nodes; i += 2) {
-			if (node_x[i] >= xmax) break;
-			if (node_x[i + 1] >  xmin) {
-				if (node_x[i    ] < xmin) node_x[i    ] = xmin;
-				if (node_x[i + 1] > xmax) node_x[i + 1] = xmax;
-
-#if 0
-				/* for many x/y calls */
-				for (j = node_x[i]; j < node_x[i + 1]; j++) {
-					callback(j - xmin, pixel_y - ymin, userData);
-				}
-#else
-				/* for single call per x-span */
-				if (node_x[i] < node_x[i + 1]) {
-					callback(node_x[i] - xmin, node_x[i + 1] - xmin, pixel_y - ymin, userData);
-				}
-#endif
-			}
-		}
-	}
-	MEM_freeN(node_x);
 }
 
 /****************************** Axis Utils ********************************/
@@ -4987,4 +4912,40 @@ int is_quad_flip_v3(const float v1[3], const float v2[3], const float v3[3], con
 	ret |= ((dot_v3v3(cross_a, cross_b) < 0.0f) << 1);
 
 	return ret;
+}
+
+/**
+ * Return the value which the distance between points will need to be scaled by,
+ * to define a handle, given both points are on a perfect circle.
+ *
+ * Use when we want a bezier curve to match a circle as closely as possible.
+ *
+ * \note the return value will need to be divided by 0.75 for correct results.
+ */
+float cubic_tangent_factor_circle_v3(const float tan_l[3], const float tan_r[3])
+{
+	BLI_ASSERT_UNIT_V3(tan_l);
+	BLI_ASSERT_UNIT_V3(tan_r);
+
+	/* -7f causes instability/glitches with Bendy Bones + Custom Refs  */
+	const float eps = 1e-5f;
+	
+	const float tan_dot = dot_v3v3(tan_l, tan_r);
+	if (tan_dot > 1.0f - eps) {
+		/* no angle difference (use fallback, length wont make any difference) */
+		return (1.0f / 3.0f) * 0.75f;
+	}
+	else if (tan_dot < -1.0f + eps) {
+		/* parallele tangents (half-circle) */
+		return (1.0f / 2.0f);
+	}
+	else {
+		/* non-aligned tangents, calculate handle length */
+		const float angle = acosf(tan_dot) / 2.0f;
+
+		/* could also use 'angle_sin = len_vnvn(tan_l, tan_r, dims) / 2.0' */
+		const float angle_sin = sinf(angle);
+		const float angle_cos = cosf(angle);
+		return ((1.0f - angle_cos) / (angle_sin * 2.0f)) / angle_sin;
+	}
 }

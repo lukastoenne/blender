@@ -41,6 +41,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bitmap_draw_2d.h"
 #include "BLI_blenlib.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_math.h"
@@ -110,7 +111,7 @@ static bool view3d_operator_offset_lock_check(bContext *C, wmOperator *op)
 bool ED_view3d_camera_lock_check(const View3D *v3d, const RegionView3D *rv3d)
 {
 	return ((v3d->camera) &&
-	        (v3d->camera->id.lib == NULL) &&
+	        (!ID_IS_LINKED_DATABLOCK(v3d->camera)) &&
 	        (v3d->flag2 & V3D_LOCK_CAMERA) &&
 	        (rv3d->persp == RV3D_CAMOB));
 }
@@ -1329,6 +1330,8 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 }
 
+#ifdef WITH_INPUT_NDOF
+
 /** \name NDOF Utility Functions
  * \{ */
 
@@ -1893,6 +1896,8 @@ void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = 0;
 }
+
+#endif /* WITH_INPUT_NDOF */
 
 /* ************************ viewmove ******************************** */
 
@@ -3079,7 +3084,9 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
 		ok = PE_minmax(scene, min, max);
 	}
-	else if (ob && (ob->mode & (OB_MODE_SCULPT | OB_MODE_TEXTURE_PAINT))) {
+	else if (ob &&
+	         (ob->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
+	{
 		BKE_paint_stroke_get_average(scene, ob, min);
 		copy_v3_v3(max, min);
 		ok = true;
@@ -3434,12 +3441,8 @@ static int render_border_exec(bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	}
 
-	/* drawing a border surrounding the entire camera view switches off border rendering
-	 * or the border covers no pixels */
-	if ((border.xmin <= 0.0f && border.xmax >= 1.0f &&
-	     border.ymin <= 0.0f && border.ymax >= 1.0f) ||
-	    (border.xmin == border.xmax || border.ymin == border.ymax))
-	{
+	/* drawing a border outside the camera view switches off border rendering */
+	if ((border.xmin == border.xmax || border.ymin == border.ymax)) {
 		if (rv3d->persp == RV3D_CAMOB)
 			scene->r.mode &= ~R_BORDER;
 		else
@@ -3620,7 +3623,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		dist_range[0] = v3d->near * 1.5f;
 	}
 	else { /* othographic */
-		   /* find the current window width and height */
+		/* find the current window width and height */
 		vb[0] = ar->winx;
 		vb[1] = ar->winy;
 
@@ -4520,7 +4523,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	/* note: having key shortcut here is bad practice,
 	 * but for now keep because this displays when dragging an image over the 3D viewport */
 	ot->name   = "Add Background Image (Ctrl for Empty Object)";
-	ot->description = "Add a new background image";
+	ot->description = "Add a new background image (Ctrl for Empty Object)";
 	ot->idname = "VIEW3D_OT_background_image_add";
 
 	/* api callbacks */
@@ -4529,7 +4532,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	ot->poll   = ED_operator_view3d_active;
 
 	/* flags */
-	ot->flag   = 0;
+	ot->flag   = OPTYPE_UNDO;
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Image name to assign");
@@ -4848,6 +4851,35 @@ void VIEW3D_OT_enable_manipulator(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+/* ************************* Toggle rendered shading *********************** */
+
+static int toggle_render_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	View3D *v3d = CTX_wm_view3d(C);
+	if (v3d->drawtype == OB_RENDER) {
+		v3d->drawtype = v3d->prev_drawtype;
+	}
+	else {
+		v3d->prev_drawtype = v3d->drawtype;
+		v3d->drawtype = OB_RENDER;
+	}
+	ED_view3d_shade_update(CTX_data_main(C), CTX_data_scene(C), v3d, CTX_wm_area(C));
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+	return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_toggle_render(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Toggle Rendered Shading";
+	ot->description = "Toggle rendered shading mode of the viewport";
+	ot->idname = "VIEW3D_OT_toggle_render";
+
+	/* api callbacks */
+	ot->exec = toggle_render_exec;
+	ot->poll = ED_operator_view3d_active;
+}
+
 /* ************************* below the line! *********************** */
 
 
@@ -4882,7 +4914,7 @@ static float view_autodist_depth_margin(ARegion *ar, const int mval[2], int marg
  * Get the world-space 3d location from a screen-space 2d point.
  *
  * \param mval: Input screen-space pixel location.
- * \param mouse_worldloc: Output world-space loction.
+ * \param mouse_worldloc: Output world-space location.
  * \param fallback_depth_pt: Use this points depth when no depth can be found.
  */
 bool ED_view3d_autodist(
@@ -5021,7 +5053,7 @@ bool ED_view3d_autodist_depth_seg(ARegion *ar, const int mval_sta[2], const int 
 	copy_v2_v2_int(p1, mval_sta);
 	copy_v2_v2_int(p2, mval_end);
 
-	plot_line_v2v2i(p1, p2, depth_segment_cb, &data);
+	BLI_bitmap_draw_2d_line_v2v2i(p1, p2, depth_segment_cb, &data);
 
 	*depth = data.depth;
 

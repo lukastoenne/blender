@@ -310,7 +310,7 @@ static int BLI_path_unc_prefix_len(const char *path); /* defined below in same f
 /**
  * Remove redundant characters from \a path and optionally make absolute.
  *
- * \param relbase: The path this is relative to, or ignored when NULL.
+ * \param relabase: The path this is relative to, or ignored when NULL.
  * \param path: Can be any input, and this function converts it to a regular full path.
  * Also removes garbage from directory paths, like `/../` or double slashes etc.
  *
@@ -430,7 +430,7 @@ void BLI_cleanup_file(const char *relabase, char *path)
  * \return true if \a fname was changed, false otherwise.
  *
  * For now, simply replaces reserved chars (as listed in
- * http://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words )
+ * https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words )
  * by underscores ('_').
  *
  * \note Space case ' ' is a bit of an edge case here - in theory it is allowed, but again can be an issue

@@ -240,9 +240,9 @@ typedef struct ThemeSpace {
 	char wire[4], wire_edit[4], select[4];
 	char lamp[4], speaker[4], empty[4], camera[4];
 	char active[4], group[4], group_active[4], transform[4];
-	char vertex[4], vertex_select[4], vertex_unreferenced[4];
+	char vertex[4], vertex_select[4], vertex_bevel[4], vertex_unreferenced[4];
 	char edge[4], edge_select[4];
-	char edge_seam[4], edge_sharp[4], edge_facesel[4], edge_crease[4];
+	char edge_seam[4], edge_sharp[4], edge_facesel[4], edge_crease[4], edge_bevel[4];
 	char face[4], face_select[4];	/* solid faces */
 	char face_dot[4];				/*  selected color */
 	char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
@@ -284,7 +284,10 @@ typedef struct ThemeSpace {
 	char nodeclass_pattern[4], nodeclass_layout[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
-	char effect[4], transition[4], meta[4], text_strip[4], pad[4];
+	char effect[4], transition[4], meta[4], text_strip[4];
+	
+	float keyframe_scale_fac; /* for dopesheet - scale factor for size of keyframes (i.e. height of channels) */
+	
 	char editmesh_active[4]; 
 
 	char handle_vertex[4];

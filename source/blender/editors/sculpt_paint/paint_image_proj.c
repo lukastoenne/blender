@@ -183,8 +183,8 @@ BLI_INLINE unsigned char f_to_char(const float val)
 /* to avoid locking in tile initialization */
 #define TILE_PENDING SET_INT_IN_POINTER(-1)
 
-/* This is mainly a convenience struct used so we can keep an array of images we use
- * Thir imbufs, etc, in 1 array, When using threads this array is copied for each thread
+/* This is mainly a convenience struct used so we can keep an array of images we use -
+ * their imbufs, etc, in 1 array, When using threads this array is copied for each thread
  * because 'partRedrawRect' and 'touch' values would not be thread safe */
 typedef struct ProjPaintImage {
 	Image *ima;
@@ -202,7 +202,7 @@ typedef struct ProjPaintImage {
  */
 typedef struct ProjStrokeHandle {
 	/* Support for painting from multiple views at once,
-	 * currently used to impliment summetry painting,
+	 * currently used to implement symmetry painting,
 	 * we can assume at least the first is set while painting. */
 	struct ProjPaintState *ps_views[8];
 	int ps_views_tot;
@@ -371,6 +371,8 @@ typedef struct ProjPaintState {
 	 */
 	const MLoopUV **dm_mloopuv;
 	const MLoopUV **dm_mloopuv_clone;    /* other UV map, use for cloning between layers */
+
+	bool use_colormanagement;
 } ProjPaintState;
 
 typedef union pixelPointer {
@@ -717,7 +719,7 @@ static bool project_paint_PickColor(
 }
 
 /**
- * Check if 'pt' is infront of the 3 verts on the Z axis (used for screenspace occlusuion test)
+ * Check if 'pt' is infront of the 3 verts on the Z axis (used for screenspace occlusion test)
  * \return
  * -  `0`:   no occlusion
  * - `-1`: no occlusion but 2D intersection is true
@@ -1623,7 +1625,12 @@ static ProjPixel *project_paint_uvpixel_init(
 						unsigned char rgba_ub[4];
 						float rgba[4];
 						project_face_pixel(lt_other_tri_uv, ibuf_other, w, rgba_ub, NULL);
-						srgb_to_linearrgb_uchar4(rgba, rgba_ub);
+						if (ps->use_colormanagement) {
+							srgb_to_linearrgb_uchar4(rgba, rgba_ub);
+						}
+						else {
+							rgba_uchar_to_float(rgba, rgba_ub);
+						}
 						straight_to_premul_v4_v4(((ProjPixelClone *)projPixel)->clonepx.f, rgba);
 					}
 				}
@@ -1632,7 +1639,12 @@ static ProjPixel *project_paint_uvpixel_init(
 						float rgba[4];
 						project_face_pixel(lt_other_tri_uv, ibuf_other, w, NULL, rgba);
 						premul_to_straight_v4(rgba);
-						linearrgb_to_srgb_uchar3(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
+						if (ps->use_colormanagement) {
+							linearrgb_to_srgb_uchar3(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
+						}
+						else {
+							rgb_float_to_uchar(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
+						}
 						((ProjPixelClone *)projPixel)->clonepx.ch[3] =  rgba[3] * 255;
 					}
 					else { /* char to char */
@@ -2174,7 +2186,7 @@ static void project_bucket_clip_face(
 		
 		if ((*tot) < 3) {
 			/* no intersections to speak of, but more probable is that all face is just outside the
-			 * rectangle and culled due to float precision issues. Since above teste have failed,
+			 * rectangle and culled due to float precision issues. Since above tests have failed,
 			 * just dump triangle as is for painting */
 			*tot = 0;
 			copy_v2_v2(bucket_bounds_uv[*tot], uv1co); (*tot)++;
@@ -3717,7 +3729,7 @@ static void project_paint_prepare_all_faces(
 		}
 
 		/* tfbase here should be non-null! */
-		BLI_assert (mloopuv_base != NULL);
+		BLI_assert(mloopuv_base != NULL);
 
 		if (is_face_sel && tpage) {
 			ProjPaintFaceCoSS coSS;
@@ -4359,7 +4371,12 @@ static void do_projectpaint_draw(
 	if (ps->is_texbrush) {
 		mul_v3_v3v3(rgb, texrgb, ps->paint_color_linear);
 		/* TODO(sergey): Support texture paint color space. */
-		linearrgb_to_srgb_v3_v3(rgb, rgb);
+		if (ps->use_colormanagement) {
+			linearrgb_to_srgb_v3_v3(rgb, rgb);
+		}
+		else {
+			copy_v3_v3(rgb, rgb);
+		}
 	}
 	else {
 		copy_v3_v3(rgb, ps->paint_color);
@@ -4957,11 +4974,21 @@ static void paint_proj_stroke_ps(
 	/* handle gradient and inverted stroke color here */
 	if (ps->tool == PAINT_TOOL_DRAW) {
 		paint_brush_color_get(scene, brush, false, ps->mode == BRUSH_STROKE_INVERT, distance, pressure,  ps->paint_color, NULL);
-		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+		if (ps->use_colormanagement) {
+			srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+		}
+		else {
+			copy_v3_v3(ps->paint_color_linear, ps->paint_color);
+		}
 	}
 	else if (ps->tool == PAINT_TOOL_FILL) {
 		copy_v3_v3(ps->paint_color, BKE_brush_color_get(scene, brush));
-		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+		if (ps->use_colormanagement) {
+			srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+		}
+		else {
+			copy_v3_v3(ps->paint_color_linear, ps->paint_color);
+		}
 	}
 	else if (ps->tool == PAINT_TOOL_MASK) {
 		ps->stencil_value = brush->weight;
@@ -5112,7 +5139,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->normal_angle_inner__cos = cosf(ps->normal_angle_inner);
 
 	ps->dither = settings->imapaint.dither;
-	
+
+	ps->use_colormanagement = BKE_scene_check_color_management_enabled(CTX_data_scene(C));
+
 	return;
 }
 
@@ -5783,7 +5812,7 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "type", layer_type_items, 0, "Type", "Merge method to use");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
-	RNA_def_string(ot->srna, "name", IMA_DEF_NAME, MAX_ID_NAME - 2, "Name", "Image datablock name");
+	RNA_def_string(ot->srna, "name", IMA_DEF_NAME, MAX_ID_NAME - 2, "Name", "Image data-block name");
 	prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
 	RNA_def_property_subtype(prop, PROP_PIXEL);
 	prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
@@ -5858,7 +5887,9 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 	Mesh *me = ob->data;
 	bool synch_selection = (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 
-	BMesh *bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	BMesh *bm = BM_mesh_create(
+	        &bm_mesh_allocsize_default,
+	        &((struct BMeshCreateParams){.use_toolflags = false,}));
 
 	/* turn synch selection off, since we are not in edit mode we need to ensure only the uv flags are tested */
 	scene->toolsettings->uv_flag &= ~UV_SYNC_SELECTION;

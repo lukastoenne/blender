@@ -29,8 +29,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_math_base.h"
-#include "BLI_math_vector.h"
 
 #include "BKE_global.h"
 
@@ -403,12 +401,12 @@ void GPU_framebuffer_blur(
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
 	glViewport(0, 0, GPU_texture_width(blurtex), GPU_texture_height(blurtex));
 
-	/* Peparing to draw quad */
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	/* Preparing to draw quad */
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
 	glDisable(GL_DEPTH_TEST);
@@ -575,7 +573,7 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 		glFramebufferTexture2DEXT(
 		        GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + ofs->color->fb_attachment,
 		        GL_TEXTURE_2D_MULTISAMPLE, ofs->color->bindcode, 0);
-		status = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER_EXT);
+		status = glCheckFramebufferStatusEXT(GL_READ_FRAMEBUFFER_EXT);
 		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 			goto finally;
 		}
@@ -583,11 +581,11 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 
 		/* write into new single-sample buffer */
 		glGenFramebuffersEXT(1, &fbo_blit);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, fbo_blit);
+		glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, fbo_blit);
 		glFramebufferTexture2DEXT(
-		        GL_DRAW_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0,
+		        GL_DRAW_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
 		        GL_TEXTURE_2D, tex_blit, 0);
-		status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER_EXT);
+		status = glCheckFramebufferStatusEXT(GL_DRAW_FRAMEBUFFER_EXT);
 		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 			goto finally;
 		}

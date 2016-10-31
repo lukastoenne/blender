@@ -528,10 +528,11 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_TUns32 height,
 	GHOST_TWindowState state,
 	GHOST_TDrawingContextType type,
-	const bool stereoVisual, const GHOST_TUns16 numOfAASamples
+	const bool stereoVisual, const GHOST_TUns16 numOfAASamples, bool is_debug
 ) :
 	GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
-	m_customCursor(0)
+	m_customCursor(0),
+	m_debug_context(is_debug)
 {
 	m_systemCocoa = systemCocoa;
 	m_fullScreen = false;
@@ -622,8 +623,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 		m_lionStyleFullScreen = true;
 	}
 	
-	[NSApp activateIgnoringOtherApps:YES]; // raise application to front, important for new blender instance animation play case
-	
 	[pool drain];
 }
 
@@ -663,7 +662,7 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 
 bool GHOST_WindowCocoa::getValid() const
 {
-	return GHOST_Window::getValid() && m_window != 0 && m_openGLView != 0;
+	return GHOST_Window::getValid() && m_window != NULL && m_openGLView != NULL;
 }
 
 void* GHOST_WindowCocoa::getOSWindow() const
@@ -1117,7 +1116,7 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 			m_openGLView,
 			0, // profile bit
 			0, 0,
-			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			m_debug_context,
 			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
 #else
 #  error

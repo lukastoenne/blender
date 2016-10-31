@@ -605,8 +605,8 @@ static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 	else if (act->idroot == 0) {
 		/* hopefully in this case (i.e. library of userless actions), the user knows what they're doing... */
 		BKE_reportf(op->reports, RPT_WARNING,
-		            "Action '%s' does not specify what datablocks it can be used on "
-		            "(try setting the 'ID Root Type' setting from the Datablocks Editor "
+		            "Action '%s' does not specify what data-blocks it can be used on "
+		            "(try setting the 'ID Root Type' setting from the data-blocks editor "
 		            "for this action to avoid future problems)",
 		            act->id.name + 2);
 	}
@@ -1856,6 +1856,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
 
 static int nlaedit_make_single_user_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	bAnimContext ac;
 	
 	ListBase anim_data = {NULL, NULL};
@@ -1887,7 +1888,7 @@ static int nlaedit_make_single_user_exec(bContext *C, wmOperator *UNUSED(op))
 				/* multi-user? */
 				if (ID_REAL_USERS(strip->act) > 1) {
 					/* make a new copy of the action for us to use (it will have 1 user already) */
-					bAction *new_action = BKE_action_copy(strip->act);
+					bAction *new_action = BKE_action_copy(bmain, strip->act);
 					
 					/* decrement user count of our existing action */
 					id_us_min(&strip->act->id);
@@ -1945,6 +1946,7 @@ static short bezt_apply_nlamapping(KeyframeEditData *ked, BezTriple *bezt)
 
 static int nlaedit_apply_scale_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain = CTX_data_main(C);
 	bAnimContext ac;
 	
 	ListBase anim_data = {NULL, NULL};
@@ -1974,7 +1976,7 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator *UNUSED(op))
 					continue;
 				if (strip->act->id.us > 1) {
 					/* make a copy of the Action to work on */
-					bAction *act = BKE_action_copy(strip->act);
+					bAction *act = BKE_action_copy(bmain, strip->act);
 					
 					/* set this as the new referenced action, decrementing the users of the old one */
 					id_us_min(&strip->act->id);

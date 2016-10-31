@@ -25,7 +25,8 @@
 /* bvh */
 KERNEL_TEX(float4, texture_float4, __bvh_nodes)
 KERNEL_TEX(float4, texture_float4, __bvh_leaf_nodes)
-KERNEL_TEX(float4, texture_float4, __tri_storage)
+KERNEL_TEX(float4, texture_float4, __prim_tri_verts)
+KERNEL_TEX(uint, texture_uint, __prim_tri_index)
 KERNEL_TEX(uint, texture_uint, __prim_type)
 KERNEL_TEX(uint, texture_uint, __prim_visibility)
 KERNEL_TEX(uint, texture_uint, __prim_index)
@@ -39,12 +40,16 @@ KERNEL_TEX(float4, texture_float4, __objects_vector)
 /* triangles */
 KERNEL_TEX(uint, texture_uint, __tri_shader)
 KERNEL_TEX(float4, texture_float4, __tri_vnormal)
-KERNEL_TEX(float4, texture_float4, __tri_vindex)
-KERNEL_TEX(float4, texture_float4, __tri_verts)
+KERNEL_TEX(uint4, texture_uint4, __tri_vindex)
+KERNEL_TEX(uint, texture_uint, __tri_patch)
+KERNEL_TEX(float2, texture_float2, __tri_patch_uv)
 
 /* curves */
 KERNEL_TEX(float4, texture_float4, __curves)
 KERNEL_TEX(float4, texture_float4, __curve_keys)
+
+/* patches */
+KERNEL_TEX(uint, texture_uint, __patches)
 
 /* attributes */
 KERNEL_TEX(uint4, texture_uint4, __attributes_map)
@@ -72,6 +77,8 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
 
+#ifdef __KERNEL_CUDA__
+#  if __CUDA_ARCH__ < 300
 /* full-float image */
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float4_000)
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float4_001)
@@ -171,73 +178,18 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_086)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_087)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_088)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_089)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_090)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_091)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_092)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_093)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_094)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_095)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_096)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_097)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_098)
 
-/* Kepler and above */
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_099)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_100)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_101)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_102)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_103)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_104)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_105)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_106)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_107)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_108)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_109)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_110)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_111)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_112)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_113)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_114)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_115)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_116)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_117)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_118)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_119)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_120)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_121)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_122)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_123)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_124)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_125)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_126)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_127)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_128)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_129)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_130)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_131)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_132)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_133)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_134)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_135)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_136)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_137)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_138)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_139)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_140)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_141)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_142)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_143)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_144)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_145)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_146)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_147)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_148)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_149)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_byte4_150)
+#  else
+/* bindless textures */
+KERNEL_TEX(uint, texture_uint, __bindless_mapping)
+#  endif
+#endif
 
 /* packed image (opencl) */
 KERNEL_TEX(uchar4, texture_uchar4, __tex_image_byte4_packed)
 KERNEL_TEX(float4, texture_float4, __tex_image_float4_packed)
+KERNEL_TEX(uchar, texture_uchar, __tex_image_byte_packed)
+KERNEL_TEX(float, texture_float, __tex_image_float_packed)
 KERNEL_TEX(uint4, texture_uint4, __tex_image_packed_info)
 
 #undef KERNEL_TEX

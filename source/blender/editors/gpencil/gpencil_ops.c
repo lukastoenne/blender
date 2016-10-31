@@ -18,7 +18,7 @@
  * The Original Code is Copyright (C) 2009, Blender Foundation, Joshua Leung
  * This is a new part of Blender
  *
- * Contributor(s): Joshua Leung
+ * Contributor(s): Joshua Leung, Antonio Vazquez
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -79,7 +79,6 @@ static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
 	
-	
 	/* Tablet Mappings for Drawing ------------------ */
 	/* For now, only support direct drawing using the eraser, as most users using a tablet
 	 * may still want to use that as their primary pointing device!
@@ -102,6 +101,10 @@ static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 	/* Pie Menu - For standard tools */
 	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", QKEY, KM_PRESS, 0, DKEY);
 	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_settings_palette", WKEY, KM_PRESS, 0, DKEY);
+	
+	/* Delete Active Frame - For easier video tutorials/review sessions */
+	/* NOTE: This works even when not in EditMode */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_active_frames_delete_all", XKEY, KM_PRESS, 0, DKEY);
 }
 
 /* ==================== */
@@ -136,9 +139,42 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	 *       that the only data being edited is that of the Grease Pencil strokes
 	 */
 	
-	/* FKEY = Eraser Radius */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, 0, 0);
+	/* CTRL + FKEY = Eraser Radius */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path_primary", "user_preferences.edit.grease_pencil_eraser_radius");
+	
+	/* Interpolation */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_interpolate", EKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+	WM_keymap_add_item(keymap, "GPENCIL_OT_interpolate_sequence", EKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
+
+	/* Sculpting ------------------------------------- */
+	
+	/* Brush-Based Editing:
+	 *   EKEY + LMB                          = Single stroke, draw immediately 
+	 *        + Other Modifiers (Ctrl/Shift) = Invert, Smooth, etc.
+	 *
+	 * For the modal version, use D+E -> Sculpt
+	 */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, 0, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_CTRL, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	/*RNA_boolean_set(kmi->ptr, "use_invert", true);*/
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_SHIFT, EKEY);
+	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
+	/*RNA_boolean_set(kmi->ptr, "use_smooth", true);*/
+	
+	
+	/* Shift-FKEY = Sculpt Strength */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.strength");
+	
+	/* FKEY = Sculpt Brush Size */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.size");
+	
 	
 	/* Selection ------------------------------------- */
 	/* select all */
@@ -200,9 +236,20 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* delete */
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_edit_gpencil_delete", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_edit_gpencil_delete", DELKEY, KM_PRESS, 0, 0);
-
+	
 	WM_keymap_add_item(keymap, "GPENCIL_OT_dissolve", XKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "GPENCIL_OT_dissolve", DELKEY, KM_PRESS, KM_CTRL, 0);
+	
+	WM_keymap_add_item(keymap, "GPENCIL_OT_active_frames_delete_all", XKEY, KM_PRESS, KM_SHIFT, 0);
+	
+	/* menu edit specials */
+	WM_keymap_add_menu(keymap, "GPENCIL_MT_gpencil_edit_specials", WKEY, KM_PRESS, 0, 0);
+
+	/* join strokes */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_stroke_join", JKEY, KM_PRESS, KM_CTRL, 0);
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_stroke_join", JKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	RNA_enum_set(kmi->ptr, "type", GP_STROKE_JOINCOPY);
 	
 	/* copy + paste */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_copy", CKEY, KM_PRESS, KM_CTRL, 0);
@@ -230,44 +277,37 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", true);
+
+	WM_keymap_add_item(keymap, "GPENCIL_OT_selection_opacity_toggle", HKEY, KM_PRESS, KM_CTRL, 0);
 	
 	/* Isolate Layer */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_layer_isolate", PADASTERKEY, KM_PRESS, 0, 0);
 	
 	/* Move to Layer */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_move_to_layer", MKEY, KM_PRESS, 0, 0);
-	
-	
-	
-	/* Brush-Based Editing:
-	 *   EKEY + LMB                          = Single stroke, draw immediately 
-	 *        + Other Modifiers (Ctrl/Shift) = Invert, Smooth, etc.
-	 *
-	 * For the modal version, use D+E -> Sculpt
-	 */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, 0, EKEY);
-	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
-	
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_CTRL, EKEY);
-	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
-	/*RNA_boolean_set(kmi->ptr, "use_invert", true);*/
-	
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", LEFTMOUSE, KM_PRESS, KM_SHIFT, EKEY);
-	RNA_boolean_set(kmi->ptr, "wait_for_input", false);
-	/*RNA_boolean_set(kmi->ptr, "use_smooth", true);*/
-	
-	
-	/* Shift-FKEY = Sculpt Strength */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.strength");
-	
-	/* Ctrl-FKEY = Sculpt Brush Size */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_string_set(kmi->ptr, "data_path_primary", "tool_settings.gpencil_sculpt.brush.size");
-	
-	
-	
-	
+
+	/* Select drawing brush using index */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", ONEKEY, KM_PRESS, 0, 0); 
+	RNA_int_set(kmi->ptr, "index", 0);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", TWOKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 1);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", THREEKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 2);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", FOURKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 3);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", FIVEKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 4);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", SIXKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 5);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", SEVENKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 6);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", EIGHTKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 7);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", NINEKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 8);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_brush_select", ZEROKEY, KM_PRESS, 0, 0);
+	RNA_int_set(kmi->ptr, "index", 9);
+
 	/* Transform Tools */
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	
@@ -312,7 +352,8 @@ void ED_operatortypes_gpencil(void)
 	/* Editing (Strokes) ------------ */
 	
 	WM_operatortype_append(GPENCIL_OT_editmode_toggle);
-	
+	WM_operatortype_append(GPENCIL_OT_selection_opacity_toggle);
+
 	WM_operatortype_append(GPENCIL_OT_select);
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
@@ -339,6 +380,8 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_snap_to_cursor);
 	WM_operatortype_append(GPENCIL_OT_snap_cursor_to_selected);
 	
+	WM_operatortype_append(GPENCIL_OT_reproject);
+	
 	WM_operatortype_append(GPENCIL_OT_brush_paint);
 	
 	/* Editing (Buttons) ------------ */
@@ -356,12 +399,50 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_lock_all);
 	WM_operatortype_append(GPENCIL_OT_unlock_all);
 	WM_operatortype_append(GPENCIL_OT_layer_isolate);
-	
+	WM_operatortype_append(GPENCIL_OT_layer_merge);
+
 	WM_operatortype_append(GPENCIL_OT_active_frame_delete);
+	WM_operatortype_append(GPENCIL_OT_active_frames_delete_all);
 	
 	WM_operatortype_append(GPENCIL_OT_convert);
 
+	WM_operatortype_append(GPENCIL_OT_stroke_arrange);
+	WM_operatortype_append(GPENCIL_OT_stroke_change_color);
+	WM_operatortype_append(GPENCIL_OT_stroke_lock_color);
+	WM_operatortype_append(GPENCIL_OT_stroke_apply_thickness);
+	WM_operatortype_append(GPENCIL_OT_stroke_cyclical_set);
+	WM_operatortype_append(GPENCIL_OT_stroke_join);
+	WM_operatortype_append(GPENCIL_OT_stroke_flip);
+	WM_operatortype_append(GPENCIL_OT_stroke_subdivide);
+
+	WM_operatortype_append(GPENCIL_OT_palette_add);
+	WM_operatortype_append(GPENCIL_OT_palette_remove);
+	WM_operatortype_append(GPENCIL_OT_palette_change);
+	WM_operatortype_append(GPENCIL_OT_palette_lock_layer);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_add);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_remove);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_isolate);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_hide);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_reveal);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_lock_all);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_unlock_all);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_move);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_select);
+	WM_operatortype_append(GPENCIL_OT_palettecolor_copy);
+
+	WM_operatortype_append(GPENCIL_OT_brush_add);
+	WM_operatortype_append(GPENCIL_OT_brush_remove);
+	WM_operatortype_append(GPENCIL_OT_brush_change);
+	WM_operatortype_append(GPENCIL_OT_brush_move);
+	WM_operatortype_append(GPENCIL_OT_brush_presets_create);
+	WM_operatortype_append(GPENCIL_OT_brush_copy);
+	WM_operatortype_append(GPENCIL_OT_brush_select);
+
 	/* Editing (Time) --------------- */
+	
+	/* Interpolation */
+	WM_operatortype_append(GPENCIL_OT_interpolate);
+	WM_operatortype_append(GPENCIL_OT_interpolate_sequence);
 }
 
 void ED_operatormacros_gpencil(void)

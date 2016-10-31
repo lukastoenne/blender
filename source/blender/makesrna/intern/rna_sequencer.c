@@ -292,7 +292,7 @@ static int rna_Sequence_frame_length_get(PointerRNA *ptr)
 	return BKE_sequence_tx_get_final_right(seq, false) - BKE_sequence_tx_get_final_left(seq, false);
 }
 
-static int rna_Sequence_frame_editable(PointerRNA *ptr)
+static int rna_Sequence_frame_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
 	Sequence *seq = (Sequence *)ptr->data;
 	/* Effect sequences' start frame and length must be readonly! */
@@ -2327,6 +2327,7 @@ static void rna_def_text(StructRNA *srna)
 	prop = RNA_def_property(srna, "font_size", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "text_size");
 	RNA_def_property_ui_text(prop, "Size", "Size of the text");
+	RNA_def_property_range(prop, 0.0, 2000);
 	RNA_def_property_ui_range(prop, 0.0f, 1000, 1, -1);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 

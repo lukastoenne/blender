@@ -98,7 +98,7 @@ ccl_device uint sobol_lookup(const uint m, const uint frame, const uint ex, cons
 	return index;
 }
 
-ccl_device_inline float path_rng_1D(KernelGlobals *kg, ccl_addr_space RNG *rng, int sample, int num_samples, int dimension)
+ccl_device_forceinline float path_rng_1D(KernelGlobals *kg, ccl_addr_space RNG *rng, int sample, int num_samples, int dimension)
 {
 #ifdef __CMJ__
 	if(kernel_data.integrator.sampling_pattern == SAMPLING_PATTERN_CMJ) {
@@ -132,7 +132,7 @@ ccl_device_inline float path_rng_1D(KernelGlobals *kg, ccl_addr_space RNG *rng, 
 #endif
 }
 
-ccl_device_inline void path_rng_2D(KernelGlobals *kg, ccl_addr_space RNG *rng, int sample, int num_samples, int dimension, float *fx, float *fy)
+ccl_device_forceinline void path_rng_2D(KernelGlobals *kg, ccl_addr_space RNG *rng, int sample, int num_samples, int dimension, float *fx, float *fy)
 {
 #ifdef __CMJ__
 	if(kernel_data.integrator.sampling_pattern == SAMPLING_PATTERN_CMJ) {
@@ -193,7 +193,7 @@ ccl_device void path_rng_end(KernelGlobals *kg, ccl_global uint *rng_state, RNG 
 
 /* Linear Congruential Generator */
 
-ccl_device_inline float path_rng_1D(KernelGlobals *kg, RNG& rng, int sample, int num_samples, int dimension)
+ccl_device_forceinline float path_rng_1D(KernelGlobals *kg, RNG& rng, int sample, int num_samples, int dimension)
 {
 	/* implicit mod 2^32 */
 	rng = (1103515245*(rng) + 12345);
@@ -312,6 +312,22 @@ ccl_device_inline void path_state_branch(PathState *state, int branch, int num_b
 ccl_device_inline uint lcg_state_init(RNG *rng, const PathState *state, uint scramble)
 {
 	return lcg_init(*rng + state->rng_offset + state->sample*scramble);
+}
+
+/* TODO(sergey): For until we can use generic address space from OpenCL 2.0. */
+
+ccl_device_inline uint lcg_state_init_addrspace(ccl_addr_space RNG *rng,
+                                                const ccl_addr_space PathState *state,
+                                                uint scramble)
+{
+	return lcg_init(*rng + state->rng_offset + state->sample*scramble);
+}
+
+ccl_device float lcg_step_float_addrspace(ccl_addr_space uint *rng)
+{
+	/* implicit mod 2^32 */
+	*rng = (1103515245*(*rng) + 12345);
+	return (float)*rng * (1.0f/(float)0xFFFFFFFF);
 }
 
 CCL_NAMESPACE_END
