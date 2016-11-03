@@ -877,7 +877,7 @@ static ShaderNode *add_node(Scene *scene,
 			socket.enum_values = NULL;
 			socket.node_type = NULL;
 			socket.flags = SocketType::LINKABLE;
-			vdb_node->outputs.push_back(new ShaderOutput(vdb_node->output_sockets.back(), vdb_node));
+			vdb_node->outputs.push_back(new ShaderOutput(socket, vdb_node));
 		}
 
 		node = vdb_node;
