@@ -15,46 +15,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2015 Blender Foundation.
+ * The Original Code is Copyright (C) 2016 Blender Foundation.
  * All rights reserved.
  *
- * Contributor(s): Kevin Dietrich
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Kevin Dietrich, Lukas Toenne
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __OPENVDB_UTIL_H__
-#define __OPENVDB_UTIL_H__
+#include "openvdb_points_convert.h"
 
-#include <openvdb/openvdb.h>
-#include <openvdb/util/CpuTimer.h>
+#include <openvdb/tools/ValueTransformer.h>  /* for tools::foreach */
 
-#define CATCH_KEYERROR \
-	catch (const openvdb::KeyError &e) { \
-		std::cerr << e.what() << '\n'; \
-	}
+namespace internal {
 
-//#define DEBUG_TIME
-
-/* A utility class which prints the time elapsed during its lifetime, useful for
- * e.g. timing the overall execution time of a function */
-class ScopeTimer {
-	std::string m_message;
-	openvdb::util::CpuTimer m_timer;
-
-public:
-	ScopeTimer(const std::string &message);
-	~ScopeTimer();
-};
-
-#ifdef DEBUG_TIME
-#	define Timer(x) \
-		ScopeTimer prof(x);
-#else
-#	define Timer(x)
-#endif
-
-
-openvdb::Mat4R convertMatrix(const float mat[4][4]);
-
-#endif /* __OPENVDB_UTIL_H__ */
+}  /* namespace internal */

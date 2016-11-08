@@ -30,6 +30,7 @@
 
 #include "openvdb_reader.h"
 #include "openvdb_writer.h"
+#include "openvdb_util.h"
 
 #include <openvdb/tools/Clip.h>
 #include <openvdb/tools/Dense.h>
@@ -39,8 +40,6 @@
 #define TOLERANCE 1e-3f
 
 namespace internal {
-
-openvdb::Mat4R convertMatrix(const float mat[4][4]);
 
 template <typename GridType, typename T>
 GridType *OpenVDB_export_grid(

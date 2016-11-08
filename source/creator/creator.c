@@ -65,6 +65,7 @@
 #include "BKE_sound.h"
 #include "BKE_image.h"
 #include "BKE_particle.h"
+#include "BKE_volume.h"
 
 
 #include "IMB_imbuf.h"  /* for IMB_init */
@@ -365,9 +366,10 @@ int main(
 
 	BKE_brush_system_init();
 	RE_texture_rng_init();
-	
 
 	BLI_callback_global_init();
+
+	BKE_volume_force_link(); /* XXX only for preventing symbol stripping */
 
 #ifdef WITH_GAMEENGINE
 	syshandle = SYS_GetSystem();

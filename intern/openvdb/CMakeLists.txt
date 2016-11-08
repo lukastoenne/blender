@@ -49,12 +49,14 @@ if(WITH_OPENVDB)
 
 	list(APPEND SRC
 		intern/openvdb_dense_convert.cc
+		intern/openvdb_points_convert.cc
 		intern/openvdb_reader.cc
 		intern/openvdb_writer.cc
 		openvdb_capi.cc
 		openvdb_util.cc
 
 		intern/openvdb_dense_convert.h
+		intern/openvdb_points_convert.h
 		intern/openvdb_reader.h
 		intern/openvdb_writer.h
 		openvdb_util.h

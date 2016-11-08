@@ -69,6 +69,22 @@ struct OpenVDBVectorGrid *OpenVDB_export_grid_vec(
         const bool is_color,
         struct OpenVDBFloatGrid *mask);
 
+typedef struct OpenVDBExportPoints {
+	int (*size)(struct OpenVDBExportPoints *part);
+	void (*get_location)(struct OpenVDBExportPoints *part, int index, float *loc);
+	void (*get_radius)(struct OpenVDBExportPoints *part, int index, float *rad);
+	void (*get_velocity)(struct OpenVDBExportPoints *part, int index, float *vel);
+	void (*get_attr_float)(struct OpenVDBExportPoints *part, int index, float *value);
+	void (*get_attr_vector)(struct OpenVDBExportPoints *part, int index, float *value);
+	void (*get_attr_int)(struct OpenVDBExportPoints *part, int index, int *value);
+} OpenVDBExportPoints;
+
+struct OpenVDBFloatGrid *OpenVDB_export_points_fl(
+        struct OpenVDBWriter *writer,
+        const char *name, float matrix[4][4],
+        struct OpenVDBFloatGrid *mask,
+        struct OpenVDBExportPoints *points, float voxel_size);
+
 void OpenVDB_import_grid_fl(
         struct OpenVDBReader *reader,
         const char *name, float **data,
@@ -103,6 +119,8 @@ void OpenVDBReader_get_meta_int(struct OpenVDBReader *reader, const char *name, 
 void OpenVDBReader_get_meta_v3(struct OpenVDBReader *reader, const char *name, float value[3]);
 void OpenVDBReader_get_meta_v3_int(struct OpenVDBReader *reader, const char *name, int value[3]);
 void OpenVDBReader_get_meta_mat4(struct OpenVDBReader *reader, const char *name, float value[4][4]);
+
+
 
 #ifdef __cplusplus
 }

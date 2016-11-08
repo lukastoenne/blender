@@ -15,46 +15,44 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2015 Blender Foundation.
+ * The Original Code is Copyright (C) 2016 Blender Foundation.
  * All rights reserved.
  *
- * Contributor(s): Kevin Dietrich
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Lukas Toenne
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __OPENVDB_UTIL_H__
-#define __OPENVDB_UTIL_H__
+/** \file BKE_volume.h
+ *  \ingroup bke
+ */
 
-#include <openvdb/openvdb.h>
-#include <openvdb/util/CpuTimer.h>
 
-#define CATCH_KEYERROR \
-	catch (const openvdb::KeyError &e) { \
-		std::cerr << e.what() << '\n'; \
-	}
+#ifndef __BKE_VOLUME_H__
+#define __BKE_VOLUME_H__
 
-//#define DEBUG_TIME
-
-/* A utility class which prints the time elapsed during its lifetime, useful for
- * e.g. timing the overall execution time of a function */
-class ScopeTimer {
-	std::string m_message;
-	openvdb::util::CpuTimer m_timer;
-
-public:
-	ScopeTimer(const std::string &message);
-	~ScopeTimer();
-};
-
-#ifdef DEBUG_TIME
-#	define Timer(x) \
-		ScopeTimer prof(x);
-#else
-#	define Timer(x)
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+struct Object;
+struct PointerRNA;
+struct Scene;
 
-openvdb::Mat4R convertMatrix(const float mat[4][4]);
+typedef enum eVolumeExport_DataSource {
+	VOLUME_EXPORT_DATA_VERTICES,
+	VOLUME_EXPORT_DATA_PARTICLES,
+} eVolumeExport_DataSource;
 
-#endif /* __OPENVDB_UTIL_H__ */
+void BKE_volume_export(struct Scene *scene, struct Object *ob, struct PointerRNA *config,
+                       int frame_start, int frame_end, const char *filepath);
+
+void BKE_volume_force_link(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  /* __BKE_VOLUME_H__ */

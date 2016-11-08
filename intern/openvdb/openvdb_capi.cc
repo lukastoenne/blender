@@ -25,6 +25,7 @@
 
 #include "openvdb_capi.h"
 #include "openvdb_dense_convert.h"
+#include "openvdb_points_convert.h"
 #include "openvdb_util.h"
 
 struct OpenVDBFloatGrid { int unused; };
@@ -135,6 +136,80 @@ OpenVDBVectorGrid *OpenVDB_export_grid_vec(
 	        mask_grid);
 
 	return reinterpret_cast<OpenVDBVectorGrid *>(grid);
+}
+
+struct PointListWrapper {
+	typedef openvdb::Vec3R value_type;
+	
+	PointListWrapper(OpenVDBExportPoints *points) :
+	    m_points(points)
+	{}
+	
+	size_t size() const { return m_points->size(m_points); }
+	
+	void getPos(int id, openvdb::Vec3R &pos) const {
+		float p[3];
+		m_points->get_location(m_points, id, p);
+		pos = openvdb::Vec3R(p[0], p[1], p[2]);
+	}
+	
+	void getPosRad(int id, openvdb::Vec3R &pos, openvdb::Real &rad) const {
+		float p[3], r;
+		m_points->get_location(m_points, id, p);
+		m_points->get_radius(m_points, id, &r);
+		pos = openvdb::Vec3R(p[0], p[1], p[2]);
+		rad = openvdb::Real(r);
+	}
+	
+	void getPosRadVel(int id, openvdb::Vec3R &pos, openvdb::Real &rad, openvdb::Vec3R &vel) const {
+		float p[3], r, v[3];
+		m_points->get_location(m_points, id, p);
+		m_points->get_radius(m_points, id, &r);
+		m_points->get_velocity(m_points, id, v);
+		pos = openvdb::Vec3R(p[0], p[1], p[2]);
+		rad = openvdb::Real(r);
+		vel = openvdb::Vec3R(v[0], v[1], v[2]);
+	}
+	
+	void getAtt(int id, openvdb::Vec3R &value) {
+		float v[3];
+		m_points->get_attr_vector(m_points, id, v);
+		value = openvdb::Vec3R(v[0], v[1], v[2]);
+	}
+	
+	void getAtt(int id, openvdb::Real &value) {
+		float f;
+		m_points->get_attr_float(m_points, id, &f);
+		value = openvdb::Real(f);
+	}
+	
+	void getAtt(int id, openvdb::Int &value) {
+		int i;
+		m_points->get_attr_int(m_points, id, &i);
+		value = openvdb::Int(i);
+	}
+	
+private:
+	OpenVDBExportPoints *m_points;
+};
+
+OpenVDBFloatGrid *OpenVDB_export_points_fl(
+        OpenVDBWriter *writer,
+        const char *name, float matrix[4][4],
+        OpenVDBFloatGrid *mask,
+        OpenVDBExportPoints *points, float voxel_size)
+{
+	Timer(__func__);
+
+	using openvdb::FloatGrid;
+
+	PointListWrapper vdb_points(points);
+
+	FloatGrid *mask_grid = reinterpret_cast<FloatGrid *>(mask);
+	FloatGrid *grid = internal::OpenVDB_export_points<FloatGrid>(
+	        writer, name, matrix, mask_grid, vdb_points, voxel_size);
+
+	return reinterpret_cast<OpenVDBFloatGrid *>(grid);
 }
 
 void OpenVDB_import_grid_fl(

@@ -184,6 +184,7 @@ set(SRC
 	intern/tracking_stabilize.c
 	intern/tracking_util.c
 	intern/unit.c
+	intern/volume.c
 	intern/world.c
 	intern/writeavi.c
 	intern/writeframeserver.c
@@ -291,6 +292,7 @@ set(SRC
 	BKE_tracking.h
 	BKE_unit.h
 	BKE_utildefines.h
+	BKE_volume.h
 	BKE_world.h
 	BKE_writeavi.h
 	BKE_writeframeserver.h

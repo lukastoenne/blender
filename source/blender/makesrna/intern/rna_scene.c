@@ -6853,6 +6853,9 @@ static void rna_def_display_safe_areas(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
 }
 
+/* rna_scene_api.c */
+extern void rna_def_openvdb_export_config(BlenderRNA *brna);
+
 
 void RNA_def_scene(BlenderRNA *brna)
 {
@@ -7284,6 +7287,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	rna_def_scene_render_view(brna);
 
 	/* Scene API */
+	rna_def_openvdb_export_config(brna);
 	RNA_api_scene(srna);
 }
 

@@ -43,10 +43,16 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_volume.h"
+
 #include "rna_internal.h"  /* own include */
 
 #ifdef WITH_ALEMBIC
 #  include "../../alembic/ABC_alembic.h"
+#endif
+
+#ifdef WITH_OPENVDB
+#  include "../../openvdb/openvdb_capi.h"
 #endif
 
 EnumPropertyItem rna_enum_abc_compression_items[] = {
@@ -60,6 +66,7 @@ EnumPropertyItem rna_enum_abc_compression_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BKE_animsys.h"
+#include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_editmesh.h"
 #include "BKE_global.h"
@@ -70,6 +77,8 @@ EnumPropertyItem rna_enum_abc_compression_items[] = {
 #include "ED_transform.h"
 #include "ED_transform_snap_object_context.h"
 #include "ED_uvedit.h"
+
+#include "RNA_access.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -295,7 +304,77 @@ static void rna_Scene_collada_export(
 
 #endif
 
+#ifdef WITH_OPENVDB
+
+static void rna_Scene_openvdb_export(
+        Scene *scene,
+        bContext *C,
+        const char *filepath,
+        int frame_start,
+        int frame_end,
+        PointerRNA *config)
+{
+	Object *ob;
+	
+/* We have to enable allow_threads, because we may change scene frame number
+ * during export. */
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+	
+	ob = CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	if (ob) {
+		BKE_volume_export(scene, ob, config, frame_start, frame_end, filepath);
+	}
+	
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
+}
+
+#endif
+
 #else
+
+void rna_def_openvdb_export_config(BlenderRNA *brna);
+void rna_def_openvdb_export_config(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	static EnumPropertyItem data_source_items[] = {
+		{ VOLUME_EXPORT_DATA_VERTICES, "VERTICES", 0, "Vertices", "" },
+		{ VOLUME_EXPORT_DATA_PARTICLES, "PARTICLES", 0, "Particles", "" },
+		{ 0, NULL, 0, NULL, NULL }
+	};
+	
+	srna = RNA_def_struct(brna, "OpenVDBExportGrid", "PropertyGroup");
+	RNA_def_struct_ui_text(srna, "OpenVDB Export Grid", "Export properties for an OpenVDB grid");
+	
+	prop = RNA_def_property(srna, "data_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_IDPROPERTY);
+	RNA_def_property_enum_items(prop, data_source_items);
+	RNA_def_property_ui_text(prop, "Data Source", "Source of data to define grid values");
+	
+	srna = RNA_def_struct(brna, "OpenVDBExportConfig", "PropertyGroup");
+	RNA_def_struct_ui_text(srna, "OpenVDB Export Config", "Configuration for OpenVDB export");
+	
+	prop = RNA_def_property(srna, "grids", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_IDPROPERTY);
+	RNA_def_property_ui_text(prop, "Grids", "");
+	RNA_def_property_struct_type(prop, "OpenVDBExportGrid");
+	
+	prop = RNA_def_property(srna, "active_grid", PROP_INT, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_IDPROPERTY);
+	RNA_def_property_ui_text(prop, "Active Grid", "");
+	
+	prop = RNA_def_property(srna, "voxel_size", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_IDPROPERTY);
+	RNA_def_property_ui_text(prop, "Voxel Size", "");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 4);
+	RNA_def_property_float_default(prop, 0.1f);
+}
 
 void RNA_api_scene(StructRNA *srna)
 {
@@ -413,6 +492,23 @@ void RNA_api_scene(StructRNA *srna)
 	RNA_def_boolean(func, "triangulate", 0, "Triangulate", "Export Polygons (Quads & NGons) as Triangles");
 	RNA_def_enum(func, "quad_method", rna_enum_modifier_triangulate_quad_method_items, 0, "Quad Method", "Method for splitting the quads into triangles");
 	RNA_def_enum(func, "ngon_method", rna_enum_modifier_triangulate_quad_method_items, 0, "Polygon Method", "Method for splitting the polygons into triangles");
+
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+#endif
+
+#ifdef WITH_OPENVDB
+	func = RNA_def_function(srna, "openvdb_export", "rna_Scene_openvdb_export");
+	RNA_def_function_ui_description(func, "Export to OpenVDB file");
+
+	parm = RNA_def_string(func, "filepath", NULL, FILE_MAX, "File Path", "File path to write OpenVDB file");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_property_subtype(parm, PROP_FILEPATH); /* allow non utf8 */
+
+	RNA_def_int(func, "frame_start", 1, INT_MIN, INT_MAX, "Start", "Start Frame", INT_MIN, INT_MAX);
+	RNA_def_int(func, "frame_end", 1, INT_MIN, INT_MAX, "End", "End Frame", INT_MIN, INT_MAX);
+
+	parm = RNA_def_pointer(func, "config", "OpenVDBExportConfig", "Configuration", "Configuration for OpenVDB export");
+	RNA_def_property_flag(parm, PROP_RNAPTR | PROP_REQUIRED | PROP_NEVER_NULL);
 
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 #endif
