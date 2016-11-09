@@ -405,8 +405,8 @@ void VolumeManager::device_update_attributes(Device *device, DeviceScene *dscene
 
 			update_attribute_element_offset(vattr,
 			                                req.triangle_type,
-			                                req.triangle_offset,
-			                                req.triangle_element);
+			                                req.triangle_desc.offset,
+			                                req.triangle_desc.element);
 
 			if(progress.get_cancel()) return;
 		}
@@ -442,8 +442,8 @@ void VolumeManager::update_svm_attributes(Device *device, DeviceScene *dscene, S
 			uint id = scene->shader_manager->get_attribute_id(req.name);
 
 			attr_map[index].x = id;
-			attr_map[index].y = req.triangle_element;
-			attr_map[index].z = as_uint(req.triangle_offset);
+			attr_map[index].y = req.triangle_desc.element;
+			attr_map[index].z = as_uint(req.triangle_desc.offset);
 
 			if(req.triangle_type == TypeDesc::TypeFloat)
 				attr_map[index].w = NODE_ATTR_FLOAT;
@@ -486,7 +486,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 			}
 
 			device->const_copy_to("__float_volume", volume->float_fields[i], i);
-			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], NULL, false);
+			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], false);
 		}
 
 		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
@@ -494,7 +494,7 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 				continue;
 			}
 
-			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], NULL, false);
+			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], false);
 			device->const_copy_to("__float3_volume", volume->float3_fields[i], i);
 		}
 

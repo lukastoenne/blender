@@ -549,7 +549,7 @@ string OSLCompiler::id(ShaderNode *node)
 {
 	/* assign layer unique name based on pointer address + bump mode */
 	stringstream stream;
-	stream << "node_" << node->name << "_" << node;
+	stream << "node_" << node->type->name << "_" << node;
 
 	return stream.str();
 }
@@ -609,7 +609,7 @@ bool OSLCompiler::node_skip_input(ShaderNode *node, ShaderInput *input)
 			return true;
 		if(input->name() == "Displacement" && current_type != SHADER_TYPE_DISPLACEMENT)
 			return true;
-		if(input->name() == "Normal")
+		if(input->name() == "Normal" && current_type != SHADER_TYPE_BUMP)
 			return true;
 	}
 	else if(node->special_type == SHADER_SPECIAL_TYPE_BUMP) {
@@ -683,6 +683,8 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 	else if(current_type == SHADER_TYPE_VOLUME)
 		ss->Shader("surface", name, id(node).c_str());
 	else if(current_type == SHADER_TYPE_DISPLACEMENT)
+		ss->Shader("displacement", name, id(node).c_str());
+	else if(current_type == SHADER_TYPE_BUMP)
 		ss->Shader("displacement", name, id(node).c_str());
 	else
 		assert(0);
@@ -823,7 +825,7 @@ void OSLCompiler::parameter(ShaderNode* node, const char *name)
 			// OSL does not support booleans, so convert to int
 			const array<bool>& value = node->get_bool_array(socket);
 			array<int> intvalue(value.size());
-			for (size_t i = 0; i < value.size(); i++)
+			for(size_t i = 0; i < value.size(); i++)
 				intvalue[i] = value[i];
 			ss->Parameter(uname, array_typedesc(TypeDesc::TypeInt, value.size()), intvalue.data());
 			break;
@@ -859,8 +861,7 @@ void OSLCompiler::parameter(ShaderNode* node, const char *name)
 			// convert to tightly packed array since float3 has padding
 			const array<float3>& value = node->get_float3_array(socket);
 			array<float> fvalue(value.size() * 3);
-			for (size_t i = 0, j = 0; i < value.size(); i++)
-			{
+			for(size_t i = 0, j = 0; i < value.size(); i++) {
 				fvalue[j++] = value[i].x;
 				fvalue[j++] = value[i].y;
 				fvalue[j++] = value[i].z;
@@ -1055,6 +1056,12 @@ OSL::ShaderGroupRef OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph
 		generate_nodes(dependencies);
 		output->compile(*this);
 	}
+	else if(type == SHADER_TYPE_BUMP) {
+		/* generate bump shader */
+		find_dependencies(dependencies, output->input("Normal"));
+		generate_nodes(dependencies);
+		output->compile(*this);
+	}
 	else if(type == SHADER_TYPE_VOLUME) {
 		/* generate volume shader */
 		find_dependencies(dependencies, output->input("Volume"));
@@ -1095,7 +1102,8 @@ void OSLCompiler::compile(Scene *scene, OSLGlobals *og, Shader *shader)
 			shader->graph_bump->finalize(scene,
 			                             true,
 			                             true,
-			                             shader->has_integrator_dependency);
+			                             shader->has_integrator_dependency,
+			                             shader->displacement_method == DISPLACE_BOTH);
 		}
 
 		current_shader = shader;
@@ -1116,10 +1124,10 @@ void OSLCompiler::compile(Scene *scene, OSLGlobals *og, Shader *shader)
 		if(shader->used && graph && output->input("Surface")->link) {
 			shader->osl_surface_ref = compile_type(shader, shader->graph, SHADER_TYPE_SURFACE);
 
-			if(shader->graph_bump)
-				shader->osl_surface_bump_ref = compile_type(shader, shader->graph_bump, SHADER_TYPE_SURFACE);
+			if(shader->graph_bump && shader->displacement_method != DISPLACE_TRUE)
+				shader->osl_surface_bump_ref = compile_type(shader, shader->graph_bump, SHADER_TYPE_BUMP);
 			else
-				shader->osl_surface_bump_ref = shader->osl_surface_ref;
+				shader->osl_surface_bump_ref = OSL::ShaderGroupRef();
 
 			shader->has_surface = true;
 		}
@@ -1147,13 +1155,9 @@ void OSLCompiler::compile(Scene *scene, OSLGlobals *og, Shader *shader)
 
 	/* push state to array for lookup */
 	og->surface_state.push_back(shader->osl_surface_ref);
-	og->surface_state.push_back(shader->osl_surface_bump_ref);
-
 	og->volume_state.push_back(shader->osl_volume_ref);
-	og->volume_state.push_back(shader->osl_volume_ref);
-
 	og->displacement_state.push_back(shader->osl_displacement_ref);
-	og->displacement_state.push_back(shader->osl_displacement_ref);
+	og->bump_state.push_back(shader->osl_surface_bump_ref);
 }
 
 #else

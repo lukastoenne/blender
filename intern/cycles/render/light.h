@@ -28,6 +28,7 @@ CCL_NAMESPACE_BEGIN
 
 class Device;
 class DeviceScene;
+class Object;
 class Progress;
 class Scene;
 class Shader;
@@ -48,6 +49,8 @@ public:
 	float sizeu;
 	float3 axisv;
 	float sizev;
+
+	Transform tfm;
 
 	int map_resolution;
 
@@ -90,6 +93,9 @@ public:
 
 	void tag_update(Scene *scene);
 
+	/* Check whether there is a background light. */
+	bool has_background_light(Scene *scene);
+
 protected:
 	/* Optimization: disable light which is either unsupported or
 	 * which doesn't contribute to the scene or which is only used for MIS
@@ -108,6 +114,9 @@ protected:
 	                              DeviceScene *dscene,
 	                              Scene *scene,
 	                              Progress& progress);
+
+	/* Check whether light manager can use the object as a light-emissive. */
+	bool object_usable_as_light(Object *object);
 };
 
 CCL_NAMESPACE_END

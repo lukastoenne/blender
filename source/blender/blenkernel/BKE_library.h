@@ -64,7 +64,7 @@ struct ID *BKE_libblock_find_name(const short type, const char *name) ATTR_WARN_
 
 /* library_remap.c (keep here since they're general functions) */
 void  BKE_libblock_free(struct Main *bmain, void *idv) ATTR_NONNULL();
-void  BKE_libblock_free_ex(struct Main *bmain, void *idv, bool do_id_user) ATTR_NONNULL();
+void  BKE_libblock_free_ex(struct Main *bmain, void *idv, const bool do_id_user) ATTR_NONNULL();
 void  BKE_libblock_free_us(struct Main *bmain, void *idv) ATTR_NONNULL();
 void  BKE_libblock_free_data(struct Main *bmain, struct ID *id) ATTR_NONNULL();
 void  BKE_libblock_delete(struct Main *bmain, void *idv) ATTR_NONNULL();
@@ -80,19 +80,21 @@ void id_us_min(struct ID *id);
 void id_fake_user_set(struct ID *id);
 void id_fake_user_clear(struct ID *id);
 
+void BKE_id_make_local_generic(struct Main *bmain, struct ID *id, const bool id_in_mainlist, const bool lib_local);
 bool id_make_local(struct Main *bmain, struct ID *id, const bool test, const bool force_local);
 bool id_single_user(struct bContext *C, struct ID *id, struct PointerRNA *ptr, struct PropertyRNA *prop);
 bool id_copy(struct Main *bmain, struct ID *id, struct ID **newid, bool test);
 void id_sort_by_name(struct ListBase *lb, struct ID *id);
 void BKE_id_expand_local(struct ID *id);
+void BKE_id_copy_ensure_local(struct Main *bmain, struct ID *old_id, struct ID *new_id);
 
 bool new_id(struct ListBase *lb, struct ID *id, const char *name);
 void id_clear_lib_data(struct Main *bmain, struct ID *id);
-void id_clear_lib_data_ex(struct Main *bmain, struct ID *id, bool id_in_mainlist);
+void id_clear_lib_data_ex(struct Main *bmain, struct ID *id, const bool id_in_mainlist);
 
 struct ListBase *which_libbase(struct Main *mainlib, short type);
 
-#define MAX_LIBARRAY    34
+#define MAX_LIBARRAY    35
 int set_listbasepointers(struct Main *main, struct ListBase *lb[MAX_LIBARRAY]);
 
 /* Main API */

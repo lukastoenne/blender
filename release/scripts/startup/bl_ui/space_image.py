@@ -29,7 +29,10 @@ from bl_ui.properties_grease_pencil_common import (
         GreasePencilDrawingToolsPanel,
         GreasePencilStrokeEditPanel,
         GreasePencilStrokeSculptPanel,
+        GreasePencilBrushPanel,
+        GreasePencilBrushCurvesPanel,
         GreasePencilDataPanel,
+        GreasePencilPaletteColorPanel
         )
 from bpy.app.translations import pgettext_iface as iface_
 
@@ -684,6 +687,12 @@ class IMAGE_PT_view_properties(Panel):
             sub.active = uvedit.show_stretch
             sub.row().prop(uvedit, "draw_stretch_type", expand=True)
 
+            col = layout.column()
+            col.prop(uvedit, "show_other_objects")
+            row = col.row()
+            row.active = uvedit.show_other_objects
+            row.prop(uvedit, "other_uv_filter", text="Filter")
+
         if show_render and ima:
             layout.separator()
             render_slot = ima.render_slots.active
@@ -729,7 +738,6 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        toolsettings = context.tool_settings.image_paint
         return sima.show_paint
 
 
@@ -987,7 +995,7 @@ class IMAGE_PT_tools_paint_options(BrushButtonsPanel, Panel):
         layout = self.layout
 
         toolsettings = context.tool_settings
-        brush = toolsettings.image_paint.brush
+        # brush = toolsettings.image_paint.brush
 
         ups = toolsettings.unified_paint_settings
 
@@ -1188,6 +1196,14 @@ class IMAGE_PT_grease_pencil(GreasePencilDataPanel, Panel):
     # NOTE: this is just a wrapper around the generic GP Panel
 
 
+# Grease Pencil palette colors
+class IMAGE_PT_grease_pencil_palettecolor(GreasePencilPaletteColorPanel, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+
+
 # Grease Pencil drawing tools
 class IMAGE_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1200,6 +1216,16 @@ class IMAGE_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
 
 # Grease Pencil stroke sculpting tools
 class IMAGE_PT_tools_grease_pencil_sculpt(GreasePencilStrokeSculptPanel, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+
+
+# Grease Pencil drawing brushes
+class IMAGE_PT_tools_grease_pencil_brush(GreasePencilBrushPanel, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+
+
+# Grease Pencil drawing curves
+class IMAGE_PT_tools_grease_pencil_brushcurves(GreasePencilBrushCurvesPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
 
 

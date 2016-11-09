@@ -1,6 +1,5 @@
 /*
- * Adapted from code Copyright 2009-2010 NVIDIA Corporation
- * Modifications Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -387,6 +386,12 @@ ccl_device_inline void motion_triangle_intersect_subsurface(
 	float t, u, v;
 
 	if(ray_triangle_intersect_uv(P, dir, tmax, verts[2], verts[0], verts[1], &u, &v, &t)) {
+		for(int i = min(max_hits, ss_isect->num_hits) - 1; i >= 0; --i) {
+			if(ss_isect->hits[i].t == t) {
+				return;
+			}
+		}
+
 		ss_isect->num_hits++;
 
 		int hit;

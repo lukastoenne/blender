@@ -48,7 +48,6 @@ struct ReportList;
 struct Scene;
 struct SceneRenderLayer;
 struct EnvMap;
-struct RenderResult;
 struct StampData;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -238,6 +237,9 @@ void RE_render_result_rect_from_ibuf(
 struct RenderLayer *RE_GetRenderLayer(struct RenderResult *rr, const char *name);
 float *RE_RenderLayerGetPass(volatile struct RenderLayer *rl, int passtype, const char *viewname);
 
+/* add passes for grease pencil */
+struct RenderPass *RE_create_gp_pass(struct RenderResult *rr, const char *layername, const char *viewname);
+
 /* obligatory initialize call, disprect is optional */
 void RE_InitState(struct Render *re, struct Render *source, struct RenderData *rd,
                   struct SceneRenderLayer *srl,
@@ -388,6 +390,8 @@ bool RE_HasFakeLayer(RenderResult *res);
 bool RE_RenderResult_is_stereo(RenderResult *res);
 struct RenderView *RE_RenderViewGetById(struct RenderResult *res, const int view_id);
 struct RenderView *RE_RenderViewGetByName(struct RenderResult *res, const char *viewname);
+
+RenderResult *RE_DuplicateRenderResult(RenderResult *rr);
 
 /******* Debug pass helper functions *********/
 

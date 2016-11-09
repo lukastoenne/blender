@@ -117,9 +117,7 @@ static void outliner_open_reveal(SpaceOops *soops, ListBase *lb, TreeElement *te
 }
 #endif
 
-static TreeElement *outliner_dropzone_element(
-        const SpaceOops *soops, TreeElement *te,
-        const float fmval[2], const bool children)
+static TreeElement *outliner_dropzone_element(TreeElement *te, const float fmval[2], const bool children)
 {
 	if ((fmval[1] > te->ys) && (fmval[1] < (te->ys + UI_UNIT_Y))) {
 		/* name and first icon */
@@ -129,7 +127,7 @@ static TreeElement *outliner_dropzone_element(
 	/* Not it.  Let's look at its children. */
 	if (children && (TREESTORE(te)->flag & TSE_CLOSED) == 0 && (te->subtree.first)) {
 		for (te = te->subtree.first; te; te = te->next) {
-			TreeElement *te_valid = outliner_dropzone_element(soops, te, fmval, children);
+			TreeElement *te_valid = outliner_dropzone_element(te, fmval, children);
 			if (te_valid)
 				return te_valid;
 		}
@@ -143,7 +141,7 @@ TreeElement *outliner_dropzone_find(const SpaceOops *soops, const float fmval[2]
 	TreeElement *te;
 
 	for (te = soops->tree.first; te; te = te->next) {
-		TreeElement *te_valid = outliner_dropzone_element(soops, te, fmval, children);
+		TreeElement *te_valid = outliner_dropzone_element(te, fmval, children);
 		if (te_valid)
 			return te_valid;
 	}
@@ -164,7 +162,7 @@ static int do_outliner_item_openclose(bContext *C, SpaceOops *soops, TreeElement
 		/* all below close/open? */
 		if (all) {
 			tselem->flag &= ~TSE_CLOSED;
-			outliner_set_flag(soops, &te->subtree, TSE_CLOSED, !outliner_has_one_flag(soops, &te->subtree, TSE_CLOSED, 1));
+			outliner_set_flag(&te->subtree, TSE_CLOSED, !outliner_has_one_flag(&te->subtree, TSE_CLOSED, 1));
 		}
 		else {
 			if (tselem->flag & TSE_CLOSED) tselem->flag &= ~TSE_CLOSED;
@@ -245,18 +243,15 @@ static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, 
 }
 
 void item_rename_cb(
-        bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *te,
+        bContext *C, ReportList *reports, Scene *UNUSED(scene), TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	ARegion *ar = CTX_wm_region(C);
-	ReportList *reports = CTX_wm_reports(C); // XXX
 	do_item_rename(ar, te, tselem, reports);
 }
 
-static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, const float mval[2])
-{	
-	ReportList *reports = CTX_wm_reports(C); // XXX
-	
+static int do_outliner_item_rename(ReportList *reports, ARegion *ar, TreeElement *te, const float mval[2])
+{
 	if (mval[1] > te->ys && mval[1] < te->ys + UI_UNIT_Y) {
 		TreeStoreElem *tselem = TREESTORE(te);
 		
@@ -269,12 +264,12 @@ static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, T
 	}
 	
 	for (te = te->subtree.first; te; te = te->next) {
-		if (do_outliner_item_rename(C, ar, soops, te, mval)) return 1;
+		if (do_outliner_item_rename(reports, ar, te, mval)) return 1;
 	}
 	return 0;
 }
 
-static int outliner_item_rename(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+static int outliner_item_rename(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
@@ -285,7 +280,7 @@ static int outliner_item_rename(bContext *C, wmOperator *UNUSED(op), const wmEve
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 	
 	for (te = soops->tree.first; te; te = te->next) {
-		if (do_outliner_item_rename(C, ar, soops, te, fmval)) {
+		if (do_outliner_item_rename(op->reports, ar, te, fmval)) {
 			changed = true;
 			break;
 		}
@@ -323,7 +318,7 @@ static void id_delete(bContext *C, ReportList *reports, TreeElement *te, TreeSto
 	}
 	else if (BKE_library_ID_is_indirectly_used(bmain, id) && ID_REAL_USERS(id) <= 1) {
 		BKE_reportf(reports, RPT_WARNING,
-		            "Cannot delete id '%s', indirectly used datablocks need at least one user",
+		            "Cannot delete id '%s', indirectly used data-blocks need at least one user",
 		            id->name);
 		return;
 	}
@@ -392,7 +387,7 @@ static int outliner_id_delete_invoke(bContext *C, wmOperator *op, const wmEvent 
 
 void OUTLINER_OT_id_delete(wmOperatorType *ot)
 {
-	ot->name = "Delete Datablock";
+	ot->name = "Delete Data-Block";
 	ot->idname = "OUTLINER_OT_id_delete";
 	ot->description = "Delete the ID under cursor";
 
@@ -417,15 +412,15 @@ static int outliner_id_remap_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	if (!(old_id && (old_id != new_id) && (GS(old_id->name) == GS(new_id->name)))) {
+	if (!(old_id && new_id && (old_id != new_id) && (GS(old_id->name) == GS(new_id->name)))) {
 		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Invalid old/new ID pair ('%s' / '%s')",
-		            old_id->name, new_id->name);
+		            old_id ? old_id->name : "Invalid ID", new_id ? new_id->name : "Invalid ID");
 		return OPERATOR_CANCELLED;
 	}
 
 	if (ID_IS_LINKED_DATABLOCK(old_id)) {
 		BKE_reportf(op->reports, RPT_WARNING,
-		            "Old ID '%s' is linked from a library, indirect usages of this datablock will not be remapped",
+		            "Old ID '%s' is linked from a library, indirect usages of this data-block will not be remapped",
 		            old_id->name);
 	}
 
@@ -716,20 +711,20 @@ void lib_reload_cb(
 
 /* Apply Settings ------------------------------- */
 
-static int outliner_count_levels(SpaceOops *soops, ListBase *lb, const int curlevel)
+static int outliner_count_levels(ListBase *lb, const int curlevel)
 {
 	TreeElement *te;
 	int level = curlevel, lev;
 	
 	for (te = lb->first; te; te = te->next) {
 		
-		lev = outliner_count_levels(soops, &te->subtree, curlevel + 1);
+		lev = outliner_count_levels(&te->subtree, curlevel + 1);
 		if (lev > level) level = lev;
 	}
 	return level;
 }
 
-int outliner_has_one_flag(SpaceOops *soops, ListBase *lb, short flag, const int curlevel)
+int outliner_has_one_flag(ListBase *lb, short flag, const int curlevel)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -739,13 +734,13 @@ int outliner_has_one_flag(SpaceOops *soops, ListBase *lb, short flag, const int 
 		tselem = TREESTORE(te);
 		if (tselem->flag & flag) return curlevel;
 		
-		level = outliner_has_one_flag(soops, &te->subtree, flag, curlevel + 1);
+		level = outliner_has_one_flag(&te->subtree, flag, curlevel + 1);
 		if (level) return level;
 	}
 	return 0;
 }
 
-void outliner_set_flag(SpaceOops *soops, ListBase *lb, short flag, short set)
+void outliner_set_flag(ListBase *lb, short flag, short set)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -754,7 +749,7 @@ void outliner_set_flag(SpaceOops *soops, ListBase *lb, short flag, short set)
 		tselem = TREESTORE(te);
 		if (set == 0) tselem->flag &= ~flag;
 		else tselem->flag |= flag;
-		outliner_set_flag(soops, &te->subtree, flag, set);
+		outliner_set_flag(&te->subtree, flag, set);
 	}
 }
 
@@ -788,12 +783,17 @@ int common_restrict_check(bContext *C, Object *ob)
 /* Toggle Visibility ---------------------------------------- */
 
 void object_toggle_visibility_cb(
-        bContext *C, ReportList *UNUSED(reports), Scene *scene, TreeElement *te,
+        bContext *C, ReportList *reports, Scene *scene, TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
 	Object *ob = (Object *)tselem->id;
-	
+
+	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
+		return;
+	}
+
 	/* add check for edit mode */
 	if (!common_restrict_check(C, ob)) return;
 	
@@ -845,11 +845,16 @@ void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
 /* Toggle Selectability ---------------------------------------- */
 
 void object_toggle_selectability_cb(
-        bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *te,
+        bContext *UNUSED(C), ReportList *reports, Scene *scene, TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
-	
+
+	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
+		return;
+	}
+
 	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
 	if (base) {
 		base->object->restrictflag ^= OB_RESTRICT_SELECT;
@@ -895,11 +900,16 @@ void OUTLINER_OT_selectability_toggle(wmOperatorType *ot)
 /* Toggle Renderability ---------------------------------------- */
 
 void object_toggle_renderability_cb(
-        bContext *UNUSED(C), ReportList *UNUSED(reports), Scene *scene, TreeElement *te,
+        bContext *UNUSED(C), ReportList *reports, Scene *scene, TreeElement *te,
         TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
 {
 	Base *base = (Base *)te->directdata;
-	
+
+	if (ID_IS_LINKED_DATABLOCK(tselem->id)) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit external libdata");
+		return;
+	}
+
 	if (base == NULL) base = BKE_scene_base_find(scene, (Object *)tselem->id);
 	if (base) {
 		base->object->restrictflag ^= OB_RESTRICT_RENDER;
@@ -952,10 +962,10 @@ static int outliner_toggle_expanded_exec(bContext *C, wmOperator *UNUSED(op))
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	ARegion *ar = CTX_wm_region(C);
 	
-	if (outliner_has_one_flag(soops, &soops->tree, TSE_CLOSED, 1))
-		outliner_set_flag(soops, &soops->tree, TSE_CLOSED, 0);
+	if (outliner_has_one_flag(&soops->tree, TSE_CLOSED, 1))
+		outliner_set_flag(&soops->tree, TSE_CLOSED, 0);
 	else 
-		outliner_set_flag(soops, &soops->tree, TSE_CLOSED, 1);
+		outliner_set_flag(&soops->tree, TSE_CLOSED, 1);
 	
 	ED_region_tag_redraw(ar);
 	
@@ -984,10 +994,10 @@ static int outliner_toggle_selected_exec(bContext *C, wmOperator *UNUSED(op))
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
 	
-	if (outliner_has_one_flag(soops, &soops->tree, TSE_SELECTED, 1))
-		outliner_set_flag(soops, &soops->tree, TSE_SELECTED, 0);
+	if (outliner_has_one_flag(&soops->tree, TSE_SELECTED, 1))
+		outliner_set_flag(&soops->tree, TSE_SELECTED, 0);
 	else 
-		outliner_set_flag(soops, &soops->tree, TSE_SELECTED, 1);
+		outliner_set_flag(&soops->tree, TSE_SELECTED, 1);
 	
 	soops->storeflag |= SO_TREESTORE_REDRAW;
 	
@@ -1085,13 +1095,13 @@ static int outliner_show_active_exec(bContext *C, wmOperator *UNUSED(op))
 		if (obact->mode & OB_MODE_POSE) {
 			bPoseChannel *pchan = CTX_data_active_pose_bone(C);
 			if (pchan) {
-				te = outliner_find_posechannel(so, &te_obact->subtree, pchan);
+				te = outliner_find_posechannel(&te_obact->subtree, pchan);
 			}
 		}
 		else if (obact->mode & OB_MODE_EDIT) {
 			EditBone *ebone = CTX_data_active_bone(C);
 			if (ebone) {
-				te = outliner_find_editbone(so, &te_obact->subtree, ebone);
+				te = outliner_find_editbone(&te_obact->subtree, ebone);
 			}
 		}
 	}
@@ -1286,7 +1296,7 @@ static void outliner_find_panel(Scene *UNUSED(scene), ARegion *ar, SpaceOops *so
 /* Show One Level ----------------------------------------------- */
 
 /* helper function for Show/Hide one level operator */
-static void outliner_openclose_level(SpaceOops *soops, ListBase *lb, int curlevel, int level, int open)
+static void outliner_openclose_level(ListBase *lb, int curlevel, int level, int open)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -1301,7 +1311,7 @@ static void outliner_openclose_level(SpaceOops *soops, ListBase *lb, int curleve
 			if (curlevel >= level) tselem->flag |= TSE_CLOSED;
 		}
 		
-		outliner_openclose_level(soops, &te->subtree, curlevel + 1, level, open);
+		outliner_openclose_level(&te->subtree, curlevel + 1, level, open);
 	}
 }
 
@@ -1312,13 +1322,13 @@ static int outliner_one_level_exec(bContext *C, wmOperator *op)
 	const bool add = RNA_boolean_get(op->ptr, "open");
 	int level;
 	
-	level = outliner_has_one_flag(soops, &soops->tree, TSE_CLOSED, 1);
+	level = outliner_has_one_flag(&soops->tree, TSE_CLOSED, 1);
 	if (add == 1) {
-		if (level) outliner_openclose_level(soops, &soops->tree, 1, level, 1);
+		if (level) outliner_openclose_level(&soops->tree, 1, level, 1);
 	}
 	else {
-		if (level == 0) level = outliner_count_levels(soops, &soops->tree, 0);
-		if (level) outliner_openclose_level(soops, &soops->tree, 1, level - 1, 0);
+		if (level == 0) level = outliner_count_levels(&soops->tree, 0);
+		if (level) outliner_openclose_level(&soops->tree, 1, level - 1, 0);
 	}
 	
 	ED_region_tag_redraw(ar);
@@ -1349,7 +1359,7 @@ void OUTLINER_OT_show_one_level(wmOperatorType *ot)
 /* Show Hierarchy ----------------------------------------------- */
 
 /* helper function for tree_element_shwo_hierarchy() - recursively checks whether subtrees have any objects*/
-static int subtree_has_objects(SpaceOops *soops, ListBase *lb)
+static int subtree_has_objects(ListBase *lb)
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
@@ -1357,7 +1367,7 @@ static int subtree_has_objects(SpaceOops *soops, ListBase *lb)
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		if (tselem->type == 0 && te->idcode == ID_OB) return 1;
-		if (subtree_has_objects(soops, &te->subtree)) return 1;
+		if (subtree_has_objects(&te->subtree)) return 1;
 	}
 	return 0;
 }
@@ -1378,7 +1388,7 @@ static void tree_element_show_hierarchy(Scene *scene, SpaceOops *soops, ListBase
 				else tselem->flag &= ~TSE_CLOSED;
 			}
 			else if (te->idcode == ID_OB) {
-				if (subtree_has_objects(soops, &te->subtree)) tselem->flag &= ~TSE_CLOSED;
+				if (subtree_has_objects(&te->subtree)) tselem->flag &= ~TSE_CLOSED;
 				else tselem->flag |= TSE_CLOSED;
 			}
 		}
@@ -1930,7 +1940,7 @@ static int outliner_orphans_purge_invoke(bContext *C, wmOperator *op, const wmEv
 {
 	/* present a prompt to informing users that this change is irreversible */
 	return WM_operator_confirm_message(C, op,
-	                                   "Purging unused datablocks cannot be undone. "
+	                                   "Purging unused data-blocks cannot be undone. "
 	                                   "Click here to proceed...");
 }
 
@@ -1952,7 +1962,7 @@ void OUTLINER_OT_orphans_purge(wmOperatorType *ot)
 	/* identifiers */
 	ot->idname = "OUTLINER_OT_orphans_purge";
 	ot->name = "Purge All";
-	ot->description = "Clear all orphaned datablocks without any users from the file (cannot be undone)";
+	ot->description = "Clear all orphaned data-blocks without any users from the file (cannot be undone)";
 	
 	/* callbacks */
 	ot->invoke = outliner_orphans_purge_invoke;

@@ -450,7 +450,9 @@ typedef enum eDriver_Flags {
 		/* the names are cached so they don't need have python unicode versions created each time */
 	DRIVER_FLAG_RENAMEVAR	= (1<<4),
 		/* intermediate values of driver should be shown in the UI for debugging purposes */
-	DRIVER_FLAG_SHOWDEBUG	= (1<<5)
+	DRIVER_FLAG_SHOWDEBUG	= (1<<5),
+		/* include 'self' in the drivers namespace. */
+	DRIVER_FLAG_USE_SELF	= (1<<6),
 } eDriver_Flags;
 
 /* F-Curves -------------------------------------- */
@@ -937,7 +939,10 @@ typedef enum eAnimData_Flag {
 	ADT_UI_ACTIVE           = (1<<15),
 
 		/* F-Curves from this AnimData block are not visible in the Graph Editor */
-	ADT_CURVES_NOT_VISIBLE  = (1<<16)
+	ADT_CURVES_NOT_VISIBLE  = (1<<16),
+
+		/* F-Curves from this AnimData block are always visible */
+	ADT_CURVES_ALWAYS_VISIBLE = (1<<17),
 } eAnimData_Flag;
 
 /* Animation Data recalculation settings (to be set by depsgraph) */

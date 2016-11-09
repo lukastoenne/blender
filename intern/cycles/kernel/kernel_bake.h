@@ -18,8 +18,12 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __BAKING__
 
-ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, RNG rng,
-                                   int pass_filter, int sample)
+ccl_device_inline void compute_light_pass(KernelGlobals *kg,
+                                          ShaderData *sd,
+                                          PathRadiance *L,
+                                          RNG rng,
+                                          int pass_filter,
+                                          int sample)
 {
 	/* initialize master radiance accumulator */
 	kernel_assert(kernel_data.film.use_light_pass);
@@ -37,7 +41,7 @@ ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadian
 	ray.D = -sd->Ng;
 	ray.t = FLT_MAX;
 #ifdef __CAMERA_MOTION__
-	ray.time = TIME_INVALID;
+	ray.time = 0.5f;
 #endif
 
 	/* init radiance */
@@ -309,15 +313,15 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 
 	triangle_point_normal(kg, object, prim, u, v, &P, &Ng, &shader);
 
-	/* dummy initilizations copied from SHADER_EVAL_DISPLACE */
-	float3 I = Ng;
-	float t = 1.0f;
-	float time = TIME_INVALID;
-
 	/* light passes */
 	PathRadiance L;
 
-	shader_setup_from_sample(kg, &sd, P, Ng, I, shader, object, prim, u, v, t, time);
+	shader_setup_from_sample(kg, &sd,
+	                         P, Ng, Ng,
+	                         shader, object, prim,
+	                         u, v, 1.0f, 0.5f,
+	                         !(kernel_tex_fetch(__object_flag, object) & SD_TRANSFORM_APPLIED),
+	                         LAMP_NONE);
 	sd.I = sd.N;
 
 	/* update differentials */
@@ -521,6 +525,8 @@ ccl_device void kernel_shader_evaluate(KernelGlobals *kg,
 		float3 P = sd.P;
 		shader_eval_displacement(kg, &sd, &state, SHADER_CONTEXT_MAIN);
 		out = sd.P - P;
+
+		object_inverse_dir_transform(kg, &sd, &out);
 	}
 	else { // SHADER_EVAL_BACKGROUND
 		/* setup ray */

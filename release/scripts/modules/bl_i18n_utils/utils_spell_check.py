@@ -153,7 +153,7 @@ class SpellChecker:
         "realtime",
         "rekey",
         "remesh",
-        "reprojection",
+        "reprojection", "reproject",
         "resize",
         "restpose",
         "retarget", "retargets", "retargeting", "retargeted",
@@ -163,6 +163,7 @@ class SpellChecker:
         "runtime",
         "scanline",
         "screencast", "screenshot", "screenshots",
+        "seekability",
         "selfcollision",
         "shadowbuffer", "shadowbuffers",
         "singletexture",
@@ -184,6 +185,7 @@ class SpellChecker:
         "timestamp", "timestamps",
         "timestep", "timesteps",
         "todo",
+        "tradeoff",
         "un",
         "unbake",
         "uncomment",
@@ -197,6 +199,7 @@ class SpellChecker:
         "unmute",
         "unpremultiply",
         "unprojected",
+        "unprotect",
         "unreacted",
         "unregister",
         "unselected", "unselectable",
@@ -476,6 +479,12 @@ class SpellChecker:
         "wpaint",
         "uvwarp",
 
+        # UOC (Ugly Operator Categories)
+        "cachefile",
+        "paintcurve",
+        "ptcache",
+        "dpaint",
+
         # Algorithm/library names
         "ashikhmin",  # Ashikhmin-Shirley
         "beckmann",
@@ -493,6 +502,7 @@ class SpellChecker:
         "musgrave",
         "nayar",
         "netravali",
+        "ogawa",
         "oren",
         "preetham",
         "prewitt",
@@ -565,7 +575,9 @@ class SpellChecker:
         "ui",
         "unix",
         "vbo", "vbos",
+        "wxyz",
         "ycc", "ycca",
+        "yrgb",
         "yuv", "yuva",
 
         # Blender acronyms

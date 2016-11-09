@@ -99,6 +99,8 @@ struct PreviewImage *BKE_previewimg_create(void);
 /* create a copy of the preview image */
 struct PreviewImage *BKE_previewimg_copy(struct PreviewImage *prv);
 
+void BKE_previewimg_id_copy(struct ID *new_id, struct ID *old_id);
+
 /* retrieve existing or create new preview image */
 struct PreviewImage *BKE_previewimg_id_ensure(struct ID *id);
 
@@ -112,6 +114,7 @@ struct PreviewImage *BKE_previewimg_cached_thumbnail_read(
         const char *name, const char *path, const int source, bool force_update);
 
 void BKE_previewimg_cached_release(const char *name);
+void BKE_previewimg_cached_release_pointer(struct PreviewImage *prv);
 
 #define ICON_RENDER_DEFAULT_HEIGHT 32
 

@@ -156,6 +156,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_DSMAT,
 	ANIMTYPE_DSLAM,
 	ANIMTYPE_DSCAM,
+	ANIMTYPE_DSCACHEFILE,
 	ANIMTYPE_DSCUR,
 	ANIMTYPE_DSSKEY,
 	ANIMTYPE_DSWOR,
@@ -169,6 +170,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_DSLINESTYLE,
 	ANIMTYPE_DSSPK,
 	ANIMTYPE_DSGPENCIL,
+	ANIMTYPE_DSMCLIP,
 	
 	ANIMTYPE_SHAPEKEY,
 	
@@ -275,6 +277,7 @@ typedef enum eAnimFilter_Flags {
 #define FILTER_MAT_OBJD(ma)     (CHECK_TYPE_INLINE(ma, Material *), ((ma->flag & MA_DS_EXPAND)))
 #define FILTER_LAM_OBJD(la)     (CHECK_TYPE_INLINE(la, Lamp *), ((la->flag & LA_DS_EXPAND)))
 #define FILTER_CAM_OBJD(ca)     (CHECK_TYPE_INLINE(ca, Camera *), ((ca->flag & CAM_DS_EXPAND)))
+#define FILTER_CACHEFILE_OBJD(cf)     (CHECK_TYPE_INLINE(cf, CacheFile *), ((cf->flag & CACHEFILE_DS_EXPAND)))
 #define FILTER_CUR_OBJD(cu)     (CHECK_TYPE_INLINE(cu, Curve *), ((cu->flag & CU_DS_EXPAND)))
 #define FILTER_PART_OBJD(part)  (CHECK_TYPE_INLINE(part, ParticleSettings *), ((part->flag & PART_DS_EXPAND)))
 #define FILTER_MBALL_OBJD(mb)   (CHECK_TYPE_INLINE(mb, MetaBall *), ((mb->flag2 & MB_DS_EXPAND)))
@@ -327,6 +330,8 @@ typedef enum eAnimFilter_Flags {
 #define SEL_NLT(nlt) (nlt->flag & NLATRACK_SELECTED)
 #define EDITABLE_NLT(nlt) ((nlt->flag & NLATRACK_PROTECTED) == 0)
 
+/* Movie clip only */
+#define EXPANDED_MCLIP(clip) (clip->flag & MCLIP_DATA_EXPAND)
 
 /* AnimData - NLA mostly... */
 #define SEL_ANIMDATA(adt) (adt->flag & ADT_UI_SELECTED)
@@ -415,7 +420,8 @@ typedef enum eAnimChannel_Settings {
 	ACHANNEL_SETTING_VISIBLE  = 4,  /* only for Graph Editor */
 	ACHANNEL_SETTING_SOLO     = 5,  /* only for NLA Tracks */
 	ACHANNEL_SETTING_PINNED   = 6,  /* only for NLA Actions */
-	ACHANNEL_SETTING_MOD_OFF  = 7
+	ACHANNEL_SETTING_MOD_OFF  = 7,
+	ACHANNEL_SETTING_ALWAYS_VISIBLE = 8,  /* channel is pinned and always visible */
 } eAnimChannel_Settings;
 
 

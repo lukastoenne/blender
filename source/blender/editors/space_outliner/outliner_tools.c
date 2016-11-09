@@ -900,7 +900,7 @@ static EnumPropertyItem prop_object_op_types[] = {
 	{OL_OP_DELETE, "DELETE", 0, "Delete", ""},
 	{OL_OP_DELETE_HIERARCHY, "DELETE_HIERARCHY", 0, "Delete Hierarchy", ""},
 	{OL_OP_REMAP, "REMAP",   0, "Remap Users",
-	 "Make all users of selected datablocks to use instead a new chosen one"},
+	 "Make all users of selected data-blocks to use instead a new chosen one"},
 	{OL_OP_TOGVIS, "TOGVIS", 0, "Toggle Visible", ""},
 	{OL_OP_TOGSEL, "TOGSEL", 0, "Toggle Selectable", ""},
 	{OL_OP_TOGREN, "TOGREN", 0, "Toggle Renderable", ""},
@@ -1046,7 +1046,7 @@ static EnumPropertyItem prop_group_op_types[] = {
 	{OL_GROUPOP_LINK, "LINK",         0, "Link Group Objects to Scene", ""},
 	{OL_GROUPOP_DELETE, "DELETE",     0, "Delete Group", "WARNING: no undo"},
 	{OL_GROUPOP_REMAP, "REMAP",       0, "Remap Users",
-	 "Make all users of selected datablocks to use instead current (clicked) one"},
+	 "Make all users of selected data-blocks to use instead current (clicked) one"},
 	{OL_GROUPOP_INSTANCE, "INSTANCE", 0, "Instance Groups in Scene", ""},
 	{OL_GROUPOP_TOGVIS, "TOGVIS",     0, "Toggle Visible Group", ""},
 	{OL_GROUPOP_TOGSEL, "TOGSEL",     0, "Toggle Selectable", ""},
@@ -1153,9 +1153,9 @@ static EnumPropertyItem prop_id_op_types[] = {
 	{OUTLINER_IDOP_SINGLE, "SINGLE", 0, "Make Single User", ""},
 	{OUTLINER_IDOP_DELETE, "DELETE", 0, "Delete", "WARNING: no undo"},
 	{OUTLINER_IDOP_REMAP, "REMAP", 0, "Remap Users",
-	 "Make all users of selected datablocks to use instead current (clicked) one"},
+	 "Make all users of selected data-blocks to use instead current (clicked) one"},
 	{OUTLINER_IDOP_FAKE_ADD, "ADD_FAKE", 0, "Add Fake User",
-	 "Ensure datablock gets saved even if it isn't in use (e.g. for motion and material libraries)"},
+	 "Ensure data-block gets saved even if it isn't in use (e.g. for motion and material libraries)"},
 	{OUTLINER_IDOP_FAKE_CLEAR, "CLEAR_FAKE", 0, "Clear Fake User", ""},
 	{OUTLINER_IDOP_RENAME, "RENAME", 0, "Rename", ""},
 	{OUTLINER_IDOP_SELECT_LINKED, "SELECT_LINKED", 0, "Select Linked", ""},
@@ -1345,7 +1345,7 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
-	eOutlinerIdOpTypes event;
+	eOutlinerLibOpTypes event;
 
 	/* check for invalid states */
 	if (soops == NULL)
@@ -1476,8 +1476,8 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
 	else if (act->idroot == 0) {
 		/* hopefully in this case (i.e. library of userless actions), the user knows what they're doing... */
 		BKE_reportf(op->reports, RPT_WARNING,
-		            "Action '%s' does not specify what datablocks it can be used on "
-		            "(try setting the 'ID Root Type' setting from the Datablocks Editor "
+		            "Action '%s' does not specify what data-blocks it can be used on "
+		            "(try setting the 'ID Root Type' setting from the data-blocks editor "
 		            "for this action to avoid future problems)",
 		            act->id.name + 2);
 	}
@@ -1832,8 +1832,8 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 /* ******************** */
 
 
-static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops,
-                                       TreeElement *te, const wmEvent *event, const float mval[2])
+static int do_outliner_operation_event(bContext *C, ARegion *ar, SpaceOops *soops,
+                                       TreeElement *te, const float mval[2])
 {
 	ReportList *reports = CTX_wm_reports(C); // XXX...
 	
@@ -1844,8 +1844,8 @@ static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, S
 		/* select object that's clicked on and popup context menu */
 		if (!(tselem->flag & TSE_SELECTED)) {
 			
-			if (outliner_has_one_flag(soops, &soops->tree, TSE_SELECTED, 1))
-				outliner_set_flag(soops, &soops->tree, TSE_SELECTED, 0);
+			if (outliner_has_one_flag(&soops->tree, TSE_SELECTED, 1))
+				outliner_set_flag(&soops->tree, TSE_SELECTED, 0);
 			
 			tselem->flag |= TSE_SELECTED;
 			/* redraw, same as outliner_select function */
@@ -1916,7 +1916,7 @@ static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, S
 	}
 	
 	for (te = te->subtree.first; te; te = te->next) {
-		if (do_outliner_operation_event(C, scene, ar, soops, te, event, mval))
+		if (do_outliner_operation_event(C, ar, soops, te, mval))
 			return 1;
 	}
 	return 0;
@@ -1925,7 +1925,6 @@ static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, S
 
 static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
 {
-	Scene *scene = CTX_data_scene(C);
 	ARegion *ar = CTX_wm_region(C);
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	uiBut *but = UI_context_active_but_get(C);
@@ -1939,7 +1938,7 @@ static int outliner_operation(bContext *C, wmOperator *UNUSED(op), const wmEvent
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 	
 	for (te = soops->tree.first; te; te = te->next) {
-		if (do_outliner_operation_event(C, scene, ar, soops, te, event, fmval)) {
+		if (do_outliner_operation_event(C, ar, soops, te, fmval)) {
 			break;
 		}
 	}

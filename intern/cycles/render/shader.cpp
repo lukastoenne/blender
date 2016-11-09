@@ -150,6 +150,12 @@ NODE_DEFINE(Shader)
 	volume_interpolation_method_enum.insert("cubic", VOLUME_INTERPOLATION_CUBIC);
 	SOCKET_ENUM(volume_interpolation_method, "Volume Interpolation Method", volume_interpolation_method_enum, VOLUME_INTERPOLATION_LINEAR);
 
+	static NodeEnum displacement_method_enum;
+	displacement_method_enum.insert("bump", DISPLACE_BUMP);
+	displacement_method_enum.insert("true", DISPLACE_TRUE);
+	displacement_method_enum.insert("both", DISPLACE_BOTH);
+	SOCKET_ENUM(displacement_method, "Displacement Method", displacement_method_enum, DISPLACE_BUMP);
+
 	return type;
 }
 
@@ -173,6 +179,8 @@ Shader::Shader()
 	has_object_dependency = false;
 	has_integrator_dependency = false;
 
+	displacement_method = DISPLACE_BUMP;
+
 	id = -1;
 	used = false;
 
@@ -184,6 +192,28 @@ Shader::~Shader()
 {
 	delete graph;
 	delete graph_bump;
+}
+
+bool Shader::is_constant_emission(float3 *emission)
+{
+	ShaderInput *surf = graph->output()->input("Surface");
+
+	if(!surf->link || surf->link->parent->type != EmissionNode::node_type) {
+		return false;
+	}
+
+	EmissionNode *node = (EmissionNode*) surf->link->parent;
+
+	assert(node->input("Color"));
+	assert(node->input("Strength"));
+
+	if(node->input("Color")->link || node->input("Strength")->link) {
+		return false;
+	}
+
+	*emission = node->color*node->strength;
+
+	return true;
 }
 
 void Shader::set_graph(ShaderGraph *graph_)
@@ -213,6 +243,16 @@ void Shader::tag_update(Scene *scene)
 	if(use_mis && has_surface_emission)
 		scene->light_manager->need_update = true;
 
+	/* Special handle of background MIS light for now: for some reason it
+	 * has use_mis set to false. We are quite close to release now, so
+	 * better to be safe.
+	 */
+	if(this == scene->default_background &&
+	   scene->light_manager->has_background_light(scene))
+	{
+		scene->light_manager->need_update = true;
+	}
+
 	/* quick detection of which kind of shaders we have to avoid loading
 	 * e.g. surface attributes when there is only a volume shader. this could
 	 * be more fine grained but it's better than nothing */
@@ -232,6 +272,10 @@ void Shader::tag_update(Scene *scene)
 	attributes.clear();
 	foreach(ShaderNode *node, graph->nodes)
 		node->attributes(this, &attributes);
+
+	if(has_displacement && displacement_method == DISPLACE_BOTH) {
+		attributes.add(ATTR_STD_POSITION_UNDISPLACED);
+	}
 	
 	/* compare if the attributes changed, mesh manager will check
 	 * need_update_attributes, update the relevant meshes and clear it. */
@@ -304,14 +348,11 @@ uint ShaderManager::get_attribute_id(AttributeStandard std)
 	return (uint)std;
 }
 
-int ShaderManager::get_shader_id(Shader *shader, Mesh *mesh, bool smooth)
+int ShaderManager::get_shader_id(Shader *shader, bool smooth)
 {
 	/* get a shader id to pass to the kernel */
-	int id = shader->id*2;
-	
-	/* index depends bump since this setting is not in the shader */
-	if(mesh && mesh->displacement_method != Mesh::DISPLACE_TRUE)
-		id += 1;
+	int id = shader->id;
+
 	/* smooth flag */
 	if(smooth)
 		id |= SHADER_SMOOTH_NORMAL;
@@ -361,7 +402,7 @@ void ShaderManager::device_update_common(Device *device,
 	if(scene->shaders.size() == 0)
 		return;
 
-	uint shader_flag_size = scene->shaders.size()*4;
+	uint shader_flag_size = scene->shaders.size()*SHADER_SIZE;
 	uint *shader_flag = dscene->shader_flag.resize(shader_flag_size);
 	uint i = 0;
 	bool has_volumes = false;
@@ -399,17 +440,24 @@ void ShaderManager::device_update_common(Device *device,
 			flag |= SD_VOLUME_CUBIC;
 		if(shader->graph_bump)
 			flag |= SD_HAS_BUMP;
+		if(shader->displacement_method != DISPLACE_BUMP)
+			flag |= SD_HAS_DISPLACEMENT;
+
+		/* shader with bump mapping */
+		if(shader->displacement_method != DISPLACE_TRUE && shader->graph_bump)
+			flag |= SD_HAS_BSSRDF_BUMP;
+
+		/* constant emission check */
+		float3 constant_emission = make_float3(0.0f, 0.0f, 0.0f);
+		if(shader->is_constant_emission(&constant_emission))
+			flag |= SD_HAS_CONSTANT_EMISSION;
 
 		/* regular shader */
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
-
-		/* shader with bump mapping */
-		if(shader->graph_bump)
-			flag |= SD_HAS_BSSRDF_BUMP;
-
-		shader_flag[i++] = flag;
-		shader_flag[i++] = shader->pass_id;
+		shader_flag[i++] = __float_as_int(constant_emission.x);
+		shader_flag[i++] = __float_as_int(constant_emission.y);
+		shader_flag[i++] = __float_as_int(constant_emission.z);
 
 		has_transparent_shadow |= (flag & SD_HAS_TRANSPARENT_SHADOW) != 0;
 	}
@@ -561,6 +609,9 @@ void ShaderManager::get_requested_features(Scene *scene,
 		ShaderNode *output_node = shader->graph->output();
 		if(output_node->input("Displacement")->link != NULL) {
 			requested_features->nodes_features |= NODE_FEATURE_BUMP;
+			if(shader->displacement_method == DISPLACE_BOTH && requested_features->experimental) {
+				requested_features->nodes_features |= NODE_FEATURE_BUMP_STATE;
+			}
 		}
 		/* On top of volume nodes, also check if we need volume sampling because
 		 * e.g. an Emission node would slip through the NODE_FEATURE_VOLUME check */

@@ -37,11 +37,16 @@
  *
  */
 
-ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
-                                            const Ray *ray,
-                                            Intersection *isect_array,
-                                            const uint max_hits,
-                                            uint *num_hits)
+#ifndef __KERNEL_GPU__
+ccl_device
+#else
+ccl_device_inline
+#endif
+bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
+                                 const Ray *ray,
+                                 Intersection *isect_array,
+                                 const uint max_hits,
+                                 uint *num_hits)
 {
 	/* todo:
 	 * - likely and unlikely for if() statements
@@ -103,7 +108,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 		do {
 			/* traverse internal nodes */
 			while(node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
-				int node_addr_ahild1, traverse_mask;
+				int node_addr_child1, traverse_mask;
 				float dist[2];
 				float4 cnodes = kernel_tex_fetch(__bvh_nodes, node_addr+0);
 
@@ -136,25 +141,25 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 #endif // __KERNEL_SSE2__
 
 				node_addr = __float_as_int(cnodes.z);
-				node_addr_ahild1 = __float_as_int(cnodes.w);
+				node_addr_child1 = __float_as_int(cnodes.w);
 
 				if(traverse_mask == 3) {
 					/* Both children were intersected, push the farther one. */
 					bool is_closest_child1 = (dist[1] < dist[0]);
 					if(is_closest_child1) {
 						int tmp = node_addr;
-						node_addr = node_addr_ahild1;
-						node_addr_ahild1 = tmp;
+						node_addr = node_addr_child1;
+						node_addr_child1 = tmp;
 					}
 
 					++stack_ptr;
 					kernel_assert(stack_ptr < BVH_STACK_SIZE);
-					traversal_stack[stack_ptr] = node_addr_ahild1;
+					traversal_stack[stack_ptr] = node_addr_child1;
 				}
 				else {
 					/* One child was intersected. */
 					if(traverse_mask == 2) {
-						node_addr = node_addr_ahild1;
+						node_addr = node_addr_child1;
 					}
 					else if(traverse_mask == 0) {
 						/* Neither child was intersected. */
@@ -254,9 +259,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 						/* shadow ray early termination */
 						if(hit) {
-							/* Update number of hits now, so we do proper check on max bounces. */
-							(*num_hits)++;
-
 							/* detect if this surface has a shader with transparent shadows */
 
 							/* todo: optimize so primitive visibility flag indicates if
@@ -276,22 +278,25 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								shader = __float_as_int(str.z);
 							}
 #endif
-							int flag = kernel_tex_fetch(__shader_flag, (shader & SHADER_MASK)*2);
+							int flag = kernel_tex_fetch(__shader_flag, (shader & SHADER_MASK)*SHADER_SIZE);
 
 							/* if no transparent shadows, all light is blocked */
 							if(!(flag & SD_HAS_TRANSPARENT_SHADOW)) {
 								return true;
 							}
 							/* if maximum number of hits reached, block all light */
-							else if(*num_hits >= max_hits) {
+							else if(*num_hits == max_hits) {
 								return true;
 							}
 
+							/* move on to next entry in intersections array */
+							isect_array++;
+							(*num_hits)++;
 #if BVH_FEATURE(BVH_INSTANCING)
 							num_hits_in_instance++;
 #endif
-							/* Move on to next entry in intersections array */
-							isect_array++;
+
+							isect_array->t = isect_t;
 						}
 
 						prim_addr++;
@@ -338,6 +343,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 		if(stack_ptr >= 0) {
 			kernel_assert(object != OBJECT_NONE);
 
+			/* Instance pop. */
 			if(num_hits_in_instance) {
 				float t_fac;
 
@@ -350,8 +356,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 				triangle_intersect_precalc(dir, &isect_precalc);
 
 				/* scale isect->t to adjust for instancing */
-				for(int i = 0; i < num_hits_in_instance; i++)
+				for(int i = 0; i < num_hits_in_instance; i++) {
 					(isect_array-i-1)->t *= t_fac;
+				}
 			}
 			else {
 				float ignore_t = FLT_MAX;

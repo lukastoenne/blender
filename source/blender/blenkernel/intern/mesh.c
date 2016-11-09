@@ -31,6 +31,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_material_types.h"
+#include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
@@ -530,10 +531,7 @@ Mesh *BKE_mesh_copy(Main *bmain, Mesh *me)
 		men->key->from = (ID *)men;
 	}
 
-	if (ID_IS_LINKED_DATABLOCK(me)) {
-		BKE_id_expand_local(&men->id);
-		BKE_id_lib_local_paths(bmain, me->id.lib, &men->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &me->id, &men->id);
 
 	return men;
 }
@@ -555,34 +553,9 @@ BMesh *BKE_mesh_to_bmesh(
 	return bm;
 }
 
-void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool force_local)
+void BKE_mesh_make_local(Main *bmain, Mesh *me, const bool lib_local)
 {
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing (unless force_local is set)
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(me)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, me, &is_local, &is_lib);
-
-	if (force_local || is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &me->id);
-			BKE_id_expand_local(&me->id);
-		}
-		else {
-			Mesh *me_new = BKE_mesh_copy(bmain, me);
-
-			me_new->id.us = 0;
-
-			BKE_libblock_remap(bmain, me, me_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &me->id, true, lib_local);
 }
 
 bool BKE_mesh_uv_cdlayer_rename_index(Mesh *me, const int poly_index, const int loop_index, const int face_index,
@@ -1386,7 +1359,7 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 		}
 
 		/* make mesh */
-		me = BKE_mesh_add(G.main, "Mesh");
+		me = BKE_mesh_add(bmain, "Mesh");
 		me->totvert = totvert;
 		me->totedge = totedge;
 		me->totloop = totloop;
@@ -1406,7 +1379,7 @@ void BKE_mesh_from_nurbs_displist(Object *ob, ListBase *dispbase, const bool use
 		BKE_mesh_calc_normals(me);
 	}
 	else {
-		me = BKE_mesh_add(G.main, "Mesh");
+		me = BKE_mesh_add(bmain, "Mesh");
 		DM_to_mesh(dm, me, ob, CD_MASK_MESH, false);
 	}
 
@@ -2224,8 +2197,10 @@ Mesh *BKE_mesh_new_from_object(
 {
 	Mesh *tmpmesh;
 	Curve *tmpcu = NULL, *copycu;
-	int render = settings == eModifierMode_Render, i;
-	int cage = !apply_modifiers;
+	int i;
+	const bool render = (settings == eModifierMode_Render);
+	const bool cage = !apply_modifiers;
+	bool do_mat_id_data_us = true;
 
 	/* perform the mesh extraction based on type */
 	switch (ob->type) {
@@ -2295,6 +2270,12 @@ Mesh *BKE_mesh_new_from_object(
 			BKE_mesh_texspace_copy_from_object(tmpmesh, ob);
 
 			BKE_libblock_free_us(bmain, tmpobj);
+
+			/* XXX The curve to mesh conversion is convoluted... But essentially, BKE_mesh_from_nurbs_displist()
+			 *     already transfers the ownership of materials from the temp copy of the Curve ID to the new
+			 *     Mesh ID, so we do not want to increase materials' usercount later. */
+			do_mat_id_data_us = false;
+
 			break;
 		}
 
@@ -2342,14 +2323,17 @@ Mesh *BKE_mesh_new_from_object(
 			if (cage) {
 				/* copies the data */
 				tmpmesh = BKE_mesh_copy(bmain, ob->data);
-				/* if not getting the original caged mesh, get final derived mesh */
+
+				/* XXX BKE_mesh_copy() already handles materials usercount. */
+				do_mat_id_data_us = false;
 			}
+			/* if not getting the original caged mesh, get final derived mesh */
 			else {
 				/* Make a dummy mesh, saves copying */
 				DerivedMesh *dm;
 				/* CustomDataMask mask = CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL; */
 				CustomDataMask mask = CD_MASK_MESH; /* this seems more suitable, exporter,
-			                                         * for example, needs CD_MASK_MDEFORMVERT */
+				                                     * for example, needs CD_MASK_MDEFORMVERT */
 
 				if (calc_undeformed)
 					mask |= CD_MASK_ORCO;
@@ -2384,33 +2368,34 @@ Mesh *BKE_mesh_new_from_object(
 			if (tmpcu->mat) {
 				for (i = tmpcu->totcol; i-- > 0; ) {
 					/* are we an object material or data based? */
+					tmpmesh->mat[i] = give_current_material(ob, i + 1);
 
-					tmpmesh->mat[i] = ob->matbits[i] ? ob->mat[i] : tmpcu->mat[i];
-
-					if (tmpmesh->mat[i]) {
+					if (((ob->matbits && ob->matbits[i]) || do_mat_id_data_us)  && tmpmesh->mat[i]) {
 						id_us_plus(&tmpmesh->mat[i]->id);
 					}
 				}
 			}
 			break;
 
-#if 0
-		/* Crashes when assigning the new material, not sure why */
 		case OB_MBALL:
-			tmpmb = (MetaBall *)ob->data;
+		{
+			MetaBall *tmpmb = (MetaBall *)ob->data;
+			tmpmesh->mat = MEM_dupallocN(tmpmb->mat);
 			tmpmesh->totcol = tmpmb->totcol;
 
 			/* free old material list (if it exists) and adjust user counts */
 			if (tmpmb->mat) {
 				for (i = tmpmb->totcol; i-- > 0; ) {
-					tmpmesh->mat[i] = tmpmb->mat[i]; /* CRASH HERE ??? */
-					if (tmpmesh->mat[i]) {
-						id_us_plus(&tmpmb->mat[i]->id);
+					/* are we an object material or data based? */
+					tmpmesh->mat[i] = give_current_material(ob, i + 1);
+
+					if (((ob->matbits && ob->matbits[i]) || do_mat_id_data_us) && tmpmesh->mat[i]) {
+						id_us_plus(&tmpmesh->mat[i]->id);
 					}
 				}
 			}
 			break;
-#endif
+		}
 
 		case OB_MESH:
 			if (!cage) {
@@ -2422,9 +2407,9 @@ Mesh *BKE_mesh_new_from_object(
 				if (origmesh->mat) {
 					for (i = origmesh->totcol; i-- > 0; ) {
 						/* are we an object material or data based? */
-						tmpmesh->mat[i] = ob->matbits[i] ? ob->mat[i] : origmesh->mat[i];
+						tmpmesh->mat[i] = give_current_material(ob, i + 1);
 
-						if (tmpmesh->mat[i]) {
+						if (((ob->matbits && ob->matbits[i]) || do_mat_id_data_us)  && tmpmesh->mat[i]) {
 							id_us_plus(&tmpmesh->mat[i]->id);
 						}
 					}
@@ -2437,9 +2422,6 @@ Mesh *BKE_mesh_new_from_object(
 		/* cycles and exporters rely on this still */
 		BKE_mesh_tessface_ensure(tmpmesh);
 	}
-
-	/* make sure materials get updated in object */
-	test_object_materials(ob, &tmpmesh->id);
 
 	return tmpmesh;
 }

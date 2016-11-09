@@ -1118,11 +1118,9 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	BLI_listbase_clear(&obn->prop);
 	BKE_bproperty_copy_list(&obn->prop, &ob->prop);
-	
-	copy_sensors(&obn->sensors, &ob->sensors);
-	copy_controllers(&obn->controllers, &ob->controllers);
-	copy_actuators(&obn->actuators, &ob->actuators);
-	
+
+	BKE_sca_logic_copy(obn, ob);
+
 	if (ob->pose) {
 		copy_object_pose(obn, ob);
 		/* backwards compat... non-armatures can get poses in older files? */
@@ -1138,7 +1136,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);
 	id_us_plus((ID *)obn->gpd);
-	id_lib_extern((ID *)obn->dup_group);
+	id_us_plus((ID *)obn->dup_group);
 
 	for (a = 0; a < obn->totcol; a++) id_us_plus((ID *)obn->mat[a]);
 	
@@ -1169,10 +1167,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;
 
-	if (ID_IS_LINKED_DATABLOCK(ob)) {
-		BKE_id_expand_local(&obn->id);
-		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ob->id, &obn->id);
 
 	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
 	obn->preview = NULL;
@@ -1186,13 +1181,14 @@ Object *BKE_object_copy(Main *bmain, Object *ob)
 	return BKE_object_copy_ex(bmain, ob, false);
 }
 
-void BKE_object_make_local(Main *bmain, Object *ob, const bool force_local)
+void BKE_object_make_local_ex(Main *bmain, Object *ob, const bool lib_local, const bool clear_proxy)
 {
 	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing (unless force_local is set)
 	 * - only local users: set flag
 	 * - mixed: make copy
+	 * In case we make a whole lib's content local, we always want to localize, and we skip remapping (done later).
 	 */
 
 	if (!ID_IS_LINKED_DATABLOCK(ob)) {
@@ -1201,10 +1197,17 @@ void BKE_object_make_local(Main *bmain, Object *ob, const bool force_local)
 
 	BKE_library_ID_test_usages(bmain, ob, &is_local, &is_lib);
 
-	if (force_local || is_local) {
+	if (lib_local || is_local) {
 		if (!is_lib) {
 			id_clear_lib_data(bmain, &ob->id);
 			BKE_id_expand_local(&ob->id);
+			if (clear_proxy) {
+				if (ob->proxy_from != NULL) {
+					ob->proxy_from->proxy = NULL;
+					ob->proxy_from->proxy_group = NULL;
+				}
+				ob->proxy = ob->proxy_from = ob->proxy_group = NULL;
+			}
 		}
 		else {
 			Object *ob_new = BKE_object_copy(bmain, ob);
@@ -1212,9 +1215,16 @@ void BKE_object_make_local(Main *bmain, Object *ob, const bool force_local)
 			ob_new->id.us = 0;
 			ob_new->proxy = ob_new->proxy_from = ob_new->proxy_group = NULL;
 
-			BKE_libblock_remap(bmain, ob, ob_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+			if (!lib_local) {
+				BKE_libblock_remap(bmain, ob, ob_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+			}
 		}
 	}
+}
+
+void BKE_object_make_local(Main *bmain, Object *ob, const bool lib_local)
+{
+	BKE_object_make_local_ex(bmain, ob, lib_local, true);
 }
 
 /* Returns true if the Object is from an external blend file (libdata) */
@@ -3213,6 +3223,14 @@ static bool constructive_modifier_is_deform_modified(ModifierData *md)
 	else if (md->type == eModifierType_Screw) {
 		ScrewModifierData *smd = (ScrewModifierData *)md;
 		return smd->ob_axis != NULL && object_moves_in_time(smd->ob_axis);
+	}
+	else if (md->type == eModifierType_MeshSequenceCache) {
+		/* NOTE: Not ideal because it's unknown whether topology changes or not.
+		 * This will be detected later, so by assuming it's only deformation
+		 * going on here we allow to bake deform-only mesh to Alembic and have
+		 * proper motion blur after that.
+		 */
+		return true;
 	}
 	return false;
 }

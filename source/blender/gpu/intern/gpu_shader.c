@@ -45,6 +45,7 @@
 #define MAX_EXT_DEFINE_LENGTH 1024
 
 /* Non-generated shaders */
+extern char datatoc_gpu_shader_fire_frag_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -437,6 +438,10 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	/* TODO(sergey): Find a better place for this. */
 	if (use_opensubdiv && GLEW_VERSION_4_1) {
 		glProgramUniform1i(shader->program,
+		                   glGetUniformLocation(shader->program, "FVarDataOffsetBuffer"),
+		                   30);  /* GL_TEXTURE30 */
+
+		glProgramUniform1i(shader->program,
 		                   glGetUniformLocation(shader->program, "FVarDataBuffer"),
 		                   31);  /* GL_TEXTURE31 */
 	}
@@ -614,8 +619,8 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		case GPU_SHADER_SMOKE_FIRE:
 			if (!GG.shaders.smoke_fire)
 				GG.shaders.smoke_fire = GPU_shader_create(
-				        datatoc_gpu_shader_smoke_vert_glsl, datatoc_gpu_shader_smoke_frag_glsl,
-				        NULL, NULL, "#define USE_FIRE;\n", 0, 0, 0);
+				        datatoc_gpu_shader_smoke_vert_glsl, datatoc_gpu_shader_fire_frag_glsl,
+				        NULL, NULL, NULL, 0, 0, 0);
 			retval = GG.shaders.smoke_fire;
 			break;
 	}

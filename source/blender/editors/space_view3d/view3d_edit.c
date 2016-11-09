@@ -41,6 +41,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bitmap_draw_2d.h"
 #include "BLI_blenlib.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_math.h"
@@ -1329,6 +1330,8 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
 	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 }
 
+#ifdef WITH_INPUT_NDOF
+
 /** \name NDOF Utility Functions
  * \{ */
 
@@ -1893,6 +1896,8 @@ void VIEW3D_OT_ndof_all(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = 0;
 }
+
+#endif /* WITH_INPUT_NDOF */
 
 /* ************************ viewmove ******************************** */
 
@@ -4518,7 +4523,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	/* note: having key shortcut here is bad practice,
 	 * but for now keep because this displays when dragging an image over the 3D viewport */
 	ot->name   = "Add Background Image (Ctrl for Empty Object)";
-	ot->description = "Add a new background image";
+	ot->description = "Add a new background image (Ctrl for Empty Object)";
 	ot->idname = "VIEW3D_OT_background_image_add";
 
 	/* api callbacks */
@@ -4527,7 +4532,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	ot->poll   = ED_operator_view3d_active;
 
 	/* flags */
-	ot->flag   = 0;
+	ot->flag   = OPTYPE_UNDO;
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Image name to assign");
@@ -5048,7 +5053,7 @@ bool ED_view3d_autodist_depth_seg(ARegion *ar, const int mval_sta[2], const int 
 	copy_v2_v2_int(p1, mval_sta);
 	copy_v2_v2_int(p2, mval_end);
 
-	plot_line_v2v2i(p1, p2, depth_segment_cb, &data);
+	BLI_bitmap_draw_2d_line_v2v2i(p1, p2, depth_segment_cb, &data);
 
 	*depth = data.depth;
 

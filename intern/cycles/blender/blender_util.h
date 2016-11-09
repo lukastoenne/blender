@@ -17,6 +17,8 @@
 #ifndef __BLENDER_UTIL_H__
 #define __BLENDER_UTIL_H__
 
+#include "mesh.h"
+
 #include "util_map.h"
 #include "util_path.h"
 #include "util_set.h"
@@ -45,14 +47,38 @@ static inline BL::Mesh object_to_mesh(BL::BlendData& data,
                                       BL::Scene& scene,
                                       bool apply_modifiers,
                                       bool render,
-                                      bool calc_undeformed)
+                                      bool calc_undeformed,
+                                      bool subdivision)
 {
+	bool subsurf_mod_show_render;
+	bool subsurf_mod_show_viewport;
+
+	if(subdivision) {
+		BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length()-1];
+
+		subsurf_mod_show_render = subsurf_mod.show_render();
+		subsurf_mod_show_viewport = subsurf_mod.show_viewport();
+
+		subsurf_mod.show_render(false);
+		subsurf_mod.show_viewport(false);
+	}
+
 	BL::Mesh me = data.meshes.new_from_object(scene, object, apply_modifiers, (render)? 2: 1, false, calc_undeformed);
+
+	if(subdivision) {
+		BL::Modifier subsurf_mod = object.modifiers[object.modifiers.length()-1];
+
+		subsurf_mod.show_render(subsurf_mod_show_render);
+		subsurf_mod.show_viewport(subsurf_mod_show_viewport);
+	}
+
 	if((bool)me) {
 		if(me.use_auto_smooth()) {
 			me.calc_normals_split();
 		}
-		me.calc_tessface(true);
+		if(!subdivision) {
+			me.calc_tessface(true);
+		}
 	}
 	return me;
 }
@@ -536,6 +562,29 @@ static inline BL::DomainFluidSettings object_fluid_domain_find(BL::Object b_ob)
 	return BL::DomainFluidSettings(PointerRNA_NULL);
 }
 
+static inline Mesh::SubdivisionType object_subdivision_type(BL::Object& b_ob, bool preview, bool experimental)
+{
+	PointerRNA cobj = RNA_pointer_get(&b_ob.ptr, "cycles");
+
+	if(cobj.data && b_ob.modifiers.length() > 0 && experimental) {
+		BL::Modifier mod = b_ob.modifiers[b_ob.modifiers.length()-1];
+		bool enabled = preview ? mod.show_viewport() : mod.show_render();
+
+		if(enabled && mod.type() == BL::Modifier::type_SUBSURF && RNA_boolean_get(&cobj, "use_adaptive_subdivision")) {
+			BL::SubsurfModifier subsurf(mod);
+
+			if(subsurf.subdivision_type() == BL::SubsurfModifier::subdivision_type_CATMULL_CLARK) {
+				return Mesh::SUBDIVISION_CATMULL_CLARK;
+			}
+			else {
+				return Mesh::SUBDIVISION_LINEAR;
+			}
+		}
+	}
+
+	return Mesh::SUBDIVISION_NONE;
+}
+
 /* ID Map
  *
  * Utility class to keep in sync with blender data.
@@ -673,7 +722,7 @@ protected:
 
 /* Object Key */
 
-enum { OBJECT_PERSISTENT_ID_SIZE = 8 };
+enum { OBJECT_PERSISTENT_ID_SIZE = 16 };
 
 struct ObjectKey {
 	void *parent;

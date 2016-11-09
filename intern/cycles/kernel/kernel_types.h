@@ -19,6 +19,7 @@
 
 #include "kernel_math.h"
 #include "svm/svm_types.h"
+#include "util_static_assert.h"
 
 #ifndef __KERNEL_GPU__
 #  define __KERNEL_CPU__
@@ -34,14 +35,14 @@
 CCL_NAMESPACE_BEGIN
 
 /* constants */
-#define OBJECT_SIZE 		11
+#define OBJECT_SIZE 		12
 #define OBJECT_VECTOR_SIZE	6
-#define LIGHT_SIZE			5
+#define LIGHT_SIZE		11
 #define FILTER_TABLE_SIZE	1024
 #define RAMP_TABLE_SIZE		256
 #define SHUTTER_TABLE_SIZE		256
 #define PARTICLE_SIZE 		5
-#define TIME_INVALID		FLT_MAX
+#define SHADER_SIZE		5
 
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_HITS				4
@@ -115,16 +116,7 @@ CCL_NAMESPACE_BEGIN
 #  ifdef __KERNEL_OPENCL_AMD__
 #    define __CL_USE_NATIVE__
 #    define __KERNEL_SHADING__
-#    define __MULTI_CLOSURE__
-#    define __PASSES__
-#    define __BACKGROUND_MIS__
-#    define __LAMP_MIS__
-#    define __AO__
-#    define __CAMERA_MOTION__
-#    define __OBJECT_MOTION__
-#    define __HAIR__
-#    define __BAKING__
-#    define __TRANSPARENT_SHADOWS__
+#    define __KERNEL_ADV_SHADING__
 #  endif  /* __KERNEL_OPENCL_AMD__ */
 
 #  ifdef __KERNEL_OPENCL_INTEL_CPU__
@@ -150,6 +142,7 @@ CCL_NAMESPACE_BEGIN
 #define __CAMERA_CLIPPING__
 #define __INTERSECTION_REFINE__
 #define __CLAMP_SAMPLE__
+#define __PATCH_EVAL__
 
 #ifdef __KERNEL_SHADING__
 #  define __SVM__
@@ -198,6 +191,9 @@ CCL_NAMESPACE_BEGIN
 #endif
 #ifdef __NO_BRANCHED_PATH__
 #  undef __BRANCHED_PATH__
+#endif
+#ifdef __NO_PATCH_EVAL__
+#  undef __PATCH_EVAL__
 #endif
 
 /* Random Numbers */
@@ -559,7 +555,9 @@ typedef enum PrimitiveType {
 	PRIMITIVE_MOTION_TRIANGLE = 2,
 	PRIMITIVE_CURVE = 4,
 	PRIMITIVE_MOTION_CURVE = 8,
-	PRIMITIVE_VOLUME = 16,
+	/* Lamp primitive is not included below on purpose, since it is no real traceable primitive */
+	PRIMITIVE_LAMP = 16,
+	PRIMITIVE_VOLUME = 32,
 
 	PRIMITIVE_ALL_TRIANGLE = (PRIMITIVE_TRIANGLE|PRIMITIVE_MOTION_TRIANGLE),
 	PRIMITIVE_ALL_CURVE = (PRIMITIVE_CURVE|PRIMITIVE_MOTION_CURVE),
@@ -577,8 +575,13 @@ typedef enum PrimitiveType {
 
 /* Attributes */
 
-#define ATTR_PRIM_TYPES		2
-#define ATTR_PRIM_CURVE		1
+typedef enum AttributePrimitive {
+	ATTR_PRIM_TRIANGLE = 0,
+	ATTR_PRIM_CURVE,
+	ATTR_PRIM_SUBD,
+
+	ATTR_PRIM_TYPES
+} AttributePrimitive;
 
 typedef enum AttributeElement {
 	ATTR_ELEMENT_NONE,
@@ -623,6 +626,18 @@ typedef enum AttributeStandard {
 	ATTR_STD_NOT_FOUND = ~0
 } AttributeStandard;
 
+typedef enum AttributeFlag {
+	ATTR_FINAL_SIZE = (1 << 0),
+	ATTR_SUBDIVIDED = (1 << 1),
+} AttributeFlag;
+
+typedef struct AttributeDescriptor {
+	AttributeElement element;
+	NodeAttributeType type;
+	uint flags; /* see enum AttributeFlag */
+	int offset;
+} AttributeDescriptor;
+
 /* Closure data */
 
 #ifdef __MULTI_CLOSURE__
@@ -635,33 +650,26 @@ typedef enum AttributeStandard {
 #  define MAX_CLOSURE 1
 #endif
 
-/* This struct is to be 16 bytes aligned, we also keep some extra precautions:
- * - All the float3 members are in the beginning of the struct, so compiler
- *   does not put own padding trying to align this members.
- * - We make sure OSL pointer is also 16 bytes aligned.
- */
-typedef ccl_addr_space struct ShaderClosure {
-	float3 weight;
-	float3 N;
-	float3 T;
+/* This struct is the base class for all closures. The common members are
+ * duplicated in all derived classes since we don't have C++ in the kernel
+ * yet, and because it lets us lay out the members to minimize padding. The
+ * weight member is located at the beginning of the struct for this reason.
+ *
+ * ShaderClosure has a fixed size, and any extra space must be allocated
+ * with closure_alloc_extra().
+ *
+ * We pad the struct to 80 bytes and ensure it is aligned to 16 bytes, which
+ * we assume to be the maximum required alignment for any struct. */
 
-	ClosureType type;
-	float sample_weight;
-	float data0;
-	float data1;
-	float data2;
+#define SHADER_CLOSURE_BASE \
+	float3 weight; \
+	ClosureType type; \
+	float sample_weight \
 
-	/* Following fields could be used to store pre-calculated
-	 * values by various BSDF closures for more effective sampling
-	 * and evaluation.
-	 */
-	float custom1;
-	float custom2;
-	float custom3;
+typedef ccl_addr_space struct ccl_align(16) ShaderClosure {
+	SHADER_CLOSURE_BASE;
 
-#ifdef __OSL__
-	void *prim, *pad4;
-#endif
+	float data[14]; /* pad to 80 bytes */
 } ShaderClosure;
 
 /* Shader Context
@@ -696,11 +704,10 @@ enum ShaderDataFlag {
 	SD_AO              = (1 << 8),   /* have ao closure? */
 	SD_TRANSPARENT     = (1 << 9),  /* have transparent closure? */
 	SD_BSDF_NEEDS_LCG  = (1 << 10),
-	SD_BSDF_HAS_CUSTOM = (1 << 11), /* are the custom variables relevant? */
 
 	SD_CLOSURE_FLAGS = (SD_EMISSION|SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSSRDF|
 	                    SD_HOLDOUT|SD_ABSORPTION|SD_SCATTER|SD_AO|
-	                    SD_BSDF_NEEDS_LCG|SD_BSDF_HAS_CUSTOM),
+	                    SD_BSDF_NEEDS_LCG),
 
 	/* shader flags */
 	SD_USE_MIS                = (1 << 12),  /* direct light sample */
@@ -713,117 +720,122 @@ enum ShaderDataFlag {
 	SD_VOLUME_MIS             = (1 << 19),  /* use multiple importance sampling */
 	SD_VOLUME_CUBIC           = (1 << 20),  /* use cubic interpolation for voxels */
 	SD_HAS_BUMP               = (1 << 21),  /* has data connected to the displacement input */
+	SD_HAS_DISPLACEMENT       = (1 << 22),  /* has true displacement */
+	SD_HAS_CONSTANT_EMISSION  = (1 << 23),  /* has constant emission (value stored in __shader_flag) */
 
 	SD_SHADER_FLAGS = (SD_USE_MIS|SD_HAS_TRANSPARENT_SHADOW|SD_HAS_VOLUME|
 	                   SD_HAS_ONLY_VOLUME|SD_HETEROGENEOUS_VOLUME|
 	                   SD_HAS_BSSRDF_BUMP|SD_VOLUME_EQUIANGULAR|SD_VOLUME_MIS|
-	                   SD_VOLUME_CUBIC|SD_HAS_BUMP),
+	                   SD_VOLUME_CUBIC|SD_HAS_BUMP|SD_HAS_DISPLACEMENT|SD_HAS_CONSTANT_EMISSION),
 
 	/* object flags */
-	SD_HOLDOUT_MASK             = (1 << 22),  /* holdout for camera rays */
-	SD_OBJECT_MOTION            = (1 << 23),  /* has object motion blur */
-	SD_TRANSFORM_APPLIED        = (1 << 24),  /* vertices have transform applied */
-	SD_NEGATIVE_SCALE_APPLIED   = (1 << 25),  /* vertices have negative scale applied */
-	SD_OBJECT_HAS_VOLUME        = (1 << 26),  /* object has a volume shader */
-	SD_OBJECT_INTERSECTS_VOLUME = (1 << 27),  /* object intersects AABB of an object with volume shader */
-	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 28),  /* has position for motion vertices */
+	SD_HOLDOUT_MASK             = (1 << 24),  /* holdout for camera rays */
+	SD_OBJECT_MOTION            = (1 << 25),  /* has object motion blur */
+	SD_TRANSFORM_APPLIED        = (1 << 26),  /* vertices have transform applied */
+	SD_NEGATIVE_SCALE_APPLIED   = (1 << 27),  /* vertices have negative scale applied */
+	SD_OBJECT_HAS_VOLUME        = (1 << 28),  /* object has a volume shader */
+	SD_OBJECT_INTERSECTS_VOLUME = (1 << 29),  /* object intersects AABB of an object with volume shader */
+	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 30),  /* has position for motion vertices */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|
 	                   SD_NEGATIVE_SCALE_APPLIED|SD_OBJECT_HAS_VOLUME|
 	                   SD_OBJECT_INTERSECTS_VOLUME)
 };
 
-struct KernelGlobals;
-
 #ifdef __SPLIT_KERNEL__
 #  define SD_THREAD (get_global_id(1) * get_global_size(0) + get_global_id(0))
-#  if defined(__SPLIT_KERNEL_AOS__)
+#  if !defined(__SPLIT_KERNEL_SOA__)
      /* ShaderData is stored as an Array-of-Structures */
-#    define ccl_fetch(s, t) (s[SD_THREAD].t)
-#    define ccl_fetch_array(s, t, index) (&s[SD_THREAD].t[index])
+#    define ccl_soa_member(type, name) type soa_##name
+#    define ccl_fetch(s, t) (s[SD_THREAD].soa_##t)
+#    define ccl_fetch_array(s, t, index) (&s[SD_THREAD].soa_##t[index])
 #  else
      /* ShaderData is stored as an Structure-of-Arrays */
 #    define SD_GLOBAL_SIZE (get_global_size(0) * get_global_size(1))
 #    define SD_FIELD_SIZE(t) sizeof(((struct ShaderData*)0)->t)
 #    define SD_OFFSETOF(t) ((char*)(&((struct ShaderData*)0)->t) - (char*)0)
-#    define ccl_fetch(s, t) (((ShaderData*)((ccl_addr_space char*)s + SD_GLOBAL_SIZE * SD_OFFSETOF(t) +  SD_FIELD_SIZE(t) * SD_THREAD - SD_OFFSETOF(t)))->t)
+#    define ccl_soa_member(type, name) type soa_##name
+#    define ccl_fetch(s, t) (((ShaderData*)((ccl_addr_space char*)s + SD_GLOBAL_SIZE * SD_OFFSETOF(soa_##t) +  SD_FIELD_SIZE(soa_##t) * SD_THREAD - SD_OFFSETOF(soa_##t)))->soa_##t)
 #    define ccl_fetch_array(s, t, index) (&ccl_fetch(s, t)[index])
 #  endif
 #else
+#  define ccl_soa_member(type, name) type name
 #  define ccl_fetch(s, t) (s->t)
 #  define ccl_fetch_array(s, t, index) (&s->t[index])
 #endif
 
 typedef ccl_addr_space struct ShaderData {
 	/* position */
-	float3 P;
+	ccl_soa_member(float3, P);
 	/* smooth normal for shading */
-	float3 N;
+	ccl_soa_member(float3, N);
 	/* true geometric normal */
-	float3 Ng;
+	ccl_soa_member(float3, Ng);
 	/* view/incoming direction */
-	float3 I;
+	ccl_soa_member(float3, I);
 	/* shader id */
-	int shader;
+	ccl_soa_member(int, shader);
 	/* booleans describing shader, see ShaderDataFlag */
-	int flag;
+	ccl_soa_member(int, flag);
 
 	/* primitive id if there is one, ~0 otherwise */
-	int prim;
+	ccl_soa_member(int, prim);
 
 	/* combined type and curve segment for hair */
-	int type;
+	ccl_soa_member(int, type);
 
 	/* parametric coordinates
 	 * - barycentric weights for triangles */
-	float u;
-	float v;
+	ccl_soa_member(float, u);
+	ccl_soa_member(float, v);
 	/* object id if there is one, ~0 otherwise */
-	int object;
+	ccl_soa_member(int, object);
 
 	/* motion blur sample time */
-	float time;
+	ccl_soa_member(float, time);
 
 	/* length of the ray being shaded */
-	float ray_length;
+	ccl_soa_member(float, ray_length);
 
 #ifdef __RAY_DIFFERENTIALS__
 	/* differential of P. these are orthogonal to Ng, not N */
-	differential3 dP;
+	ccl_soa_member(differential3, dP);
 	/* differential of I */
-	differential3 dI;
+	ccl_soa_member(differential3, dI);
 	/* differential of u, v */
-	differential du;
-	differential dv;
+	ccl_soa_member(differential, du);
+	ccl_soa_member(differential, dv);
 #endif
 #ifdef __DPDU__
 	/* differential of P w.r.t. parametric coordinates. note that dPdu is
 	 * not readily suitable as a tangent for shading on triangles. */
-	float3 dPdu;
-	float3 dPdv;
+	ccl_soa_member(float3, dPdu);
+	ccl_soa_member(float3, dPdv);
 #endif
 
 #ifdef __OBJECT_MOTION__
 	/* object <-> world space transformations, cached to avoid
 	 * re-interpolating them constantly for shading */
-	Transform ob_tfm;
-	Transform ob_itfm;
+	ccl_soa_member(Transform, ob_tfm);
+	ccl_soa_member(Transform, ob_itfm);
 #endif
 
 	/* Closure data, we store a fixed array of closures */
-	struct ShaderClosure closure[MAX_CLOSURE];
-	int num_closure;
-	float randb_closure;
+	ccl_soa_member(struct ShaderClosure, closure[MAX_CLOSURE]);
+	ccl_soa_member(int, num_closure);
+	ccl_soa_member(int, num_closure_extra);
+	ccl_soa_member(float, randb_closure);
+	ccl_soa_member(float3, svm_closure_weight);
 
 	/* LCG state for closures that require additional random numbers. */
-	uint lcg_state;
+	ccl_soa_member(uint, lcg_state);
 
 	/* ray start position, only set for backgrounds */
-	float3 ray_P;
-	differential3 ray_dP;
+	ccl_soa_member(float3, ray_P);
+	ccl_soa_member(differential3, ray_dP);
 
 #ifdef __OSL__
-	struct KernelGlobals * osl_globals;
+	struct KernelGlobals *osl_globals;
 	struct PathState *osl_path_state;
 #endif
 } ShaderData;
@@ -979,6 +991,7 @@ typedef struct KernelCamera {
 
 	int pad;
 } KernelCamera;
+static_assert_align(KernelCamera, 16);
 
 typedef struct KernelFilm {
 	float exposure;
@@ -1033,6 +1046,7 @@ typedef struct KernelFilm {
 	int pass_pad3;
 #endif
 } KernelFilm;
+static_assert_align(KernelFilm, 16);
 
 typedef struct KernelBackground {
 	/* only shader index */
@@ -1046,6 +1060,7 @@ typedef struct KernelBackground {
 	float ao_distance;
 	float ao_pad1, ao_pad2;
 } KernelBackground;
+static_assert_align(KernelBackground, 16);
 
 typedef struct KernelIntegrator {
 	/* emission */
@@ -1113,8 +1128,10 @@ typedef struct KernelIntegrator {
 	float volume_step_size;
 	int volume_samples;
 
-	int pad;
+	int pad1;
+	int pad2;
 } KernelIntegrator;
+static_assert_align(KernelIntegrator, 16);
 
 typedef struct KernelBVH {
 	/* root node */
@@ -1126,6 +1143,7 @@ typedef struct KernelBVH {
 	int use_qbvh;
 	int pad1, pad2;
 } KernelBVH;
+static_assert_align(KernelBVH, 16);
 
 typedef enum CurveFlag {
 	/* runtime flags */
@@ -1145,12 +1163,14 @@ typedef struct KernelCurves {
 	float minimum_width;
 	float maximum_width;
 } KernelCurves;
+static_assert_align(KernelCurves, 16);
 
 typedef struct KernelTables {
 	int beckmann_offset;
 	int num_volumes;
 	int density_index, pad2;
 } KernelTables;
+static_assert_align(KernelTables, 16);
 
 typedef struct KernelData {
 	KernelCamera cam;
@@ -1161,8 +1181,12 @@ typedef struct KernelData {
 	KernelCurves curve;
 	KernelTables tables;
 } KernelData;
+static_assert_align(KernelData, 16);
 
 #ifdef __KERNEL_DEBUG__
+/* NOTE: This is a runtime-only struct, alignment is not
+ * really important here.
+ */
 typedef ccl_addr_space struct DebugData {
 	// Total number of BVH node traversal steps and primitives intersections
 	// for the camera rays.
@@ -1239,6 +1263,16 @@ enum RayState {
 #define ADD_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] | flag))
 #define REMOVE_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] & (~flag)))
 #define IS_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] & flag)
+
+/* Patches */
+
+#define PATCH_MAX_CONTROL_VERTS 16
+
+/* Patch map node flags */
+
+#define PATCH_MAP_NODE_IS_SET (1 << 30)
+#define PATCH_MAP_NODE_IS_LEAF (1u << 31)
+#define PATCH_MAP_NODE_INDEX_MASK (~(PATCH_MAP_NODE_IS_SET | PATCH_MAP_NODE_IS_LEAF))
 
 CCL_NAMESPACE_END
 

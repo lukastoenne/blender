@@ -33,6 +33,7 @@
 
 #include "bpy_app.h"
 
+#include "bpy_app_alembic.h"
 #include "bpy_app_ffmpeg.h"
 #include "bpy_app_ocio.h"
 #include "bpy_app_oiio.h"
@@ -104,6 +105,7 @@ static PyStructSequence_Field app_info_fields[] = {
 	{(char *)"build_system", (char *)"Build system used"},
 
 	/* submodules */
+	{(char *)"alembic", (char *)"Alembic library information backend"},
 	{(char *)"ffmpeg", (char *)"FFmpeg library information backend"},
 	{(char *)"ocio", (char *)"OpenColorIO library information backend"},
 	{(char *)"oiio", (char *)"OpenImageIO library information backend"},
@@ -182,6 +184,7 @@ static PyObject *make_app_info(void)
 	SetBytesItem("Unknown");
 #endif
 
+	SetObjItem(BPY_app_alembic_struct());
 	SetObjItem(BPY_app_ffmpeg_struct());
 	SetObjItem(BPY_app_ocio_struct());
 	SetObjItem(BPY_app_oiio_struct());
@@ -231,7 +234,7 @@ static int bpy_app_debug_set(PyObject *UNUSED(self), PyObject *value, void *clos
 	return 0;
 }
 
-
+#define BROKEN_BINARY_PATH_PYTHON_HACK
 
 PyDoc_STRVAR(bpy_app_binary_path_python_doc,
 "String, the path to the python executable (read-only)"
@@ -248,14 +251,18 @@ static PyObject *bpy_app_binary_path_python_get(PyObject *self, void *UNUSED(clo
 		        fullpath, sizeof(fullpath),
 		        PY_MAJOR_VERSION, PY_MINOR_VERSION);
 		ret = PyC_UnicodeFromByte(fullpath);
-		PyDict_SetItem(BlenderAppType.tp_dict, PyDescr_NAME(self), ret);
+#ifdef BROKEN_BINARY_PATH_PYTHON_HACK
+		Py_INCREF(ret);
+		UNUSED_VARS(self);
+#else
+		PyDict_SetItem(BlenderAppType.tp_dict, /* XXX BAAAADDDDDD! self is not a PyDescr at all! it's bpy.app!!! */ PyDescr_NAME(self), ret);
+#endif
 	}
 	else {
 		Py_INCREF(ret);
 	}
 
 	return ret;
-
 }
 
 PyDoc_STRVAR(bpy_app_debug_value_doc,

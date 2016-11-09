@@ -59,6 +59,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_cachefile_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_constraint_types.h"
@@ -114,6 +115,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_brush.h"
+#include "BKE_cachefile.h"
 #include "BKE_cloth.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
@@ -144,7 +146,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_outliner_treehash.h"
 #include "BKE_sound.h"
-
+#include "BKE_colortools.h"
 
 #include "NOD_common.h"
 #include "NOD_socket.h"
@@ -1280,7 +1282,7 @@ void blo_freefiledata(FileData *fd)
 		if (fd->filesdna)
 			DNA_sdna_free(fd->filesdna);
 		if (fd->compflags)
-			MEM_freeN(fd->compflags);
+			MEM_freeN((void *)fd->compflags);
 		
 		if (fd->datamap)
 			oldnewmap_free(fd->datamap);
@@ -2145,6 +2147,7 @@ static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_p
 			prv->gputexture[i] = NULL;
 		}
 		prv->icon_id = 0;
+		prv->tag = 0;
 	}
 	
 	return prv;
@@ -2509,6 +2512,12 @@ static void lib_link_action(FileData *fd, Main *main)
 // >>> XXX deprecated - old animation system
 			
 			lib_link_fcurves(fd, &act->id, &act->curves);
+
+			for (TimeMarker *marker = act->markers.first; marker; marker = marker->next) {
+				if (marker->camera) {
+					marker->camera = newlibadr(fd, act->id.lib, marker->camera);
+				}
+			}
 		}
 	}
 }
@@ -2690,6 +2699,38 @@ static void direct_link_animdata(FileData *fd, AnimData *adt)
 	adt->act_track = newdataadr(fd, adt->act_track);
 	adt->actstrip = newdataadr(fd, adt->actstrip);
 }	
+
+/* ************ READ CACHEFILES *************** */
+
+static void lib_link_cachefiles(FileData *fd, Main *bmain)
+{
+	CacheFile *cache_file;
+
+	/* only link ID pointers */
+	for (cache_file = bmain->cachefiles.first; cache_file; cache_file = cache_file->id.next) {
+		if (cache_file->id.tag & LIB_TAG_NEED_LINK) {
+			cache_file->id.tag &= ~LIB_TAG_NEED_LINK;
+		}
+
+		BLI_listbase_clear(&cache_file->object_paths);
+		cache_file->handle = NULL;
+		cache_file->handle_mutex = NULL;
+
+		if (cache_file->adt) {
+			lib_link_animdata(fd, &cache_file->id, cache_file->adt);
+		}
+	}
+}
+
+static void direct_link_cachefile(FileData *fd, CacheFile *cache_file)
+{
+	cache_file->handle = NULL;
+	cache_file->handle_mutex = NULL;
+
+	/* relink animdata */
+	cache_file->adt = newdataadr(fd, cache_file->adt);
+	direct_link_animdata(fd, cache_file->adt);
+}
 
 /* ************ READ MOTION PATHS *************** */
 
@@ -4044,6 +4085,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 			part->dup_group = newlibadr(fd, part->id.lib, part->dup_group);
 			part->eff_group = newlibadr(fd, part->id.lib, part->eff_group);
 			part->bb_ob = newlibadr(fd, part->id.lib, part->bb_ob);
+			part->collision_group = newlibadr(fd, part->id.lib, part->collision_group);
 			
 			lib_link_partdeflect(fd, &part->id, part->pd);
 			lib_link_partdeflect(fd, &part->id, part->pd2);
@@ -4074,8 +4116,14 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 				if (index_ok) {
 					/* if we have indexes, let's use them */
 					for (dw = part->dupliweights.first; dw; dw = dw->next) {
-						GroupObject *go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-						dw->ob = go ? go->ob : NULL;
+						/* Do not try to restore pointer here, we have to search for group objects in another
+						 * separated step.
+						 * Reason is, the used group may be linked from another library, which has not yet
+						 * been 'lib_linked'.
+						 * Since dw->ob is not considered as an object user (it does not make objet directly linked),
+						 * we may have no valid way to retrieve it yet.
+						 * See T49273. */
+						dw->ob = NULL;
 					}
 				}
 				else {
@@ -4234,12 +4282,15 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			
 			psys->flag &= ~PSYS_KEYED;
 		}
-		
+
 		if (psys->particles && psys->particles->boid) {
 			pa = psys->particles;
 			pa->boid = newdataadr(fd, pa->boid);
-			for (a=1, pa++; a<psys->totpart; a++, pa++)
-				pa->boid = (pa-1)->boid + 1;
+			pa->boid->ground = NULL;  /* This is purely runtime data, but still can be an issue if left dangling. */
+			for (a = 1, pa++; a < psys->totpart; a++, pa++) {
+				pa->boid = (pa - 1)->boid + 1;
+				pa->boid->ground = NULL;
+			}
 		}
 		else if (psys->particles) {
 			for (a=0, pa=psys->particles; a<psys->totpart; a++, pa++)
@@ -4745,7 +4796,7 @@ static void lib_link_object(FileData *fd, Main *main)
 				/* Only expand so as not to loose any object materials that might be set. */
 				if (totcol_data && (*totcol_data > ob->totcol)) {
 					/* printf("'%s' %d -> %d\n", ob->id.name, ob->totcol, *totcol_data); */
-					BKE_material_resize_object(ob, *totcol_data, false);
+					BKE_material_resize_object(main, ob, *totcol_data, false);
 				}
 			}
 			
@@ -4895,8 +4946,11 @@ static void lib_link_object(FileData *fd, Main *main)
 			if (ob->pd)
 				lib_link_partdeflect(fd, &ob->id, ob->pd);
 			
-			if (ob->soft)
+			if (ob->soft) {
+				ob->soft->collision_group = newlibadr(fd, ob->id.lib, ob->soft->collision_group);
+
 				ob->soft->effector_weights->group = newlibadr(fd, ob->id.lib, ob->soft->effector_weights->group);
+			}
 			
 			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
 			lib_link_modifiers(fd, ob);
@@ -5146,6 +5200,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			collmd->time_x = collmd->time_xnew = -1000;
 			collmd->mvert_num = 0;
 			collmd->tri_num = 0;
+			collmd->is_static = false;
 			collmd->bvhtree = NULL;
 			collmd->tri = NULL;
 			
@@ -5268,6 +5323,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	 * time when file was saved.
 	 */
 	ob->recalc = 0;
+
+	/* XXX This should not be needed - but seems like it can happen in some cases, so for now play safe... */
+	ob->proxy_from = NULL;
 
 	/* loading saved files with editmode enabled works, but for undo we like
 	 * to stay in object mode during undo presses so keep editmode disabled.
@@ -5565,7 +5623,6 @@ static void lib_link_scene(FileData *fd, Main *main)
 	Base *base, *next;
 	Sequence *seq;
 	SceneRenderLayer *srl;
-	TimeMarker *marker;
 	FreestyleModuleConfig *fmc;
 	FreestyleLineSet *fls;
 
@@ -5666,15 +5723,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 			}
 			SEQ_END
 
-#ifdef DURIAN_CAMERA_SWITCH
-			for (marker = sce->markers.first; marker; marker = marker->next) {
+			for (TimeMarker *marker = sce->markers.first; marker; marker = marker->next) {
 				if (marker->camera) {
 					marker->camera = newlibadr(fd, sce->id.lib, marker->camera);
 				}
 			}
-#else
-			(void)marker;
-#endif
 			
 			BKE_sequencer_update_muting(sce->ed);
 			BKE_sequencer_update_sound_bounds_all(sce);
@@ -5871,6 +5924,22 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		if (sce->toolsettings->wpaint) {
 			sce->toolsettings->wpaint->wpaint_prev = NULL;
 			sce->toolsettings->wpaint->tot = 0;
+		}
+		/* relink grease pencil drawing brushes */
+		link_list(fd, &sce->toolsettings->gp_brushes);
+		for (bGPDbrush *brush = sce->toolsettings->gp_brushes.first; brush; brush = brush->next) {
+			brush->cur_sensitivity = newdataadr(fd, brush->cur_sensitivity);
+			if (brush->cur_sensitivity) {
+				direct_link_curvemapping(fd, brush->cur_sensitivity);
+			}
+			brush->cur_strength = newdataadr(fd, brush->cur_strength);
+			if (brush->cur_strength) {
+				direct_link_curvemapping(fd, brush->cur_strength);
+			}
+			brush->cur_jitter = newdataadr(fd, brush->cur_jitter);
+			if (brush->cur_jitter) {
+				direct_link_curvemapping(fd, brush->cur_jitter);
+			}
 		}
 	}
 
@@ -6154,7 +6223,8 @@ static void direct_link_gpencil(FileData *fd, bGPdata *gpd)
 	bGPDlayer *gpl;
 	bGPDframe *gpf;
 	bGPDstroke *gps;
-	
+	bGPDpalette *palette;
+
 	/* we must firstly have some grease-pencil data to link! */
 	if (gpd == NULL)
 		return;
@@ -6162,11 +6232,19 @@ static void direct_link_gpencil(FileData *fd, bGPdata *gpd)
 	/* relink animdata */
 	gpd->adt = newdataadr(fd, gpd->adt);
 	direct_link_animdata(fd, gpd->adt);
-	
+
+	/* relink palettes */
+	link_list(fd, &gpd->palettes);
+	for (palette = gpd->palettes.first; palette; palette = palette->next) {
+		link_list(fd, &palette->colors);
+	}
+
 	/* relink layers */
 	link_list(fd, &gpd->layers);
 	
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		/* parent */
+		gpl->parent = newlibadr(fd, gpd->id.lib, gpl->parent);
 		/* relink frames */
 		link_list(fd, &gpl->frames);
 		gpl->actframe = newdataadr(fd, gpl->actframe);
@@ -6179,9 +6257,12 @@ static void direct_link_gpencil(FileData *fd, bGPdata *gpd)
 				gps->points = newdataadr(fd, gps->points);
 				
 				/* the triangulation is not saved, so need to be recalculated */
-				gps->flag |= GP_STROKE_RECALC_CACHES;
 				gps->triangles = NULL;
 				gps->tot_triangles = 0;
+				gps->flag |= GP_STROKE_RECALC_CACHES;
+				/* the color pointer is not saved, so need to be recalculated using the color name */
+				gps->palcolor = NULL;
+				gps->flag |= GP_STROKE_RECALC_COLOR;
 			}
 		}
 	}
@@ -6338,10 +6419,8 @@ static void lib_link_screen(FileData *fd, Main *main)
 						snode->id = newlibadr(fd, sc->id.lib, snode->id);
 						snode->from = newlibadr(fd, sc->id.lib, snode->from);
 						
-						if (snode->id) {
-							ntree = ntreeFromID(snode->id);
-							snode->nodetree = ntree ? ntree : newlibadr_us(fd, sc->id.lib, snode->nodetree);
-						}
+						ntree = snode->id ? ntreeFromID(snode->id) : NULL;
+						snode->nodetree = ntree ? ntree : newlibadr_us(fd, sc->id.lib, snode->nodetree);
 						
 						for (path = snode->treepath.first; path; path = path->next) {
 							if (path == snode->treepath.first) {
@@ -6639,10 +6718,13 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					 * since it gets initialized later */
 					sima->iuser.scene = NULL;
 					
-					sima->scopes.waveform_1 = NULL;
-					sima->scopes.waveform_2 = NULL;
-					sima->scopes.waveform_3 = NULL;
-					sima->scopes.vecscope = NULL;
+#if 0
+					/* Those are allocated and freed by space code, no need to handle them here. */
+					MEM_SAFE_FREE(sima->scopes.waveform_1);
+					MEM_SAFE_FREE(sima->scopes.waveform_2);
+					MEM_SAFE_FREE(sima->scopes.waveform_3);
+					MEM_SAFE_FREE(sima->scopes.vecscope);
+#endif
 					sima->scopes.ok = 0;
 					
 					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
@@ -6720,11 +6802,8 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					snode->id = restore_pointer_by_name(id_map, snode->id, USER_REAL);
 					snode->from = restore_pointer_by_name(id_map, snode->from, USER_IGNORE);
 					
-					if (snode->id) {
-						ntree = ntreeFromID(snode->id);
-						snode->nodetree = ntree ? ntree :
-						                          restore_pointer_by_name(id_map, (ID *)snode->nodetree, USER_REAL);
-					}
+					ntree = snode->id ? ntreeFromID(snode->id) : NULL;
+					snode->nodetree = ntree ? ntree : restore_pointer_by_name(id_map, (ID *)snode->nodetree, USER_REAL);
 					
 					for (path = snode->treepath.first; path; path = path->next) {
 						if (path == snode->treepath.first) {
@@ -7423,7 +7502,7 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking_context = NULL;
 	clip->tracking.stats = NULL;
 
-	clip->tracking.stabilization.ok = 0;
+	/* Needed for proper versioning, will be NULL for all newer files anyway. */
 	clip->tracking.stabilization.rot_track = newdataadr(fd, clip->tracking.stabilization.rot_track);
 
 	clip->tracking.dopesheet.ok = 0;
@@ -7475,6 +7554,7 @@ static void lib_link_movieclip(FileData *fd, Main *main)
 
 			for (object = tracking->objects.first; object; object = object->next) {
 				lib_link_movieTracks(fd, clip, &object->tracks);
+				lib_link_moviePlaneTracks(fd, clip, &object->plane_tracks);
 			}
 
 			clip->id.tag &= ~LIB_TAG_NEED_LINK;
@@ -7888,6 +7968,7 @@ static const char *dataname(short id_code)
 		case ID_MC: return "Data from MC";
 		case ID_MSK: return "Data from MSK";
 		case ID_LS: return "Data from LS";
+		case ID_CF: return "Data from CF";
 	}
 	return "Data from Lib Block";
 	
@@ -8139,6 +8220,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, const short 
 		case ID_PC:
 			direct_link_paint_curve(fd, (PaintCurve *)id);
 			break;
+		case ID_CF:
+			direct_link_cachefile(fd, (CacheFile *)id);
+			break;
 	}
 	
 	oldnewmap_free_unused(fd->datamap);
@@ -8332,6 +8416,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_mask(fd, main);
 	lib_link_linestyle(fd, main);
 	lib_link_gpencil(fd, main);
+	lib_link_cachefiles(fd, main);
 
 	lib_link_mesh(fd, main);		/* as last: tpage images with users at zero */
 	
@@ -8785,6 +8870,12 @@ static void expand_action(FileData *fd, Main *mainvar, bAction *act)
 	
 	/* F-Curves in Action */
 	expand_fcurves(fd, mainvar, &act->curves);
+
+	for (TimeMarker *marker = act->markers.first; marker; marker = marker->next) {
+		if (marker->camera) {
+			expand_doit(fd, mainvar, marker->camera);
+		}
+	}
 }
 
 static void expand_keyingsets(FileData *fd, Main *mainvar, ListBase *list)
@@ -8843,6 +8934,7 @@ static void expand_particlesettings(FileData *fd, Main *mainvar, ParticleSetting
 	expand_doit(fd, mainvar, part->dup_group);
 	expand_doit(fd, mainvar, part->eff_group);
 	expand_doit(fd, mainvar, part->bb_ob);
+	expand_doit(fd, mainvar, part->collision_group);
 	
 	if (part->adt)
 		expand_animdata(fd, mainvar, part->adt);
@@ -8851,6 +8943,37 @@ static void expand_particlesettings(FileData *fd, Main *mainvar, ParticleSetting
 		if (part->mtex[a]) {
 			expand_doit(fd, mainvar, part->mtex[a]->tex);
 			expand_doit(fd, mainvar, part->mtex[a]->object);
+		}
+	}
+
+	if (part->effector_weights) {
+		expand_doit(fd, mainvar, part->effector_weights->group);
+	}
+
+	if (part->pd) {
+		expand_doit(fd, mainvar, part->pd->tex);
+		expand_doit(fd, mainvar, part->pd->f_source);
+	}
+	if (part->pd2) {
+		expand_doit(fd, mainvar, part->pd2->tex);
+		expand_doit(fd, mainvar, part->pd2->f_source);
+	}
+
+	if (part->boids) {
+		BoidState *state;
+		BoidRule *rule;
+
+		for (state = part->boids->states.first; state; state = state->next) {
+			for (rule = state->rules.first; rule; rule = rule->next) {
+				if (rule->type == eBoidRuleType_Avoid) {
+					BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid *)rule;
+					expand_doit(fd, mainvar, gabr->ob);
+				}
+				else if (rule->type == eBoidRuleType_FollowLeader) {
+					BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader *)rule;
+					expand_doit(fd, mainvar, flbr->ob);
+				}
+			}
 		}
 	}
 }
@@ -9216,7 +9339,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	
 	for (psys = ob->particlesystem.first; psys; psys = psys->next)
 		expand_doit(fd, mainvar, psys->part);
-	
+
 	for (sens = ob->sensors.first; sens; sens = sens->next) {
 		if (sens->type == SENS_MESSAGE) {
 			bMessageSensor *ms = sens->data;
@@ -9295,8 +9418,18 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		}
 	}
 	
-	if (ob->pd && ob->pd->tex)
+	if (ob->pd) {
 		expand_doit(fd, mainvar, ob->pd->tex);
+		expand_doit(fd, mainvar, ob->pd->f_source);
+	}
+
+	if (ob->soft) {
+		expand_doit(fd, mainvar, ob->soft->collision_group);
+
+		if (ob->soft->effector_weights) {
+			expand_doit(fd, mainvar, ob->soft->effector_weights->group);
+		}
+	}
 
 	if (ob->rigidbody_constraint) {
 		expand_doit(fd, mainvar, ob->rigidbody_constraint->ob1);
@@ -9373,17 +9506,11 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 		expand_doit(fd, mainvar, sce->rigidbody_world->constraints);
 	}
 
-#ifdef DURIAN_CAMERA_SWITCH
-	{
-		TimeMarker *marker;
-		
-		for (marker = sce->markers.first; marker; marker = marker->next) {
-			if (marker->camera) {
-				expand_doit(fd, mainvar, marker->camera);
-			}
+	for (TimeMarker *marker = sce->markers.first; marker; marker = marker->next) {
+		if (marker->camera) {
+			expand_doit(fd, mainvar, marker->camera);
 		}
 	}
-#endif
 
 	expand_doit(fd, mainvar, sce->clip);
 }
@@ -9394,6 +9521,13 @@ static void expand_camera(FileData *fd, Main *mainvar, Camera *ca)
 	
 	if (ca->adt)
 		expand_animdata(fd, mainvar, ca->adt);
+}
+
+static void expand_cachefile(FileData *fd, Main *mainvar, CacheFile *cache_file)
+{
+	if (cache_file->adt) {
+		expand_animdata(fd, mainvar, cache_file->adt);
+	}
 }
 
 static void expand_speaker(FileData *fd, Main *mainvar, Speaker *spk)
@@ -9590,6 +9724,9 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 						break;
 					case ID_GD:
 						expand_gpencil(fd, mainvar, (bGPdata *)id);
+						break;
+					case ID_CF:
+						expand_cachefile(fd, mainvar, (CacheFile *)id);
 						break;
 					}
 					

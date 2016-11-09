@@ -146,6 +146,14 @@ if(WITH_CYCLES_OSL)
 	)
 endif()
 
+if(WITH_CYCLES_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
+	include_directories(
+		SYSTEM
+		${OPENSUBDIV_INCLUDE_DIR}
+	)
+endif()
+
 if(WITH_OPENVDB)
 	add_definitions(-DWITH_OPENVDB)
 	add_definitions(-DDWREAL_IS_DOUBLE=0)

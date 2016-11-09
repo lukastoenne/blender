@@ -1,8 +1,5 @@
 /*
- * Adapted from code Copyright 2009-2010 NVIDIA Corporation,
- * and code copyright 2009-2012 Intel Corporation
- *
- * Modifications Copyright 2011-2014, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +66,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 #ifndef __KERNEL_SSE41__
 	if(!isfinite(P.x)) {
-		return false;
+		return 0;
 	}
 #endif
 
@@ -94,10 +91,9 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	/* Offsets to select the side that becomes the lower or upper bound. */
 	int near_x, near_y, near_z;
 	int far_x, far_y, far_z;
-
-	if(idir.x >= 0.0f) { near_x = 0; far_x = 1; } else { near_x = 1; far_x = 0; }
-	if(idir.y >= 0.0f) { near_y = 2; far_y = 3; } else { near_y = 3; far_y = 2; }
-	if(idir.z >= 0.0f) { near_z = 4; far_z = 5; } else { near_z = 5; far_z = 4; }
+	qbvh_near_far_idx_calc(idir,
+	                       &near_x, &near_y, &near_z,
+	                       &far_x, &far_y, &far_z);
 
 	IsectPrecalc isect_precalc;
 	triangle_intersect_precalc(dir, &isect_precalc);
@@ -134,8 +130,9 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 		do {
 			/* Traverse internal nodes. */
 			while(node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
-#ifdef __VISIBILITY_FLAG__
 				float4 inodes = kernel_tex_fetch(__bvh_nodes, node_addr+0);
+
+#ifdef __VISIBILITY_FLAG__
 				if((__float_as_uint(inodes.x) & visibility) == 0) {
 					/* Pop. */
 					node_addr = traversal_stack[stack_ptr].addr;
@@ -267,6 +264,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 			/* If node is leaf, fetch triangle list. */
 			if(node_addr < 0) {
 				float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-node_addr-1));
+
+				if((__float_as_uint(leaf.z) & visibility) == 0) {
+					/* Pop. */
+					node_addr = traversal_stack[stack_ptr].addr;
+					--stack_ptr;
+					continue;
+				}
+
 				int prim_addr = __float_as_int(leaf.x);
 
 #if BVH_FEATURE(BVH_INSTANCING)
@@ -295,12 +300,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 								/* Intersect ray against primitive. */
 								hit = triangle_intersect(kg, &isect_precalc, isect_array, P, visibility, object, prim_addr);
 								if(hit) {
-									/* Update number of hits now, so we do proper check on max bounces. */
+									/* Move on to next entry in intersections array. */
+									isect_array++;
 									num_hits++;
 #if BVH_FEATURE(BVH_INSTANCING)
 									num_hits_in_instance++;
 #endif
-									if(num_hits >= max_hits) {
+									isect_array->t = isect_t;
+									if(num_hits == max_hits) {
 #if BVH_FEATURE(BVH_INSTANCING)
 #  if BVH_FEATURE(BVH_MOTION)
 										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
@@ -314,9 +321,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
 									}
-									/* Move on to next entry in intersections array */
-									isect_array++;
-									isect_array->t = isect_t;
 								}
 							}
 							break;
@@ -334,12 +338,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 								/* Intersect ray against primitive. */
 								hit = motion_triangle_intersect(kg, isect_array, P, dir, ray->time, visibility, object, prim_addr);
 								if(hit) {
-									/* Update number of hits now, so we do proper check on max bounces. */
+									/* Move on to next entry in intersections array. */
+									isect_array++;
 									num_hits++;
 #  if BVH_FEATURE(BVH_INSTANCING)
 									num_hits_in_instance++;
 #  endif
-									if(num_hits >= max_hits) {
+									isect_array->t = isect_t;
+									if(num_hits == max_hits) {
 #  if BVH_FEATURE(BVH_INSTANCING)
 #    if BVH_FEATURE(BVH_MOTION)
 										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
@@ -353,9 +359,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #  endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
 									}
-									/* Move on to next entry in intersections array */
-									isect_array++;
-									isect_array->t = isect_t;
 								}
 							}
 							break;
@@ -377,9 +380,9 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 						bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect_t);
 #  endif
 
-						if(idir.x >= 0.0f) { near_x = 0; far_x = 1; } else { near_x = 1; far_x = 0; }
-						if(idir.y >= 0.0f) { near_y = 2; far_y = 3; } else { near_y = 3; far_y = 2; }
-						if(idir.z >= 0.0f) { near_z = 4; far_z = 5; } else { near_z = 5; far_z = 4; }
+						qbvh_near_far_idx_calc(idir,
+						                       &near_x, &near_y, &near_z,
+						                       &far_x, &far_y, &far_z);
 						tfar = ssef(isect_t);
 						idir4 = sse3f(ssef(idir.x), ssef(idir.y), ssef(idir.z));
 #  if BVH_FEATURE(BVH_HAIR)
@@ -426,7 +429,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #  else
 				bvh_instance_pop_factor(kg, object, ray, &P, &dir, &idir, &t_fac);
 #  endif
-				triangle_intersect_precalc(dir, &isect_precalc);
 				/* Scale isect->t to adjust for instancing. */
 				for(int i = 0; i < num_hits_in_instance; i++) {
 					(isect_array-i-1)->t *= t_fac;
@@ -439,12 +441,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #  else
 				bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &ignore_t);
 #  endif
-				triangle_intersect_precalc(dir, &isect_precalc);
 			}
 
-			if(idir.x >= 0.0f) { near_x = 0; far_x = 1; } else { near_x = 1; far_x = 0; }
-			if(idir.y >= 0.0f) { near_y = 2; far_y = 3; } else { near_y = 3; far_y = 2; }
-			if(idir.z >= 0.0f) { near_z = 4; far_z = 5; } else { near_z = 5; far_z = 4; }
+			isect_t = tmax;
+			isect_array->t = isect_t;
+
+			qbvh_near_far_idx_calc(idir,
+			                       &near_x, &near_y, &near_z,
+			                       &far_x, &far_y, &far_z);
 			tfar = ssef(isect_t);
 #  if BVH_FEATURE(BVH_HAIR)
 			dir4 = sse3f(ssef(dir.x), ssef(dir.y), ssef(dir.z));
@@ -459,8 +463,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 #  endif
 
 			triangle_intersect_precalc(dir, &isect_precalc);
-			isect_t = tmax;
-			isect_array->t = isect_t;
 
 			object = OBJECT_NONE;
 			node_addr = traversal_stack[stack_ptr].addr;

@@ -1266,6 +1266,10 @@ static bool ui_drag_toggle_set_xy_xy(
 			}
 		}
 	}
+	if (changed) {
+		/* apply now, not on release (or if handlers are cancelled for whatever reason) */
+		ui_apply_but_funcs_after(C);
+	}
 
 	return changed;
 }
@@ -2214,32 +2218,6 @@ static void ui_but_drop(bContext *C, const wmEvent *event, uiBut *but, uiHandleB
 
 /* ******************* copy and paste ********************  */
 
-static void ui_but_copy_data_path(uiBut *but, const bool full_path)
-{
-	char *id_path;
-
-	if (but->rnapoin.id.data == NULL) {
-		return;
-	}
-
-	if (full_path) {
-		if (but->rnaprop) {
-			id_path = RNA_path_full_property_py_ex(&but->rnapoin, but->rnaprop, but->rnaindex, true);
-		}
-		else {
-			id_path = RNA_path_full_struct_py(&but->rnapoin);
-		}
-	}
-	else {
-		id_path = RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
-	}
-
-	if (id_path) {
-		WM_clipboard_text_set(id_path, false);
-		MEM_freeN(id_path);
-	}
-}
-
 /* c = copy, v = paste */
 static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data, char mode)
 {
@@ -2248,9 +2226,7 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 	bool buf_paste_alloc = false;
 	bool show_report = false;  /* use to display errors parsing paste input */
 
-	if (mode == 'v' && but->lock  == true) {
-		return;
-	}
+	BLI_assert((but->flag & UI_BUT_DISABLED) == 0); /* caller should check */
 
 	if (mode == 'c') {
 		/* disallow copying from any passwords */
@@ -5415,6 +5391,7 @@ static bool ui_numedit_but_HSVCUBE(
 	return changed;
 }
 
+#ifdef WITH_INPUT_NDOF
 static void ui_ndofedit_but_HSVCUBE(
         uiBut *but, uiHandleButtonData *data,
         const wmNDOFMotionData *ndof,
@@ -5487,6 +5464,7 @@ static void ui_ndofedit_but_HSVCUBE(
 	copy_v3_v3(data->vec, rgb);
 	ui_but_v3_set(but, data->vec);
 }
+#endif /* WITH_INPUT_NDOF */
 
 static int ui_do_but_HSVCUBE(
         bContext *C, uiBlock *block, uiBut *but,
@@ -5514,6 +5492,7 @@ static int ui_do_but_HSVCUBE(
 			
 			return WM_UI_HANDLER_BREAK;
 		}
+#ifdef WITH_INPUT_NDOF
 		else if (event->type == NDOF_MOTION) {
 			const wmNDOFMotionData *ndof = event->customdata;
 			const enum eSnapType snap = ui_event_to_snap(event);
@@ -5525,6 +5504,7 @@ static int ui_do_but_HSVCUBE(
 			
 			return WM_UI_HANDLER_BREAK;
 		}
+#endif /* WITH_INPUT_NDOF */
 		/* XXX hardcoded keymap check.... */
 		else if (event->type == BACKSPACEKEY && event->val == KM_PRESS) {
 			if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
@@ -5680,6 +5660,7 @@ static bool ui_numedit_but_HSVCIRCLE(
 	return changed;
 }
 
+#ifdef WITH_INPUT_NDOF
 static void ui_ndofedit_but_HSVCIRCLE(
         uiBut *but, uiHandleButtonData *data,
         const wmNDOFMotionData *ndof,
@@ -5750,7 +5731,7 @@ static void ui_ndofedit_but_HSVCIRCLE(
 	
 	ui_but_v3_set(but, data->vec);
 }
-
+#endif /* WITH_INPUT_NDOF */
 
 static int ui_do_but_HSVCIRCLE(
         bContext *C, uiBlock *block, uiBut *but,
@@ -5778,6 +5759,7 @@ static int ui_do_but_HSVCIRCLE(
 			
 			return WM_UI_HANDLER_BREAK;
 		}
+#ifdef WITH_INPUT_NDOF
 		else if (event->type == NDOF_MOTION) {
 			const enum eSnapType snap = ui_event_to_snap(event);
 			const wmNDOFMotionData *ndof = event->customdata;
@@ -5789,6 +5771,7 @@ static int ui_do_but_HSVCIRCLE(
 			
 			return WM_UI_HANDLER_BREAK;
 		}
+#endif /* WITH_INPUT_NDOF */
 		/* XXX hardcoded keymap check.... */
 		else if (event->type == BACKSPACEKEY && event->val == KM_PRESS) {
 			int len;
@@ -6967,10 +6950,16 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 	if (but->flag & UI_BUT_DISABLED)
 		return WM_UI_HANDLER_CONTINUE;
 
+	/* if but->pointype is set, but->poin should be too */
+	BLI_assert(!but->pointype || but->poin);
+
+	/* Only hard-coded stuff here, button interactions with configurable
+	 * keymaps are handled using operators (see #ED_keymap_ui). */
+
 	if ((data->state == BUTTON_STATE_HIGHLIGHT) || (event->type == EVT_DROP)) {
 		/* handle copy-paste */
 		if (ELEM(event->type, CKEY, VKEY) && event->val == KM_PRESS &&
-		    IS_EVENT_MOD(event, ctrl, oskey))
+		    IS_EVENT_MOD(event, ctrl, oskey) && !event->shift && !event->alt)
 		{
 			/* Specific handling for listrows, we try to find their overlapping tex button. */
 			if (but->type == UI_BTYPE_LISTROW) {
@@ -6980,104 +6969,12 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 					data = but->active;
 				}
 			}
-
-			/* special case, copy-data-path */
-			if ((event->type == CKEY) && event->shift) {
-				ui_but_copy_data_path(but, event->alt != 0);
-				return WM_UI_HANDLER_BREAK;
-			}
-
 			ui_but_copy_paste(C, but, data, (event->type == CKEY) ? 'c' : 'v');
 			return WM_UI_HANDLER_BREAK;
 		}
 		/* handle drop */
 		else if (event->type == EVT_DROP) {
 			ui_but_drop(C, event, but, data);
-		}
-		/* handle eyedropper */
-		else if ((event->type == EKEY) && (event->val == KM_PRESS)) {
-			if (IS_EVENT_MOD(event, shift, ctrl, alt, oskey)) {
-				/* pass */
-			}
-			else {
-				if (but->type == UI_BTYPE_COLOR) {
-					WM_operator_name_call(C, "UI_OT_eyedropper_color", WM_OP_INVOKE_DEFAULT, NULL);
-					return WM_UI_HANDLER_BREAK;
-				}
-				else if ((but->type == UI_BTYPE_SEARCH_MENU) &&
-				         (but->flag & UI_BUT_SEARCH_UNLINK))
-				{
-					if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_POINTER) {
-						StructRNA *type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
-						const short idcode = RNA_type_to_ID_code(type);
-						if ((idcode == ID_OB) || OB_DATA_SUPPORT_ID(idcode)) {
-							WM_operator_name_call(C, "UI_OT_eyedropper_id", WM_OP_INVOKE_DEFAULT, NULL);
-							return WM_UI_HANDLER_BREAK;
-						}
-					}
-				}
-				else if (but->type == UI_BTYPE_NUM) {
-					if (but->rnaprop &&
-					    (RNA_property_type(but->rnaprop) == PROP_FLOAT) &&
-					    (RNA_property_subtype(but->rnaprop) & PROP_UNIT_LENGTH) &&
-					    (RNA_property_array_check(but->rnaprop) == false))
-					{
-						WM_operator_name_call(C, "UI_OT_eyedropper_depth", WM_OP_INVOKE_DEFAULT, NULL);
-						return WM_UI_HANDLER_BREAK;
-					}
-				}
-			}
-		}
-		/* handle keyframing */
-		else if ((event->type == IKEY) &&
-		         !IS_EVENT_MOD(event, ctrl, oskey) &&
-		         (event->val == KM_PRESS))
-		{
-			if (event->alt) {
-				if (event->shift) {
-					ui_but_anim_clear_keyframe(C);
-				}
-				else {
-					ui_but_anim_delete_keyframe(C);
-				}
-			}
-			else {
-				ui_but_anim_insert_keyframe(C);
-			}
-			
-			ED_region_tag_redraw(data->region);
-			
-			return WM_UI_HANDLER_BREAK;
-		}
-		/* handle drivers */
-		else if ((event->type == DKEY) &&
-		         !IS_EVENT_MOD(event, shift, oskey) &&
-		         (event->val == KM_PRESS))
-		{
-			/* quick check to prevent this opening within the popup menu its self */
-			if (!ELEM(NULL, but->rnapoin.data, but->rnaprop)) {
-				if (event->alt)
-					ui_but_anim_remove_driver(C);
-				else if (event->ctrl)
-					ui_but_anim_add_driver(C);
-
-				ED_region_tag_redraw(data->region);
-			}
-			return WM_UI_HANDLER_BREAK;
-		}
-		/* handle keyingsets */
-		else if ((event->type == KKEY) &&
-		         !IS_EVENT_MOD(event, shift, ctrl, oskey) &&
-		         (event->val == KM_PRESS))
-		{
-			if (event->alt)
-				ui_but_anim_remove_keyingset(C);
-			else
-				ui_but_anim_add_keyingset(C);
-				
-			ED_region_tag_redraw(data->region);
-			
-			return WM_UI_HANDLER_BREAK;
 		}
 		/* handle menu */
 		else if ((event->type == RIGHTMOUSE) &&
@@ -7088,24 +6985,6 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 			if (ui_but_menu(C, but)) {
 				return WM_UI_HANDLER_BREAK;
 			}
-		}
-	}
-
-	/* verify if we can edit this button */
-	if (ELEM(event->type, LEFTMOUSE, RETKEY)) {
-		/* this should become disabled button .. */
-		if (but->lock == true) {
-			if (but->lockstr) {
-				WM_report(RPT_INFO, but->lockstr);
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-				return WM_UI_HANDLER_BREAK;
-			}
-		}
-		else if (but->pointype && but->poin == NULL) {
-			/* there's a pointer needed */
-			BKE_reportf(NULL, RPT_WARNING, "DoButton pointer error: %s", but->str);
-			button_activate_state(C, but, BUTTON_STATE_EXIT);
-			return WM_UI_HANDLER_BREAK;
 		}
 	}
 
@@ -8088,8 +7967,13 @@ uiBut *UI_context_active_but_get(const struct bContext *C)
 	return ui_context_button_active(C, NULL);
 }
 
-/* helper function for insert keyframe, reset to default, etc operators */
-void UI_context_active_but_prop_get(
+/**
+ * Version of #UI_context_active_but_get that also returns RNA property info.
+ * Helper function for insert keyframe, reset to default, etc operators.
+ *
+ * \return active button, NULL if none found or if it doesn't contain valid RNA data.
+ */
+uiBut *UI_context_active_but_prop_get(
         const bContext *C,
         struct PointerRNA *r_ptr, struct PropertyRNA **r_prop, int *r_index)
 {
@@ -8105,6 +7989,8 @@ void UI_context_active_but_prop_get(
 		*r_prop = NULL;
 		*r_index = 0;
 	}
+
+	return activebut;
 }
 
 void UI_context_active_but_prop_handle(bContext *C)
@@ -9914,6 +9800,17 @@ static int ui_handle_menus_recursive(
 	return retval;
 }
 
+/**
+ * Allow setting menu return value from externals. E.g. WM might need to do this for exiting files correctly.
+ */
+void UI_popup_menu_retval_set(const uiBlock *block, const int retval, const bool enable)
+{
+	uiPopupBlockHandle *menu = block->handle;
+	if (menu) {
+		menu->menuretval = enable ? (menu->menuretval | retval) : (menu->menuretval & retval);
+	}
+}
+
 /* *************** UI event handlers **************** */
 
 static int ui_region_handler(bContext *C, const wmEvent *event, void *UNUSED(userdata))
@@ -10155,6 +10052,14 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 static void ui_popup_handler_remove(bContext *C, void *userdata)
 {
 	uiPopupBlockHandle *menu = userdata;
+
+	/* More correct would be to expect UI_RETURN_CANCEL here, but not wanting to
+	 * cancel when removing handlers because of file exit is a rare exception.
+	 * So instead of setting cancel flag for all menus before removing handlers,
+	 * just explicitly flag menu with UI_RETURN_OK to avoid cancelling it. */
+	if ((menu->menuretval & UI_RETURN_OK) == 0 && menu->cancel_func) {
+		menu->cancel_func(C, menu->popup_arg);
+	}
 
 	/* free menu block if window is closed for some reason */
 	ui_popup_block_free(C, menu);

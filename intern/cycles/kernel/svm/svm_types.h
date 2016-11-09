@@ -26,6 +26,8 @@ CCL_NAMESPACE_BEGIN
 /* SVM stack offsets with this value indicate that it's not on the stack */
 #define SVM_STACK_INVALID 255 
 
+#define SVM_BUMP_EVAL_STATE_SIZE 9
+
 /* Nodes */
 
 /* Known frequencies of used nodes, used for selective nodes compilation
@@ -45,11 +47,12 @@ CCL_NAMESPACE_BEGIN
 #define NODE_FEATURE_VOLUME     (1 << 0)
 #define NODE_FEATURE_HAIR       (1 << 1)
 #define NODE_FEATURE_BUMP       (1 << 2)
+#define NODE_FEATURE_BUMP_STATE (1 << 3)
 /* TODO(sergey): Consider using something like ((uint)(-1)).
  * Need to check carefully operand types around usage of this
  * define first.
  */
-#define NODE_FEATURE_ALL        (NODE_FEATURE_VOLUME|NODE_FEATURE_HAIR|NODE_FEATURE_BUMP)
+#define NODE_FEATURE_ALL        (NODE_FEATURE_VOLUME|NODE_FEATURE_HAIR|NODE_FEATURE_BUMP|NODE_FEATURE_BUMP_STATE)
 
 typedef enum ShaderNodeType {
 	NODE_END = 0,
@@ -127,6 +130,8 @@ typedef enum ShaderNodeType {
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
 	NODE_TEX_VOXEL,
+	NODE_ENTER_BUMP_EVAL,
+	NODE_LEAVE_BUMP_EVAL,
 	NODE_OPENVDB,
 } ShaderNodeType;
 
@@ -380,7 +385,8 @@ typedef enum NodeOpenVDBType {
 typedef enum ShaderType {
 	SHADER_TYPE_SURFACE,
 	SHADER_TYPE_VOLUME,
-	SHADER_TYPE_DISPLACEMENT
+	SHADER_TYPE_DISPLACEMENT,
+	SHADER_TYPE_BUMP,
 } ShaderType;
 
 /* Closure */
@@ -455,6 +461,9 @@ typedef enum ClosureType {
 #define CLOSURE_IS_BSDF_TRANSMISSION(type) (type >= CLOSURE_BSDF_TRANSMISSION_ID && type <= CLOSURE_BSDF_HAIR_TRANSMISSION_ID)
 #define CLOSURE_IS_BSDF_BSSRDF(type) (type == CLOSURE_BSDF_BSSRDF_ID)
 #define CLOSURE_IS_BSDF_ANISOTROPIC(type) (type >= CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID && type <= CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID)
+#define CLOSURE_IS_BSDF_MULTISCATTER(type) (type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID ||\
+                                            type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ANISO_ID || \
+											type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID)
 #define CLOSURE_IS_BSDF_OR_BSSRDF(type) (type <= CLOSURE_BSSRDF_BURLEY_ID)
 #define CLOSURE_IS_BSSRDF(type) (type >= CLOSURE_BSSRDF_CUBIC_ID && type <= CLOSURE_BSSRDF_BURLEY_ID)
 #define CLOSURE_IS_VOLUME(type) (type >= CLOSURE_VOLUME_ID && type <= CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID)

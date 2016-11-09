@@ -75,12 +75,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 		}
 
 		uint num_hits;
-		if(max_hits == 0) {
-			blocked = true;
-			num_hits = 0;
-		} else {
-			blocked = scene_intersect_shadow_all(kg, ray, hits, max_hits, &num_hits);
-		}
+		blocked = scene_intersect_shadow_all(kg, ray, hits, max_hits, &num_hits);
 
 		/* if no opaque surface found but we did find transparent hits, shade them */
 		if(!blocked && num_hits > 0) {
@@ -130,14 +125,14 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 
 				/* stop if all light is blocked */
 				if(is_zero(throughput)) {
-					/* free dynamic storage */
 					return true;
 				}
 
 				/* move ray forward */
 				ray->P = shadow_sd->P;
-				if(ray->t != FLT_MAX)
+				if(ray->t != FLT_MAX) {
 					ray->D = normalize_len(Pend - ray->P, &ray->t);
+				}
 
 #ifdef __VOLUME__
 				/* exit/enter volume */
@@ -160,7 +155,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ShaderData *shadow_sd, 
 	}
 	else {
 		Intersection isect;
-		blocked = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f);
+		blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, &isect, NULL, 0.0f, 0.0f);
 	}
 
 #ifdef __VOLUME__
@@ -210,7 +205,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 	Intersection *isect = &isect_object;
 #endif
 
-	bool blocked = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f);
+	bool blocked = scene_intersect(kg, *ray, PATH_RAY_SHADOW_OPAQUE, isect, NULL, 0.0f, 0.0f);
 
 #ifdef __TRANSPARENT_SHADOWS__
 	if(blocked && kernel_data.integrator.transparent_shadows) {
@@ -226,7 +221,7 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 				if(bounce >= kernel_data.integrator.transparent_max_bounce)
 					return true;
 
-				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, isect, NULL, 0.0f, 0.0f))
+				if(!scene_intersect(kg, *ray, PATH_RAY_SHADOW_TRANSPARENT, isect, NULL, 0.0f, 0.0f))
 				{
 #ifdef __VOLUME__
 					/* attenuation for last line segment towards light */
@@ -239,8 +234,9 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 					return false;
 				}
 
-				if(!shader_transparent_shadow(kg, isect))
+				if(!shader_transparent_shadow(kg, isect)) {
 					return true;
+				}
 
 #ifdef __VOLUME__
 				/* attenuation between last surface and next surface */
@@ -263,13 +259,16 @@ ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
 					throughput *= shader_bsdf_transparency(kg, shadow_sd);
 				}
 
-				if(is_zero(throughput))
+				/* stop if all light is blocked */
+				if(is_zero(throughput)) {
 					return true;
+				}
 
 				/* move ray forward */
 				ray->P = ray_offset(ccl_fetch(shadow_sd, P), -ccl_fetch(shadow_sd, Ng));
-				if(ray->t != FLT_MAX)
+				if(ray->t != FLT_MAX) {
 					ray->D = normalize_len(Pend - ray->P, &ray->t);
+				}
 
 #ifdef __VOLUME__
 				/* exit/enter volume */

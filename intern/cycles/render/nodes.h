@@ -153,8 +153,8 @@ class OutputNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(OutputNode)
 
-	void* surface;
-	void* volume;
+	void *surface;
+	void *volume;
 	float displacement;
 	float3 normal;
 
@@ -244,7 +244,7 @@ public:
 	int offset_frequency, squash_frequency;
 
 	float3 color1, color2, mortar;
-	float scale, mortar_size, bias, brick_width, row_height;
+	float scale, mortar_size, mortar_smooth, bias, brick_width, row_height;
 	float3 vector;
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
@@ -351,6 +351,7 @@ public:
 	float roughness, anisotropy, rotation;
 	ClosureType distribution;
 
+	ClosureType get_closure_type() { return distribution; }
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 };
 
@@ -386,6 +387,7 @@ public:
 
 	void simplify_settings(Scene *scene);
 	bool has_integrator_dependency();
+	ClosureType get_closure_type() { return distribution; }
 
 	float roughness;
 	ClosureType distribution, distribution_orig;
@@ -397,6 +399,7 @@ public:
 
 	void simplify_settings(Scene *scene);
 	bool has_integrator_dependency();
+	ClosureType get_closure_type() { return distribution; }
 
 	float roughness, IOR;
 	ClosureType distribution, distribution_orig;
@@ -408,6 +411,7 @@ public:
 
 	void simplify_settings(Scene *scene);
 	bool has_integrator_dependency();
+	ClosureType get_closure_type() { return distribution; }
 
 	float roughness, IOR;
 	ClosureType distribution, distribution_orig;
@@ -426,6 +430,7 @@ public:
 	SHADER_NODE_CLASS(SubsurfaceScatteringNode)
 	bool has_surface_bssrdf() { return true; }
 	bool has_bssrdf_bump();
+	ClosureType get_closure_type() { return falloff; }
 
 	float scale;
 	float3 radius;
@@ -520,6 +525,7 @@ public:
 class HairBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(HairBsdfNode)
+	ClosureType get_closure_type() { return component; }
 
 	ClosureType component;
 	float offset;
@@ -765,6 +771,7 @@ class CameraNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(CameraNode)
 	bool has_spatial_varying() { return true; }
+	virtual int get_group() { return NODE_GROUP_LEVEL_2; }
 };
 
 class FresnelNode : public ShaderNode {
@@ -868,6 +875,7 @@ public:
 	}
 
 	bool invert;
+	bool use_object_space;
 	float height;
 	float sample_center;
 	float sample_x;
@@ -884,28 +892,32 @@ public:
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
-	bool has_spatial_varying() { return true; }
-	void compile(SVMCompiler& compiler, int type, ShaderInput *value_in, ShaderOutput *value_out);
-	void compile(OSLCompiler& compiler, const char *name);
-
 	array<float3> curves;
 	float min_x, max_x, fac;
 	float3 value;
+
+protected:
+	void constant_fold(const ConstantFolder& folder, ShaderInput *value_in);
+	void compile(SVMCompiler& compiler, int type, ShaderInput *value_in, ShaderOutput *value_out);
+	void compile(OSLCompiler& compiler, const char *name);
 };
 
 class RGBCurvesNode : public CurvesNode {
 public:
 	SHADER_NODE_CLASS(RGBCurvesNode)
+	void constant_fold(const ConstantFolder& folder);
 };
 
 class VectorCurvesNode : public CurvesNode {
 public:
 	SHADER_NODE_CLASS(VectorCurvesNode)
+	void constant_fold(const ConstantFolder& folder);
 };
 
 class RGBRampNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(RGBRampNode)
+	void constant_fold(const ConstantFolder& folder);
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 
 	array<float3> ramp;
@@ -922,7 +934,7 @@ public:
 
 class OSLNode : public ShaderNode {
 public:
-	static OSLNode *create(size_t num_inputs);
+	static OSLNode *create(size_t num_inputs, const OSLNode *from = NULL);
 	~OSLNode();
 
 	ShaderNode *clone() const;

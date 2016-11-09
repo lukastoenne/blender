@@ -17,6 +17,8 @@ def render_file(filepath):
         "--factory-startup",
         filepath,
         "-E", "CYCLES",
+        # Run with OSL enabled
+        # "--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True",
         "-o", TEMP_FILE_MASK,
         "-F", "PNG",
         "-f", "1",
@@ -36,11 +38,11 @@ def render_file(filepath):
         elif b"blender probably wont start" in e.output:
             return "NO_START"
         return "CRASH"
-    except:
+    except BaseException as e:
         if os.path.exists(TEMP_FILE):
             os.remove(TEMP_FILE)
         if VERBOSE:
-            print(e.output.decode("utf-8"))
+            print(e)
         return "CRASH"
 
 
@@ -66,15 +68,16 @@ def verify_output(filepath):
         )
     try:
         subprocess.check_output(command)
-        if os.path.exists(failed_image):
-            os.remove(failed_image)
-        return True
+        failed = False
     except subprocess.CalledProcessError as e:
-        if e.returncode != 1:
-            shutil.copy(TEMP_FILE, failed_image)
         if VERBOSE:
             print(e.output.decode("utf-8"))
-        return e.returncode == 1
+        failed = e.returncode != 1
+    if failed:
+        shutil.copy(TEMP_FILE, failed_image)
+    elif os.path.exists(failed_image):
+        os.remove(failed_image)
+    return not failed
 
 
 def run_test(filepath):

@@ -636,6 +636,11 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 			}
 		}
 		requested_features.use_object_motion |= object->use_motion;
+#ifdef WITH_OPENSUBDIV
+		if(mesh->subdivision_type != Mesh::SUBDIVISION_NONE) {
+			requested_features.use_patch_evaluation = true;
+		}
+#endif
 	}
 
 	BakeManager *bake_manager = scene->bake_manager;

@@ -62,6 +62,7 @@ struct AnimData;
 struct Editing;
 struct SceneStats;
 struct bGPdata;
+struct bGPDbrush;
 struct MovieClip;
 struct ColorSpace;
 
@@ -134,6 +135,37 @@ typedef struct QuicktimeCodecSettings {
 	int pad1;
 } QuicktimeCodecSettings;
 
+typedef enum FFMpegPreset {
+	FFM_PRESET_NONE,
+	FFM_PRESET_ULTRAFAST,
+	FFM_PRESET_SUPERFAST,
+	FFM_PRESET_VERYFAST,
+	FFM_PRESET_FASTER,
+	FFM_PRESET_FAST,
+	FFM_PRESET_MEDIUM,
+	FFM_PRESET_SLOW,
+	FFM_PRESET_SLOWER,
+	FFM_PRESET_VERYSLOW,
+} FFMpegPreset;
+
+
+/* Mapping from easily-understandable descriptions to CRF values.
+ * Assumes we output 8-bit video. Needs to be remapped if 10-bit
+ * is output.
+ * We use a slightly wider than "subjectively sane range" according
+ * to https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue
+ */
+typedef enum FFMpegCrf {
+	FFM_CRF_NONE = -1,
+	FFM_CRF_LOSSLESS = 0,
+	FFM_CRF_PERC_LOSSLESS = 17,
+	FFM_CRF_HIGH = 20,
+	FFM_CRF_MEDIUM = 23,
+	FFM_CRF_LOW = 26,
+	FFM_CRF_VERYLOW = 29,
+	FFM_CRF_LOWEST = 32,
+} FFMpegCrf;
+
 typedef struct FFMpegCodecData {
 	int type;
 	int codec;
@@ -145,13 +177,18 @@ typedef struct FFMpegCodecData {
 	int audio_pad;
 	float audio_volume;
 	int gop_size;
+	int max_b_frames; /* only used if FFMPEG_USE_MAX_B_FRAMES flag is set. */
 	int flags;
+	int constant_rate_factor;
+	int ffmpeg_preset; /* see FFMpegPreset */
 
 	int rc_min_rate;
 	int rc_max_rate;
 	int rc_buffer_size;
 	int mux_packet_size;
 	int mux_rate;
+	int pad1;
+
 	IDProperty *properties;
 } FFMpegCodecData;
 
@@ -1117,11 +1154,19 @@ typedef enum eGP_EditBrush_Types {
 	GP_EDITBRUSH_TYPE_SUBDIVIDE = 7,
 	GP_EDITBRUSH_TYPE_SIMPLIFY  = 8,
 	GP_EDITBRUSH_TYPE_CLONE     = 9,
-	
+	GP_EDITBRUSH_TYPE_STRENGTH  = 10,
+
 	/* !!! Update GP_EditBrush_Data brush[###]; below !!! */
 	TOT_GP_EDITBRUSH_TYPES
 } eGP_EditBrush_Types;
 
+/* Lock axis options */
+typedef enum eGP_Lockaxis_Types {
+	GP_LOCKAXIS_NONE = 0,
+	GP_LOCKAXIS_X = 1,
+	GP_LOCKAXIS_Y = 2,
+	GP_LOCKAXIS_Z = 3
+} eGP_Lockaxis_Types;
 
 /* Settings for a GPencil Stroke Sculpting Brush */
 typedef struct GP_EditBrush_Data {
@@ -1148,17 +1193,30 @@ typedef enum eGP_EditBrush_Flag {
 
 /* GPencil Stroke Sculpting Settings */
 typedef struct GP_BrushEdit_Settings {
-	GP_EditBrush_Data brush[10];  /* TOT_GP_EDITBRUSH_TYPES */
+	GP_EditBrush_Data brush[11];  /* TOT_GP_EDITBRUSH_TYPES */
 	void *paintcursor;            /* runtime */
 	
 	int brushtype;                /* eGP_EditBrush_Types */
 	int flag;                     /* eGP_BrushEdit_SettingsFlag */
+	int lock_axis;                /* lock drawing to one axis */
+	float alpha;                  /* alpha factor for selection color */
 } GP_BrushEdit_Settings;
 
 /* GP_BrushEdit_Settings.flag */
 typedef enum eGP_BrushEdit_SettingsFlag {
 	/* only affect selected points */
-	GP_BRUSHEDIT_FLAG_SELECT_MASK = (1 << 0)
+	GP_BRUSHEDIT_FLAG_SELECT_MASK = (1 << 0),
+	/* apply brush to position */
+	GP_BRUSHEDIT_FLAG_APPLY_POSITION = (1 << 1),
+	/* apply brush to strength */
+	GP_BRUSHEDIT_FLAG_APPLY_STRENGTH = (1 << 2),
+	/* apply brush to thickness */
+	GP_BRUSHEDIT_FLAG_APPLY_THICKNESS = (1 << 3),
+	/* apply interpolation to all layers */
+	GP_BRUSHEDIT_FLAG_INTERPOLATE_ALL_LAYERS = (1 << 4),
+	/* apply interpolation to only selected */
+	GP_BRUSHEDIT_FLAG_INTERPOLATE_ONLY_SELECTED = (1 << 5)
+
 } eGP_BrushEdit_SettingsFlag;
 
 /* *************************************************************** */
@@ -1273,7 +1331,9 @@ typedef struct CurvePaintSettings {
 	char flag;
 	char depth_mode;
 	char surface_plane;
-	int error_threshold;
+	char fit_method;
+	char pad;
+	short error_threshold;
 	float radius_min, radius_max;
 	float radius_taper_start, radius_taper_end;
 	float surface_offset;
@@ -1286,6 +1346,12 @@ enum {
 	CURVE_PAINT_FLAG_PRESSURE_RADIUS            = (1 << 1),
 	CURVE_PAINT_FLAG_DEPTH_STROKE_ENDPOINTS     = (1 << 2),
 	CURVE_PAINT_FLAG_DEPTH_STROKE_OFFSET_ABS    = (1 << 3),
+};
+
+/* CurvePaintSettings.fit_method */
+enum {
+	CURVE_PAINT_FIT_METHOD_REFIT            = 0,
+	CURVE_PAINT_FIT_METHOD_SPLIT            = 1,
 };
 
 /* CurvePaintSettings.depth_mode */
@@ -1369,6 +1435,9 @@ typedef struct ToolSettings {
 	
 	/* Grease Pencil Sculpt */
 	struct GP_BrushEdit_Settings gp_sculpt;
+
+	/* Grease Pencil Drawing Brushes (bGPDbrush) */
+	ListBase gp_brushes; 
 
 	/* Image Paint (8 byttse aligned please!) */
 	struct ImagePaintSettings imapaint;
@@ -1717,9 +1786,11 @@ typedef struct Scene {
 #define R_STAMP_CAMERALENS	0x0800
 #define R_STAMP_STRIPMETA	0x1000
 #define R_STAMP_MEMORY		0x2000
+#define R_STAMP_HIDE_LABELS	0x4000
 #define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
                      R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
-                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS|R_STAMP_MEMORY)
+                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS|R_STAMP_MEMORY|                 \
+                     R_STAMP_HIDE_LABELS)
 
 /* alphamode */
 #define R_ADDSKY		0
@@ -1955,6 +2026,7 @@ enum {
 #endif
 	FFMPEG_AUTOSPLIT_OUTPUT = 2,
 	FFMPEG_LOSSLESS_OUTPUT  = 4,
+	FFMPEG_USE_MAX_B_FRAMES = (1 << 3),
 };
 
 /* Paint.flags */
@@ -2067,6 +2139,8 @@ typedef enum eGPencil_Flags {
 	GP_TOOL_FLAG_PAINTSESSIONS_ON       = (1 << 0),
 	/* When creating new frames, the last frame gets used as the basis for the new one */
 	GP_TOOL_FLAG_RETAIN_LAST            = (1 << 1),
+	/* Add the strokes below all strokes in the layer */
+	GP_TOOL_FLAG_PAINT_ONBACK = (1 << 2)
 } eGPencil_Flags;
 
 /* toolsettings->gpencil_src */

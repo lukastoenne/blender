@@ -99,6 +99,7 @@ ustring OSLRenderServices::u_geom_numpolyvertices("geom:numpolyvertices");
 ustring OSLRenderServices::u_geom_trianglevertices("geom:trianglevertices");
 ustring OSLRenderServices::u_geom_polyvertices("geom:polyvertices");
 ustring OSLRenderServices::u_geom_name("geom:name");
+ustring OSLRenderServices::u_geom_undisplaced("geom:undisplaced");
 ustring OSLRenderServices::u_is_smooth("geom:is_smooth");
 #ifdef __HAIR__
 ustring OSLRenderServices::u_is_curve("geom:is_curve");
@@ -133,8 +134,10 @@ OSLRenderServices::OSLRenderServices()
 
 OSLRenderServices::~OSLRenderServices()
 {
-	VLOG(2) << "OSL texture system stats:\n"
-	        << osl_ts->getstats();
+	if(osl_ts) {
+		VLOG(2) << "OSL texture system stats:\n"
+		        << osl_ts->getstats();
+	}
 #ifdef WITH_PTEX
 	ptex_cache->release();
 #endif
@@ -171,6 +174,12 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg, OSL::Matrix44 &result
 
 			return true;
 		}
+		else if(sd->type == PRIMITIVE_LAMP) {
+			Transform tfm = transform_transpose(sd->ob_tfm);
+			COPY_MATRIX44(&result, &tfm);
+
+			return true;
+		}
 	}
 
 	return false;
@@ -198,6 +207,12 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg, OSL::Matrix44
 #endif
 			itfm = transform_transpose(itfm);
 			COPY_MATRIX44(&result, &itfm);
+
+			return true;
+		}
+		else if(sd->type == PRIMITIVE_LAMP) {
+			Transform tfm = transform_transpose(sd->ob_itfm);
+			COPY_MATRIX44(&result, &tfm);
 
 			return true;
 		}
@@ -290,6 +305,12 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg, OSL::Matrix44 &result
 
 			return true;
 		}
+		else if(sd->type == PRIMITIVE_LAMP) {
+			Transform tfm = transform_transpose(sd->ob_tfm);
+			COPY_MATRIX44(&result, &tfm);
+
+			return true;
+		}
 	}
 
 	return false;
@@ -311,6 +332,12 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg, OSL::Matrix44
 			Transform tfm = object_fetch_transform(kg, object, OBJECT_INVERSE_TRANSFORM);
 #endif
 			tfm = transform_transpose(tfm);
+			COPY_MATRIX44(&result, &tfm);
+
+			return true;
+		}
+		else if(sd->type == PRIMITIVE_LAMP) {
+			Transform tfm = transform_transpose(sd->ob_itfm);
 			COPY_MATRIX44(&result, &tfm);
 
 			return true;
@@ -560,13 +587,13 @@ static bool get_mesh_element_attribute(KernelGlobals *kg, const ShaderData *sd, 
 	   attr.type == TypeDesc::TypeNormal || attr.type == TypeDesc::TypeColor)
 	{
 		float3 fval[3];
-		fval[0] = primitive_attribute_float3(kg, sd, attr.elem, attr.offset,
+		fval[0] = primitive_attribute_float3(kg, sd, attr.desc,
 		                                     (derivatives) ? &fval[1] : NULL, (derivatives) ? &fval[2] : NULL);
 		return set_attribute_float3(fval, type, derivatives, val);
 	}
 	else if(attr.type == TypeDesc::TypeFloat) {
 		float fval[3];
-		fval[0] = primitive_attribute_float(kg, sd, attr.elem, attr.offset,
+		fval[0] = primitive_attribute_float(kg, sd, attr.desc,
 		                                    (derivatives) ? &fval[1] : NULL, (derivatives) ? &fval[2] : NULL);
 		return set_attribute_float(fval, type, derivatives, val);
 	}
@@ -579,7 +606,7 @@ static bool get_mesh_attribute(KernelGlobals *kg, const ShaderData *sd, const OS
                                const TypeDesc& type, bool derivatives, void *val)
 {
 	if(attr.type == TypeDesc::TypeMatrix) {
-		Transform tfm = primitive_attribute_matrix(kg, sd, attr.offset);
+		Transform tfm = primitive_attribute_matrix(kg, sd, attr.desc);
 		return set_attribute_matrix(tfm, type, val);
 	}
 	else {
@@ -793,7 +820,7 @@ bool OSLRenderServices::get_attribute(ShaderData *sd, bool derivatives, ustring 
                                       TypeDesc type, ustring name, void *val)
 {
 	KernelGlobals *kg = sd->osl_globals;
-	bool is_curve;
+	int prim_type = 0;
 	int object;
 
 	/* lookup of attribute on another object */
@@ -804,25 +831,24 @@ bool OSLRenderServices::get_attribute(ShaderData *sd, bool derivatives, ustring 
 			return false;
 
 		object = it->second;
-		is_curve = false;
 	}
 	else {
 		object = sd->object;
-		is_curve = (sd->type & PRIMITIVE_ALL_CURVE) != 0;
+		prim_type = attribute_primitive_type(kg, sd);
 
 		if(object == OBJECT_NONE)
 			return get_background_attribute(kg, sd, name, type, derivatives, val);
 	}
 
 	/* find attribute on object */
-	object = object*ATTR_PRIM_TYPES + (is_curve == true);
+	object = object*ATTR_PRIM_TYPES + prim_type;
 	OSLGlobals::AttributeMap& attribute_map = kg->osl->attribute_map[object];
 	OSLGlobals::AttributeMap::iterator it = attribute_map.find(name);
 
 	if(it != attribute_map.end()) {
 		const OSLGlobals::Attribute& attr = it->second;
 
-		if(attr.elem != ATTR_ELEMENT_OBJECT) {
+		if(attr.desc.element != ATTR_ELEMENT_OBJECT) {
 			/* triangle and vertex attributes */
 			if(get_mesh_element_attribute(kg, sd, attr, type, derivatives, val))
 				return true;
@@ -1157,7 +1183,7 @@ bool OSLRenderServices::trace(TraceOpt &options, OSL::ShaderGlobals *sg,
 	tracedata->sd.osl_globals = sd->osl_globals;
 
 	/* raytrace */
-	return scene_intersect(sd->osl_globals, &ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect, NULL, 0.0f, 0.0f);
+	return scene_intersect(sd->osl_globals, ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect, NULL, 0.0f, 0.0f);
 }
 
 

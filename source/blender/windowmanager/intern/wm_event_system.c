@@ -81,9 +81,7 @@
 #include "wm_event_system.h"
 #include "wm_event_types.h"
 
-#ifndef NDEBUG
-#  include "RNA_enum_types.h"
-#endif
+#include "RNA_enum_types.h"
 
 static void wm_notifier_clear(wmNotifier *note);
 static void update_tablet_data(wmWindow *win, wmEvent *event);
@@ -550,8 +548,6 @@ void WM_operator_region_active_win_set(bContext *C)
 }
 
 /* for debugging only, getting inspecting events manually is tedious */
-#ifndef NDEBUG
-
 void WM_event_print(const wmEvent *event)
 {
 	if (event) {
@@ -571,6 +567,7 @@ void WM_event_print(const wmEvent *event)
 		       BLI_str_utf8_size(event->utf8_buf), event->utf8_buf,
 		       event->keymap_idname, (const void *)event);
 
+#ifdef WITH_INPUT_NDOF
 		if (ISNDOF(event->type)) {
 			const wmNDOFMotionData *ndof = event->customdata;
 			if (event->type == NDOF_MOTION) {
@@ -581,6 +578,7 @@ void WM_event_print(const wmEvent *event)
 				/* ndof buttons printed already */
 			}
 		}
+#endif /* WITH_INPUT_NDOF */
 
 		if (event->tablet_data) {
 			const wmTabletData *wmtab = event->tablet_data;
@@ -592,8 +590,6 @@ void WM_event_print(const wmEvent *event)
 		printf("wmEvent - NULL\n");
 	}
 }
-
-#endif /* NDEBUG */
 
 /**
  * Show the report in the info header.
@@ -619,10 +615,12 @@ bool WM_event_is_absolute(const wmEvent *event)
 	return (event->tablet_data != NULL);
 }
 
+#ifdef WITH_INPUT_NDOF
 void WM_ndof_deadzone_set(float deadzone)
 {
 	GHOST_setNDOFDeadZone(deadzone);
 }
+#endif
 
 static void wm_add_reports(ReportList *reports)
 {
@@ -1969,15 +1967,11 @@ static int wm_action_not_handled(int action)
 
 static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers)
 {
-#ifndef NDEBUG
 	const bool do_debug_handler = (G.debug & G_DEBUG_HANDLERS) &&
 	        /* comment this out to flood the console! (if you really want to test) */
 	        !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)
 	        ;
-#    define PRINT if (do_debug_handler) printf
-#else
-#  define PRINT(format, ...)
-#endif
+# define PRINT if (do_debug_handler) printf
 
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmEventHandler *handler, *nexthandler;
@@ -2038,11 +2032,13 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 								break;
 							}
 							else {
-								if (action & WM_HANDLER_HANDLED)
+								if (action & WM_HANDLER_HANDLED) {
 									if (G.debug & (G_DEBUG_EVENTS | G_DEBUG_HANDLERS))
 										printf("%s:       handled - and pass on! '%s'\n", __func__, kmi->idname);
-								
-									PRINT("%s:       un-handled '%s'...", __func__, kmi->idname);
+								}
+								else {
+									PRINT("%s:       un-handled '%s'\n", __func__, kmi->idname);
+								}
 							}
 						}
 					}
@@ -2382,20 +2378,16 @@ void wm_event_do_handlers(bContext *C)
 		while ( (event = win->queue.first) ) {
 			int action = WM_HANDLER_CONTINUE;
 
-#ifndef NDEBUG
 			if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) && !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
 				printf("\n%s: Handling event\n", __func__);
 				WM_event_print(event);
 			}
-#endif
 
 			/* take care of pie event filter */
 			if (wm_event_pie_filter(win, event)) {
-#ifndef NDEBUG
 				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) && !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
 					printf("\n%s: event filtered due to pie button pressed\n", __func__);
 				}
-#endif
 				BLI_remlink(&win->queue, event);
 				wm_event_free(event);
 				continue;
@@ -2437,9 +2429,11 @@ void wm_event_do_handlers(bContext *C)
 					/* for regions having custom cursors */
 					wm_paintcursor_test(C, event);
 				}
+#ifdef WITH_INPUT_NDOF
 				else if (event->type == NDOF_MOTION) {
 					win->addmousemove = true;
 				}
+#endif
 
 				for (sa = win->screen->areabase.first; sa; sa = sa->next) {
 					/* after restoring a screen from SCREENMAXIMIZED we have to wait
@@ -3040,6 +3034,7 @@ static void update_tablet_data(wmWindow *win, wmEvent *event)
 	}
 }
 
+#ifdef WITH_INPUT_NDOF
 /* adds customdata to event */
 static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *ghost)
 {
@@ -3066,6 +3061,7 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 	event->customdata = data;
 	event->customdatafree = 1;
 }
+#endif /* WITH_INPUT_NDOF */
 
 /* imperfect but probably usable... draw/enable drags to other windows */
 static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *win, wmEvent *event)
@@ -3453,6 +3449,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
+#ifdef WITH_INPUT_NDOF
 		case GHOST_kEventNDOFMotion:
 		{
 			event.type = NDOF_MOTION;
@@ -3488,6 +3485,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 
 			break;
 		}
+#endif /* WITH_INPUT_NDOF */
 
 		case GHOST_kEventUnknown:
 		case GHOST_kNumEventTypes:
@@ -3559,6 +3557,7 @@ void WM_set_locked_interface(wmWindowManager *wm, bool lock)
 }
 
 
+#ifdef WITH_INPUT_NDOF
 /* -------------------------------------------------------------------- */
 /* NDOF */
 
@@ -3601,6 +3600,7 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	angle = WM_event_ndof_to_axis_angle(ndof, axis);
 	axis_angle_to_quat(q, axis, angle);
 }
+#endif /* WITH_INPUT_NDOF */
 
 /* if this is a tablet event, return tablet pressure and set *pen_flip
  * to 1 if the eraser tool is being used, 0 otherwise */

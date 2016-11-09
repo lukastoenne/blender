@@ -44,11 +44,11 @@ typedef struct LightSample {
  *
  * Note: light_p is modified when sample_coord is true.
  */
-ccl_device float area_light_sample(float3 P,
-                                   float3 *light_p,
-                                   float3 axisu, float3 axisv,
-                                   float randu, float randv,
-                                   bool sample_coord)
+ccl_device_inline float area_light_sample(float3 P,
+                                          float3 *light_p,
+                                          float3 axisu, float3 axisv,
+                                          float randu, float randv,
+                                          bool sample_coord)
 {
 	/* In our name system we're using P for the center,
 	 * which is o in the paper.
@@ -268,11 +268,11 @@ ccl_device_inline bool background_portal_data_fetch_and_check_side(KernelGlobals
 	return false;
 }
 
-ccl_device float background_portal_pdf(KernelGlobals *kg,
-                                       float3 P,
-                                       float3 direction,
-                                       int ignore_portal,
-                                       bool *is_possible)
+ccl_device_inline float background_portal_pdf(KernelGlobals *kg,
+                                              float3 P,
+                                              float3 direction,
+                                              int ignore_portal,
+                                              bool *is_possible)
 {
 	float portal_pdf = 0.0f;
 
@@ -297,7 +297,7 @@ ccl_device float background_portal_pdf(KernelGlobals *kg,
 		float3 axisu = make_float3(data1.y, data1.z, data1.w);
 		float3 axisv = make_float3(data2.y, data2.z, data2.w);
 
-		if(!ray_quad_intersect(P, direction, 1e-4f, FLT_MAX, lightpos, axisu, axisv, dir, NULL, NULL))
+		if(!ray_quad_intersect(P, direction, 1e-4f, FLT_MAX, lightpos, axisu, axisv, dir, NULL, NULL, NULL, NULL))
 			continue;
 
 		portal_pdf += area_light_sample(P, &lightpos, axisu, axisv, 0.0f, 0.0f, false);
@@ -367,7 +367,10 @@ ccl_device float3 background_portal_sample(KernelGlobals *kg,
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 background_light_sample(KernelGlobals *kg, float3 P, float randu, float randv, float *pdf)
+ccl_device_inline float3 background_light_sample(KernelGlobals *kg,
+                                                 float3 P,
+                                                 float randu, float randv,
+                                                 float *pdf)
 {
 	/* Probability of sampling portals instead of the map. */
 	float portal_sampling_pdf = kernel_data.integrator.portal_pdf;
@@ -507,8 +510,11 @@ ccl_device float lamp_light_pdf(KernelGlobals *kg, const float3 Ng, const float3
 	return t*t/cos_pi;
 }
 
-ccl_device void lamp_light_sample(KernelGlobals *kg, int lamp,
-	float randu, float randv, float3 P, LightSample *ls)
+ccl_device_inline bool lamp_light_sample(KernelGlobals *kg,
+                                         int lamp,
+                                         float randu, float randv,
+                                         float3 P,
+                                         LightSample *ls)
 {
 	float4 data0 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 0);
 	float4 data1 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 1);
@@ -575,7 +581,14 @@ ccl_device void lamp_light_sample(KernelGlobals *kg, int lamp,
 				/* spot light attenuation */
 				float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
 				ls->eval_fac *= spot_light_attenuation(data1, data2, ls);
+				if(ls->eval_fac == 0.0f) {
+					return false;
+				}
 			}
+			float2 uv = map_to_sphere(ls->Ng);
+			ls->u = uv.x;
+			ls->v = uv.y;
+
 			ls->pdf *= lamp_light_pdf(kg, ls->Ng, -ls->D, ls->t);
 		}
 		else {
@@ -587,23 +600,31 @@ ccl_device void lamp_light_sample(KernelGlobals *kg, int lamp,
 			float3 axisv = make_float3(data2.y, data2.z, data2.w);
 			float3 D = make_float3(data3.y, data3.z, data3.w);
 
+			if(dot(ls->P - P, D) > 0.0f) {
+				return false;
+			}
+
+			float3 inplane = ls->P;
 			ls->pdf = area_light_sample(P, &ls->P,
 			                          axisu, axisv,
 			                          randu, randv,
 			                          true);
+
+			inplane = ls->P - inplane;
+			ls->u = dot(inplane, axisu) * (1.0f / dot(axisu, axisu)) + 0.5f;
+			ls->v = dot(inplane, axisv) * (1.0f / dot(axisv, axisv)) + 0.5f;
 
 			ls->Ng = D;
 			ls->D = normalize_len(ls->P - P, &ls->t);
 
 			float invarea = data2.x;
 			ls->eval_fac = 0.25f*invarea;
-
-			if(dot(ls->D, D) > 0.0f)
-				ls->pdf = 0.0f;
 		}
 
 		ls->eval_fac *= kernel_data.integrator.inv_pdf_lights;
 	}
+
+	return (ls->pdf > 0.0f);
 }
 
 ccl_device bool lamp_light_eval(KernelGlobals *kg, int lamp, float3 P, float3 D, float t, LightSample *ls)
@@ -694,6 +715,9 @@ ccl_device bool lamp_light_eval(KernelGlobals *kg, int lamp, float3 P, float3 D,
 			if(ls->eval_fac == 0.0f)
 				return false;
 		}
+		float2 uv = map_to_sphere(ls->Ng);
+		ls->u = uv.x;
+		ls->v = uv.y;
 
 		/* compute pdf */
 		if(ls->t != FLT_MAX)
@@ -718,8 +742,10 @@ ccl_device bool lamp_light_eval(KernelGlobals *kg, int lamp, float3 P, float3 D,
 
 		float3 light_P = make_float3(data0.y, data0.z, data0.w);
 
-		if(!ray_quad_intersect(P, D, 0.0f, t,
-		                       light_P, axisu, axisv, Ng, &ls->P, &ls->t))
+		if(!ray_quad_intersect(P, D, 0.0f, t, light_P,
+		                       axisu, axisv, Ng,
+		                       &ls->P, &ls->t,
+		                       &ls->u, &ls->v))
 		{
 			return false;
 		}
@@ -741,7 +767,7 @@ ccl_device void object_transform_light_sample(KernelGlobals *kg, LightSample *ls
 {
 #ifdef __INSTANCING__
 	/* instance transform */
-	if(object >= 0) {
+	if(!(kernel_tex_fetch(__object_flag, object) & SD_TRANSFORM_APPLIED)) {
 #  ifdef __OBJECT_MOTION__
 		Transform itfm;
 		Transform tfm = object_fetch_transform_motion_test(kg, object, time, &itfm);
@@ -830,7 +856,7 @@ ccl_device bool light_select_reached_max_bounces(KernelGlobals *kg, int index, i
 	return (bounce > __float_as_int(data4.x));
 }
 
-ccl_device_noinline void light_sample(KernelGlobals *kg,
+ccl_device_noinline bool light_sample(KernelGlobals *kg,
                                       float randt,
                                       float randu,
                                       float randv,
@@ -851,21 +877,20 @@ ccl_device_noinline void light_sample(KernelGlobals *kg,
 		int shader_flag = __float_as_int(l.z);
 
 		triangle_light_sample(kg, prim, object, randu, randv, time, ls);
-
 		/* compute incoming direction, distance and pdf */
 		ls->D = normalize_len(ls->P - P, &ls->t);
 		ls->pdf = triangle_light_pdf(kg, ls->Ng, -ls->D, ls->t);
 		ls->shader |= shader_flag;
+		return (ls->pdf > 0.0f);
 	}
 	else {
 		int lamp = -prim-1;
 
 		if(UNLIKELY(light_select_reached_max_bounces(kg, lamp, bounce))) {
-			ls->pdf = 0.0f;
-			return;
+			return false;
 		}
 
-		lamp_light_sample(kg, lamp, randu, randv, P, ls);
+		return lamp_light_sample(kg, lamp, randu, randv, P, ls);
 	}
 }
 
@@ -876,4 +901,3 @@ ccl_device int light_select_num_samples(KernelGlobals *kg, int index)
 }
 
 CCL_NAMESPACE_END
-

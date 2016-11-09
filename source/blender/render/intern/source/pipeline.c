@@ -2785,6 +2785,7 @@ static void do_render_all_options(Render *re)
 
 	/* ensure no images are in memory from previous animated sequences */
 	BKE_image_all_free_anim_ibufs(re->r.cfra);
+	BKE_sequencer_all_free_anim_ibufs(re->r.cfra);
 
 	if (RE_engine_render(re, 1)) {
 		/* in this case external render overrides all */
@@ -3057,6 +3058,13 @@ bool RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *
 		}
 	}
 #endif
+
+	if (RE_seq_render_active(scene, &scene->r)) {
+		if (scene->r.mode & R_BORDER) {
+			BKE_report(reports, RPT_ERROR, "Border rendering is not supported by sequencer");
+			return false;
+		}
+	}
 
 	/* layer flag tests */
 	if (!render_scene_has_layers_to_render(scene)) {
@@ -4017,4 +4025,32 @@ RenderPass *RE_pass_find_by_type(volatile RenderLayer *rl, int passtype, const c
 		}
 	}
 	return rp;
+}
+
+/* create a renderlayer and renderpass for grease pencil layer */
+RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const char *viewname)
+{
+	RenderLayer *rl = BLI_findstring(&rr->layers, layername, offsetof(RenderLayer, name));
+	/* only create render layer if not exist */
+	if (!rl) {
+		rl = MEM_callocN(sizeof(RenderLayer), layername);
+		BLI_addtail(&rr->layers, rl);
+		BLI_strncpy(rl->name, layername, sizeof(rl->name));
+		rl->lay = 0;
+		rl->layflag = SCE_LAY_SOLID;
+		rl->passflag = SCE_PASS_COMBINED;
+		rl->rectx = rr->rectx;
+		rl->recty = rr->recty;
+	}
+	
+	/* clear previous pass if exist or the new image will be over previous one*/
+	RenderPass *rp = RE_pass_find_by_type(rl, SCE_PASS_COMBINED, viewname);
+	if (rp) {
+		if (rp->rect) {
+			MEM_freeN(rp->rect);
+		}
+		BLI_freelinkN(&rl->passes, rp);
+	}
+	/* create a totally new pass */
+	return gp_add_pass(rr, rl, 4, SCE_PASS_COMBINED, viewname);
 }

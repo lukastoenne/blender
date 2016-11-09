@@ -930,11 +930,18 @@ bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *pr
 	
 	/* update F-Curve flags to ensure proper behaviour for property type */
 	update_autoflags_fcurve_direct(fcu, prop);
-	
+
 	/* adjust frame on which to add keyframe */
 	if ((flag & INSERTKEY_DRIVER) && (fcu->driver)) {
-		/* for making it easier to add corrective drivers... */
-		cfra = evaluate_driver(fcu->driver, cfra);
+		PathResolvedRNA anim_rna;
+
+		if (RNA_path_resolved_create(&ptr, prop, fcu->array_index, &anim_rna)) {
+			/* for making it easier to add corrective drivers... */
+			cfra = evaluate_driver(&anim_rna, fcu->driver, cfra);
+		}
+		else {
+			cfra = 0.0f;
+		}
 	}
 	
 	/* obtain value to give keyframe */
@@ -1764,8 +1771,10 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 	flag = ANIM_get_keyframing_flags(scene, 1);
 	
 	/* try to insert keyframe using property retrieved from UI */
-	but = UI_context_active_but_get(C);
-	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
+		/* pass event on if no active button found */
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
 	
 	if ((ptr.id.data && ptr.data && prop) && RNA_property_animateable(&ptr, prop)) {
 		if (ptr.type == &RNA_NlaStrip) {
@@ -1866,7 +1875,10 @@ static int delete_key_button_exec(bContext *C, wmOperator *op)
 	const bool all = RNA_boolean_get(op->ptr, "all");
 	
 	/* try to insert keyframe using property retrieved from UI */
-	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+		/* pass event on if no active button found */
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
 
 	if (ptr.id.data && ptr.data && prop) {
 		if (ptr.type == &RNA_NlaStrip) {
@@ -1966,7 +1978,10 @@ static int clear_key_button_exec(bContext *C, wmOperator *op)
 	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to insert keyframe using property retrieved from UI */
-	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+	if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+		/* pass event on if no active button found */
+		return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+	}
 
 	if (ptr.id.data && ptr.data && prop) {
 		path = RNA_path_from_ID_to_property(&ptr, prop);

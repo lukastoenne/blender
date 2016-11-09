@@ -79,6 +79,8 @@ class PARTICLE_MT_specials(Menu):
         props.use_active = False
         props.remove_target_particles = True
 
+        layout.operator("particle.duplicate_particle_system")
+
 
 class PARTICLE_MT_hair_dynamics_presets(Menu):
     bl_label = "Hair Dynamics Presets"
@@ -605,6 +607,8 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
             row.prop(part, "use_size_deflect")
             row.prop(part, "use_die_on_collision")
 
+            layout.prop(part, "collision_group")
+
             if part.physics_type == 'FLUID':
                 fluid = part.fluid
 
@@ -713,6 +717,8 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
             col.prop(boids, "land_ave_max", slider=True)
             col.prop(boids, "land_personal_space")
             col.prop(boids, "land_stick_force")
+
+            layout.prop(part, "collision_group")
 
             split = layout.split()
 

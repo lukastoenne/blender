@@ -24,6 +24,7 @@
 #include "util_debug.h"
 #include "util_foreach.h"
 #include "util_queue.h"
+#include "util_logging.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -147,8 +148,9 @@ void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 
 bool ShaderNode::equals(const ShaderNode& other)
 {
-	if (type != other.type || bump != other.bump)
+	if(type != other.type || bump != other.bump) {
 		return false;
+	}
 
 	assert(inputs.size() == other.inputs.size());
 
@@ -311,7 +313,8 @@ void ShaderGraph::relink(ShaderNode *node, ShaderOutput *from, ShaderOutput *to)
 void ShaderGraph::finalize(Scene *scene,
                            bool do_bump,
                            bool do_osl,
-                           bool do_simplify)
+                           bool do_simplify,
+                           bool bump_in_object_space)
 {
 	/* before compiling, the shader graph may undergo a number of modifications.
 	 * currently we set default geometry shader inputs, and create automatic bump
@@ -319,12 +322,12 @@ void ShaderGraph::finalize(Scene *scene,
 	 * modified afterwards. */
 
 	if(!finalized) {
-		clean(scene);
 		default_inputs(do_osl);
+		clean(scene);
 		refine_bump_nodes();
 
 		if(do_bump)
-			bump_from_displacement();
+			bump_from_displacement(bump_in_object_space);
 
 		ShaderInput *surface_in = output()->input("Surface");
 		ShaderInput *volume_in = output()->input("Volume");
@@ -374,24 +377,12 @@ void ShaderGraph::copy_nodes(ShaderNodeSet& nodes, ShaderNodeMap& nnodemap)
 		ShaderNode *nnode = node->clone();
 		nnodemap[node] = nnode;
 
+		/* create new inputs and outputs to recreate links and ensure
+		 * that we still point to valid SocketType if the NodeType
+		 * changed in cloning, as it does for OSL nodes */
 		nnode->inputs.clear();
 		nnode->outputs.clear();
-
-		foreach(ShaderInput *input, node->inputs) {
-			ShaderInput *ninput = new ShaderInput(*input);
-			nnode->inputs.push_back(ninput);
-
-			ninput->parent = nnode;
-			ninput->link = NULL;
-		}
-
-		foreach(ShaderOutput *output, node->outputs) {
-			ShaderOutput *noutput = new ShaderOutput(*output);
-			nnode->outputs.push_back(noutput);
-
-			noutput->parent = nnode;
-			noutput->links.clear();
-		}
+		nnode->create_inputs_outputs(nnode->type);
 	}
 
 	/* recreate links */
@@ -493,6 +484,8 @@ void ShaderGraph::constant_fold()
 	ShaderNodeSet done, scheduled;
 	queue<ShaderNode*> traverse_queue;
 
+	bool has_displacement = (output()->input("Displacement")->link != NULL);
+
 	/* Schedule nodes which doesn't have any dependencies. */
 	foreach(ShaderNode *node, nodes) {
 		if(!check_node_inputs_has_links(node)) {
@@ -530,6 +523,17 @@ void ShaderGraph::constant_fold()
 			node->constant_fold(folder);
 		}
 	}
+
+	/* Folding might have removed all nodes connected to the displacement output
+	 * even tho there is displacement to be applied, so add in a value node if
+	 * that happens to ensure there is still a valid graph for displacement.
+	 */
+	if(has_displacement && !output()->input("Displacement")->link) {
+		ValueNode *value = (ValueNode*)add(new ValueNode());
+		value->value = output()->displacement;
+
+		connect(value->output("Value"), output()->input("Displacement"));
+	}
 }
 
 /* Step 3: Simplification. */
@@ -555,6 +559,7 @@ void ShaderGraph::deduplicate_nodes()
 	ShaderNodeSet scheduled, done;
 	map<ustring, ShaderNodeSet> candidates;
 	queue<ShaderNode*> traverse_queue;
+	int num_deduplicated = 0;
 
 	/* Schedule nodes which doesn't have any dependencies. */
 	foreach(ShaderNode *node, nodes) {
@@ -569,8 +574,10 @@ void ShaderGraph::deduplicate_nodes()
 		traverse_queue.pop();
 		done.insert(node);
 		/* Schedule the nodes which were depending on the current node. */
+		bool has_output_links = false;
 		foreach(ShaderOutput *output, node->outputs) {
 			foreach(ShaderInput *input, output->links) {
+				has_output_links = true;
 				if(scheduled.find(input->parent) != scheduled.end()) {
 					/* Node might not be optimized yet but scheduled already
 					 * by other dependencies. No need to re-schedule it.
@@ -584,23 +591,32 @@ void ShaderGraph::deduplicate_nodes()
 				}
 			}
 		}
+		/* Only need to care about nodes that are actually used */
+		if(!has_output_links) {
+			continue;
+		}
 		/* Try to merge this node with another one. */
 		ShaderNode *merge_with = NULL;
 		foreach(ShaderNode *other_node, candidates[node->type->name]) {
-			if (node != other_node && node->equals(*other_node)) {
+			if(node != other_node && node->equals(*other_node)) {
 				merge_with = other_node;
 				break;
 			}
 		}
 		/* If found an equivalent, merge; otherwise keep node for later merges */
-		if (merge_with != NULL) {
+		if(merge_with != NULL) {
 			for(int i = 0; i < node->outputs.size(); ++i) {
 				relink(node, node->outputs[i], merge_with->outputs[i]);
 			}
+			num_deduplicated++;
 		}
 		else {
 			candidates[node->type->name].insert(node);
 		}
+	}
+
+	if(num_deduplicated > 0) {
+		VLOG(1) << "Deduplicated " << num_deduplicated << " nodes.";
 	}
 }
 
@@ -792,7 +808,7 @@ void ShaderGraph::refine_bump_nodes()
 	}
 }
 
-void ShaderGraph::bump_from_displacement()
+void ShaderGraph::bump_from_displacement(bool use_object_space)
 {
 	/* generate bump mapping automatically from displacement. bump mapping is
 	 * done using a 3-tap filter, computing the displacement at the center,
@@ -841,7 +857,8 @@ void ShaderGraph::bump_from_displacement()
 	ShaderNode *set_normal = add(new SetNormalNode());
 	
 	/* add bump node and connect copied graphs to it */
-	ShaderNode *bump = add(new BumpNode());
+	BumpNode *bump = (BumpNode*)add(new BumpNode());
+	bump->use_object_space = use_object_space;
 
 	ShaderOutput *out = displacement_in->link;
 	ShaderOutput *out_center = nodes_center[out->parent]->output(out->name());
@@ -855,27 +872,8 @@ void ShaderGraph::bump_from_displacement()
 	/* connect the bump out to the set normal in: */
 	connect(bump->output("Normal"), set_normal->input("Direction"));
 
-	/* connect bump output to normal input nodes that aren't set yet. actually
-	 * this will only set the normal input to the geometry node that we created
-	 * and connected to all other normal inputs already. */
-	foreach(ShaderNode *node, nodes) {
-		/* Don't connect normal to the bump node we're coming from,
-		 * otherwise it'll be a cycle in graph.
-		 */
-		if(node == bump) {
-			continue;
-		}
-		foreach(ShaderInput *input, node->inputs) {
-			if(!input->link && (input->flags() & SocketType::LINK_NORMAL))
-				connect(set_normal->output("Normal"), input);
-		}
-	}
-
-	/* for displacement bump, clear the normal input in case the above loop
-	 * connected the setnormal out to the bump normalin */
-	ShaderInput *bump_normal_in = bump->input("Normal");
-	if(bump_normal_in)
-		bump_normal_in->link = NULL;
+	/* connect to output node */
+	connect(set_normal->output("Normal"), output()->input("Normal"));
 
 	/* finally, add the copied nodes to the graph. we can't do this earlier
 	 * because we would create dependency cycles in the above loop */
@@ -977,6 +975,9 @@ int ShaderGraph::get_num_closures()
 			num_closures += 3;
 		}
 		else if(CLOSURE_IS_GLASS(closure_type)) {
+			num_closures += 2;
+		}
+		else if(CLOSURE_IS_BSDF_MULTISCATTER(closure_type)) {
 			num_closures += 2;
 		}
 		else {

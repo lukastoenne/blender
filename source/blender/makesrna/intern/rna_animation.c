@@ -89,7 +89,7 @@ static void rna_AnimData_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Point
 	DAG_id_tag_update(id, OB_RECALC_OB | OB_RECALC_DATA);
 }
 
-static int rna_AnimData_action_editable(PointerRNA *ptr)
+static int rna_AnimData_action_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
 	AnimData *adt = (AnimData *)ptr->data;
 	
@@ -113,6 +113,23 @@ static void rna_AnimData_action_set(PointerRNA *ptr, PointerRNA value)
 	if (adt) {
 		adt->recalc |= ADT_RECALC_ANIM;
 		DAG_id_tag_update(ownerId, OB_RECALC_TIME);
+	}
+}
+
+static void rna_AnimData_tweakmode_set(PointerRNA *ptr, const int value)
+{
+	AnimData *adt = (AnimData *)ptr->data;
+
+	/* NOTE: technically we should also set/unset SCE_NLA_EDIT_ON flag on the
+	 * scene which is used to make polling tests faster, but this flag is weak
+	 * and can easily break e.g. by changing layer visibility. This needs to be
+	 * dealt with at some point. */
+
+	if (value) {
+		BKE_nla_tweakmode_enter(adt);
+	}
+	else {
+		BKE_nla_tweakmode_exit(adt);
 	}
 }
 
@@ -288,7 +305,7 @@ static StructRNA *rna_ksPath_id_typef(PointerRNA *ptr)
 	return ID_code_to_RNA_type(ksp->idtype);
 }
 
-static int rna_ksPath_id_editable(PointerRNA *ptr)
+static int rna_ksPath_id_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
 	KS_Path *ksp = (KS_Path *)ptr->data;
 	return (ksp->idtype) ? PROP_EDITABLE : 0;
@@ -376,7 +393,7 @@ static void rna_KeyingSet_name_set(PointerRNA *ptr, const char *value)
 }
 
 
-static int rna_KeyingSet_active_ksPath_editable(PointerRNA *ptr)
+static int rna_KeyingSet_active_ksPath_editable(PointerRNA *ptr, const char **UNUSED(r_info))
 {
 	KeyingSet *ks = (KeyingSet *)ptr->data;
 	
@@ -789,7 +806,7 @@ static void rna_def_keyingset_paths(BlenderRNA *brna, PropertyRNA *cprop)
 	parm = RNA_def_pointer(func, "ksp", "KeyingSetPath", "New Path", "Path created and added to the Keying Set");
 	RNA_def_function_return(func, parm);
 	/* ID-block for target */
-	parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "ID-Datablock for the destination");
+	parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "ID data-block for the destination");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* rna-path */
 	/* XXX hopefully this is long enough */
@@ -1041,6 +1058,12 @@ static void rna_def_animdata(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ADT_NLA_EVAL_OFF);
 	RNA_def_property_ui_text(prop, "NLA Evaluation Enabled", "NLA stack is evaluated when evaluating this block");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_NLA, NULL); /* this will do? */
+
+	prop = RNA_def_property(srna, "use_tweak_mode", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ADT_NLA_EDIT_ON);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_AnimData_tweakmode_set");
+	RNA_def_property_ui_text(prop, "Use NLA Tweak Mode", "Whether to enable or disable tweak mode in NLA");
+	RNA_def_property_update(prop, NC_ANIMATION | ND_NLA, NULL);
 }
 
 /* --- */

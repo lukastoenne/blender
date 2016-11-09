@@ -36,11 +36,16 @@
  *
  */
 
-ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
-                                            const Ray *ray,
-                                            Intersection *isect_array,
-                                            const uint max_hits,
-                                            const uint visibility)
+#ifndef __KERNEL_GPU__
+ccl_device
+#else
+ccl_device_inline
+#endif
+uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
+                                 const Ray *ray,
+                                 Intersection *isect_array,
+                                 const uint max_hits,
+                                 const uint visibility)
 {
 	/* todo:
 	 * - test if pushing distance on the stack helps (for non shadow rays)
@@ -94,7 +99,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	ssef tsplat(0.0f, 0.0f, -isect_t, -isect_t);
 
 	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
-#endif
+#endif  /* __KERNEL_SSE2__ */
 
 #if 1
 	/* try to intersect with VDB volumes */
@@ -228,12 +233,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								                         object,
 								                         prim_addr);
 								if(hit) {
-									/* Update number of hits now, so we do proper check on max bounces. */
+									/* Move on to next entry in intersections array. */
+									isect_array++;
 									num_hits++;
 #if BVH_FEATURE(BVH_INSTANCING)
 									num_hits_in_instance++;
 #endif
-									if(num_hits >= max_hits) {
+									isect_array->t = isect_t;
+									if(num_hits == max_hits) {
 #if BVH_FEATURE(BVH_INSTANCING)
 #  if BVH_FEATURE(BVH_MOTION)
 										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
@@ -247,9 +254,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 #endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
 									}
-									/* Move on to next entry in intersections array */
-									isect_array++;
-									isect_array->t = isect_t;
 								}
 							}
 							break;
@@ -274,12 +278,14 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 								                                object,
 								                                prim_addr);
 								if(hit) {
-									/* Update number of hits now, so we do proper check on max bounces. */
+									/* Move on to next entry in intersections array. */
+									isect_array++;
 									num_hits++;
 #  if BVH_FEATURE(BVH_INSTANCING)
 									num_hits_in_instance++;
 #  endif
-									if(num_hits >= max_hits) {
+									isect_array->t = isect_t;
+									if(num_hits == max_hits) {
 #  if BVH_FEATURE(BVH_INSTANCING)
 #    if BVH_FEATURE(BVH_MOTION)
 										float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
@@ -293,9 +299,6 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 #  endif  /* BVH_FEATURE(BVH_INSTANCING) */
 										return num_hits;
 									}
-									/* Move on to next entry in intersections array */
-									isect_array++;
-									isect_array->t = isect_t;
 								}
 							}
 							break;
@@ -358,6 +361,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 		if(stack_ptr >= 0) {
 			kernel_assert(object != OBJECT_NONE);
 
+			/* Instance pop. */
 			if(num_hits_in_instance) {
 				float t_fac;
 #  if BVH_FEATURE(BVH_MOTION)
@@ -401,7 +405,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 			node_addr = traversal_stack[stack_ptr];
 			--stack_ptr;
 		}
-#endif  /* FEATURE(BVH_MOTION) */
+#endif  /* FEATURE(BVH_INSTANCING) */
 	} while(node_addr != ENTRYPOINT_SENTINEL);
 
 	return num_hits;

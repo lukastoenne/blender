@@ -255,10 +255,7 @@ struct CCGSubSurf {
 	 */
 	int osd_next_face_ptex_index;
 
-	/* ** Needs review.  ** */
-	bool osd_subsurf_uv;
-	int osd_uv_index;
-	bool osd_uvs_invalid;
+	bool osd_subdiv_uvs;
 #endif
 };
 

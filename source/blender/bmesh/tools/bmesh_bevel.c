@@ -2194,9 +2194,12 @@ static void fill_vmesh_fracs(VMesh *vm, float *frac, int i)
 		total += len_v3v3(mesh_vert(vm, i, 0, k)->co, mesh_vert(vm, i, 0, k + 1)->co);
 		frac[k + 1] = total;
 	}
-	if (total > BEVEL_EPSILON) {
+	if (total > 0.0f) {
 		for (k = 1; k <= ns; k++)
 			frac[k] /= total;
+	}
+	else {
+		frac[ns] = 1.0f;
 	}
 }
 
@@ -2215,10 +2218,13 @@ static void fill_profile_fracs(BevelParams *bp, BoundVert *bndv, float *frac, in
 		frac[k + 1] = total;
 		copy_v3_v3(co, nextco);
 	}
-	if (total > BEVEL_EPSILON) {
+	if (total > 0.0f) {
 		for (k = 1; k <= ns; k++) {
 			frac[k] /= total;
 		}
+	}
+	else {
+		frac[ns] = 1.0f;
 	}
 }
 
@@ -3563,7 +3569,7 @@ static void find_bevel_edge_order(BMesh *bm, BevVert *bv, BMEdge *first_bme)
 		BLI_assert(first_bme != NULL);
 		bv->edges[i].e = first_bme;
 		BM_BEVEL_EDGE_TAG_ENABLE(first_bme);
-		if (fast_bevel_edge_order(bv))
+		if (i == 0 && fast_bevel_edge_order(bv))
 			break;
 		i = bevel_edge_order_extend(bm, bv, i);
 		i++;
@@ -3588,6 +3594,7 @@ static void find_bevel_edge_order(BMesh *bm, BevVert *bv, BMEdge *first_bme)
 		e2 = (i == bv->edgecount - 1) ? &bv->edges[0] : &bv->edges[i + 1];
 		bme = e->e;
 		bme2 = e2->e;
+		BLI_assert(bme != NULL);
 		BM_ITER_ELEM(l, &iter, bme, BM_LOOPS_OF_EDGE) {
 			f = l->f;
 			if ((l->prev->e == bme2 || l->next->e == bme2) && !e->fnext && !e2->fprev)
@@ -3848,9 +3855,10 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 			bv = find_bevvert(bp, l->v);
 			vm = bv->vmesh;
 			e = find_edge_half(bv, l->e);
+			BLI_assert(e != NULL);
 			bme = e->e;
 			eprev = find_edge_half(bv, lprev->e);
-			BLI_assert(e != NULL && eprev != NULL);
+			BLI_assert(eprev != NULL);
 
 			/* which direction around our vertex do we travel to match orientation of f? */
 			if (e->prev == eprev) {

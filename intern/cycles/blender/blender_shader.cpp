@@ -27,12 +27,13 @@
 #include "blender_util.h"
 
 #include "util_debug.h"
+#include "util_string.h"
 
 CCL_NAMESPACE_BEGIN
 
 typedef map<void*, ShaderInput*> PtrInputMap;
 typedef map<void*, ShaderOutput*> PtrOutputMap;
-typedef map<std::string, ConvertNode*> ProxyMap;
+typedef map<string, ConvertNode*> ProxyMap;
 
 /* Find */
 
@@ -62,6 +63,14 @@ static VolumeInterpolation get_volume_interpolation(PointerRNA& ptr)
 	                                     "volume_interpolation",
 	                                     VOLUME_NUM_INTERPOLATION,
 	                                     VOLUME_INTERPOLATION_LINEAR);
+}
+
+static DisplacementMethod get_displacement_method(PointerRNA& ptr)
+{
+	return (DisplacementMethod)get_enum(ptr,
+	                                    "displacement_method",
+	                                    DISPLACE_NUM_METHODS,
+	                                    DISPLACE_BUMP);
 }
 
 static int validate_enum_value(int value, int num_values, int default_value)
@@ -865,8 +874,10 @@ static ShaderNode *add_node(Scene *scene,
 		node = vdb_node;
 	}
 
-	if(node)
+	if(node) {
+		node->name = b_node.name();
 		graph->add(node);
+	}
 
 	return node;
 }
@@ -1208,6 +1219,7 @@ void BlenderSync::sync_materials(bool update_all)
 			shader->heterogeneous_volume = !get_boolean(cmat, "homogeneous_volume");
 			shader->volume_sampling_method = get_volume_sampling(cmat);
 			shader->volume_interpolation_method = get_volume_interpolation(cmat);
+			shader->displacement_method = (experimental) ? get_displacement_method(cmat) : DISPLACE_BUMP;
 
 			shader->set_graph(graph);
 			shader->tag_update(scene);

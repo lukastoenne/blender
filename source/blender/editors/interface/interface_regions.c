@@ -73,38 +73,6 @@
 #define MENU_PADDING		(int)(0.2f * UI_UNIT_Y)
 #define MENU_BORDER			(int)(0.3f * U.widget_unit)
 
-static int rna_property_enum_step(const bContext *C, PointerRNA *ptr, PropertyRNA *prop, int direction)
-{
-	EnumPropertyItem *item_array;
-	int totitem;
-	bool free;
-	int value;
-	int i, i_init;
-	int step = (direction < 0) ? -1 : 1;
-	int step_tot = 0;
-
-	RNA_property_enum_items((bContext *)C, ptr, prop, &item_array, &totitem, &free);
-	value = RNA_property_enum_get(ptr, prop);
-	i = RNA_enum_from_value(item_array, value);
-	i_init = i;
-
-	do {
-		i = mod_i(i + step, totitem);
-		if (item_array[i].identifier[0]) {
-			step_tot += step;
-		}
-	} while ((i != i_init) && (step_tot != direction));
-
-	if (i != i_init) {
-		value = item_array[i].value;
-	}
-
-	if (free) {
-		MEM_freeN(item_array);
-	}
-
-	return value;
-}
 
 bool ui_but_menu_step_poll(const uiBut *but)
 {
@@ -122,7 +90,8 @@ int ui_but_menu_step(uiBut *but, int direction)
 			return but->menu_step_func(but->block->evil_C, direction, but->poin);
 		}
 		else {
-			return rna_property_enum_step(but->block->evil_C, &but->rnapoin, but->rnaprop, direction);
+			const int curval = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
+			return RNA_property_enum_step(but->block->evil_C, &but->rnapoin, but->rnaprop, curval, direction);
 		}
 	}
 
@@ -484,20 +453,30 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 		}
 
 		MEM_freeN(str);
+	}
 
-		/* second check if we are disabled - why */
-		if (but->flag & UI_BUT_DISABLED) {
-			const char *poll_msg;
+	/* button is disabled, we may be able to tell user why */
+	if (but->flag & UI_BUT_DISABLED) {
+		const char *disabled_msg = NULL;
+
+		/* if operator poll check failed, it can give pretty precise info why */
+		if (but->optype) {
 			CTX_wm_operator_poll_msg_set(C, NULL);
 			WM_operator_poll_context(C, but->optype, but->opcontext);
-			poll_msg = CTX_wm_operator_poll_msg_get(C);
-			if (poll_msg) {
-				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Disabled: %s"), poll_msg);
-				data->format[data->totline].color_id = UI_TIP_LC_ALERT;
-				data->totline++;
-			}
+			disabled_msg = CTX_wm_operator_poll_msg_get(C);
+		}
+		/* alternatively, buttons can store some reasoning too */
+		else if (but->disabled_info) {
+			disabled_msg = TIP_(but->disabled_info);
+		}
+
+		if (disabled_msg && disabled_msg[0]) {
+			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Disabled: %s"), disabled_msg);
+			data->format[data->totline].color_id = UI_TIP_LC_ALERT;
+			data->totline++;
 		}
 	}
+
 	if ((U.flag & USER_TOOLTIPS_PYTHON) == 0 && !but->optype && rna_struct.strinfo) {
 		if (rna_prop.strinfo) {
 			/* Struct and prop */
@@ -829,7 +808,7 @@ int UI_searchbox_size_y(void)
 
 int UI_searchbox_size_x(void)
 {
-	return 10 * UI_UNIT_X;
+	return 12 * UI_UNIT_X;
 }
 
 int UI_search_items_find_index(uiSearchItems *items, const char *name)
@@ -1380,6 +1359,7 @@ static void ui_searchbox_region_draw_cb__operator(const bContext *UNUSED(C), ARe
 			rect_pre.xmax = rect_post.xmin = rect.xmin + ((rect.xmax - rect.xmin) / 4);
 
 			/* widget itself */
+			/* NOTE: i18n messages extracting tool does the same, please keep it in sync. */
 			{
 				wmOperatorType *ot = data->items.pointers[a];
 
@@ -1400,7 +1380,8 @@ static void ui_searchbox_region_draw_cb__operator(const bContext *UNUSED(C), ARe
 				}
 
 				rect_pre.xmax += 4;  /* sneaky, avoid showing ugly margin */
-				ui_draw_menu_item(&data->fstyle, &rect_pre, text_pre, data->items.icons[a], state, false);
+				ui_draw_menu_item(&data->fstyle, &rect_pre, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, text_pre),
+				                  data->items.icons[a], state, false);
 				ui_draw_menu_item(&data->fstyle, &rect_post, data->items.names[a], 0, state, data->use_sep);
 			}
 
@@ -1701,7 +1682,9 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 		ar->do_draw &= ~RGN_DRAW_REFRESH_UI;
 		for (block = ar->uiblocks.first; block; block = block_next) {
 			block_next = block->next;
-			ui_popup_block_refresh((bContext *)C, block->handle, NULL, NULL);
+			if (block->handle->can_refresh) {
+				ui_popup_block_refresh((bContext *)C, block->handle, NULL, NULL);
+			}
 		}
 	}
 
@@ -1811,6 +1794,8 @@ uiBlock *ui_popup_block_refresh(
         bContext *C, uiPopupBlockHandle *handle,
         ARegion *butregion, uiBut *but)
 {
+	BLI_assert(handle->can_refresh == true);
+
 	const int margin = UI_POPUP_MARGIN;
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = handle->region;
@@ -2001,6 +1986,8 @@ uiPopupBlockHandle *ui_popup_block_create(
 	handle->popup_create_vars.arg = arg;
 	handle->popup_create_vars.butregion = but ? butregion : NULL;
 	copy_v2_v2_int(handle->popup_create_vars.event_xy, &window->eventstate->x);
+	/* caller may free vars used to create this popup, in that case this variable should be disabled. */
+	handle->can_refresh = true;
 
 	/* create area region */
 	ar = ui_region_temp_add(CTX_wm_screen(C));
@@ -2800,6 +2787,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
 		WM_event_add_mousemove(C);
 	}
 	
+	handle->can_refresh = false;
 	MEM_freeN(pup);
 
 	return handle;
@@ -2807,14 +2795,17 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 /******************** Popup Menu API with begin and end ***********************/
 
-/* only return handler, and set optional title */
-uiPopupMenu *UI_popup_menu_begin(bContext *C, const char *title, int icon)
+/**
+ * Only return handler, and set optional title.
+ * \param block_name: Assigned to uiBlock.name (useful info for debugging).
+ */
+uiPopupMenu *UI_popup_menu_begin_ex(bContext *C, const char *title, const char *block_name, int icon)
 {
 	uiStyle *style = UI_style_get_dpi();
 	uiPopupMenu *pup = MEM_callocN(sizeof(uiPopupMenu), "popup menu");
 	uiBut *but;
 
-	pup->block = UI_block_begin(C, NULL, __func__, UI_EMBOSS_PULLDOWN);
+	pup->block = UI_block_begin(C, NULL, block_name, UI_EMBOSS_PULLDOWN);
 	pup->block->flag |= UI_BLOCK_POPUP_MEMORY | UI_BLOCK_IS_FLIP;
 	pup->block->puphash = ui_popup_menu_hash(title);
 	pup->layout = UI_block_layout(pup->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, MENU_PADDING, style);
@@ -2845,6 +2836,11 @@ uiPopupMenu *UI_popup_menu_begin(bContext *C, const char *title, int icon)
 	return pup;
 }
 
+uiPopupMenu *UI_popup_menu_begin(bContext *C, const char *title, int icon)
+{
+	return UI_popup_menu_begin_ex(C, title, __func__, icon);
+}
+
 /* set the whole structure to work */
 void UI_popup_menu_end(bContext *C, uiPopupMenu *pup)
 {
@@ -2860,7 +2856,8 @@ void UI_popup_menu_end(bContext *C, uiPopupMenu *pup)
 	
 	UI_popup_handlers_add(C, &window->modalhandlers, menu, 0);
 	WM_event_add_mousemove(C);
-	
+
+	menu->can_refresh = false;
 	MEM_freeN(pup);
 }
 
@@ -2991,6 +2988,7 @@ void UI_pie_menu_end(bContext *C, uiPieMenu *pie)
 	        menu, WM_HANDLER_ACCEPT_DBL_CLICK);
 	WM_event_add_mousemove(C);
 
+	menu->can_refresh = false;
 	MEM_freeN(pie);
 }
 
@@ -3203,7 +3201,8 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
 		if (pup == NULL) {
 			char title[UI_MAX_DRAW_STR];
 			BLI_snprintf(title, sizeof(title), "%s: %s", IFACE_("Report"), report->typestr);
-			pup = UI_popup_menu_begin(C, title, ICON_NONE);
+			/* popup_menu stuff does just what we need (but pass meaningful block name) */
+			pup = UI_popup_menu_begin_ex(C, title, __func__, ICON_NONE);
 			layout = UI_popup_menu_layout(pup);
 		}
 		else {
@@ -3332,7 +3331,7 @@ void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
 			UI_popup_handlers_remove(&win->modalhandlers, block->handle);
 			ui_popup_block_free(C, block->handle);
 
-			/* In the case we have nested popups, closing one may need to redraw anorher, see: T48874 */
+			/* In the case we have nested popups, closing one may need to redraw another, see: T48874 */
 			for (ARegion *ar = win->screen->regionbase.first; ar; ar = ar->next) {
 				ED_region_tag_refresh_ui(ar);
 			}

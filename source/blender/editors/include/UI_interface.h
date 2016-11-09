@@ -161,13 +161,13 @@ enum {
 	UI_BUT_NODE_LINK       = (1 << 8),
 	UI_BUT_NODE_ACTIVE     = (1 << 9),
 	UI_BUT_DRAG_LOCK       = (1 << 10),
-	UI_BUT_DISABLED        = (1 << 11),
+	UI_BUT_DISABLED        = (1 << 11),  /* grayed out and uneditable */
 	UI_BUT_COLOR_LOCK      = (1 << 12),
 	UI_BUT_ANIMATED        = (1 << 13),
 	UI_BUT_ANIMATED_KEY    = (1 << 14),
 	UI_BUT_DRIVEN          = (1 << 15),
 	UI_BUT_REDALERT        = (1 << 16),
-	UI_BUT_INACTIVE        = (1 << 17),
+	UI_BUT_INACTIVE        = (1 << 17),  /* grayed out but still editable */
 	UI_BUT_LAST_ACTIVE     = (1 << 18),
 	UI_BUT_UNDO            = (1 << 19),
 	UI_BUT_IMMEDIATE       = (1 << 20),
@@ -382,12 +382,18 @@ typedef bool (*uiMenuStepFunc)(struct bContext *C, int direction, void *arg1);
 
 typedef struct uiPopupMenu uiPopupMenu;
 
-struct uiPopupMenu *UI_popup_menu_begin(struct bContext *C, const char *title, int icon) ATTR_NONNULL();
+uiPopupMenu *UI_popup_menu_begin(
+        struct bContext *C, const char *title, int icon) ATTR_NONNULL();
+uiPopupMenu *UI_popup_menu_begin_ex(
+        struct bContext *C, const char *title, const char *block_name,
+        int icon) ATTR_NONNULL();
 void UI_popup_menu_end(struct bContext *C, struct uiPopupMenu *head);
 struct uiLayout *UI_popup_menu_layout(uiPopupMenu *head);
 
 void UI_popup_menu_reports(struct bContext *C, struct ReportList *reports) ATTR_NONNULL();
 int UI_popup_menu_invoke(struct bContext *C, const char *idname, struct ReportList *reports) ATTR_NONNULL(1, 2);
+
+void UI_popup_menu_retval_set(const uiBlock *block, const int retval, const bool enable);
 
 /* Pie menus */
 typedef struct uiPieMenu uiPieMenu;
@@ -941,6 +947,7 @@ void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
 void uiTemplateKeymapItemProperties(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplateComponentMenu(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name);
 void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float *color);
+void uiTemplateCacheFile(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname);
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
@@ -1020,7 +1027,7 @@ bool UI_context_copy_to_selected_list(
 
 /* Helpers for Operators */
 uiBut *UI_context_active_but_get(const struct bContext *C);
-void UI_context_active_but_prop_get(
+uiBut *UI_context_active_but_prop_get(
         const struct bContext *C,
         struct PointerRNA *r_ptr, struct PropertyRNA **r_prop, int *r_index);
 void UI_context_active_but_prop_handle(struct bContext *C);

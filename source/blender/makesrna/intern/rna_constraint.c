@@ -72,6 +72,8 @@ EnumPropertyItem rna_enum_constraint_type_items[] = {
 	                            "Compensate for scaling one axis by applying suitable scaling to the other two axes"},
 	{CONSTRAINT_TYPE_TRANSFORM, "TRANSFORM", ICON_CONSTRAINT_DATA, "Transformation", 
 	                            "Use one transform property from target to control another (or same) property on owner"},
+	{CONSTRAINT_TYPE_TRANSFORM_CACHE, "TRANSFORM_CACHE", ICON_CONSTRAINT_DATA, "Transform Cache",
+	                            "Look up the transformation matrix from an external file"},
 	{0, "", 0, N_("Tracking"), ""},
 	{CONSTRAINT_TYPE_CLAMPTO,   "CLAMP_TO", ICON_CONSTRAINT_DATA, "Clamp To", 
 	                            "Restrict movements to lie along a curve by remapping location along curve's longest axis"},
@@ -146,12 +148,17 @@ static EnumPropertyItem space_object_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+#include "DNA_cachefile_types.h"
+
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 
+#ifdef WITH_ALEMBIC
+#  include "ABC_alembic.h"
+#endif
 
 static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
 {
@@ -214,6 +221,8 @@ static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
 			return &RNA_CameraSolverConstraint;
 		case CONSTRAINT_TYPE_OBJECTSOLVER:
 			return &RNA_ObjectSolverConstraint;
+		case CONSTRAINT_TYPE_TRANSFORM_CACHE:
+			return &RNA_TransformCacheConstraint;
 		default:
 			return &RNA_UnknownType;
 	}
@@ -465,6 +474,22 @@ static void rna_Constraint_objectSolver_camera_set(PointerRNA *ptr, PointerRNA v
 	else {
 		data->camera = NULL;
 	}
+}
+
+static void rna_Constraint_transformCache_object_path_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+#ifdef WITH_ALEMBIC
+	bConstraint *con = (bConstraint *)ptr->data;
+	bTransformCacheConstraint *data = (bTransformCacheConstraint *)con->data;
+	Object *ob = (Object *)ptr->id.data;
+
+	data->reader = CacheReader_open_alembic_object(data->cache_file->handle,
+	                                               data->reader,
+	                                               ob,
+	                                               data->object_path);
+#endif
+
+	rna_Constraint_update(bmain, scene, ptr);
 }
 
 #else
@@ -2571,6 +2596,27 @@ static void rna_def_constraint_object_solver(BlenderRNA *brna)
 	                               "rna_Constraint_cameraObject_poll");
 }
 
+static void rna_def_constraint_transform_cache(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "TransformCacheConstraint", "Constraint");
+	RNA_def_struct_ui_text(srna, "Transform Cache Constraint", "Look up transformation from an external file");
+	RNA_def_struct_sdna_from(srna, "bTransformCacheConstraint", "data");
+
+	prop = RNA_def_property(srna, "cache_file", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "cache_file");
+	RNA_def_property_struct_type(prop, "CacheFile");
+	RNA_def_property_ui_text(prop, "Cache File", "");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_update(prop, 0, "rna_Constraint_dependency_update");
+
+	prop = RNA_def_property(srna, "object_path", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Object Path", "Path to the object in the Alembic archive used to lookup the transform matrix");
+	RNA_def_property_update(prop, 0, "rna_Constraint_transformCache_object_path_update");
+}
+
 /* base struct for constraints */
 void RNA_def_constraint(BlenderRNA *brna)
 {
@@ -2687,6 +2733,7 @@ void RNA_def_constraint(BlenderRNA *brna)
 	rna_def_constraint_follow_track(brna);
 	rna_def_constraint_camera_solver(brna);
 	rna_def_constraint_object_solver(brna);
+	rna_def_constraint_transform_cache(brna);
 }
 
 #endif

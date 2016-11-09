@@ -1088,7 +1088,7 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
 					if (prv) {
 						const int size = big ? ICON_SIZE_PREVIEW : ICON_SIZE_ICON;
 
-						if (id || prv->use_deferred) {
+						if (id || (prv->tag & PRV_TAG_DEFFERED) != 0) {
 							ui_id_preview_image_render_size(C, NULL, id, prv, size, true);
 						}
 					}
@@ -1541,6 +1541,8 @@ int UI_idcode_icon_get(const int idcode)
 			return ICON_BRUSH_DATA;
 		case ID_CA:
 			return ICON_CAMERA_DATA;
+		case ID_CF:
+			return ICON_FILE;
 		case ID_CU:
 			return ICON_CURVE_DATA;
 		case ID_GD:

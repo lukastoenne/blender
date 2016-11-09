@@ -31,9 +31,15 @@
 
 
 #include <assert.h>
-#include <math.h>
 #include <stdlib.h>
 #include <algorithm>
+
+#if __cplusplus >= 201103L
+#include <cmath>
+using std::isfinite;
+#else
+#include <math.h>
+#endif
 
 #include "rayobject_rtbuild.h"
 
