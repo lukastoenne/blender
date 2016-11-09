@@ -512,7 +512,7 @@ void ShaderManager::add_default(Scene *scene)
 		ShaderGraph *graph = new ShaderGraph();
 
 		ScatterVolumeNode *scatter = new ScatterVolumeNode();
-		scatter->input("Density")->set(make_float3(0.8f, 0.8f, 0.8f));
+		scatter->input("Density")->set(1.0);
 		graph->add(scatter);
 
 		graph->connect(scatter->output("Volume"), graph->output()->input("Volume"));
