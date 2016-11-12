@@ -22,6 +22,8 @@
 #include "util_progress.h"
 #include "util_task.h"
 
+#include "../kernel/openvdb/vdb_globals.h"
+
 CCL_NAMESPACE_BEGIN
 
 #define MAX_VOLUME 1024
@@ -34,8 +36,6 @@ VolumeManager::VolumeManager()
 	scalar_grids.reserve(64);
 	vector_grids.reserve(64);
 	current_grids.reserve(64);
-	float_volumes.reserve(64);
-	float3_volumes.reserve(64);
 #endif
 
 	need_update = true;
@@ -45,26 +45,8 @@ VolumeManager::VolumeManager()
 
 VolumeManager::~VolumeManager()
 {
-#if 0
-	for(size_t i = 0; i < float_volumes.size(); ++i) {
-		delete float_volumes[i];
-	}
-
-	for(size_t i = 0; i < float3_volumes.size(); ++i) {
-		delete float3_volumes[i];
-	}
-#endif
-
 	for (size_t i = 0; i < volumes.size(); ++i) {
 		Volume *volume = volumes[i];
-
-		for(size_t i = 0; i < volume->float_fields.size(); ++i) {
-			delete volume->float_fields[i];
-		}
-
-		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
-			delete volume->float3_fields[i];
-		}
 
 #ifdef WITH_OPENVDB
 		volume->scalar_grids.clear();
@@ -161,12 +143,10 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 			else {
 				/* sampling was changed, remove the volume */
 				if(grid_type == NODE_VDB_FLOAT) {
-					delete float_volumes[grid.slot];
-					float_volumes[grid.slot] = NULL;
+					scalar_grids[grid.slot].reset();
 				}
 				else {
-					delete float3_volumes[grid.slot];
-					float3_volumes[grid.slot] = NULL;
+					vector_grids[grid.slot].reset();
 				}
 
 				/* remove the grid description too */
@@ -206,7 +186,7 @@ int VolumeManager::find_density_slot()
 	}
 	
 	/* try using the first scalar float grid instead */
-	if(!float_volumes.empty()) {
+	if(!scalar_grids.empty()) {
 		return 0;
 	}
 	
@@ -258,28 +238,18 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 	if(grid->getGridClass() == GRID_LEVEL_SET) return -1;
 
 	if(grid_type == NODE_VDB_FLOAT) {
-		slot = find_empty_slot(float_volumes);
-
-		if(slot == -1) return -1;
-
-		FloatGrid::Ptr fgrid = gridPtrCast<FloatGrid>(grid);
-
-		vdb_float_volume *volume = new vdb_float_volume(fgrid);
-		volume->create_threads_utils(TaskScheduler::thread_ids());
-		float_volumes.insert(float_volumes.begin() + slot, volume);
-		scalar_grids.push_back(fgrid);
+		slot = find_empty_slot(scalar_grids);
+		if (slot == -1)
+			return -1;
+		
+		scalar_grids.insert(scalar_grids.begin() + slot, gridPtrCast<FloatGrid>(grid));
 	}
 	else if(grid_type == NODE_VDB_FLOAT3) {
-		slot = find_empty_slot(float3_volumes);
-
-		if(slot == -1) return -1;
-
-		Vec3SGrid::Ptr vgrid = gridPtrCast<Vec3SGrid>(grid);
-
-		vdb_float3_volume *volume = new vdb_float3_volume(vgrid);
-		volume->create_threads_utils(TaskScheduler::thread_ids());
-		float3_volumes.insert(float3_volumes.begin() + slot, volume);
-		vector_grids.push_back(vgrid);
+		slot = find_empty_slot(vector_grids);
+		if (slot == -1)
+			return -1;
+		
+		vector_grids.insert(vector_grids.begin() + slot, gridPtrCast<Vec3SGrid>(grid));
 	}
 #else
 	(void)filename;
@@ -305,22 +275,12 @@ size_t VolumeManager::add_openvdb_volume(Volume *volume, const std::string &file
 
 	if(grid->isType<openvdb::FloatGrid>()) {
 		openvdb::FloatGrid::Ptr fgrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
-
-		vdb_float_volume *vol = new vdb_float_volume(fgrid);
-		vol->create_threads_utils(TaskScheduler::thread_ids());
-
-		volume->float_fields.push_back(vol);
 		volume->scalar_grids.push_back(fgrid);
 
 		slot = num_float_volume++;
 	}
 	else if(grid->isType<openvdb::Vec3SGrid>()) {
 		openvdb::Vec3SGrid::Ptr vgrid = openvdb::gridPtrCast<openvdb::Vec3SGrid>(grid);
-
-		vdb_float3_volume *vol = new vdb_float3_volume(vgrid);
-		vol->create_threads_utils(TaskScheduler::thread_ids());
-
-		volume->float3_fields.push_back(vol);
 		volume->vector_grids.push_back(vgrid);
 
 		slot = num_float3_volume++;
@@ -480,22 +440,20 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	for (size_t i = 0; i < volumes.size(); ++i) {
 		Volume *volume = volumes[i];
 
-		for(size_t i = 0; i < volume->float_fields.size(); ++i) {
-			if(!volume->float_fields[i]) {
+		for(size_t i = 0; i < volume->scalar_grids.size(); ++i) {
+			if(!volume->scalar_grids[i]) {
 				continue;
 			}
 
-			device->const_copy_to("__float_volume", volume->float_fields[i], i);
 			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], false);
 		}
 
-		for(size_t i = 0; i < volume->float3_fields.size(); ++i) {
-			if(!volume->float3_fields[i]) {
+		for(size_t i = 0; i < volume->vector_grids.size(); ++i) {
+			if(!volume->vector_grids[i]) {
 				continue;
 			}
 
 			vol_shader[s++] = scene->shader_manager->get_shader_id(volume->used_shaders[0], false);
-			device->const_copy_to("__float3_volume", volume->float3_fields[i], i);
 		}
 
 		if(progress.get_cancel()) {
@@ -505,19 +463,22 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 
 	device->tex_alloc("__vol_shader", dscene->vol_shader);
 
-#if 0
-	for(size_t i = 0; i < float_volumes.size(); ++i) {
-		if(!float_volumes[i]) {
-			continue;
-		}
-		device->const_copy_to("__float_volume", float_volumes[i], i);
+#ifdef WITH_OPENVDB
+	typedef typename OpenVDBGlobals::scalar_isector_t scalar_isector_t;
+	typedef typename OpenVDBGlobals::vector_isector_t vector_isector_t;
+	OpenVDBGlobals *vdb = device->vdb_memory();
+	
+	vdb->scalar_grids.reserve(scalar_grids.size());
+	vdb->vector_grids.reserve(vector_grids.size());
+	vdb->scalar_main_isectors.reserve(scalar_grids.size());
+	vdb->vector_main_isectors.reserve(vector_grids.size());
+	for(size_t i = 0; i < scalar_grids.size(); ++i) {
+		vdb->scalar_grids.push_back(scalar_grids[i].get());
+		vdb->scalar_main_isectors.push_back(new scalar_isector_t(*scalar_grids[i].get()));
 	}
-
-	for(size_t i = 0; i < float3_volumes.size(); ++i) {
-		if(!float3_volumes[i]) {
-			continue;
-		}
-		device->const_copy_to("__float3_volume", float3_volumes[i], i);
+	for(size_t i = 0; i < vector_grids.size(); ++i) {
+		vdb->vector_grids.push_back(vector_grids[i].get());
+		vdb->vector_main_isectors.push_back(new vector_isector_t(*vector_grids[i].get()));
 	}
 #endif
 
@@ -527,9 +488,6 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 
 	dscene->data.tables.num_volumes = num_float_volume/* + float3_volumes.size()*/;
 	dscene->data.tables.density_index = 0;
-
-	VLOG(1) << "Volume allocate: __float_volume, " << float_volumes.size() * sizeof(float_volume) << " bytes";
-	VLOG(1) << "Volume allocate: __float3_volume, " << float3_volumes.size() * sizeof(float3_volume) << " bytes";
 
 #ifdef WITH_OPENVDB
 	for(size_t i = 0; i < scalar_grids.size(); ++i) {

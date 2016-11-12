@@ -180,7 +180,6 @@ void TaskPool::num_increase()
 thread_mutex TaskScheduler::mutex;
 int TaskScheduler::users = 0;
 vector<thread*> TaskScheduler::threads;
-vector<pthread_t> TaskScheduler::threads_ids;
 bool TaskScheduler::do_exit = false;
 
 list<TaskScheduler::Entry> TaskScheduler::queue;
@@ -204,7 +203,6 @@ void TaskScheduler::init(int num_threads)
 
 		/* launch threads that will be waiting for work */
 		threads.resize(num_threads);
-		threads_ids.resize(num_threads);
 
 		int num_groups = system_cpu_group_count();
 		int thread_index = 0;
@@ -223,8 +221,6 @@ void TaskScheduler::init(int num_threads)
 				threads[thread_index] = new thread(function_bind(&TaskScheduler::thread_run,
 				                                                 thread_index + 1),
 				                                   group);
-				threads_ids.push_back(threads[thread_index]->id());
-				std::cerr << "Thread " << thread_index << ", id: " << threads[thread_index]->id() << '\n';
 			}
 		}
 	}
@@ -338,11 +334,6 @@ void TaskScheduler::clear(TaskPool *pool)
 
 	/* notify done */
 	pool->num_decrease(done);
-}
-
-vector<pthread_t> TaskScheduler::thread_ids()
-{
-	return threads_ids;
 }
 
 /* Dedicated Task Pool */

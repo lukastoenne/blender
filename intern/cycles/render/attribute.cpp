@@ -348,6 +348,9 @@ Attribute *AttributeSet::add(ustring name, TypeDesc type, AttributeElement eleme
 		attr->resize(curve_mesh, ATTR_PRIM_CURVE, false);
 	else if(subd_mesh)
 		attr->resize(subd_mesh, ATTR_PRIM_SUBD, false);
+	else if(element == ATTR_ELEMENT_VOXEL) {
+		attr->resize(1);
+	}
 
 	return attr;
 }

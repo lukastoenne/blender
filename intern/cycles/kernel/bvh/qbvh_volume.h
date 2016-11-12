@@ -101,7 +101,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	for(int i = 0; i < num_volumes; i++) {
 		float t;
 
-		if(kg->float_volumes[i]->intersect(ray, &t)) {
+		if(vdb_volume_intersect(kg->vdb_tdata, i, ray, &t)) {
 			isect->type = PRIMITIVE_VOLUME;
 			isect->prim = i;
 			isect->t = t;

@@ -23,6 +23,12 @@
 #include "util_types.h"
 #include "util_volume.h"
 
+#ifdef WITH_OPENVDB
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/Interpolation.h>
+#include <openvdb/tools/RayIntersector.h>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 class Device;
@@ -41,9 +47,6 @@ public:
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
 #endif
-
-	vector<float_volume*> float_fields;
-	vector<float3_volume*> float3_fields;
 };
 
 class VolumeManager {
@@ -89,9 +92,6 @@ public:
 	void device_free(Device *device, DeviceScene *dscene);
 
 	bool need_update;
-
-	vector<float_volume*> float_volumes;
-	vector<float3_volume*> float3_volumes;
 
 	vector<Volume*> volumes;
 };

@@ -31,6 +31,11 @@ struct OSLThreadData;
 struct OSLShadingSystem;
 #  endif
 
+#  ifdef WITH_OPENVDB
+struct OpenVDBGlobals;
+struct OpenVDBThreadData;
+#  endif
+
 struct Intersection;
 struct VolumeStep;
 
@@ -43,9 +48,6 @@ typedef struct KernelGlobals {
 	texture_image_float texture_float_images[TEX_NUM_FLOAT_CPU];
 	texture_image_uchar texture_byte_images[TEX_NUM_BYTE_CPU];
 	texture_image_half texture_half_images[TEX_NUM_HALF_CPU];
-
-	float_volume *float_volumes[MAX_VOLUME];
-	float3_volume *float3_volumes[MAX_VOLUME];
 
 #  define KERNEL_TEX(type, ttype, name) ttype name;
 #  define KERNEL_IMAGE_TEX(type, ttype, name)
@@ -69,6 +71,11 @@ typedef struct KernelGlobals {
 	/* Storage for decoupled volume steps. */
 	VolumeStep *decoupled_volume_steps[2];
 	int decoupled_volume_steps_index;
+
+#  ifdef WITH_OPENVDB
+	OpenVDBGlobals *vdb;
+	OpenVDBThreadData *vdb_tdata;
+#  endif
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */

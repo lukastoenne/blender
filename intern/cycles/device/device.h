@@ -34,6 +34,8 @@ CCL_NAMESPACE_BEGIN
 class Progress;
 class RenderTile;
 
+struct OpenVDBGlobals;
+
 /* Device Types */
 
 enum DeviceType {
@@ -248,6 +250,9 @@ public:
 
 	/* open shading language, only for CPU device */
 	virtual void *osl_memory() { return NULL; }
+
+	/* OpenVDB data */
+	virtual OpenVDBGlobals *vdb_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
 	virtual bool load_kernels(

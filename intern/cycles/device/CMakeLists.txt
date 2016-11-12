@@ -4,6 +4,7 @@ set(INC
 	../graph
 	../kernel
 	../kernel/svm
+	../kernel/openvdb
 	../kernel/osl
 	../util
 	../render

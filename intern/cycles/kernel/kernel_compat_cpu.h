@@ -528,8 +528,8 @@ typedef texture_image<half4> texture_image_half4;
 #define kernel_tex_image_interp(tex,x,y) kernel_tex_image_interp_impl(kg,tex,x,y)
 #define kernel_tex_image_interp_3d(tex, x, y, z) kernel_tex_image_interp_3d_impl(kg,tex,x,y,z)
 #define kernel_tex_image_interp_3d_ex(tex, x, y, z, interpolation) kernel_tex_image_interp_3d_ex_impl(kg,tex, x, y, z, interpolation)
-#define kernel_tex_voxel_float(tex, x, y, z, sampling) (kg->float_volumes[tex]->sample(x, y, z, sampling))
-#define kernel_tex_voxel_float3(tex, x, y, z, sampling) (kg->float3_volumes[tex]->sample(x, y, z, sampling))
+#define kernel_tex_voxel_float(tex, x, y, z, sampling) (vdb_volume_sample_scalar(kg->vdb, kg->vdb_tdata, tex, x, y, z, sampling))
+#define kernel_tex_voxel_float3(tex, x, y, z, sampling) (vdb_volume_sample_vector(kg->vdb, kg->vdb_tdata, tex, x, y, z, sampling))
 
 #define kernel_data (kg->__data)
 
