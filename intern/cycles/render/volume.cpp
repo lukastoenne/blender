@@ -273,6 +273,11 @@ size_t VolumeManager::add_openvdb_volume(Volume *volume, const std::string &file
 		openvdb::FloatGrid::Ptr fgrid = openvdb::gridPtrCast<openvdb::FloatGrid>(grid);
 		volume->scalar_grids.push_back(fgrid);
 
+		/* XXX Ray intersectors only support uniform grids.
+		 * Can we make this transparent somehow? - lukas
+		 */
+		assert(fgrid->hasUniformVoxels());
+
 		slot = num_float_volume++;
 	}
 	else if(grid->isType<openvdb::Vec3SGrid>()) {
