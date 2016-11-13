@@ -47,6 +47,8 @@ public:
 	vector<openvdb::FloatGrid::Ptr> scalar_grids;
 	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
 #endif
+	
+	void tag_update(Scene *scene, bool rebuild);
 };
 
 class VolumeManager {
@@ -93,6 +95,8 @@ public:
 	void device_update_attributes(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
 	void update_svm_attributes(Device *device, DeviceScene *dscene, Scene *scene, vector<AttributeRequestSet>& mesh_attributes);
 	void device_free(Device *device, DeviceScene *dscene);
+
+	void tag_update(Scene *scene);
 
 	bool need_update;
 

@@ -128,6 +128,7 @@ static void create_volume_attributes(Scene *scene,
 
 Volume *BlenderSync::sync_volume(BL::Object &b_ob)
 {
+	BL::ID key = b_ob;
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
@@ -156,13 +157,43 @@ Volume *BlenderSync::sync_volume(BL::Object &b_ob)
 
 	fprintf(stderr, "%s: after material assignment\n", __func__);
 
-	Volume *volume = new Volume;
+	Volume *volume;
+
+	if(!volume_map.sync(&volume, key)) {
+		/* test if shaders changed, these can be object level so mesh
+		 * does not get tagged for recalc */
+		if(volume->used_shaders != used_shaders);
+		else {
+			/* even if not tagged for recalc, we may need to sync anyway
+			 * because the shader needs different volume attributes */
+			bool attribute_recalc = false;
+
+			foreach(Shader *shader, volume->used_shaders)
+				if(shader->need_update_attributes)
+					attribute_recalc = true;
+
+			if(!attribute_recalc)
+				return volume;
+		}
+	}
+
+	/* ensure we only sync instanced meshes once */
+	if(volume_synced.find(volume) != volume_synced.end())
+		return volume;
+	
+	volume_synced.insert(volume);
+	
 	volume->used_shaders = used_shaders;
 	volume->name = ustring(b_ob_data.name().c_str());
 
 	fprintf(stderr, "Number of shaders: %lu\n", volume->used_shaders.size());
 
 	create_volume_attributes(scene, b_ob, volume, b_scene.frame_current());
+
+	/* tag update */
+	bool rebuild = false;
+
+	volume->tag_update(scene, rebuild);
 
 	return volume;
 }

@@ -166,8 +166,10 @@ private:
 	id_map<void*, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
+	id_map<VolumeKey, Volume> volume_map;
 	set<Mesh*> mesh_synced;
 	set<Mesh*> mesh_motion_synced;
+	set<Volume*> volume_synced;
 	set<float> motion_times;
 	void *world_map;
 	bool world_recalc;

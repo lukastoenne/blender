@@ -54,6 +54,7 @@ class ShaderManager;
 class Progress;
 class BakeManager;
 class BakeData;
+class Volume;
 class VolumeManager;
 
 /* Scene Device Data */
@@ -186,6 +187,7 @@ public:
 	vector<Shader*> shaders;
 	vector<Light*> lights;
 	vector<ParticleSystem*> particle_systems;
+	vector<Volume*> volumes;
 
 	/* data managers */
 	ImageManager *image_manager;

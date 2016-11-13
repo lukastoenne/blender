@@ -24,6 +24,7 @@
 #include "nodes.h"
 #include "particles.h"
 #include "shader.h"
+#include "volume.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
@@ -575,6 +576,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D& b_v3d, float motion_time)
 		mesh_map.pre_sync();
 		object_map.pre_sync();
 		particle_system_map.pre_sync();
+		volume_map.pre_sync();
 		motion_times.clear();
 	}
 	else {
@@ -709,6 +711,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D& b_v3d, float motion_time)
 			scene->object_manager->tag_update(scene);
 		if(particle_system_map.post_sync())
 			scene->particle_system_manager->tag_update(scene);
+		if(volume_map.post_sync())
+			scene->volume_manager->tag_update(scene);
 	}
 
 	if(motion)

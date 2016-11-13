@@ -28,6 +28,13 @@ CCL_NAMESPACE_BEGIN
 
 #define MAX_VOLUME 1024
 
+void Volume::tag_update(Scene *scene, bool /*rebuild*/)
+{
+	scene->volume_manager->need_update = true;
+}
+
+/* ------------------------------------------------------------------------- */
+
 VolumeManager::VolumeManager()
 {
 #ifdef WITH_OPENVDB
@@ -116,11 +123,9 @@ int VolumeManager::add_volume(Volume *volume, const std::string &filename, const
 		add_grid_description(volume, filename, name, slot);
 
 		volumes.push_back(volume);
-		need_update = true;
 	}
 	catch(...) {
 		catch_exceptions();
-		need_update = false;
 		slot = -1;
 	}
 
@@ -507,6 +512,11 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 
 void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
 {
+}
+
+void VolumeManager::tag_update(Scene */*scene*/)
+{
+	need_update = true;
 }
 
 CCL_NAMESPACE_END
