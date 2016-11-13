@@ -41,7 +41,6 @@
 #include "util_half.h"
 #include "util_types.h"
 #include "util_texture.h"
-#include "util_volume.h"
 
 #define ccl_addr_space
 

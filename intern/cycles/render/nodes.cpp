@@ -30,6 +30,10 @@
 #include "util_foreach.h"
 #include "util_transform.h"
 
+#ifdef WITH_OPENVDB
+#include "../kernel/openvdb/vdb_thread.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 /* Texture Mapping */

@@ -21,7 +21,6 @@
 
 #include "util_string.h"
 #include "util_types.h"
-#include "util_volume.h"
 
 #ifdef WITH_OPENVDB
 #include <openvdb/openvdb.h>

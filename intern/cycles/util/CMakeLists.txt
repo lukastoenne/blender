@@ -81,19 +81,9 @@ set(SRC_HEADERS
 	util_vector.h
 	util_version.h
 	util_view.h
-	util_volume.h
 	util_windows.h
 	util_xml.h
 )
-
-if(WITH_OPENVDB)
-    add_definitions(
-        -DWITH_OPENVDB
-    )
-    list(APPEND SRC
-		util_volume.cpp
-    )
-endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

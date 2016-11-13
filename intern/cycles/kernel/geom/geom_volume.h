@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#ifdef WITH_OPENVDB
+#include "../openvdb/vdb_thread.h"
+#endif
+
 /* Volume Primitive
  *
  * Volumes are just regions inside meshes with the mesh surface as boundaries.
