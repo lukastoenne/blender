@@ -5413,9 +5413,9 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 			type = NODE_VDB_FLOAT3;
 		}
 
-		grid_slot = volume_manager->add_volume(filename.string(),
-		                                       output_names[i].string(),
-		                                       sampling, type);
+//		grid_slot = volume_manager->add_volume(filename.string(),
+//		                                       output_names[i].string(),
+//		                                       sampling, type);
 
 		if(grid_slot == -1) {
 			continue;

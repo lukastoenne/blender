@@ -69,20 +69,28 @@ class VolumeManager {
 
 	void delete_volume(int grid_type, int sampling, size_t slot);
 
+#if 0
 	void add_grid_description(const string& filename, const string& name, int sampling, int slot);
+#endif
 	void add_grid_description(Volume *volume, const string& filename, const string& name, int slot);
+#if 0
 	int find_existing_slot(const string& filename, const string& name, int sampling, int grid_type);
+#endif
 	int find_existing_slot(Volume *volume, const string& filename, const string& name);
 
 	bool is_openvdb_file(const string& filename) const;
+#if 0
 	size_t add_openvdb_volume(const string& filename, const string& name, int sampling, int grid_type);
+#endif
 	size_t add_openvdb_volume(Volume *volume, const string& filename, const string& name);
 
 public:
 	VolumeManager();
 	~VolumeManager();
 
+#if 0
 	int add_volume(const string& filename, const string& name, int sampling, int grid_type);
+#endif
 	int add_volume(Volume *volume, const string& filename, const string& name);
 	int find_density_slot();
 

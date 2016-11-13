@@ -73,6 +73,7 @@ static inline void catch_exceptions()
 #endif
 }
 
+#if 0
 int VolumeManager::add_volume(const string& filename, const string& name, int sampling, int grid_type)
 {
 	size_t slot = -1;
@@ -98,6 +99,7 @@ int VolumeManager::add_volume(const string& filename, const string& name, int sa
 
 	return slot;
 }
+#endif
 
 int VolumeManager::add_volume(Volume *volume, const std::string &filename, const std::string &name)
 {
@@ -131,6 +133,7 @@ int VolumeManager::add_volume(Volume *volume, const std::string &filename, const
 	return slot;
 }
 
+#if 0
 int VolumeManager::find_existing_slot(const string& filename, const string& name, int sampling, int grid_type)
 {
 	for(size_t i = 0; i < current_grids.size(); ++i) {
@@ -159,6 +162,7 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 
 	return -1;
 }
+#endif
 
 int VolumeManager::find_existing_slot(Volume *volume, const std::string &filename, const std::string &name)
 {
@@ -222,6 +226,7 @@ size_t find_empty_slot(Container container)
 	return slot;
 }
 
+#if 0
 size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std::string& name, int /*sampling*/, int grid_type)
 {
 	size_t slot = -1;
@@ -259,6 +264,7 @@ size_t VolumeManager::add_openvdb_volume(const std::string& filename, const std:
 
 	return slot;
 }
+#endif
 
 size_t VolumeManager::add_openvdb_volume(Volume *volume, const std::string &filename, const std::string &name)
 {
@@ -294,6 +300,7 @@ size_t VolumeManager::add_openvdb_volume(Volume *volume, const std::string &file
 	return slot;
 }
 
+#if 0
 void VolumeManager::add_grid_description(const string& filename, const string& name, int sampling, int slot)
 {
 	GridDescription descr;
@@ -304,6 +311,7 @@ void VolumeManager::add_grid_description(const string& filename, const string& n
 
 	current_grids.push_back(descr);
 }
+#endif
 
 void VolumeManager::add_grid_description(Volume *volume, const std::string &filename, const std::string &name, int slot)
 {
