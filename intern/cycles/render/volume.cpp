@@ -50,15 +50,6 @@ VolumeManager::VolumeManager()
 
 VolumeManager::~VolumeManager()
 {
-	for (size_t i = 0; i < volumes.size(); ++i) {
-		Volume *volume = volumes[i];
-
-#ifdef WITH_OPENVDB
-		volume->scalar_grids.clear();
-		volume->vector_grids.clear();
-#endif
-	}
-
 	current_grids.clear();
 }
 
@@ -510,8 +501,20 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	need_update = false;
 }
 
-void VolumeManager::device_free(Device */*device*/, DeviceScene */*dscene*/)
+void VolumeManager::device_free(Device *device, DeviceScene *dscene)
 {
+#ifdef WITH_OPENVDB
+	OpenVDBGlobals *vdb = device->vdb_memory();
+	for (size_t i = 0; i < vdb->scalar_main_isectors.size(); ++i) {
+		delete vdb->scalar_main_isectors[i];
+	}
+	for (size_t i = 0; i < vdb->vector_main_isectors.size(); ++i) {
+		delete vdb->vector_main_isectors[i];
+	}
+#endif
+	
+	device->tex_free(dscene->vol_shader);
+	dscene->vol_shader.clear();
 }
 
 void VolumeManager::tag_update(Scene */*scene*/)

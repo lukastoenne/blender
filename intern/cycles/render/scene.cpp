@@ -85,12 +85,15 @@ void Scene::free_memory(bool final)
 		delete l;
 	foreach(ParticleSystem *p, particle_systems)
 		delete p;
+	foreach(Volume *v, volumes)
+		delete v;
 
 	shaders.clear();
 	meshes.clear();
 	objects.clear();
 	lights.clear();
 	particle_systems.clear();
+	volumes.clear();
 
 	if(device) {
 		camera->device_free(device, &dscene, this);
