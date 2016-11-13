@@ -33,8 +33,6 @@ VolumeManager::VolumeManager()
 #ifdef WITH_OPENVDB
 	openvdb::initialize();
 
-	scalar_grids.reserve(64);
-	vector_grids.reserve(64);
 	current_grids.reserve(64);
 #endif
 
@@ -54,10 +52,6 @@ VolumeManager::~VolumeManager()
 #endif
 	}
 
-#ifdef WITH_OPENVDB
-	scalar_grids.clear();
-	vector_grids.clear();
-#endif
 	current_grids.clear();
 }
 
@@ -144,14 +138,6 @@ int VolumeManager::find_existing_slot(const string& filename, const string& name
 				return grid.slot;
 			}
 			else {
-				/* sampling was changed, remove the volume */
-				if(grid_type == NODE_VDB_FLOAT) {
-					scalar_grids[grid.slot].reset();
-				}
-				else {
-					vector_grids[grid.slot].reset();
-				}
-
 				/* remove the grid description too */
 				std::swap(current_grids[i], current_grids.back());
 				current_grids.pop_back();
@@ -190,8 +176,12 @@ int VolumeManager::find_density_slot()
 	}
 	
 	/* try using the first scalar float grid instead */
-	if(!scalar_grids.empty()) {
-		return 0;
+	for (size_t i = 0; i < volumes.size(); ++i) {
+		Volume *volume = volumes[i];
+		
+		if (!volume->scalar_grids.empty()) {
+			return 0;
+		}
 	}
 	
 	return -1;
@@ -472,21 +462,31 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 	device->tex_alloc("__vol_shader", dscene->vol_shader);
 
 #ifdef WITH_OPENVDB
+	typedef typename OpenVDBGlobals::scalar_grid_t scalar_grid_t;
+	typedef typename OpenVDBGlobals::vector_grid_t vector_grid_t;
 	typedef typename OpenVDBGlobals::scalar_isector_t scalar_isector_t;
 	typedef typename OpenVDBGlobals::vector_isector_t vector_isector_t;
 	OpenVDBGlobals *vdb = device->vdb_memory();
 	
-	vdb->scalar_grids.reserve(scalar_grids.size());
-	vdb->vector_grids.reserve(vector_grids.size());
-	vdb->scalar_main_isectors.reserve(scalar_grids.size());
-	vdb->vector_main_isectors.reserve(vector_grids.size());
-	for(size_t i = 0; i < scalar_grids.size(); ++i) {
-		vdb->scalar_grids.push_back(scalar_grids[i].get());
-		vdb->scalar_main_isectors.push_back(new scalar_isector_t(*scalar_grids[i].get()));
-	}
-	for(size_t i = 0; i < vector_grids.size(); ++i) {
-		vdb->vector_grids.push_back(vector_grids[i].get());
-		vdb->vector_main_isectors.push_back(new vector_isector_t(*vector_grids[i].get()));
+	vdb->scalar_grids.reserve(num_float_volume);
+	vdb->vector_grids.reserve(num_float3_volume);
+	vdb->scalar_main_isectors.reserve(num_float_volume);
+	vdb->vector_main_isectors.reserve(num_float3_volume);
+	for (size_t i = 0; i < volumes.size(); ++i) {
+		Volume *volume = volumes[i];
+		
+		for (size_t k = 0; k < volume->scalar_grids.size(); ++k) {
+			scalar_grid_t *grid = volume->scalar_grids[k].get();
+			vdb->scalar_grids.push_back(grid);
+			vdb->scalar_main_isectors.push_back(new scalar_isector_t(*grid));
+			VLOG(1) << grid->getName().c_str() << " memory usage: " << grid->memUsage() / 1024.0f << " kilobytes.\n";
+		}
+		for (size_t k = 0; k < volume->vector_grids.size(); ++k) {
+			vector_grid_t *grid = volume->vector_grids[k].get();
+			vdb->vector_grids.push_back(grid);
+			vdb->vector_main_isectors.push_back(new vector_isector_t(*grid));
+			VLOG(1) << grid->getName().c_str() << " memory usage: " << grid->memUsage() / 1024.0f << " kilobytes.\n";
+		}
 	}
 #endif
 
@@ -496,16 +496,6 @@ void VolumeManager::device_update(Device *device, DeviceScene *dscene, Scene *sc
 
 	dscene->data.tables.num_volumes = num_float_volume/* + float3_volumes.size()*/;
 	dscene->data.tables.density_index = 0;
-
-#ifdef WITH_OPENVDB
-	for(size_t i = 0; i < scalar_grids.size(); ++i) {
-		VLOG(1) << scalar_grids[i]->getName().c_str() << " memory usage: " << scalar_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
-	}
-
-	for(size_t i = 0; i < vector_grids.size(); ++i) {
-		VLOG(1) << vector_grids[i]->getName().c_str() << " memory usage: " << vector_grids[i]->memUsage() / 1024.0f << " kilobytes.\n";
-	}
-#endif
 
 	need_update = false;
 }

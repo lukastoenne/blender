@@ -62,11 +62,6 @@ class VolumeManager {
 	int num_float_volume;
 	int num_float3_volume;
 
-#ifdef WITH_OPENVDB
-	vector<openvdb::FloatGrid::Ptr> scalar_grids;
-	vector<openvdb::Vec3SGrid::Ptr> vector_grids;
-#endif
-
 	void delete_volume(int grid_type, int sampling, size_t slot);
 
 #if 0
