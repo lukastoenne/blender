@@ -441,7 +441,7 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 	sd->object = PRIM_NONE; /* todo: fill this for texture coordinates */
 #endif
 	sd->prim = PRIM_NONE;
-	sd->type = PRIMITIVE_NONE;
+	sd->type = PRIMITIVE_VOLUME;
 
 #ifdef __UV__
 	sd->u = 0.0f;

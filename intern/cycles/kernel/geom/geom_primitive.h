@@ -40,7 +40,7 @@ ccl_device_inline float primitive_attribute_float(KernelGlobals *kg,
 	}
 #endif
 #ifdef __VOLUME__
-	else if(ccl_fetch(sd, object) != OBJECT_NONE && desc.element == ATTR_ELEMENT_VOXEL) {
+	else if(ccl_fetch(sd, type) & PRIMITIVE_ALL_VOLUME) {
 		return volume_attribute_float(kg, sd, desc, dx, dy);
 	}
 #endif
@@ -68,7 +68,7 @@ ccl_device_inline float3 primitive_attribute_float3(KernelGlobals *kg,
 	}
 #endif
 #ifdef __VOLUME__
-	else if(ccl_fetch(sd, object) != OBJECT_NONE && desc.element == ATTR_ELEMENT_VOXEL) {
+	else if(ccl_fetch(sd, type) & PRIMITIVE_ALL_VOLUME) {
 		return volume_attribute_float3(kg, sd, desc, dx, dy);
 	}
 #endif
