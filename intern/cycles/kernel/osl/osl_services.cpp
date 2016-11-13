@@ -41,6 +41,7 @@
 #include "kernel_differential.h"
 #include "kernel_montecarlo.h"
 #include "kernel_camera.h"
+
 #include "kernels/cpu/kernel_cpu_image.h"
 
 /* Note: "util_foreach.h" needs to be included after "kernel_compat_cpu.h", as

@@ -77,10 +77,12 @@ ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd,
 	float4 r = kernel_tex_image_interp_3d(kg, desc.offset, P.x, P.y, P.z);
 #else
 	float4 r;
-	if(sd->flag & SD_VOLUME_CUBIC)
-		r = kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC);
-	else
-		r = kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z);
+//	if(sd->flag & SD_VOLUME_CUBIC)
+//		r = kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC);
+//	else
+//		r = kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z);
+
+	return kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_POINT);
 #endif
 
 	if(dx) *dx = 0.0f;

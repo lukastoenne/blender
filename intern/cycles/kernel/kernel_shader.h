@@ -67,7 +67,13 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 	ccl_fetch(sd, time) = ray->time;
 #endif
 
-	ccl_fetch(sd, prim) = kernel_tex_fetch(__prim_index, isect->prim);
+	if(ccl_fetch(sd, type) & PRIMITIVE_VOLUME) {
+		ccl_fetch(sd, prim) = isect->prim;
+	}
+	else {
+		ccl_fetch(sd, prim) = kernel_tex_fetch(__prim_index, isect->prim);
+	}
+
 	ccl_fetch(sd, ray_length) = isect->t;
 
 #ifdef __UV__
@@ -103,6 +109,9 @@ ccl_device_noinline void shader_setup_from_ray(KernelGlobals *kg,
 		/* dPdu/dPdv */
 		triangle_dPdudv(kg, ccl_fetch(sd, prim), &ccl_fetch(sd, dPdu), &ccl_fetch(sd, dPdv));
 #endif
+	}
+	else if(ccl_fetch(sd, type) & PRIMITIVE_VOLUME) {
+		ccl_fetch(sd, shader) = kernel_tex_fetch(__vol_shader, ccl_fetch(sd, prim));
 	}
 	else {
 		/* motion triangle */
@@ -432,7 +441,7 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 	sd->object = PRIM_NONE; /* todo: fill this for texture coordinates */
 #endif
 	sd->prim = PRIM_NONE;
-	sd->type = PRIMITIVE_NONE;
+	sd->type = PRIMITIVE_VOLUME;
 
 #ifdef __UV__
 	sd->u = 0.0f;

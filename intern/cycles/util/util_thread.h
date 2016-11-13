@@ -58,11 +58,6 @@ public:
 	static void *run(void *arg);
 	bool join();
 
-	pthread_t id() const
-	{
-		return pthread_id_;
-	}
-
 protected:
 	function<void(void)> run_cb_;
 	pthread_t pthread_id_;

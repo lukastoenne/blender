@@ -196,6 +196,8 @@ typedef struct SmokeDomainSettings {
 	float vector_scale;
 	char vector_draw_type;
 	char pad2[3];
+
+	char cache_filename[1024];
 } SmokeDomainSettings;
 
 

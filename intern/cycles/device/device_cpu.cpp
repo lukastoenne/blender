@@ -35,6 +35,11 @@
 #include "osl_shader.h"
 #include "osl_globals.h"
 
+#ifdef WITH_OPENVDB
+#include "vdb_globals.h"
+#include "vdb_thread.h"
+#endif
+
 #include "buffers.h"
 
 #include "util_debug.h"
@@ -57,7 +62,11 @@ public:
 #ifdef WITH_OSL
 	OSLGlobals osl_globals;
 #endif
-	
+
+#ifdef WITH_OPENVDB
+	OpenVDBGlobals vdb_globals;
+#endif
+
 	CPUDevice(DeviceInfo& info, Stats &stats, bool background)
 	: Device(info, stats, background)
 	{
@@ -184,6 +193,15 @@ public:
 	{
 #ifdef WITH_OSL
 		return &osl_globals;
+#else
+		return NULL;
+#endif
+	}
+
+	OpenVDBGlobals *vdb_memory()
+	{
+#ifdef WITH_OPENVDB
+		return &vdb_globals;
 #else
 		return NULL;
 #endif
@@ -385,6 +403,10 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
+#ifdef WITH_OPENVDB
+		vdb_thread_init(&kg, &kernel_globals, &vdb_globals);
+#endif
+
 		void(*shader_kernel)(KernelGlobals*, uint4*, float4*, float*, int, int, int, int, int);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
@@ -443,6 +465,9 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_free(&kg);
 #endif
+#ifdef WITH_OPENVDB
+		vdb_thread_free(&kg);
+#endif
 	}
 
 	int get_split_task_count(DeviceTask& task)
@@ -491,6 +516,9 @@ protected:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
+#ifdef WITH_OPENVDB
+		vdb_thread_init(&kg, &kernel_globals, &vdb_globals);
+#endif
 		return kg;
 	}
 
@@ -508,6 +536,9 @@ protected:
 		}
 #ifdef WITH_OSL
 		OSLShader::thread_free(kg);
+#endif
+#ifdef WITH_OPENVDB
+		vdb_thread_free(kg);
 #endif
 	}
 };

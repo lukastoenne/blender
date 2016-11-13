@@ -1814,7 +1814,7 @@ static int ptcache_path(PTCacheID *pid, char *filename)
 	return BLI_add_slash(filename); /* new strlen() */
 }
 
-static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext)
+int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext)
 {
 	int len=0;
 	char *idname;

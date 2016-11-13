@@ -234,14 +234,6 @@ static void xml_read_shader_graph(XMLReadState& state, Shader *shader, pugi::xml
 	for(pugi::xml_node node = graph_node.first_child(); node; node = node.next_sibling()) {
 		ustring node_name(node.name());
 
-		if(node_name == "connect") {
-		else if(string_iequals(node.name(), "openvdb")) {
-			OpenVDBNode *vdbnode = new OpenVDBNode();
-			xml_read_string(&vdbnode->filename, node, "src");
-			vdbnode->filename = path_join(state.base, vdbnode->filename);
-
-			snode = vdbnode;
-		}
 			/* connect nodes */
 			vector<string> from_tokens, to_tokens;
 

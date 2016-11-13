@@ -302,6 +302,18 @@ if(WITH_CYCLES_OSL)
 	add_subdirectory(shaders)
 endif()
 
+# OpenVDB module
+
+list(APPEND SRC
+	openvdb/vdb_thread.cpp
+	)
+
+list(APPEND SRC_HEADERS
+	openvdb/vdb_globals.h
+	openvdb/vdb_thread.h
+	openvdb/vdb_intern.h
+	)
+
 # CPU module
 
 include_directories(${INC})

@@ -24,6 +24,7 @@
 #include "nodes.h"
 #include "particles.h"
 #include "shader.h"
+#include "volume.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
@@ -71,6 +72,32 @@ bool BlenderSync::object_is_light(BL::Object& b_ob)
 	BL::ID b_ob_data = b_ob.data();
 
 	return (b_ob_data && b_ob_data.is_a(&RNA_Lamp));
+}
+
+bool BlenderSync::object_has_sparse_volume(BL::Object& b_ob)
+{
+	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
+
+	if(!b_domain) {
+		return false;
+	}
+
+	BL::PointCache b_ptcache = b_domain.point_cache();
+
+	if (!b_ptcache.is_baked()) {
+	    return false;
+	}
+
+	if (b_domain.cache_file_format() != BL::SmokeDomainSettings::cache_file_format_OPENVDB) {
+	    return false;
+	}
+
+	char filename[1024];
+	SmokeDomainSettings_cache_filename_get(&b_domain.ptr, filename);
+
+	printf("filename (blender sync): %s\n", filename);
+
+	return strcmp(filename, "");
 }
 
 static uint object_ray_visibility(BL::Object& b_ob)
@@ -358,8 +385,15 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 	
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
 	
-	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	if(object_has_sparse_volume(b_ob)) {
+		//object->mesh = NULL;
+		printf("object has sparse volume\n");
+		sync_volume(b_ob);
+	}
+	/*else*/ {
+		/* mesh sync */
+		object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
+	}
 
 	/* special case not tracked by object update flags */
 
@@ -542,6 +576,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D& b_v3d, float motion_time)
 		mesh_map.pre_sync();
 		object_map.pre_sync();
 		particle_system_map.pre_sync();
+		volume_map.pre_sync();
 		motion_times.clear();
 	}
 	else {
@@ -676,6 +711,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D& b_v3d, float motion_time)
 			scene->object_manager->tag_update(scene);
 		if(particle_system_map.post_sync())
 			scene->particle_system_manager->tag_update(scene);
+		if(volume_map.post_sync())
+			scene->volume_manager->tag_update(scene);
 	}
 
 	if(motion)

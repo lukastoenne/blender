@@ -33,6 +33,7 @@ set(SRC
 	blender_shader.cpp
 	blender_sync.cpp
 	blender_texture.cpp
+	blender_volume.cpp
 
 	CCL_api.h
 	blender_sync.h

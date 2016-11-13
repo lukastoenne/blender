@@ -781,6 +781,26 @@ struct ParticleSystemKey {
 	}
 };
 
+/* Volume Key */
+
+/* XXX For now we just use Object ID as a volume key;
+ * Volumes may become a true ID block in Blender later,
+ * or the key can be augmented to distinguish multiple volumes inside the same object.
+ */
+struct VolumeKey {
+	void *ob;
+
+	VolumeKey(void *ob_)
+	: ob(ob_)
+	{
+	}
+
+	bool operator<(const VolumeKey& k) const
+	{
+		return ob < k.ob;
+	}
+};
+
 CCL_NAMESPACE_END
 
 #endif /* __BLENDER_UTIL_H__ */

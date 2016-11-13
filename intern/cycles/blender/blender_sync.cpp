@@ -57,6 +57,7 @@ BlenderSync::BlenderSync(BL::RenderEngine& b_engine,
   mesh_map(&scene->meshes),
   light_map(&scene->lights),
   particle_system_map(&scene->particle_systems),
+  volume_map(&scene->volumes),
   world_map(NULL),
   world_recalc(false),
   scene(scene),
@@ -150,6 +151,10 @@ bool BlenderSync::sync_recalc()
 			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
 				particle_system_map.set_recalc(*b_ob);
 		}
+		
+		if(b_ob->is_updated()) {
+			volume_map.set_recalc(*b_ob);
+		}
 	}
 
 	BL::BlendData::meshes_iterator b_mesh;
@@ -184,6 +189,7 @@ bool BlenderSync::sync_recalc()
 		light_map.has_recalc() ||
 		mesh_map.has_recalc() ||
 		particle_system_map.has_recalc() ||
+		volume_map.has_recalc() ||
 		BlendDataObjects_is_updated_get(&b_data.ptr) ||
 		world_recalc;
 

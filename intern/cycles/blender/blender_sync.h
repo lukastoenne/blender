@@ -45,6 +45,7 @@ class Scene;
 class Shader;
 class ShaderGraph;
 class ShaderNode;
+class Volume;
 
 class BlenderSync {
 public:
@@ -115,6 +116,7 @@ private:
 	                 BL::Object& b_ob,
 	                 bool motion,
 	                 int time_index = 0);
+	Volume *sync_volume(BL::Object& b_ob);
 	Object *sync_object(BL::Object& b_parent,
 	                    int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
 	                    BL::DupliObject& b_dupli_ob,
@@ -152,6 +154,7 @@ private:
 	bool BKE_object_is_modified(BL::Object& b_ob);
 	bool object_is_mesh(BL::Object& b_ob);
 	bool object_is_light(BL::Object& b_ob);
+	bool object_has_sparse_volume(BL::Object& b_ob);
 
 	/* variables */
 	BL::RenderEngine b_engine;
@@ -163,8 +166,10 @@ private:
 	id_map<void*, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
+	id_map<VolumeKey, Volume> volume_map;
 	set<Mesh*> mesh_synced;
 	set<Mesh*> mesh_motion_synced;
+	set<Volume*> volume_synced;
 	set<float> motion_times;
 	void *world_map;
 	bool world_recalc;

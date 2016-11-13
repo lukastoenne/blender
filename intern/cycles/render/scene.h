@@ -54,6 +54,7 @@ class ShaderManager;
 class Progress;
 class BakeManager;
 class BakeData;
+class Volume;
 class VolumeManager;
 
 /* Scene Device Data */
@@ -128,6 +129,9 @@ public:
 	device_vector<float> tex_image_float_packed;
 	device_vector<uint4> tex_image_packed_info;
 
+	/* volume */
+	device_vector<uint> vol_shader;
+
 	KernelData data;
 };
 
@@ -183,6 +187,7 @@ public:
 	vector<Shader*> shaders;
 	vector<Light*> lights;
 	vector<ParticleSystem*> particle_systems;
+	vector<Volume*> volumes;
 
 	/* data managers */
 	ImageManager *image_manager;
@@ -200,6 +205,7 @@ public:
 	Shader *default_light;
 	Shader *default_background;
 	Shader *default_empty;
+	Shader *default_volume;
 
 	/* device */
 	Device *device;

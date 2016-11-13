@@ -971,7 +971,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 				else
 					create_mesh(scene, mesh, b_mesh, used_shaders, false);
 
-				create_mesh_volume_attributes(scene, b_ob, mesh, b_scene.frame_current());
+				//create_mesh_volume_attributes(scene, b_ob, mesh, b_scene.frame_current());
 			}
 
 			if(render_layer.use_hair && mesh->subdivision_type == Mesh::SUBDIVISION_NONE)

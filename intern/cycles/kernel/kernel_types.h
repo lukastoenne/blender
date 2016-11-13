@@ -557,11 +557,13 @@ typedef enum PrimitiveType {
 	PRIMITIVE_MOTION_CURVE = 8,
 	/* Lamp primitive is not included below on purpose, since it is no real traceable primitive */
 	PRIMITIVE_LAMP = 16,
+	PRIMITIVE_VOLUME = 32,
 
 	PRIMITIVE_ALL_TRIANGLE = (PRIMITIVE_TRIANGLE|PRIMITIVE_MOTION_TRIANGLE),
 	PRIMITIVE_ALL_CURVE = (PRIMITIVE_CURVE|PRIMITIVE_MOTION_CURVE),
 	PRIMITIVE_ALL_MOTION = (PRIMITIVE_MOTION_TRIANGLE|PRIMITIVE_MOTION_CURVE),
-	PRIMITIVE_ALL = (PRIMITIVE_ALL_TRIANGLE|PRIMITIVE_ALL_CURVE),
+	PRIMITIVE_ALL_VOLUME = (PRIMITIVE_VOLUME),
+	PRIMITIVE_ALL = (PRIMITIVE_ALL_TRIANGLE|PRIMITIVE_ALL_CURVE|PRIMITIVE_ALL_VOLUME),
 
 	/* Total number of different primitives.
 	 * NOTE: This is an actual value, not a bitflag.
@@ -845,6 +847,7 @@ typedef ccl_addr_space struct ShaderData {
 typedef struct VolumeStack {
 	int object;
 	int shader;
+	int volume;
 } VolumeStack;
 #endif
 

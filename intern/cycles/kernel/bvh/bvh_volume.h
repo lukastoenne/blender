@@ -100,6 +100,24 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	IsectPrecalc isect_precalc;
 	triangle_intersect_precalc(dir, &isect_precalc);
 
+#if 1
+	/* try to intersect with VDB volumes */
+	int num_volumes = kernel_data.tables.num_volumes;
+
+	for(int i = 0; i < num_volumes; i++) {
+		float t;
+
+		if(vdb_volume_intersect(kg->vdb_tdata, i, ray, &t)) {
+			isect->type = PRIMITIVE_VOLUME;
+			isect->prim = i;
+			isect->t = t;
+			isect->u = 1.0f;
+			isect->v = 1.0f;
+			return true;
+		}
+	}
+#endif
+
 	/* traversal loop */
 	do {
 		do {

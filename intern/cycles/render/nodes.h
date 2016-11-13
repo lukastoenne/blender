@@ -986,6 +986,8 @@ public:
 	void attributes(Shader *shader, AttributeRequestSet *attributes);
 	bool has_spatial_varying() { return true; }
 
+	void add_output(ustring name, SocketType::Type type);
+
 	ustring filename;
 	VolumeManager *volume_manager;
 

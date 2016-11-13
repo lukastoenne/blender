@@ -101,6 +101,33 @@ uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif  /* __KERNEL_SSE2__ */
 
+#if 1
+	/* try to intersect with VDB volumes */
+	int num_volumes = kernel_data.tables.num_volumes;
+
+	for(int i = 0; i < num_volumes; i++) {
+		float t;
+
+		if(vdb_volume_intersect(kg->vdb_tdata, i, ray, &t)) {
+			isect_array->type = PRIMITIVE_VOLUME;
+			isect_array->prim = i;
+			isect_array->t = t;
+			isect_array->u = 1.0f;
+			isect_array->v = 1.0f;
+			isect_array++;
+			num_hits++;
+
+			if(num_hits == max_hits) {
+				return num_hits;
+			}
+		}
+	}
+
+	if(num_hits > 0) {
+		return num_hits;
+	}
+#endif
+
 	IsectPrecalc isect_precalc;
 	triangle_intersect_precalc(dir, &isect_precalc);
 

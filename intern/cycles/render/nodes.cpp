@@ -5375,15 +5375,20 @@ NODE_DEFINE(OpenVDBNode)
 {
 	NodeType* type = NodeType::add("openvdb", create, NodeType::SHADER);
 
+	SOCKET_STRING(filename, "Filename", ustring(""));
+
+	static NodeEnum sampling_enum;
+	sampling_enum.insert("point", OPENVDB_SAMPLE_POINT);
+	sampling_enum.insert("box", OPENVDB_SAMPLE_BOX);
+	SOCKET_ENUM(sampling, "Sampling", sampling_enum, OPENVDB_SAMPLE_POINT);
+
 	return type;
 }
 
 OpenVDBNode::OpenVDBNode()
 : ShaderNode(node_type)
 {
-	filename = "";
 	volume_manager = NULL;
-	sampling = OPENVDB_SAMPLE_POINT;
 }
 
 void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -5408,9 +5413,9 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 			type = NODE_VDB_FLOAT3;
 		}
 
-		grid_slot = volume_manager->add_volume(filename.string(),
-		                                       output_sockets[i].name.string(),
-		                                       sampling, type);
+//		grid_slot = volume_manager->add_volume(filename.string(),
+//		                                       output_names[i].string(),
+//		                                       sampling, type);
 
 		if(grid_slot == -1) {
 			continue;
@@ -5421,6 +5426,11 @@ void OpenVDBNode::compile(SVMCompiler& compiler)
 		compiler.add_node(NODE_OPENVDB,
 		                  compiler.encode_uchar4(grid_slot, type, out->stack_offset, sampling));
 	}
+}
+
+void OpenVDBNode::add_output(ustring name, SocketType::Type socket_type)
+{
+	const_cast<NodeType*>(type)->register_output(name, name, socket_type);
 }
 
 void OpenVDBNode::compile(OSLCompiler& /*compiler*/)

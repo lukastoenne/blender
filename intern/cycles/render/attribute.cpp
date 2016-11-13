@@ -33,7 +33,8 @@ Attribute::~Attribute()
 		VoxelAttribute *voxel_data = data_voxel();
 
 		if(voxel_data && voxel_data->slot != -1) {
-			voxel_data->manager->remove_image(voxel_data->slot);
+			if (voxel_data->manager)
+				voxel_data->manager->remove_image(voxel_data->slot);
 		}
 	}
 }
@@ -344,10 +345,13 @@ Attribute *AttributeSet::add(ustring name, TypeDesc type, AttributeElement eleme
 	/* this is weak .. */
 	if(triangle_mesh)
 		attr->resize(triangle_mesh, ATTR_PRIM_TRIANGLE, false);
-	if(curve_mesh)
+	else if(curve_mesh)
 		attr->resize(curve_mesh, ATTR_PRIM_CURVE, false);
-	if(subd_mesh)
+	else if(subd_mesh)
 		attr->resize(subd_mesh, ATTR_PRIM_SUBD, false);
+	else if(element == ATTR_ELEMENT_VOXEL) {
+		attr->resize(1);
+	}
 
 	return attr;
 }
