@@ -253,7 +253,7 @@ enum PathTraceDimension {
 	PRNG_LIGHT = 3,
 	PRNG_LIGHT_U = 4,
 	PRNG_LIGHT_V = 5,
-	PRNG_UNUSED_3 = 6,
+	PRNG_LIGHT_TERMINATE = 6,
 	PRNG_TERMINATE = 7,
 
 #ifdef __VOLUME__
@@ -1129,8 +1129,9 @@ typedef struct KernelIntegrator {
 	float volume_step_size;
 	int volume_samples;
 
+	float light_inv_rr_threshold;
+
 	int pad1;
-	int pad2;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 
