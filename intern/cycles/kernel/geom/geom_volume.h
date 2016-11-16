@@ -68,57 +68,76 @@ ccl_device_inline float3 volume_normalized_position(KernelGlobals *kg,
 
 ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd, const AttributeDescriptor desc, float *dx, float *dy)
 {
-	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	float r;
+	
 #ifdef __KERNEL_CUDA__
 #  if __CUDA_ARCH__ >= 300
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
 	CUtexObject tex = kernel_tex_fetch(__bindless_mapping, desc.offset);
-	float f = kernel_tex_image_interp_3d_float(tex, P.x, P.y, P.z);
-	float4 r = make_float4(f, f, f, 1.0f);
+	r = kernel_tex_image_interp_3d_float(tex, P.x, P.y, P.z);
 #  else
-	float4 r = volume_image_texture_3d(desc.offset, P.x, P.y, P.z);
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	r = average(float4_to_float3(volume_image_texture_3d(desc.offset, P.x, P.y, P.z)));
 #  endif
 #elif defined(__KERNEL_OPENCL__)
-	float4 r = kernel_tex_image_interp_3d(kg, desc.offset, P.x, P.y, P.z);
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	r = average(float4_to_float3(kernel_tex_image_interp_3d(kg, desc.offset, P.x, P.y, P.z)));
 #else
-	float4 r;
-//	if(sd->flag & SD_VOLUME_CUBIC)
-//		r = kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC);
-//	else
-//		r = kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z);
 
-	return kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_POINT);
+#if 1 /* XXX WITH_OPENVDB ? */
+	float3 P = ccl_fetch(sd, P);
+	r = kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_POINT);
+#else
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	if(sd->flag & SD_VOLUME_CUBIC)
+		r = average(float4_to_float3(kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC)));
+	else
+		r = average(float4_to_float3(kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z)));
+#endif
+
 #endif
 
 	if(dx) *dx = 0.0f;
 	if(dy) *dy = 0.0f;
 
-	return average(float4_to_float3(r));
+	return r;
 }
 
 ccl_device float3 volume_attribute_float3(KernelGlobals *kg, const ShaderData *sd, const AttributeDescriptor desc, float3 *dx, float3 *dy)
 {
-	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	float3 r;
+	
 #ifdef __KERNEL_CUDA__
 #  if __CUDA_ARCH__ >= 300
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
 	CUtexObject tex = kernel_tex_fetch(__bindless_mapping, desc.offset);
-	float4 r = kernel_tex_image_interp_3d_float4(tex, P.x, P.y, P.z);
+	r = float4_to_float3(kernel_tex_image_interp_3d_float4(tex, P.x, P.y, P.z));
 #  else
-	float4 r = volume_image_texture_3d(desc.offset, P.x, P.y, P.z);
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	r = float4_to_float3(volume_image_texture_3d(desc.offset, P.x, P.y, P.z));
 #  endif
 #elif defined(__KERNEL_OPENCL__)
-	float4 r = kernel_tex_image_interp_3d(kg, desc.offset, P.x, P.y, P.z);
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
+	r = float4_to_float3(kernel_tex_image_interp_3d(kg, desc.offset, P.x, P.y, P.z));
 #else
-	float4 r;
+
+#if 1 /* XXX WITH_OPENVDB ? */
+	float3 P = ccl_fetch(sd, P);
+	r = kernel_tex_voxel_float3(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_POINT);
+#else
+	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
 	if(sd->flag & SD_VOLUME_CUBIC)
-		r = kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC);
+		r = float4_to_float3(kernel_tex_image_interp_3d_ex(desc.offset, P.x, P.y, P.z, INTERPOLATION_CUBIC));
 	else
-		r = kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z);
+		r = float4_to_float3(kernel_tex_image_interp_3d(desc.offset, P.x, P.y, P.z));
+#endif
+
 #endif
 
 	if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);
 	if(dy) *dy = make_float3(0.0f, 0.0f, 0.0f);
 
-	return float4_to_float3(r);
+	return r;
 }
 
 #endif
