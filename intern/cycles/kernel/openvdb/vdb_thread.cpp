@@ -146,10 +146,14 @@ float vdb_volume_sample_scalar(OpenVDBGlobals */*vdb*/, OpenVDBThreadData *vdb_t
 {
 	OpenVDBScalarThreadData &data = vdb_thread->scalar_data[vdb_index];
 	
-	if (sampling == OPENVDB_SAMPLE_POINT)
-		return data.point_sampler->wsSample(openvdb::Vec3d(x, y, z));
-	else
-		return data.box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+	switch (sampling) {
+		case OPENVDB_SAMPLE_POINT:
+			return data.point_sampler->wsSample(openvdb::Vec3d(x, y, z));
+		case OPENVDB_SAMPLE_BOX:
+			return data.box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+	}
+	
+	return 0.0f;
 }
 
 float3 vdb_volume_sample_vector(OpenVDBGlobals *vdb, OpenVDBThreadData *vdb_thread, int vdb_index,
@@ -160,16 +164,24 @@ float3 vdb_volume_sample_vector(OpenVDBGlobals *vdb, OpenVDBThreadData *vdb_thre
 	openvdb::Vec3s r;
 	
 	if (staggered) {
-		if (sampling == OPENVDB_SAMPLE_POINT)
-			r = data.stag_point_sampler->wsSample(openvdb::Vec3d(x, y, z));
-		else
-			r = data.stag_box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+		switch (sampling) {
+			case OPENVDB_SAMPLE_POINT:
+				r = data.stag_point_sampler->wsSample(openvdb::Vec3d(x, y, z));
+				break;
+			case OPENVDB_SAMPLE_BOX:
+				r = data.stag_box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+				break;
+		}
 	}
 	else {
-		if (sampling == OPENVDB_SAMPLE_POINT)
-			r = data.point_sampler->wsSample(openvdb::Vec3d(x, y, z));
-		else
-			r = data.box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+		switch (sampling) {
+			case OPENVDB_SAMPLE_POINT:
+				r = data.point_sampler->wsSample(openvdb::Vec3d(x, y, z));
+				break;
+			case OPENVDB_SAMPLE_BOX:
+				r = data.box_sampler->wsSample(openvdb::Vec3d(x, y, z));
+				break;
+		}
 	}
 	
 	return make_float3(r.x(), r.y(), r.z());

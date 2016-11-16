@@ -86,7 +86,13 @@ ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd,
 
 #if 1 /* XXX WITH_OPENVDB ? */
 	float3 P = ccl_fetch(sd, P);
-	r = kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_POINT);
+	/* XXX OpenVDB does not support cubic interpolation (could use quadratic though) - lukas_t */
+#if 0
+	if(sd->flag & SD_VOLUME_CUBIC)
+		r = kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, ...)
+	else
+#endif
+		r = kernel_tex_voxel_float(desc.offset, P.x, P.y, P.z, OPENVDB_SAMPLE_BOX);
 #else
 	float3 P = volume_normalized_position(kg, sd, ccl_fetch(sd, P));
 	if(sd->flag & SD_VOLUME_CUBIC)
