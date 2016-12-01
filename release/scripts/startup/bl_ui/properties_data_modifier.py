@@ -1076,6 +1076,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "width", slider=True)
         col.prop(md, "narrowness", slider=True)
 
+    def WRINKLE(self, layout, ob, md):
+        pass
+
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")
 

@@ -104,6 +104,7 @@ set(SRC
 	intern/MOD_weightvgmix.c
 	intern/MOD_weightvgproximity.c
 	intern/MOD_wireframe.c
+	intern/MOD_wrinkle.c
 
 	MOD_modifiertypes.h
 	intern/MOD_boolean_util.h

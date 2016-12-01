@@ -107,6 +107,7 @@ EnumPropertyItem rna_enum_object_modifier_type_items[] = {
 	{eModifierType_Smooth, "SMOOTH", ICON_MOD_SMOOTH, "Smooth", ""},
 	{eModifierType_Warp, "WARP", ICON_MOD_WARP, "Warp", ""},
 	{eModifierType_Wave, "WAVE", ICON_MOD_WAVE, "Wave", ""},
+	{eModifierType_Wrinkle, "WRINKLE", ICON_MOD_CLOTH, "Wrinkle", ""},
 	{0, "", 0, N_("Simulate"), ""},
 	{eModifierType_Cloth, "CLOTH", ICON_MOD_CLOTH, "Cloth", ""},
 	{eModifierType_Collision, "COLLISION", ICON_MOD_PHYSICS, "Collision", ""},
@@ -408,6 +409,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_CorrectiveSmoothModifier;
 		case eModifierType_MeshSequenceCache:
 			return &RNA_MeshSequenceCacheModifier;
+		case eModifierType_Wrinkle:
+			return &RNA_WrinkleModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -4702,6 +4705,17 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_wrinkle(BlenderRNA *brna)
+{
+	StructRNA *srna;
+//	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "WrinkleModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Wrinkle Modifier", "Add wrinkles to compressed areas of the mesh");
+	RNA_def_struct_sdna(srna, "WrinkleModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_CLOTH);
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4819,6 +4833,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_datatransfer(brna);
 	rna_def_modifier_normaledit(brna);
 	rna_def_modifier_meshseqcache(brna);
+	rna_def_modifier_wrinkle(brna);
 }
 
 #endif

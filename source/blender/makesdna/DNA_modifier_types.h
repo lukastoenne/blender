@@ -86,6 +86,7 @@ typedef enum ModifierType {
 	eModifierType_NormalEdit        = 50,
 	eModifierType_CorrectiveSmooth  = 51,
 	eModifierType_MeshSequenceCache = 52,
+	eModifierType_Wrinkle           = 53,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1550,6 +1551,17 @@ enum {
 	MOD_NORMALEDIT_MIX_SUB  = 2,
 	MOD_NORMALEDIT_MIX_MUL  = 3,
 };
+
+
+typedef struct WrinkleModifierData {
+	ModifierData modifier;
+	
+	int flag, pad;
+} WrinkleModifierData;
+
+/* Wrinkle modifier flags */
+//enum {
+//};
 
 typedef struct MeshSeqCacheModifierData {
 	ModifierData modifier;
