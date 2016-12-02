@@ -1830,6 +1830,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
 			}
 		}
+		else if (md->type == eModifierType_Wrinkle) {
+			WrinkleModifierData *wmd = (WrinkleModifierData *)md;
+			
+			writelist(wd, DATA, WrinkleMapSettings, &wmd->wrinkle_maps);
+		}
 	}
 }
 

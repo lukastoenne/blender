@@ -49,6 +49,7 @@ _modules = [
     "vertexpaint_dirt",
     "view3d",
     "wm",
+    "wrinkle",
     ]
 
 import bpy

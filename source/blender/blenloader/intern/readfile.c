@@ -5302,6 +5302,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			csmd->delta_cache = NULL;
 			csmd->delta_cache_num = 0;
 		}
+		else if (md->type == eModifierType_Wrinkle) {
+			WrinkleModifierData *wmd = (WrinkleModifierData *)md;
+			
+			link_list(fd, &wmd->wrinkle_maps);
+		}
 	}
 }
 

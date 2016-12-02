@@ -1077,7 +1077,31 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "narrowness", slider=True)
 
     def WRINKLE(self, layout, ob, md):
-        pass
+        row = layout.row()
+        row.template_list("OBJECT_UL_wrinkle_modifier_maps", "", md, "wrinkle_maps", md, "active_wrinkle_map_index")
+
+        col = row.column(align=True)
+        col.operator("modifier.wrinkle_map_add", icon='ZOOMIN', text="")
+        col.operator("modifier.wrinkle_map_remove", icon='ZOOMOUT', text="")
+
+        #col.menu("MODIFIER_MT_wrinkle_map_specials", icon='DOWNARROW_HLT', text="")
+
+        col.separator()
+
+        col.operator("modifier.wrinkle_map_move", icon='TRIA_UP', text="").direction = 'UP'
+        col.operator("modifier.wrinkle_map_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+        
+
+        split = layout.split()
+
+        col = split.column()
+        col.label(text="Rest Shape Key:")
+        key = ob.data.shape_keys
+        if key:
+            col.prop_search(md, "rest_shape_key", key, "key_blocks", text="")
+        else:
+            col.enabled = False
+            col.prop(md, "rest_shape_key", text="")
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")

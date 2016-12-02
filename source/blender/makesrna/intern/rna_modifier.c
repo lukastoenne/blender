@@ -52,6 +52,7 @@
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
 #include "BKE_smoke.h" /* For smokeModifier_free & smokeModifier_createType */
+#include "BKE_wrinkle.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -279,6 +280,8 @@ EnumPropertyItem rna_enum_axis_flag_xyz_items[] = {
 };
 
 #ifdef RNA_RUNTIME
+
+#include "BLI_listbase.h"
 
 #include "DNA_particle_types.h"
 #include "DNA_curve_types.h"
@@ -1147,6 +1150,94 @@ static void rna_MeshSequenceCache_object_path_update(Main *bmain, Scene *scene, 
 #endif
 
 	rna_Modifier_update(bmain, scene, ptr);
+}
+
+
+static PointerRNA rna_WrinkleModifier_active_wrinkle_map_get(PointerRNA *ptr)
+{
+	WrinkleModifierData *wmd = ptr->data;
+	WrinkleMapSettings *map = BLI_findlink(&wmd->wrinkle_maps, wmd->active_wrinkle_map);
+	PointerRNA rptr;
+	RNA_pointer_create(ptr->id.data, &RNA_WrinkleMapSettings, map, &rptr);
+	return rptr;
+}
+
+static void rna_WrinkleModifier_active_wrinkle_map_set(PointerRNA *ptr, const PointerRNA map_ptr)
+{
+	WrinkleModifierData *wmd = ptr->data;
+	wmd->active_wrinkle_map = BLI_findindex(&wmd->wrinkle_maps, map_ptr.data);
+}
+
+static int rna_WrinkleModifier_active_wrinkle_map_poll(PointerRNA *ptr, const PointerRNA map_ptr)
+{
+	WrinkleModifierData *wmd = ptr->data;
+	return BLI_findindex(&wmd->wrinkle_maps, map_ptr.data) != -1;
+}
+
+static WrinkleMapSettings *rna_WrinkleModifier_wrinkle_maps_new(ID *id, WrinkleModifierData *wmd, ReportList *UNUSED(reports))
+{
+	WrinkleMapSettings *map = BKE_wrinkle_map_add(wmd);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
+	
+	return map;
+}
+
+static void rna_WrinkleModifier_wrinkle_maps_remove(ID *id, WrinkleModifierData *wmd, ReportList *reports, PointerRNA *map_ptr)
+{
+	if (BLI_findindex(&wmd->wrinkle_maps, map_ptr->data) == -1) {
+		BKE_report(reports, RPT_ERROR, "Wrinkle map not found in the modifier");
+		return;
+	}
+	
+	BKE_wrinkle_map_remove(wmd, map_ptr->data);
+	RNA_POINTER_INVALIDATE(map_ptr);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
+}
+
+static void rna_WrinkleModifier_wrinkle_maps_clear(ID *id, WrinkleModifierData *wmd)
+{
+	BKE_wrinkle_maps_clear(wmd);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
+}
+
+static void rna_WrinkleModifier_wrinkle_maps_move(ID *id, WrinkleModifierData *wmd, ReportList *reports,
+                                                  int from_index, int to_index)
+{
+	if (from_index < 0 || from_index >= BLI_listbase_count(&wmd->wrinkle_maps)) {
+		BKE_report(reports, RPT_ERROR, "from_index out of bounds");
+		return;
+	}
+	if (to_index < 0 || to_index >= BLI_listbase_count(&wmd->wrinkle_maps)) {
+		BKE_report(reports, RPT_ERROR, "to_index out of bounds");
+		return;
+	}
+	
+	BKE_wrinkle_map_move(wmd, from_index, to_index);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
+}
+
+static PointerRNA rna_WrinkleModifier_rest_shape_key_get(PointerRNA *ptr)
+{
+	Object *ob = ptr->id.data;
+	WrinkleModifierData *wmd = ptr->data;
+
+	return rna_object_shapekey_index_get(ob->data, wmd->shapekey_rest);
+}
+
+static void rna_WrinkleModifier_rest_shape_key_set(PointerRNA *ptr, PointerRNA value)
+{
+	Object *ob = ptr->id.data;
+	WrinkleModifierData *wmd = ptr->data;
+
+	wmd->shapekey_rest = rna_object_shapekey_index_set(ob->data, value, wmd->shapekey_rest);
 }
 
 #else
@@ -4705,15 +4796,93 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "WrinkleMapSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Wrinkle Map Settings", "Settings for a wrinkle texture map");
+}
+
+static void rna_def_wrinkle_maps(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "WrinkleMaps");
+	srna = RNA_def_struct(brna, "WrinkleMaps", NULL);
+	RNA_def_struct_sdna(srna, "WrinkleModifierData");
+	RNA_def_struct_ui_text(srna, "Wrinkle Maps", "Collection of wrinkle maps");
+
+	func = RNA_def_function(srna, "new", "rna_WrinkleModifier_wrinkle_maps_new");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Add a new wrinkle map");
+	/* return type */
+	parm = RNA_def_pointer(func, "map", "WrinkleMapSettings", "", "Newly created wrinkle map");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_WrinkleModifier_wrinkle_maps_remove");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove an existing wrinkle map from the modifier");
+	parm = RNA_def_pointer(func, "map", "WrinkleMapSettings", "", "Map to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
+	func = RNA_def_function(srna, "move", "rna_WrinkleModifier_wrinkle_maps_move");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Move a wrinkle map in the list");
+	parm = RNA_def_int(func, "from_index", 0, 0, INT_MAX, "", "Index of the wrinkle map to move", 0, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "to_index", 0, 0, INT_MAX, "", "Index to move to", 0, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	/* clear all modifiers */
+	func = RNA_def_function(srna, "clear", "rna_WrinkleModifier_wrinkle_maps_clear");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+	RNA_def_function_ui_description(func, "Remove all wrinkle maps from the modifier");
+}
+
 static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 {
 	StructRNA *srna;
-//	PropertyRNA *prop;
+	PropertyRNA *prop;
+
+	rna_def_wrinkle_map_settings(brna);
 
 	srna = RNA_def_struct(brna, "WrinkleModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Wrinkle Modifier", "Add wrinkles to compressed areas of the mesh");
 	RNA_def_struct_sdna(srna, "WrinkleModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_CLOTH);
+
+	prop = RNA_def_property(srna, "wrinkle_maps", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "WrinkleMapSettings");
+	RNA_def_property_ui_text(prop, "Wrinkle Maps", "Texture maps for wrinkle patterns");
+	rna_def_wrinkle_maps(brna, prop);
+
+	prop = RNA_def_property(srna, "active_wrinkle_map_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "active_wrinkle_map");
+	RNA_def_property_ui_text(prop, "Active Wrinkle Map Index", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "active_wrinkle_map", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "WrinkleMapSettings");
+	RNA_def_property_pointer_funcs(prop, "rna_WrinkleModifier_active_wrinkle_map_get",
+	                               "rna_WrinkleModifier_active_wrinkle_map_set", NULL,
+	                               "rna_WrinkleModifier_active_wrinkle_map_poll");
+	RNA_def_property_ui_text(prop, "Active Wrinkle Map", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "rest_shape_key", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "ShapeKey");
+	RNA_def_property_pointer_funcs(prop, "rna_WrinkleModifier_rest_shape_key_get",
+	                               "rna_WrinkleModifier_rest_shape_key_set", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Rest Shape Key", "Shape key to define surface compression");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

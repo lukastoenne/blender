@@ -61,6 +61,7 @@ _modules = [
     "properties_render_layer",
     "properties_scene",
     "properties_texture",
+    "properties_wrinkle",
     "properties_world",
     "space_clip",
     "space_console",

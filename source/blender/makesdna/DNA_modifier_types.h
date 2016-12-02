@@ -1552,17 +1552,6 @@ enum {
 	MOD_NORMALEDIT_MIX_MUL  = 3,
 };
 
-
-typedef struct WrinkleModifierData {
-	ModifierData modifier;
-	
-	int flag, pad;
-} WrinkleModifierData;
-
-/* Wrinkle modifier flags */
-//enum {
-//};
-
 typedef struct MeshSeqCacheModifierData {
 	ModifierData modifier;
 
@@ -1584,5 +1573,35 @@ enum {
 
 #define MOD_MESHSEQ_READ_ALL \
 	(MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | MOD_MESHSEQ_READ_COLOR)
+
+typedef struct WrinkleMapSettings {
+	struct WrinkleMapSettings *next, *prev;
+	
+	/* keep in sync with MappingInfoModifierData */
+	struct Tex *texture;
+	struct Object *map_object;
+	char uvlayer_name[64];  /* MAX_CUSTOMDATA_LAYER_NAME */
+	int uvlayer_tmp;
+	int texmapping;
+	
+	char defgrp_name[64];       /* Name of vertex group to modify. MAX_VGROUP_NAME. */
+} WrinkleMapSettings;
+
+typedef struct WrinkleModifierData {
+	ModifierData modifier;
+	
+	int flag;
+	
+	short shapekey_rest;        /* Reference shapekey */
+	short pad;
+	
+	ListBase wrinkle_maps;
+	int active_wrinkle_map;
+	int pad2;
+} WrinkleModifierData;
+
+/* Wrinkle modifier flags */
+//enum {
+//};
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

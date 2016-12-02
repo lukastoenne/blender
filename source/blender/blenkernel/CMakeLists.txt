@@ -185,6 +185,7 @@ set(SRC
 	intern/tracking_util.c
 	intern/unit.c
 	intern/world.c
+	intern/wrinkle.c
 	intern/writeavi.c
 	intern/writeframeserver.c
 
@@ -292,6 +293,7 @@ set(SRC
 	BKE_unit.h
 	BKE_utildefines.h
 	BKE_world.h
+	BKE_wrinkle.h
 	BKE_writeavi.h
 	BKE_writeframeserver.h
 
