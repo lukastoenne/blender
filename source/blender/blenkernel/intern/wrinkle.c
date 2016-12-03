@@ -42,6 +42,7 @@
 #include "DNA_object_types.h"
 #include "DNA_texture_types.h"
 
+#include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
@@ -112,7 +113,30 @@ void BKE_wrinkle_map_move(WrinkleModifierData *wmd, int from_index, int to_index
 
 /* ========================================================================= */
 
-static void apply_vgroup(int numverts, const float *influence, int defgrp_index, MDeformVert *dvert)
+static void wrinkle_displace_verts(const float *influence, DerivedMesh *dm)
+{
+	/* XXX any nicer way to ensure we only get a CDDM? */
+	BLI_assert(dm->type == DM_TYPE_CDDM);
+	
+	DM_ensure_normals(dm);
+	
+	int numverts = dm->getNumVerts(dm);
+	MVert *mverts = dm->getVertArray(dm);
+	float (*coords)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "vertex coords");
+	for (int i = 0; i < numverts; i++) {
+		MVert *mv = &mverts[i];
+		float w = influence[i];
+		
+		float nor[3];
+		normal_short_to_float_v3(nor, mv->no);
+		
+		madd_v3_v3v3fl(coords[i], mv->co, nor, w);
+	}
+	
+	CDDM_apply_vert_coords(dm, coords);
+}
+
+static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int defgrp_index, MDeformVert *dvert)
 {
 	BLI_assert(dvert != NULL);
 	BLI_assert(defgrp_index >= 0);
@@ -290,29 +314,42 @@ static float* get_wrinkle_map_influence(WrinkleModifierData *wmd, DerivedMesh *d
 
 void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3])
 {
+	const bool apply_displace = wmd->flag & MOD_WRINKLE_APPLY_DISPLACEMENT;
+	const bool apply_vgroups = wmd->flag & MOD_WRINKLE_APPLY_VERTEX_GROUPS;
 	int numverts = dm->getNumVerts(dm);
 	
 	for (WrinkleMapSettings *map = wmd->wrinkle_maps.first; map; map = map->next) {
-		/* Get vgroup idx from its name. */
-		int defgrp_index = defgroup_name_index(ob, map->defgrp_name);
-		if (defgrp_index == -1)
-			continue;
+		int defgrp_index = -1;
+		MDeformVert *dvert = NULL;
+		bool apply_map_vgroup = false;
 		
-		MDeformVert *dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numverts);
-		/* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
-		if (!dvert) {
-			/* add a valid data layer */
-			dvert = CustomData_add_layer_named(&dm->vertData, CD_MDEFORMVERT, CD_CALLOC,
-			                                   NULL, numverts, map->defgrp_name);
-			/* check again */
-			if (!dvert)
-				continue;
+		if (apply_vgroups) {
+			/* Get vgroup idx from its name. */
+			defgrp_index = defgroup_name_index(ob, map->defgrp_name);
+			
+			if (defgrp_index != -1) {
+				dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numverts);
+				/* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
+				if (!dvert) {
+					/* add a valid data layer */
+					dvert = CustomData_add_layer_named(&dm->vertData, CD_MDEFORMVERT, CD_CALLOC,
+					                                   NULL, numverts, map->defgrp_name);
+				}
+				if (dvert)
+					apply_map_vgroup = true;
+			}
 		}
 		
-		float *influence = get_wrinkle_map_influence(wmd, dm, orco, map);
-		if (influence) {
-			apply_vgroup(numverts, influence, defgrp_index, dvert);
-			MEM_freeN(influence);
+		if (apply_displace || apply_map_vgroup) {
+			float *influence = get_wrinkle_map_influence(wmd, dm, orco, map);
+			if (influence) {
+				if (apply_displace)
+					wrinkle_displace_verts(influence, dm);
+				if (apply_map_vgroup)
+					wrinkle_set_vgroup_weights(influence, numverts, defgrp_index, dvert);
+				
+				MEM_freeN(influence);
+			}
 		}
 	}
 }

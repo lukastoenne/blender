@@ -4931,6 +4931,16 @@ static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Active Wrinkle Map", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "apply_displacement", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WRINKLE_APPLY_DISPLACEMENT);
+	RNA_def_property_ui_text(prop, "Apply Displacement", "Displace vertices based on the wrinkle maps");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "apply_vertex_groups", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WRINKLE_APPLY_VERTEX_GROUPS);
+	RNA_def_property_ui_text(prop, "Apply Vertex Groups", "Store influence of wrinkle maps in vertex groups");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "rest_shape_key", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "ShapeKey");

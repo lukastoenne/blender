@@ -56,7 +56,7 @@ static void initData(ModifierData *md)
 {
 	WrinkleModifierData *wmd = (WrinkleModifierData *)md;
 	
-	UNUSED_VARS(wmd);
+	wmd->flag = MOD_WRINKLE_APPLY_DISPLACEMENT;
 	
 	/* XXX linker hack: only using BKE_wrinkle functions from RNA
 	 * does not prevent them from being stripped!
@@ -201,7 +201,7 @@ ModifierTypeInfo modifierType_Wrinkle = {
 	/* name */              "Wrinkle",
 	/* structName */        "WrinkleModifierData",
 	/* structSize */        sizeof(WrinkleModifierData),
-	/* type */              eModifierTypeType_NonGeometrical,
+	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode |

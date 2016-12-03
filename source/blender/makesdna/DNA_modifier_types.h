@@ -1601,7 +1601,9 @@ typedef struct WrinkleModifierData {
 } WrinkleModifierData;
 
 /* Wrinkle modifier flags */
-//enum {
-//};
+enum {
+	MOD_WRINKLE_APPLY_DISPLACEMENT = (1 << 0),
+	MOD_WRINKLE_APPLY_VERTEX_GROUPS = (1 << 1),
+};
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

@@ -1083,6 +1083,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
+        col.prop(md, "apply_displacement")
+        col.prop(md, "apply_vertex_groups")
+
+        col = split.column()
         col.label(text="Rest Shape Key:")
         key = ob.data.shape_keys
         if key:
@@ -1113,15 +1117,20 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.label(text="Texture:")
             col.template_ID(wrinkle_map, "texture", new="texture.new")
 
-            col_map = layout.column()
-            col_map.active = wrinkle_map.texture is not None
-            split = col_map.split()
+            split = layout.split()
 
             col = split.column(align=True)
             col.label(text="Vertex Group:")
-            col.prop_search(wrinkle_map, "vertex_group", ob, "vertex_groups", text="")
+            row = col.row()
+            if md.apply_vertex_groups:
+                if not wrinkle_map.vertex_group:
+                    row.alert = True
+            else:
+                row.enabled = False
+            row.prop_search(wrinkle_map, "vertex_group", ob, "vertex_groups", text="")
 
             col = split.column(align=True)
+            col.enabled = wrinkle_map.texture is not None
             col.label(text="Texture Coordinates:")
             col.prop(wrinkle_map, "texture_coords", text="")
             if wrinkle_map.texture_coords == 'OBJECT':
