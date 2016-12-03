@@ -1076,7 +1076,23 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "width", slider=True)
         col.prop(md, "narrowness", slider=True)
 
+    def WRINKLE_WEIGHT(self, layout, ob, md):
+        pass
+
     def WRINKLE(self, layout, ob, md):
+        split = layout.split()
+
+        col = split.column()
+        col.label(text="Rest Shape Key:")
+        key = ob.data.shape_keys
+        if key:
+            col.prop_search(md, "rest_shape_key", key, "key_blocks", text="")
+        else:
+            col.enabled = False
+            col.prop(md, "rest_shape_key", text="")
+
+        layout.separator()
+
         row = layout.row()
         row.template_list("OBJECT_UL_wrinkle_modifier_maps", "", md, "wrinkle_maps", md, "active_wrinkle_map_index")
 
@@ -1114,19 +1130,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             elif wrinkle_map.texture_coords == 'UV' and ob.type == 'MESH':
                 col.label(text="UV Map:")
                 col.prop_search(wrinkle_map, "uv_layer", ob.data, "uv_textures", text="")
-
-        layout.separator()
-
-        split = layout.split()
-
-        col = split.column()
-        col.label(text="Rest Shape Key:")
-        key = ob.data.shape_keys
-        if key:
-            col.prop_search(md, "rest_shape_key", key, "key_blocks", text="")
-        else:
-            col.enabled = False
-            col.prop(md, "rest_shape_key", text="")
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")
