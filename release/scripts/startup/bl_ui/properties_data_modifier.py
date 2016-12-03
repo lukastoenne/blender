@@ -1131,6 +1131,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
             col = split.column(align=True)
             col.enabled = wrinkle_map.texture is not None
+            
             col.label(text="Texture Coordinates:")
             col.prop(wrinkle_map, "texture_coords", text="")
             if wrinkle_map.texture_coords == 'OBJECT':
@@ -1139,6 +1140,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             elif wrinkle_map.texture_coords == 'UV' and ob.type == 'MESH':
                 col.label(text="UV Map:")
                 col.prop_search(wrinkle_map, "uv_layer", ob.data, "uv_textures", text="")
+
+            col.label(text="Displacement:")
+            col.prop(wrinkle_map, "direction", text="")
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")

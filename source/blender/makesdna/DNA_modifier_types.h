@@ -1584,6 +1584,9 @@ typedef struct WrinkleMapSettings {
 	int uvlayer_tmp;
 	int texmapping;
 	
+	short direction;
+	short pad;
+	int pad2;
 	char defgrp_name[64];       /* Name of vertex group to modify. MAX_VGROUP_NAME. */
 } WrinkleMapSettings;
 
@@ -1604,6 +1607,16 @@ typedef struct WrinkleModifierData {
 enum {
 	MOD_WRINKLE_APPLY_DISPLACEMENT = (1 << 0),
 	MOD_WRINKLE_APPLY_VERTEX_GROUPS = (1 << 1),
+};
+
+/* WrinkleModifierData->direction */
+enum {
+	MOD_WRINKLE_DIR_X       = 0,
+	MOD_WRINKLE_DIR_Y       = 1,
+	MOD_WRINKLE_DIR_Z       = 2,
+	MOD_WRINKLE_DIR_NOR     = 3,
+	MOD_WRINKLE_DIR_RGB_XYZ = 4,
+	MOD_WRINKLE_DIR_CLNOR   = 5,
 };
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

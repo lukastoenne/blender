@@ -40,13 +40,17 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
+#include "BKE_texture.h"
 #include "BKE_wrinkle.h"
+
+#include "RE_shader_ext.h"
 
 static WrinkleMapSettings *wrinkle_map_create(Tex *texture)
 {
@@ -56,6 +60,8 @@ static WrinkleMapSettings *wrinkle_map_create(Tex *texture)
 		map->texture = texture;
 		id_us_plus(&texture->id);
 	}
+	
+	map->direction = MOD_WRINKLE_DIR_NOR;
 	
 	return map;
 }
@@ -113,7 +119,77 @@ void BKE_wrinkle_map_move(WrinkleModifierData *wmd, int from_index, int to_index
 
 /* ========================================================================= */
 
-static void wrinkle_displace_verts(const float *influence, DerivedMesh *dm)
+static void get_texture_coords(WrinkleMapSettings *map, Object *ob, DerivedMesh *dm,
+                               int numverts, const float (*co)[3], float (*texco)[3])
+{
+	int i;
+	int texmapping = map->texmapping;
+	float mapob_imat[4][4];
+
+	if (texmapping == MOD_DISP_MAP_OBJECT) {
+		if (map->map_object)
+			invert_m4_m4(mapob_imat, map->map_object->obmat);
+		else /* if there is no map object, default to local */
+			texmapping = MOD_DISP_MAP_LOCAL;
+	}
+
+	/* UVs need special handling, since they come from faces */
+	if (texmapping == MOD_DISP_MAP_UV) {
+		if (CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
+			MPoly *mpoly = dm->getPolyArray(dm);
+			MPoly *mp;
+			MLoop *mloop = dm->getLoopArray(dm);
+			char *done = MEM_callocN(sizeof(*done) * numverts,
+			                         "get_texture_coords done");
+			int numPolys = dm->getNumPolys(dm);
+			char uvname[MAX_CUSTOMDATA_LAYER_NAME];
+			MLoopUV *mloop_uv;
+
+			CustomData_validate_layer_name(&dm->loopData, CD_MLOOPUV, map->uvlayer_name, uvname);
+			mloop_uv = CustomData_get_layer_named(&dm->loopData, CD_MLOOPUV, uvname);
+
+			/* verts are given the UV from the first face that uses them */
+			for (i = 0, mp = mpoly; i < numPolys; ++i, ++mp) {
+				unsigned int fidx = mp->totloop - 1;
+
+				do {
+					unsigned int lidx = mp->loopstart + fidx;
+					unsigned int vidx = mloop[lidx].v;
+
+					if (done[vidx] == 0) {
+						/* remap UVs from [0, 1] to [-1, 1] */
+						texco[vidx][0] = (mloop_uv[lidx].uv[0] * 2.0f) - 1.0f;
+						texco[vidx][1] = (mloop_uv[lidx].uv[1] * 2.0f) - 1.0f;
+						done[vidx] = 1;
+					}
+
+				} while (fidx--);
+			}
+
+			MEM_freeN(done);
+			return;
+		}
+		else /* if there are no UVs, default to local */
+			texmapping = MOD_DISP_MAP_LOCAL;
+	}
+
+	for (i = 0; i < numverts; ++i, ++co, ++texco) {
+		switch (texmapping) {
+			case MOD_DISP_MAP_LOCAL:
+				copy_v3_v3(*texco, *co);
+				break;
+			case MOD_DISP_MAP_GLOBAL:
+				mul_v3_m4v3(*texco, ob->obmat, *co);
+				break;
+			case MOD_DISP_MAP_OBJECT:
+				mul_v3_m4v3(*texco, ob->obmat, *co);
+				mul_m4_v3(mapob_imat, *texco);
+				break;
+		}
+	}
+}
+
+static void wrinkle_texture_displace(const float *influence, DerivedMesh *dm, Scene *scene, Tex *texture, const float (*texco)[3])
 {
 	/* XXX any nicer way to ensure we only get a CDDM? */
 	BLI_assert(dm->type == DM_TYPE_CDDM);
@@ -129,6 +205,11 @@ static void wrinkle_displace_verts(const float *influence, DerivedMesh *dm)
 		
 		float nor[3];
 		normal_short_to_float_v3(nor, mv->no);
+		
+		TexResult texres;
+		BKE_texture_get_value(scene, texture, (float *)texco[i], &texres, false);
+		
+		/* TODO use texres for displacement */
 		
 		madd_v3_v3v3fl(coords[i], mv->co, nor, w);
 	}
@@ -343,8 +424,16 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 		if (apply_displace || apply_map_vgroup) {
 			float *influence = get_wrinkle_map_influence(wmd, dm, orco, map);
 			if (influence) {
-				if (apply_displace)
-					wrinkle_displace_verts(influence, dm);
+				if (apply_displace) {
+					if (map->texture) {
+						float (*texco)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "texco");
+						get_texture_coords(map, ob, dm, numverts, orco, texco);
+						
+						wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
+						
+						MEM_freeN(texco);
+					}
+				}
 				if (apply_map_vgroup)
 					wrinkle_set_vgroup_weights(influence, numverts, defgrp_index, dvert);
 				

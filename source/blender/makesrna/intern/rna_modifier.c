@@ -4825,6 +4825,19 @@ static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_direction_items[] = {
+		{MOD_WRINKLE_DIR_X, "X", 0, "X", "Use the texture's intensity value to displace in the X direction"},
+		{MOD_WRINKLE_DIR_Y, "Y", 0, "Y", "Use the texture's intensity value to displace in the Y direction"},
+		{MOD_WRINKLE_DIR_Z, "Z", 0, "Z", "Use the texture's intensity value to displace in the Z direction"},
+		{MOD_WRINKLE_DIR_NOR, "NORMAL", 0, "Normal",
+		 "Use the texture's intensity value to displace along the vertex normal"},
+		{MOD_WRINKLE_DIR_CLNOR, "CUSTOM_NORMAL", 0, "Custom Normal",
+		 "Use the texture's intensity value to displace along the (averaged) custom normal (falls back to vertex)"},
+		{MOD_WRINKLE_DIR_RGB_XYZ, "RGB_TO_XYZ", 0, "RGB to XYZ",
+		 "Use the texture's RGB values to displace the mesh in the XYZ direction"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "WrinkleMapSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Wrinkle Map Settings", "Settings for a wrinkle texture map");
 	RNA_def_struct_ui_icon(srna, ICON_TEXTURE);
@@ -4851,6 +4864,11 @@ static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Texture Coordinate Object", "Object to set the texture coordinates");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
 	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+	prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_direction_items);
+	RNA_def_property_ui_text(prop, "Direction", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
