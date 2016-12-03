@@ -130,7 +130,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 		orco = orco_buf;
 	}
 	
-	BKE_wrinkle_apply(wmd, dm, orco);
+	BKE_wrinkle_apply(ob, wmd, dm, orco);
 	
 	if (orco_buf)
 		MEM_freeN(orco_buf);

@@ -34,6 +34,7 @@
 #define __BKE_WRINKLE_H__
 
 struct DerivedMesh;
+struct Object;
 struct WrinkleModifierData;
 struct WrinkleMapSettings;
 
@@ -42,6 +43,6 @@ void BKE_wrinkle_map_remove(struct WrinkleModifierData *wmd, struct WrinkleMapSe
 void BKE_wrinkle_maps_clear(struct WrinkleModifierData *wmd);
 void BKE_wrinkle_map_move(struct WrinkleModifierData *wmd, int from_index, int to_index);
 
-void BKE_wrinkle_apply(struct WrinkleModifierData *wmd, struct DerivedMesh *dm, const float (*orco)[3]);
+void BKE_wrinkle_apply(struct Object *ob, struct WrinkleModifierData *wmd, struct DerivedMesh *dm, const float (*orco)[3]);
 
 #endif /* __BKE_WRINKLE_H__ */

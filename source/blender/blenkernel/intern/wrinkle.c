@@ -39,8 +39,10 @@
 
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_texture_types.h"
 
+#include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
 #include "BKE_wrinkle.h"
@@ -109,6 +111,32 @@ void BKE_wrinkle_map_move(WrinkleModifierData *wmd, int from_index, int to_index
 }
 
 /* ========================================================================= */
+
+static void apply_vgroup(int numverts, const float *influence, int defgrp_index, MDeformVert *dvert)
+{
+	BLI_assert(dvert != NULL);
+	BLI_assert(defgrp_index >= 0);
+	
+	for (int i = 0; i < numverts; i++) {
+		float w = influence[i];
+		MDeformVert *dv = &dvert[i];
+		MDeformWeight *dw = defvert_find_index(dv, defgrp_index);
+
+		/* If the vertex is in this vgroup, remove it if needed, or just update it. */
+		if (dw) {
+			if (w == 0.0f) {
+				defvert_remove_group(dv, dw);
+			}
+			else {
+				dw->weight = w;
+			}
+		}
+		/* Else, add it if needed! */
+		else if (w > 0.0f) {
+			defvert_add_index_notest(dv, defgrp_index, w);
+		}
+	}
+}
 
 static void cache_triangles(MVertTri **r_tri_verts, int **r_vert_numtri, const MLoop *mloop, const MLoopTri *looptri, int numverts, int numlooptri)
 {
@@ -205,9 +233,12 @@ static void get_triangle_deform(TriDeform *def, TriDeform *idef,
 	idef->b = (ox * L - x * oL) / (L * H);
 }
 
-static void wrinkle_vgroup(WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3])
+/* create an array of per-vertex influence for a given wrinkle map */
+static float* get_wrinkle_map_influence(WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3],
+                                        WrinkleMapSettings *map)
 {
 	BLI_assert(orco != NULL);
+	
 	DM_ensure_looptri(dm);
 	
 	int numverts = dm->getNumVerts(dm);
@@ -220,17 +251,18 @@ static void wrinkle_vgroup(WrinkleModifierData *wmd, DerivedMesh *dm, const floa
 	int *vert_numtri;
 	cache_triangles(&tri_verts, &vert_numtri, mloop, looptri, numverts, numtris);
 	
-	printf("WRINKLE:\n");
+//	printf("WRINKLE:\n");
 	float *influence = MEM_callocN(sizeof(float) * numverts, "wrinkle influence");
 	for (int i = 0; i < numtris; ++i) {
 		TriDeform def, idef;
 		get_triangle_deform(&def, &idef, &tri_verts[i], mverts, orco);
 		
 		float C1 = 1.0f;
-		float C2 = 0.0f;
+		float C2 = 1.0f;
 		float C3 = 0.0f;
 		float C4 = 1.0f;
-		float h = 1.0f - (C1*(idef.a - 1.0f) + C2*idef.b + C3*(idef.d - 1.0f)) / C4;
+//		float h = 1.0f - (C1*(idef.a - 1.0f) + C2*idef.b + C3*(idef.d - 1.0f)) / C4;
+		float h = (C1*(idef.a - 1.0f) + C2*idef.b + C3*(idef.d - 1.0f)) / C4;
 		
 //		printf("  %d: [%.3f, %.3f, 0.0, %.3f, %.4f]\n", i, def.a, def.b, def.d, h);
 		
@@ -243,23 +275,44 @@ static void wrinkle_vgroup(WrinkleModifierData *wmd, DerivedMesh *dm, const floa
 	
 	for (int i = 0; i < numverts; ++i) {
 		if (vert_numtri[i] > 0) {
-			influence[i] /= (float)vert_numtri[i];
+			float w = influence[i] / (float)vert_numtri[i];
+			CLAMP_MIN(w, 0.0f);
+			
+			influence[i] = w;
 		}
 	}
-#if 0
-	for (int i = 0; i < numverts; ++i) {
-		if (vert_numtri[i] > 0) {
-			madd_v3_v3fl(coords[i], offset[i], 1.0f / (float)vert_numtri[i]);
-		}
-	}
-#endif
 	
 	MEM_freeN(tri_verts);
 	MEM_freeN(vert_numtri);
-	MEM_freeN(influence);
+	
+	return influence;
 }
 
-void BKE_wrinkle_apply(WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3])
+void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3])
 {
-	wrinkle_vgroup(wmd, dm, orco);
+	int numverts = dm->getNumVerts(dm);
+	
+	for (WrinkleMapSettings *map = wmd->wrinkle_maps.first; map; map = map->next) {
+		/* Get vgroup idx from its name. */
+		int defgrp_index = defgroup_name_index(ob, map->defgrp_name);
+		if (defgrp_index == -1)
+			continue;
+		
+		MDeformVert *dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numverts);
+		/* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
+		if (!dvert) {
+			/* add a valid data layer */
+			dvert = CustomData_add_layer_named(&dm->vertData, CD_MDEFORMVERT, CD_CALLOC,
+			                                   NULL, numverts, map->defgrp_name);
+			/* check again */
+			if (!dvert)
+				continue;
+		}
+		
+		float *influence = get_wrinkle_map_influence(wmd, dm, orco, map);
+		if (influence) {
+			apply_vgroup(numverts, influence, defgrp_index, dvert);
+			MEM_freeN(influence);
+		}
+	}
 }
