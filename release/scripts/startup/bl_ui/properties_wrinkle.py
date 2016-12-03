@@ -24,10 +24,16 @@ from bpy.types import UIList
 
 class OBJECT_UL_wrinkle_modifier_maps(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index, flt_flag):
+        wrinkle_map = item
+        tex = wrinkle_map.texture
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            pass
+            if tex:
+                layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
+            else:
+                layout.label(text="", icon_value=icon)
         elif self.layout_type in {'GRID'}:
-            pass
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
 
 
 if __name__ == "__main__":  # only for live edit.

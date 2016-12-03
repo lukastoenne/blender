@@ -1152,6 +1152,17 @@ static void rna_MeshSequenceCache_object_path_update(Main *bmain, Scene *scene, 
 	rna_Modifier_update(bmain, scene, ptr);
 }
 
+static void rna_WrinkleMapSettings_uvlayer_name_set(PointerRNA *ptr, const char *value)
+{
+	WrinkleMapSettings *map = ptr->data;
+	rna_object_uvlayer_name_set(ptr, value, map->uvlayer_name, sizeof(map->uvlayer_name));
+}
+
+static void rna_WrinkleMapSettings_vertex_group_set(PointerRNA *ptr, const char *value)
+{
+	WrinkleMapSettings *map = ptr->data;
+	rna_object_vgroup_name_set(ptr, value, map->defgrp_name, sizeof(map->defgrp_name));
+}
 
 static PointerRNA rna_WrinkleModifier_active_wrinkle_map_get(PointerRNA *ptr)
 {
@@ -4798,11 +4809,55 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 
 static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
 {
+	/* Note: we can use rna_Modifier_update functions here, even though this is a nested struct!
+	 * rna_Modifier_update only uses the ptr->id data, but not the ptr->data itself.
+	 */
+
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem prop_texture_coordinates_items[] = {
+	    {MOD_DISP_MAP_LOCAL, "LOCAL", 0, "Local", "Use the local coordinate system for the texture coordinates"},
+	    {MOD_DISP_MAP_GLOBAL, "GLOBAL", 0, "Global", "Use the global coordinate system for the texture coordinates"},
+	    {MOD_DISP_MAP_OBJECT, "OBJECT", 0, "Object",
+	     "Use the linked object's local coordinate system for the texture coordinates"},
+	    {MOD_DISP_MAP_UV, "UV", 0, "UV", "Use UV coordinates for the texture coordinates"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "WrinkleMapSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Wrinkle Map Settings", "Settings for a wrinkle texture map");
+	RNA_def_struct_ui_icon(srna, ICON_TEXTURE);
+
+	prop = RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Texture", "");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "texmapping");
+	RNA_def_property_enum_items(prop, prop_texture_coordinates_items);
+	RNA_def_property_ui_text(prop, "Texture Coordinates", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+	prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "uvlayer_name");
+	RNA_def_property_ui_text(prop, "UV Map", "UV map name");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WrinkleMapSettings_uvlayer_name_set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "texture_coords_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "map_object");
+	RNA_def_property_ui_text(prop, "Texture Coordinate Object", "Object to set the texture coordinates");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+	RNA_def_property_ui_text(prop, "Vertex Group",
+	                         "Name of Vertex Group for storing wrinkle map influence");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WrinkleMapSettings_vertex_group_set");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_wrinkle_maps(BlenderRNA *brna, PropertyRNA *cprop)

@@ -1091,6 +1091,31 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.operator("modifier.wrinkle_map_move", icon='TRIA_UP', text="").direction = 'UP'
         col.operator("modifier.wrinkle_map_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
         
+        wrinkle_map = md.active_wrinkle_map
+        if wrinkle_map:
+            col = layout.column(align=True)
+            col.label(text="Texture:")
+            col.template_ID(wrinkle_map, "texture", new="texture.new")
+
+            col_map = layout.column()
+            col_map.active = wrinkle_map.texture is not None
+            split = col_map.split()
+
+            col = split.column(align=True)
+            col.label(text="Vertex Group:")
+            col.prop_search(wrinkle_map, "vertex_group", ob, "vertex_groups", text="")
+
+            col = split.column(align=True)
+            col.label(text="Texture Coordinates:")
+            col.prop(wrinkle_map, "texture_coords", text="")
+            if wrinkle_map.texture_coords == 'OBJECT':
+                col.label(text="Object:")
+                col.prop(wrinkle_map, "texture_coords_object", text="")
+            elif wrinkle_map.texture_coords == 'UV' and ob.type == 'MESH':
+                col.label(text="UV Map:")
+                col.prop_search(wrinkle_map, "uv_layer", ob.data, "uv_textures", text="")
+
+        layout.separator()
 
         split = layout.split()
 
