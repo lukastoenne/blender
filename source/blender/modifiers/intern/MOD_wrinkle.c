@@ -138,26 +138,62 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	return dm;
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *UNUSED(forest),
+static void updateDepgraph(ModifierData *md, DagForest *forest,
                            struct Main *UNUSED(bmain),
                            struct Scene *UNUSED(scene),
                            Object *UNUSED(ob),
-                           DagNode *UNUSED(obNode))
+                           DagNode *obNode)
 {
 	WrinkleModifierData *wmd = (WrinkleModifierData *)md;
-	
-	UNUSED_VARS(wmd);
+
+	for (WrinkleMapSettings *map = wmd->wrinkle_maps.first; map; map = map->next) {
+		switch (map->type) {
+			case MOD_WRINKLE_MAP_TYPE_SHAPEKEY:
+				dag_add_relation(forest, obNode, obNode,
+				                 DAG_RL_DATA_DATA, "Wrinkle Modifier");
+				break;
+				
+			case MOD_WRINKLE_MAP_TYPE_TEXTURE:
+				if (map->map_object && map->texmapping == MOD_DISP_MAP_OBJECT) {
+					DagNode *curNode = dag_get_node(forest, map->map_object);
+					
+					dag_add_relation(forest, curNode, obNode,
+					                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Wrinkle Modifier");
+				}
+				
+				if (map->texmapping == MOD_DISP_MAP_GLOBAL) {
+					dag_add_relation(forest, obNode, obNode,
+					                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Wrinkle Modifier");
+				}
+				break;
+		}
+	}
 }
 
 static void updateDepsgraph(ModifierData *md,
                             struct Main *UNUSED(bmain),
                             struct Scene *UNUSED(scene),
-                            Object *UNUSED(ob),
-                            struct DepsNodeHandle *UNUSED(node))
+                            Object *ob,
+                            struct DepsNodeHandle *node)
 {
 	WrinkleModifierData *wmd = (WrinkleModifierData *)md;
 	
-	UNUSED_VARS(wmd);
+	for (WrinkleMapSettings *map = wmd->wrinkle_maps.first; map; map = map->next) {
+		switch (map->type) {
+			case MOD_WRINKLE_MAP_TYPE_SHAPEKEY:
+				/* TODO */
+				break;
+				
+			case MOD_WRINKLE_MAP_TYPE_TEXTURE:
+				if (map->map_object != NULL && map->texmapping == MOD_DISP_MAP_OBJECT) {
+					DEG_add_object_relation(node, map->map_object, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
+				}
+				if (map->texmapping == MOD_DISP_MAP_GLOBAL) {
+					DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "Displace Modifier");
+				}
+				break;
+		}
+	}
 }
 
 static void foreachObjectLink(ModifierData *md, Object *ob,

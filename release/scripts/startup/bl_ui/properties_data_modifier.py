@@ -1093,7 +1093,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.prop_search(md, "rest_shape_key", key, "key_blocks", text="")
         else:
             col.enabled = False
-            col.prop(md, "rest_shape_key", text="")
+            col.prop(md, "rest_shape_key", icon='SHAPEKEY_DATA', text="")
 
         layout.separator()
 
@@ -1114,8 +1114,18 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         wrinkle_map = md.active_wrinkle_map
         if wrinkle_map:
             col = layout.column(align=True)
-            col.label(text="Texture:")
-            col.template_ID(wrinkle_map, "texture", new="texture.new")
+
+            row = col.row(align=True)
+            row.prop(wrinkle_map, "type", expand=True)
+
+            if wrinkle_map.type == 'SHAPEKEY':
+                key = ob.data.shape_keys
+                if key:
+                    col.prop_search(wrinkle_map, "shapekey", key, "key_blocks", text="")
+                else:
+                    col.prop(wrinkle_map, "shapekey", icon='SHAPEKEY_DATA', text="")
+            elif wrinkle_map.type == 'TEXTURE':
+                col.template_ID(wrinkle_map, "texture", new="texture.new")
 
             split = layout.split()
 
@@ -1130,19 +1140,22 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.prop_search(wrinkle_map, "vertex_group", ob, "vertex_groups", text="")
 
             col = split.column(align=True)
-            col.enabled = wrinkle_map.texture is not None
-            
-            col.label(text="Texture Coordinates:")
-            col.prop(wrinkle_map, "texture_coords", text="")
-            if wrinkle_map.texture_coords == 'OBJECT':
-                col.label(text="Object:")
-                col.prop(wrinkle_map, "texture_coords_object", text="")
-            elif wrinkle_map.texture_coords == 'UV' and ob.type == 'MESH':
-                col.label(text="UV Map:")
-                col.prop_search(wrinkle_map, "uv_layer", ob.data, "uv_textures", text="")
+            if wrinkle_map.type == 'SHAPEKEY':
+                pass
+            elif wrinkle_map.type == 'TEXTURE':
+                col.enabled = wrinkle_map.texture is not None
+                
+                col.label(text="Texture Coordinates:")
+                col.prop(wrinkle_map, "texture_coords", text="")
+                if wrinkle_map.texture_coords == 'OBJECT':
+                    col.label(text="Object:")
+                    col.prop(wrinkle_map, "texture_coords_object", text="")
+                elif wrinkle_map.texture_coords == 'UV' and ob.type == 'MESH':
+                    col.label(text="UV Map:")
+                    col.prop_search(wrinkle_map, "uv_layer", ob.data, "uv_textures", text="")
 
-            col.label(text="Displacement:")
-            col.prop(wrinkle_map, "direction", text="")
+                col.label(text="Displacement:")
+                col.prop(wrinkle_map, "direction", text="")
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")

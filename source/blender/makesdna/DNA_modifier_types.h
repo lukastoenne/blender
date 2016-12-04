@@ -1577,6 +1577,11 @@ enum {
 typedef struct WrinkleMapSettings {
 	struct WrinkleMapSettings *next, *prev;
 	
+	int type;
+	int pad;
+	
+	char shapekey_name[64];     /* Name of shapekey. MAX_NAME. */
+	
 	/* keep in sync with MappingInfoModifierData */
 	struct Tex *texture;
 	struct Object *map_object;
@@ -1584,9 +1589,9 @@ typedef struct WrinkleMapSettings {
 	int uvlayer_tmp;
 	int texmapping;
 	
-	short direction;
-	short pad;
+	int direction;            /* texture displacement direction */
 	int pad2;
+	
 	char defgrp_name[64];       /* Name of vertex group to modify. MAX_VGROUP_NAME. */
 } WrinkleMapSettings;
 
@@ -1609,7 +1614,13 @@ enum {
 	MOD_WRINKLE_APPLY_VERTEX_GROUPS = (1 << 1),
 };
 
-/* WrinkleModifierData->direction */
+/* Wrinkle map type */
+enum {
+	MOD_WRINKLE_MAP_TYPE_SHAPEKEY    = 0,
+	MOD_WRINKLE_MAP_TYPE_TEXTURE	    = 1,
+};
+
+/* Wrinkle map displacement direction */
 enum {
 	MOD_WRINKLE_DIR_X       = 0,
 	MOD_WRINKLE_DIR_Y       = 1,
