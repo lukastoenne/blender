@@ -1086,6 +1086,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "apply_displacement")
         col.prop(md, "apply_vertex_groups")
 
+        col.prop(md, "blend_variance")
+        col.prop(md, "blend_smoothness")
+
         col = split.column()
         col.label(text="Rest Shape Key:")
         key = ob.data.shape_keys

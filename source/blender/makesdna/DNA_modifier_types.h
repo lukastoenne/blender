@@ -1606,6 +1606,9 @@ typedef struct WrinkleModifierData {
 	ListBase wrinkle_maps;
 	int active_wrinkle_map;
 	int pad2;
+	
+	float blend_variance;
+	float blend_smoothness;
 } WrinkleModifierData;
 
 /* Wrinkle modifier flags */

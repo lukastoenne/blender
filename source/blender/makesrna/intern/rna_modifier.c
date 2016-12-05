@@ -4968,6 +4968,17 @@ static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Active Wrinkle Map", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "blend_variance", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_ui_text(prop, "Blend Variance", "Width of transition between multiple wrinkle maps");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "blend_smoothness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Blend Smoothness", "Smoothness of transition between multiple wrinkle maps");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 4.0f, 0.1f, 3);
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "apply_displacement", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WRINKLE_APPLY_DISPLACEMENT);
 	RNA_def_property_ui_text(prop, "Apply Displacement", "Displace vertices based on the wrinkle maps");
