@@ -37,6 +37,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
+#include "DNA_key_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -46,6 +47,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_texture.h"
 #include "BKE_wrinkle.h"
@@ -215,6 +217,32 @@ static void wrinkle_texture_displace(const float *influence, DerivedMesh *dm, Sc
 	}
 	
 	CDDM_apply_vert_coords(dm, coords);
+	MEM_freeN(coords);
+}
+
+static void wrinkle_shapekey_displace(const float *influence, DerivedMesh *dm, KeyBlock *kb, KeyBlock *refkb)
+{
+	/* XXX any nicer way to ensure we only get a CDDM? */
+	BLI_assert(dm->type == DM_TYPE_CDDM);
+	
+	int numverts = dm->getNumVerts(dm);
+	MVert *mverts = dm->getVertArray(dm);
+	float (*data)[3] = (float (*)[3])kb->data;
+	float (*refdata)[3] = (float (*)[3])refkb->data;
+	
+	float (*coords)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "vertex coords");
+	for (int i = 0; i < numverts; i++) {
+		MVert *mv = &mverts[i];
+		float w = influence[i];
+		
+		float shape[3];
+		sub_v3_v3v3(shape, data[i], refdata[i]);
+		
+		madd_v3_v3v3fl(coords[i], mv->co, shape, w);
+	}
+	
+	CDDM_apply_vert_coords(dm, coords);
+	MEM_freeN(coords);
 }
 
 static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int defgrp_index, MDeformVert *dvert)
@@ -425,13 +453,31 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 			float *influence = get_wrinkle_map_influence(wmd, dm, orco, map);
 			if (influence) {
 				if (apply_displace) {
-					if (map->texture) {
-						float (*texco)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "texco");
-						get_texture_coords(map, ob, dm, numverts, orco, texco);
-						
-						wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
-						
-						MEM_freeN(texco);
+					switch (map->type) {
+						case MOD_WRINKLE_MAP_TYPE_SHAPEKEY: {
+							Key *key = BKE_key_from_object(ob);
+							if (key) {
+								KeyBlock *kb = BKE_keyblock_find_name(key, map->shapekey_name);
+								if (kb) {
+									KeyBlock *refkb = BLI_findlink(&key->block, kb->relative);
+									if (refkb) {
+										wrinkle_shapekey_displace(influence, dm, kb, refkb);
+									}
+								}
+							}
+							break;
+						}
+						case MOD_WRINKLE_MAP_TYPE_TEXTURE: {
+							if (map->texture) {
+								float (*texco)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "texco");
+								get_texture_coords(map, ob, dm, numverts, orco, texco);
+								
+								wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
+								
+								MEM_freeN(texco);
+							}
+							break;
+						}
 					}
 				}
 				if (apply_map_vgroup)
