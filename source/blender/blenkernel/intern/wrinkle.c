@@ -506,31 +506,25 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 		}
 		
 		if (apply_displace) {
-			switch (map->type) {
-				case MOD_WRINKLE_MAP_TYPE_SHAPEKEY: {
-					Key *key = BKE_key_from_object(ob);
-					if (key) {
-						KeyBlock *kb = BKE_keyblock_find_name(key, map->shapekey_name);
-						if (kb) {
-							KeyBlock *refkb = BLI_findlink(&key->block, kb->relative);
-							if (refkb) {
-								wrinkle_shapekey_displace(influence, dm, kb, refkb);
-							}
-						}
+#if 0
+			Key *key = BKE_key_from_object(ob);
+			if (key) {
+				KeyBlock *kb = BKE_keyblock_find_name(key, map->shapekey_name);
+				if (kb) {
+					KeyBlock *refkb = BLI_findlink(&key->block, kb->relative);
+					if (refkb) {
+						wrinkle_shapekey_displace(influence, dm, kb, refkb);
 					}
-					break;
 				}
-				case MOD_WRINKLE_MAP_TYPE_TEXTURE: {
-					if (map->texture) {
-						float (*texco)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "texco");
-						get_texture_coords(map, ob, dm, numverts, orco, texco);
-						
-						wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
-						
-						MEM_freeN(texco);
-					}
-					break;
-				}
+			}
+#endif
+			if (map->texture) {
+				float (*texco)[3] = MEM_callocN(sizeof(float) * 3 * numverts, "texco");
+				get_texture_coords(map, ob, dm, numverts, orco, texco);
+				
+				wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
+				
+				MEM_freeN(texco);
 			}
 		}
 	}

@@ -282,9 +282,7 @@ EnumPropertyItem rna_enum_axis_flag_xyz_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 
-#include "DNA_key_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_smoke_types.h"
@@ -292,7 +290,6 @@ EnumPropertyItem rna_enum_axis_flag_xyz_items[] = {
 #include "BKE_cachefile.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -4819,12 +4816,6 @@ static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem prop_type_items[] = {
-	    {MOD_WRINKLE_MAP_TYPE_SHAPEKEY, "SHAPEKEY", ICON_SHAPEKEY_DATA, "Shape Key", "Use a shape key as wrinkle map"},
-	    {MOD_WRINKLE_MAP_TYPE_TEXTURE, "TEXTURE", ICON_TEXTURE, "Texture", "Use a texture as wrinkle map"},
-	    {0, NULL, 0, NULL, NULL}
-	};
-
 	static EnumPropertyItem prop_texture_coordinates_items[] = {
 	    {MOD_DISP_MAP_LOCAL, "LOCAL", 0, "Local", "Use the local coordinate system for the texture coordinates"},
 	    {MOD_DISP_MAP_GLOBAL, "GLOBAL", 0, "Global", "Use the global coordinate system for the texture coordinates"},
@@ -4851,20 +4842,10 @@ static void rna_def_wrinkle_map_settings(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Wrinkle Map Settings", "Settings for a wrinkle texture map");
 	RNA_def_struct_ui_icon(srna, ICON_TEXTURE);
 
-	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(prop, prop_type_items);
-	RNA_def_property_ui_text(prop, "Type", "");
-	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
-
-	prop = RNA_def_property(srna, "shapekey", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "shapekey_name");
-	RNA_def_property_ui_text(prop, "Shape Key Name", "");
-	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
-
 	prop = RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Texture", "");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "texmapping");
