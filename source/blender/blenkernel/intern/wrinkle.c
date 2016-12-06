@@ -209,7 +209,7 @@ static void wrinkle_texture_displace(const float *influence, DerivedMesh *dm, Sc
 			float nor[3];
 			normal_short_to_float_v3(nor, mv->no);
 			
-			TexResult texres;
+			TexResult texres = {0};
 			BKE_texture_get_value(scene, texture, (float *)texco[i], &texres, false);
 			
 			/* TODO use texres for displacement */
