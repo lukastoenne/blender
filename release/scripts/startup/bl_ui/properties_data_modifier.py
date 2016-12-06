@@ -1089,6 +1089,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "blend_variance")
         col.prop(md, "blend_smoothness")
 
+        '''
         col = split.column()
         col.label(text="Rest Shape Key:")
         key = ob.data.shape_keys
@@ -1097,7 +1098,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         else:
             col.enabled = False
             col.prop(md, "rest_shape_key", text="")
+        '''
 
+        '''
         layout.separator()
 
         row = layout.row()
@@ -1146,6 +1149,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
             col.label(text="Displacement:")
             col.prop(wrinkle_map, "direction", text="")
+        '''
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")
