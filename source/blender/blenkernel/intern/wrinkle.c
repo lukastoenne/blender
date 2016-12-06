@@ -323,6 +323,7 @@ static void blend_wrinkle_influence(WrinkleModifierData *wmd, int numverts, List
 
 /* ========================================================================= */
 
+#if 0
 static void get_texture_coords(WrinkleMapSettings *map, Object *ob, DerivedMesh *dm,
                                int numverts, const float (*co)[3], float (*texco)[3])
 {
@@ -423,33 +424,7 @@ static void wrinkle_texture_displace(const float *influence, DerivedMesh *dm, Sc
 	CDDM_apply_vert_coords(dm, coords);
 	MEM_freeN(coords);
 }
-
-static void wrinkle_shapekey_displace(const float *influence, DerivedMesh *dm, KeyBlock *kb, KeyBlock *refkb)
-{
-	/* XXX any nicer way to ensure we only get a CDDM? */
-	BLI_assert(dm->type == DM_TYPE_CDDM);
-	
-	int numverts = dm->getNumVerts(dm);
-	MVert *mverts = dm->getVertArray(dm);
-	float (*data)[3] = (float (*)[3])kb->data;
-	float (*refdata)[3] = (float (*)[3])refkb->data;
-	
-	float (*coords)[3] = MEM_mallocN(sizeof(float) * 3 * numverts, "vertex coords");
-	for (int i = 0; i < numverts; i++) {
-		MVert *mv = &mverts[i];
-		float w = influence[i];
-		
-		if (w > 0.0f) {
-			float shape[3];
-			sub_v3_v3v3(shape, data[i], refdata[i]);
-			
-			madd_v3_v3v3fl(coords[i], mv->co, shape, w);
-		}
-	}
-	
-	CDDM_apply_vert_coords(dm, coords);
-	MEM_freeN(coords);
-}
+#endif
 
 static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int defgrp_index, MDeformVert *dvert)
 {
