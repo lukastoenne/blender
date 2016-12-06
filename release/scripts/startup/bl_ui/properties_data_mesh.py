@@ -312,6 +312,9 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     col.label(text="Blend:")
                     col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
                     col.prop_search(kb, "relative_key", key, "key_blocks", text="")
+                    row = col.row()
+                    row.active = bool(kb.vertex_group)
+                    row.prop(kb, "use_wrinkle_map")
 
             else:
                 layout.prop(kb, "interpolation")

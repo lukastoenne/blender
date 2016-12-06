@@ -130,9 +130,10 @@ enum {
 
 /* KeyBlock->flag */
 enum {
-	KEYBLOCK_MUTE       = (1 << 0),
-	KEYBLOCK_SEL        = (1 << 1),
-	KEYBLOCK_LOCKED     = (1 << 2)
+	KEYBLOCK_MUTE           = (1 << 0),
+	KEYBLOCK_SEL            = (1 << 1),
+	KEYBLOCK_LOCKED         = (1 << 2),
+	KEYBLOCK_WRINKLE_MAP    = (1 << 3),
 };
 
 #endif /* __DNA_KEY_TYPES_H__  */

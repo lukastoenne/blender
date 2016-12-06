@@ -721,6 +721,10 @@ static void rna_def_keyblock(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, 1);
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+	prop = RNA_def_property(srna, "use_wrinkle_map", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", KEYBLOCK_WRINKLE_MAP);
+	RNA_def_property_ui_text(prop, "Use Wrinkle Map", "Use this shape as a wrinkle map");
+
 	prop = RNA_def_property(srna, "slider_min", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "slidermin");
 	RNA_def_property_range(prop, -10.0f, 10.0f);

@@ -38,6 +38,7 @@
 #include "BLI_math.h"
 
 #include "DNA_key_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -49,6 +50,8 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
+#include "BKE_modifier.h"
+#include "BKE_object_deform.h"
 #include "BKE_texture.h"
 #include "BKE_wrinkle.h"
 
@@ -117,6 +120,205 @@ void BKE_wrinkle_map_move(WrinkleModifierData *wmd, int from_index, int to_index
 	
 	BLI_remlink(&wmd->wrinkle_maps, map);
 	BLI_insertlinkbefore(&wmd->wrinkle_maps, map_next, map);
+}
+
+/* ========================================================================= */
+
+static void cache_triangles(MVertTri **r_tri_verts, int **r_vert_numtri, const MLoop *mloop, const MLoopTri *looptri, int numverts, int numlooptri)
+{
+	MVertTri *tri_verts = MEM_mallocN(sizeof(MVertTri) * numlooptri, "triangle vertices");
+	int *vert_numtri = MEM_callocN(sizeof(int) * numverts, "vertex triangle number");
+	
+	int i;
+	for (i = 0; i < numlooptri; i++) {
+		int v1 = mloop[looptri[i].tri[0]].v;
+		int v2 = mloop[looptri[i].tri[1]].v;
+		int v3 = mloop[looptri[i].tri[2]].v;
+		
+		tri_verts[i].tri[0] = v1;
+		tri_verts[i].tri[1] = v2;
+		tri_verts[i].tri[2] = v3;
+		
+		++vert_numtri[v1];
+		++vert_numtri[v2];
+		++vert_numtri[v3];
+	}
+	
+	*r_tri_verts = tri_verts;
+	*r_vert_numtri = vert_numtri;
+}
+
+typedef struct TriDeform {
+	float a; /* x axis scale */
+	float d; /* y axis scale */
+	float b; /* shear */
+} TriDeform;
+
+/* 2D shape parameters of a triangle.
+ * L is the base length
+ * H is the height
+ * x is the distance of the opposing point from the y axis
+ * 
+ *  H |     o                 
+ *    |    /.\                
+ *    |   / .  \              
+ *    |  /  .    \            
+ *    | /   .      \      
+ *    |/    .        \    
+ *    o----------------o--
+ *          x          L
+ */
+static void get_triangle_shape(const float co1[3], const float co2[3], const float co3[3],
+                               float *L, float *H, float *x)
+{
+	float v1[3], v2[3];
+	sub_v3_v3v3(v1, co2, co1);
+	sub_v3_v3v3(v2, co3, co1);
+	
+	float s[3], t[3];
+	*L = normalize_v3_v3(s, v1);
+	*x = dot_v3v3(v2, s);
+	madd_v3_v3v3fl(t, v2, s, -(*x));
+	*H = len_v3(t);
+}
+
+/* Get a 2D transform from the original triangle to the deformed,
+ * as well as the inverse.
+ * 
+ * We chose v1 as the X axis and the Y axis orthogonal in the triangle plane.
+ * The transform then has 3 degrees of freedom:
+ * a scaling factor for both x and y and a shear factor.
+ */
+static void get_triangle_deform(TriDeform *def, TriDeform *idef,
+                                const MVertTri *tri,
+                                const MVert *mverts, const float (*orco)[3])
+{
+	float oL, oH, ox;
+	get_triangle_shape(orco[tri->tri[0]], orco[tri->tri[1]], orco[tri->tri[2]], &oL, &oH, &ox);
+	if (oL == 0.0f || oH == 0.0f) {
+		def->a = idef->a = 1.0f;
+		def->b = idef->b = 0.0f;
+		def->d = idef->d = 1.0f;
+		return;
+	}
+	
+	float L, H, x;
+	get_triangle_shape(mverts[tri->tri[0]].co, mverts[tri->tri[1]].co, mverts[tri->tri[2]].co, &L, &H, &x);
+	if (L == 0.0f || H == 0.0f) {
+		def->a = idef->a = 1.0f;
+		def->b = idef->b = 0.0f;
+		def->d = idef->d = 1.0f;
+		return;
+	}
+	
+	def->a = L / oL;
+	def->d = H / oH;
+	def->b = (x * oL - ox * L) / (oL * oH);
+	idef->a = oL / L;
+	idef->d = oH / H;
+	idef->b = (ox * L - x * oL) / (L * H);
+}
+
+/* create an array of per-vertex influence for a given wrinkle map */
+static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3], float *influence)
+{
+	BLI_assert(orco != NULL);
+	
+	DM_ensure_looptri(dm);
+	
+	int numverts = dm->getNumVerts(dm);
+	int numtris = dm->getNumLoopTri(dm);
+	const MLoop *mloop = dm->getLoopArray(dm);
+	const MLoopTri *looptri = dm->getLoopTriArray(dm);
+	const MVert *mverts = dm->getVertArray(dm);
+	
+	MVertTri *tri_verts;
+	int *vert_numtri;
+	cache_triangles(&tri_verts, &vert_numtri, mloop, looptri, numverts, numtris);
+	
+//	printf("WRINKLE:\n");
+	for (int i = 0; i < numtris; ++i) {
+		TriDeform def, idef;
+		get_triangle_deform(&def, &idef, &tri_verts[i], mverts, orco);
+		
+		float C1 = 1.0f;
+		float C2 = 1.0f;
+		float C3 = 0.0f;
+		float C4 = 1.0f;
+		float h = 1.0f - (C1*(idef.a - 1.0f) + C2*idef.b + C3*(idef.d - 1.0f)) / C4;
+		
+//		printf("  %d: [%.3f, %.3f, 0.0, %.3f, %.4f]\n", i, def.a, def.b, def.d, h);
+		
+		float weight = 1.0f - h;
+		for (int k = 0; k < 3; ++k) {
+			int v = tri_verts[i].tri[k];
+			
+			influence[v] += weight;
+		}
+	}
+	
+	for (int i = 0; i < numverts; ++i) {
+		if (vert_numtri[i] > 0) {
+			float avg_weight = influence[i] / (float)vert_numtri[i];
+			CLAMP_MIN(avg_weight, 0.0f);
+			
+			influence[i] = avg_weight;
+		}
+	}
+	
+	MEM_freeN(tri_verts);
+	MEM_freeN(vert_numtri);
+}
+
+/* ========================================================================= */
+
+BLI_INLINE float smooth_blend(float weight, float sum, float variance, float smoothness)
+{
+	if (UNLIKELY(sum == 0.0f))
+		return 0.0f;
+	
+	float factor;
+	if (weight < 0.5f*(sum - variance))
+		factor = 0.0f;
+	else if (weight >= 0.5f*(sum + variance))
+		factor = 1.0f;
+	else {
+		float t = (2.0f*weight - sum) / variance;
+		factor = powf(t, smoothness + 1.0f);
+	}
+	
+	return factor * weight;
+}
+
+typedef struct WrinkleMapCache {
+	struct WrinkleMapCache *next, *prev;
+	
+	KeyBlock *keyblock;
+	int defgrp_index;
+	MDeformVert *dvert, *dvert_orig;
+	
+	float *influence;
+} WrinkleMapCache;
+
+static void blend_wrinkle_influence(WrinkleModifierData *wmd, int numverts, ListBase *map_cache)
+{
+	const float var = wmd->blend_variance;
+	const float smooth = wmd->blend_smoothness;
+	
+	float *sum = MEM_callocN(sizeof(float) * numverts, "map influence sum");
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		for (int i = 0; i < numverts; ++i) {
+			sum[i] += map->influence[i];
+		}
+	}
+	
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		for (int i = 0; i < numverts; ++i) {
+			map->influence[i] = smooth_blend(map->influence[i], sum[i], var, smooth);
+		}
+	}
+	
+	MEM_freeN(sum);
 }
 
 /* ========================================================================= */
@@ -275,191 +477,108 @@ static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int
 	}
 }
 
-static void cache_triangles(MVertTri **r_tri_verts, int **r_vert_numtri, const MLoop *mloop, const MLoopTri *looptri, int numverts, int numlooptri)
+static void copy_dm_coords(DerivedMesh *dm, float (*coords)[3])
 {
-	MVertTri *tri_verts = MEM_mallocN(sizeof(MVertTri) * numlooptri, "triangle vertices");
-	int *vert_numtri = MEM_callocN(sizeof(int) * numverts, "vertex triangle number");
-	
-	int i;
-	for (i = 0; i < numlooptri; i++) {
-		int v1 = mloop[looptri[i].tri[0]].v;
-		int v2 = mloop[looptri[i].tri[1]].v;
-		int v3 = mloop[looptri[i].tri[2]].v;
-		
-		tri_verts[i].tri[0] = v1;
-		tri_verts[i].tri[1] = v2;
-		tri_verts[i].tri[2] = v3;
-		
-		++vert_numtri[v1];
-		++vert_numtri[v2];
-		++vert_numtri[v3];
-	}
-	
-	*r_tri_verts = tri_verts;
-	*r_vert_numtri = vert_numtri;
-}
-
-typedef struct TriDeform {
-	float a; /* x axis scale */
-	float d; /* y axis scale */
-	float b; /* shear */
-} TriDeform;
-
-/* 2D shape parameters of a triangle.
- * L is the base length
- * H is the height
- * x is the distance of the opposing point from the y axis
- * 
- *  H |     o                 
- *    |    /.\                
- *    |   / .  \              
- *    |  /  .    \            
- *    | /   .      \      
- *    |/    .        \    
- *    o----------------o--
- *          x          L
- */
-static void get_triangle_shape(const float co1[3], const float co2[3], const float co3[3],
-                               float *L, float *H, float *x)
-{
-	float v1[3], v2[3];
-	sub_v3_v3v3(v1, co2, co1);
-	sub_v3_v3v3(v2, co3, co1);
-	
-	float s[3], t[3];
-	*L = normalize_v3_v3(s, v1);
-	*x = dot_v3v3(v2, s);
-	madd_v3_v3v3fl(t, v2, s, -(*x));
-	*H = len_v3(t);
-}
-
-/* Get a 2D transform from the original triangle to the deformed,
- * as well as the inverse.
- * 
- * We chose v1 as the X axis and the Y axis orthogonal in the triangle plane.
- * The transform then has 3 degrees of freedom:
- * a scaling factor for both x and y and a shear factor.
- */
-static void get_triangle_deform(TriDeform *def, TriDeform *idef,
-                                const MVertTri *tri,
-                                const MVert *mverts, const float (*orco)[3])
-{
-	float oL, oH, ox;
-	get_triangle_shape(orco[tri->tri[0]], orco[tri->tri[1]], orco[tri->tri[2]], &oL, &oH, &ox);
-	if (oL == 0.0f || oH == 0.0f) {
-		def->a = idef->a = 1.0f;
-		def->b = idef->b = 0.0f;
-		def->d = idef->d = 1.0f;
-		return;
-	}
-	
-	float L, H, x;
-	get_triangle_shape(mverts[tri->tri[0]].co, mverts[tri->tri[1]].co, mverts[tri->tri[2]].co, &L, &H, &x);
-	if (L == 0.0f || H == 0.0f) {
-		def->a = idef->a = 1.0f;
-		def->b = idef->b = 0.0f;
-		def->d = idef->d = 1.0f;
-		return;
-	}
-	
-	def->a = L / oL;
-	def->d = H / oH;
-	def->b = (x * oL - ox * L) / (oL * oH);
-	idef->a = oL / L;
-	idef->d = oH / H;
-	idef->b = (ox * L - x * oL) / (L * H);
-}
-
-/* create an array of per-vertex influence for a given wrinkle map */
-static void get_wrinkle_map_influence(WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3],
-                                      WrinkleMapSettings *map, float *influence)
-{
-	BLI_assert(orco != NULL);
-	
-	DM_ensure_looptri(dm);
-	
 	int numverts = dm->getNumVerts(dm);
-	int numtris = dm->getNumLoopTri(dm);
-	const MLoop *mloop = dm->getLoopArray(dm);
-	const MLoopTri *looptri = dm->getLoopTriArray(dm);
-	const MVert *mverts = dm->getVertArray(dm);
-	
-	MVertTri *tri_verts;
-	int *vert_numtri;
-	cache_triangles(&tri_verts, &vert_numtri, mloop, looptri, numverts, numtris);
-	
-//	printf("WRINKLE:\n");
-	for (int i = 0; i < numtris; ++i) {
-		TriDeform def, idef;
-		get_triangle_deform(&def, &idef, &tri_verts[i], mverts, orco);
-		
-		float C1 = 1.0f;
-		float C2 = 1.0f;
-		float C3 = 0.0f;
-		float C4 = 1.0f;
-		float h = 1.0f - (C1*(idef.a - 1.0f) + C2*idef.b + C3*(idef.d - 1.0f)) / C4;
-		
-//		printf("  %d: [%.3f, %.3f, 0.0, %.3f, %.4f]\n", i, def.a, def.b, def.d, h);
-		
-		float weight = 1.0f - h;
-		for (int k = 0; k < 3; ++k) {
-			int v = tri_verts[i].tri[k];
-			
-			influence[v] += weight;
-		}
-	}
-	
+	MVert *mverts = dm->getVertArray(dm);
 	for (int i = 0; i < numverts; ++i) {
-		if (vert_numtri[i] > 0) {
-			float avg_weight = influence[i] / (float)vert_numtri[i];
-			CLAMP_MIN(avg_weight, 0.0f);
-			
-			influence[i] = avg_weight;
-		}
+		copy_v3_v3(coords[i], mverts[i].co);
 	}
-	
-	MEM_freeN(tri_verts);
-	MEM_freeN(vert_numtri);
 }
 
-BLI_INLINE float smooth_blend(float weight, float sum, float variance, float smoothness)
+static void cache_wrinkle_shapekeys(Object *ob, DerivedMesh *dm, const float (*orco)[3], ListBase *map_cache)
 {
-	if (UNLIKELY(sum == 0.0f))
-		return 0.0f;
+	Mesh *mesh = ob->data;
+	int numverts = dm->getNumVerts(dm);
 	
-	float factor;
-	if (weight < 0.5f*(sum - variance))
-		factor = 0.0f;
-	else if (weight >= 0.5f*(sum + variance))
-		factor = 1.0f;
-	else {
-		float t = (2.0f*weight - sum) / variance;
-		factor = powf(t, smoothness + 1.0f);
+	Key *key = BKE_key_from_object(ob);
+	if (!key)
+		return;
+	
+	BLI_listbase_clear(map_cache);
+	
+	for (KeyBlock *kb = key->block.first; kb; kb = kb->next) {
+		if (kb == key->refkey
+		    || (kb->flag & KEYBLOCK_MUTE)
+		    || kb->curval == 0.0f
+		    || !(kb->flag & KEYBLOCK_WRINKLE_MAP))
+			continue;
+		
+		int defgrp_index = defgroup_name_index(ob, kb->vgroup);
+		if (defgrp_index == -1)
+			continue;
+		
+		MDeformVert *dvert = mesh->dvert;
+		if (!dvert) {
+			dvert = BKE_object_defgroup_data_create(&ob->id);
+			if (!dvert)
+				continue;
+		}
+		
+		WrinkleMapCache *map = MEM_callocN(sizeof(WrinkleMapCache), "WrinkleMapCache");
+		map->keyblock = kb;
+		map->defgrp_index = defgrp_index;
+		map->dvert = dvert;
+		map->dvert_orig = MEM_dupallocN(dvert);
+		for (int i = 0; i < numverts; ++i) {
+			if (dvert[i].dw)
+				dvert[i].dw = MEM_dupallocN(dvert[i].dw);
+		}
+		
+		map->influence = MEM_mallocN(sizeof(float) * numverts, "wrinkle map influence");
+		get_wrinkle_map_influence(dm, orco, map->influence);
+		
+		BLI_addtail(map_cache, map);
 	}
-	
-	return factor * weight;
 }
 
-static void blend_wrinkle_influence(WrinkleModifierData *wmd, float *map_influence, int nummaps, int numverts)
+static void free_wrinkle_map_cache(int numverts, ListBase *map_cache)
 {
-	const float var = wmd->blend_variance;
-	const float smooth = wmd->blend_smoothness;
-	
-	for (int i = 0; i < numverts; ++i) {
-		float *fp;
-		int k;
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		if (map->influence)
+			MEM_freeN(map->influence);
 		
-		float sum = 0.0f;
-		for (k = 0, fp = map_influence; k < nummaps; ++k, fp += numverts) {
-			sum += *fp;
+		for (int i = 0; i < numverts; ++i) {
+			if (map->dvert[i].dw)
+				MEM_freeN(map->dvert[i].dw);
 		}
-		
-		for (k = 0, fp = map_influence; k < nummaps; ++k, fp += numverts) {
-			*fp = smooth_blend(*fp, sum, var, smooth);
-		}
-		
-		++map_influence;
+		memcpy(map->dvert, map->dvert_orig, sizeof(MDeformVert) * numverts);
+		MEM_freeN(map->dvert_orig);
 	}
+	BLI_freelistN(map_cache);
+}
+
+static float* wrinkle_shapekey_eval(Object *ob, ModifierData *wrinkle_md, int numverts, ListBase *map_cache)
+{
+	Scene *scene = wrinkle_md->scene;
+	float (*coords)[3] = NULL;
+	
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, map->dvert);
+	}
+	
+	/* temporarily disable modifiers behind (and including) the wrinkle modifier */
+	for (ModifierData *md = wrinkle_md; md; md = md->next)
+		md->mode |= eModifierMode_DisableTemporary;
+	
+	uint64_t data_mask = CD_MASK_BAREMESH;
+	DerivedMesh *dm = mesh_get_derived_final(scene, ob, data_mask);
+	
+	/* restore settings */
+	for (ModifierData *md = wrinkle_md; md; md = md->next)
+		md->mode &= ~eModifierMode_DisableTemporary;
+	
+	/* XXX this is necessary because some modifiers may change topology even if
+	 * just the shapekey influence changes!
+	 */
+	if (dm->getNumVerts(dm) == numverts) {
+		coords = MEM_mallocN(sizeof(float) * 3 * numverts, "wrinkle vertex coordinates");
+		copy_dm_coords(dm, coords);
+	}
+	
+	dm->release(dm);
+	
+	return (float *)coords;
 }
 
 void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, const float (*orco)[3])
@@ -470,64 +589,18 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 		return;
 	
 	int numverts = dm->getNumVerts(dm);
-	int nummaps = BLI_listbase_count(&wmd->wrinkle_maps);
-	float *map_influence = MEM_callocN(sizeof(float) * nummaps * numverts, "map influences");
-	WrinkleMapSettings *map;
 	
-	map = wmd->wrinkle_maps.first;
-	for (int i = 0; map; map = map->next, ++i) {
-		get_wrinkle_map_influence(wmd, dm, orco, map, map_influence + i * numverts);
+	ListBase map_cache;
+	cache_wrinkle_shapekeys(ob, dm, orco, &map_cache);
+	blend_wrinkle_influence(wmd, numverts, &map_cache);
+	
+	if (apply_displace) {
+		float (*coords)[3] = (float (*)[3])wrinkle_shapekey_eval(ob, &wmd->modifier, numverts, &map_cache);
+		if (coords) {
+			CDDM_apply_vert_coords(dm, coords);
+		}
+		MEM_freeN(coords);
 	}
 	
-	blend_wrinkle_influence(wmd, map_influence, nummaps, numverts);
-	
-	map = wmd->wrinkle_maps.first;
-	for (int i = 0; map; map = map->next, ++i) {
-		const float *influence = map_influence + i * numverts;
-		if (apply_vgroups) {
-			int defgrp_index = -1;
-			MDeformVert *dvert = NULL;
-			
-			/* Get vgroup idx from its name. */
-			defgrp_index = defgroup_name_index(ob, map->defgrp_name);
-			
-			if (defgrp_index != -1) {
-				dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numverts);
-				/* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
-				if (!dvert) {
-					/* add a valid data layer */
-					dvert = CustomData_add_layer_named(&dm->vertData, CD_MDEFORMVERT, CD_CALLOC,
-					                                   NULL, numverts, map->defgrp_name);
-				}
-				
-				if (dvert)
-					wrinkle_set_vgroup_weights(influence, numverts, defgrp_index, dvert);
-			}
-		}
-		
-		if (apply_displace) {
-#if 0
-			Key *key = BKE_key_from_object(ob);
-			if (key) {
-				KeyBlock *kb = BKE_keyblock_find_name(key, map->shapekey_name);
-				if (kb) {
-					KeyBlock *refkb = BLI_findlink(&key->block, kb->relative);
-					if (refkb) {
-						wrinkle_shapekey_displace(influence, dm, kb, refkb);
-					}
-				}
-			}
-#endif
-			if (map->texture) {
-				float (*texco)[3] = MEM_callocN(sizeof(float) * 3 * numverts, "texco");
-				get_texture_coords(map, ob, dm, numverts, orco, texco);
-				
-				wrinkle_texture_displace(influence, dm, wmd->modifier.scene, map->texture, texco);
-				
-				MEM_freeN(texco);
-			}
-		}
-	}
-	
-	MEM_freeN(map_influence);
+	free_wrinkle_map_cache(numverts, &map_cache);
 }
