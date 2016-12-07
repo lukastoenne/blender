@@ -203,6 +203,7 @@ ModifierTypeInfo modifierType_Wrinkle = {
 	/* structSize */        sizeof(WrinkleModifierData),
 	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_RequiresOriginalData |
 	                        eModifierTypeFlag_SupportsMapping |
 	                        eModifierTypeFlag_SupportsEditmode |
 	                        eModifierTypeFlag_UsesPreview,
