@@ -551,6 +551,7 @@ static float* wrinkle_shapekey_eval(Object *ob, ModifierData *wrinkle_md, int nu
 		copy_dm_coords(dm, coords);
 	}
 	
+	dm->needsFree = true;
 	dm->release(dm);
 	
 	return (float *)coords;
