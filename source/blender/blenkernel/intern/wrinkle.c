@@ -426,13 +426,18 @@ static void wrinkle_texture_displace(const float *influence, DerivedMesh *dm, Sc
 }
 #endif
 
-static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int defgrp_index, MDeformVert *dvert)
+static void wrinkle_set_vgroup_weights(const float *influence, int numverts, int defgrp_index, MDeformVert *dvert,
+                                       bool use_clamp)
 {
 	BLI_assert(dvert != NULL);
 	BLI_assert(defgrp_index >= 0);
 	
 	for (int i = 0; i < numverts; i++) {
 		float w = influence[i];
+		if (use_clamp) {
+			CLAMP(w, 0.0f, 1.0f);
+		}
+		
 		MDeformVert *dv = &dvert[i];
 		MDeformWeight *dw = defvert_find_index(dv, defgrp_index);
 
@@ -529,7 +534,12 @@ static float* wrinkle_shapekey_eval(Object *ob, ModifierData *wrinkle_md, int nu
 	float (*coords)[3] = NULL;
 	
 	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
-		wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, map->dvert);
+		/* Use clamping, so shape key influence does not exceed 1.
+		 * Note that this can violate the area conservation feature!
+		 */
+		const bool use_clamp = true;
+		
+		wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, map->dvert, use_clamp);
 	}
 	
 	/* temporarily disable modifiers behind (and including) the wrinkle modifier */
