@@ -588,5 +588,20 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 		MEM_freeN(coords);
 	}
 	
+	if (apply_vgroups) {
+		for (WrinkleMapCache *map = map_cache.first; map; map = map->next) {
+			MDeformVert *dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numverts);
+			/* If no vertices were ever added to an object's vgroup, dvert might be NULL. */
+			if (!dvert) {
+				/* add a valid data layer */
+				dvert = CustomData_add_layer_named(&dm->vertData, CD_MDEFORMVERT, CD_CALLOC,
+				                                   NULL, numverts, map->keyblock->vgroup);
+			}
+			
+			if (dvert)
+				wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, dvert, false);
+		}
+	}
+	
 	free_wrinkle_map_cache(numverts, &map_cache);
 }
