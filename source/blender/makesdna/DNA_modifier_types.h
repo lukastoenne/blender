@@ -1595,12 +1595,8 @@ typedef struct WrinkleModifierData {
 	
 	int flag;
 	
-	short shapekey_rest;        /* Reference shapekey */
-	short pad;
-	
-	ListBase wrinkle_maps;
 	int active_wrinkle_map;
-	int pad2;
+	ListBase wrinkle_maps;
 	
 	float blend_variance;
 	float blend_smoothness;

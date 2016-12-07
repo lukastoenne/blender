@@ -1235,22 +1235,6 @@ static void rna_WrinkleModifier_wrinkle_maps_move(ID *id, WrinkleModifierData *w
 	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
 }
 
-static PointerRNA rna_WrinkleModifier_rest_shape_key_get(PointerRNA *ptr)
-{
-	Object *ob = ptr->id.data;
-	WrinkleModifierData *wmd = ptr->data;
-
-	return rna_object_shapekey_index_get(ob->data, wmd->shapekey_rest);
-}
-
-static void rna_WrinkleModifier_rest_shape_key_set(PointerRNA *ptr, PointerRNA value)
-{
-	Object *ob = ptr->id.data;
-	WrinkleModifierData *wmd = ptr->data;
-
-	wmd->shapekey_rest = rna_object_shapekey_index_set(ob->data, value, wmd->shapekey_rest);
-}
-
 #else
 
 static PropertyRNA *rna_def_property_subdivision_common(StructRNA *srna, const char type[])
@@ -4968,14 +4952,6 @@ static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "apply_vertex_groups", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WRINKLE_APPLY_VERTEX_GROUPS);
 	RNA_def_property_ui_text(prop, "Apply Vertex Groups", "Store influence of wrinkle maps in vertex groups");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "rest_shape_key", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_struct_type(prop, "ShapeKey");
-	RNA_def_property_pointer_funcs(prop, "rna_WrinkleModifier_rest_shape_key_get",
-	                               "rna_WrinkleModifier_rest_shape_key_set", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Rest Shape Key", "Shape key to define surface compression");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
