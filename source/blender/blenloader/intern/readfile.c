@@ -5306,6 +5306,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			WrinkleModifierData *wmd = (WrinkleModifierData *)md;
 			
 			link_list(fd, &wmd->wrinkle_maps);
+			
+			link_list(fd, &wmd->wrinkle_coeff);
+			for (WrinkleMapCoefficients *coeff = wmd->wrinkle_coeff.first; coeff; coeff = coeff->next) {
+				coeff->C = newdataadr(fd, coeff->C);
+			}
 		}
 	}
 }

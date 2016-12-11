@@ -45,4 +45,8 @@ void BKE_wrinkle_map_move(struct WrinkleModifierData *wmd, int from_index, int t
 
 void BKE_wrinkle_apply(struct Object *ob, struct WrinkleModifierData *wmd, struct DerivedMesh *dm, const float (*orco)[3]);
 
+void BKE_wrinkle_coeff_calc(struct Object *ob, struct WrinkleModifierData *wmd);
+void BKE_wrinkle_coeff_free(struct WrinkleModifierData *wmd);
+bool BKE_wrinkle_has_coeff(struct WrinkleModifierData *wmd);
+
 #endif /* __BKE_WRINKLE_H__ */

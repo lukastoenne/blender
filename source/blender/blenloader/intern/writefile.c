@@ -1834,6 +1834,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			WrinkleModifierData *wmd = (WrinkleModifierData *)md;
 			
 			writelist(wd, DATA, WrinkleMapSettings, &wmd->wrinkle_maps);
+			
+			writelist(wd, DATA, WrinkleMapCoefficients, &wmd->wrinkle_coeff);
+			for (WrinkleMapCoefficients *coeff = wmd->wrinkle_coeff.first; coeff; coeff = coeff->next) {
+				writedata(wd, DATA, sizeof(float) * 4 * coeff->numtris, coeff->C);
+			}
 		}
 	}
 }

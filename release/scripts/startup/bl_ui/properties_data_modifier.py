@@ -1089,6 +1089,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "blend_variance")
         col.prop(md, "blend_smoothness")
 
+        row = layout.row(align=True)
+        if md.has_coefficients:
+            row.operator("modifier.wrinkle_coeffs_calculate", icon='FILE_REFRESH')
+            row.operator("modifier.wrinkle_coeffs_clear", text="", icon='X')
+        else:
+            row.operator("modifier.wrinkle_coeffs_calculate", icon='ERROR')
+
         '''
         layout.separator()
 

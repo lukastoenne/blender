@@ -28,6 +28,30 @@ class WrinkleOperator():
         return hasattr(context, "modifier")
 
 
+class WrinkleCoeffsCalculate(WrinkleOperator, Operator):
+    """Calculate wrinkle map coefficients"""
+    bl_idname = "modifier.wrinkle_coeffs_calculate"
+    bl_label = "Calculate Coefficients"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        md = context.modifier
+        md.calculate_coefficients()
+        return {'FINISHED'}
+
+
+class WrinkleCoeffsClear(WrinkleOperator, Operator):
+    """Clear wrinkle map coefficients"""
+    bl_idname = "modifier.wrinkle_coeffs_clear"
+    bl_label = "Clear Coefficients"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        md = context.modifier
+        md.clear_coefficients()
+        return {'FINISHED'}
+
+
 class WrinkleMapAdd(WrinkleOperator, Operator):
     """Add a new wrinkle map"""
     bl_idname = "modifier.wrinkle_map_add"

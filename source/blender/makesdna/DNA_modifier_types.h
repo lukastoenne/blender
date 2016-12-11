@@ -1590,6 +1590,19 @@ typedef struct WrinkleMapSettings {
 	char defgrp_name[64];       /* Name of vertex group to modify. MAX_VGROUP_NAME. */
 } WrinkleMapSettings;
 
+/* Per-triangle influence factors for wrinkle maps.
+ * For details see appendix A of the paper
+ * "Animating Wrinkles on Clothes" (Hadap et al, 1999)
+ */
+typedef struct WrinkleMapCoefficients {
+	struct WrinkleMapCoefficients *next, *prev;
+	
+	char name[64];          /* wrinkle map name, MAX_NAME */
+	float (*C)[4];          /* factors C1..C4, per triangle */
+	int numtris;            /* triangle count */
+	int pad;
+} WrinkleMapCoefficients;
+
 typedef struct WrinkleModifierData {
 	ModifierData modifier;
 	
@@ -1600,6 +1613,8 @@ typedef struct WrinkleModifierData {
 	
 	float blend_variance;
 	float blend_smoothness;
+	
+	ListBase wrinkle_coeff;
 } WrinkleModifierData;
 
 /* Wrinkle modifier flags */

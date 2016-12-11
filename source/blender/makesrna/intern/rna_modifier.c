@@ -1185,6 +1185,22 @@ static int rna_WrinkleModifier_active_wrinkle_map_poll(PointerRNA *ptr, const Po
 	return BLI_findindex(&wmd->wrinkle_maps, map_ptr.data) != -1;
 }
 
+static int rna_WrinkleModifier_has_coefficients_get(PointerRNA *ptr)
+{
+	WrinkleModifierData *wmd = ptr->data;
+	return BKE_wrinkle_has_coeff(wmd);
+}
+
+static void rna_WrinkleModifier_calculate_coefficients(ID *id, WrinkleModifierData *wmd, ReportList *UNUSED(reports))
+{
+	BKE_wrinkle_coeff_calc((Object *)id, wmd);
+}
+
+static void rna_WrinkleModifier_clear_coefficients(WrinkleModifierData *wmd)
+{
+	BKE_wrinkle_coeff_free(wmd);
+}
+
 static WrinkleMapSettings *rna_WrinkleModifier_wrinkle_maps_new(ID *id, WrinkleModifierData *wmd, ReportList *UNUSED(reports))
 {
 	WrinkleMapSettings *map = BKE_wrinkle_map_add(wmd);
@@ -4902,6 +4918,24 @@ static void rna_def_wrinkle_maps(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_ui_description(func, "Remove all wrinkle maps from the modifier");
 }
 
+static void rna_def_modifier_wrinkle_api(StructRNA *srna)
+{
+	FunctionRNA *func;
+	PropertyRNA *prop;
+
+	func = RNA_def_function(srna, "calculate_coefficients", "rna_WrinkleModifier_calculate_coefficients");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Calculate coefficients for wrinkle map influence");
+
+	func = RNA_def_function(srna, "clear_coefficients", "rna_WrinkleModifier_clear_coefficients");
+	RNA_def_function_ui_description(func, "Remove cached coefficients");
+
+	prop = RNA_def_property(srna, "has_coefficients", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_WrinkleModifier_has_coefficients_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Has Wrinkle Map Coefficients", "");
+}
+
 static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4953,6 +4987,8 @@ static void rna_def_modifier_wrinkle(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_WRINKLE_APPLY_VERTEX_GROUPS);
 	RNA_def_property_ui_text(prop, "Apply Vertex Groups", "Store influence of wrinkle maps in vertex groups");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	rna_def_modifier_wrinkle_api(srna);
 }
 
 void RNA_def_modifier(BlenderRNA *brna)
