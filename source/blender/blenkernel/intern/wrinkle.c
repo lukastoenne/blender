@@ -181,8 +181,8 @@ typedef struct TriDeform {
  *    o----------------o--
  *          x          L
  */
-static void get_triangle_shape(const float co1[3], const float co2[3], const float co3[3],
-                               float *L, float *H, float *x)
+BLI_INLINE void get_triangle_shape_ex(const float co1[3], const float co2[3], const float co3[3],
+                                      float *L, float *H, float *x, float trimat[3][3])
 {
 	float v1[3], v2[3];
 	sub_v3_v3v3(v1, co2, co1);
@@ -193,6 +193,18 @@ static void get_triangle_shape(const float co1[3], const float co2[3], const flo
 	*x = dot_v3v3(v2, s);
 	madd_v3_v3v3fl(t, v2, s, -(*x));
 	*H = len_v3(t);
+	
+	if (trimat) {
+		copy_v3_v3(trimat[0], s);
+		normalize_v3_v3(trimat[1], t);
+		cross_v3_v3v3(trimat[2], trimat[0], trimat[1]);
+	}
+}
+
+BLI_INLINE void get_triangle_shape(const float co1[3], const float co2[3], const float co3[3],
+                                   float *L, float *H, float *x)
+{
+	return get_triangle_shape_ex(co1, co2, co3, L, H, x, NULL);
 }
 
 /* Get a 2D transform from the original triangle to the deformed,
@@ -657,7 +669,7 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
                                                 const float (*data)[3], const float (*refdata)[3])
 {
 #ifdef WRINKLE_DEBUG
-	int debug_nth = 10;
+	int debug_nth = 1;
 #endif
 	
 	for (int i = 0; i < numtris; ++i) {
@@ -666,11 +678,45 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 		int k1 = tri_verts[i].tri[1];
 		int k2 = tri_verts[i].tri[2];
 		
-		float u[3], v[3], us[3], vs[3], p[3], q[3];
+		/* triangle space coordinates */
+		float u[3], v[3];
+		float trimat[3][3], itrimat[3][3];
+		get_triangle_shape_ex(refdata[k0], refdata[k1], refdata[k2], &u[0], &v[1], &v[0], trimat);
+		u[1] = 0.0f;
+		u[2] = 0.0f;
+		v[2] = 0.0f;
+		transpose_m3_m3(itrimat, trimat); /* cheap invert for orthogonal matrix */
+		
+		/* shape coordinates in triangle space */
+		float us[3], vs[3];
+		sub_v3_v3v3(us, data[k1], data[k0]);
+		sub_v3_v3v3(vs, data[k2], data[k0]);
+		mul_m3_v3(itrimat, us);
+		mul_m3_v3(itrimat, vs);
+		
+#if 0
+		float u[2], v[2]; /* base triangle shape */
+		float us[2], vs[2]; /* wrinkled triangle shape */
+		get_triangle_shape(refdata[k0], refdata[k1], refdata[k2], &u[0], &v[1], &v[0]);
+		u[1] = 0.0f; /* aligned with triangle x axis */
+		get_triangle_shape(data[k0], data[k1], data[k2], &us[0], &vs[1], &vs[0]);
+		us[1] = 0.0f; /* aligned with triangle x axis */
+		
+		float p[2], q[2];
+		sub_v2_v2v2(p, us, u);
+		sub_v2_v2v2(q, vs, v);
+		
+		float N = cross_v2v2(u, v);
+		float Ns = cross_v2v2(us, vs);
+#endif
+		
+#if 0
 		sub_v3_v3v3(u, refdata[k1], refdata[k0]);
 		sub_v3_v3v3(v, refdata[k2], refdata[k0]);
 		sub_v3_v3v3(us, data[k1], data[k0]);
 		sub_v3_v3v3(vs, data[k2], data[k0]);
+#endif
+		float p[3], q[3];
 		sub_v3_v3v3(p, us, u);
 		sub_v3_v3v3(q, vs, v);
 		
@@ -688,6 +734,15 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 			C[3] = 0.0f;
 		}
 		
+#if 0
+		float order = signf(Ns[2]);
+		C[0] = 1.0f;
+		C[1] = 0.0f;
+		C[2] = 1.0f;
+		C[3] = order * (Ns[2] - N[2]);
+#endif
+		
+#if 1
 		/* partial derivative of area difference wrt. (a-1), b, (d-1) */
 		C[0] = 0.5f * (N[1]*N[1] + N[2]*N[2]) / lN;
 		C[1] = -0.5f * N[0] * N[1] / lN;
@@ -699,15 +754,22 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 		cross_v3_v3v3(t, us, q);
 		add_v3_v3(dNs, t);
 		C[3] = 0.5f * dot_v3v3(Ns, dNs) / lNs;
+#endif
 		
 #ifdef WRINKLE_DEBUG
+		float X0[3];
+		X0[0] = 0.01; X0[1] = 0.01f; X0[2] = 0.0f;
+		mul_m3_v3(trimat, X0);
+		add_v3_v3(X0, refdata[k0]);
+		
+//		BKE_sim_debug_data_add_vector(X0, trimat[0], 1,0,0, "wrinkle", i, 991);
+//		BKE_sim_debug_data_add_vector(X0, trimat[1], 0,1,0, "wrinkle", i, 992);
+//		BKE_sim_debug_data_add_vector(X0, trimat[2], 0,0,1, "wrinkle", i, 993);
+		
 		if (BLI_ghashutil_inthash(i) % debug_nth == 0) {
 			BKE_sim_debug_data_add_line(refdata[k0], refdata[k1], 0.8,0.8,0.8, "wrinkle", i, 111);
 			BKE_sim_debug_data_add_line(refdata[k1], refdata[k2], 0.8,0.8,0.8, "wrinkle", i, 112);
 			BKE_sim_debug_data_add_line(refdata[k2], refdata[k0], 0.8,0.8,0.8, "wrinkle", i, 113);
-			
-			float X0[3];
-			madd_v3_v3v3fl(X0, refdata[k0], N, 0.01f);
 			
 //			BKE_sim_debug_data_add_vector(X0, u, 1,0,0, "wrinkle", i, 8374);
 //			BKE_sim_debug_data_add_vector(X0, v, 0,1,0, "wrinkle", i, 8375);
@@ -715,10 +777,17 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 //			BKE_sim_debug_data_add_vector(X0, us, 1,0,0.7, "wrinkle", i, 8384);
 //			BKE_sim_debug_data_add_vector(X0, vs, 0,1,0.7, "wrinkle", i, 8385);
 			
-			BKE_sim_debug_data_add_vector(X0, N, 1,0,0, "wrinkle", i, 8374);
-			BKE_sim_debug_data_add_vector(X0, Ns, 1,0,1, "wrinkle", i, 8375);
+//			BKE_sim_debug_data_add_vector(X0, N, 1,0,0, "wrinkle", i, 8374);
+//			BKE_sim_debug_data_add_vector(X0, Ns, 1,0,1, "wrinkle", i, 8375);
+//			BKE_sim_debug_data_add_vector(X0, dNs, 1,1,0, "wrinkle", i, 8376);
 			
-			BKE_sim_debug_data_add_vector(X0, dNs, 1,1,0, "wrinkle", i, 8376);
+//			float tmp[3];
+//			mul_v3_m3v3(tmp, trimat, us);
+//			mul_v3_fl(tmp, C[0]);
+//			BKE_sim_debug_data_add_vector(X0, tmp, 1,0,0, "wrinkle", i, 823);
+//			mul_v3_m3v3(tmp, trimat, vs);
+//			mul_v3_fl(tmp, C[2]);
+//			BKE_sim_debug_data_add_vector(X0, tmp, 0,1,0, "wrinkle", i, 824);
 		}
 #endif
 	}
