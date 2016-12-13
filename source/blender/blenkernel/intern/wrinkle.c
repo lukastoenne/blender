@@ -251,8 +251,6 @@ static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3],
 {
 	BLI_assert(orco != NULL);
 	
-	DM_ensure_looptri(dm);
-	
 	int numverts = dm->getNumVerts(dm);
 	int numtris = dm->getNumLoopTri(dm);
 	BLI_assert(coeff->numtris == numtris);
@@ -630,10 +628,27 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 	if (!(apply_displace || apply_vgroups))
 		return;
 	
+	DM_ensure_looptri(dm);
+	
+	{
+		WrinkleMapCoefficients *coeff = wmd->wrinkle_coeff.first;
+		if (!coeff) {
+			modifier_setError(&wmd->modifier, "Wrinkle coefficients missing");
+			return;
+		}
+		
+		int numtris = dm->getNumLoopTri(dm);
+		if (coeff->numtris != numtris) {
+			modifier_setError(&wmd->modifier, "Triangles changed from %d to %d", coeff->numtris, numtris);
+			return;
+		}
+	}
+	
 	int numverts = dm->getNumVerts(dm);
 	
 	ListBase map_cache;
 	build_wrinkle_map_cache(ob, &map_cache);
+	
 	cache_wrinkle_map_influence(&wmd->wrinkle_coeff, &map_cache, dm, orco);
 	blend_wrinkle_influence(wmd, numverts, &map_cache);
 	

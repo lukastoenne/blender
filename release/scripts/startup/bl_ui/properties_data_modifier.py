@@ -1094,7 +1094,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("modifier.wrinkle_coeffs_calculate", icon='FILE_REFRESH')
             row.operator("modifier.wrinkle_coeffs_clear", text="", icon='X')
         else:
-            row.operator("modifier.wrinkle_coeffs_calculate", icon='ERROR')
+            row.operator("modifier.wrinkle_coeffs_calculate", icon='FILE_REFRESH')
 
         '''
         layout.separator()
