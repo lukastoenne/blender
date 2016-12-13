@@ -268,7 +268,7 @@ static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3],
 		
 		const float *C = coeff->C[i];
 		float h;
-		if (C[3] == 0.0f)
+		if (fabs(C[3]) < 1.0e-6f)
 			h = 1.0f;
 		else
 			h = 1.0f - (C[0]*(idef.a - 1.0f) + C[1]*idef.b + C[2]*(idef.d - 1.0f)) / C[3];
