@@ -750,14 +750,40 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 		}
 		
 #if 0
-		float order = signf(Ns[2]);
-		C[0] = 1.0f;
-		C[1] = 0.0f;
-		C[2] = 1.0f;
-		C[3] = order * (Ns[2] - N[2]);
+		float duda[3] = { -u[0], 0.0f, 0.0f };
+		float dudb[3] = { u[1], 0.0f, 0.0f };
+		float dudd[3] = { 0.0f, -u[1], 0.0f };
+		float dvda[3] = { -v[0], 0.0f, 0.0f };
+		float dvdb[3] = { v[1], 0.0f, 0.0f };
+		float dvdd[3] = { 0.0f, -v[1], 0.0f };
+		
+		float t[3];
+		normalize_v3_v3(t, Ns);
+		
+		float du[3], dv[3];
+		cross_v3_v3v3(du, duda, Ns);
+		cross_v3_v3v3(dv, dvda, Ns);
+		C[0] = dot_v3v3(t, du) + dot_v3v3(t, dv);
+		cross_v3_v3v3(du, dudb, Ns);
+		cross_v3_v3v3(dv, dvdb, Ns);
+		C[1] = dot_v3v3(t, du) + dot_v3v3(t, dv);
+		cross_v3_v3v3(du, dudd, Ns);
+		cross_v3_v3v3(dv, dvdd, Ns);
+		C[2] = dot_v3v3(t, du) + dot_v3v3(t, dv);
+		cross_v3_v3v3(du, p, Ns);
+		cross_v3_v3v3(dv, q, Ns);
+		C[3] = dot_v3v3(t, du) + dot_v3v3(t, dv);
 #endif
 		
 #if 1
+		float order = signf(Ns[2]);
+		C[0] = order * (v[0]*us[1] - u[0]*vs[1]);
+		C[1] = order * (v[1]*p[1] - u[1]*q[1]);
+		C[2] = order * (u[1]*vs[0] - v[1]*us[0]);
+		C[3] = order * (Ns[2] - N[2]);
+#endif
+		
+#if 0
 		/* partial derivative of area difference wrt. (a-1), b, (d-1) */
 		C[0] = 0.5f * (N[1]*N[1] + N[2]*N[2]) / lN;
 		C[1] = -0.5f * N[0] * N[1] / lN;
