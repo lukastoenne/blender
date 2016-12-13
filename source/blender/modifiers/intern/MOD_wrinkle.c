@@ -58,6 +58,8 @@ static void initData(ModifierData *md)
 	
 	wmd->flag = MOD_WRINKLE_APPLY_DISPLACEMENT;
 	
+	wmd->blend_variance = 0.15f;
+	
 	/* XXX linker hack: only using BKE_wrinkle functions from RNA
 	 * does not prevent them from being stripped!
 	 */

@@ -1612,7 +1612,7 @@ typedef struct WrinkleModifierData {
 	ListBase wrinkle_maps;
 	
 	float blend_variance;
-	float blend_smoothness;
+	int pad;
 	
 	ListBase wrinkle_coeff;
 } WrinkleModifierData;

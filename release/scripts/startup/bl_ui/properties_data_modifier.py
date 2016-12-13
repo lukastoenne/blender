@@ -1087,7 +1087,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "apply_vertex_groups")
 
         col.prop(md, "blend_variance")
-        col.prop(md, "blend_smoothness")
 
         row = layout.row(align=True)
         if md.has_coefficients:
