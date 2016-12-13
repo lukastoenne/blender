@@ -245,20 +245,15 @@ static void get_triangle_deform(TriDeform *def, TriDeform *idef,
 }
 
 /* create an array of per-vertex influence for a given wrinkle map */
-static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3],
+static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3], const MVertTri *tri_verts,
                                       const WrinkleMapCoefficients *coeff,
                                       float *influence)
 {
 	BLI_assert(orco != NULL);
 	
-	int numverts = dm->getNumVerts(dm);
 	int numtris = dm->getNumLoopTri(dm);
 	BLI_assert(coeff->numtris == numtris);
 	const MVert *mverts = dm->getVertArray(dm);
-	
-	MVertTri *tri_verts;
-	int *vert_numtri;
-	cache_triangles(&tri_verts, &vert_numtri, dm);
 	
 	for (int i = 0; i < numtris; ++i) {
 		TriDeform def, idef;
@@ -271,25 +266,8 @@ static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3],
 		else
 			h = 1.0f - (C[0]*(idef.a - 1.0f) + C[1]*idef.b + C[2]*(idef.d - 1.0f)) / C[3];
 		
-		float weight = 1.0f - h;
-		for (int k = 0; k < 3; ++k) {
-			int v = tri_verts[i].tri[k];
-			
-			influence[v] += weight;
-		}
+		influence[i] = h;
 	}
-	
-	for (int i = 0; i < numverts; ++i) {
-		if (vert_numtri[i] > 0) {
-			float avg_weight = influence[i] / (float)vert_numtri[i];
-			CLAMP_MIN(avg_weight, 0.0f);
-			
-			influence[i] = avg_weight;
-		}
-	}
-	
-	MEM_freeN(tri_verts);
-	MEM_freeN(vert_numtri);
 }
 
 /* ========================================================================= */
@@ -303,6 +281,7 @@ typedef struct WrinkleMapCache {
 	MDeformVert *dvert, *dvert_orig;
 	
 	float *influence;
+	float *vertex_weight;
 } WrinkleMapCache;
 
 static void build_wrinkle_map_cache(Object *ob, ListBase *map_cache)
@@ -351,6 +330,7 @@ static void build_wrinkle_map_cache(Object *ob, ListBase *map_cache)
 		}
 		
 		map->influence = NULL;
+		map->vertex_weight = NULL;
 		
 		BLI_addtail(map_cache, map);
 	}
@@ -364,6 +344,8 @@ static void free_wrinkle_map_cache(Object *ob, ListBase *map_cache)
 	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
 		if (map->influence)
 			MEM_freeN(map->influence);
+		if (map->vertex_weight)
+			MEM_freeN(map->vertex_weight);
 		
 		for (int i = 0; i < numverts; ++i) {
 			if (map->dvert[i].dw)
@@ -373,27 +355,6 @@ static void free_wrinkle_map_cache(Object *ob, ListBase *map_cache)
 		MEM_freeN(map->dvert_orig);
 	}
 	BLI_freelistN(map_cache);
-}
-
-static WrinkleMapCoefficients *find_wrinkle_coefficients(const ListBase *wrinkle_coeff, const char *name)
-{
-	return BLI_findstring(wrinkle_coeff, name, offsetof(WrinkleMapCoefficients, name));
-}
-
-static void cache_wrinkle_map_influence(const ListBase *wrinkle_coeff, const ListBase *map_cache, DerivedMesh *dm, const float (*orco)[3])
-{
-	int numverts = dm->getNumVerts(dm);
-	
-	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
-		BLI_assert(map->influence == NULL);
-		map->influence = MEM_mallocN(sizeof(float) * numverts, "wrinkle map influence");
-		
-		const WrinkleMapCoefficients *coeff = find_wrinkle_coefficients(wrinkle_coeff, map->keyblock->name);
-		if (coeff)
-			get_wrinkle_map_influence(dm, orco, coeff, map->influence);
-		else
-			memset(map->influence, 0, sizeof(float) * numverts);
-	}
 }
 
 /* ========================================================================= */
@@ -416,25 +377,84 @@ BLI_INLINE float smooth_blend(float weight, float sum, float variance, float smo
 	return factor * weight;
 }
 
-static void blend_wrinkle_influence(WrinkleModifierData *wmd, int numverts, ListBase *map_cache)
+static void blend_wrinkle_influence(const ListBase *map_cache, int numtris, float var, float smooth)
 {
-	const float var = wmd->blend_variance;
-	const float smooth = wmd->blend_smoothness;
-	
-	float *sum = MEM_callocN(sizeof(float) * numverts, "map influence sum");
+	float *sum = MEM_callocN(sizeof(float) * numtris, "map influence sum");
 	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
-		for (int i = 0; i < numverts; ++i) {
+		for (int i = 0; i < numtris; ++i) {
 			sum[i] += map->influence[i];
 		}
 	}
 	
 	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
-		for (int i = 0; i < numverts; ++i) {
+		for (int i = 0; i < numtris; ++i) {
 			map->influence[i] = smooth_blend(map->influence[i], sum[i], var, smooth);
 		}
 	}
 	
 	MEM_freeN(sum);
+}
+
+static void bake_vertex_influence(const ListBase *map_cache, int numtris, int numverts,
+                                  const MVertTri *tri_verts, const int *vert_numtri)
+{
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		BLI_assert(map->influence != NULL);
+		
+		BLI_assert(map->vertex_weight == NULL);
+		map->vertex_weight = MEM_callocN(sizeof(float) * numverts, "wrinkle vertex weight");
+		
+		for (int i = 0; i < numtris; ++i) {
+			float weight = 1.0f - map->influence[i];
+			for (int k = 0; k < 3; ++k) {
+				int v = tri_verts[i].tri[k];
+				
+				map->vertex_weight[v] += weight;
+			}
+		}
+		
+		for (int i = 0; i < numverts; ++i) {
+			if (vert_numtri[i] > 0) {
+				float avg_weight = map->vertex_weight[i] / (float)vert_numtri[i];
+				CLAMP_MIN(avg_weight, 0.0f);
+				
+				map->vertex_weight[i] = avg_weight;
+			}
+		}
+	}
+}
+
+static WrinkleMapCoefficients *find_wrinkle_coefficients(const ListBase *wrinkle_coeff, const char *name)
+{
+	return BLI_findstring(wrinkle_coeff, name, offsetof(WrinkleMapCoefficients, name));
+}
+
+static void cache_wrinkle_map_influence(const WrinkleModifierData *wmd, const ListBase *map_cache,
+                                        DerivedMesh *dm, const float (*orco)[3])
+{
+	int numtris = dm->getNumLoopTri(dm);
+	int numverts = dm->getNumVerts(dm);
+	
+	MVertTri *tri_verts;
+	int *vert_numtri;
+	cache_triangles(&tri_verts, &vert_numtri, dm);
+	
+	for (WrinkleMapCache *map = map_cache->first; map; map = map->next) {
+		BLI_assert(map->influence == NULL);
+		map->influence = MEM_mallocN(sizeof(float) * numtris, "wrinkle map influence");
+		
+		const WrinkleMapCoefficients *coeff = find_wrinkle_coefficients(&wmd->wrinkle_coeff, map->keyblock->name);
+		if (coeff)
+			get_wrinkle_map_influence(dm, orco, tri_verts, coeff, map->influence);
+		else
+			memset(map->influence, 0, sizeof(float) * numtris);
+	}
+	
+	blend_wrinkle_influence(map_cache, numtris, wmd->blend_variance, wmd->blend_smoothness);
+	bake_vertex_influence(map_cache, numtris, numverts, tri_verts, vert_numtri);
+	
+	MEM_freeN(tri_verts);
+	MEM_freeN(vert_numtri);
 }
 
 /* ========================================================================= */
@@ -593,7 +613,7 @@ static float* wrinkle_shapekey_eval(Object *ob, ModifierData *wrinkle_md, int nu
 		 */
 		const bool use_clamp = true;
 		
-		wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, map->dvert, use_clamp);
+		wrinkle_set_vgroup_weights(map->vertex_weight, numverts, map->defgrp_index, map->dvert, use_clamp);
 	}
 	
 	/* temporarily disable modifiers behind (and including) the wrinkle modifier */
@@ -649,8 +669,7 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 	ListBase map_cache;
 	build_wrinkle_map_cache(ob, &map_cache);
 	
-	cache_wrinkle_map_influence(&wmd->wrinkle_coeff, &map_cache, dm, orco);
-	blend_wrinkle_influence(wmd, numverts, &map_cache);
+	cache_wrinkle_map_influence(wmd, &map_cache, dm, orco);
 	
 	if (apply_displace) {
 		float (*coords)[3] = (float (*)[3])wrinkle_shapekey_eval(ob, &wmd->modifier, numverts, &map_cache);
@@ -671,7 +690,7 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 			}
 			
 			if (dvert)
-				wrinkle_set_vgroup_weights(map->influence, numverts, map->defgrp_index, dvert, false);
+				wrinkle_set_vgroup_weights(map->vertex_weight, numverts, map->defgrp_index, dvert, false);
 		}
 	}
 	
