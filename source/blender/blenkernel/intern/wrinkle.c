@@ -310,11 +310,11 @@ static void build_wrinkle_map_cache(Object *ob, ListBase *map_cache)
 	Mesh *mesh = ob->data;
 	int numverts = mesh->totvert;
 	
+	BLI_listbase_clear(map_cache);
+	
 	Key *key = BKE_key_from_object(ob);
 	if (!key)
 		return;
-	
-	BLI_listbase_clear(map_cache);
 	
 	for (KeyBlock *kb = key->block.first; kb; kb = kb->next) {
 		if (kb == key->refkey
