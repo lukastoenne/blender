@@ -1194,11 +1194,17 @@ static int rna_WrinkleModifier_has_coefficients_get(PointerRNA *ptr)
 static void rna_WrinkleModifier_calculate_coefficients(ID *id, WrinkleModifierData *wmd, ReportList *UNUSED(reports))
 {
 	BKE_wrinkle_coeff_calc((Object *)id, wmd);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
 }
 
-static void rna_WrinkleModifier_clear_coefficients(WrinkleModifierData *wmd)
+static void rna_WrinkleModifier_clear_coefficients(ID *id, WrinkleModifierData *wmd)
 {
 	BKE_wrinkle_coeff_free(wmd);
+	
+	DAG_id_tag_update(id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
 }
 
 static WrinkleMapSettings *rna_WrinkleModifier_wrinkle_maps_new(ID *id, WrinkleModifierData *wmd, ReportList *UNUSED(reports))
@@ -4928,6 +4934,7 @@ static void rna_def_modifier_wrinkle_api(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Calculate coefficients for wrinkle map influence");
 
 	func = RNA_def_function(srna, "clear_coefficients", "rna_WrinkleModifier_clear_coefficients");
+	RNA_def_function_flag(func, FUNC_USE_SELF_ID);
 	RNA_def_function_ui_description(func, "Remove cached coefficients");
 
 	prop = RNA_def_property(srna, "has_coefficients", PROP_BOOLEAN, PROP_NONE);
