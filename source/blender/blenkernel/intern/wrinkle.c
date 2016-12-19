@@ -58,7 +58,7 @@
 
 #include "RE_shader_ext.h"
 
-//#define WRINKLE_DEBUG
+#define WRINKLE_DEBUG
 
 #ifdef WRINKLE_DEBUG
 #include "BKE_effect.h"
@@ -189,9 +189,9 @@ BLI_INLINE void get_triangle_shape_ex(const float co1[3], const float co2[3], co
 	sub_v3_v3v3(v2, co3, co1);
 	
 	float s[3], t[3];
-	*L = normalize_v3_v3(s, v1);
-	*x = dot_v3v3(v2, s);
-	madd_v3_v3v3fl(t, v2, s, -(*x));
+	*L = normalize_v3_v3(s, v2);
+	*x = dot_v3v3(v1, s);
+	madd_v3_v3v3fl(t, v1, s, -(*x));
 	*H = len_v3(t);
 	
 	if (trimat) {
@@ -263,8 +263,33 @@ static void get_wrinkle_map_influence(DerivedMesh *dm, const float (*orco)[3], c
 		float h;
 		if (fabs(C[3]) < 1.0e-6f)
 			h = 1.0f;
-		else
+		else {
 			h = 1.0f - (C[0]*(idef.a - 1.0f) + C[1]*idef.b + C[2]*(idef.d - 1.0f)) / C[3];
+			
+#ifdef WRINKLE_DEBUG
+			const float *co1 = mverts[tri_verts[i].tri[0]].co;
+			const float *co2 = mverts[tri_verts[i].tri[1]].co;
+			const float *co3 = mverts[tri_verts[i].tri[2]].co;
+			float u[3], v[3];
+			sub_v3_v3v3(u, co2, co1);
+			sub_v3_v3v3(v, co3, co1);
+			
+			BKE_sim_debug_data_add_line(co1, co2, 0.8,0.8,0.8, "wrinkles", 8442, i);
+			BKE_sim_debug_data_add_line(co2, co3, 0.8,0.8,0.8, "wrinkles", 8443, i);
+			BKE_sim_debug_data_add_line(co3, co1, 0.8,0.8,0.8, "wrinkles", 8444, i);
+			
+			float X0[3];
+			copy_v3_v3(X0, co1);
+			madd_v3_v3fl(X0, u, 0.01f);
+			madd_v3_v3fl(X0, v, 0.01f);
+			
+			float t[3];
+			mul_v3_v3fl(t, u, C[0]);
+			BKE_sim_debug_data_add_vector(X0, t, 1,0,0, "wrinkles", 8533, i);
+			mul_v3_v3fl(t, v, C[2]);
+			BKE_sim_debug_data_add_vector(X0, t, 0,1,0, "wrinkles", 8534, i);
+#endif
+		}
 		
 		influence[i] = 1.0f - h;
 	}
@@ -699,10 +724,6 @@ void BKE_wrinkle_apply(Object *ob, WrinkleModifierData *wmd, DerivedMesh *dm, co
 static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris, MVertTri *tri_verts,
                                                 const float (*data)[3], const float (*refdata)[3])
 {
-#ifdef WRINKLE_DEBUG
-	int debug_nth = 1;
-#endif
-	
 	for (int i = 0; i < numtris; ++i) {
 		float *C = C_data[i];
 		int k0 = tri_verts[i].tri[0];
@@ -725,28 +746,6 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 		mul_m3_v3(itrimat, us);
 		mul_m3_v3(itrimat, vs);
 		
-#if 0
-		float u[2], v[2]; /* base triangle shape */
-		float us[2], vs[2]; /* wrinkled triangle shape */
-		get_triangle_shape(refdata[k0], refdata[k1], refdata[k2], &u[0], &v[1], &v[0]);
-		u[1] = 0.0f; /* aligned with triangle x axis */
-		get_triangle_shape(data[k0], data[k1], data[k2], &us[0], &vs[1], &vs[0]);
-		us[1] = 0.0f; /* aligned with triangle x axis */
-		
-		float p[2], q[2];
-		sub_v2_v2v2(p, us, u);
-		sub_v2_v2v2(q, vs, v);
-		
-		float N = cross_v2v2(u, v);
-		float Ns = cross_v2v2(us, vs);
-#endif
-		
-#if 0
-		sub_v3_v3v3(u, refdata[k1], refdata[k0]);
-		sub_v3_v3v3(v, refdata[k2], refdata[k0]);
-		sub_v3_v3v3(us, data[k1], data[k0]);
-		sub_v3_v3v3(vs, data[k2], data[k0]);
-#endif
 		float p[3], q[3];
 		sub_v3_v3v3(p, us, u);
 		sub_v3_v3v3(q, vs, v);
@@ -755,9 +754,9 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 		cross_v3_v3v3(N, u, v);
 		cross_v3_v3v3(Ns, us, vs);
 		
-		float lN = len_v3(N);
-		float lNs = len_v3(Ns);
-		if (lN == 0.0f || lNs == 0.0f) {
+		float A = 0.5f * len_v3(N);
+		float As = 0.5f * len_v3(Ns);
+		if (A == 0.0f || As == 0.0f) {
 			/* uses modulation factor 1 */
 			C[0] = 0.0f;
 			C[1] = 0.0f;
@@ -765,55 +764,15 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 			C[3] = 0.0f;
 		}
 		
-#if 0
-		float duda[3] = { -u[0], 0.0f, 0.0f };
-		float dudb[3] = { u[1], 0.0f, 0.0f };
-		float dudd[3] = { 0.0f, -u[1], 0.0f };
-		float dvda[3] = { -v[0], 0.0f, 0.0f };
-		float dvdb[3] = { v[1], 0.0f, 0.0f };
-		float dvdd[3] = { 0.0f, -v[1], 0.0f };
-		
-		float t[3];
-		normalize_v3_v3(t, Ns);
-		
-		float du[3], dv[3];
-		cross_v3_v3v3(du, duda, Ns);
-		cross_v3_v3v3(dv, dvda, Ns);
-		C[0] = dot_v3v3(t, du) + dot_v3v3(t, dv);
-		cross_v3_v3v3(du, dudb, Ns);
-		cross_v3_v3v3(dv, dvdb, Ns);
-		C[1] = dot_v3v3(t, du) + dot_v3v3(t, dv);
-		cross_v3_v3v3(du, dudd, Ns);
-		cross_v3_v3v3(dv, dvdd, Ns);
-		C[2] = dot_v3v3(t, du) + dot_v3v3(t, dv);
-		cross_v3_v3v3(du, p, Ns);
-		cross_v3_v3v3(dv, q, Ns);
-		C[3] = dot_v3v3(t, du) + dot_v3v3(t, dv);
-#endif
-		
-#if 1
-		float order = signf(Ns[2]);
-		C[0] = order * (v[0]*us[1] - u[0]*vs[1]);
-		C[1] = order * (v[1]*p[1] - u[1]*q[1]);
-		C[2] = order * (u[1]*vs[0] - v[1]*us[0]);
-		C[3] = order * (Ns[2] - N[2]);
-#endif
-		
-#if 0
-		/* partial derivative of area difference wrt. (a-1), b, (d-1) */
-		C[0] = 0.5f * (N[1]*N[1] + N[2]*N[2]) / lN;
-		C[1] = -0.5f * N[0] * N[1] / lN;
-		C[2] = 0.5f * (N[0]*N[0] + N[2]*N[2]) / lN;
-		
-		/* partial derivative of area difference wrt. (h-1) */
-		float t[3], dNs[3];
-		cross_v3_v3v3(dNs, p, vs);
-		cross_v3_v3v3(t, us, q);
-		add_v3_v3(dNs, t);
-		C[3] = 0.5f * dot_v3v3(Ns, dNs) / lNs;
-#endif
+		float I0 = As;
+		C[0] = dot_v3v3(p, p) / I0 - I0;
+		C[1] = dot_v3v3(p, q) / I0;
+		C[2] = dot_v3v3(q, q) / I0 - I0;
+		C[3] = (dot_v3v3(p, p) + dot_v3v3(q, q)) / I0;
 		
 #ifdef WRINKLE_DEBUG
+		int debug_nth = 1;
+		
 		float X0[3];
 		X0[0] = 0.01; X0[1] = 0.01f; X0[2] = 0.0f;
 		mul_m3_v3(trimat, X0);
@@ -824,9 +783,9 @@ static void calc_shapekey_triangle_coefficients(float (*C_data)[4], int numtris,
 //		BKE_sim_debug_data_add_vector(X0, trimat[2], 0,0,1, "wrinkle", i, 993);
 		
 		if (BLI_ghashutil_inthash(i) % debug_nth == 0) {
-			BKE_sim_debug_data_add_line(refdata[k0], refdata[k1], 0.8,0.8,0.8, "wrinkle", i, 111);
-			BKE_sim_debug_data_add_line(refdata[k1], refdata[k2], 0.8,0.8,0.8, "wrinkle", i, 112);
-			BKE_sim_debug_data_add_line(refdata[k2], refdata[k0], 0.8,0.8,0.8, "wrinkle", i, 113);
+//			BKE_sim_debug_data_add_line(refdata[k0], refdata[k1], 0.8,0.8,0.8, "wrinkle", i, 111);
+//			BKE_sim_debug_data_add_line(refdata[k1], refdata[k2], 0.8,0.8,0.8, "wrinkle", i, 112);
+//			BKE_sim_debug_data_add_line(refdata[k2], refdata[k0], 0.8,0.8,0.8, "wrinkle", i, 113);
 			
 //			BKE_sim_debug_data_add_vector(X0, u, 1,0,0, "wrinkle", i, 8374);
 //			BKE_sim_debug_data_add_vector(X0, v, 0,1,0, "wrinkle", i, 8375);
