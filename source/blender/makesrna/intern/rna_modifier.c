@@ -4907,16 +4907,16 @@ static void rna_def_wrinkle_maps(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Remove an existing wrinkle map from the modifier");
 	parm = RNA_def_pointer(func, "map", "WrinkleMapSettings", "", "Map to remove");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
-	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+	RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, 0);
 
 	func = RNA_def_function(srna, "move", "rna_WrinkleModifier_wrinkle_maps_move");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Move a wrinkle map in the list");
 	parm = RNA_def_int(func, "from_index", 0, 0, INT_MAX, "", "Index of the wrinkle map to move", 0, INT_MAX);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	parm = RNA_def_int(func, "to_index", 0, 0, INT_MAX, "", "Index to move to", 0, INT_MAX);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 
 	/* clear all modifiers */
 	func = RNA_def_function(srna, "clear", "rna_WrinkleModifier_wrinkle_maps_clear");

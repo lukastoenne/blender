@@ -146,6 +146,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.row().prop(md, "offset_type", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
+        if not bpy.app.build_options.mod_boolean:
+            layout.label("Built without Boolean modifier")
+            return
+
         split = layout.split()
 
         col = split.column()
@@ -1147,6 +1151,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         '''
 
     def REMESH(self, layout, ob, md):
+        if not bpy.app.build_options.mod_remesh:
+            layout.label("Built without Remesh modifier")
+            return
+
         layout.prop(md, "mode")
 
         row = layout.row()
